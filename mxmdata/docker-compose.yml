@@ -1,0 +1,265 @@
+# Docker Compose 配置
+# 注意：version 字段在新版本中已废弃，但保留以兼容旧版本
+#
+# 使用说明：
+# 1. 如果使用 Supabase 云服务：可以注释掉 Supabase 相关服务（postgres, postgrest, gotrue, realtime）
+#    只需要保留 MinIO 和 Redis 服务
+# 2. 如果使用 Supabase 本地开发：启动所有服务，PostgreSQL 是 Supabase 服务栈的一部分
+# 3. 推荐使用 Supabase CLI (`supabase start`) 来管理本地开发环境，更简单
+
+services:
+  # MinIO - 对象存储服务
+  minio:
+    image: minio/minio:latest
+    container_name: mxmai-minio
+    ports:
+      - "9000:9000"  # API 端口
+      - "9001:9001"  # Console 端口
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - ./data/minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - mxmai-network
+
+  # Redis - 缓存和会话存储
+  # 由 mxmdata 统一管理，使用 Docker 启动，避免跨系统问题
+  # 所有服务（如 mxmauth）都通过 localhost:6379 访问 Redis
+  # 注意：本地开发环境默认不设置密码，生产环境请设置 REDIS_PASSWORD
+  redis:
+    image: redis:7-alpine
+    container_name: mxmai-redis
+    ports:
+      - "6379:6379"
+    # 如果设置了 REDIS_PASSWORD 环境变量，Redis 会启用密码保护
+    # 否则无需密码即可访问（适合本地开发）
+    command: >
+      redis-server
+      --appendonly yes
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      # 健康检查：默认无密码，如果设置了密码需要手动配置
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - mxmai-network
+    restart: unless-stopped
+
+  # PostgreSQL - Supabase 服务栈的数据库组件
+  # 注意：这是 Supabase 本地开发环境的一部分，不是单独配置的 PostgreSQL
+  # PostgREST、GoTrue、Realtime 等服务都需要连接到这个 PostgreSQL
+  # 如果使用 Supabase 云服务，可以注释掉所有 Supabase 相关服务（postgres, postgrest, gotrue, realtime）
+  # ⚠️ 使用支持 pgvector 的镜像（知识库功能需要）
+  # 注意：使用 pgvector/pgvector:pg16 以匹配 PostgreSQL 16 版本
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: mxmai-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_HOST: postgres
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./src/database/schemas/supabase-init.sql:/docker-entrypoint-initdb.d/00-supabase-init.sql
+      - ./src/database/schemas/mxmauth.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mxmai-network
+    restart: unless-stopped
+
+  # PostgREST - Supabase REST API 服务
+  # 注意：使用端口 3001 避免与 gateway (3000) 冲突
+  postgrest:
+    image: postgrest/postgrest:latest
+    container_name: mxmai-postgrest
+    ports:
+      - "3001:3000"
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@postgres:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mxmai-network
+    restart: unless-stopped
+
+  # GoTrue - Supabase 认证服务
+  gotrue:
+    image: supabase/gotrue:v2.99.0
+    container_name: mxmai-gotrue
+    ports:
+      - "9999:9999"
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://localhost:9999
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_URI_ALLOW_LIST: "*"
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mxmai-network
+    restart: unless-stopped
+
+  # Realtime - Supabase 实时订阅服务
+  realtime:
+    image: supabase/realtime:v2.25.35
+    container_name: mxmai-realtime
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
+      DB_ENC_KEY: supabaserealtime
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-UpNVntn7c8mAd3h9gPK1x3k4m5n6o7p8q9r0s1t2u3v4w5x6y7z8a9b0c1d2e3f}
+      API_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      FLY_ALLOC_ID: fly123
+      FLY_APP_NAME: realtime
+      SECURE_CHANNELS: "true"
+      ERL_AFLAGS: -proto_dist inet_tcp
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mxmai-network
+    restart: unless-stopped
+
+  # Storage - Supabase 存储服务（可选，我们使用 MinIO）
+  # 注意：如果需要使用 Supabase Storage API，可以启用此服务
+  # storage:
+  #   image: supabase/storage-api:v1.7.0
+  #   container_name: mxmai-storage
+  #   ports:
+  #     - "5000:5000"
+  #   environment:
+  #     ANON_KEY: ${ANON_KEY}
+  #     SERVICE_KEY: ${SERVICE_KEY}
+  #     POSTGREST_URL: http://postgrest:3000
+  #     PGRST_JWT_SECRET: ${JWT_SECRET}
+  #     DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+  #     FILE_SIZE_LIMIT: 52428800
+  #     STORAGE_BACKEND: file
+  #     FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+  #     TENANT_ID: stub
+  #   volumes:
+  #     - ./data/storage:/var/lib/storage
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - mxmai-network
+  #   restart: unless-stopped
+
+  # Postgres Meta - Supabase Studio 元数据管理服务
+  postgres-meta:
+    image: supabase/postgres-meta:v0.88.9
+    container_name: mxmai-postgres-meta
+    ports:
+      - "8080:8080"
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: postgres
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: postgres
+      PG_META_DB_PASSWORD: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mxmai-network
+    restart: unless-stopped
+
+  # Kong - API 网关（Supabase Studio 需要）
+  # Studio 通过 Kong 统一访问所有后端服务
+  kong:
+    image: kong:2.8.1
+    container_name: mxmai-kong
+    ports:
+      - "8000:8000"   # HTTP API
+      - "8443:8443"   # HTTPS API
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+    volumes:
+      - ./data/kong/kong.yml:/var/lib/kong/kong.yml:ro
+    depends_on:
+      - postgrest
+      - gotrue
+      - realtime
+      - postgres-meta
+    networks:
+      - mxmai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # Supabase Studio - 图形化管理界面
+  studio:
+    image: supabase/studio:2025.04.21-sha-173cc56
+    container_name: mxmai-studio
+    ports:
+      - "54323:3000"
+    environment:
+      STUDIO_PG_META_URL: http://postgres-meta:8080
+      POSTGRES_PASSWORD: postgres
+      DEFAULT_ORGANIZATION_NAME: Default Organization
+      DEFAULT_PROJECT_NAME: Default Project
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: http://localhost:8000
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU}
+    depends_on:
+      kong:
+        condition: service_healthy
+      postgres-meta:
+        condition: service_started
+    networks:
+      - mxmai-network
+    restart: unless-stopped
+
+networks:
+  mxmai-network:
+    driver: bridge

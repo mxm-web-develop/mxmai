@@ -1,0 +1,8 @@
+packages:
+  - mxmauth
+  - mxmpay
+  - mxmcgi
+  - mxmagent
+  - mxmnotify
+  - mxmdata
+  - gateway

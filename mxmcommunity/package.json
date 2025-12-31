@@ -1,0 +1,25 @@
+{
+  "name": "@mxmai/mxmcommunity",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "TSUP_ENTRY=src/index.ts tsup --config ../tsup.config.ts --out-dir dist",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:api": "tsx src/scripts/test-api.ts"
+  },
+  "dependencies": {
+    "@mxmai/mxmdata": "workspace:*",
+    "axios": "^1.13.2",
+    "ioredis": "^5.8.2",
+    "svg-captcha": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "vitest": "^4.0.13"
+  }
+}

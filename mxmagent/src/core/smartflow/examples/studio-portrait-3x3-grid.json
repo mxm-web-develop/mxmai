@@ -1,0 +1,69 @@
+{
+  "name": "3x3九宫格室内专业Studio人物写真生成",
+  "version": "1.0.0",
+  "is_public": true,
+  "status": "active" ,
+  "description": "用户上传1-3张参考图片，根据风格偏好生成一张3x3九宫格室内专业studio摄影师人物写真",
+  "schema": {
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "input": [
+          {
+            "name": "reference_images",
+            "type": "image",
+            "description": "参考图片（1-3张，支持base64或URL），用于nano-banana参考生成"
+          },
+          {
+            "name": "style_preference",
+            "type": "text",
+            "description": "风格偏好（可选，如：商务、时尚、艺术等，默认为专业studio风格）"
+          }
+        ],
+        "expected_outputs": [
+          {
+            "type": "image",
+            "name": "portrait_grid",
+            "required": true
+          }
+        ],
+        "smartflow_name": "3x3九宫格Studio人物写真生成"
+      },
+      {
+        "id": "generate_portrait_prompt",
+        "type": "formatter",
+        "format_prompt": "根据用户提供的风格偏好，生成一个详细的图片生成prompt，用于生成一张3x3九宫格室内专业studio摄影师人物写真。\n\n**风格偏好**：{{input.style_preference}}\n\n**关键要求**：\n1. **3x3九宫格布局**：\n   - 生成一张包含3行3列共9张图片\n   - 每个格子展示同人物的不同姿势、表情、角度和景别\n   - 9个格子必须呈现统一风格化的专业写真风格\n\n2. **景别要求**：\n   - 9张照片必须混合多种景别，包括：\n     - **远景（Wide Shot）**：1-2张，展示人物全身及环境，人物在画面中较小\n     - **中景（Medium Shot）**：2-3张，展示人物半身（腰部以上），突出人物姿态和服装\n     - **近景（Close-up Shot）**：2-3张，展示人物胸部以上，突出面部表情和眼神\n     - **特写（Extreme Close-up）**：1-2张，展示人物面部特写或局部特写（如眼睛、嘴唇等），突出细节和质感\n   - 景别要均匀分布在9个格子中，形成视觉层次和节奏感\n\n3. **专业Studio风格**：\n   - 室内专业摄影棚环境\n   - 专业灯光设置（主光、补光、背景光、轮廓光）\n   - 简洁干净的背景（可以是纯色背景或渐变背景）\n   - 专业摄影师拍摄的质感\n   - 高分辨率、清晰锐利\n\n4. **多样化姿势和表情**：\n   - 9个格子应该包含不同的姿势：正面、侧面、半侧面、抬头、低头、回头等\n   - 不同的表情：微笑、严肃、自然、自信、温柔、冷峻等\n   - 不同的眼神：直视镜头、看向侧方、柔和、坚定、迷离等\n   - 不同的手部动作：自然下垂、交叉、托腮、插兜、轻抚头发、扶肩等\n\n5. **专业摄影技术**：\n   - 景深控制：根据景别调整景深，远景景深较大，特写景深较浅，背景适度虚化\n   - 构图：每个格子都是精心构图的专业照片，遵循三分法、黄金分割等构图原则\n   - 色彩：自然、专业、有质感，根据风格偏好调整色调\n   - 细节：服装、配饰、妆容都要精致，特写镜头要突出细节质感\n\n6. **风格要求**：\n   - 根据用户提供的风格偏好（{{input.style_preference}}）调整整体风格\n   - 如果是\"性感\"风格：强调时尚、魅力、自信的气质，服装和姿态要体现性感元素，特写可以突出唇部、眼神等\n   - 如果是\"知性\"风格：强调优雅、专业、智慧的气质，服装和姿态要体现知性魅力，中景和近景突出知性气质\n   - 如果是\"商务\"风格：强调正式、专业、干练的气质，中景和近景为主，突出专业形象\n   - 如果是\"时尚\"风格：强调潮流、前卫、个性的气质，可以包含更多特写和创意构图\n   - 如果是\"艺术\"风格：强调创意、独特、艺术感的气质，景别可以更加多样化\n\n**输出要求**：\n请直接输出图片生成的prompt文本，不要添加任何说明、前缀或格式化。prompt应该用英文编写，详细描述上述所有要求，特别是要明确说明9张照片必须包含远景、中景、近景、特写等多种景别。\n\n**示例prompt结构**：\nA professional 3x3 grid studio portrait photography, indoor professional photography studio, 9 different shots arranged in a 3x3 grid layout with mixed shot types including wide shots (full body), medium shots (upper body), close-up shots (chest up), and extreme close-ups (face details), professional lighting setup, clean background, high resolution, sharp details, professional photographer style, [具体景别分布描述], [具体姿势和表情描述], [服装和配饰描述], [风格偏好描述]\n\n请生成详细的prompt：",
+        "reference_nodes": [],
+        "output_format": "text",
+        "formatter_model": "gpt-5-nano"
+      },
+      {
+        "id": "generate_portrait_grid",
+        "type": "model",
+        "model_type": "image",
+        "model": "nano-banana",
+        "prompt": "{{generate_portrait_prompt.formatted}}",
+        "params": {
+          "image_urls": "{{input.reference_images}}",
+          "aspect_ratio": "1:1",
+          "image_size": "2K"
+        },
+        "reference_nodes": ["generate_portrait_prompt"]
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "output_mapping": {
+          "portrait_grid": "{{generate_portrait_grid.image_urls}}"
+        },
+        "validate_outputs": true
+      }
+    ],
+    "edges": [
+      { "from": "start", "to": "generate_portrait_prompt" },
+      { "from": "generate_portrait_prompt", "to": "generate_portrait_grid" },
+      { "from": "generate_portrait_grid", "to": "end" }
+    ]
+  }
+}

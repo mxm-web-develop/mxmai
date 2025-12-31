@@ -1,0 +1,55 @@
+{
+  "name": "图片编辑智能链示例",
+  "description": "展示如何在智能链中使用图片输入（支持base64和URL）",
+  "schema": {
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "input": [
+          {
+            "name": "image",
+            "type": "image",
+            "description": "输入图片（支持base64或URL）"
+          },
+          {
+            "name": "prompt",
+            "type": "text",
+            "description": "编辑提示词"
+          }
+        ],
+        "expected_outputs": [
+          {
+            "type": "image",
+            "name": "edited_image",
+            "required": true
+          }
+        ],
+        "smartflow_name": "图片编辑工作流"
+      },
+      {
+        "id": "edit_image",
+        "type": "model",
+        "model_type": "image",
+        "model": "nano-banana",
+        "prompt": "{{input.prompt}}",
+        "params": {
+          "image": "{{input.image}}",
+          "aspect_ratio": "16:9"
+        }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "output_mapping": {
+          "edited_image": "{{edit_image.image_urls}}"
+        },
+        "validate_outputs": true
+      }
+    ],
+    "edges": [
+      { "from": "start", "to": "edit_image" },
+      { "from": "edit_image", "to": "end" }
+    ]
+  }
+}

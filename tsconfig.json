@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "baseUrl": "."
+  },
+  "include": [
+    "mxmauth/src/**/*.ts",
+    "mxmcgi/src/**/*.ts",
+    "mxmagent/src/**/*.ts",
+    "mxmnotify/src/**/*.ts",
+    "mxmdata/src/**/*.ts",
+    "gateway/src/**/*.ts"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@mxmai/mxmdata",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "docker compose up -d",
+    "build": "TSUP_ENTRY=src/index.ts tsup --config ../tsup.config.ts --out-dir dist",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:connection": "tsx src/scripts/test-connection.ts",
+    "test:functionality": "tsx src/scripts/test-functionality.ts",
+    "test:create": "tsx src/scripts/test-supabase-create.ts",
+    "init:db": "tsx src/scripts/init-database.ts",
+    "init:smartflow-tables": "tsx src/scripts/init-smartflow-tables.ts",
+    "init:smartflows": "tsx src/scripts/init-smartflows.ts",
+    "init:prompt-templates": "tsx src/scripts/init-prompt-templates.ts",
+    "create:admin": "tsx src/scripts/create-admin-user.ts",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:ps": "docker compose ps",
+    "docker:restart": "docker compose restart",
+    "reset:db": "docker compose restart postgrest",
+    "docker:pull": "docker compose pull",
+    "proxy:setup": "./setup-docker-proxy.sh",
+    "minio:open": "open http://localhost:9001",
+    "supabase:open": "open http://localhost:54323"
+  }
+}

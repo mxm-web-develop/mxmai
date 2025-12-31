@@ -1,0 +1,35 @@
+### MXM Monorepo 开发约束
+
+1. **数据访问层（mxmdata）**
+   - 所有业务服务必须通过 `@mxmai/mxmdata` 提供的 Repository / Service 访问数据库或对象存储，严禁直接写 SQL、直接访问 PostgreSQL、直接连接 Supabase REST。
+   - 需要数据操作时，使用 `RepositoryFactory`（或已暴露的 helper）创建仓库实例；如果缺少所需接口，先在 `mxmdata` 中扩展接口和适配器，再在业务模块调用。
+   - 任何 ORM（TypeORM、Prisma、Sequelize 等）禁用；不要在业务模块定义实体或 schema，统一在 `mxmdata/src/database/schemas` 管理。
+   - Supabase 环境变量 (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`) 必须配置在使用到 mxmdata 的模块 `.env` 中；`SUPABASE_URL` 一律指向 Kong (`http://localhost:8000` 或部署后的网关域名)。
+
+2. **网关层（gateway）**
+   - 所有对外 API 必须通过 Gateway (`http://localhost:3000/api/v1/...`) 暴露；禁止让模块自己开放公共端口或绕过 Gateway。
+   - 新增/修改 API 时，同时更新 `gateway/README.md` 中的路由表、权限说明、示例请求。
+   - 内部服务 (`mxmpay`, `mxmauth` 等) 只绑定 `127.0.0.1`，仅接受来自 Gateway 的调用；开发过程中测试也要走 Gateway。
+
+3. **模块通用规范**
+   - 服务框架统一使用 Express + tsx，保持与现有模块结构一致；不要引入 Nest.js 或其他风格的脚手架。
+   - 所有新增配置、脚本、环境变量需在对应模块的 README / env.example 中说明。
+   - 如需调用第三方渠道（支付、存储、监听等），在 `mxmpay/README.md` 或相关模块文档写明接入流程和测试方法。
+
+4. **本地 Supabase/Kong 堆栈**
+   - 若修改数据库 schema，必须同步更新 `mxmdata/src/database/schemas/*.sql` 并提醒执行 `NOTIFY pgrst, 'reload schema';` 或重启 PostgREST。
+   - 提交前确保 `mxmpay/setup-database.sh` 仍可跑通（用于自动初始化表结构和检查 `.env`）。
+
+
+5. **随机ID**
+   - 所有需要唯一标识的场景，使用 `uid` 库生成随机 ID，可以使用“功能/模块_uid"的格式。不要使用 `uuid` 库。
+
+6. **React / React Native 前端类型规范（`moblie` 子项目）**
+   - React 组件统一使用 `import React from 'react';`，Hooks 通过 `React.useState` / `React.useEffect` 等访问；如需兼容 React 19 类型问题，可以在单个文件顶部用 `const useRef = (React as any).useRef`、`const useCallback = (React as any).useCallback` 等方式封装，但必须放在所有 `import` 语句之后。
+   - 避免在 import 行中直接解构 Hooks（如 `import { useRef, useCallback } from 'react';`），以减少与 React 版本 / 类型定义不一致时的报错。
+   - `GestureHandlerRootView` 的类型定义中没有 `style` 属性，需要由外层 `View` 控制布局：`<View style={{ flex: 1 }}><GestureHandlerRootView>{...}</GestureHandlerRootView></View>`。
+   - 对 `includes` 这类字符串方法，若参数可能是 union 类型，统一使用 `const src = String(x); src.includes('...')`，避免被 TS 推断为 `never`。
+   - 如遇到 Hooks 依赖数组的 ESLint 提示，优先按提示补齐依赖，而不是随意禁用规则；确实需要跳过时，要在代码旁给出简短注释说明原因。
+
+遵守以上规则可以避免直接访问数据库或模块端口、保持数据与网关层的一致性，同时在前端部分保持 React 19 下稳定的类型体验。任何偏离上述约束的实现都会被视为违规，需要先讨论再修改。***
+

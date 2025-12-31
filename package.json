@@ -1,0 +1,76 @@
+{
+  "name": "@mxmai",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MXM AI Collection",
+  "scripts": {
+    "dev:mxmauth": "pnpm --filter @mxmai/mxmauth dev",
+    "build:mxmauth": "pnpm --filter @mxmai/mxmauth build",
+    "start:mxmauth": "pnpm --filter @mxmai/mxmauth start",
+    "dev:mxmpay": "pnpm --filter @mxmweb/mxmpay dev",
+    "build:mxmpay": "pnpm --filter @mxmweb/mxmpay build",
+    "start:mxmpay": "pnpm --filter @mxmweb/mxmpay start",
+    "dev:mxmcgi": "pnpm --filter @mxmai/mxmcgi dev",
+    "build:mxmcgi": "pnpm --filter @mxmai/mxmcgi build",
+    "start:mxmcgi": "pnpm --filter @mxmai/mxmcgi start",
+    "dev:mxmagent": "pnpm --filter @mxmai/mxmagent dev",
+    "build:mxmagent": "pnpm --filter @mxmai/mxmagent build",
+    "start:mxmagent": "pnpm --filter @mxmai/mxmagent start",
+    "dev:mxmnotify": "pnpm --filter @mxmai/mxmnotify dev",
+    "build:mxmnotify": "pnpm --filter @mxmai/mxmnotify build",
+    "start:mxmnotify": "pnpm --filter @mxmai/mxmnotify start",
+    "dev:gateway": "pnpm --filter @mxmai/gateway dev",
+    "build:gateway": "pnpm --filter @mxmai/gateway build",
+    "start:gateway": "pnpm --filter @mxmai/gateway start",
+    "dev:mxmdata": "pnpm --filter @mxmai/mxmdata dev",
+    "build:mxmdata": "pnpm --filter @mxmai/mxmdata build",
+    "start:mxmdata": "pnpm --filter @mxmai/mxmdata start",
+    "dev:all": "concurrently \"pnpm dev:mxmauth\" \"pnpm dev:mxmpay\" \"pnpm dev:mxmcgi\" \"pnpm dev:mxmagent\" \"pnpm dev:mxmnotify\" \"pnpm dev:gateway\" --names \"mxmauth,mxmpay,mxmcgi,mxmagent,mxmnotify,gateway\" --prefix-colors \"blue,yellow,cyan,white,magenta,green\"",
+    "start:all": "concurrently \"pnpm start:mxmauth\" \"pnpm start:mxmcgi\" \"pnpm start:mxmagent\" \"pnpm start:mxmnotify\" \"pnpm start:gateway\" --names \"mxmauth,mxmcgi,mxmagent,mxmnotify,gateway\" --prefix-colors \"blue,cyan,white,magenta,green\""
+  },
+  "keywords": [
+    "Ai",
+    "AI Collection",
+    "MXM",
+    "MXM AI Collection"
+  ],
+  "resolutions": {
+    "styled-components": "^6"
+  },
+  "author": "hanfeng_Zhang",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=8"
+  },
+  "pnpm": {},
+  "dependencies": {
+    "@supabase/supabase-js": "^2.84.0",
+    "@types/minio": "^7.1.1",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "minio": "^8.0.6",
+    "sharp": "^0.34.5",
+    "uid": "^2.0.2",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@typescript-eslint/eslint-plugin": "^8.47.0",
+    "@typescript-eslint/parser": "^8.47.0",
+    "@vitest/ui": "^4.0.13",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.1",
+    "prettier": "^3.6.2",
+    "tsup": "^8.5.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.13"
+  }
+}

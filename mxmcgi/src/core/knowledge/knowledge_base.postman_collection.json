@@ -1,0 +1,378 @@
+{
+  "info": {
+    "name": "知识库 API",
+    "description": "知识库完整 API 接口集合",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api/v1/knowledge",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "your-token-here",
+      "type": "string"
+    },
+    {
+      "key": "kb_name",
+      "value": "agent-image",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "知识库管理",
+      "item": [
+        {
+          "name": "1. 创建知识库",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"agent-image\",\n  \"display_name\": \"图像生成知识库\",\n  \"description\": \"图像生成相关的专业知识\",\n  \"type\": \"hybrid\",\n  \"embedding_model\": \"text-embedding-3-small\",\n  \"agent_id\": \"image-generation-agent\",\n  \"agent_name\": \"图像生成助手\",\n  \"is_builtin\": false,\n  \"is_public\": true,\n  \"config\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/bases",
+              "host": ["{{base_url}}"],
+              "path": ["bases"]
+            },
+            "description": "创建知识库。Admin 可以创建公开的知识库，个人用户只能创建私有知识库。"
+          }
+        },
+        {
+          "name": "2. 列出知识库",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bases?is_public=true&limit=10&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["bases"],
+              "query": [
+                {
+                  "key": "is_public",
+                  "value": "true",
+                  "description": "是否公开"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "每页数量"
+                },
+                {
+                  "key": "offset",
+                  "value": "0",
+                  "description": "偏移量"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. 获取知识库信息",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bases/{{kb_name}}",
+              "host": ["{{base_url}}"],
+              "path": ["bases", "{{kb_name}}"]
+            }
+          }
+        },
+        {
+          "name": "4. 更新知识库",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"新名称\",\n  \"description\": \"新描述\",\n  \"is_public\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/bases/{{kb_name}}",
+              "host": ["{{base_url}}"],
+              "path": ["bases", "{{kb_name}}"]
+            }
+          }
+        },
+        {
+          "name": "5. 删除知识库",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bases/{{kb_name}}",
+              "host": ["{{base_url}}"],
+              "path": ["bases", "{{kb_name}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "文档管理",
+      "item": [
+        {
+          "name": "6. 上传文件",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "要上传的文件（TXT、MD、PDF）"
+                },
+                {
+                  "key": "tags",
+                  "value": "[\"摄影\", \"技巧\"]",
+                  "type": "text",
+                  "description": "标签数组（JSON 字符串）"
+                },
+                {
+                  "key": "metadata",
+                  "value": "{\"source\": \"专业教程\", \"category\": \"教程\"}",
+                  "type": "text",
+                  "description": "元数据（JSON 字符串）"
+                },
+                {
+                  "key": "is_public",
+                  "value": "false",
+                  "type": "text",
+                  "description": "是否公开（默认 false）"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/bases/{{kb_name}}/upload",
+              "host": ["{{base_url}}"],
+              "path": ["bases", "{{kb_name}}", "upload"]
+            },
+            "description": "上传文件到知识库。文件会自动解析、分块并生成 embedding。"
+          }
+        },
+        {
+          "name": "7. 列出文档",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bases/{{kb_name}}/documents?limit=10&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["bases", "{{kb_name}}", "documents"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "8. 删除文档",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/documents/:id",
+              "host": ["{{base_url}}"],
+              "path": ["documents", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "doc-123",
+                  "description": "文档 ID"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "搜索检索",
+      "item": [
+        {
+          "name": "9. 向量检索",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"如何拍摄专业人像照片？\",\n  \"search_type\": \"vector\",\n  \"limit\": 5,\n  \"threshold\": 0.7\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/bases/{{kb_name}}/search",
+              "host": ["{{base_url}}"],
+              "path": ["bases", "{{kb_name}}", "search"]
+            },
+            "description": "基于语义相似度的向量检索"
+          }
+        },
+        {
+          "name": "10. 关键词检索",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"黄金时刻\",\n  \"search_type\": \"keyword\",\n  \"limit\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/bases/{{kb_name}}/search",
+              "host": ["{{base_url}}"],
+              "path": ["bases", "{{kb_name}}", "search"]
+            },
+            "description": "基于文本匹配的关键词检索"
+          }
+        },
+        {
+          "name": "11. 混合检索（推荐）",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"如何拍摄人像照片？\",\n  \"search_type\": \"hybrid\",\n  \"limit\": 5,\n  \"threshold\": 0.7,\n  \"vector_weight\": 0.7,\n  \"keyword_weight\": 0.3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/bases/{{kb_name}}/search",
+              "host": ["{{base_url}}"],
+              "path": ["bases", "{{kb_name}}", "search"]
+            },
+            "description": "结合向量检索和关键词检索，加权排序（推荐使用）"
+          }
+        }
+      ]
+    }
+  ]
+}
+

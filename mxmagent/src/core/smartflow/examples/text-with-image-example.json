@@ -1,0 +1,54 @@
+{
+  "name": "图文理解智能链示例",
+  "description": "展示如何在文本生成节点中使用图片输入（gpt-5-nano支持图片输入）",
+  "schema": {
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "input": [
+          {
+            "name": "image",
+            "type": "image",
+            "description": "输入图片（支持base64或URL）"
+          },
+          {
+            "name": "question",
+            "type": "text",
+            "description": "关于图片的问题"
+          }
+        ],
+        "expected_outputs": [
+          {
+            "type": "text",
+            "name": "answer",
+            "required": true
+          }
+        ],
+        "smartflow_name": "图文理解工作流"
+      },
+      {
+        "id": "analyze_image",
+        "type": "model",
+        "model_type": "text",
+        "model": "gpt-5-nano",
+        "prompt": "请分析这张图片并回答以下问题：{{input.question}}",
+        "params": {
+          "image_input": "{{input.image}}"
+        }
+      },
+      {
+        "id": "end",
+        "type": "end",
+        "output_mapping": {
+          "answer": "{{analyze_image.text}}"
+        },
+        "validate_outputs": true
+      }
+    ],
+    "edges": [
+      { "from": "start", "to": "analyze_image" },
+      { "from": "analyze_image", "to": "end" }
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "text": "这是一段试听文本，我现在真的很开心呀，哈哈哈哈",
+  "voice_setting": {
+    "speed": 1.0,
+    "vol": 1.0,
+    "pitch": 0,
+    "emotion": "happy",
+    "text_normalization": false
+  },
+  "audio_setting": {
+    "format": "mp3",
+    "sample_rate": 32000,
+    "bitrate": 128000,
+    "channel": 1
+  },
+  "language_boost": "Chinese",
+  "voice_modify": {
+    "pitch": 0,
+    "intensity": 0,
+    "timbre": 0,
+    "sound_effects": "spacious_echo"
+  },
+  "storeToMinio": true
+}
