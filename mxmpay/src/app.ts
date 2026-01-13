@@ -71,7 +71,15 @@ export async function createApp(): Promise<Express> {
     });
   });
 
-  await walletService.ensureDefaultAssets();
+  // 确保默认资产存在（如果 Supabase 连接失败，不阻止应用启动）
+  try {
+    await walletService.ensureDefaultAssets();
+    console.log('✅ 默认资产检查完成');
+  } catch (error) {
+    console.error('⚠️  默认资产检查失败（应用将继续运行）:', error instanceof Error ? error.message : error);
+    // 不阻止应用启动，允许应用继续运行
+    // 这样即使 Supabase 暂时不可用，应用也能启动，后续可以重试
+  }
 
   const paymentRouter = createPaymentRoutes(paymentService);
   const webhookRouter = createWebhookRoutes(gatewayFactory, paymentService);

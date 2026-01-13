@@ -26,7 +26,8 @@
     "dev:mxmdata": "pnpm --filter @mxmai/mxmdata dev",
     "build:mxmdata": "pnpm --filter @mxmai/mxmdata build",
     "start:mxmdata": "pnpm --filter @mxmai/mxmdata start",
-    "dev:all": "concurrently \"pnpm dev:mxmauth\" \"pnpm dev:mxmpay\" \"pnpm dev:mxmcgi\" \"pnpm dev:mxmagent\" \"pnpm dev:mxmnotify\" \"pnpm dev:gateway\" --names \"mxmauth,mxmpay,mxmcgi,mxmagent,mxmnotify,gateway\" --prefix-colors \"blue,yellow,cyan,white,magenta,green\"",
+    "clear:ports": "bash scripts/clear-ports.sh",
+    "dev:all": "pnpm clear:ports && concurrently \"pnpm dev:mxmauth\" \"pnpm dev:mxmpay\" \"pnpm dev:mxmcgi\" \"pnpm dev:mxmagent\" \"pnpm dev:mxmnotify\" \"pnpm dev:gateway\" --names \"mxmauth,mxmpay,mxmcgi,mxmagent,mxmnotify,gateway\" --prefix-colors \"blue,yellow,cyan,white,magenta,green\"",
     "start:all": "concurrently \"pnpm start:mxmauth\" \"pnpm start:mxmcgi\" \"pnpm start:mxmagent\" \"pnpm start:mxmnotify\" \"pnpm start:gateway\" --names \"mxmauth,mxmcgi,mxmagent,mxmnotify,gateway\" --prefix-colors \"blue,cyan,white,magenta,green\""
   },
   "keywords": [

@@ -62,15 +62,35 @@ export class TaskRecoveryService {
     this.isRunning = true;
     console.log('[TaskRecovery] 启动任务恢复服务...');
 
-    // 启动时恢复卡住的任务
+    // 启动时恢复卡住的任务（如果失败，不阻止服务启动）
     if (this.config.autoRecoverOnStartup) {
+      try {
       await this.recoverStuckTasksOnStartup();
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        // 检查是否是 Supabase 连接错误
+        if (errorMessage.includes('fetch failed') || errorMessage.includes('ECONNREFUSED') || errorMessage.includes('QUERY_ERROR')) {
+          console.warn('[TaskRecovery] ⚠️  启动时恢复失败：Supabase 连接不可用');
+          console.warn('[TaskRecovery] ⚠️  提示：请检查 SUPABASE_URL 和 SUPABASE_ANON_KEY 环境变量是否正确');
+          console.warn('[TaskRecovery] ⚠️  恢复服务将继续运行，但启动时恢复功能暂时不可用');
+        } else {
+          console.error('[TaskRecovery] ⚠️  启动时恢复失败:', errorMessage);
+        }
+        // 不阻止服务启动，允许定期检查继续运行
+      }
     }
 
     // 定期检查超时任务
     this.checkInterval = setInterval(() => {
       this.checkAndRecoverStuckTasks().catch((error) => {
-        console.error('[TaskRecovery] 检查超时任务失败:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        // 如果是连接错误，只记录一次警告，避免日志刷屏
+        if (errorMessage.includes('fetch failed') || errorMessage.includes('ECONNREFUSED')) {
+          // 静默处理连接错误，避免日志过多
+          // console.warn('[TaskRecovery] 检查超时任务失败：Supabase 连接不可用');
+        } else {
+          console.error('[TaskRecovery] 检查超时任务失败:', errorMessage);
+        }
       });
     }, this.config.checkIntervalMs);
 
@@ -115,8 +135,16 @@ export class TaskRecoveryService {
         const lastUpdateTime = task.updatedAt.getTime();
         const timeSinceLastUpdate = now - lastUpdateTime;
         
-        // 对于视频任务，检查间隔应该更长（10分钟），其他任务 5 分钟
-        const checkInterval = task.type === 'video' ? 10 * 60 * 1000 : 5 * 60 * 1000;
+        // 根据任务类型设置检查间隔
+        let checkInterval: number;
+        if (task.type === 'video') {
+          checkInterval = 10 * 60 * 1000; // 视频任务 10 分钟
+        } else if (task.type === 'writing' || task.type === 'text') {
+          checkInterval = 2 * 60 * 1000; // 写作和文本任务 2 分钟（通常较快）
+        } else {
+          checkInterval = 5 * 60 * 1000; // 其他任务 5 分钟
+        }
+        
         if (timeSinceLastUpdate < checkInterval) {
           console.log(`[TaskRecovery] 任务 ${task.id} 最近有更新（${Math.round(timeSinceLastUpdate / 1000)}秒前），跳过恢复`);
           continue;
@@ -152,11 +180,20 @@ export class TaskRecoveryService {
 
       for (const task of processingTasks.tasks) {
         // 首先检查任务是否真的卡住了（通过 updated_at 判断）
-        // 对于视频任务，轮询间隔可能较长（5-10秒），所以检查间隔应该更长
-        // 如果最近有更新（10分钟内），说明任务还在正常进行，跳过检查
+        // 如果最近有更新，说明任务还在正常进行，跳过检查
         const lastUpdateTime = task.updatedAt.getTime();
         const timeSinceLastUpdate = now - lastUpdateTime;
-        const checkInterval = task.type === 'video' ? 10 * 60 * 1000 : 5 * 60 * 1000; // 视频任务 10 分钟，其他 5 分钟
+        
+        // 根据任务类型设置检查间隔
+        let checkInterval: number;
+        if (task.type === 'video') {
+          checkInterval = 10 * 60 * 1000; // 视频任务 10 分钟
+        } else if (task.type === 'writing' || task.type === 'text') {
+          checkInterval = 2 * 60 * 1000; // 写作和文本任务 2 分钟（通常较快）
+        } else {
+          checkInterval = 5 * 60 * 1000; // 其他任务 5 分钟
+        }
+        
         if (timeSinceLastUpdate < checkInterval) {
           // 最近有更新，任务还在正常进行，跳过
           continue;
@@ -236,8 +273,16 @@ export class TaskRecoveryService {
       const lastUpdateTime = task.updatedAt.getTime();
       const timeSinceLastUpdate = now - lastUpdateTime;
 
-      // 对于视频任务，检查间隔应该更长（10分钟），其他任务 5 分钟
-      const checkInterval = task.type === 'video' ? 10 * 60 * 1000 : 5 * 60 * 1000;
+      // 根据任务类型设置检查间隔
+      let checkInterval: number;
+      if (task.type === 'video') {
+        checkInterval = 10 * 60 * 1000; // 视频任务 10 分钟
+      } else if (task.type === 'writing' || task.type === 'text') {
+        checkInterval = 2 * 60 * 1000; // 写作和文本任务 2 分钟（通常较快）
+      } else {
+        checkInterval = 5 * 60 * 1000; // 其他任务 5 分钟
+      }
+      
       if (timeSinceLastUpdate < checkInterval) {
         console.log(`[TaskRecovery] 任务 ${task.id} 最近有更新（${Math.round(timeSinceLastUpdate / 1000)}秒前），跳过恢复`);
         return;
@@ -580,6 +625,10 @@ export class TaskRecoveryService {
     // 文本生成任务通常较快
     if (taskType === 'text') {
       return Math.min(defaultTimeout, 10 * 60 * 1000); // 最多 10 分钟
+    }
+    // 写作任务通常较快（生成文章、大纲等）
+    if (taskType === 'writing') {
+      return Math.min(defaultTimeout, 15 * 60 * 1000); // 最多 15 分钟
     }
     // 视频生成任务需要更长时间（Runway 视频生成可能需要 10-30 分钟甚至更长）
     if (taskType === 'video') {

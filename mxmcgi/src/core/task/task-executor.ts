@@ -68,12 +68,20 @@ export class TaskExecutor {
         startedAt: new Date(),
       });
 
-      // 3. 通过模型文件调用生成接口（与 text 路由逻辑一致）
+      // 3. 检查是否是 writing 任务
+      if (modelName.startsWith('writing-')) {
+        // Writing 任务使用特殊的处理逻辑
+        const { startWritingTask } = await import('../writing/writing-task');
+        await startWritingTask(taskId);
+        return; // Writing 任务在 startWritingTask 内部处理完成
+      }
+
+      // 4. 通过模型文件调用生成接口（与 text 路由逻辑一致）
       // 模型文件的 generate() 内部会使用 providerFactory.getProviderForModel() 自动选择支持的 provider
       // 如果默认 provider 不支持，会自动选择支持的 provider
       const result = await this.callModelGenerate(modelName, params, provider);
       
-      // 4. 更新任务的 metadata 中的 provider（从 result.metadata 中获取，确保正确）
+      // 5. 更新任务的 metadata 中的 provider（从 result.metadata 中获取，确保正确）
       // 这确保即使任务创建时 provider 是 undefined，执行时也会正确设置
       if (result.metadata?.provider) {
         try {
@@ -96,7 +104,7 @@ export class TaskExecutor {
         }
       }
 
-      // 5. 如果有进度流，监听进度更新（异步任务）
+      // 6. 如果有进度流，监听进度更新（异步任务）
       if (result.progress) {
         // 异步处理进度流（不阻塞，在后台执行）
         this.processProgressStream(taskId, result.progress, result, storeToMinio, storageConfig, userId, modelName, provider).catch(
@@ -494,6 +502,8 @@ export class TaskExecutor {
           video: '{userId}/video/{timestamp}-{randomId}.{ext}',
           audio: '{userId}/audio/{timestamp}-{randomId}.{ext}',
           text: '{userId}/text/{timestamp}-{randomId}.{ext}',
+          writing: '{userId}/writing/{timestamp}-{randomId}.{ext}',
+          outlines: '{userId}/outlines/{timestamp}-{randomId}.{ext}',
           other: '{userId}/other/{timestamp}-{randomId}.{ext}',
         };
         

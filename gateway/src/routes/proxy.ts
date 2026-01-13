@@ -26,7 +26,8 @@ export function createProxyRouter(): Router {
     notifications: process.env.MXMNOTIFY_URL || 'http://localhost:4005',
   };
 
-  // mxmnotify 通知服务路由 (/api/v1/notifications) - 需要认证
+  // mxmnotify 通知服务路由 (/api/v1/notifications)
+  // 认证模型与其他模块统一：由 mxmauth+gateway 校验 JWT，gateway 通过 x-user-id/x-username 透传用户信息
   // 将 /api/v1/notifications/* 代理到 mxmnotify 的 /notifications/*
   router.use(
     '/notifications',
@@ -35,9 +36,42 @@ export function createProxyRouter(): Router {
       target: services.notifications,
       changeOrigin: true,
       pathRewrite: (path, req) => {
-        // 将 /api/v1/notifications 替换为 /notifications
         const originalPath = (req as Request).originalUrl || path;
         return originalPath.replace('/api/v1/notifications', '/notifications');
+      },
+      on: {
+        proxyReq: (proxyReq, req: Request) => {
+          const authReq = req as AuthRequest;
+          if (authReq.user) {
+            proxyReq.setHeader('x-user-id', authReq.user.userId);
+            proxyReq.setHeader('x-username', authReq.user.username);
+          }
+          
+          // 重要：使用 fixRequestBody 修复请求体
+          // 当 Express 已经解析了请求体（通过 express.json()）时，
+          // 原始请求流已经被消费，需要使用 fixRequestBody 重新构建请求体
+          fixRequestBody(proxyReq, req);
+        },
+        proxyRes: (proxyRes: any, req: Request, res: Response) => {
+          logger.debug(`[Notifications Proxy] Response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+        },
+        error: (err: Error, req: Request, res: any) => {
+          logger.error(`[Notifications Proxy] Error: ${req.method} ${req.path}`, {
+            message: err.message,
+            stack: err.stack,
+            code: (err as any).code,
+            target: services.notifications,
+          });
+          if (res && typeof res.status === 'function' && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: {
+                code: 'PROXY_ERROR',
+                message: `无法连接到通知服务: ${err.message}`,
+              },
+            });
+          }
+        },
       },
     })
   );
@@ -197,6 +231,14 @@ export function createProxyRouter(): Router {
       // 其他接口需要认证
       return authMiddleware(req as AuthRequest, res, next);
     },
+    createProxyMiddleware(createProxyConfig(services.account))
+  );
+
+  // 资源管理服务路由 (/api/v1/assets) - 需要认证
+  // 文件夹管理接口，代理到 mxmauth 服务
+  router.use(
+    '/assets',
+    authMiddleware,
     createProxyMiddleware(createProxyConfig(services.account))
   );
 
@@ -632,6 +674,19 @@ export function createProxyRouter(): Router {
             proxyReq.setHeader('x-user-id', authReq.user.userId);
             proxyReq.setHeader('x-username', authReq.user.username);
           }
+
+          // 重要：使用 fixRequestBody 修复请求体
+          // Gateway 顶层已经通过 express.json() 解析过 body，原始请求流已被消费
+          // 这里需要将解析后的 JSON 重新写入到代理请求中，否则后端（mxmcgi）的 express.json()
+          // 在读取 body 时会遇到 request aborted / 408 超时
+          if (
+            req.body &&
+            Object.keys(req.body).length > 0 &&
+            req.headers['content-type'] &&
+            req.headers['content-type'].includes('application/json')
+          ) {
+            fixRequestBody(proxyReq, req);
+          }
         },
         proxyRes: (proxyRes: any, req: Request, res: Response) => {
           logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
@@ -744,11 +799,90 @@ export function createProxyRouter(): Router {
     createProxyMiddleware(createProxyConfig(services.agents))
   );
 
+  // mxmcgi 写作服务路由 (/api/v1/writing) - 需要认证
+  // 将 /api/v1/writing/* 代理到 mxmcgi 的 /writing/*
+  // 注意：支持流式响应（SSE），需要确保响应头正确转发
+  router.use(
+    '/writing',
+    authMiddleware,
+    createProxyMiddleware({
+      target: services.generation,
+      changeOrigin: true,
+      timeout: 60000, // 60秒超时（写作操作可能需要较长时间）
+      proxyTimeout: 60000,
+      // http-proxy-middleware 默认支持流式响应，无需特殊配置
+      pathRewrite: (path, req) => {
+        // 将 /api/v1/writing 替换为 /writing
+        const originalPath = (req as Request).originalUrl || path;
+        return originalPath.replace('/api/v1/writing', '/writing');
+      },
+      on: {
+        proxyReq: (proxyReq, req: Request) => {
+          // 转发原始请求头
+          if (req.headers['x-forwarded-for']) {
+            proxyReq.setHeader('x-forwarded-for', req.headers['x-forwarded-for']);
+          }
+          if (req.headers['x-real-ip']) {
+            proxyReq.setHeader('x-real-ip', req.headers['x-real-ip']);
+          }
+          // 转发用户信息（如果已认证）
+          const authReq = req as AuthRequest;
+          if (authReq.user) {
+            proxyReq.setHeader('x-user-id', authReq.user.userId);
+            proxyReq.setHeader('x-username', authReq.user.username);
+          }
+
+          // 重要：使用 fixRequestBody 修复请求体
+          // 当 Express 已经解析了请求体（通过 express.json()）时，
+          // 原始请求流已经被消费，需要使用 fixRequestBody 重新构建请求体
+          fixRequestBody(proxyReq, req);
+        },
+        proxyRes: (proxyRes: any, req: Request, res: Response) => {
+          logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+          
+          // 对于流式响应（SSE），确保响应头正确设置
+          // 必须在数据开始传输之前设置响应头
+          const contentType = proxyRes.headers['content-type'] || '';
+          if (contentType.includes('text/event-stream')) {
+            // 确保 SSE 响应头正确转发（必须在数据开始传输前设置）
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no'); // 禁用 nginx 缓冲（如果使用 nginx）
+            // 确保响应不会被压缩或缓冲
+            res.setHeader('Transfer-Encoding', 'chunked');
+            logger.info(`[Writing Proxy] SSE stream detected, headers set for ${req.path}`);
+          }
+        },
+        error: (err: Error, req: Request, res: any) => {
+          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
+          if (res && typeof res.status === 'function' && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: {
+                code: 'PROXY_ERROR',
+                message: 'Service unavailable',
+              },
+            });
+          }
+        },
+      },
+    })
+  );
+
   // 知识库服务路由 (/api/v1/knowledge)
   // 所有接口需要认证
   router.use(
     '/knowledge',
+    (req: Request, res: Response, next: NextFunction) => {
+      logger.info(`[Knowledge Proxy] Incoming request: ${req.method} ${req.originalUrl || req.path}`);
+      next();
+    },
     authMiddleware,
+    (req: Request, res: Response, next: NextFunction) => {
+      logger.info(`[Knowledge Proxy] After auth, proceeding to proxy: ${req.method} ${req.originalUrl || req.path}`);
+      next();
+    },
     createProxyMiddleware({
       target: services.generation,
       changeOrigin: true,
@@ -757,25 +891,42 @@ export function createProxyRouter(): Router {
       pathRewrite: (path, req) => {
         // 将 /api/v1/knowledge 替换为 /knowledge
         const originalPath = (req as Request).originalUrl || path;
-        const rewritten = originalPath.replace('/api/v1/knowledge', '/knowledge');
-        logger.debug(`[Knowledge Proxy] Path rewrite: ${originalPath} -> ${rewritten}`);
+        // 移除 /api/v1/knowledge 前缀，保留后续路径
+        const rewritten = originalPath.replace(/^\/api\/v1\/knowledge/, '/knowledge');
+        logger.info(`[Knowledge Proxy] Path rewrite: ${originalPath} -> ${rewritten}`);
+        logger.info(`[Knowledge Proxy] Target URL: ${services.generation}${rewritten}`);
         return rewritten;
       },
       on: {
         proxyReq: (proxyReq: any, req: any) => {
-          // 转发用户信息
+          // 转发用户信息（必须在 fixRequestBody 之前设置 header）
           const expressReq = req as AuthRequest;
+          logger.info(`[Knowledge Proxy] Proxying ${req.method} ${req.originalUrl || req.path}`);
           if (expressReq.user) {
             proxyReq.setHeader('x-user-id', expressReq.user.userId);
             proxyReq.setHeader('x-username', expressReq.user.username);
+            logger.info(`[Knowledge Proxy] User: ${expressReq.user.userId} (${expressReq.user.username})`);
+          } else {
+            logger.warn(`[Knowledge Proxy] No user info in request`);
           }
-          logger.debug(`[Knowledge Proxy] Proxying to: ${services.generation}${req.path}`);
+          
+          // 重要：使用 fixRequestBody 修复请求体（必须在设置 header 之后调用）
+          // 因为 Express 已经解析了请求体，原始请求流已经被消费
+          // 需要使用 fixRequestBody 重新构建请求体以便代理转发
+          fixRequestBody(proxyReq, req);
+          
+          logger.info(`[Knowledge Proxy] Target: ${services.generation}${req.path}`);
         },
         proxyRes: (proxyRes: any, req: Request, res: Response) => {
-          logger.debug(`[Knowledge Proxy] Response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+          logger.info(`[Knowledge Proxy] Response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
         },
         error: (err: Error, req: Request, res: any) => {
           logger.error(`[Knowledge Proxy] Proxy error: ${req.method} ${req.path}`, err);
+          logger.error(`[Knowledge Proxy] Error details:`, {
+            message: err.message,
+            stack: err.stack,
+            code: (err as any).code,
+          });
           if (res && typeof res.status === 'function' && !res.headersSent) {
             res.status(502).json({
               success: false,
@@ -784,6 +935,8 @@ export function createProxyRouter(): Router {
                 message: `无法连接到知识库服务: ${err.message}`,
               },
             });
+          } else {
+            logger.error(`[Knowledge Proxy] Cannot send error response: headers already sent or res is invalid`);
           }
         },
       },
@@ -866,11 +1019,21 @@ export function createProxyRouter(): Router {
     })
   );
 
-  // 通知服务路由 (/api/v1/notifications) - 需要认证
+
+  // mxmnotify 任务事件路由 (/api/v1/task-events) - 需要认证
+  // 将 /api/v1/task-events/* 代理到 mxmnotify 的 /task-events/*
   router.use(
-    '/notifications',
+    '/task-events',
     authMiddleware,
-    createProxyMiddleware(createProxyConfig(services.notifications))
+    createProxyMiddleware({
+      target: services.notifications,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        // 将 /api/v1/task-events 替换为 /task-events
+        const originalPath = (req as Request).originalUrl || path;
+        return originalPath.replace('/api/v1/task-events', '/task-events');
+      },
+    })
   );
 
   return router;

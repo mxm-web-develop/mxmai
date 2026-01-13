@@ -16,7 +16,8 @@ import type { ISmartflowExecutionRepository } from '../interfaces/ISmartflowExec
 import type { IPromptTemplateRepository } from '../interfaces/IPromptTemplateRepository';
 import type { ICGITaskRepository } from '../interfaces/ICGITaskRepository';
 import type { IKnowledgeBaseRepository } from '../interfaces/IKnowledgeBaseRepository';
-import { SupabaseUserRepository, SupabasePaymentRepository, SupabaseWalletRepository, SupabasePromptOptimizerRepository, SupabaseConversationRepository, SupabaseSmartflowRepository, SupabaseSmartflowExecutionRepository, SupabasePromptTemplateRepository, SupabaseCGITaskRepository, SupabaseKnowledgeBaseRepository, initSupabaseClient } from '../adapters/supabase';
+import type { IFolderRepository } from '../interfaces/IFolderRepository';
+import { SupabaseUserRepository, SupabasePaymentRepository, SupabaseWalletRepository, SupabasePromptOptimizerRepository, SupabaseConversationRepository, SupabaseSmartflowRepository, SupabaseSmartflowExecutionRepository, SupabasePromptTemplateRepository, SupabaseCGITaskRepository, SupabaseKnowledgeBaseRepository, SupabaseFolderRepository, initSupabaseClient } from '../adapters/supabase';
 import { MinIOStorageRepository, initMinIOClient } from '../adapters/minio';
 import { loadDataConfig, type DataLayerConfig } from '../config/dataConfig';
 
@@ -212,6 +213,13 @@ export class RepositoryFactory {
   static createKnowledgeBaseRepository(): IKnowledgeBaseRepository {
     return createKnowledgeBaseRepository();
   }
+
+  /**
+   * 创建文件夹 Repository
+   */
+  static createFolderRepository(): IFolderRepository {
+    return createFolderRepository();
+  }
 }
 
 /**
@@ -310,5 +318,18 @@ export function createKnowledgeBaseRepository(): IKnowledgeBaseRepository {
   }
 
   return new SupabaseKnowledgeBaseRepository();
+}
+
+/**
+ * 创建文件夹 Repository
+ */
+export function createFolderRepository(): IFolderRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+  
+  return new SupabaseFolderRepository();
 }
 

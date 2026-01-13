@@ -1,0 +1,298 @@
+{
+  "info": {
+    "name": "通知系统 API",
+    "description": "测试通知系统的 REST API 和 WebSocket 功能",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. 认证",
+      "item": [
+        {
+          "name": "登录获取 Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.success && jsonData.data.token) {",
+                  "        pm.collectionVariables.set('token', jsonData.data.token);",
+                  "        pm.collectionVariables.set('userId', jsonData.data.user.id);",
+                  "        console.log('Token saved:', jsonData.data.token.substring(0, 20) + '...');",
+                  "        console.log('User ID saved:', jsonData.data.user.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"testpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/account/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "account", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. 任务事件",
+      "item": [
+        {
+          "name": "发送任务完成事件",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"module_type\": \"mxmcgi\",\n  \"task_id\": \"test-task-{{$timestamp}}\",\n  \"user_id\": \"{{userId}}\",\n  \"task_status\": \"completed\",\n  \"task_status_message\": \"任务已完成\",\n  \"metadata\": {\n    \"task_type\": \"image\",\n    \"model_name\": \"seedream-4\",\n    \"model_provider\": \"replicate\",\n    \"progress\": 100,\n    \"media_count\": 1,\n    \"result\": {\n      \"mediaUrls\": [\"https://example.com/image.jpg\"],\n      \"storageInfo\": {\n        \"bucket\": \"media\",\n        \"keys\": [\"images/task-123.jpg\"],\n        \"urls\": [\"https://storage.example.com/images/task-123.jpg\"]\n      }\n    }\n  },\n  \"notification_config\": {\n    \"notification_type\": \"reminder\",\n    \"action_url\": \"/media/graph/test-task-{{$timestamp}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/task-events/status-changed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "task-events", "status-changed"]
+            }
+          }
+        },
+        {
+          "name": "发送任务失败事件",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"module_type\": \"mxmcgi\",\n  \"task_id\": \"test-task-failed-{{$timestamp}}\",\n  \"user_id\": \"{{userId}}\",\n  \"task_status\": \"failed\",\n  \"task_status_message\": \"任务执行失败：网络超时\",\n  \"metadata\": {\n    \"task_type\": \"video\",\n    \"model_name\": \"sora-2\",\n    \"error\": \"网络超时\",\n    \"error_message\": \"请求超时，请重试\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/task-events/status-changed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "task-events", "status-changed"]
+            }
+          }
+        },
+        {
+          "name": "发送写作任务完成事件",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"module_type\": \"mxmcgi\",\n  \"task_id\": \"writing-task-{{$timestamp}}\",\n  \"user_id\": \"{{userId}}\",\n  \"task_status\": \"completed\",\n  \"task_status_message\": \"写作任务已完成\",\n  \"metadata\": {\n    \"task_type\": \"writing\",\n    \"model_name\": \"gpt-4\",\n    \"progress\": 100\n  },\n  \"notification_config\": {\n    \"notification_type\": \"reminder\",\n    \"action_url\": \"/writing/writing-task-{{$timestamp}}\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/task-events/status-changed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "task-events", "status-changed"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. 通知查询",
+      "item": [
+        {
+          "name": "获取用户通知列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/user/{{userId}}?is_read=false&limit=10&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications", "user", "{{userId}}"],
+              "query": [
+                {
+                  "key": "is_read",
+                  "value": "false"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "获取所有通知（包括已读）",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/user/{{userId}}?limit=20&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications", "user", "{{userId}}"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "标记通知为已读",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/:notificationId/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications", ":notificationId", "read"],
+              "variable": [
+                {
+                  "key": "notificationId",
+                  "value": "notification-id-here",
+                  "description": "从通知列表中获取的 notification id"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "标记所有通知为已读",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/user/{{userId}}/read-all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "notifications", "user", "{{userId}}", "read-all"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. WebSocket 测试",
+      "item": [
+        {
+          "name": "WebSocket 连接（需要 Postman 支持）",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Upgrade",
+                "value": "websocket"
+              },
+              {
+                "key": "Connection",
+                "value": "Upgrade"
+              }
+            ],
+            "url": {
+              "raw": "ws://localhost:3000/api/v1/ws/notifications?token={{token}}",
+              "protocol": "ws",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "v1", "ws", "notifications"],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{token}}"
+                }
+              ]
+            },
+            "description": "注意：Postman 的 WebSocket 支持可能有限。建议使用专门的 WebSocket 客户端工具（如 wscat）或浏览器控制台进行测试。"
+          }
+        }
+      ]
+    }
+  ]
+}
+

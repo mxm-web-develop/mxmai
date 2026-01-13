@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import type { ProviderType } from '../core/providers/types';
+import { containsSensitiveWords } from '../core/utils/sensitive-check';
 import * as claude45Sonnet from '../core/text/claude-4.5-sonnet';
 import * as deepseekR1 from '../core/text/deepseek-r1';
 import * as gemini25Flash from '../core/text/gemini-2.5-flash';
@@ -13,7 +14,7 @@ const router = Router();
 
 // 模型映射（key 为我们对外暴露的模型名）
 // 约定：这里的 key 必须与 `suport-list.ts` 中各 provider.text 的 key 完全一致
-const MODEL_MAP: Record<string, {
+export const MODEL_MAP: Record<string, {
   generate: (params: any, provider?: ProviderType) => Promise<any>;
 }> = {
   'claude-4.5-sonnet': {
@@ -84,6 +85,16 @@ router.post('/:modelName', async (req: Request, res: Response) => {
         error: 'Missing required parameter',
         message: 'prompt is required',
       });
+    }
+
+    // 敏感词检查
+    if (params.sensitives && Array.isArray(params.sensitives) && params.sensitives.length > 0) {
+      if (containsSensitiveWords(params.prompt, params.sensitives)) {
+        return res.status(400).json({
+          error: 'Sensitive content detected',
+          message: '你提交的内容涉及敏感内容，请检查',
+        });
+      }
     }
 
     const outputFormat = params.outputFormat || 'json';

@@ -127,9 +127,13 @@ export class DeerAPIClient {
    * 工具：构造 Authorization 头（DeerAPI 文档要求直接使用密钥值）
    */
   private getAuthHeader(): string {
-    return this.config.apiKey.startsWith('Bearer ')
-      ? this.config.apiKey.replace('Bearer ', '')
-      : this.config.apiKey;
+    // DeerAPI 文档示例使用 "Bearer xxx"，但为了兼容已有配置：
+    // - 如果环境变量中已经包含 "Bearer " 前缀，直接透传
+    // - 否则自动补上 "Bearer "
+    if (this.config.apiKey.startsWith('Bearer ')) {
+      return this.config.apiKey;
+    }
+    return `Bearer ${this.config.apiKey}`;
   }
 
   /**
@@ -196,6 +200,92 @@ export class DeerAPIClient {
         prompt_tokens: number;
         total_tokens: number;
       };
+    };
+  }
+
+  /**
+   * Suno 歌词生成：提交歌词任务
+   *
+   * 文档参考：https://api.deerapi.com/suno/submit/lyrics
+   *
+   * 请求：
+   *   POST /suno/submit/lyrics
+   *   Body: { prompt: string, notify_hook: string }
+   *
+   * 响应示例：
+   *   { "code": "success", "data": "task-id", "message": "" }
+   */
+  async submitSunoLyrics(request: {
+    prompt: string;
+    notifyHook: string;
+  }): Promise<{
+    taskId: string;
+    raw: any;
+  }> {
+    const url = `${this.config.baseUrl}/suno/submit/lyrics`;
+    const authHeader = this.getAuthHeader();
+
+    const body = {
+      prompt: request.prompt,
+      notify_hook: request.notifyHook,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: authHeader,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const text = await response.text();
+
+    if (!response.ok) {
+      throw new Error(
+        `DeerAPI Suno 歌词提交失败: ${response.status} ${response.statusText} - ${text}`,
+      );
+    }
+
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (error) {
+      throw new Error(
+        `DeerAPI Suno 歌词响应解析失败: 无法解析为 JSON。原始响应: ${text.substring(
+          0,
+          200,
+        )}...`,
+      );
+    }
+
+    // 兼容不同格式：优先使用 data 字段，如果 data 本身是对象且有 task_id/ id，则优先使用
+    let taskId: string | undefined;
+    if (typeof data.data === 'string') {
+      taskId = data.data;
+    } else if (data.data && typeof data.data === 'object') {
+      taskId =
+        data.data.task_id ||
+        data.data.taskId ||
+        data.data.id ||
+        (typeof data.data === 'string' ? data.data : undefined);
+    }
+
+    if (!taskId && typeof data === 'string') {
+      taskId = data;
+    }
+
+    if (!taskId) {
+      throw new Error(
+        `DeerAPI Suno 歌词响应中缺少任务 ID 字段（data / data.task_id / data.id）。完整响应: ${JSON.stringify(
+          data,
+        ).substring(0, 500)}...`,
+      );
+    }
+
+    return {
+      taskId,
+      raw: data,
     };
   }
 

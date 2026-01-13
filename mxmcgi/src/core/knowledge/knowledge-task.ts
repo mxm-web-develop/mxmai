@@ -13,8 +13,8 @@ import { RepositoryFactory } from '@mxmai/mxmdata';
 import { KnowledgeService } from './knowledge-service';
 
 export interface KnowledgeImportTaskParams {
-  knowledgeBaseName: string;
-  knowledgeBaseId?: string;
+  knowledgeBaseId: string;
+  knowledgeBaseName?: string; // 保留用于内部处理（文档表使用 name 关联）
   fileBucket: string;
   fileKey: string;
   originalFileName: string;
@@ -23,6 +23,9 @@ export interface KnowledgeImportTaskParams {
   tags?: string[];
   metadata?: Record<string, any>;
   isPublic?: boolean;
+  chunkSize?: number; // 每个 chunk 的最大字符数（默认 2000）
+  chunkOverlap?: number; // chunk 之间的重叠字符数（默认 200）
+  maxChunkSize?: number; // 单个 chunk 的最大字符数（默认 5000）
 }
 
 /**
@@ -40,9 +43,21 @@ export async function startKnowledgeImportTask(taskId: string): Promise<void> {
     const taskResponse = await taskManager.getTask(taskId);
     const params = taskResponse.task.requestParams as KnowledgeImportTaskParams;
 
-    if (!params || !params.knowledgeBaseName || !params.fileBucket || !params.fileKey) {
+    if (!params || !params.knowledgeBaseId || !params.fileBucket || !params.fileKey) {
       await taskManager.setTaskError(taskId, '知识库导入任务参数不完整');
       return;
+    }
+
+    // 如果只有 id，需要通过 id 获取知识库的 name（因为文档表使用 name 关联）
+    let knowledgeBaseName = params.knowledgeBaseName;
+    if (!knowledgeBaseName) {
+      const knowledgeService = new KnowledgeService();
+      const knowledgeBase = await knowledgeService.getKnowledgeBaseById(params.knowledgeBaseId);
+      if (!knowledgeBase) {
+        await taskManager.setTaskError(taskId, `知识库 ID "${params.knowledgeBaseId}" 不存在`);
+        return;
+      }
+      knowledgeBaseName = knowledgeBase.name;
     }
 
     // 标记任务排队中
@@ -71,7 +86,7 @@ export async function startKnowledgeImportTask(taskId: string): Promise<void> {
     // 调用 KnowledgeService 执行解析+embedding+入库
     const knowledgeService = new KnowledgeService();
     const result = await knowledgeService.uploadFile({
-      knowledgeBaseName: params.knowledgeBaseName,
+      knowledgeBaseName: knowledgeBaseName,
       file: {
         buffer: fileBuffer,
         originalname: params.originalFileName,
@@ -82,6 +97,9 @@ export async function startKnowledgeImportTask(taskId: string): Promise<void> {
       tags: params.tags,
       metadata: params.metadata,
       isPublic: params.isPublic,
+      chunkSize: params.chunkSize,
+      chunkOverlap: params.chunkOverlap,
+      maxChunkSize: params.maxChunkSize,
     });
 
     await taskManager.updateTaskProgress(taskId, {
@@ -97,8 +115,8 @@ export async function startKnowledgeImportTask(taskId: string): Promise<void> {
       mediaUrls: [],
       metadata: {
         type: 'knowledge-import',
-        knowledgeBaseName: params.knowledgeBaseName,
         knowledgeBaseId: params.knowledgeBaseId,
+        knowledgeBaseName: knowledgeBaseName,
         documentsCount: result.documents.length,
         totalChunks: result.totalChunks,
         originalFileName: params.originalFileName,

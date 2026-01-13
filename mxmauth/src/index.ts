@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import healthRouter from './routes/health';
 import accountRouter from './routes/account';
+import assetsRouter from './routes/assets';
 import { responseMiddleware } from './middleware/response';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { RepositoryFactory, loadDataConfig } from '@mxmai/mxmdata';
@@ -39,6 +40,7 @@ app.use(responseMiddleware);
 // 路由
 app.use('/', healthRouter);
 app.use('/api/v1/account', accountRouter);
+app.use('/api/v1/assets', assetsRouter);
 
 // 404 处理
 app.use(notFoundHandler);

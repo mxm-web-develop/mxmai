@@ -48,14 +48,24 @@ export interface IKnowledgeBaseRepository {
   findKnowledgeBaseById(id: string): Promise<KnowledgeBase | null>;
 
   /**
-   * 更新知识库配置
+   * 更新知识库配置（通过 name）
    */
   updateKnowledgeBase(name: string, data: UpdateKnowledgeBaseDto): Promise<KnowledgeBase>;
 
   /**
-   * 删除知识库配置（同时删除所有文档）
+   * 更新知识库配置（通过 id）
+   */
+  updateKnowledgeBaseById(id: string, data: UpdateKnowledgeBaseDto): Promise<KnowledgeBase>;
+
+  /**
+   * 删除知识库配置（同时删除所有文档，通过 name）
    */
   deleteKnowledgeBase(name: string): Promise<void>;
+
+  /**
+   * 删除知识库配置（同时删除所有文档，通过 id）
+   */
+  deleteKnowledgeBaseById(id: string): Promise<void>;
 
   /**
    * 查询知识库列表

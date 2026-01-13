@@ -3,12 +3,12 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "npx tsx watch src/index.ts",
     "build": "TSUP_ENTRY=src/index.ts tsup --config ../tsup.config.ts --out-dir dist",
     "start": "node dist/index.js",
-    "test:chat": "tsx src/test/chat_test.ts",
-    "test:smartflow": "tsx src/test/smartflow_chat_test.ts",
-    "test:smartflow-api": "tsx src/test/smartflow_api_test.ts"
+    "test:chat": "npx tsx src/test/chat_test.ts",
+    "test:smartflow": "npx tsx src/test/smartflow_chat_test.ts",
+    "test:smartflow-api": "npx tsx src/test/smartflow_api_test.ts"
   },
   "dependencies": {
     "@langchain/core": "^1.1.0",
@@ -19,5 +19,8 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "langchain": "^1.1.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
   }
 }

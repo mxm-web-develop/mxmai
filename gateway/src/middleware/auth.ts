@@ -96,6 +96,17 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     // 否则，执行正常的 JWT 验证
     const secret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
+    // 增强日志：记录 JWT_SECRET 配置状态（不记录实际值）
+    if (!process.env.JWT_SECRET) {
+      logger.warn(`[Auth] JWT_SECRET not set in environment, using default value`);
+      logger.warn(`[Auth] ⚠️  警告: 使用默认 JWT_SECRET 可能导致认证失败`);
+      logger.warn(`[Auth] 💡 提示: 请确保 gateway 和 mxmauth 使用相同的 JWT_SECRET`);
+      logger.warn(`[Auth] 💡 建议: 在 mxmdata/.env 中配置 JWT_SECRET`);
+    } else {
+      logger.debug(`[Auth] JWT_SECRET is configured (length: ${process.env.JWT_SECRET.length})`);
+      logger.debug(`[Auth] JWT_SECRET 前10个字符: ${process.env.JWT_SECRET.substring(0, 10)}...`);
+    }
+
     try {
       const decoded = jwt.verify(token, secret) as {
         userId: string;
@@ -140,12 +151,20 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
 
       if (error.name === 'JsonWebTokenError') {
         logger.warn(`[Auth] Invalid JWT token for ${req.method} ${req.path}: ${error.message}`);
+        logger.warn(`[Auth] Token verification failed. Possible causes:`);
+        logger.warn(`[Auth] 1. JWT_SECRET mismatch between gateway and mxmauth`);
+        logger.warn(`[Auth] 2. Token was signed with a different secret`);
+        logger.warn(`[Auth] 3. Token format is invalid`);
+        logger.warn(`[Auth] Current JWT_SECRET configured: ${process.env.JWT_SECRET ? 'YES (length: ' + process.env.JWT_SECRET.length + ')' : 'NO (using default)'}`);
         res.status(401).json({
           success: false,
           error: {
             code: 'INVALID_TOKEN',
             message: 'Invalid token',
             details: error.message,
+            hint: error.message === 'invalid signature' 
+              ? 'JWT_SECRET mismatch. Please ensure gateway and mxmauth use the same JWT_SECRET.'
+              : error.message,
           },
         });
         return;

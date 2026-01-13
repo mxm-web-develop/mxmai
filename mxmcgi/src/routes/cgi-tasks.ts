@@ -473,10 +473,12 @@ router.delete('/:taskId', async (req: Request, res: Response) => {
     const taskResponse = await taskManager.getTask(taskId, isAdmin);
 
     // 如果任务不存在（普通用户查询已软删除的任务会返回 null）
+    // 使用 410 Gone 表示任务已不存在（可能是已删除），区别于 404（接口错误）
     if (!taskResponse || !taskResponse.task) {
-      return res.status(404).json({
+      return res.status(410).json({
         success: false,
-        error: 'Task not found',
+        error: 'Task not found or already deleted',
+        code: 'TASK_NOT_FOUND_OR_DELETED',
       });
     }
 
@@ -505,9 +507,11 @@ router.delete('/:taskId', async (req: Request, res: Response) => {
     }
   } catch (error) {
     if (error instanceof Error && error.message.includes('not found')) {
-      return res.status(404).json({
+      // 使用 410 Gone 表示任务已不存在（可能是已删除），区别于 404（接口错误）
+      return res.status(410).json({
         success: false,
         error: error.message,
+        code: 'TASK_NOT_FOUND_OR_DELETED',
       });
     }
     console.error('[CGI Task Route] 删除任务失败:', error);

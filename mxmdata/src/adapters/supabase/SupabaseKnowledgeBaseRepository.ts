@@ -3,6 +3,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+import { uid } from 'uid';
 import type {
   IKnowledgeBaseRepository,
   KnowledgeBase,
@@ -28,9 +29,13 @@ export class SupabaseKnowledgeBaseRepository implements IKnowledgeBaseRepository
 
   async createKnowledgeBase(data: CreateKnowledgeBaseDto): Promise<KnowledgeBase> {
     try {
+      // 使用 uid 生成知识库 ID
+      const kbId = data.id || `kb_${uid(21)}`;
+      
       const { data: result, error } = await this.client
         .from('knowledge_bases')
         .insert({
+          id: kbId,
           name: data.name,
           display_name: data.display_name,
           description: data.description,
@@ -171,6 +176,45 @@ export class SupabaseKnowledgeBaseRepository implements IKnowledgeBaseRepository
     }
   }
 
+  async updateKnowledgeBaseById(id: string, data: UpdateKnowledgeBaseDto): Promise<KnowledgeBase> {
+    try {
+      const { data: result, error } = await this.client
+        .from('knowledge_bases')
+        .update({
+          display_name: data.display_name,
+          description: data.description,
+          type: data.type,
+          agent_id: data.agent_id,
+          agent_name: data.agent_name,
+          is_public: data.is_public,
+          config: data.config,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        throw new DataAccessError(
+          `Failed to update knowledge base: ${error.message}`,
+          'UPDATE_ERROR',
+          error
+        );
+      }
+
+      return this.mapKnowledgeBase(result);
+    } catch (error) {
+      if (error instanceof DataAccessError) {
+        throw error;
+      }
+      throw new DataAccessError(
+        `Unexpected error updating knowledge base: ${error}`,
+        'UNEXPECTED_ERROR',
+        error as Error
+      );
+    }
+  }
+
   async deleteKnowledgeBase(name: string): Promise<void> {
     try {
       // 先删除所有文档（由于外键约束，会自动级联删除）
@@ -192,6 +236,57 @@ export class SupabaseKnowledgeBaseRepository implements IKnowledgeBaseRepository
         .from('knowledge_bases')
         .delete()
         .eq('name', name);
+
+      if (error) {
+        throw new DataAccessError(
+          `Failed to delete knowledge base: ${error.message}`,
+          'DELETE_ERROR',
+          error
+        );
+      }
+    } catch (error) {
+      if (error instanceof DataAccessError) {
+        throw error;
+      }
+      throw new DataAccessError(
+        `Unexpected error deleting knowledge base: ${error}`,
+        'UNEXPECTED_ERROR',
+        error as Error
+      );
+    }
+  }
+
+  async deleteKnowledgeBaseById(id: string): Promise<void> {
+    try {
+      // 先通过 id 获取知识库的 name，因为文档表使用 name 关联
+      const kb = await this.findKnowledgeBaseById(id);
+      if (!kb) {
+        throw new DataAccessError(
+          `Knowledge base with id "${id}" not found`,
+          'NOT_FOUND',
+          undefined
+        );
+      }
+
+      // 先删除所有文档（使用 name）
+      const { error: deleteDocsError } = await this.client
+        .from('knowledge_base_documents')
+        .delete()
+        .eq('knowledge_base_name', kb.name);
+
+      if (deleteDocsError) {
+        throw new DataAccessError(
+          `Failed to delete documents: ${deleteDocsError.message}`,
+          'DELETE_ERROR',
+          deleteDocsError
+        );
+      }
+
+      // 删除知识库配置（使用 id）
+      const { error } = await this.client
+        .from('knowledge_bases')
+        .delete()
+        .eq('id', id);
 
       if (error) {
         throw new DataAccessError(
@@ -271,9 +366,13 @@ export class SupabaseKnowledgeBaseRepository implements IKnowledgeBaseRepository
 
   async createDocument(data: CreateKnowledgeDocumentDto): Promise<KnowledgeDocument> {
     try {
+      // 使用 uid 生成文档 ID
+      const docId = data.id || `doc_${uid(21)}`;
+      
       const { data: result, error } = await this.client
         .from('knowledge_base_documents')
         .insert({
+          id: docId,
           knowledge_base_name: data.knowledge_base_name,
           title: data.title,
           content: data.content,

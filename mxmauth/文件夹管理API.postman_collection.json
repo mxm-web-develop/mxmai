@@ -1,0 +1,246 @@
+{
+  "info": {
+    "name": "虚拟文件夹管理 API",
+    "description": "虚拟文件夹管理相关接口测试集合",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. 获取文件夹列表",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/assets/folders?parent_id=",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "assets", "folders"],
+          "query": [
+            {
+              "key": "parent_id",
+              "value": "",
+              "description": "父文件夹ID，空字符串表示根目录，不传表示所有文件夹"
+            }
+          ]
+        },
+        "description": "获取当前用户的文件夹列表，支持按父文件夹筛选"
+      },
+      "response": []
+    },
+    {
+      "name": "2. 创建文件夹（根目录）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"我的测试文件夹\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/assets/folders",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "assets", "folders"]
+        },
+        "description": "在根目录创建新文件夹"
+      },
+      "response": []
+    },
+    {
+      "name": "3. 创建子文件夹",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"子文件夹\",\n  \"parent_id\": \"{{folder_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/assets/folders",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "assets", "folders"]
+        },
+        "description": "在指定父文件夹下创建子文件夹"
+      },
+      "response": []
+    },
+    {
+      "name": "4. 更新文件夹",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"更新后的文件夹名称\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/assets/folders/{{folder_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "assets", "folders", "{{folder_id}}"]
+        },
+        "description": "更新文件夹名称"
+      },
+      "response": []
+    },
+    {
+      "name": "5. 获取文件夹中的文件列表",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/assets/folders/{{folder_id}}/items?limit=100&offset=0",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "assets", "folders", "{{folder_id}}", "items"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "100",
+              "description": "每页返回的文件数量"
+            },
+            {
+              "key": "offset",
+              "value": "0",
+              "description": "分页偏移量"
+            }
+          ]
+        },
+        "description": "获取指定文件夹中包含的文件列表"
+      },
+      "response": []
+    },
+    {
+      "name": "6. 添加文件到文件夹",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"media_item_id\": \"{{media_item_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/assets/folders/{{folder_id}}/items",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "assets", "folders", "{{folder_id}}", "items"]
+        },
+        "description": "将文件添加到指定文件夹"
+      },
+      "response": []
+    },
+    {
+      "name": "7. 从文件夹移除文件",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/assets/folders/{{folder_id}}/items/{{media_item_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "assets", "folders", "{{folder_id}}", "items", "{{media_item_id}}"]
+        },
+        "description": "从文件夹中移除指定的文件（不会删除文件本身）"
+      },
+      "response": []
+    },
+    {
+      "name": "8. 删除文件夹",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/v1/assets/folders/{{folder_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "assets", "folders", "{{folder_id}}"]
+        },
+        "description": "删除指定的文件夹（必须先删除所有子文件夹）"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "folder_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "media_item_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

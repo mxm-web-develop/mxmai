@@ -35,12 +35,19 @@ export class MinIOStorageRepository implements IStorageRepository {
       }
 
       // 上传文件
-      const metadata: Record<string, string> = {
-        ...options?.metadata,
-      };
+      // MinIO 的 metadata 用于存储自定义元数据
+      const metadata: Record<string, string> = {};
+      if (options?.metadata) {
+        // 将 metadata 中的所有值转换为字符串
+        for (const [k, v] of Object.entries(options.metadata)) {
+          metadata[k] = String(v);
+        }
+      }
 
+      // MinIO putObject 的 metadata 参数中，Content-Type 需要使用小写的 'content-type'
+      // 这是 MinIO 客户端库的要求
       if (options?.contentType) {
-        metadata['Content-Type'] = options.contentType;
+        metadata['content-type'] = options.contentType;
       }
 
       await this.client.putObject(bucket, key, file, file.length, metadata);

@@ -24,6 +24,7 @@ export interface KnowledgeBase {
 }
 
 export interface CreateKnowledgeBaseDto {
+  id?: string; // 可选，如果不提供则自动生成
   name: string;
   display_name: string;
   description?: string;
@@ -66,6 +67,7 @@ export interface KnowledgeDocument {
 }
 
 export interface CreateKnowledgeDocumentDto {
+  id?: string; // 可选，如果不提供则自动生成
   knowledge_base_name: string;
   title?: string;
   content: string;

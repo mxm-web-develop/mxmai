@@ -70,6 +70,7 @@ import cgiTasksRouter from './routes/cgi-tasks';
 import systemRouter from './routes/system';
 import mediaRouter from './routes/media';
 import knowledgeRouter from './routes/knowledge';
+import writingRouter from './routes/writing';
 
 const app = express();
 const port = process.env.PORT ? Number(process.env.PORT) : 4003;
@@ -98,6 +99,7 @@ app.use('/api/v1/cgi-tasks', cgiTasksRouter);
 app.use('/system', systemRouter);
 app.use('/media', mediaRouter);
 app.use('/knowledge', knowledgeRouter);
+app.use('/writing', writingRouter);
 
 app.listen(port, async () => {
   console.log('mxmcgi service listening on port ' + port);
@@ -115,7 +117,15 @@ app.listen(port, async () => {
     await taskRecoveryService.start();
     console.log('[mxmcgi] ✅ 任务恢复服务已启动（超时时间：60 分钟）');
   } catch (error) {
-    console.error('[mxmcgi] ⚠️  任务恢复服务启动失败:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    // 检查是否是 Supabase 连接错误
+    if (errorMessage.includes('fetch failed') || errorMessage.includes('ECONNREFUSED')) {
+      console.warn('[mxmcgi] ⚠️  任务恢复服务启动失败：Supabase 连接不可用');
+      console.warn('[mxmcgi] ⚠️  提示：请检查 SUPABASE_URL 和 SUPABASE_ANON_KEY 环境变量是否正确');
+      console.warn('[mxmcgi] ⚠️  应用将继续运行，但任务恢复功能暂时不可用');
+    } else {
+      console.error('[mxmcgi] ⚠️  任务恢复服务启动失败:', errorMessage);
+    }
     // 不阻止应用启动，恢复服务失败不影响主要功能
   }
 });

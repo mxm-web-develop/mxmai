@@ -5,7 +5,7 @@
 
 export type TaskStatus = 'pending' | 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
-export type TaskType = 'text' | 'image' | 'video' | 'audio' | 'other';
+export type TaskType = 'text' | 'image' | 'video' | 'audio' | 'writing' | 'other';
 
 export interface TaskMetadata {
   model: string;

@@ -4,6 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { uid } from 'uid';
 import multer from 'multer';
 import { KnowledgeService } from '../core/knowledge/knowledge-service';
 import { RepositoryFactory } from '@mxmai/mxmdata';
@@ -67,7 +68,7 @@ interface MulterFile {
 
 interface MulterRequest extends Request {
   file?: MulterFile;
-  files?: MulterFile[];
+  files?: MulterFile[] | { [fieldname: string]: MulterFile[] };
 }
 
 // 延迟创建知识库服务实例（避免在模块加载时初始化，此时环境变量可能还未加载）
@@ -75,7 +76,12 @@ let knowledgeServiceInstance: KnowledgeService | null = null;
 
 function getKnowledgeService(): KnowledgeService {
   if (!knowledgeServiceInstance) {
-    knowledgeServiceInstance = new KnowledgeService();
+    try {
+      knowledgeServiceInstance = new KnowledgeService();
+    } catch (error) {
+      console.error('[Knowledge Route] Failed to create KnowledgeService:', error);
+      throw new Error(`知识库服务初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
   return knowledgeServiceInstance;
 }
@@ -89,11 +95,27 @@ function getKnowledgeService(): KnowledgeService {
  * - 个人账号：只能创建自己用的知识库（is_public=false）
  */
 router.post('/bases', async (req: Request, res: Response) => {
+  // 设置请求超时（30秒）
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('[Knowledge Route] Request timeout after 30s');
+      res.status(504).json({
+        success: false,
+        error: 'Request timeout',
+      });
+    }
+  }, 30000);
+
   try {
+    console.log('[Knowledge Route] POST /bases - Request received');
+    console.log('[Knowledge Route] Request body:', JSON.stringify(req.body));
     const userId = req.headers['x-user-id'] as string | undefined;
     if (!userId) {
+      clearTimeout(timeout);
+      console.warn('[Knowledge Route] Missing x-user-id header');
       return res.status(401).json({ success: false, error: 'Missing x-user-id header' });
     }
+    console.log('[Knowledge Route] User ID:', userId);
 
     const {
       name,
@@ -129,6 +151,7 @@ router.post('/bases', async (req: Request, res: Response) => {
     // 非管理员用户强制设置为私有
     const finalIsPublic = isAdmin ? (is_public !== undefined ? is_public : false) : false;
 
+    console.log('[Knowledge Route] Creating knowledge base:', { name, display_name, owner_id: userId });
     const knowledgeBase = await getKnowledgeService().createKnowledgeBase({
       name,
       display_name,
@@ -143,16 +166,26 @@ router.post('/bases', async (req: Request, res: Response) => {
       config,
     });
 
+    console.log('[Knowledge Route] Knowledge base created successfully:', knowledgeBase.id);
+    clearTimeout(timeout);
     return res.json({
       success: true,
       data: knowledgeBase,
     });
   } catch (error) {
+    clearTimeout(timeout);
     console.error('[Knowledge Route] Create knowledge base failed:', error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    console.error('[Knowledge Route] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // 确保响应还没有发送
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } else {
+      console.error('[Knowledge Route] Cannot send error response: headers already sent');
+    }
   }
 });
 
@@ -187,19 +220,26 @@ router.get('/bases', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /knowledge/bases/:name
- * 获取知识库信息
+ * GET /knowledge/bases/:id
+ * 获取知识库信息（通过 id 或 name）
+ * 支持通过 UUID id 或 name 获取知识库
  */
-router.get('/bases/:name', async (req: Request, res: Response) => {
+router.get('/bases/:id', async (req: Request, res: Response) => {
   try {
-    const { name } = req.params;
+    const { id } = req.params;
 
-    const knowledgeBase = await getKnowledgeService().getKnowledgeBase(name);
+    // 尝试通过 ID 获取（UUID 格式）
+    let knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
+
+    // 如果通过 ID 找不到，尝试通过 name 获取
+    if (!knowledgeBase) {
+      knowledgeBase = await getKnowledgeService().getKnowledgeBase(id);
+    }
 
     if (!knowledgeBase) {
       return res.status(404).json({
         success: false,
-        error: `Knowledge base "${name}" not found`,
+        error: `Knowledge base with ID or name "${id}" not found`,
       });
     }
 
@@ -217,21 +257,21 @@ router.get('/bases/:name', async (req: Request, res: Response) => {
 });
 
 /**
- * PUT /knowledge/bases/:name
- * 更新知识库
+ * PUT /knowledge/bases/:id
+ * 更新知识库（通过 id）
  * 
  * 权限规则：
  * - Admin 账号：可以更新任何知识库，包括设置为公开
  * - 个人账号：只能更新自己创建的知识库，且不能设置为公开
  */
-router.put('/bases/:name', async (req: Request, res: Response) => {
+router.put('/bases/:id', async (req: Request, res: Response) => {
   try {
     const userId = req.headers['x-user-id'] as string | undefined;
     if (!userId) {
       return res.status(401).json({ success: false, error: 'Missing x-user-id header' });
     }
 
-    const { name } = req.params;
+    const { id } = req.params;
     const {
       display_name,
       description,
@@ -243,11 +283,11 @@ router.put('/bases/:name', async (req: Request, res: Response) => {
     } = req.body;
 
     // 检查知识库是否存在
-    const existingKb = await knowledgeService.getKnowledgeBase(name);
+    const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
     if (!existingKb) {
       return res.status(404).json({
         success: false,
-        error: `Knowledge base "${name}" not found`,
+        error: `Knowledge base with ID "${id}" not found`,
       });
     }
 
@@ -277,8 +317,7 @@ router.put('/bases/:name', async (req: Request, res: Response) => {
         : existingKb.is_public
       : false;
 
-    const knowledgeBase = await getKnowledgeService().updateKnowledgeBase({
-      name,
+    const knowledgeBase = await getKnowledgeService().updateKnowledgeBaseById(id, {
       display_name,
       description,
       type,
@@ -302,28 +341,28 @@ router.put('/bases/:name', async (req: Request, res: Response) => {
 });
 
 /**
- * DELETE /knowledge/bases/:name
- * 删除知识库
+ * DELETE /knowledge/bases/:id
+ * 删除知识库（通过 id）
  * 
  * 权限规则：
  * - Admin 账号：可以删除任何知识库
  * - 个人账号：只能删除自己创建的知识库
  */
-router.delete('/bases/:name', async (req: Request, res: Response) => {
+router.delete('/bases/:id', async (req: Request, res: Response) => {
   try {
     const userId = req.headers['x-user-id'] as string | undefined;
     if (!userId) {
       return res.status(401).json({ success: false, error: 'Missing x-user-id header' });
     }
 
-    const { name } = req.params;
+    const { id } = req.params;
 
     // 检查知识库是否存在
-    const existingKb = await knowledgeService.getKnowledgeBase(name);
+    const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
     if (!existingKb) {
       return res.status(404).json({
         success: false,
-        error: `Knowledge base "${name}" not found`,
+        error: `Knowledge base with ID "${id}" not found`,
       });
     }
 
@@ -338,12 +377,12 @@ router.delete('/bases/:name', async (req: Request, res: Response) => {
       });
     }
 
-    await getKnowledgeService().deleteKnowledgeBase(name);
+    await getKnowledgeService().deleteKnowledgeBaseById(id);
 
-    return res.json({
-      success: true,
-      message: `Knowledge base "${name}" deleted successfully`,
-    });
+      return res.json({
+        success: true,
+        message: `Knowledge base with ID "${id}" deleted successfully`,
+      });
   } catch (error) {
     console.error('[Knowledge Route] Delete knowledge base failed:', error);
     return res.status(500).json({
@@ -354,16 +393,25 @@ router.delete('/bases/:name', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /knowledge/bases/:name/upload
- * 上传文件到知识库（同步，适合中小文件）
+ * POST /knowledge/bases/:id/upload
+ * 上传文件到知识库（同步，适合中小文件，通过 id）
+ * 
+ * 支持单个或多个文件上传：
+ * - 单个文件：使用字段名 "file"
+ * - 多个文件：使用字段名 "files"（数组）
+ * 
+ * 注意：多次上传会追加到知识库，不会覆盖已有内容
  * 
  * 权限规则：
  * - Admin 账号：可以上传到任何知识库
  * - 个人账号：只能上传到自己创建的知识库
  */
 router.post(
-  '/bases/:name/upload',
-  upload.single('file'),
+  '/bases/:id/upload',
+  upload.fields([
+    { name: 'file', maxCount: 10 },     // 单个或多个文件（向后兼容，支持最多10个）
+    { name: 'files', maxCount: 10 },    // 多个文件（最多10个）
+  ]),
   async (req: Request, res: Response) => {
     try {
       const userId = req.headers['x-user-id'] as string | undefined;
@@ -371,22 +419,43 @@ router.post(
         return res.status(401).json({ success: false, error: 'Missing x-user-id header' });
       }
 
-      const { name } = req.params;
+      const { id } = req.params;
       const multerReq = req as MulterRequest;
 
-      if (!multerReq.file) {
+      // 获取上传的文件（支持单个或多个）
+      const files: MulterFile[] = [];
+      
+      if (multerReq.files) {
+        if (Array.isArray(multerReq.files)) {
+          // 如果 files 是数组（upload.any() 的情况）
+          files.push(...multerReq.files);
+        } else {
+          // 如果 files 是对象（upload.fields() 的情况）
+          if (multerReq.files['file']) {
+            files.push(...multerReq.files['file']);
+          }
+          if (multerReq.files['files']) {
+            files.push(...multerReq.files['files']);
+          }
+        }
+      } else if (multerReq.file) {
+        // 单个文件（向后兼容）
+        files.push(multerReq.file);
+      }
+
+      if (files.length === 0) {
         return res.status(400).json({
           success: false,
-          error: 'Missing file field "file"',
+          error: 'Missing file field. Use "file" for single file or "files" for multiple files.',
         });
       }
 
       // 检查知识库是否存在
-      const existingKb = await knowledgeService.getKnowledgeBase(name);
+      const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
       if (!existingKb) {
         return res.status(404).json({
           success: false,
-          error: `Knowledge base "${name}" not found`,
+          error: `Knowledge base with ID "${id}" not found`,
         });
       }
 
@@ -401,7 +470,7 @@ router.post(
         });
       }
 
-      const { tags, metadata, is_public } = req.body;
+      const { tags, metadata, is_public, chunk_size, chunk_overlap, max_chunk_size } = req.body;
       const parsedTags = tags ? (typeof tags === 'string' ? JSON.parse(tags) : tags) : [];
       const parsedMetadata = metadata
         ? typeof metadata === 'string'
@@ -414,27 +483,72 @@ router.post(
         ? is_public === 'true' || is_public === true
         : false;
 
-      const result = await getKnowledgeService().uploadFile({
-        knowledgeBaseName: name,
-        file: {
-          buffer: multerReq.file.buffer,
-          originalname: multerReq.file.originalname,
-          mimetype: multerReq.file.mimetype,
-          size: multerReq.file.size,
-        },
-        userId,
-        tags: parsedTags,
-        metadata: parsedMetadata,
-        isPublic: finalIsPublic,
-      });
+      // 解析 chunk 配置参数
+      const chunkSize = chunk_size ? Number(chunk_size) : undefined;
+      const chunkOverlap = chunk_overlap ? Number(chunk_overlap) : undefined;
+      const maxChunkSize = max_chunk_size ? Number(max_chunk_size) : undefined;
+
+      // 批量处理所有文件
+      const allDocuments: any[] = [];
+      let totalChunks = 0;
+      const fileResults: Array<{ fileName: string; fileId: string; documentsCount: number; chunks: number; replaced: boolean }> = [];
+
+      for (const file of files) {
+        // 验证 id 是否存在
+        if (!id) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing knowledge base ID in URL path',
+          });
+        }
+
+        const result = await getKnowledgeService().uploadFileById({
+          knowledgeBaseId: id,
+          file: {
+            buffer: file.buffer,
+            originalname: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+          },
+          userId,
+          tags: parsedTags,
+          metadata: parsedMetadata,
+          isPublic: finalIsPublic,
+          chunkSize,
+          chunkOverlap,
+          maxChunkSize,
+        });
+
+        allDocuments.push(...result.documents);
+        totalChunks += result.totalChunks;
+        fileResults.push({
+          fileName: file.originalname,
+          fileId: result.fileId, // 文件唯一 ID，用于后续删除
+          documentsCount: result.documents.length,
+          chunks: result.totalChunks,
+          replaced: result.replaced, // 是否替换了已存在的文件
+        });
+      }
+
+      // 重新获取知识库的最新信息（包含更新后的 document_count 等统计信息）
+      const updatedKb = await getKnowledgeService().getKnowledgeBaseById(id);
+      if (!updatedKb) {
+        // 如果获取失败，使用旧的数据（不应该发生）
+        console.warn(`[Knowledge Route] Failed to get updated knowledge base: ${id}`);
+      }
+
+      // 如果文件数量较多，不返回完整文档列表（避免响应过大）
+      const includeDocuments = files.length <= 3;
 
       return res.json({
         success: true,
         data: {
-          knowledgeBase: result.knowledgeBase,
-          documentsCount: result.documents.length,
-          totalChunks: result.totalChunks,
-          documents: result.documents,
+          knowledgeBase: updatedKb || existingKb, // 使用更新后的知识库信息
+          filesCount: files.length,
+          totalDocumentsCount: allDocuments.length,
+          totalChunks,
+          fileResults, // 每个文件的上传结果
+          ...(includeDocuments ? { documents: allDocuments } : {}), // 只有文件数 <= 3 时才返回文档列表
         },
       });
     } catch (error) {
@@ -448,19 +562,19 @@ router.post(
 );
 
 /**
- * POST /knowledge/bases/:name/upload-task
- * 通过异步任务方式上传文件到知识库（适合大文件）
+ * POST /knowledge/bases/:id/upload-task
+ * 通过异步任务方式上传文件到知识库（适合大文件，通过 id）
  * 
- * - 创建 CGI 任务（type: 'other', model: `knowledge-import:${kbName}`）
+ * - 创建 CGI 任务（type: 'other', model: `knowledge-import:${kbId}`）
  * - 将原始文件保存到 MinIO
  * - 后台任务从存储下载文件，执行解析 + 向量化 + 入库
  *
  * 任务进度与结果可通过 /api/v1/cgi-tasks/:taskId 查询：
  * - progress.progress: 0-100
- * - result.metadata: { documentsCount, totalChunks, knowledgeBaseName, ... }
+ * - result.metadata: { documentsCount, totalChunks, knowledgeBaseId, ... }
  */
 router.post(
-  '/bases/:name/upload-task',
+  '/bases/:id/upload-task',
   upload.single('file'),
   async (req: Request, res: Response) => {
     try {
@@ -469,7 +583,7 @@ router.post(
         return res.status(401).json({ success: false, error: 'Missing x-user-id header' });
       }
 
-      const { name } = req.params;
+      const { id } = req.params;
       const multerReq = req as MulterRequest;
 
       if (!multerReq.file) {
@@ -480,11 +594,11 @@ router.post(
       }
 
       // 检查知识库是否存在
-      const existingKb = await knowledgeService.getKnowledgeBase(name);
+      const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
       if (!existingKb) {
         return res.status(404).json({
           success: false,
-          error: `Knowledge base "${name}" not found`,
+          error: `Knowledge base with ID "${id}" not found`,
         });
       }
 
@@ -499,7 +613,7 @@ router.post(
         });
       }
 
-      const { tags, metadata, is_public } = req.body;
+      const { tags, metadata, is_public, chunk_size, chunk_overlap, max_chunk_size } = req.body;
       const parsedTags = tags ? (typeof tags === 'string' ? JSON.parse(tags) : tags) : [];
       const parsedMetadata = metadata
         ? typeof metadata === 'string'
@@ -511,6 +625,11 @@ router.post(
       const finalIsPublic = isAdmin
         ? is_public === 'true' || is_public === true
         : false;
+
+      // 解析 chunk 配置参数
+      const chunkSize = chunk_size ? Number(chunk_size) : undefined;
+      const chunkOverlap = chunk_overlap ? Number(chunk_overlap) : undefined;
+      const maxChunkSize = max_chunk_size ? Number(max_chunk_size) : undefined;
 
       // 1. 将原始文件保存到 MinIO，避免在 CGI 任务表中存 Buffer
       const storageRepo = RepositoryFactory.createStorageRepository();
@@ -524,13 +643,14 @@ router.post(
       const timestamp = Date.now();
       const randomId = Math.random().toString(36).slice(2, 8);
 
-      const key = `knowledge/${userId}/${name}/${timestamp}-${randomId}.${ext}`;
+      const key = `knowledge/${userId}/${id}/${timestamp}-${randomId}.${ext}`;
 
       await storageRepo.uploadFile(bucket, key, multerReq.file.buffer, {
         contentType: multerReq.file.mimetype,
         metadata: {
           userId,
-          knowledgeBaseName: name,
+          knowledgeBaseId: id,
+          knowledgeBaseName: existingKb.name, // 保留 name 用于内部处理
           originalFileName: originalName,
         },
       });
@@ -539,11 +659,11 @@ router.post(
       const taskManager = taskExecutor.getTaskManager();
       const createResponse = await taskManager.createTask({
         type: 'other',
-        model: `knowledge-import:${name}`,
+        model: `knowledge-import:${id}`,
         provider: 'knowledge',
         params: {
-          knowledgeBaseName: name,
-          knowledgeBaseId: existingKb.id,
+          knowledgeBaseId: id,
+          knowledgeBaseName: existingKb.name, // 保留 name 用于内部处理
           fileBucket: bucket,
           fileKey: key,
           originalFileName: originalName,
@@ -552,6 +672,9 @@ router.post(
           tags: parsedTags,
           metadata: parsedMetadata,
           isPublic: finalIsPublic,
+          chunkSize,
+          chunkOverlap,
+          maxChunkSize,
         },
         userId,
         // 不需要 MinIO 输出存储，这个任务只是导入知识库
@@ -586,24 +709,81 @@ router.post(
 );
 
 /**
- * GET /knowledge/bases/:name/documents
- * 列出知识库中的文档
+ * GET /knowledge/bases/:id/documents
+ * 列出知识库中的文档（通过 id）
  */
-router.get('/bases/:name/documents', async (req: Request, res: Response) => {
+router.get('/bases/:id/documents', async (req: Request, res: Response) => {
   try {
     const userId = req.headers['x-user-id'] as string | undefined;
-    const { name } = req.params;
+    const { id } = req.params;
     const { limit, offset } = req.query;
 
-    const result = await getKnowledgeService().listDocuments(name, {
+    // 支持通过 id 或 name 获取知识库
+    let knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
+    if (!knowledgeBase) {
+      knowledgeBase = await getKnowledgeService().getKnowledgeBase(id);
+    }
+    
+    if (!knowledgeBase) {
+      return res.status(404).json({
+        success: false,
+        error: `Knowledge base with ID or name "${id}" not found`,
+      });
+    }
+
+    const result = await getKnowledgeService().listDocuments(knowledgeBase.name, {
       user_id: userId,
       limit: limit ? Number(limit) : undefined,
       offset: offset ? Number(offset) : undefined,
     });
 
+    // 按文件分组统计 chunks 数量
+    const fileChunkCountMap = new Map<string, number>();
+    for (const doc of result.documents) {
+      const metadata = doc.metadata || {};
+      const fileId = metadata.fileId as string | undefined;
+      const filename = metadata.originalFileName || metadata.fileName || doc.title || '未知文件';
+      // 使用 fileId 作为 key，如果没有则使用 filename
+      const fileKey = fileId || filename;
+      fileChunkCountMap.set(fileKey, (fileChunkCountMap.get(fileKey) || 0) + 1);
+    }
+
+    // 为每个文档添加 filename、file_size、embedding 和 chunk_count 信息（从 metadata 中提取）
+    const documentsWithFileInfo = result.documents.map((doc) => {
+      const metadata = doc.metadata || {};
+      const filename = metadata.originalFileName || metadata.fileName || doc.title || '未知文件';
+      const file_size = metadata.fileSize || 0;
+      const fileId = metadata.fileId as string | undefined;
+      const fileKey = fileId || filename;
+      
+      // 检查 embedding 状态
+      const hasEmbedding = doc.embedding && Array.isArray(doc.embedding) && doc.embedding.length > 0;
+      const embeddingDimension = hasEmbedding ? doc.embedding.length : null;
+      
+      // 获取该文件的 chunk 数量
+      const chunk_count = fileChunkCountMap.get(fileKey) || 1;
+      
+      return {
+        ...doc,
+        filename,
+        file_size,
+        file_type: doc.content_type || 'text',
+        chunk_count,
+        embedding: {
+          hasEmbedding,
+          dimension: embeddingDimension,
+        },
+      };
+    });
+
     return res.json({
       success: true,
-      data: result,
+      data: {
+        documents: documentsWithFileInfo,
+        total: result.total,
+        limit: limit ? Number(limit) : undefined,
+        offset: offset ? Number(offset) : undefined,
+      },
     });
   } catch (error) {
     console.error('[Knowledge Route] List documents failed:', error);
@@ -615,8 +795,173 @@ router.get('/bases/:name/documents', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /knowledge/bases/:id/detail
+ * 获取知识库详细信息（包括文件列表、chunks、embedding 信息，通过 id）
+ * 
+ * 查询参数：
+ * - include_content: 是否包含 chunk 的完整内容（默认 false，只返回摘要）
+ * - include_embedding: 是否包含 embedding 向量（默认 false，只返回维度信息）
+ * - limit: 限制返回的文档数量（默认不限制）
+ */
+router.get('/bases/:id/detail', async (req: Request, res: Response) => {
+  try {
+    const userId = req.headers['x-user-id'] as string | undefined;
+    const { id } = req.params;
+    const { include_content, include_embedding, limit } = req.query;
+
+    // 1. 获取知识库基本信息
+    const knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
+    if (!knowledgeBase) {
+      return res.status(404).json({
+        success: false,
+        error: `Knowledge base with ID "${id}" not found`,
+      });
+    }
+
+    // 2. 获取所有文档（按文件分组）
+    const documentsResult = await getKnowledgeService().listDocumentsById(id, {
+      user_id: userId,
+      limit: limit ? Number(limit) : undefined,
+    });
+
+    // 3. 按文件分组组织数据（使用 fileId 作为 key）
+    const filesMap = new Map<string, {
+      fileId: string; // 文件唯一 ID
+      fileName: string;
+      fileType: string;
+      uploadTime: string;
+      chunks: Array<{
+        id: string;
+        title: string;
+        content: string | null; // 根据 include_content 决定
+        contentPreview: string; // 内容摘要（前200字符）
+        chunkIndex: number;
+        totalChunks: number;
+        embedding: {
+          dimension: number | null;
+          hasEmbedding: boolean;
+          vector?: number[]; // 根据 include_embedding 决定
+        };
+        tags: string[];
+        metadata: Record<string, any>;
+        createdAt: string;
+      }>;
+    }>();
+
+    // 为没有 fileId 的旧数据生成稳定的 fileId（基于文件名）
+    const fileNameToFileIdMap = new Map<string, string>();
+
+    for (const doc of documentsResult.documents) {
+      let fileId = doc.metadata?.fileId as string | undefined;
+      const fileName = (doc.metadata?.originalFileName as string) || '未知文件';
+      
+      // 如果没有 fileId（旧数据），为同名文件生成并复用同一个 fileId
+      if (!fileId) {
+        if (!fileNameToFileIdMap.has(fileName)) {
+          fileNameToFileIdMap.set(fileName, `file_${uid(21)}`);
+        }
+        fileId = fileNameToFileIdMap.get(fileName)!;
+      }
+      
+      const fileType = doc.content_type || 'text';
+      
+      if (!filesMap.has(fileId)) {
+        filesMap.set(fileId, {
+          fileId,
+          fileName,
+          fileType,
+          uploadTime: doc.created_at,
+          chunks: [],
+        });
+      }
+
+      const fileInfo = filesMap.get(fileId)!;
+      
+      // 提取 chunk 信息
+      const chunkIndex = doc.metadata?.chunkIndex as number ?? 0;
+      const totalChunks = doc.metadata?.totalChunks as number ?? 1;
+      
+      // 内容处理
+      const shouldIncludeContent = include_content === 'true';
+      const contentPreview = doc.content 
+        ? (doc.content.length > 200 ? doc.content.substring(0, 200) + '...' : doc.content)
+        : '';
+      
+      // Embedding 信息
+      const hasEmbedding = doc.embedding && doc.embedding.length > 0;
+      const embeddingDimension = hasEmbedding ? doc.embedding.length : null;
+      const shouldIncludeEmbedding = include_embedding === 'true';
+
+      fileInfo.chunks.push({
+        id: doc.id,
+        title: doc.title || '',
+        content: shouldIncludeContent ? doc.content : null,
+        contentPreview,
+        chunkIndex,
+        totalChunks,
+        embedding: {
+          dimension: embeddingDimension,
+          hasEmbedding,
+          ...(shouldIncludeEmbedding && hasEmbedding ? { vector: doc.embedding } : {}),
+        },
+        tags: doc.tags || [],
+        metadata: doc.metadata || {},
+        createdAt: doc.created_at,
+      });
+
+      // 更新最早的上传时间（用于文件的上传时间）
+      if (new Date(doc.created_at) < new Date(fileInfo.uploadTime)) {
+        fileInfo.uploadTime = doc.created_at;
+      }
+    }
+
+    // 4. 转换为数组并按上传时间排序
+    const files = Array.from(filesMap.values()).sort((a, b) => 
+      new Date(a.uploadTime).getTime() - new Date(b.uploadTime).getTime()
+    );
+
+    // 5. 对每个文件的 chunks 按 chunkIndex 排序
+    files.forEach(file => {
+      file.chunks.sort((a, b) => a.chunkIndex - b.chunkIndex);
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        knowledgeBase: {
+          id: knowledgeBase.id,
+          name: knowledgeBase.name,
+          display_name: knowledgeBase.display_name,
+          description: knowledgeBase.description,
+          type: knowledgeBase.type,
+          embedding_model: knowledgeBase.embedding_model,
+          document_count: knowledgeBase.document_count,
+          total_size_bytes: knowledgeBase.total_size_bytes,
+          is_public: knowledgeBase.is_public,
+          owner_id: knowledgeBase.owner_id,
+          created_at: knowledgeBase.created_at,
+          updated_at: knowledgeBase.updated_at,
+        },
+        files: files,
+        summary: {
+          totalFiles: files.length,
+          totalChunks: documentsResult.total,
+          totalSizeBytes: knowledgeBase.total_size_bytes,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('[Knowledge Route] Get knowledge base detail failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
  * DELETE /knowledge/documents/:id
- * 删除文档
+ * 删除文档（单个 chunk）
  * 
  * 权限规则：
  * - Admin 账号：可以删除任何文档
@@ -669,13 +1014,97 @@ router.delete('/documents/:id', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /knowledge/bases/:name/search
- * 搜索知识库
+ * DELETE /knowledge/bases/:id/files/:fileId
+ * 删除知识库中的某个文件（删除该文件的所有 chunks，通过 id）
+ * 
+ * 权限规则：
+ * - Admin 账号：可以删除任何文件
+ * - 个人账号：只能删除自己上传的文件
+ * 
+ * 注意：使用 fileId 而不是 fileName，避免特殊字符问题
+ * fileId 可以从上传文件时的响应中获取，或从 GET /bases/:id/detail 接口中获取
  */
-router.post('/bases/:name/search', async (req: Request, res: Response) => {
+router.delete('/bases/:id/files/:fileId', async (req: Request, res: Response) => {
   try {
     const userId = req.headers['x-user-id'] as string | undefined;
-    const { name } = req.params;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Missing x-user-id header' });
+    }
+
+    const { id, fileId } = req.params;
+
+    // 检查知识库是否存在
+    const knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
+    if (!knowledgeBase) {
+      return res.status(404).json({
+        success: false,
+        error: `Knowledge base with ID "${id}" not found`,
+      });
+    }
+
+    // 检查用户是否为管理员
+    const isAdmin = await isAdminUser(req);
+
+    // 先查找该文件的所有文档，检查权限
+    const documentsResult = await getKnowledgeService().listDocumentsById(id, {
+      user_id: userId,
+    });
+
+    const fileDocuments = documentsResult.documents.filter(
+      (doc) => doc.metadata?.fileId === fileId
+    );
+
+    if (fileDocuments.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: `File with ID "${fileId}" not found in knowledge base with ID "${id}"`,
+      });
+    }
+
+    // 权限检查：非管理员只能删除自己上传的文件
+    if (!isAdmin) {
+      const hasOtherUserFiles = fileDocuments.some(
+        (doc) => doc.user_id !== userId
+      );
+      if (hasOtherUserFiles) {
+        return res.status(403).json({
+          success: false,
+          error: 'You can only delete files you uploaded',
+        });
+      }
+    }
+
+    // 删除文件的所有 chunks
+    const result = await getKnowledgeService().deleteFileById(id, fileId, userId);
+
+    return res.json({
+      success: true,
+      data: {
+        fileId,
+        fileName: result.fileName,
+        deletedChunksCount: result.deletedCount,
+        message: result.fileName
+          ? `File "${result.fileName}" and ${result.deletedCount} chunks deleted successfully`
+          : `File and ${result.deletedCount} chunks deleted successfully`,
+      },
+    });
+  } catch (error) {
+    console.error('[Knowledge Route] Delete file failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
+ * POST /knowledge/bases/:id/search
+ * 搜索知识库（通过 id 或 name）
+ */
+router.post('/bases/:id/search', async (req: Request, res: Response) => {
+  try {
+    const userId = req.headers['x-user-id'] as string | undefined;
+    const { id } = req.params;
     const {
       query,
       search_type = 'hybrid',
@@ -692,8 +1121,21 @@ router.post('/bases/:name/search', async (req: Request, res: Response) => {
       });
     }
 
-    const results = await getKnowledgeService().search({
-      knowledgeBaseName: name,
+    // 支持通过 id 或 name 获取知识库
+    let knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
+    if (!knowledgeBase) {
+      knowledgeBase = await getKnowledgeService().getKnowledgeBase(id);
+    }
+    
+    if (!knowledgeBase) {
+      return res.status(404).json({
+        success: false,
+        error: `Knowledge base with ID or name "${id}" not found`,
+      });
+    }
+
+    const results = await getKnowledgeService().searchById({
+      knowledgeBaseId: knowledgeBase.id,
       query,
       searchType: search_type,
       limit: Number(limit),

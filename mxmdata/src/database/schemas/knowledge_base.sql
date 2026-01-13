@@ -12,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS knowledge_bases (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id VARCHAR(50) PRIMARY KEY,
   
   -- 基本信息
   name VARCHAR(100) UNIQUE NOT NULL,        -- 知识库名称（唯一标识）
@@ -55,7 +55,7 @@ CREATE INDEX IF NOT EXISTS idx_kb_is_public ON knowledge_bases(is_public);
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS knowledge_base_documents (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id VARCHAR(50) PRIMARY KEY,
   
   -- 知识库标识（关键字段，用于隔离不同知识库）
   knowledge_base_name VARCHAR(100) NOT NULL,  -- 关联 knowledge_bases.name
@@ -125,10 +125,10 @@ CREATE OR REPLACE FUNCTION search_knowledge_base(
   user_id_filter UUID DEFAULT NULL
 )
 RETURNS TABLE (
-  id UUID,
+  id VARCHAR(50),
   title VARCHAR(500),
   content TEXT,
-  similarity FLOAT,
+  similarity REAL,
   metadata JSONB,
   tags TEXT[]
 )
@@ -169,12 +169,12 @@ CREATE OR REPLACE FUNCTION hybrid_search_knowledge_base(
   user_id_filter UUID DEFAULT NULL
 )
 RETURNS TABLE (
-  id UUID,
+  id VARCHAR(50),
   title VARCHAR(500),
   content TEXT,
-  similarity FLOAT,
-  keyword_score FLOAT,
-  combined_score FLOAT,
+  similarity REAL,
+  keyword_score REAL,
+  combined_score REAL,
   metadata JSONB,
   tags TEXT[]
 )

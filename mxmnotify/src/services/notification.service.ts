@@ -31,14 +31,33 @@ export interface CreateNotificationDto {
 }
 
 export class NotificationService {
-  private supabase = getSupabaseClient();
+  private supabase: ReturnType<typeof getSupabaseClient> | null = null;
+
+  /**
+   * 获取 Supabase 客户端（延迟初始化）
+   */
+  private getSupabase() {
+    if (!this.supabase) {
+      try {
+        this.supabase = getSupabaseClient();
+      } catch (error) {
+        // 如果客户端未初始化，记录详细错误信息
+        logger.error('[NotificationService] Supabase client not initialized:', {
+          error: error instanceof Error ? error.message : String(error),
+          hint: 'Please ensure RepositoryFactory.init() is called at startup and Supabase config is correct',
+        });
+        throw new Error('Supabase client not initialized. Please check server logs for details.');
+      }
+    }
+    return this.supabase;
+  }
 
   /**
    * 创建通知
    */
   async createNotification(dto: CreateNotificationDto): Promise<Notification> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await this.getSupabase()
         .from('notifications')
         .insert({
           user_id: dto.user_id,
@@ -143,7 +162,7 @@ export class NotificationService {
     }
   ): Promise<{ notifications: Notification[]; total: number }> {
     try {
-      let query = this.supabase
+      let query = this.getSupabase()
         .from('notifications')
         .select('*', { count: 'exact' })
         .eq('user_id', userId)
@@ -182,7 +201,7 @@ export class NotificationService {
    */
   async markAsRead(notificationId: string): Promise<void> {
     try {
-      const { error } = await this.supabase
+      const { error } = await this.getSupabase()
         .from('notifications')
         .update({
           is_read: true,
@@ -204,7 +223,7 @@ export class NotificationService {
    */
   async markAllAsRead(userId: string): Promise<void> {
     try {
-      const { error } = await this.supabase
+      const { error } = await this.getSupabase()
         .from('notifications')
         .update({
           is_read: true,
@@ -218,6 +237,97 @@ export class NotificationService {
       }
     } catch (error) {
       logger.error('Failed to mark all notifications as read:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 删除通知
+   */
+  async deleteNotification(notificationId: string, userId: string): Promise<void> {
+    try {
+      // 验证通知属于该用户
+      const { data: notification, error: fetchError } = await this.getSupabase()
+        .from('notifications')
+        .select('user_id')
+        .eq('id', notificationId)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Notification not found: ${fetchError.message}`);
+      }
+
+      if (notification.user_id !== userId) {
+        throw new Error('Unauthorized: Notification does not belong to user');
+      }
+
+      // 删除通知
+      const { error } = await this.getSupabase()
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId);
+
+      if (error) {
+        throw new Error(`Failed to delete notification: ${error.message}`);
+      }
+
+      logger.info(`Notification deleted: ${notificationId} by user ${userId}`);
+    } catch (error) {
+      logger.error('Failed to delete notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量删除通知
+   * @param notificationIds 通知ID数组
+   * @param userId 用户ID
+   * @returns 删除成功的通知ID数组
+   */
+  async deleteNotifications(notificationIds: string[], userId: string): Promise<string[]> {
+    try {
+      if (!notificationIds || notificationIds.length === 0) {
+        return [];
+      }
+
+      // 验证所有通知都属于该用户
+      const { data: notifications, error: fetchError } = await this.getSupabase()
+        .from('notifications')
+        .select('id, user_id')
+        .in('id', notificationIds);
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch notifications: ${fetchError.message}`);
+      }
+
+      // 检查是否有不属于该用户的通知
+      const unauthorizedNotifications = notifications.filter(n => n.user_id !== userId);
+      if (unauthorizedNotifications.length > 0) {
+        throw new Error(`Unauthorized: Some notifications do not belong to user`);
+      }
+
+      // 获取所有有效的通知ID
+      const validIds = notifications.map(n => n.id);
+      const invalidIds = notificationIds.filter(id => !validIds.includes(id));
+      
+      if (invalidIds.length > 0) {
+        logger.warn(`Some notification IDs not found: ${invalidIds.join(', ')}`);
+      }
+
+      // 批量删除通知
+      const { error } = await this.getSupabase()
+        .from('notifications')
+        .delete()
+        .in('id', validIds);
+
+      if (error) {
+        throw new Error(`Failed to delete notifications: ${error.message}`);
+      }
+
+      logger.info(`Notifications deleted: ${validIds.length} by user ${userId}`);
+      return validIds;
+    } catch (error) {
+      logger.error('Failed to delete notifications:', error);
       throw error;
     }
   }

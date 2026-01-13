@@ -164,6 +164,18 @@ export class TaskManager {
       if (!createdTask) {
         throw new Error('Failed to create task');
       }
+      
+      // 任务创建时发送通知
+      const { sendTaskStatusNotification } = await import('./notification-hook');
+      sendTaskStatusNotification(
+        createdTask,
+        'pending',
+        '任务已创建'
+      ).catch((error) => {
+        // 通知失败不影响主流程
+        console.error(`[TaskManager] Failed to send task creation notification for task ${taskId}:`, error);
+      });
+      
       return {
         taskId: createdTask.id,
         status: createdTask.status,
@@ -195,6 +207,17 @@ export class TaskManager {
     };
 
     await this.storage.save(task);
+
+    // 任务创建时发送通知
+    const { sendTaskStatusNotification } = await import('./notification-hook');
+    sendTaskStatusNotification(
+      task,
+      'pending',
+      '任务已创建'
+    ).catch((error) => {
+      // 通知失败不影响主流程
+      console.error(`[TaskManager] Failed to send task creation notification for task ${taskId}:`, error);
+    });
 
     return {
       taskId,
@@ -261,6 +284,47 @@ export class TaskManager {
     }
 
     await this.storage.update(taskId, updates);
+
+    // 只在关键状态变化时发送通知：创建（pending）、完成（completed）、失败（failed）
+    // 其他状态（queued、processing）不发送通知，避免通知过多
+    const shouldNotify = status === 'pending' || status === 'completed' || status === 'failed';
+    
+    if (shouldNotify) {
+      const updatedTask = await this.storage.get(taskId);
+      if (updatedTask) {
+        // 根据状态生成通知消息
+        let statusMessage: string;
+        switch (status) {
+          case 'pending':
+            statusMessage = '任务已创建';
+            break;
+          case 'completed':
+            statusMessage = progress?.logs?.[progress.logs.length - 1] || '任务已完成';
+            break;
+          case 'failed':
+            statusMessage = progress?.logs?.[progress.logs.length - 1] || progress?.error || '任务失败';
+            break;
+          default:
+            statusMessage = `任务状态变更为 ${status}`;
+        }
+
+        console.log(`[TaskManager] Sending status notification for task ${taskId}, status: ${status}, userId: ${updatedTask.metadata.userId}`);
+        const { sendTaskStatusNotification } = await import('./notification-hook');
+        sendTaskStatusNotification(
+          updatedTask,
+          status,
+          statusMessage
+        ).catch((err) => {
+          // 通知失败不影响主流程
+          console.error(`[TaskManager] Failed to send status notification for task ${taskId}:`, err);
+        });
+      } else {
+        console.warn(`[TaskManager] Task ${taskId} not found after status update, cannot send notification`);
+      }
+    } else {
+      // 其他状态变化不发送通知，只记录日志
+      console.log(`[TaskManager] Task ${taskId} status changed to ${status}, skipping notification (only notify on pending/completed/failed)`);
+    }
   }
 
   /**
@@ -286,6 +350,7 @@ export class TaskManager {
 
   /**
    * 设置任务结果
+   * 注意：此方法会设置状态为 completed，通知由 updateTaskStatus 统一发送
    */
   async setTaskResult(taskId: string, result: TaskResult): Promise<void> {
     const task = await this.storage.get(taskId);
@@ -293,6 +358,7 @@ export class TaskManager {
       throw new Error(`Task ${taskId} not found`);
     }
 
+    // 先更新结果和状态
     await this.storage.update(taskId, {
       result,
       status: 'completed',
@@ -304,6 +370,14 @@ export class TaskManager {
         completedAt: new Date(),
       },
       updatedAt: new Date(),
+    });
+
+    // 通过 updateTaskStatus 发送通知（统一处理所有状态变化）
+    // 这样可以确保通知逻辑一致，并且可以获取到最新的任务数据（包括 result）
+    await this.updateTaskStatus(taskId, 'completed', {
+      progress: 100,
+      completedAt: new Date(),
+      logs: ['任务已完成'],
     });
   }
 
@@ -325,6 +399,13 @@ export class TaskManager {
         completedAt: new Date(),
       },
       updatedAt: new Date(),
+    });
+
+    // 通过 updateTaskStatus 发送通知（统一处理所有状态变化）
+    await this.updateTaskStatus(taskId, 'failed', {
+      error,
+      completedAt: new Date(),
+      logs: [error],
     });
   }
 
