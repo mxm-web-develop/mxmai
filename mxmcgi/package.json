@@ -12,7 +12,10 @@
     "playground:gemini": "tsx src/playground/04-gemini-image-generation.ts",
     "playground:all": "pnpm playground:langchain && pnpm playground:langraph && pnpm playground:vector",
     "test:replicate-text": "tsx src/test/replicate_text.ts",
-    "test:replicate-img": "tsx src/test/replicate_img.ts"
+    "test:replicate-img": "tsx src/test/replicate_img.ts",
+    "init:system-kb": "tsx src/scripts/init-system-kb.ts",
+    "test:kb-recall": "tsx src/scripts/test-kb-recall.ts",
+    "fix:kb-count": "tsx src/scripts/fix-kb-document-count.ts"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.1.3",

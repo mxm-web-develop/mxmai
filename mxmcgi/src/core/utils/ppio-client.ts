@@ -162,7 +162,9 @@ export class PPIOClient {
     console.log('📥 API 响应成功');
     console.log(`   生成图片数量: ${result.image_urls.length}`);
     if (result.image_urls.length > 0) {
-      console.log(`   第一张图片 URL: ${result.image_urls[0].substring(0, 80)}...`);
+      const firstUrl = result.image_urls[0];
+      const isBase64 = firstUrl.startsWith('data:');
+      console.log(`   第一张图片: ${isBase64 ? 'Base64数据' : 'URL'}`);
     }
     
     return result;

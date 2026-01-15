@@ -659,7 +659,7 @@ export class ReplicateProvider implements ModelProvider {
         delete input.image_base64s;
         console.log(`[ReplicateProvider] nano-banana 将 image_base64s 转换为 image_input:`, {
           count: Array.isArray(input.image_input) ? input.image_input.length : 0,
-          preview: Array.isArray(input.image_input) ? input.image_input[0]?.substring(0, 50) + '...' : []
+          preview: Array.isArray(input.image_input) ? (input.image_input[0]?.startsWith('data:') ? 'Base64数据' : 'URL') : []
         });
       }
       
@@ -670,7 +670,7 @@ export class ReplicateProvider implements ModelProvider {
         delete input.image;
         console.log(`[ReplicateProvider] nano-banana 将 image 转换为 image_input:`, {
           count: 1,
-          preview: Array.isArray(input.image_input) ? input.image_input[0]?.substring(0, 100) : []
+          preview: Array.isArray(input.image_input) ? (input.image_input[0]?.startsWith('data:') ? 'Base64数据' : 'URL') : []
         });
       }
 
@@ -859,9 +859,17 @@ export class ReplicateProvider implements ModelProvider {
           if (outputAny && typeof outputAny === 'object' && !Array.isArray(outputAny)) {
             console.log(`[DEBUG] Object keys:`, Object.keys(outputAny));
             try {
-              console.log(`[DEBUG] Output (first 500 chars):`, JSON.stringify(outputAny, null, 2).substring(0, 500));
+              // 避免打印 Base64 数据，只显示输出类型和结构
+              const outputType = typeof outputAny;
+              const outputInfo = Array.isArray(outputAny) 
+                ? `array[${outputAny.length}]` 
+                : outputType === 'object' 
+                  ? `object with keys: ${Object.keys(outputAny).join(', ')}` 
+                  : outputType;
+              console.log(`[DEBUG] Output type: ${outputInfo}`);
             } catch (e) {
-              console.log(`[DEBUG] Output (string):`, String(outputAny).substring(0, 500));
+              // 避免打印 Base64 数据
+              console.log(`[DEBUG] Output type: ${typeof outputAny}, length: ${String(outputAny).length} chars`);
             }
           }
           
@@ -877,9 +885,11 @@ export class ReplicateProvider implements ModelProvider {
             // 尝试打印完整对象（限制长度）
             try {
               const outputStr = JSON.stringify(outputAny, null, 2);
-              console.log(`[DEBUG] - Full output (first 2000 chars):`, outputStr.substring(0, 2000));
+              // 避免打印 Base64 数据，只显示输出类型和长度
+              console.log(`[DEBUG] - Full output length: ${outputStr.length} chars, type: ${typeof outputAny}`);
             } catch (e) {
-              console.log(`[DEBUG] - Output (string):`, String(outputAny).substring(0, 500));
+              // 避免打印 Base64 数据
+              console.log(`[DEBUG] - Output type: ${typeof outputAny}, length: ${String(outputAny).length} chars`);
             }
           } else if (Array.isArray(outputAny)) {
             console.log(`[DEBUG] - Array length:`, outputAny.length);
@@ -909,29 +919,33 @@ export class ReplicateProvider implements ModelProvider {
                 // items 可能是字符串数组，也可能是对象数组
                 mediaUrls = outputAny.items.map((item: any, index: number) => {
                   if (typeof item === 'string' && item.length > 0) {
-                    console.log(`[DEBUG] seedream-4 item[${index}] is string:`, item);
+                    const isBase64 = item.startsWith('data:');
+                    console.log(`[DEBUG] seedream-4 item[${index}] is string (${isBase64 ? 'Base64' : 'URL'})`);
                     return item;
                   } else if (item && typeof item === 'object') {
                     console.log(`[DEBUG] seedream-4 item[${index}] is object, keys:`, Object.keys(item));
                     // 可能是 { url: "..." } 或 { image_url: "..." } 格式
                     if (item.url && typeof item.url === 'string') {
-                      console.log(`[DEBUG] seedream-4 item[${index}] has url:`, item.url);
+                      const isBase64 = item.url.startsWith('data:');
+                      console.log(`[DEBUG] seedream-4 item[${index}] has url (${isBase64 ? 'Base64' : 'URL'})`);
                       return item.url;
                     } else if (item.image_url && typeof item.image_url === 'string') {
-                      console.log(`[DEBUG] seedream-4 item[${index}] has image_url:`, item.image_url);
+                      const isBase64 = item.image_url.startsWith('data:');
+                      console.log(`[DEBUG] seedream-4 item[${index}] has image_url (${isBase64 ? 'Base64' : 'URL'})`);
                       return item.image_url;
                     } else if (item.image && typeof item.image === 'string') {
-                      console.log(`[DEBUG] seedream-4 item[${index}] has image:`, item.image);
+                      const isBase64 = item.image.startsWith('data:');
+                      console.log(`[DEBUG] seedream-4 item[${index}] has image (${isBase64 ? 'Base64' : 'URL'})`);
                       return item.image;
                     }
                     // 尝试查找任何以 http 开头的字符串属性
                     for (const key in item) {
                       if (typeof item[key] === 'string' && (item[key].startsWith('http://') || item[key].startsWith('https://'))) {
-                        console.log(`[DEBUG] seedream-4 item[${index}] found URL in key "${key}":`, item[key]);
+                        console.log(`[DEBUG] seedream-4 item[${index}] found URL in key "${key}"`);
                         return item[key];
                       }
                     }
-                    console.warn(`[WARN] seedream-4 item[${index}] could not extract URL from:`, item);
+                    console.warn(`[WARN] seedream-4 item[${index}] could not extract URL from object`);
                   }
                   return null;
                 }).filter((url: string | null): url is string => url !== null && url.length > 0);
@@ -1047,7 +1061,8 @@ export class ReplicateProvider implements ModelProvider {
           
           console.log(`[DEBUG] Extracted mediaUrls count:`, mediaUrls.length);
           if (mediaUrls.length > 0) {
-            console.log(`[DEBUG] First URL:`, mediaUrls[0]);
+            const isBase64 = mediaUrls[0].startsWith('data:');
+            console.log(`[DEBUG] First media: ${isBase64 ? 'Base64数据' : 'URL'}`);
           } else {
             console.warn(`[WARN] No mediaUrls extracted from output. Output was:`, outputAny);
           }
@@ -1079,9 +1094,11 @@ export class ReplicateProvider implements ModelProvider {
         }
         try {
           const outputStr = JSON.stringify(output, null, 2);
-          console.log(`[DEBUG] Output (first 1000 chars):`, outputStr.substring(0, 1000));
+          // 避免打印 Base64 数据，只显示输出类型和长度
+          console.log(`[DEBUG] Output length: ${outputStr.length} chars, type: ${typeof output}`);
         } catch (e) {
-          console.log(`[DEBUG] Output (stringified):`, String(output).substring(0, 500));
+          // 避免打印 Base64 数据
+          console.log(`[DEBUG] Output type: ${typeof output}, length: ${String(output).length} chars`);
         }
       }
 
@@ -1239,9 +1256,11 @@ export class ReplicateProvider implements ModelProvider {
             }
             try {
               const outputStr = JSON.stringify(finalOutput, null, 2);
-              console.warn(`原始输出 (前1000字符):`, outputStr.substring(0, 1000));
+              // 避免打印 Base64 数据
+              console.warn(`原始输出长度: ${outputStr.length} 字符, 类型: ${typeof finalOutput}`);
             } catch (e) {
-              console.warn(`原始输出 (字符串):`, String(finalOutput).substring(0, 500));
+              // 避免打印 Base64 数据
+              console.warn(`原始输出类型: ${typeof finalOutput}, 长度: ${String(finalOutput).length} 字符`);
             }
             // 最后尝试：如果是数组，尝试连接
             if (Array.isArray(finalOutput)) {
@@ -1277,9 +1296,11 @@ export class ReplicateProvider implements ModelProvider {
           console.log(`[DEBUG] - Object keys:`, Object.keys(outputAny));
           try {
             const outputStr = JSON.stringify(outputAny, null, 2);
-            console.log(`[DEBUG] - Full output (first 2000 chars):`, outputStr.substring(0, 2000));
+            // 避免打印 Base64 数据，只显示输出类型和长度
+            console.log(`[DEBUG] - Full output length: ${outputStr.length} chars, type: ${typeof outputAny}`);
           } catch (e) {
-            console.log(`[DEBUG] - Output (string):`, String(outputAny).substring(0, 500));
+            // 避免打印 Base64 数据
+            console.log(`[DEBUG] - Output type: ${typeof outputAny}, length: ${String(outputAny).length} chars`);
           }
         } else if (Array.isArray(outputAny)) {
           console.log(`[DEBUG] - Array length:`, outputAny.length);
@@ -1313,29 +1334,33 @@ export class ReplicateProvider implements ModelProvider {
               // items 可能是字符串数组，也可能是对象数组
               mediaUrls = outputAnyFinal.items.map((item: any, index: number) => {
                 if (typeof item === 'string' && item.length > 0) {
-                  console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] is string:`, item);
+                  const isBase64 = item.startsWith('data:');
+                  console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] is string (${isBase64 ? 'Base64' : 'URL'})`);
                   return item;
                 } else if (item && typeof item === 'object') {
                   console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] is object, keys:`, Object.keys(item));
                   // 可能是 { url: "..." } 或 { image_url: "..." } 格式
                   if (item.url && typeof item.url === 'string') {
-                    console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has url:`, item.url);
+                    const isBase64 = item.url.startsWith('data:');
+                    console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has url (${isBase64 ? 'Base64' : 'URL'})`);
                     return item.url;
                   } else if (item.image_url && typeof item.image_url === 'string') {
-                    console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has image_url:`, item.image_url);
+                    const isBase64 = item.image_url.startsWith('data:');
+                    console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has image_url (${isBase64 ? 'Base64' : 'URL'})`);
                     return item.image_url;
                   } else if (item.image && typeof item.image === 'string') {
-                    console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has image:`, item.image);
+                    const isBase64 = item.image.startsWith('data:');
+                    console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has image (${isBase64 ? 'Base64' : 'URL'})`);
                     return item.image;
                   }
                   // 尝试查找任何以 http 开头的字符串属性
                   for (const key in item) {
                     if (typeof item[key] === 'string' && (item[key].startsWith('http://') || item[key].startsWith('https://'))) {
-                      console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] found URL in key "${key}":`, item[key]);
+                      console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] found URL in key "${key}"`);
                       return item[key];
                     }
                   }
-                  console.warn(`[WARN] seedream-4 (non-progress) item[${index}] could not extract URL from:`, item);
+                  console.warn(`[WARN] seedream-4 (non-progress) item[${index}] could not extract URL from object`);
                 }
                 return null;
               }).filter((url: string | null): url is string => url !== null && url.length > 0);

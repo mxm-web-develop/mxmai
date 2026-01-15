@@ -45,6 +45,7 @@ export class DeerEmbeddingProvider implements EmbeddingProvider {
       const result = await this.client.embeddings({
         input: request.input,
         model: request.model || this.defaultModel,
+        dimensions: request.dimensions, // 支持降维参数
       });
 
       return result as EmbeddingResponse;

@@ -42,6 +42,7 @@ export interface UpdateKnowledgeBaseDto {
   display_name?: string;
   description?: string;
   type?: 'vector' | 'keyword' | 'hybrid';
+  embedding_model?: string; // 支持更新 embedding 模型
   agent_id?: string;
   agent_name?: string;
   is_public?: boolean;

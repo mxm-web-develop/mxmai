@@ -435,18 +435,66 @@ export class DeerProvider implements ModelProvider {
         responseModalities: ['IMAGE'], // 强制只返回图片，避免只返回文本
       });
 
-      // 调试：打印完整响应结构
-      if (process.env.DEBUG_DEERAPI) {
-        console.log('[DeerProvider] generateContent 响应:', JSON.stringify(response, null, 2));
-      }
-
       // 从响应中提取图像数据
       // 注意：Gemini API 可能使用驼峰命名（inlineData）或下划线命名（inline_data）
       const imageUrls: string[] = [];
       
-      // 调试：打印完整响应结构（仅在开发环境）
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[DeerProvider] generateContent 完整响应:', JSON.stringify(response, null, 2));
+      // 调试：打印响应结构（不包含 Base64 数据）
+      if (process.env.DEBUG_DEERAPI || process.env.NODE_ENV !== 'production') {
+        // 创建一个安全的响应副本，移除 Base64 数据
+        // 使用递归函数处理所有嵌套结构
+        const sanitizeBase64 = (obj: any): any => {
+          if (obj === null || obj === undefined) {
+            return obj;
+          }
+          
+          if (typeof obj === 'string') {
+            // 检测 Data URI（优先检测，因为更明确）
+            if (obj.startsWith('data:') && obj.includes('base64,')) {
+              const base64Part = obj.split('base64,')[1];
+              return `[Data URI，Base64长度: ${base64Part?.length || 0} 字符]`;
+            }
+            // 检测 Base64 数据（长字符串且符合 Base64 字符模式）
+            // Base64 字符串通常长度 > 100，且只包含 Base64 字符（A-Z, a-z, 0-9, +, /, =）
+            // 对于图片数据，Base64 字符串通常非常长（> 1000 字符）
+            if (obj.length > 100) {
+              // 检查前 500 个字符是否都是 Base64 字符
+              const sample = obj.substring(0, Math.min(500, obj.length));
+              // Base64 字符集：A-Z, a-z, 0-9, +, /, =, 可能包含换行符（但通常会被去除）
+              const base64Pattern = /^[A-Za-z0-9+/=\s]*$/;
+              if (base64Pattern.test(sample)) {
+                // 去除空白后检查
+                const trimmed = sample.replace(/\s/g, '');
+                // 如果去除空白后仍然很长（> 100），且整个字符串很长（> 500），很可能是 Base64 数据
+                if (trimmed.length > 100 && obj.length > 500) {
+                  return `[Base64数据，长度: ${obj.length} 字符]`;
+                }
+                // 对于中等长度的字符串，如果符合 Base64 模式且长度是 4 的倍数，也可能是 Base64
+                if (trimmed.length > 50 && (trimmed.length % 4 === 0 || trimmed.endsWith('=') || trimmed.endsWith('==') || trimmed.endsWith('==='))) {
+                  return `[Base64数据，长度: ${obj.length} 字符]`;
+                }
+              }
+            }
+            return obj;
+          }
+          
+          if (Array.isArray(obj)) {
+            return obj.map(item => sanitizeBase64(item));
+          }
+          
+          if (typeof obj === 'object') {
+            const sanitized: any = {};
+            for (const [key, value] of Object.entries(obj)) {
+              sanitized[key] = sanitizeBase64(value);
+            }
+            return sanitized;
+          }
+          
+          return obj;
+        };
+        
+        const safeResponse = sanitizeBase64(response);
+        console.log('[DeerProvider] generateContent 响应结构:', JSON.stringify(safeResponse, null, 2));
       }
       
       // 方法1：尝试标准的 candidates[0].content.parts 结构
@@ -906,6 +954,7 @@ export class DeerProvider implements ModelProvider {
     }
 
     // 调用 Seedream 接口
+    console.log(`[DeerProvider] 准备调用 Seedream 接口，模型: ${deerModel}, 参考图数量: ${seedreamRequest.image ? (Array.isArray(seedreamRequest.image) ? seedreamRequest.image.length : 1) : 0}`);
     const response = await this.client.createSeedreamImageGeneration(seedreamRequest);
 
     // 提取图片 URL 或 Base64
@@ -1129,13 +1178,18 @@ export class DeerProvider implements ModelProvider {
       const durationParam = videoParams.duration as number | undefined;
       console.log(`[Deer Provider] 接收到的 duration 参数: ${durationParam} (类型: ${typeof durationParam})`);
       
+      // duration 必须是 5, 6, 7, 8, 9, 10 之一，如果不在范围内则使用默认值 10
+      const validDuration = durationParam && [5, 6, 7, 8, 9, 10].includes(durationParam) 
+        ? (durationParam as 5 | 6 | 7 | 8 | 9 | 10)
+        : undefined;
+      
       const runwayTask = await this.client.createRunwayImageToVideo({
         model: (videoParams.model as any) || 'gen3a_turbo', // 默认使用 gen3a_turbo（根据文档）
         promptImage,
         ratio: (videoParams.ratio as any) || '1280:720',
         promptText: promptText, // 可选，只有提供时才传递
         seed: videoParams.seed as number | undefined,
-        duration: durationParam,
+        duration: validDuration,
         watermark: videoParams.watermark as boolean | undefined,
         contentModeration: videoParams.contentModeration as any,
       });
@@ -1154,7 +1208,9 @@ export class DeerProvider implements ModelProvider {
         ratio: (videoParams.ratio as any) || '1280:720',
         promptText: params.prompt,
         seed: videoParams.seed as number | undefined,
-        duration: videoParams.duration as number | undefined,
+        duration: (videoParams.duration && [5, 6, 7, 8, 9, 10].includes(videoParams.duration as number))
+          ? (videoParams.duration as 5 | 6 | 7 | 8 | 9 | 10)
+          : undefined,
         references: videoParams.references as any,
       });
       taskId = runwayTask.id;

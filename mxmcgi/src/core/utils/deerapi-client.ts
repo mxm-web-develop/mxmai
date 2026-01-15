@@ -143,6 +143,7 @@ export class DeerAPIClient {
   async embeddings(request: {
     input: string | string[];
     model?: string;
+    dimensions?: number; // OpenAI 支持降维参数（仅 text-embedding-3-large 支持）
   }): Promise<{
     data: Array<{
       embedding: number[];
@@ -162,6 +163,11 @@ export class DeerAPIClient {
       input: request.input,
       model: request.model || 'text-embedding-3-small',
     };
+
+    // 如果指定了 dimensions（仅 text-embedding-3-large 支持降维）
+    if (request.dimensions !== undefined) {
+      body.dimensions = request.dimensions;
+    }
 
     // 如果配置了 group，添加到请求头或查询参数
     const headers: Record<string, string> = {
@@ -339,6 +345,7 @@ export class DeerAPIClient {
   async embeddings(request: {
     input: string | string[];
     model?: string;
+    dimensions?: number; // OpenAI 支持降维参数（仅 text-embedding-3-large 支持）
   }): Promise<{
     data: Array<{
       embedding: number[];
@@ -358,6 +365,11 @@ export class DeerAPIClient {
       input: request.input,
       model: request.model || 'text-embedding-3-small',
     };
+
+    // 如果指定了 dimensions（仅 text-embedding-3-large 支持降维）
+    if (request.dimensions !== undefined) {
+      body.dimensions = request.dimensions;
+    }
 
     const headers: Record<string, string> = {
       Authorization: authHeader,
@@ -910,12 +922,34 @@ export class DeerAPIClient {
 
     // 调试日志：打印实际返回的数据结构
     if (process.env.DEBUG_DEERAPI || process.env.NODE_ENV !== 'production') {
-      console.log('[DeerAPIClient] getFluxResult 响应:', JSON.stringify(data, null, 2));
+      // 避免打印 Base64 数据，只显示响应结构
+      const safeData = JSON.parse(JSON.stringify(data, (key, value) => {
+        if (key === 'data' && typeof value === 'string' && value.length > 100 && /^[A-Za-z0-9+/=]+$/.test(value.substring(0, 50))) {
+          return `[Base64数据，长度: ${value.length} 字符]`;
+        }
+        if (typeof value === 'string' && value.startsWith('data:') && value.includes('base64,')) {
+          const base64Part = value.split('base64,')[1];
+          return `[Data URI，Base64长度: ${base64Part?.length || 0} 字符]`;
+        }
+        return value;
+      }));
+      console.log('[DeerAPIClient] getFluxResult 响应结构:', JSON.stringify(safeData, null, 2));
     }
 
     // 确保返回的数据至少包含基本字段
     if (!data.status && !data.error) {
-      console.warn('[DeerAPIClient] getFluxResult 返回的数据缺少 status 字段:', JSON.stringify(data));
+      // 避免打印 Base64 数据
+      const safeData = JSON.parse(JSON.stringify(data, (key, value) => {
+        if (key === 'data' && typeof value === 'string' && value.length > 100 && /^[A-Za-z0-9+/=]+$/.test(value.substring(0, 50))) {
+          return `[Base64数据，长度: ${value.length} 字符]`;
+        }
+        if (typeof value === 'string' && value.startsWith('data:') && value.includes('base64,')) {
+          const base64Part = value.split('base64,')[1];
+          return `[Data URI，Base64长度: ${base64Part?.length || 0} 字符]`;
+        }
+        return value;
+      }));
+      console.warn('[DeerAPIClient] getFluxResult 返回的数据缺少 status 字段:', JSON.stringify(safeData));
     }
 
     return {
@@ -972,33 +1006,66 @@ export class DeerAPIClient {
       body.image = Array.isArray(request.image) ? request.image : [request.image];
     }
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: authHeader,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`DeerAPI Seedream 图像生成失败: ${response.status} ${response.statusText} - ${errorText}`);
+    // 检查请求体大小（Base64 图片可能很大）
+    const bodyString = JSON.stringify(body);
+    const bodySizeMB = bodyString.length / 1024 / 1024;
+    if (bodySizeMB > 10) {
+      console.warn(`[DeerAPIClient] 警告：请求体较大 (${bodySizeMB.toFixed(2)} MB)，可能导致请求超时或失败`);
     }
+    console.log(`[DeerAPIClient] 发送 Seedream 图像生成请求，请求体大小: ${bodySizeMB.toFixed(2)} MB`);
 
-    return (await response.json()) as {
-      data: Array<{
-        url?: string;
-        b64_json?: string;
-      }>;
-      created: number;
-      usage?: {
-        prompt_tokens?: number;
-        completion_tokens?: number;
-        total_tokens?: number;
-        output_tokens?: number;
+    // 设置超时（10 分钟，因为大图片上传和生成可能需要更长时间）
+    const timeoutMs = 10 * 60 * 1000; // 10 分钟
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+        },
+        body: bodyString,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`DeerAPI Seedream 图像生成失败: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      return (await response.json()) as {
+        data: Array<{
+          url?: string;
+          b64_json?: string;
+        }>;
+        created: number;
+        usage?: {
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          total_tokens?: number;
+          output_tokens?: number;
+        };
       };
-    };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error instanceof Error) {
+        // 检查是否是超时错误
+        if (error.name === 'AbortError' || error.message.includes('aborted')) {
+          throw new Error(`DeerAPI Seedream 图像生成请求超时（${timeoutMs / 1000}秒）。请求体可能过大（${bodySizeMB.toFixed(2)} MB），请考虑使用 URL 而不是 Base64，或减小图片尺寸。`);
+        }
+        // 检查是否是网络错误
+        if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
+          throw new Error(`DeerAPI Seedream 图像生成网络错误: ${error.message}。请检查网络连接、API 端点配置和防火墙设置。请求体大小: ${bodySizeMB.toFixed(2)} MB`);
+        }
+        throw error;
+      }
+      throw new Error(`DeerAPI Seedream 图像生成失败: ${String(error)}`);
+    }
   }
 
   /**
@@ -1380,8 +1447,18 @@ export class DeerAPIClient {
       body.contentModeration = request.contentModeration;
     }
 
-    // 记录实际发送的请求体，用于调试
-    console.log('[DeerAPI] 图片转视频请求参数:', JSON.stringify(body, null, 2));
+    // 记录实际发送的请求体，用于调试（避免打印 Base64 数据）
+    const safeBody = JSON.parse(JSON.stringify(body, (key, value) => {
+      if (key === 'data' && typeof value === 'string' && value.length > 100 && /^[A-Za-z0-9+/=]+$/.test(value.substring(0, 50))) {
+        return `[Base64数据，长度: ${value.length} 字符]`;
+      }
+      if (typeof value === 'string' && value.startsWith('data:') && value.includes('base64,')) {
+        const base64Part = value.split('base64,')[1];
+        return `[Data URI，Base64长度: ${base64Part?.length || 0} 字符]`;
+      }
+      return value;
+    }));
+    console.log('[DeerAPI] 图片转视频请求参数:', JSON.stringify(safeBody, null, 2));
     console.log('[DeerAPI] duration 参数值:', body.duration, '(类型:', typeof body.duration, ')');
     if (body.duration === undefined) {
       console.warn('[DeerAPI] ⚠️  duration 参数未设置，Runway API 将使用默认值 10 秒');
@@ -1405,7 +1482,18 @@ export class DeerAPIClient {
     }
 
     const data = await response.json();
-    console.log('[DeerAPI] 图片转视频任务创建响应:', JSON.stringify(data, null, 2));
+    // 避免打印 Base64 数据，只显示响应结构
+    const safeData = JSON.parse(JSON.stringify(data, (key, value) => {
+      if (key === 'data' && typeof value === 'string' && value.length > 100 && /^[A-Za-z0-9+/=]+$/.test(value.substring(0, 50))) {
+        return `[Base64数据，长度: ${value.length} 字符]`;
+      }
+      if (typeof value === 'string' && value.startsWith('data:') && value.includes('base64,')) {
+        const base64Part = value.split('base64,')[1];
+        return `[Data URI，Base64长度: ${base64Part?.length || 0} 字符]`;
+      }
+      return value;
+    }));
+    console.log('[DeerAPI] 图片转视频任务创建响应结构:', JSON.stringify(safeData, null, 2));
     
     // 检查返回的数据结构
     // DeerAPI 可能返回不同的数据结构，尝试多种可能的字段名
@@ -1630,7 +1718,18 @@ export class DeerAPIClient {
     }
 
     const data = await response.json();
-    console.log('[DeerAPI] 任务状态查询响应:', JSON.stringify(data, null, 2));
+    // 避免打印 Base64 数据，只显示响应结构
+    const safeData = JSON.parse(JSON.stringify(data, (key, value) => {
+      if (key === 'data' && typeof value === 'string' && value.length > 100 && /^[A-Za-z0-9+/=]+$/.test(value.substring(0, 50))) {
+        return `[Base64数据，长度: ${value.length} 字符]`;
+      }
+      if (typeof value === 'string' && value.startsWith('data:') && value.includes('base64,')) {
+        const base64Part = value.split('base64,')[1];
+        return `[Data URI，Base64长度: ${base64Part?.length || 0} 字符]`;
+      }
+      return value;
+    }));
+    console.log('[DeerAPI] 任务状态查询响应结构:', JSON.stringify(safeData, null, 2));
     
     // 验证响应格式（根据官方文档）
     if (!data.id || !data.status) {

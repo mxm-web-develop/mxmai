@@ -1,0 +1,22 @@
+{
+  "type": "portrait",
+  "prompt": "街拍",
+  "style": "modern",
+  "tone": "warm",
+  "environment": "indoor",
+  "makeup": "natural",
+  "pose": "standing",
+  "lighting": "soft",
+  "quality": "high",
+  "aspect_ratio": "16:9",
+  "referenceImage": [
+    {
+      "content": "data:image/png;base64,<nvhai.png的base64数据>",
+      "type": "main-subject"
+    },
+    {
+      "content": "data:image/png;base64,<beijing.png的base64数据>",
+      "type": "background"
+    }
+  ]
+}

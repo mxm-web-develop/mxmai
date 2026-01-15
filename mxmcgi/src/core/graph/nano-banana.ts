@@ -51,27 +51,20 @@ export async function generate(
         ...generateParams.parameters,
         image: params.image,
       };
-      console.log(`[nano-banana] 使用单张图片参数 (image):`, typeof params.image === 'string' ? params.image.substring(0, 100) : params.image);
+      const isBase64 = typeof params.image === 'string' && params.image.startsWith('data:');
+      console.log(`[nano-banana] 使用单张图片参数 (image): ${isBase64 ? 'Base64数据' : 'URL'}`);
     } else if (params.image_urls && params.image_urls.length > 0) {
       generateParams.parameters = {
         ...generateParams.parameters,
         image_urls: params.image_urls,
       };
-      console.log(`[nano-banana] 使用多图URL参数 (image_urls):`, {
-        count: params.image_urls.length,
-        urls: params.image_urls.slice(0, 2)
-      });
+      console.log(`[nano-banana] 使用多图URL参数 (image_urls): ${params.image_urls.length} 张图片`);
     } else if (params.image_base64s && params.image_base64s.length > 0) {
       generateParams.parameters = {
         ...generateParams.parameters,
         image_base64s: params.image_base64s,
       };
-      console.log(`[nano-banana] 使用多图Base64参数 (image_base64s):`, {
-        count: params.image_base64s.length,
-        preview: params.image_base64s[0]?.substring(0, 50) + '...'
-      });
-    } else {
-      console.warn(`[nano-banana] 没有找到图片参数，params keys:`, Object.keys(params));
+      console.log(`[nano-banana] 使用多图Base64参数 (image_base64s): ${params.image_base64s.length} 张图片`);
     }
 
     const result = await modelProvider.generate(modelName, generateParams);

@@ -104,7 +104,8 @@ export async function normalizeImageInput(input: string): Promise<string> {
   }
   
   // 如果无法识别，假设是 Base64 并添加前缀
-  console.warn(`[image-input] 无法识别输入格式，假设为 Base64: ${input.substring(0, 50)}...`);
+  const isBase64Data = input.startsWith('data:') || (input.length > 100 && /^[A-Za-z0-9+/=]+$/.test(input.substring(0, 50)));
+  console.warn(`[image-input] 无法识别输入格式，假设为 ${isBase64Data ? 'Base64数据' : '未知格式'}`);
   return input.startsWith('data:') ? input : `data:image/jpeg;base64,${input}`;
 }
 

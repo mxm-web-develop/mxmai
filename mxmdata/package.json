@@ -1,14 +1,19 @@
 {
   "name": "@mxmai/mxmdata",
   "private": true,
-  "type": "module",
-  "main": "./src/index.ts",
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "dev": "docker compose up -d",
-    "build": "TSUP_ENTRY=src/index.ts tsup --config ../tsup.config.ts --out-dir dist",
+    "build": "TSUP_ENTRY=src/index.ts tsup --config ../tsup.config.ts --out-dir dist && pnpm build:types",
+    "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap --skipLibCheck",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -32,5 +37,11 @@
     "proxy:setup": "./setup-docker-proxy.sh",
     "minio:open": "open http://localhost:9001",
     "supabase:open": "open http://localhost:54323"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.16.0"
   }
 }

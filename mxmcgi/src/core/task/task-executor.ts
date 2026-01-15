@@ -76,6 +76,15 @@ export class TaskExecutor {
         return; // Writing 任务在 startWritingTask 内部处理完成
       }
 
+      // 4. 检查是否是 graph 任务
+      if (modelName.startsWith('graph-')) {
+        // Graph 任务使用特殊的处理逻辑
+        // 传入原始 params（包含完整的 base64），因为数据库中的 params 可能已被清理
+        const { startGraphTask } = await import('../graph/graph-task');
+        await startGraphTask(taskId, params);
+        return; // Graph 任务在 startGraphTask 内部处理完成
+      }
+
       // 4. 通过模型文件调用生成接口（与 text 路由逻辑一致）
       // 模型文件的 generate() 内部会使用 providerFactory.getProviderForModel() 自动选择支持的 provider
       // 如果默认 provider 不支持，会自动选择支持的 provider

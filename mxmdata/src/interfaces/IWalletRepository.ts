@@ -26,6 +26,7 @@ export interface Wallet {
   asset_code: string; // 关联的资产代码
   available_balance: string; // 可用余额（使用字符串避免精度问题）
   frozen_balance: string; // 冻结余额
+  status?: 'active' | 'frozen' | 'closed'; // 钱包状态
   created_at: Date | string;
   updated_at: Date | string;
 }

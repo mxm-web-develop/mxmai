@@ -7,6 +7,7 @@ export type EmbeddingProviderType = 'deer' | 'openai' | 'azure' | 'custom';
 export interface EmbeddingRequest {
   input: string | string[];
   model?: string;
+  dimensions?: number; // OpenAI 支持降维参数（仅 text-embedding-3-large 支持，可降维到 256-3072）
 }
 
 export interface EmbeddingResponse {

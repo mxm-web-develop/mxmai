@@ -71,6 +71,7 @@ export interface UpdateKnowledgeBaseParams {
   display_name?: string;
   description?: string;
   type?: 'vector' | 'keyword' | 'hybrid';
+  embedding_model?: string; // 支持更新 embedding 模型
   agent_id?: string;
   agent_name?: string;
   is_public?: boolean;
@@ -198,7 +199,24 @@ export class KnowledgeService {
 
     // 4. 为每个 chunk 生成 embedding
     const chunkTexts = parsed.chunks.map((chunk) => chunk.text);
-    const embeddings = await this.embeddingService.embedBatch(chunkTexts);
+    
+    // 根据知识库配置确定 embedding 模型和维度
+    const embeddingModel = knowledgeBase.embedding_model || 'text-embedding-3-small';
+    // 如果使用 text-embedding-3-large 且数据库 schema 是 1536 维，降维到 1536
+    // 注意：当前数据库 schema 固定为 vector(1536)，如果后续支持 3072 维，可以移除降维
+    const dimensions = 
+      embeddingModel === 'text-embedding-3-large' 
+        ? (knowledgeBase.config?.dimensions || 1536) // 默认降维到 1536 以兼容当前 schema
+        : undefined;
+    
+    // 使用知识库配置的模型生成 embedding
+    const embeddings = await this.embeddingService.embedBatch(
+      chunkTexts,
+      100, // batchSize
+      embeddingModel, // model
+      undefined, // provider (使用默认)
+      dimensions // dimensions (仅 text-embedding-3-large 支持)
+    );
 
     // 5. 创建文档（每个 chunk 作为一个文档）
 
@@ -258,6 +276,7 @@ export class KnowledgeService {
       display_name: updateData.display_name,
       description: updateData.description,
       type: updateData.type,
+      embedding_model: updateData.embedding_model, // 支持更新 embedding 模型
       agent_id: updateData.agent_id,
       agent_name: updateData.agent_name,
       is_public: updateData.is_public,
@@ -319,10 +338,22 @@ export class KnowledgeService {
       throw new Error(`知识库 "${knowledgeBaseName}" 不存在`);
     }
 
+    // 根据知识库配置确定 embedding 模型和维度
+    const embeddingModel = knowledgeBase.embedding_model || 'text-embedding-3-small';
+    const dimensions = 
+      embeddingModel === 'text-embedding-3-large' 
+        ? (knowledgeBase.config?.dimensions || 1536) // 默认降维到 1536 以兼容当前 schema
+        : undefined;
+
     switch (searchType) {
       case 'vector': {
         // 向量检索
-        const queryEmbedding = await this.embeddingService.embedQuery(query);
+        const queryEmbedding = await this.embeddingService.embedQuery(
+          query,
+          embeddingModel,
+          undefined, // provider
+          dimensions
+        );
         return await this.repository.searchDocuments(queryEmbedding, knowledgeBaseName, {
           limit,
           threshold,
@@ -340,7 +371,12 @@ export class KnowledgeService {
 
       case 'hybrid': {
         // 混合检索
-        const queryEmbedding = await this.embeddingService.embedQuery(query);
+        const queryEmbedding = await this.embeddingService.embedQuery(
+          query,
+          embeddingModel,
+          undefined, // provider
+          dimensions
+        );
         return await this.repository.hybridSearch(queryEmbedding, query, knowledgeBaseName, {
           limit,
           threshold,

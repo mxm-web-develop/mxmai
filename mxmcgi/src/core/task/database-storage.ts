@@ -20,6 +20,7 @@ import type {
   TaskProgress,
   TaskResult,
 } from './types';
+import { sanitizeBase64InObject } from '../graph/reference-image';
 
 /**
  * 数据库任务存储适配器
@@ -108,9 +109,16 @@ export class DatabaseTaskStorage implements TaskStorage {
    * 创建任务并返回 ID（用于 TaskManager）
    */
   async createAndGetId(request: CreateTaskRequest): Promise<string> {
+    // 清理 requestParams 中的 base64 数据（避免存储和返回时数据过大）
+    const sanitizedParams = sanitizeBase64InObject(request.params);
+    
     // 生成 uid 作为任务 ID
     const taskId = uid(21);
-    const dto = await this.toCreateDto(request);
+    // 使用清理后的参数创建 DTO
+    const dto = await this.toCreateDto({
+      ...request,
+      params: sanitizedParams,
+    });
     // 设置 id
     const created = await this.repo.create({ ...dto, id: taskId });
     return created.id;
@@ -210,6 +218,10 @@ export class DatabaseTaskStorage implements TaskStorage {
         metadata: updates.result.metadata,
       };
       updateDto.storage_info = updates.result.storageInfo;
+    }
+    // 支持更新任务 metadata（例如：provider/model/graph-type 等）
+    if (updates.metadata !== undefined) {
+      updateDto.metadata = updates.metadata as any;
     }
 
     await this.repo.update(taskId, updateDto);

@@ -145,6 +145,7 @@ export class SupabaseKnowledgeBaseRepository implements IKnowledgeBaseRepository
           display_name: data.display_name,
           description: data.description,
           type: data.type,
+          embedding_model: data.embedding_model, // 支持更新 embedding 模型
           agent_id: data.agent_id,
           agent_name: data.agent_name,
           is_public: data.is_public,
@@ -184,6 +185,7 @@ export class SupabaseKnowledgeBaseRepository implements IKnowledgeBaseRepository
           display_name: data.display_name,
           description: data.description,
           type: data.type,
+          embedding_model: data.embedding_model, // 支持更新 embedding 模型
           agent_id: data.agent_id,
           agent_name: data.agent_name,
           is_public: data.is_public,

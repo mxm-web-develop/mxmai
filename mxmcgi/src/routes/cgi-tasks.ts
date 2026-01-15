@@ -7,6 +7,7 @@ import { Router, Request, Response } from 'express';
 import { taskExecutor } from '../core/task/task-executor';
 import type { TaskType } from '../core/task/types';
 import type { ProviderType } from '../core/providers/types';
+import { sanitizeBase64InObject } from '../core/graph/reference-image';
 
 const router = Router();
 
@@ -130,9 +131,15 @@ router.get('/:taskId', async (req: Request, res: Response) => {
       }
     }
 
+    // 清理返回的 task 中的 base64 数据（避免响应过大）
+    const sanitizedTask = {
+      ...response.task,
+      requestParams: sanitizeBase64InObject(response.task.requestParams),
+    };
+    
     return res.json({
       success: true,
-      data: response.task,
+      data: sanitizedTask,
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes('not found')) {

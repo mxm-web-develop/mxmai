@@ -17,6 +17,7 @@ import {
   TaskResult,
 } from './types';
 import { DatabaseTaskStorage } from './database-storage';
+import { sanitizeBase64InObject } from '../graph/reference-image';
 
 /**
  * 任务存储接口（可以替换为 Redis、数据库等）
@@ -186,6 +187,10 @@ export class TaskManager {
     // 内存存储：使用 UID
     const now = new Date();
     const taskId = uid(21); // 生成 21 字符长度的唯一 ID
+    
+    // 清理 requestParams 中的 base64 数据（避免存储和返回时数据过大）
+    const sanitizedParams = sanitizeBase64InObject(request.params);
+    
     const task: Task = {
       id: taskId,
       type: request.type,
@@ -203,7 +208,7 @@ export class TaskManager {
       },
       createdAt: now,
       updatedAt: now,
-      requestParams: request.params,
+      requestParams: sanitizedParams, // 使用清理后的参数
     };
 
     await this.storage.save(task);

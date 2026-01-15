@@ -622,6 +622,10 @@ export class TaskRecoveryService {
     if (taskType === 'image') {
       return defaultTimeout; // 使用配置的超时时间（默认 30 分钟）
     }
+    // Graph 任务（图片生成，可能包含参考图，需要更长时间）
+    if (taskType === 'graph') {
+      return Math.max(defaultTimeout, 60 * 60 * 1000); // 至少 60 分钟（参考图处理可能需要更长时间）
+    }
     // 文本生成任务通常较快
     if (taskType === 'text') {
       return Math.min(defaultTimeout, 10 * 60 * 1000); // 最多 10 分钟

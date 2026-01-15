@@ -94,6 +94,30 @@ export class SupabaseUserRepository implements IUserRepository {
     }
   }
 
+  async findByPhone(phone: string): Promise<User | null> {
+    try {
+      const { data, error } = await this.client
+        .from('users')
+        .select('*')
+        .eq('phone', phone)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return null;
+        }
+        throw new DataAccessError(`Failed to find user by phone: ${error.message}`, 'QUERY_ERROR', error);
+      }
+
+      return data ? this.mapToUser(data) : null;
+    } catch (error) {
+      if (error instanceof DataAccessError) {
+        throw error;
+      }
+      throw new DataAccessError(`Unexpected error finding user by phone: ${error}`, 'UNEXPECTED_ERROR', error as Error);
+    }
+  }
+
   async create(user: CreateUserDto): Promise<User> {
     try {
       const { data, error } = await this.client

@@ -84,6 +84,7 @@ export interface RefundRecord {
 }
 
 export interface CreateRefundRecordDto {
+  refund_no?: string;
   order_id: string;
   refund_amount: number;
   refund_reason?: string;

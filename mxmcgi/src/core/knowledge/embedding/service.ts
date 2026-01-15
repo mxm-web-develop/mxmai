@@ -29,8 +29,13 @@ export class EmbeddingService {
   /**
    * 生成单个文本的 embedding
    */
-  async embedQuery(text: string, model?: string, provider?: EmbeddingProviderType): Promise<number[]> {
-    const response = await this.embed([text], model, provider);
+  async embedQuery(
+    text: string,
+    model?: string,
+    provider?: EmbeddingProviderType,
+    dimensions?: number
+  ): Promise<number[]> {
+    const response = await this.embed([text], model, provider, dimensions);
     return response.data[0].embedding;
   }
 
@@ -40,12 +45,14 @@ export class EmbeddingService {
   async embed(
     input: string | string[],
     model?: string,
-    provider?: EmbeddingProviderType
+    provider?: EmbeddingProviderType,
+    dimensions?: number
   ): Promise<EmbeddingResponse> {
     return await embeddingProviderFactory.embed(
       {
         input: input,
         model: model || this.defaultModel,
+        dimensions: dimensions,
       },
       provider || this.defaultProvider
     );
@@ -59,13 +66,14 @@ export class EmbeddingService {
     texts: string[],
     batchSize: number = 100,
     model?: string,
-    provider?: EmbeddingProviderType
+    provider?: EmbeddingProviderType,
+    dimensions?: number
   ): Promise<number[][]> {
     const results: number[][] = [];
 
     for (let i = 0; i < texts.length; i += batchSize) {
       const batch = texts.slice(i, i + batchSize);
-      const response = await this.embed(batch, model, provider);
+      const response = await this.embed(batch, model, provider, dimensions);
       results.push(...response.data.map((item) => item.embedding));
     }
 

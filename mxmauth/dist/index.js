@@ -437,6 +437,7 @@ var require_loadEnv = __commonJS({
     var import_dotenv = __toESM(require_main());
     var import_path = require("path");
     if (!global.__MXMAUTH_ENV_LOADED__) {
+      process.env.DOTENV_CONFIG_DEBUG = "false";
       const workspaceEnvPath = (0, import_path.resolve)(__dirname, "../../../mxmdata/.env");
       import_dotenv.default.config({ path: workspaceEnvPath });
       import_dotenv.default.config();
@@ -24550,27 +24551,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module2.exports = Router3;
+    module2.exports = Router4;
     module2.exports.Route = Route;
-    function Router3(options) {
-      if (!(this instanceof Router3)) {
-        return new Router3(options);
+    function Router4(options) {
+      if (!(this instanceof Router4)) {
+        return new Router4(options);
       }
       const opts = options || {};
-      function router3(req, res, next) {
-        router3.handle(req, res, next);
+      function router4(req, res, next) {
+        router4.handle(req, res, next);
       }
-      Object.setPrototypeOf(router3, this);
-      router3.caseSensitive = opts.caseSensitive;
-      router3.mergeParams = opts.mergeParams;
-      router3.params = {};
-      router3.strict = opts.strict;
-      router3.stack = [];
-      return router3;
+      Object.setPrototypeOf(router4, this);
+      router4.caseSensitive = opts.caseSensitive;
+      router4.mergeParams = opts.mergeParams;
+      router4.params = {};
+      router4.strict = opts.strict;
+      router4.stack = [];
+      return router4;
     }
-    Router3.prototype = function() {
+    Router4.prototype = function() {
     };
-    Router3.prototype.param = function param(name, fn) {
+    Router4.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -24590,7 +24591,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router3.prototype.handle = function handle(req, res, callback) {
+    Router4.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -24717,7 +24718,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router3.prototype.use = function use(handler) {
+    Router4.prototype.use = function use(handler) {
       let offset = 0;
       let path = "/";
       if (typeof handler !== "function") {
@@ -24750,7 +24751,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router3.prototype.route = function route(path) {
+    Router4.prototype.route = function route(path) {
       const route2 = new Route(path);
       const layer = new Layer(path, {
         sensitive: this.caseSensitive,
@@ -24765,7 +24766,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router3.prototype[method] = function(path) {
+      Router4.prototype[method] = function(path) {
         const route = this.route(path);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -24948,13 +24949,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve = require("path").resolve;
     var once = require_once();
-    var Router3 = require_router();
+    var Router4 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports2 = module2.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router3 = null;
+      var router4 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -24963,13 +24964,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router3 === null) {
-            router3 = new Router3({
+          if (router4 === null) {
+            router4 = new Router4({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router3;
+          return router4;
         }
       });
     };
@@ -25040,15 +25041,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router3 = this.router;
+      var router4 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router3.use(path, fn2);
+          return router4.use(path, fn2);
         }
         debug(".use app under %s", path);
         fn2.mountpath = path;
         fn2.parent = this;
-        router3.use(path, function mounted_app(req, res, next) {
+        router4.use(path, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -27566,7 +27567,7 @@ var require_express = __commonJS({
     var EventEmitter = require("events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router3 = require_router();
+    var Router4 = require_router();
     var req = require_request();
     var res = require_response();
     exports2 = module2.exports = createApplication;
@@ -27588,8 +27589,8 @@ var require_express = __commonJS({
     exports2.application = proto;
     exports2.request = req;
     exports2.response = res;
-    exports2.Route = Router3.Route;
-    exports2.Router = Router3;
+    exports2.Route = Router4.Route;
+    exports2.Router = Router4;
     exports2.json = bodyParser.json;
     exports2.raw = bodyParser.raw;
     exports2.static = require_serve_static();
@@ -27882,399 +27883,6 @@ var require_lib4 = __commonJS({
       }
       module2.exports = middlewareWrapper;
     })();
-  }
-});
-
-// ../node_modules/.pnpm/node-gyp-build@4.8.4/node_modules/node-gyp-build/node-gyp-build.js
-var require_node_gyp_build = __commonJS({
-  "../node_modules/.pnpm/node-gyp-build@4.8.4/node_modules/node-gyp-build/node-gyp-build.js"(exports2, module2) {
-    "use strict";
-    var fs = require("fs");
-    var path = require("path");
-    var os = require("os");
-    var runtimeRequire = typeof __webpack_require__ === "function" ? __non_webpack_require__ : require;
-    var vars = process.config && process.config.variables || {};
-    var prebuildsOnly = !!process.env.PREBUILDS_ONLY;
-    var abi = process.versions.modules;
-    var runtime = isElectron() ? "electron" : isNwjs() ? "node-webkit" : "node";
-    var arch = process.env.npm_config_arch || os.arch();
-    var platform = process.env.npm_config_platform || os.platform();
-    var libc = process.env.LIBC || (isAlpine(platform) ? "musl" : "glibc");
-    var armv = process.env.ARM_VERSION || (arch === "arm64" ? "8" : vars.arm_version) || "";
-    var uv = (process.versions.uv || "").split(".")[0];
-    module2.exports = load;
-    function load(dir) {
-      return runtimeRequire(load.resolve(dir));
-    }
-    load.resolve = load.path = function(dir) {
-      dir = path.resolve(dir || ".");
-      try {
-        var name = runtimeRequire(path.join(dir, "package.json")).name.toUpperCase().replace(/-/g, "_");
-        if (process.env[name + "_PREBUILD"]) dir = process.env[name + "_PREBUILD"];
-      } catch (err) {
-      }
-      if (!prebuildsOnly) {
-        var release = getFirst(path.join(dir, "build/Release"), matchBuild);
-        if (release) return release;
-        var debug = getFirst(path.join(dir, "build/Debug"), matchBuild);
-        if (debug) return debug;
-      }
-      var prebuild = resolve(dir);
-      if (prebuild) return prebuild;
-      var nearby = resolve(path.dirname(process.execPath));
-      if (nearby) return nearby;
-      var target = [
-        "platform=" + platform,
-        "arch=" + arch,
-        "runtime=" + runtime,
-        "abi=" + abi,
-        "uv=" + uv,
-        armv ? "armv=" + armv : "",
-        "libc=" + libc,
-        "node=" + process.versions.node,
-        process.versions.electron ? "electron=" + process.versions.electron : "",
-        typeof __webpack_require__ === "function" ? "webpack=true" : ""
-        // eslint-disable-line
-      ].filter(Boolean).join(" ");
-      throw new Error("No native build was found for " + target + "\n    loaded from: " + dir + "\n");
-      function resolve(dir2) {
-        var tuples = readdirSync(path.join(dir2, "prebuilds")).map(parseTuple);
-        var tuple = tuples.filter(matchTuple(platform, arch)).sort(compareTuples)[0];
-        if (!tuple) return;
-        var prebuilds = path.join(dir2, "prebuilds", tuple.name);
-        var parsed = readdirSync(prebuilds).map(parseTags);
-        var candidates = parsed.filter(matchTags(runtime, abi));
-        var winner = candidates.sort(compareTags(runtime))[0];
-        if (winner) return path.join(prebuilds, winner.file);
-      }
-    };
-    function readdirSync(dir) {
-      try {
-        return fs.readdirSync(dir);
-      } catch (err) {
-        return [];
-      }
-    }
-    function getFirst(dir, filter) {
-      var files = readdirSync(dir).filter(filter);
-      return files[0] && path.join(dir, files[0]);
-    }
-    function matchBuild(name) {
-      return /\.node$/.test(name);
-    }
-    function parseTuple(name) {
-      var arr = name.split("-");
-      if (arr.length !== 2) return;
-      var platform2 = arr[0];
-      var architectures = arr[1].split("+");
-      if (!platform2) return;
-      if (!architectures.length) return;
-      if (!architectures.every(Boolean)) return;
-      return { name, platform: platform2, architectures };
-    }
-    function matchTuple(platform2, arch2) {
-      return function(tuple) {
-        if (tuple == null) return false;
-        if (tuple.platform !== platform2) return false;
-        return tuple.architectures.includes(arch2);
-      };
-    }
-    function compareTuples(a, b) {
-      return a.architectures.length - b.architectures.length;
-    }
-    function parseTags(file) {
-      var arr = file.split(".");
-      var extension = arr.pop();
-      var tags = { file, specificity: 0 };
-      if (extension !== "node") return;
-      for (var i = 0; i < arr.length; i++) {
-        var tag = arr[i];
-        if (tag === "node" || tag === "electron" || tag === "node-webkit") {
-          tags.runtime = tag;
-        } else if (tag === "napi") {
-          tags.napi = true;
-        } else if (tag.slice(0, 3) === "abi") {
-          tags.abi = tag.slice(3);
-        } else if (tag.slice(0, 2) === "uv") {
-          tags.uv = tag.slice(2);
-        } else if (tag.slice(0, 4) === "armv") {
-          tags.armv = tag.slice(4);
-        } else if (tag === "glibc" || tag === "musl") {
-          tags.libc = tag;
-        } else {
-          continue;
-        }
-        tags.specificity++;
-      }
-      return tags;
-    }
-    function matchTags(runtime2, abi2) {
-      return function(tags) {
-        if (tags == null) return false;
-        if (tags.runtime && tags.runtime !== runtime2 && !runtimeAgnostic(tags)) return false;
-        if (tags.abi && tags.abi !== abi2 && !tags.napi) return false;
-        if (tags.uv && tags.uv !== uv) return false;
-        if (tags.armv && tags.armv !== armv) return false;
-        if (tags.libc && tags.libc !== libc) return false;
-        return true;
-      };
-    }
-    function runtimeAgnostic(tags) {
-      return tags.runtime === "node" && tags.napi;
-    }
-    function compareTags(runtime2) {
-      return function(a, b) {
-        if (a.runtime !== b.runtime) {
-          return a.runtime === runtime2 ? -1 : 1;
-        } else if (a.abi !== b.abi) {
-          return a.abi ? -1 : 1;
-        } else if (a.specificity !== b.specificity) {
-          return a.specificity > b.specificity ? -1 : 1;
-        } else {
-          return 0;
-        }
-      };
-    }
-    function isNwjs() {
-      return !!(process.versions && process.versions.nw);
-    }
-    function isElectron() {
-      if (process.versions && process.versions.electron) return true;
-      if (process.env.ELECTRON_RUN_AS_NODE) return true;
-      return typeof window !== "undefined" && window.process && window.process.type === "renderer";
-    }
-    function isAlpine(platform2) {
-      return platform2 === "linux" && fs.existsSync("/etc/alpine-release");
-    }
-    load.parseTags = parseTags;
-    load.matchTags = matchTags;
-    load.compareTags = compareTags;
-    load.parseTuple = parseTuple;
-    load.matchTuple = matchTuple;
-    load.compareTuples = compareTuples;
-  }
-});
-
-// ../node_modules/.pnpm/node-gyp-build@4.8.4/node_modules/node-gyp-build/index.js
-var require_node_gyp_build2 = __commonJS({
-  "../node_modules/.pnpm/node-gyp-build@4.8.4/node_modules/node-gyp-build/index.js"(exports2, module2) {
-    "use strict";
-    var runtimeRequire = typeof __webpack_require__ === "function" ? __non_webpack_require__ : require;
-    if (typeof runtimeRequire.addon === "function") {
-      module2.exports = runtimeRequire.addon.bind(runtimeRequire);
-    } else {
-      module2.exports = require_node_gyp_build();
-    }
-  }
-});
-
-// ../node_modules/.pnpm/bcrypt@6.0.0/node_modules/bcrypt/promises.js
-var require_promises = __commonJS({
-  "../node_modules/.pnpm/bcrypt@6.0.0/node_modules/bcrypt/promises.js"(exports2, module2) {
-    "use strict";
-    var Promise2 = global.Promise;
-    function promise(fn, context, args) {
-      if (!Array.isArray(args)) {
-        args = Array.prototype.slice.call(args);
-      }
-      if (typeof fn !== "function") {
-        return Promise2.reject(new Error("fn must be a function"));
-      }
-      return new Promise2((resolve, reject2) => {
-        args.push((err, data) => {
-          if (err) {
-            reject2(err);
-          } else {
-            resolve(data);
-          }
-        });
-        fn.apply(context, args);
-      });
-    }
-    function reject(err) {
-      return Promise2.reject(err);
-    }
-    function use(promise2) {
-      Promise2 = promise2;
-    }
-    module2.exports = {
-      promise,
-      reject,
-      use
-    };
-  }
-});
-
-// ../node_modules/.pnpm/bcrypt@6.0.0/node_modules/bcrypt/bcrypt.js
-var require_bcrypt = __commonJS({
-  "../node_modules/.pnpm/bcrypt@6.0.0/node_modules/bcrypt/bcrypt.js"(exports2, module2) {
-    "use strict";
-    var path = require("path");
-    var bindings = require_node_gyp_build2()(path.resolve(__dirname));
-    var crypto = require("crypto");
-    var promises = require_promises();
-    function genSaltSync(rounds, minor) {
-      if (!rounds) {
-        rounds = 10;
-      } else if (typeof rounds !== "number") {
-        throw new Error("rounds must be a number");
-      }
-      if (!minor) {
-        minor = "b";
-      } else if (minor !== "b" && minor !== "a") {
-        throw new Error('minor must be either "a" or "b"');
-      }
-      return bindings.gen_salt_sync(minor, rounds, crypto.randomBytes(16));
-    }
-    function genSalt(rounds, minor, cb) {
-      let error;
-      if (typeof arguments[0] === "function") {
-        cb = arguments[0];
-        rounds = 10;
-        minor = "b";
-      } else if (typeof arguments[1] === "function") {
-        cb = arguments[1];
-        minor = "b";
-      }
-      if (!cb) {
-        return promises.promise(genSalt, this, [rounds, minor]);
-      }
-      if (!rounds) {
-        rounds = 10;
-      } else if (typeof rounds !== "number") {
-        error = new Error("rounds must be a number");
-        return process.nextTick(function() {
-          cb(error);
-        });
-      }
-      if (!minor) {
-        minor = "b";
-      } else if (minor !== "b" && minor !== "a") {
-        error = new Error('minor must be either "a" or "b"');
-        return process.nextTick(function() {
-          cb(error);
-        });
-      }
-      crypto.randomBytes(16, function(error2, randomBytes) {
-        if (error2) {
-          cb(error2);
-          return;
-        }
-        bindings.gen_salt(minor, rounds, randomBytes, cb);
-      });
-    }
-    function hashSync(data, salt) {
-      if (data == null || salt == null) {
-        throw new Error("data and salt arguments required");
-      }
-      if (!(typeof data === "string" || data instanceof Buffer) || typeof salt !== "string" && typeof salt !== "number") {
-        throw new Error("data must be a string or Buffer and salt must either be a salt string or a number of rounds");
-      }
-      if (typeof salt === "number") {
-        salt = module2.exports.genSaltSync(salt);
-      }
-      return bindings.encrypt_sync(data, salt);
-    }
-    function hash(data, salt, cb) {
-      let error;
-      if (typeof data === "function") {
-        error = new Error("data must be a string or Buffer and salt must either be a salt string or a number of rounds");
-        return process.nextTick(function() {
-          data(error);
-        });
-      }
-      if (typeof salt === "function") {
-        error = new Error("data must be a string or Buffer and salt must either be a salt string or a number of rounds");
-        return process.nextTick(function() {
-          salt(error);
-        });
-      }
-      if (cb && typeof cb !== "function") {
-        return promises.reject(new Error("cb must be a function or null to return a Promise"));
-      }
-      if (!cb) {
-        return promises.promise(hash, this, [data, salt]);
-      }
-      if (data == null || salt == null) {
-        error = new Error("data and salt arguments required");
-        return process.nextTick(function() {
-          cb(error);
-        });
-      }
-      if (!(typeof data === "string" || data instanceof Buffer) || typeof salt !== "string" && typeof salt !== "number") {
-        error = new Error("data must be a string or Buffer and salt must either be a salt string or a number of rounds");
-        return process.nextTick(function() {
-          cb(error);
-        });
-      }
-      if (typeof salt === "number") {
-        return module2.exports.genSalt(salt, function(err, salt2) {
-          return bindings.encrypt(data, salt2, cb);
-        });
-      }
-      return bindings.encrypt(data, salt, cb);
-    }
-    function compareSync(data, hash2) {
-      if (data == null || hash2 == null) {
-        throw new Error("data and hash arguments required");
-      }
-      if (!(typeof data === "string" || data instanceof Buffer) || typeof hash2 !== "string") {
-        throw new Error("data must be a string or Buffer and hash must be a string");
-      }
-      return bindings.compare_sync(data, hash2);
-    }
-    function compare(data, hash2, cb) {
-      let error;
-      if (typeof data === "function") {
-        error = new Error("data and hash arguments required");
-        return process.nextTick(function() {
-          data(error);
-        });
-      }
-      if (typeof hash2 === "function") {
-        error = new Error("data and hash arguments required");
-        return process.nextTick(function() {
-          hash2(error);
-        });
-      }
-      if (cb && typeof cb !== "function") {
-        return promises.reject(new Error("cb must be a function or null to return a Promise"));
-      }
-      if (!cb) {
-        return promises.promise(compare, this, [data, hash2]);
-      }
-      if (data == null || hash2 == null) {
-        error = new Error("data and hash arguments required");
-        return process.nextTick(function() {
-          cb(error);
-        });
-      }
-      if (!(typeof data === "string" || data instanceof Buffer) || typeof hash2 !== "string") {
-        error = new Error("data and hash must be strings");
-        return process.nextTick(function() {
-          cb(error);
-        });
-      }
-      return bindings.compare(data, hash2, cb);
-    }
-    function getRounds(hash2) {
-      if (hash2 == null) {
-        throw new Error("hash argument required");
-      }
-      if (typeof hash2 !== "string") {
-        throw new Error("hash must be a string");
-      }
-      return bindings.get_rounds(hash2);
-    }
-    module2.exports = {
-      genSaltSync,
-      genSalt,
-      hashSync,
-      hash,
-      compareSync,
-      compare,
-      getRounds
-    };
   }
 });
 
@@ -32056,7 +31664,7 @@ function getJwtSecret() {
   return process.env.JWT_SECRET || "your-secret-key-change-in-production";
 }
 function getAccessTokenExpiresIn() {
-  return Number(process.env.JWT_ACCESS_TOKEN_EXPIRES_IN || 3600);
+  return Number(process.env.JWT_ACCESS_TOKEN_EXPIRES_IN || 57600);
 }
 function getRefreshTokenExpiresIn() {
   return Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN || 604800);
@@ -32125,8 +31733,8 @@ var init_jwt = __esm({
 });
 
 // src/index.ts
-var import_loadEnv2 = __toESM(require_loadEnv());
-var import_express3 = __toESM(require_express2());
+var import_loadEnv3 = __toESM(require_loadEnv());
+var import_express4 = __toESM(require_express2());
 var import_cors = __toESM(require_lib4());
 
 // src/routes/health.ts
@@ -32140,10 +31748,10 @@ var health_default = router;
 // src/routes/account.ts
 var import_loadEnv = __toESM(require_loadEnv());
 var import_express2 = __toESM(require_express2());
-var import_mxmdata = require("@mxmai/mxmdata");
+var import_mxmdata3 = require("@mxmai/mxmdata");
 
 // src/auth/password.ts
-var import_bcrypt = __toESM(require_bcrypt());
+var import_bcrypt = __toESM(require("bcrypt"));
 var BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 10);
 async function hashPassword(password) {
   return import_bcrypt.default.hash(password, BCRYPT_ROUNDS);
@@ -32191,6 +31799,59 @@ function authMiddleware(req, res, next) {
       error: "UNAUTHORIZED"
     });
   }
+}
+
+// src/middleware/admin.middleware.ts
+var import_mxmdata = require("@mxmai/mxmdata");
+init_jwt();
+var userRepo = import_mxmdata.RepositoryFactory.createUserRepository();
+function adminMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  const token = extractTokenFromHeader(authHeader);
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (adminToken && token === adminToken) {
+    req.user = {
+      userId: "admin-test-user",
+      username: "admin-test"
+    };
+    return next();
+  }
+  authMiddleware(req, res, () => {
+    (async () => {
+      try {
+        if (!req.user?.userId) {
+          return res.status(401).json({
+            code: 401,
+            message: "Authentication required",
+            error: "UNAUTHORIZED"
+          });
+        }
+        const user = await userRepo.findById(req.user.userId);
+        if (!user) {
+          return res.status(404).json({
+            code: 404,
+            message: "User not found",
+            error: "NOT_FOUND"
+          });
+        }
+        if (user.role !== "admin") {
+          return res.status(403).json({
+            code: 403,
+            message: "Admin access required",
+            error: "FORBIDDEN"
+          });
+        }
+        next();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Admin check failed";
+        res.status(500).json({
+          code: 500,
+          message,
+          error: "INTERNAL_ERROR"
+        });
+      }
+    })();
+  });
 }
 
 // src/services/captcha.service.ts
@@ -32343,7 +32004,7 @@ function captchaMiddleware(req, res, next) {
 }
 
 // src/routes/account.ts
-var import_mxmdata2 = require("@mxmai/mxmdata");
+var import_mxmdata4 = require("@mxmai/mxmdata");
 
 // src/services/wallet.service.ts
 var import_axios = __toESM(require("axios"));
@@ -32460,10 +32121,76 @@ var WalletService = class {
 };
 
 // src/routes/account.ts
+var import_mxmdata5 = require("@mxmai/mxmdata");
+
+// src/services/media.service.ts
+var import_mxmdata2 = require("@mxmai/mxmdata");
+var MediaService = class {
+  client = (0, import_mxmdata2.getSupabaseClient)();
+  /**
+   * 批量添加用户媒体资源
+   */
+  async addUserMedia(userId, items) {
+    if (!items.length) return 0;
+    const payload = items.map((item) => ({
+      user_id: userId,
+      type: item.type,
+      assets_type: item.assets_type,
+      label: item.label,
+      url: item.url,
+      task_id: item.id,
+      description: item.description ?? null,
+      prompts_meta: item.prompts_meta ?? null
+    }));
+    const { error, count } = await this.client.from("user_media").insert(payload, { count: "exact" });
+    if (error) {
+      throw new Error(`Failed to add user media: ${error.message}`);
+    }
+    return count ?? items.length;
+  }
+  /**
+   * 查询用户媒体资源列表
+   */
+  async listUserMedia(userId, options) {
+    const page = options.page && options.page > 0 ? options.page : 1;
+    const limit = options.limit && options.limit > 0 ? options.limit : 20;
+    const offset = (page - 1) * limit;
+    let query = this.client.from("user_media").select("*", { count: "exact" }).eq("user_id", userId);
+    if (options.type) {
+      query = query.eq("type", options.type);
+    }
+    query = query.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+    const { data, error, count } = await query;
+    if (error) {
+      throw new Error(`Failed to list user media: ${error.message}`);
+    }
+    const items = (data || []).map((row) => ({
+      id: row.id,
+      type: row.type,
+      assets_type: row.assets_type,
+      label: row.label,
+      url: row.url,
+      task_id: row.task_id,
+      description: row.description,
+      prompts_meta: row.prompts_meta,
+      created_at: row.created_at
+    }));
+    const total = count ?? 0;
+    return {
+      items,
+      total,
+      page,
+      limit
+    };
+  }
+};
+
+// src/routes/account.ts
 var router2 = (0, import_express2.Router)();
-var userRepo = import_mxmdata.RepositoryFactory.createUserRepository();
+var userRepo2 = import_mxmdata3.RepositoryFactory.createUserRepository();
 var walletService = new WalletService();
 var captchaService2 = new CaptchaService();
+var mediaService = new MediaService();
 router2.get("/captcha", async (req, res, next) => {
   try {
     const captcha = await captchaService2.generate();
@@ -32495,7 +32222,7 @@ router2.post("/register", captchaMiddleware, async (req, res, next) => {
     }
     const password_hash = await hashPassword(password);
     try {
-      const user = await userRepo.create({
+      const user = await userRepo2.create({
         username,
         email,
         phone,
@@ -32523,7 +32250,7 @@ router2.post("/register", captchaMiddleware, async (req, res, next) => {
         }
       });
     } catch (error) {
-      if (error instanceof import_mxmdata2.DuplicateError) {
+      if (error instanceof import_mxmdata4.DuplicateError) {
         return res.status(409).json({
           code: 409,
           message: error.message,
@@ -32555,13 +32282,13 @@ router2.post("/login", captchaMiddleware, async (req, res, next) => {
     }
     let user = null;
     if (username) {
-      user = await userRepo.findByUsername(username);
+      user = await userRepo2.findByUsername(username);
     } else if (email) {
-      user = await userRepo.findByEmail(email);
+      user = await userRepo2.findByEmail(email);
     } else if (phone) {
-      user = await userRepo.findByEmail(phone);
+      user = await userRepo2.findByEmail(phone);
       if (!user) {
-        user = await userRepo.findByUsername(phone);
+        user = await userRepo2.findByUsername(phone);
       }
     }
     if (!user) {
@@ -32628,7 +32355,7 @@ router2.post("/refresh-token", async (req, res, next) => {
         error: "UNAUTHORIZED"
       });
     }
-    const user = await userRepo.findById(payload.userId);
+    const user = await userRepo2.findById(payload.userId);
     if (!user || user.status !== "active") {
       return res.status(401).json({
         code: 401,
@@ -32652,7 +32379,7 @@ router2.post("/refresh-token", async (req, res, next) => {
 router2.get("/profile", authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    const user = await userRepo.findById(userId);
+    const user = await userRepo2.findById(userId);
     if (!user) {
       return res.status(404).json({
         code: 404,
@@ -32672,13 +32399,16 @@ router2.get("/profile", authMiddleware, async (req, res, next) => {
 router2.put("/profile", authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    const { username, email, phone, avatar_url } = req.body;
-    const updateData = {};
-    if (username !== void 0) updateData.username = username;
-    if (email !== void 0) updateData.email = email;
-    if (phone !== void 0) updateData.phone = phone;
-    if (avatar_url !== void 0) updateData.avatar_url = avatar_url;
-    const user = await userRepo.update(userId, updateData);
+    const { avatar_url } = req.body;
+    if (avatar_url === void 0) {
+      return res.status(400).json({
+        code: 400,
+        message: "avatar_url is required",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const updateData = { avatar_url };
+    const user = await userRepo2.update(userId, updateData);
     const { password_hash: _, ...userWithoutPassword } = user;
     res.json({
       code: 200,
@@ -32710,16 +32440,86 @@ router2.put("/updateAgents", authMiddleware, async (req, res, next) => {
 router2.put("/updateMedia", authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    const { mediaIds, mediaCount, totalMediaSize, lastMediaCreatedAt } = req.body;
+    const items = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        code: 400,
+        message: "Body must be a non-empty array",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const invalidItem = items.find(
+      (item) => !item || !item.type || !item.assets_type || !item.label || !item.url || !item.id
+    );
+    if (invalidItem) {
+      return res.status(400).json({
+        code: 400,
+        message: "Each item must include type, assets_type, label, url and id",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const inserted = await mediaService.addUserMedia(userId, items);
     res.json({
       code: 200,
       message: "Media updated successfully",
       data: {
         userId,
-        mediaIds: mediaIds || [],
-        mediaCount: mediaCount || 0,
-        totalMediaSize: totalMediaSize || 0,
-        lastMediaCreatedAt: lastMediaCreatedAt || null
+        mediaCount: inserted,
+        items
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+router2.get("/media", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { type, page = "1", limit = "20" } = req.query;
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 20;
+    const result = await mediaService.listUserMedia(userId, {
+      type,
+      page: pageNum,
+      limit: limitNum
+    });
+    res.json({
+      code: 200,
+      message: "Media list fetched successfully",
+      data: {
+        userId,
+        type: type || null,
+        items: result.items,
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / result.limit)
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+router2.get("/agents", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { page = "1", limit = "20" } = req.query;
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 20;
+    res.json({
+      code: 200,
+      message: "Agent list fetched successfully",
+      data: {
+        userId,
+        items: [],
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: 0,
+          totalPages: 0
+        }
       }
     });
   } catch (error) {
@@ -32729,9 +32529,9 @@ router2.put("/updateMedia", authMiddleware, async (req, res, next) => {
 router2.get("/settings", authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    let settings = await userRepo.getSettings(userId);
+    let settings = await userRepo2.getSettings(userId);
     if (!settings) {
-      settings = await userRepo.updateSettings(userId, {});
+      settings = await userRepo2.updateSettings(userId, {});
     }
     res.json({
       code: 200,
@@ -32749,7 +32549,7 @@ router2.put("/settings", authMiddleware, async (req, res, next) => {
     if (theme !== void 0) updateData.theme = theme;
     if (language !== void 0) updateData.language = language;
     if (notifications_enabled !== void 0) updateData.notifications_enabled = notifications_enabled;
-    const settings = await userRepo.updateSettings(userId, updateData);
+    const settings = await userRepo2.updateSettings(userId, updateData);
     res.json({
       code: 200,
       message: "Settings updated successfully",
@@ -32759,33 +32559,10 @@ router2.put("/settings", authMiddleware, async (req, res, next) => {
     next(error);
   }
 });
-router2.get("/balance", authMiddleware, async (req, res, next) => {
-  try {
-    const userId = req.user.userId;
-    const user = await userRepo.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        code: 404,
-        message: "User not found",
-        error: "NOT_FOUND"
-      });
-    }
-    res.json({
-      code: 200,
-      data: {
-        balance: user.balance,
-        currency: "CNY"
-        // 默认货币
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
 router2.get("/membership", authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    const user = await userRepo.findById(userId);
+    const user = await userRepo2.findById(userId);
     if (!user) {
       return res.status(404).json({
         code: 404,
@@ -32805,7 +32582,510 @@ router2.get("/membership", authMiddleware, async (req, res, next) => {
     next(error);
   }
 });
+router2.put("/admin/user_profile", adminMiddleware, async (req, res, next) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({
+        code: 400,
+        message: "userId is required",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const {
+      username,
+      email,
+      phone,
+      avatar_url,
+      level,
+      balance,
+      membership_type,
+      membership_expires_at,
+      status,
+      role
+    } = req.body;
+    const updateData = {};
+    if (username !== void 0) updateData.username = username;
+    if (email !== void 0) updateData.email = email;
+    if (phone !== void 0) updateData.phone = phone;
+    if (avatar_url !== void 0) updateData.avatar_url = avatar_url;
+    if (level !== void 0) updateData.level = level;
+    if (balance !== void 0) updateData.balance = balance;
+    if (membership_type !== void 0) updateData.membership_type = membership_type;
+    if (membership_expires_at !== void 0) updateData.membership_expires_at = membership_expires_at;
+    if (status !== void 0) updateData.status = status;
+    if (role !== void 0) updateData.role = role;
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        code: 400,
+        message: "At least one field is required to update",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const user = await userRepo2.update(userId, updateData);
+    const { password_hash: _, ...userWithoutPassword } = user;
+    res.json({
+      code: 200,
+      message: "User profile updated successfully",
+      data: userWithoutPassword
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+router2.get("/admin/users", adminMiddleware, async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const status = req.query.status;
+    const role = req.query.role;
+    const search = req.query.search;
+    const result = await userRepo2.findAll({
+      page,
+      limit,
+      filters: {
+        status,
+        role,
+        search
+      }
+    });
+    const supabase2 = (0, import_mxmdata5.getSupabaseClient)();
+    const userIds = result.users.map((u) => u.id);
+    const { data: activeSessions } = await supabase2.from("user_sessions").select("user_id").in("user_id", userIds).gt("expires_at", (/* @__PURE__ */ new Date()).toISOString());
+    const loggedInUserIds = new Set(
+      (activeSessions || []).map((s) => s.user_id)
+    );
+    const usersWithStatus = result.users.map((user) => {
+      const { password_hash, ...userWithoutPassword } = user;
+      return {
+        ...userWithoutPassword,
+        isLoggedIn: loggedInUserIds.has(user.id)
+      };
+    });
+    res.json({
+      code: 200,
+      data: {
+        users: usersWithStatus,
+        pagination: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          totalPages: Math.ceil(result.total / result.limit)
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 var account_default = router2;
+
+// src/routes/assets.ts
+var import_loadEnv2 = __toESM(require_loadEnv());
+var import_express3 = __toESM(require_express2());
+var import_mxmdata6 = require("@mxmai/mxmdata");
+var import_mxmdata7 = require("@mxmai/mxmdata");
+var router3 = (0, import_express3.Router)();
+var folderRepo = import_mxmdata6.RepositoryFactory.createFolderRepository();
+var supabase = (0, import_mxmdata6.getSupabaseClient)();
+function cleanAndValidateUUID(id) {
+  if (!id) return null;
+  let cleaned = id.trim().replace(/^["']+|["']+$/g, "");
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(cleaned)) {
+    return null;
+  }
+  return cleaned;
+}
+router3.get("/folders", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const parentId = req.query.parent_id;
+    const folders = await folderRepo.getFolders(userId, {
+      parent_id: parentId === "" ? null : parentId
+    });
+    const folderList = Array.isArray(folders) ? folders : [];
+    res.json({
+      code: 200,
+      message: "\u83B7\u53D6\u6587\u4EF6\u5939\u5217\u8868\u6210\u529F",
+      data: {
+        folders: folderList,
+        total: folderList.length
+      }
+    });
+  } catch (error) {
+    if (error instanceof import_mxmdata7.DataAccessError && (error.message?.includes("Could not find the table") || error.message?.includes("does not exist") || error.originalError?.message?.includes("Could not find the table"))) {
+      return res.json({
+        code: 200,
+        message: "\u83B7\u53D6\u6587\u4EF6\u5939\u5217\u8868\u6210\u529F",
+        data: {
+          folders: [],
+          total: 0
+        }
+      });
+    }
+    next(error);
+  }
+});
+router3.post("/folders", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { name, parent_id } = req.body;
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return res.status(400).json({
+        code: 400,
+        message: "\u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    if (parent_id) {
+      const parentFolder = await folderRepo.getFolderById(parent_id);
+      if (!parentFolder) {
+        return res.status(404).json({
+          code: 404,
+          message: "\u7236\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
+          error: "NOT_FOUND"
+        });
+      }
+      if (parentFolder.user_id !== userId) {
+        return res.status(403).json({
+          code: 403,
+          message: "\u65E0\u6743\u9650\u8BBF\u95EE\u7236\u6587\u4EF6\u5939",
+          error: "PERMISSION_DENIED"
+        });
+      }
+    }
+    const folder = await folderRepo.createFolder(userId, {
+      name: name.trim(),
+      parent_id: parent_id || null
+    });
+    res.status(201).json({
+      code: 201,
+      message: "\u521B\u5EFA\u6587\u4EF6\u5939\u6210\u529F",
+      data: folder
+    });
+  } catch (error) {
+    if (error instanceof import_mxmdata7.DuplicateError) {
+      return res.status(409).json({
+        code: 409,
+        message: "\u6587\u4EF6\u5939\u540D\u79F0\u5DF2\u5B58\u5728",
+        error: "DUPLICATE_ERROR"
+      });
+    }
+    next(error);
+  }
+});
+router3.put("/folders/:id", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const folderId = cleanAndValidateUUID(req.params.id);
+    if (!folderId) {
+      return res.status(400).json({
+        code: 400,
+        message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID \u683C\u5F0F: ${req.params.id}`,
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const { name } = req.body;
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return res.status(400).json({
+        code: 400,
+        message: "\u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const folder = await folderRepo.updateFolder(userId, folderId, {
+      name: name.trim()
+    });
+    res.json({
+      code: 200,
+      message: "\u66F4\u65B0\u6587\u4EF6\u5939\u6210\u529F",
+      data: folder
+    });
+  } catch (error) {
+    if (error instanceof import_mxmdata7.NotFoundError) {
+      return res.status(404).json({
+        code: 404,
+        message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
+        error: "NOT_FOUND"
+      });
+    }
+    if (error instanceof import_mxmdata7.DuplicateError) {
+      return res.status(409).json({
+        code: 409,
+        message: "\u6587\u4EF6\u5939\u540D\u79F0\u5DF2\u5B58\u5728",
+        error: "DUPLICATE_ERROR"
+      });
+    }
+    if (error instanceof import_mxmdata7.DataAccessError && error.type === "PERMISSION_ERROR") {
+      return res.status(403).json({
+        code: 403,
+        message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939",
+        error: "PERMISSION_DENIED"
+      });
+    }
+    next(error);
+  }
+});
+router3.delete("/folders/:id", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const folderId = cleanAndValidateUUID(req.params.id);
+    if (!folderId) {
+      return res.status(400).json({
+        code: 400,
+        message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID \u683C\u5F0F: ${req.params.id}`,
+        error: "VALIDATION_ERROR"
+      });
+    }
+    await folderRepo.deleteFolder(userId, folderId);
+    res.json({
+      code: 200,
+      message: "\u5220\u9664\u6587\u4EF6\u5939\u6210\u529F"
+    });
+  } catch (error) {
+    if (error instanceof import_mxmdata7.NotFoundError) {
+      return res.status(404).json({
+        code: 404,
+        message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
+        error: "NOT_FOUND"
+      });
+    }
+    if (error instanceof import_mxmdata7.DataAccessError) {
+      if (error.type === "PERMISSION_ERROR") {
+        return res.status(403).json({
+          code: 403,
+          message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939",
+          error: "PERMISSION_DENIED"
+        });
+      }
+      if (error.type === "VALIDATION_ERROR") {
+        return res.status(400).json({
+          code: 400,
+          message: error.message || "\u65E0\u6CD5\u5220\u9664\u5305\u542B\u5B50\u6587\u4EF6\u5939\u7684\u6587\u4EF6\u5939",
+          error: "VALIDATION_ERROR"
+        });
+      }
+    }
+    next(error);
+  }
+});
+router3.get("/folders/:id/items", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const folderId = cleanAndValidateUUID(req.params.id);
+    if (!folderId) {
+      return res.status(400).json({
+        code: 400,
+        message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID \u683C\u5F0F: ${req.params.id}`,
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 100;
+    const offset = req.query.offset ? parseInt(req.query.offset, 10) : 0;
+    const folder = await folderRepo.getFolderById(folderId);
+    if (!folder) {
+      return res.status(404).json({
+        code: 404,
+        message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
+        error: "NOT_FOUND"
+      });
+    }
+    if (folder.user_id !== userId) {
+      return res.status(403).json({
+        code: 403,
+        message: "\u65E0\u6743\u9650\u8BBF\u95EE\u6B64\u6587\u4EF6\u5939",
+        error: "PERMISSION_DENIED"
+      });
+    }
+    let subFolders = [];
+    try {
+      const folders = await folderRepo.getFolders(userId, {
+        parent_id: folderId
+      });
+      subFolders = (folders || []).map((f) => ({
+        id: f.id,
+        name: f.name,
+        parent_id: f.parent_id,
+        type: "dir",
+        // 文件夹类型
+        created_at: f.created_at,
+        updated_at: f.updated_at
+      }));
+    } catch (error) {
+      console.warn("[\u6587\u4EF6\u5939] \u83B7\u53D6\u5B50\u6587\u4EF6\u5939\u5931\u8D25:", error);
+    }
+    let taskIds = [];
+    try {
+      taskIds = await folderRepo.getFolderItemIds(folderId, {
+        limit,
+        offset
+      });
+    } catch (error) {
+      console.warn("[\u6587\u4EF6\u5939] \u83B7\u53D6\u4EFB\u52A1\u5217\u8868\u5931\u8D25:", error);
+    }
+    let fileItems = [];
+    if (taskIds && taskIds.length > 0) {
+      const { data: tasks, error: tasksError } = await supabase.from("cgi_tasks").select("id, user_id, task_type, status, prompt, created_at, metadata").in("id", taskIds).eq("user_id", userId);
+      if (!tasksError && tasks) {
+        fileItems = tasks.map((task) => {
+          const title = task.metadata?.title || task.prompt?.substring(0, 50) || `\u4EFB\u52A1 ${task.id.substring(0, 8)}`;
+          return {
+            id: task.id,
+            task_id: task.id,
+            // 任务 ID
+            user_id: task.user_id,
+            name: title,
+            type: "file",
+            // 文件类型
+            task_type: task.task_type,
+            // 'text' | 'image' | 'video' | 'audio'
+            status: task.status,
+            created_at: task.created_at
+          };
+        });
+      }
+    }
+    const allItems = [...subFolders, ...fileItems].sort((a, b) => {
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
+      return timeB - timeA;
+    });
+    let totalFiles = 0;
+    try {
+      totalFiles = await folderRepo.getFolderItemCount(folderId);
+    } catch (error) {
+      totalFiles = fileItems.length;
+    }
+    const total = subFolders.length + totalFiles;
+    res.json({
+      code: 200,
+      message: "\u83B7\u53D6\u6587\u4EF6\u5939\u5185\u5BB9\u6210\u529F",
+      data: {
+        items: allItems,
+        total,
+        folders_count: subFolders.length,
+        files_count: fileItems.length
+      }
+    });
+  } catch (error) {
+    if (error instanceof import_mxmdata7.DataAccessError && (error.message?.includes("Could not find the table") || error.message?.includes("does not exist") || error.originalError?.message?.includes("Could not find the table"))) {
+      return res.json({
+        code: 200,
+        message: "\u83B7\u53D6\u6587\u4EF6\u5939\u5185\u5BB9\u6210\u529F",
+        data: {
+          items: [],
+          total: 0,
+          folders_count: 0,
+          files_count: 0
+        }
+      });
+    }
+    next(error);
+  }
+});
+router3.post("/folders/:id/items", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const folderId = cleanAndValidateUUID(req.params.id);
+    if (!folderId) {
+      return res.status(400).json({
+        code: 400,
+        message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID \u683C\u5F0F: ${req.params.id}`,
+        error: "VALIDATION_ERROR"
+      });
+    }
+    if (!req.body || typeof req.body !== "object") {
+      return res.status(400).json({
+        code: 400,
+        message: "\u8BF7\u6C42\u4F53\u4E0D\u80FD\u4E3A\u7A7A\uFF0C\u8BF7\u786E\u4FDD Content-Type \u4E3A application/json",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const { task_id } = req.body;
+    if (!task_id || typeof task_id !== "string") {
+      return res.status(400).json({
+        code: 400,
+        message: "\u4EFB\u52A1 ID (task_id) \u4E0D\u80FD\u4E3A\u7A7A",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const folder = await folderRepo.getFolderById(folderId);
+    if (!folder) {
+      return res.status(404).json({
+        code: 404,
+        message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
+        error: "NOT_FOUND"
+      });
+    }
+    if (folder.user_id !== userId) {
+      return res.status(403).json({
+        code: 403,
+        message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939",
+        error: "PERMISSION_DENIED"
+      });
+    }
+    const { data: task, error: taskError } = await supabase.from("cgi_tasks").select("id, user_id").eq("id", task_id).eq("user_id", userId).single();
+    if (taskError || !task) {
+      return res.status(404).json({
+        code: 404,
+        message: `\u672A\u627E\u5230\u4EFB\u52A1 ID "${task_id}" \u6216\u8BE5\u4EFB\u52A1\u4E0D\u5C5E\u4E8E\u5F53\u524D\u7528\u6237`,
+        error: "NOT_FOUND"
+      });
+    }
+    await folderRepo.addItemToFolder(folderId, task_id);
+    res.status(201).json({
+      code: 201,
+      message: "\u6DFB\u52A0\u4EFB\u52A1\u5230\u6587\u4EF6\u5939\u6210\u529F"
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+router3.delete("/folders/:id/items/:taskId", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const folderId = cleanAndValidateUUID(req.params.id);
+    if (!folderId) {
+      return res.status(400).json({
+        code: 400,
+        message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID \u683C\u5F0F: ${req.params.id}`,
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const taskId = req.params.taskId;
+    if (!taskId) {
+      return res.status(400).json({
+        code: 400,
+        message: "\u4EFB\u52A1 ID \u4E0D\u80FD\u4E3A\u7A7A",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const folder = await folderRepo.getFolderById(folderId);
+    if (!folder) {
+      return res.status(404).json({
+        code: 404,
+        message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
+        error: "NOT_FOUND"
+      });
+    }
+    if (folder.user_id !== userId) {
+      return res.status(403).json({
+        code: 403,
+        message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939",
+        error: "PERMISSION_DENIED"
+      });
+    }
+    await folderRepo.removeItemFromFolder(folderId, taskId);
+    res.json({
+      code: 200,
+      message: "\u4ECE\u6587\u4EF6\u5939\u79FB\u9664\u6587\u4EF6\u6210\u529F"
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+var assets_default = router3;
 
 // src/middleware/response.ts
 function successResponse(data, message) {
@@ -32830,25 +33110,25 @@ function responseMiddleware(_req, res, next) {
 }
 
 // src/middleware/errorHandler.ts
-var import_mxmdata3 = require("@mxmai/mxmdata");
+var import_mxmdata8 = require("@mxmai/mxmdata");
 function errorHandler(error, _req, res, _next) {
   let statusCode = 500;
   let errorResponse;
-  if (error instanceof import_mxmdata3.NotFoundError) {
+  if (error instanceof import_mxmdata8.NotFoundError) {
     statusCode = 404;
     errorResponse = {
       code: 404,
       message: error.message,
       error: "NOT_FOUND"
     };
-  } else if (error instanceof import_mxmdata3.DuplicateError) {
+  } else if (error instanceof import_mxmdata8.DuplicateError) {
     statusCode = 409;
     errorResponse = {
       code: 409,
       message: error.message,
       error: "DUPLICATE"
     };
-  } else if (error instanceof import_mxmdata3.ValidationError) {
+  } else if (error instanceof import_mxmdata8.ValidationError) {
     statusCode = 400;
     errorResponse = {
       code: 400,
@@ -32856,7 +33136,7 @@ function errorHandler(error, _req, res, _next) {
       error: "VALIDATION_ERROR",
       details: error.field ? { field: error.field } : void 0
     };
-  } else if (error instanceof import_mxmdata3.ConnectionError) {
+  } else if (error instanceof import_mxmdata8.ConnectionError) {
     statusCode = 503;
     errorResponse = {
       code: 503,
@@ -32864,7 +33144,7 @@ function errorHandler(error, _req, res, _next) {
       error: "CONNECTION_ERROR",
       details: true ? error.message : void 0
     };
-  } else if (error instanceof import_mxmdata3.TransactionError) {
+  } else if (error instanceof import_mxmdata8.TransactionError) {
     statusCode = 500;
     errorResponse = {
       code: 500,
@@ -32872,7 +33152,7 @@ function errorHandler(error, _req, res, _next) {
       error: "TRANSACTION_ERROR",
       details: true ? error.message : void 0
     };
-  } else if (error instanceof import_mxmdata3.DataAccessError) {
+  } else if (error instanceof import_mxmdata8.DataAccessError) {
     statusCode = 500;
     errorResponse = {
       code: 500,
@@ -32906,16 +33186,16 @@ function notFoundHandler(_req, res) {
 }
 
 // src/index.ts
-var import_mxmdata4 = require("@mxmai/mxmdata");
+var import_mxmdata9 = require("@mxmai/mxmdata");
 try {
-  const config = (0, import_mxmdata4.loadDataConfig)();
-  import_mxmdata4.RepositoryFactory.init(config);
+  const config = (0, import_mxmdata9.loadDataConfig)();
+  import_mxmdata9.RepositoryFactory.init(config);
   console.log("\u2705 mxmdata \u521D\u59CB\u5316\u6210\u529F");
 } catch (error) {
   console.error("\u274C mxmdata \u521D\u59CB\u5316\u5931\u8D25:", error instanceof Error ? error.message : error);
   process.exit(1);
 }
-var app = (0, import_express3.default)();
+var app = (0, import_express4.default)();
 var port = process.env.PORT ? Number(process.env.PORT) : 4001;
 var corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
 app.use(
@@ -32924,11 +33204,12 @@ app.use(
     credentials: true
   })
 );
-app.use(import_express3.default.json());
-app.use(import_express3.default.urlencoded({ extended: true }));
+app.use(import_express4.default.json());
+app.use(import_express4.default.urlencoded({ extended: true }));
 app.use(responseMiddleware);
 app.use("/", health_default);
 app.use("/api/v1/account", account_default);
+app.use("/api/v1/assets", assets_default);
 app.use(notFoundHandler);
 app.use(errorHandler);
 app.listen(port, () => {
