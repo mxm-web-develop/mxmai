@@ -3,7 +3,7 @@
  * 用于为design类型的graph任务提供提示词生成规则
  */
 
-import { DESIGN_TYPE_MAP } from '../type';
+import { DESIGN_TYPE_MAP } from '../../type';
 
 export interface DesignTypeConfig {
   rules: string;

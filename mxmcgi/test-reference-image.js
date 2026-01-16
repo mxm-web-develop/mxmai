@@ -32,7 +32,7 @@ const CONFIG = {
   userId: '3f6cf0d7-1ac5-44eb-835b-5a59ec973909',
   
   // 参考图文件路径
-  nvhaiPath: path.join(__dirname, 'nvhai.png'),      // 主体参考图
+  nvhaiPath: path.join(__dirname, 'nvhai.jpg'),      // 主体参考图
   beijingPath: path.join(__dirname, 'beijing.png'),  // 背景参考图
 };
 
@@ -125,20 +125,20 @@ async function main() {
     const requestData = {
       // ========== 必需参数 ==========
       type: 'portrait',        // 类型：'portrait' | 'landscape' | 'cinematic' | 'commercial' | 'documentary'
-      prompt: '全身照街拍，不要过度虚化背景',          // 用户需求描述
+      prompt: '九宫格图片，室内写真，每格图片中包含人物使用不同的动作和镜头构图，不要过度虚化背景',          // 用户需求描述
       
       // ========== Portrait 相关参数（可选）==========
       // 提示：可以通过 GET /api/v1/cgi/graph/getformOptions?photograph 获取所有可用选项
       style: 'modern',         // 风格：'modern' | 'vintage' | 'fashion' | 'classic' | 'minimalist' | 等
-      tone: 'warm',            // 色调：'warm' | 'cool' | 'high-contrast' | 'soft' | 'vibrant' | 等
-      environment: 'outdoor',   // 环境：'indoor' | 'outdoor' | 'studio' | 'urban' | 'nature' | 等
+      tone: 'high-contrast',            // 色调：'warm' | 'cool' | 'high-contrast' | 'soft' | 'vibrant' | 等
+      environment: 'indoor',   // 环境：'indoor' | 'outdoor' | 'studio' | 'urban' | 'nature' | 等
       makeup: 'natural',       // 妆容：'natural' | 'heavy' | 'light' | 'glamour' | 'editorial' | 等
-      pose: 'standing',       // 姿势：'standing' | 'sitting' | 'lying' | 'walking' | 'dynamic' | 等
-      lighting: 'soft',        // 光线：'soft' | 'hard' | 'natural' | 'dramatic' | 'rim' | 等
+      pose: 'dynamic',       // 姿势：'standing' | 'sitting' | 'lying' | 'walking' | 'dynamic' | 等
+      lighting: 'rim',        // 光线：'soft' | 'hard' | 'natural' | 'dramatic' | 'rim' | 等
       
       // ========== 通用参数 ==========
-      quality: 'fast',         // 质量：'high' (nano-banana) | 'fast' (seedream-4)
-      aspect_ratio: '16:9',    // 宽高比：'16:9' | '9:16' | '1:1' | '4:3' | '3:4' | 等
+      quality: 'high',         // 质量：'high' (nano-banana) | 'fast' (seedream-4)
+      aspect_ratio: '9:16',    // 宽高比：'16:9' | '9:16' | '1:1' | '4:3' | '3:4' | 等
       
       // ========== 参考图（新格式）==========
       // 参考图类型：

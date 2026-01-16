@@ -187,7 +187,7 @@ function expandOutlinesToSections(
 
 /**
  * 文本压缩函数（滑动窗口：保留最后200字 + 总结前文）
- * 如果文本超过500字，则压缩到500字以内
+ * 如果文本超过500字，则压缩到800字以内
  */
 async function compressText(
   text: string,
@@ -480,14 +480,14 @@ async function* generateWritingParallel(
   const enableMarkdown = params.enable_markdown !== false;
 
   // 第一步：生成公用总结（500字内）
-  const summaryPrompt = `请根据以下大纲生成一个500字以内的总结，作为整篇文章的公用引用和背景信息：
+  const summaryPrompt = `请根据以下大纲生成一个800字以内的总结，作为整篇文章的公用引用和背景信息：
 
 ${sections.map(s => `- ${s.content}`).join('\n')}
 
 要求：
 - 总结应该涵盖所有章节的核心主题
 - 提供整篇文章的背景和总体框架
-- 控制在500字以内
+- 控制在800字以内
 - 只返回总结文本，不要添加任何标记`;
 
   let sharedSummary = '';
@@ -1141,14 +1141,14 @@ export async function generateWriting(
       const modelName = selectModel('paragraph');
       
       // 生成公用总结
-      const summaryPrompt = `请根据以下大纲生成一个500字以内的总结，作为整篇文章的公用引用和背景信息：
+      const summaryPrompt = `请根据以下大纲生成一个800字以内的总结，作为整篇文章的公用引用和背景信息：
 
 ${sections.map(s => `- ${s.content}`).join('\n')}
 
 要求：
 - 总结应该涵盖所有章节的核心主题
 - 提供整篇文章的背景和总体框架
-- 控制在500字以内
+- 控制在800字以内
 - 只返回总结文本，不要添加任何标记`;
 
       let sharedSummary = '';

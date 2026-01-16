@@ -3,7 +3,7 @@ import type { ProviderType } from '../core/providers/types';
 import { taskExecutor } from '../core/task/task-executor';
 import type { PhotographParams, DesignParams, PaintingParams } from '../core/graph/type';
 import { getGraphTypeOptions } from '../core/graph/graphconfigs';
-import { getFormOptions } from '../core/graph/graphconfigs/photograph/formOptions';
+import { getFormOptionsForType } from '../core/graph/graphconfigs/getFormOptions';
 
 // 导入所有 graph 模型文件
 import * as nanoBanana from '../core/graph/nano-banana';
@@ -76,12 +76,15 @@ router.get('/models', (_req: Request, res: Response) => {
  * GET /api/v1/cgi/graph/getformOptions
  * 获取表单选项配置
  * Query params:
- *   - photograph: 获取摄影类型的表单选项
+ *   - photograph: 获取摄影类型的表单选项（可选，需要配合 type 参数）
+ *   - design: 获取设计类型的表单选项（可选，需要配合 type 参数）
+ *   - painting: 获取绘画类型的表单选项（可选，需要配合 type 参数）
+ *   - type: 子类型（如 portrait, landscape, 3d, illustration 等）
  *   - lang: 语言代码 'zh' | 'en' (默认 'zh')
  */
 router.get('/getformOptions', (req: Request, res: Response) => {
   try {
-    const { photograph, design, painting, lang } = req.query;
+    const { photograph, design, painting, type, lang } = req.query;
     const language = (lang as 'zh' | 'en') || 'zh';
 
     // 验证语言参数
@@ -93,48 +96,64 @@ router.get('/getformOptions', (req: Request, res: Response) => {
       });
     }
 
-    // 检查参数是否存在（?photograph 会被解析为 photograph: '' 或 undefined，都视为存在）
-    // 使用 in 操作符检查 query 对象中是否有该键
+    // 检查参数是否存在
     const hasPhotograph = 'photograph' in req.query;
     const hasDesign = 'design' in req.query;
     const hasPainting = 'painting' in req.query;
 
-    // 如果指定了 photograph，返回摄影类型的表单选项
+    // 确定 graphType
+    let graphType: 'photograph' | 'design' | 'painting' | null = null;
     if (hasPhotograph) {
-      const formOptions = getFormOptions(language);
-      return res.json({
-        success: true,
-        data: {
-          graphType: 'photograph',
-          language,
-          options: formOptions,
-        },
-      });
+      graphType = 'photograph';
+    } else if (hasDesign) {
+      graphType = 'design';
+    } else if (hasPainting) {
+      graphType = 'painting';
     }
 
-    // 如果指定了 design，返回设计类型的表单选项（待实现）
-    if (hasDesign) {
-      return res.status(501).json({
+    // 如果没有指定 graphType，返回错误
+    if (!graphType) {
+      return res.status(400).json({
         success: false,
-        error: 'Not implemented',
-        message: 'Design form options are not yet implemented',
+        error: 'Missing type parameter',
+        message: 'Please specify one of: photograph, design, painting',
       });
     }
 
-    // 如果指定了 painting，返回绘画类型的表单选项（待实现）
-    if (hasPainting) {
-      return res.status(501).json({
+    // 如果没有指定 type，默认使用第一个子类型
+    let subType = type as string;
+    if (!subType) {
+      const typeOptions = getGraphTypeOptions(graphType);
+      if (typeOptions.length > 0) {
+        subType = typeOptions[0].value;
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing type parameter',
+          message: `Please specify a type for ${graphType}`,
+        });
+      }
+    }
+
+    // 获取表单选项
+    const formOptions = getFormOptionsForType(graphType, subType, language);
+    
+    if (!formOptions) {
+      return res.status(404).json({
         success: false,
-        error: 'Not implemented',
-        message: 'Painting form options are not yet implemented',
+        error: 'Form options not found',
+        message: `Form options for ${graphType}/${subType} are not available`,
       });
     }
 
-    // 如果没有指定类型，返回错误
-    return res.status(400).json({
-      success: false,
-      error: 'Missing type parameter',
-      message: 'Please specify one of: photograph, design, painting',
+    return res.json({
+      success: true,
+      data: {
+        graphType,
+        type: subType,
+        language,
+        options: formOptions,
+      },
     });
   } catch (error) {
     console.error('[Graph Route] 获取表单选项失败:', error);

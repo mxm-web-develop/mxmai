@@ -168,7 +168,7 @@ export interface ReferenceImage {
  * 参考图类型到提示词描述的映射（英文）
  */
 const REFERENCE_TYPE_DESCRIPTIONS_EN: Record<ReferenceImageType, string> = {
-  'main-subject': 'Main character (face, body, pose, clothing – keep exact identity)',
+  'main-subject': 'Main character (face, details, hairstyle, body – keep exact identity)',
   'background': 'Background scene and lighting',
   'outfits': 'Additional props or secondary character',
   'color-reference': 'Style and color grading reference',
@@ -178,7 +178,7 @@ const REFERENCE_TYPE_DESCRIPTIONS_EN: Record<ReferenceImageType, string> = {
  * 参考图类型到提示词描述的映射（中文）
  */
 const REFERENCE_TYPE_DESCRIPTIONS_ZH: Record<ReferenceImageType, string> = {
-  'main-subject': '主体人物（脸部、身体、姿势、服装 – 保持完全一致）',
+  'main-subject': '主体人物（脸部、五官细节、发型、身材 – 保持完全一致）',
   'background': '背景场景和光线',
   'outfits': '服装、道具或次要角色',
   'color-reference': '风格和色彩参考',

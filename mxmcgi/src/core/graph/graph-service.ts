@@ -12,6 +12,18 @@ import * as seedream4 from './seedream-4';
 import { KnowledgeService } from '../knowledge/knowledge-service';
 import type { KnowledgeSearchResult, KnowledgeHybridSearchResult } from '@mxmai/mxmdata';
 import { generateDefaultPortraitKnowledge } from './graphconfigs/photograph/portrait';
+import { generateDefaultLandscapeKnowledge } from './graphconfigs/photograph/landscape';
+import { generateDefaultCinematicKnowledge } from './graphconfigs/photograph/cinematic';
+import { generateDefaultCommercialKnowledge } from './graphconfigs/photograph/commercial';
+import { generateDefaultDocumentaryKnowledge } from './graphconfigs/photograph/documentary';
+import { generateDefault3dKnowledge } from './graphconfigs/design/3d';
+import { generateDefaultManualKnowledge } from './graphconfigs/design/manual';
+import { generateDefaultPosterKnowledge } from './graphconfigs/design/poster';
+import { generateDefaultIconKnowledge } from './graphconfigs/design/icon';
+import { generateDefaultIllustrationKnowledge } from './graphconfigs/painting/illustration';
+import { generateDefaultComicKnowledge } from './graphconfigs/painting/comic';
+import { generateDefaultConceptArtKnowledge } from './graphconfigs/painting/conceptArt';
+import { generateDefaultCartoonKnowledge } from './graphconfigs/painting/cartoon';
 import { RepositoryFactory } from '@mxmai/mxmdata';
 import {
   type ReferenceImage,
@@ -33,6 +45,9 @@ function detectOutputLanguage(userPrompt: string): OutputLanguage {
 
 /**
  * 生成文本（调用 LLM）- 同步模式
+ * 
+ * 注意：此函数直接调用模型接口，不会创建 writing 任务
+ * 用于 graph 任务中生成提示词，属于内部调用，不应记录为独立的写作任务
  */
 async function generateText(
   modelName: string,
@@ -44,6 +59,7 @@ async function generateText(
     throw new Error(`模型 "${modelName}" 不存在`);
   }
 
+  // 直接调用模型接口，不通过任务系统，避免创建多余的 writing 任务
   const result = await model.generate({
     prompt,
     outputFormat: 'json',
@@ -455,6 +471,539 @@ export async function retrieveSystemKnowledgeForPortrait(
 }
 
 /**
+ * 通用知识库召回辅助函数
+ * 处理通用的知识库召回逻辑（获取admin userId、执行查询、格式化结果等）
+ */
+async function retrieveSystemKnowledgeCommon(
+  graphType: 'photograph' | 'design' | 'painting',
+  type: string,
+  queries: Array<{ parts: string[]; type: string }>,
+  generateDefaultFn: (params: any) => string,
+  params: any,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const knowledgeService = new KnowledgeService();
+  const knowledgeBaseName = getSystemKnowledgeBaseName(graphType, type);
+  console.log(`[GraphService] 选择系统知识库: ${knowledgeBaseName} (graphType=${graphType}, type=${type})`);
+  
+  const allChunks: (KnowledgeSearchResult | KnowledgeHybridSearchResult)[] = [];
+  const recallLimit = parseInt(process.env.GRAPH_KB_RECALL_LIMIT || '3', 10);
+  const similarityThreshold = parseFloat(process.env.GRAPH_KB_SIMILARITY_THRESHOLD || '0.6');
+  const maxTotalChunks = parseInt(process.env.GRAPH_KB_MAX_TOTAL_CHUNKS || '10', 10);
+  
+  let adminUserId: string | undefined = userId;
+  try {
+    const userRepo = RepositoryFactory.createUserRepository();
+    if (userId) {
+      const user = await userRepo.findById(userId);
+      if (user && user.role === 'admin') {
+        adminUserId = userId;
+      } else {
+        adminUserId = await getAdminUserId();
+      }
+    } else {
+      adminUserId = await getAdminUserId();
+    }
+  } catch (error) {
+    console.warn('[GraphService] 无法获取 admin 用户 ID，将尝试使用传入的 userId:', error);
+  }
+  
+  console.log(`[GraphService] 知识库召回配置: limit=${recallLimit}, threshold=${similarityThreshold}, maxTotal=${maxTotalChunks}`);
+  console.log(`[GraphService] 使用 userId 访问系统知识库: ${adminUserId || userId || 'anonymous'}`);
+  
+  const queryResults: Array<{ query: string; type: string; count: number }> = [];
+  
+  try {
+    // 执行所有查询
+    for (const queryConfig of queries) {
+      if (queryConfig.parts.length === 0) continue;
+      
+      const queryText = queryConfig.parts.join(' ');
+      console.log(`[GraphService] 知识库查询 (${queryConfig.type}): "${queryText}"`);
+      
+      const searchUserId = adminUserId || userId || undefined;
+      const results = await knowledgeService.search({
+        knowledgeBaseName,
+        query: queryText,
+        searchType: 'hybrid',
+        limit: recallLimit,
+        threshold: similarityThreshold,
+        userId: searchUserId,
+      });
+      
+      queryResults.push({
+        query: queryText,
+        type: queryConfig.type,
+        count: results.length,
+      });
+      
+      allChunks.push(...results);
+      console.log(`[GraphService] 查询完成: 召回 ${results.length} 条结果`);
+    }
+    
+    console.log(`[GraphService] 查询汇总: 总计${allChunks.length}条`);
+    
+    // 去重
+    const uniqueChunks = Array.from(
+      new Map(allChunks.map(chunk => [chunk.id || chunk.content.substring(0, 100), chunk])).values()
+    );
+    console.log(`[GraphService] 去重后: ${uniqueChunks.length} 条`);
+    
+    // 按相似度排序
+    const sortedChunks = uniqueChunks.sort((a, b) => {
+      const simA = 'similarity' in a ? (a.similarity || 0) : ('combined_score' in a ? (a as KnowledgeHybridSearchResult).combined_score || 0 : 0);
+      const simB = 'similarity' in b ? (b.similarity || 0) : ('combined_score' in b ? (b as KnowledgeHybridSearchResult).combined_score || 0 : 0);
+      return simB - simA;
+    });
+    
+    // 限制最多保留的结果数
+    const topChunks = sortedChunks.slice(0, maxTotalChunks);
+    console.log(`[GraphService] 最终保留: ${topChunks.length} 条`);
+    
+    // 格式化知识库内容
+    if (topChunks.length === 0) {
+      console.log('[GraphService] 知识库未召回任何相关内容，根据用户参数生成默认内容');
+      const defaultContent = generateDefaultFn(params);
+      return {
+        content: defaultContent,
+        metadata: {
+          source: 'default',
+          totalChunks: 0,
+          avgSimilarity: null,
+          maxSimilarity: null,
+          minSimilarity: null,
+          chunks: [],
+          queries: [],
+        },
+      };
+    }
+    
+    // 提取相似度信息
+    const similarities: number[] = [];
+    const chunksMetadata: KnowledgeRecallMetadata['chunks'] = [];
+    
+    const formattedContext = topChunks
+      .map((chunk, index) => {
+        const title = chunk.title || `知识片段 ${index + 1}`;
+        const content = chunk.content || '';
+        let similarity: number | null = null;
+        if ('similarity' in chunk && chunk.similarity !== undefined) {
+          similarity = chunk.similarity;
+        } else if ('combined_score' in chunk) {
+          similarity = (chunk as KnowledgeHybridSearchResult).combined_score ?? null;
+        }
+        
+        if (similarity !== null) {
+          similarities.push(similarity);
+        }
+        
+        chunksMetadata.push({
+          title,
+          similarity,
+          contentPreview: content.substring(0, 100) + (content.length > 100 ? '...' : ''),
+        });
+        
+        const similarityText = similarity !== null ? ` (相似度: ${(similarity * 100).toFixed(1)}%)` : '';
+        return `【${title}${similarityText}】\n${content}`;
+      })
+      .join('\n\n');
+    
+    // 构建召回元数据
+    const metadata: KnowledgeRecallMetadata = {
+      source: 'knowledge_base',
+      totalChunks: topChunks.length,
+      avgSimilarity: similarities.length > 0 ? similarities.reduce((a, b) => a + b, 0) / similarities.length : null,
+      maxSimilarity: similarities.length > 0 ? Math.max(...similarities) : null,
+      minSimilarity: similarities.length > 0 ? Math.min(...similarities) : null,
+      chunks: chunksMetadata,
+      queries: queryResults,
+    };
+    
+    console.log(`[GraphService] 知识库内容格式化完成，共 ${topChunks.length} 条，总长度: ${formattedContext.length} 字符`);
+    console.log(`[GraphService] 召回元数据: 平均相似度=${metadata.avgSimilarity?.toFixed(3) || 'N/A'}, 最高=${metadata.maxSimilarity?.toFixed(3) || 'N/A'}, 最低=${metadata.minSimilarity?.toFixed(3) || 'N/A'}`);
+    console.log(`[GraphService] ===== 知识库召回流程完成 =====\n`);
+    
+    return { content: formattedContext, metadata };
+  } catch (error) {
+    console.error('[GraphService] 知识库检索异常:', error);
+    console.log('[GraphService] 根据用户参数生成默认内容作为fallback');
+    const defaultContent = generateDefaultFn(params);
+    return {
+      content: defaultContent,
+      metadata: {
+        source: 'default',
+        totalChunks: 0,
+        avgSimilarity: null,
+        maxSimilarity: null,
+        minSimilarity: null,
+        chunks: [],
+        queries: [],
+      },
+    };
+  }
+}
+
+/**
+ * 从系统知识库检索风景摄影相关内容
+ */
+export async function retrieveSystemKnowledgeForLandscape(
+  params: PhotographParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, timeOfDay, weather, season, composition } = params;
+  
+  const queries = [
+    {
+      parts: [timeOfDay, weather, season, userPrompt].filter(Boolean) as string[],
+      type: '时间/天气/季节/场景',
+    },
+    {
+      parts: [userPrompt, composition].filter(Boolean) as string[],
+      type: '场景/构图',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'photograph',
+    'landscape',
+    queries,
+    generateDefaultLandscapeKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
+ * 从系统知识库检索电影画面相关内容
+ */
+export async function retrieveSystemKnowledgeForCinematic(
+  params: PhotographParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, filmStyle, mood, cameraAngle } = params;
+  
+  const queries = [
+    {
+      parts: [filmStyle, mood, userPrompt].filter(Boolean) as string[],
+      type: '电影风格/情绪氛围/场景',
+    },
+    {
+      parts: [userPrompt, cameraAngle].filter(Boolean) as string[],
+      type: '场景/拍摄角度',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'photograph',
+    'cinematic',
+    queries,
+    generateDefaultCinematicKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
+ * 从系统知识库检索产品商业拍摄相关内容
+ */
+export async function retrieveSystemKnowledgeForCommercial(
+  params: PhotographParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, productType, background, props } = params;
+  
+  const queries = [
+    {
+      parts: [productType, background, userPrompt].filter(Boolean) as string[],
+      type: '产品类型/背景/场景',
+    },
+    {
+      parts: [userPrompt, props].filter(Boolean) as string[],
+      type: '场景/道具',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'photograph',
+    'commercial',
+    queries,
+    generateDefaultCommercialKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
+ * 从系统知识库检索纪实摄影相关内容
+ */
+export async function retrieveSystemKnowledgeForDocumentary(
+  params: PhotographParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, eventType, documentaryStyle } = params;
+  
+  const queries = [
+    {
+      parts: [eventType, documentaryStyle, userPrompt].filter(Boolean) as string[],
+      type: '事件类型/纪实风格/场景',
+    },
+    {
+      parts: [userPrompt, documentaryStyle].filter(Boolean) as string[],
+      type: '场景/纪实风格',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'photograph',
+    'documentary',
+    queries,
+    generateDefaultDocumentaryKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
+ * 从系统知识库检索3D设计相关内容
+ */
+export async function retrieveSystemKnowledgeFor3d(
+  params: DesignParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, modelStyle, material, lighting, perspective } = params;
+  
+  const queries = [
+    {
+      parts: [modelStyle, material, lighting, userPrompt].filter(Boolean) as string[],
+      type: '模型风格/材质/光照/场景',
+    },
+    {
+      parts: [userPrompt, perspective].filter(Boolean) as string[],
+      type: '场景/视角',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'design',
+    '3d',
+    queries,
+    generateDefault3dKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
+ * 从系统知识库检索使用手册设计相关内容
+ */
+export async function retrieveSystemKnowledgeForManual(
+  params: DesignParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, layout, colorScheme, typography } = params;
+  
+  const queries = [
+    {
+      parts: [layout, colorScheme, userPrompt].filter(Boolean) as string[],
+      type: '布局/配色/内容',
+    },
+    {
+      parts: [userPrompt, typography].filter(Boolean) as string[],
+      type: '内容/字体',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'design',
+    'manual',
+    queries,
+    generateDefaultManualKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
+ * 从系统知识库检索画报设计相关内容
+ */
+export async function retrieveSystemKnowledgeForPoster(
+  params: DesignParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, artStyle, theme } = params;
+  
+  const queries = [
+    {
+      parts: [artStyle, theme, userPrompt].filter(Boolean) as string[],
+      type: '艺术风格/主题/内容',
+    },
+    {
+      parts: [userPrompt, artStyle].filter(Boolean) as string[],
+      type: '内容/艺术风格',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'design',
+    'poster',
+    queries,
+    generateDefaultPosterKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
+ * 从系统知识库检索图标设计相关内容
+ */
+export async function retrieveSystemKnowledgeForIcon(
+  params: DesignParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, iconStyle, size } = params;
+  
+  const queries = [
+    {
+      parts: [iconStyle, size, userPrompt].filter(Boolean) as string[],
+      type: '图标风格/尺寸/内容',
+    },
+    {
+      parts: [userPrompt, iconStyle].filter(Boolean) as string[],
+      type: '内容/图标风格',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'design',
+    'icon',
+    queries,
+    generateDefaultIconKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
+ * 从系统知识库检索插画相关内容
+ */
+export async function retrieveSystemKnowledgeForIllustration(
+  params: PaintingParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, illustrationStyle, colorPalette } = params;
+  
+  const queries = [
+    {
+      parts: [illustrationStyle, colorPalette, userPrompt].filter(Boolean) as string[],
+      type: '插图风格/色彩/内容',
+    },
+    {
+      parts: [userPrompt, illustrationStyle].filter(Boolean) as string[],
+      type: '内容/插图风格',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'painting',
+    'illustration',
+    queries,
+    generateDefaultIllustrationKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
+ * 从系统知识库检索漫画相关内容
+ */
+export async function retrieveSystemKnowledgeForComic(
+  params: PaintingParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, comicStyle, panelLayout } = params;
+  
+  const queries = [
+    {
+      parts: [comicStyle, panelLayout, userPrompt].filter(Boolean) as string[],
+      type: '漫画风格/分镜布局/内容',
+    },
+    {
+      parts: [userPrompt, comicStyle].filter(Boolean) as string[],
+      type: '内容/漫画风格',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'painting',
+    'comic',
+    queries,
+    generateDefaultComicKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
+ * 从系统知识库检索原画相关内容
+ */
+export async function retrieveSystemKnowledgeForConceptArt(
+  params: PaintingParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, conceptArtStyle, detailLevel } = params;
+  
+  const queries = [
+    {
+      parts: [conceptArtStyle, detailLevel, userPrompt].filter(Boolean) as string[],
+      type: '概念艺术风格/细节程度/内容',
+    },
+    {
+      parts: [userPrompt, conceptArtStyle].filter(Boolean) as string[],
+      type: '内容/概念艺术风格',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'painting',
+    'conceptArt',
+    queries,
+    generateDefaultConceptArtKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
+ * 从系统知识库检索卡通相关内容
+ */
+export async function retrieveSystemKnowledgeForCartoon(
+  params: PaintingParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
+  const { prompt: userPrompt, cartoonStyle, characterDesign } = params;
+  
+  const queries = [
+    {
+      parts: [cartoonStyle, characterDesign, userPrompt].filter(Boolean) as string[],
+      type: '卡通风格/角色设计/内容',
+    },
+    {
+      parts: [userPrompt, cartoonStyle].filter(Boolean) as string[],
+      type: '内容/卡通风格',
+    },
+  ];
+  
+  return retrieveSystemKnowledgeCommon(
+    'painting',
+    'cartoon',
+    queries,
+    generateDefaultCartoonKnowledge,
+    params,
+    userId
+  );
+}
+
+/**
  * 生成Graph提示词（返回提示词和召回元数据）
  */
 export async function generateGraphPrompt(
@@ -473,29 +1022,64 @@ export async function generateGraphPrompt(
   let knowledgeContext = '';
   let knowledgeRecallMetadata: KnowledgeRecallMetadata | null = null;
   
-  // 目前只实现了 photograph/portrait 的知识库召回
-  // 未来可以扩展支持其他类型（landscape, cinematic, design-3d, painting-illustration 等）
-  if (graphType === 'photograph' && type === 'portrait') {
-    try {
-      const expectedKBName = getSystemKnowledgeBaseName(graphType, type);
-      console.log(`[GraphService] 开始知识库召回 (graphType=${graphType}, type=${type}, 知识库=${expectedKBName})`);
-      
-      const recallResult = await retrieveSystemKnowledgeForPortrait(
-        params as PhotographParams,
-        userId
-      );
+  // 根据类型调用对应的知识库召回函数
+  try {
+    const expectedKBName = getSystemKnowledgeBaseName(graphType, type);
+    console.log(`[GraphService] 开始知识库召回 (graphType=${graphType}, type=${type}, 知识库=${expectedKBName})`);
+    
+    let recallResult: { content: string; metadata: KnowledgeRecallMetadata } | null = null;
+    
+    // Photograph 类型
+    if (graphType === 'photograph') {
+      if (type === 'portrait') {
+        recallResult = await retrieveSystemKnowledgeForPortrait(params as PhotographParams, userId);
+      } else if (type === 'landscape') {
+        recallResult = await retrieveSystemKnowledgeForLandscape(params as PhotographParams, userId);
+      } else if (type === 'cinematic') {
+        recallResult = await retrieveSystemKnowledgeForCinematic(params as PhotographParams, userId);
+      } else if (type === 'commercial') {
+        recallResult = await retrieveSystemKnowledgeForCommercial(params as PhotographParams, userId);
+      } else if (type === 'documentary') {
+        recallResult = await retrieveSystemKnowledgeForDocumentary(params as PhotographParams, userId);
+      }
+    }
+    // Design 类型
+    else if (graphType === 'design') {
+      if (type === '3d') {
+        recallResult = await retrieveSystemKnowledgeFor3d(params as DesignParams, userId);
+      } else if (type === 'manual') {
+        recallResult = await retrieveSystemKnowledgeForManual(params as DesignParams, userId);
+      } else if (type === 'poster') {
+        recallResult = await retrieveSystemKnowledgeForPoster(params as DesignParams, userId);
+      } else if (type === 'icon') {
+        recallResult = await retrieveSystemKnowledgeForIcon(params as DesignParams, userId);
+      }
+    }
+    // Painting 类型
+    else if (graphType === 'painting') {
+      if (type === 'illustration') {
+        recallResult = await retrieveSystemKnowledgeForIllustration(params as PaintingParams, userId);
+      } else if (type === 'comic') {
+        recallResult = await retrieveSystemKnowledgeForComic(params as PaintingParams, userId);
+      } else if (type === 'conceptArt') {
+        recallResult = await retrieveSystemKnowledgeForConceptArt(params as PaintingParams, userId);
+      } else if (type === 'cartoon') {
+        recallResult = await retrieveSystemKnowledgeForCartoon(params as PaintingParams, userId);
+      }
+    }
+    
+    if (recallResult) {
       knowledgeContext = recallResult.content;
       knowledgeRecallMetadata = recallResult.metadata;
       console.log(`[GraphService] 知识库召回完成，内容长度: ${knowledgeContext.length} 字符`);
-    } catch (error) {
-      console.error('[GraphService] 知识库召回失败:', error);
-      // 知识库召回失败不影响主流程，继续使用空的 knowledgeContext
-      knowledgeContext = '';
-      knowledgeRecallMetadata = null;
+    } else {
+      console.log(`[GraphService] 当前类型 (graphType=${graphType}, type=${type}) 暂未实现知识库召回，跳过`);
     }
-  } else {
-    // 其他类型暂未实现知识库召回，未来可以扩展
-    console.log(`[GraphService] 当前类型 (graphType=${graphType}, type=${type}) 暂未实现知识库召回，跳过`);
+  } catch (error) {
+    console.error('[GraphService] 知识库召回失败:', error);
+    // 知识库召回失败不影响主流程，继续使用空的 knowledgeContext
+    knowledgeContext = '';
+    knowledgeRecallMetadata = null;
   }
 
   // 2.5 根据用户输入语言决定输出语言（中文/英文）
@@ -535,13 +1119,60 @@ export async function generateGraphPrompt(
     }
   }
 
-  // 2.7 针对特定类型做结构化用户需求拼装（以 photograph / portrait 为先行案例）
+  // 2.7 针对特定类型做结构化用户需求拼装
   // 注意：这里不包含参考图提示词，参考图提示词会在后面拼装到大模型生成的提示词前面
   let effectiveUserPrompt = userPrompt;
-  if (graphType === 'photograph' && type === 'portrait') {
-    // 规则与结构化文案封装在 graphconfigs/photograph/portrait
-    const { buildPortraitUserPrompt } = require('./graphconfigs/photograph/portrait');
-    effectiveUserPrompt = buildPortraitUserPrompt(params as PhotographParams, outputLanguage);
+  
+  // Photograph 类型
+  if (graphType === 'photograph') {
+    if (type === 'portrait') {
+      const { buildPortraitUserPrompt } = require('./graphconfigs/photograph/portrait');
+      effectiveUserPrompt = buildPortraitUserPrompt(params as PhotographParams, outputLanguage);
+    } else if (type === 'landscape') {
+      const { buildLandscapeUserPrompt } = require('./graphconfigs/photograph/landscape');
+      effectiveUserPrompt = buildLandscapeUserPrompt(params as PhotographParams, outputLanguage);
+    } else if (type === 'cinematic') {
+      const { buildCinematicUserPrompt } = require('./graphconfigs/photograph/cinematic');
+      effectiveUserPrompt = buildCinematicUserPrompt(params as PhotographParams, outputLanguage);
+    } else if (type === 'commercial') {
+      const { buildCommercialUserPrompt } = require('./graphconfigs/photograph/commercial');
+      effectiveUserPrompt = buildCommercialUserPrompt(params as PhotographParams, outputLanguage);
+    } else if (type === 'documentary') {
+      const { buildDocumentaryUserPrompt } = require('./graphconfigs/photograph/documentary');
+      effectiveUserPrompt = buildDocumentaryUserPrompt(params as PhotographParams, outputLanguage);
+    }
+  }
+  // Design 类型
+  else if (graphType === 'design') {
+    if (type === '3d') {
+      const { build3dUserPrompt } = require('./graphconfigs/design/3d');
+      effectiveUserPrompt = build3dUserPrompt(params as DesignParams, outputLanguage);
+    } else if (type === 'manual') {
+      const { buildManualUserPrompt } = require('./graphconfigs/design/manual');
+      effectiveUserPrompt = buildManualUserPrompt(params as DesignParams, outputLanguage);
+    } else if (type === 'poster') {
+      const { buildPosterUserPrompt } = require('./graphconfigs/design/poster');
+      effectiveUserPrompt = buildPosterUserPrompt(params as DesignParams, outputLanguage);
+    } else if (type === 'icon') {
+      const { buildIconUserPrompt } = require('./graphconfigs/design/icon');
+      effectiveUserPrompt = buildIconUserPrompt(params as DesignParams, outputLanguage);
+    }
+  }
+  // Painting 类型
+  else if (graphType === 'painting') {
+    if (type === 'illustration') {
+      const { buildIllustrationUserPrompt } = require('./graphconfigs/painting/illustration');
+      effectiveUserPrompt = buildIllustrationUserPrompt(params as PaintingParams, outputLanguage);
+    } else if (type === 'comic') {
+      const { buildComicUserPrompt } = require('./graphconfigs/painting/comic');
+      effectiveUserPrompt = buildComicUserPrompt(params as PaintingParams, outputLanguage);
+    } else if (type === 'conceptArt') {
+      const { buildConceptArtUserPrompt } = require('./graphconfigs/painting/conceptArt');
+      effectiveUserPrompt = buildConceptArtUserPrompt(params as PaintingParams, outputLanguage);
+    } else if (type === 'cartoon') {
+      const { buildCartoonUserPrompt } = require('./graphconfigs/painting/cartoon');
+      effectiveUserPrompt = buildCartoonUserPrompt(params as PaintingParams, outputLanguage);
+    }
   }
 
   // 3. 构建提示词生成请求

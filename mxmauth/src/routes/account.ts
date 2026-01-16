@@ -12,6 +12,7 @@ import { adminMiddleware } from '../middleware/admin.middleware';
 import { captchaMiddleware } from '../middleware/captcha.middleware';
 import { DuplicateError, NotFoundError } from '@mxmai/mxmdata';
 import { WalletService } from '../services/wallet.service';
+import { FolderService } from '../services/folder.service';
 import { CaptchaService } from '../services/captcha.service';
 import { getSupabaseClient } from '@mxmai/mxmdata';
 import { MediaService, type MediaItemInput } from '../services/media.service';
@@ -19,6 +20,7 @@ import { MediaService, type MediaItemInput } from '../services/media.service';
 const router = Router();
 const userRepo = RepositoryFactory.createUserRepository();
 const walletService = new WalletService();
+const folderService = new FolderService();
 const captchaService = new CaptchaService();
 const mediaService = new MediaService();
 
@@ -84,6 +86,15 @@ router.post('/register', captchaMiddleware, async (req, res, next) => {
         console.log(`✅ 用户 ${user.id} 钱包创建成功:`, walletInfo);
       } else {
         console.warn(`⚠️ 用户 ${user.id} 钱包创建失败或服务不可用`);
+      }
+
+      // 自动创建默认文件夹
+      // 文件夹创建失败不影响用户注册流程
+      const folderInfo = await folderService.createDefaultFolder(user.id);
+      if (folderInfo) {
+        console.log(`✅ 用户 ${user.id} 默认文件夹创建成功:`, folderInfo);
+      } else {
+        console.warn(`⚠️ 用户 ${user.id} 默认文件夹创建失败或服务不可用`);
       }
 
       // 生成 Token

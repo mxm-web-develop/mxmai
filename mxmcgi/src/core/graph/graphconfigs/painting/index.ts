@@ -3,7 +3,7 @@
  * 用于为painting类型的graph任务提供提示词生成规则
  */
 
-import { PAINTING_TYPE_MAP } from '../type';
+import { PAINTING_TYPE_MAP } from '../../type';
 
 export interface PaintingTypeConfig {
   rules: string;
