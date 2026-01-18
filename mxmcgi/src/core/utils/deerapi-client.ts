@@ -612,6 +612,7 @@ export class DeerAPIClient {
       data: string; // Base64 字符串（不包含 data:image/... 前缀）
     }>;
     aspectRatio?: string; // 宽高比，如 "16:9", "1:1" 等
+    imageSize?: '1K' | '2K' | '4K'; // 图片尺寸，如 "1K", "2K", "4K"
     responseModalities?: ('TEXT' | 'IMAGE')[]; // 默认 ["TEXT", "IMAGE"]
   }): Promise<any> {
     // 返回类型使用 any，因为 Gemini API 可能使用驼峰命名或下划线命名
@@ -650,9 +651,15 @@ export class DeerAPIClient {
       },
     };
 
-    // 如果指定了宽高比，添加到 generationConfig
-    if (request.aspectRatio) {
-      body.generationConfig.aspectRatio = request.aspectRatio;
+    // 如果指定了宽高比或图片尺寸，添加到 generationConfig.imageConfig
+    if (request.aspectRatio || request.imageSize) {
+      body.generationConfig.imageConfig = {};
+      if (request.aspectRatio) {
+        body.generationConfig.imageConfig.aspectRatio = request.aspectRatio;
+      }
+      if (request.imageSize) {
+        body.generationConfig.imageConfig.imageSize = request.imageSize;
+      }
     }
 
     const headers: Record<string, string> = {

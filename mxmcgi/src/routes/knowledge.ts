@@ -192,19 +192,77 @@ router.post('/bases', async (req: Request, res: Response) => {
 /**
  * GET /knowledge/bases
  * 列出知识库
+ * 
+ * 逻辑说明：
+ * - 默认（is_public 未指定）：返回当前用户的知识库 + 所有公开的知识库
+ * - is_public=true：返回所有公开的知识库（不限制 owner_id，包括 admin 创建的）
+ * - is_public=false：返回当前用户的私有知识库（限制 owner_id）
  */
 router.get('/bases', async (req: Request, res: Response) => {
   try {
     const userId = req.headers['x-user-id'] as string | undefined;
     const { agent_id, is_public, limit, offset } = req.query;
 
-    const result = await getKnowledgeService().listKnowledgeBases({
-      agent_id: agent_id as string,
-      owner_id: userId,
-      is_public: is_public === 'true' ? true : is_public === 'false' ? false : undefined,
-      limit: limit ? Number(limit) : undefined,
-      offset: offset ? Number(offset) : undefined,
-    });
+    const isPublicParam = is_public === 'true' ? true : is_public === 'false' ? false : undefined;
+
+    // 如果 is_public=true，不传递 owner_id，以获取所有公开的知识库（包括 admin 创建的）
+    // 如果 is_public=false，传递 owner_id，以获取该用户的私有知识库
+    // 如果 is_public 未指定，需要返回用户的知识库 + 所有公开的知识库（需要特殊处理）
+    let result;
+    
+    if (isPublicParam === undefined) {
+      // 默认情况：返回用户的知识库 + 所有公开的知识库
+      // 需要两次查询并合并
+      const [userKbsRes, publicKbsRes] = await Promise.all([
+        getKnowledgeService().listKnowledgeBases({
+          agent_id: agent_id as string,
+          owner_id: userId,
+          is_public: false, // 用户的私有知识库
+          limit: limit ? Number(limit) : undefined,
+          offset: offset ? Number(offset) : undefined,
+        }),
+        getKnowledgeService().listKnowledgeBases({
+          agent_id: agent_id as string,
+          owner_id: undefined, // 不限制 owner_id，获取所有公开的知识库
+          is_public: true, // 所有公开的知识库
+          limit: limit ? Number(limit) : undefined,
+          offset: offset ? Number(offset) : undefined,
+        }),
+      ]);
+
+      // 合并结果并去重（基于 id）
+      const userKbs = userKbsRes.knowledge_bases || [];
+      const publicKbs = publicKbsRes.knowledge_bases || [];
+      const allKbs = [...userKbs, ...publicKbs];
+      const uniqueKbs = allKbs.filter((kb, index, self) => 
+        index === self.findIndex((k) => k.id === kb.id)
+      );
+
+      result = {
+        knowledge_bases: uniqueKbs,
+        total: uniqueKbs.length,
+        limit: limit ? Number(limit) : undefined,
+        offset: offset ? Number(offset) : undefined,
+      };
+    } else if (isPublicParam === true) {
+      // 只查询公开的知识库，不限制 owner_id（包括 admin 创建的）
+      result = await getKnowledgeService().listKnowledgeBases({
+        agent_id: agent_id as string,
+        owner_id: undefined, // 不限制 owner_id
+        is_public: true,
+        limit: limit ? Number(limit) : undefined,
+        offset: offset ? Number(offset) : undefined,
+      });
+    } else {
+      // is_public=false，只查询用户的私有知识库
+      result = await getKnowledgeService().listKnowledgeBases({
+        agent_id: agent_id as string,
+        owner_id: userId,
+        is_public: false,
+        limit: limit ? Number(limit) : undefined,
+        offset: offset ? Number(offset) : undefined,
+      });
+    }
 
     return res.json({
       success: true,
@@ -757,8 +815,8 @@ router.get('/bases/:id/documents', async (req: Request, res: Response) => {
       const fileKey = fileId || filename;
       
       // 检查 embedding 状态
-      const hasEmbedding = doc.embedding && Array.isArray(doc.embedding) && doc.embedding.length > 0;
-      const embeddingDimension = hasEmbedding ? doc.embedding.length : null;
+      const hasEmbedding = !!(doc.embedding && Array.isArray(doc.embedding) && doc.embedding.length > 0);
+      const embeddingDimension = hasEmbedding && doc.embedding ? doc.embedding.length : null;
       
       // 获取该文件的 chunk 数量
       const chunk_count = fileChunkCountMap.get(fileKey) || 1;
@@ -866,11 +924,14 @@ router.get('/bases/:id/detail', async (req: Request, res: Response) => {
       const fileType = doc.content_type || 'text';
       
       if (!filesMap.has(fileId)) {
+        const uploadTime = doc.created_at 
+          ? (typeof doc.created_at === 'string' ? doc.created_at : doc.created_at.toISOString())
+          : new Date().toISOString();
         filesMap.set(fileId, {
           fileId,
           fileName,
           fileType,
-          uploadTime: doc.created_at,
+          uploadTime,
           chunks: [],
         });
       }
@@ -888,8 +949,8 @@ router.get('/bases/:id/detail', async (req: Request, res: Response) => {
         : '';
       
       // Embedding 信息
-      const hasEmbedding = doc.embedding && doc.embedding.length > 0;
-      const embeddingDimension = hasEmbedding ? doc.embedding.length : null;
+      const hasEmbedding = !!(doc.embedding && Array.isArray(doc.embedding) && doc.embedding.length > 0);
+      const embeddingDimension = hasEmbedding && doc.embedding ? doc.embedding.length : null;
       const shouldIncludeEmbedding = include_embedding === 'true';
 
       fileInfo.chunks.push({
@@ -901,17 +962,22 @@ router.get('/bases/:id/detail', async (req: Request, res: Response) => {
         totalChunks,
         embedding: {
           dimension: embeddingDimension,
-          hasEmbedding,
-          ...(shouldIncludeEmbedding && hasEmbedding ? { vector: doc.embedding } : {}),
+          hasEmbedding: hasEmbedding,
+          ...(shouldIncludeEmbedding && hasEmbedding && doc.embedding ? { vector: doc.embedding } : {}),
         },
         tags: doc.tags || [],
         metadata: doc.metadata || {},
-        createdAt: doc.created_at,
+        createdAt: doc.created_at 
+          ? (typeof doc.created_at === 'string' ? doc.created_at : doc.created_at.toISOString())
+          : new Date().toISOString(),
       });
 
       // 更新最早的上传时间（用于文件的上传时间）
-      if (new Date(doc.created_at) < new Date(fileInfo.uploadTime)) {
-        fileInfo.uploadTime = doc.created_at;
+      if (doc.created_at) {
+        const createdAtStr = typeof doc.created_at === 'string' ? doc.created_at : doc.created_at.toISOString();
+        if (new Date(createdAtStr) < new Date(fileInfo.uploadTime)) {
+          fileInfo.uploadTime = createdAtStr;
+        }
       }
     }
 

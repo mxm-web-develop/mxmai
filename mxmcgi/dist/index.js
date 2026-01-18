@@ -13038,6 +13038,13 @@ var require_IMPLEMENTATION = __commonJS({
   }
 });
 
+// src/core/graph/KNOWLEDGE_BASE_STRATEGY.md
+var require_KNOWLEDGE_BASE_STRATEGY = __commonJS({
+  "src/core/graph/KNOWLEDGE_BASE_STRATEGY.md"(exports2, module2) {
+    module2.exports = '# \u7CFB\u7EDF\u77E5\u8BC6\u5E93\u6570\u636E\u6536\u96C6\u7B56\u7565\u5206\u6790\n\n## \u4E00\u3001\u5F53\u524D\u7CFB\u7EDF\u67B6\u6784\u5206\u6790\n\n### 1.1 \u53EC\u56DE\u673A\u5236\n- **\u53CC\u67E5\u8BE2\u7B56\u7565**\uFF1A\u6BCF\u4E2A\u7C7B\u578B\u4F7F\u75282\u4E2A\u67E5\u8BE2\uFF0C\u6BCF\u4E2A\u67E5\u8BE2\u6700\u591A\u53EC\u56DE3\u6761\n- **\u76F8\u4F3C\u5EA6\u9608\u503C**\uFF1A0.6\uFF08\u8F83\u4F4E\u9608\u503C\u4EE5\u63D0\u9AD8\u53EC\u56DE\u7387\uFF09\n- **\u6700\u5927\u4FDD\u7559\u6570**\uFF1A10\u6761\uFF08\u53BB\u91CD\u540E\uFF09\n- **\u641C\u7D22\u65B9\u5F0F**\uFF1AHybrid\uFF08\u5411\u91CF\u641C\u7D22 + \u5173\u952E\u8BCD\u641C\u7D22\uFF09\n\n### 1.2 \u67E5\u8BE2\u6784\u5EFA\u903B\u8F91\n\n#### Portrait\uFF08\u4EBA\u50CF\uFF09\u793A\u4F8B\uFF1A\n- **\u67E5\u8BE21**\uFF1A`style + tone + lighting + prompt` \u2192 \u6784\u56FE/\u5149\u7EBF/\u98CE\u683C/\u6444\u5F71\u5E08\n- **\u67E5\u8BE22**\uFF1A`prompt + environment + pose + makeup` \u2192 \u80CC\u666F/\u73AF\u5883/\u59FF\u52BF/\u5986\u5BB9\n\n#### Landscape\uFF08\u98CE\u666F\uFF09\u793A\u4F8B\uFF1A\n- **\u67E5\u8BE21**\uFF1A`timeOfDay + weather + prompt` \u2192 \u65F6\u95F4/\u5929\u6C14/\u573A\u666F\n- **\u67E5\u8BE22**\uFF1A`season + composition + prompt` \u2192 \u5B63\u8282/\u6784\u56FE/\u573A\u666F\n\n### 1.3 \u77E5\u8BC6\u5E93\u7ED3\u6784\n- **15\u4E2A\u72EC\u7ACB\u77E5\u8BC6\u5E93**\uFF1A\u6BCF\u4E2A\u5B50\u7C7B\u578B\u4E00\u4E2A\uFF08\u5982 `graph-photograph-portrait`\uFF09\n- **\u53CC\u8BED\u652F\u6301**\uFF1A\u9700\u8981\u4E2D\u82F1\u6587\u5185\u5BB9\n- **\u79C1\u5BC6\u77E5\u8BC6\u5E93**\uFF1A\u4EC5\u7CFB\u7EDF\u4F7F\u7528\uFF0C\u7528\u6237\u4E0D\u53EF\u89C1\n\n---\n\n## \u4E8C\u3001\u6570\u636E\u6536\u96C6\u7B56\u7565\n\n### 2.1 \u6838\u5FC3\u539F\u5219\n\n#### 1. **\u53C2\u6570\u7EC4\u5408\u8986\u76D6**\n\u6BCF\u4E2A\u77E5\u8BC6\u5E93\u9700\u8981\u8986\u76D6\u8BE5\u7C7B\u578B\u7684\u6240\u6709\u53C2\u6570\u7EC4\u5408\uFF0C\u786E\u4FDD\u4EFB\u610F\u53C2\u6570\u7EC4\u5408\u90FD\u80FD\u53EC\u56DE\u76F8\u5173\u5185\u5BB9\u3002\n\n#### 2. **\u67E5\u8BE2\u8BCD\u5339\u914D**\n\u6587\u6863\u5185\u5BB9\u9700\u8981\u5305\u542B\u7528\u6237\u53EF\u80FD\u8F93\u5165\u7684\u67E5\u8BE2\u8BCD\uFF08\u53C2\u6570\u503C\u3001\u4E13\u4E1A\u672F\u8BED\u3001\u540C\u4E49\u8BCD\uFF09\u3002\n\n#### 3. **\u8BED\u4E49\u4E30\u5BCC\u5EA6**\n\u6BCF\u4E2A\u6587\u6863\u5E94\u8BE5\u5305\u542B\uFF1A\n- \u6838\u5FC3\u6982\u5FF5\u7684\u4E13\u4E1A\u63CF\u8FF0\n- \u53C2\u6570\u7EC4\u5408\u7684\u5B9E\u9645\u5E94\u7528\u573A\u666F\n- \u6280\u672F\u7EC6\u8282\u548C\u6700\u4F73\u5B9E\u8DF5\n- \u98CE\u683C\u53C2\u8003\u548C\u6848\u4F8B\u8BF4\u660E\n\n#### 4. **\u6587\u6863\u7C92\u5EA6**\n- **\u5355\u6587\u6863\u957F\u5EA6**\uFF1A200-800\u5B57\uFF08\u9002\u5408chunk\u5207\u5206\uFF09\n- **\u6587\u6863\u6570\u91CF**\uFF1A\u6BCF\u4E2A\u77E5\u8BC6\u5E93\u81F3\u5C1150-100\u7BC7\uFF08\u6700\u4F4E\u8981\u6C42\uFF09\n- **\u7406\u60F3\u6570\u91CF**\uFF1A\u6BCF\u4E2A\u77E5\u8BC6\u5E93200-500\u7BC7\uFF08\u6700\u4F73\u6548\u679C\uFF09\n\n### 2.2 \u6570\u636E\u6536\u96C6\u7EF4\u5EA6\n\n#### \u7EF4\u5EA61\uFF1A\u53C2\u6570\u7EC4\u5408\u8986\u76D6\n\u4E3A\u6BCF\u4E2A\u53C2\u6570\u7EC4\u5408\u521B\u5EFA\u4E13\u95E8\u7684\u6587\u6863\uFF1A\n\n**Portrait \u793A\u4F8B**\uFF1A\n- `\u73B0\u4EE3\u98CE\u683C + \u6696\u8272\u8C03 + \u67D4\u5149 + \u5BA4\u5185\u73AF\u5883 + \u7AD9\u7ACB\u59FF\u52BF + \u81EA\u7136\u5986\u5BB9`\n- `\u590D\u53E4\u98CE\u683C + \u51B7\u8272\u8C03 + \u786C\u5149 + \u5BA4\u5916\u73AF\u5883 + \u5750\u59FF + \u7CBE\u81F4\u5986\u5BB9`\n- ...\uFF08\u8986\u76D6\u6240\u6709\u5E38\u89C1\u7EC4\u5408\uFF09\n\n**Landscape \u793A\u4F8B**\uFF1A\n- `\u6E05\u6668 + \u6674\u5929 + \u6625\u5B63 + \u4E09\u5206\u6CD5\u6784\u56FE`\n- `\u9EC4\u660F + \u9634\u5929 + \u79CB\u5B63 + \u5F15\u5BFC\u7EBF\u6784\u56FE`\n- ...\uFF08\u8986\u76D6\u6240\u6709\u5E38\u89C1\u7EC4\u5408\uFF09\n\n#### \u7EF4\u5EA62\uFF1A\u4E13\u4E1A\u9886\u57DF\u77E5\u8BC6\n- **\u6280\u672F\u77E5\u8BC6**\uFF1A\u6784\u56FE\u539F\u7406\u3001\u5149\u7EBF\u7406\u8BBA\u3001\u8272\u5F69\u642D\u914D\n- **\u98CE\u683C\u6307\u5357**\uFF1A\u4E0D\u540C\u98CE\u683C\u7684\u7279\u5F81\u548C\u5B9E\u73B0\u65B9\u6CD5\n- **\u6848\u4F8B\u7814\u7A76**\uFF1A\u4F18\u79C0\u4F5C\u54C1\u7684\u5206\u6790\u548C\u62C6\u89E3\n- **\u6700\u4F73\u5B9E\u8DF5**\uFF1A\u884C\u4E1A\u6807\u51C6\u548C\u4E13\u4E1A\u5EFA\u8BAE\n\n#### \u7EF4\u5EA63\uFF1A\u573A\u666F\u5316\u5185\u5BB9\n- **\u5177\u4F53\u573A\u666F**\uFF1A\u5BA4\u5185\u4EBA\u50CF\u3001\u5BA4\u5916\u98CE\u666F\u3001\u5546\u4E1A\u62CD\u6444\u7B49\n- **\u5E94\u7528\u573A\u666F**\uFF1A\u6742\u5FD7\u5C01\u9762\u3001\u4EA7\u54C1\u5BA3\u4F20\u3001\u827A\u672F\u521B\u4F5C\u7B49\n- **\u7279\u6B8A\u9700\u6C42**\uFF1A\u9006\u5149\u62CD\u6444\u3001\u591C\u666F\u62CD\u6444\u3001\u7279\u6B8A\u5929\u6C14\u7B49\n\n#### \u7EF4\u5EA64\uFF1A\u53CC\u8BED\u5185\u5BB9\n- **\u4E2D\u6587\u6587\u6863**\uFF1A\u9762\u5411\u4E2D\u6587\u7528\u6237\u67E5\u8BE2\n- **\u82F1\u6587\u6587\u6863**\uFF1A\u9762\u5411\u82F1\u6587\u7528\u6237\u67E5\u8BE2\n- **\u53CC\u8BED\u6587\u6863**\uFF1A\u540C\u65F6\u5305\u542B\u4E2D\u82F1\u6587\u5173\u952E\u8BCD\n\n---\n\n## \u4E09\u3001\u6700\u4F4E\u6570\u636E\u91CF\u8981\u6C42\n\n### 3.1 \u7406\u8BBA\u8BA1\u7B97\n\n#### \u53C2\u6570\u7EC4\u5408\u6570\u91CF\uFF08Portrait\u4E3A\u4F8B\uFF09\uFF1A\n- style: 6\u4E2A\u9009\u9879\n- tone: 5\u4E2A\u9009\u9879\n- environment: 5\u4E2A\u9009\u9879\n- makeup: 5\u4E2A\u9009\u9879\n- pose: 6\u4E2A\u9009\u9879\n- lighting: 6\u4E2A\u9009\u9879\n\n**\u7406\u8BBA\u7EC4\u5408\u6570**\uFF1A6 \xD7 5 \xD7 5 \xD7 5 \xD7 6 \xD7 6 = **27,000\u79CD\u7EC4\u5408**\n\n**\u5B9E\u9645\u5E38\u7528\u7EC4\u5408**\uFF1A\u7EA6 **200-500\u79CD**\uFF08\u6839\u636E\u7528\u6237\u4F7F\u7528\u9891\u7387\uFF09\n\n#### \u53EC\u56DE\u6210\u529F\u7387\u8BA1\u7B97\uFF1A\n- **\u76F8\u4F3C\u5EA6\u9608\u503C0.6**\uFF1A\u9700\u8981\u6587\u6863\u4E0E\u67E5\u8BE2\u7684\u8BED\u4E49\u76F8\u4F3C\u5EA6 \u2265 0.6\n- **\u6BCF\u4E2A\u67E5\u8BE2\u53EC\u56DE3\u6761**\uFF1A\u9700\u8981\u81F3\u5C11\u67093\u7BC7\u76F8\u5173\u6587\u6863\n- **\u53BB\u91CD\u540E\u4FDD\u755910\u6761**\uFF1A\u9700\u8981\u81F3\u5C11\u670910\u7BC7\u4E0D\u540C\u4E3B\u9898\u7684\u6587\u6863\n\n### 3.2 \u6700\u4F4E\u6570\u636E\u91CF\u5EFA\u8BAE\n\n#### \u6BCF\u4E2A\u77E5\u8BC6\u5E93\u7684\u6700\u4F4E\u8981\u6C42\uFF1A\n\n| \u7C7B\u578B | \u6700\u4F4E\u6587\u6863\u6570 | \u63A8\u8350\u6587\u6863\u6570 | \u7406\u60F3\u6587\u6863\u6570 |\n|------|-----------|-----------|-----------|\n| **Portrait** | 50\u7BC7 | 150\u7BC7 | 300\u7BC7 |\n| **Landscape** | 40\u7BC7 | 120\u7BC7 | 250\u7BC7 |\n| **Cinematic** | 40\u7BC7 | 120\u7BC7 | 250\u7BC7 |\n| **Commercial** | 40\u7BC7 | 120\u7BC7 | 250\u7BC7 |\n| **Documentary** | 30\u7BC7 | 100\u7BC7 | 200\u7BC7 |\n| **3D Design** | 40\u7BC7 | 120\u7BC7 | 250\u7BC7 |\n| **Manual** | 30\u7BC7 | 100\u7BC7 | 200\u7BC7 |\n| **Poster** | 30\u7BC7 | 100\u7BC7 | 200\u7BC7 |\n| **Icon** | 30\u7BC7 | 100\u7BC7 | 200\u7BC7 |\n| **Illustration** | 40\u7BC7 | 120\u7BC7 | 250\u7BC7 |\n| **Comic** | 40\u7BC7 | 120\u7BC7 | 250\u7BC7 |\n| **ConceptArt** | 40\u7BC7 | 120\u7BC7 | 250\u7BC7 |\n| **Cartoon** | 30\u7BC7 | 100\u7BC7 | 200\u7BC7 |\n\n**\u603B\u8BA1\u6700\u4F4E**\uFF1A**500\u7BC7**\uFF0815\u4E2A\u77E5\u8BC6\u5E93 \xD7 \u5E73\u574733\u7BC7\uFF09\n**\u603B\u8BA1\u63A8\u8350**\uFF1A**1,650\u7BC7**\uFF0815\u4E2A\u77E5\u8BC6\u5E93 \xD7 \u5E73\u5747110\u7BC7\uFF09\n**\u603B\u8BA1\u7406\u60F3**\uFF1A**3,450\u7BC7**\uFF0815\u4E2A\u77E5\u8BC6\u5E93 \xD7 \u5E73\u5747230\u7BC7\uFF09\n\n### 3.3 \u6570\u636E\u8D28\u91CF\u8981\u6C42\n\n#### 1. **\u5185\u5BB9\u8D28\u91CF**\n- \u2705 \u4E13\u4E1A\u672F\u8BED\u51C6\u786E\n- \u2705 \u6280\u672F\u63CF\u8FF0\u8BE6\u7EC6\n- \u2705 \u6848\u4F8B\u771F\u5B9E\u53EF\u4FE1\n- \u2705 \u98CE\u683C\u7279\u5F81\u660E\u786E\n\n#### 2. **\u5173\u952E\u8BCD\u8986\u76D6**\n- \u2705 \u5305\u542B\u6240\u6709\u53C2\u6570\u9009\u9879\u503C\uFF08\u5982"\u73B0\u4EE3"\u3001"\u6696\u8272\u8C03"\u3001"\u67D4\u5149"\uFF09\n- \u2705 \u5305\u542B\u4E13\u4E1A\u672F\u8BED\uFF08\u5982"\u4E09\u5206\u6CD5"\u3001"\u9EC4\u91D1\u5206\u5272"\u3001"\u8F6E\u5ED3\u5149"\uFF09\n- \u2705 \u5305\u542B\u540C\u4E49\u8BCD\u548C\u53D8\u4F53\uFF08\u5982"\u5BA4\u5185"\u3001"\u5BA4\u5185\u73AF\u5883"\u3001"\u5BA4\u5185\u62CD\u6444"\uFF09\n\n#### 3. **\u8BED\u4E49\u591A\u6837\u6027**\n- \u2705 \u4E0D\u540C\u89D2\u5EA6\u7684\u63CF\u8FF0\uFF08\u6280\u672F\u89D2\u5EA6\u3001\u827A\u672F\u89D2\u5EA6\u3001\u5B9E\u7528\u89D2\u5EA6\uFF09\n- \u2705 \u4E0D\u540C\u5C42\u6B21\u7684\u6DF1\u5EA6\uFF08\u57FA\u7840\u6982\u5FF5\u3001\u8FDB\u9636\u6280\u5DE7\u3001\u9AD8\u7EA7\u5E94\u7528\uFF09\n- \u2705 \u4E0D\u540C\u573A\u666F\u7684\u5E94\u7528\uFF08\u5546\u4E1A\u3001\u827A\u672F\u3001\u7EAA\u5B9E\u7B49\uFF09\n\n---\n\n## \u56DB\u3001\u6570\u636E\u6536\u96C6\u65B9\u6CD5\n\n### 4.1 \u6570\u636E\u6765\u6E90\n\n#### 1. **\u4E13\u4E1A\u6444\u5F71/\u8BBE\u8BA1\u6559\u7A0B**\n- \u6444\u5F71\u6559\u7A0B\u7F51\u7AD9\n- \u8BBE\u8BA1\u7C7B\u535A\u5BA2\n- \u4E13\u4E1A\u4E66\u7C4D\uFF08\u9700\u6388\u6743\uFF09\n\n#### 2. **\u6848\u4F8B\u5206\u6790\u548C\u4F5C\u54C1\u62C6\u89E3**\n- \u4F18\u79C0\u4F5C\u54C1\u7684\u6280\u672F\u5206\u6790\n- \u6444\u5F71\u5E08/\u8BBE\u8BA1\u5E08\u7684\u521B\u4F5C\u601D\u8DEF\n- \u884C\u4E1A\u5956\u9879\u4F5C\u54C1\u89E3\u6790\n\n#### 3. **\u6280\u672F\u6587\u6863\u548C\u89C4\u8303**\n- \u884C\u4E1A\u6807\u51C6\u6587\u6863\n- \u8BBE\u5907\u4F7F\u7528\u6307\u5357\n- \u8F6F\u4EF6\u64CD\u4F5C\u624B\u518C\n\n#### 4. **\u7528\u6237\u751F\u6210\u5185\u5BB9\uFF08UGC\uFF09**\n- \u4E13\u4E1A\u7528\u6237\u7684\u521B\u4F5C\u7ECF\u9A8C\n- \u793E\u533A\u8BA8\u8BBA\u548C\u95EE\u7B54\n- \u5B9E\u9645\u5E94\u7528\u6848\u4F8B\n\n### 4.2 \u6570\u636E\u7EC4\u7EC7\u65B9\u5F0F\n\n#### \u6587\u6863\u7ED3\u6784\u5EFA\u8BAE\uFF1A\n```\n\u3010\u6807\u9898\u3011\u6E05\u6670\u63CF\u8FF0\u6587\u6863\u4E3B\u9898\uFF08\u5305\u542B\u5173\u952E\u8BCD\uFF09\n\u3010\u5185\u5BB9\u3011200-800\u5B57\u7684\u4E13\u4E1A\u63CF\u8FF0\n  - \u6838\u5FC3\u6982\u5FF5\n  - \u6280\u672F\u7EC6\u8282\n  - \u5E94\u7528\u573A\u666F\n  - \u6700\u4F73\u5B9E\u8DF5\n\u3010\u6807\u7B7E\u3011\u53C2\u6570\u503C\u3001\u98CE\u683C\u3001\u6280\u672F\u70B9\u7B49\n```\n\n#### \u793A\u4F8B\u6587\u6863\uFF08Portrait\uFF09\uFF1A\n```\n\u6807\u9898\uFF1A\u73B0\u4EE3\u98CE\u683C\u6696\u8272\u8C03\u5BA4\u5185\u4EBA\u50CF\u62CD\u6444\u6280\u5DE7\n\n\u5185\u5BB9\uFF1A\n\u73B0\u4EE3\u98CE\u683C\u4EBA\u50CF\u6444\u5F71\u5F3A\u8C03\u7B80\u6D01\u3001\u65F6\u5C1A\u7684\u89C6\u89C9\u5448\u73B0\u3002\u5728\u5BA4\u5185\u73AF\u5883\u4E2D\uFF0C\u4F7F\u7528\u67D4\u5149\u53EF\u4EE5\u8425\u9020\u6E29\u6696\u3001\u8212\u9002\u7684\u6C1B\u56F4\u3002\u6696\u8272\u8C03\u80FD\u591F\u589E\u5F3A\u753B\u9762\u7684\u60C5\u611F\u8868\u8FBE\uFF0C\u4F7F\u4EBA\u7269\u770B\u8D77\u6765\u66F4\u52A0\u4EB2\u5207\u81EA\u7136\u3002\n\n\u6784\u56FE\u65B9\u9762\uFF0C\u5EFA\u8BAE\u4F7F\u7528\u4E09\u5206\u6CD5\u6216\u9EC4\u91D1\u5206\u5272\u539F\u5219\uFF0C\u5C06\u4EBA\u7269\u4E3B\u4F53\u653E\u7F6E\u5728\u753B\u9762\u7684\u5173\u952E\u4F4D\u7F6E\u3002\u5BA4\u5185\u73AF\u5883\u901A\u5E38\u80CC\u666F\u8F83\u4E3A\u7B80\u6D01\uFF0C\u53EF\u4EE5\u901A\u8FC7\u5927\u5149\u5708\u955C\u5934\u5B9E\u73B0\u80CC\u666F\u865A\u5316\uFF0C\u7A81\u51FA\u4EBA\u7269\u4E3B\u4F53\u3002\n\n\u5149\u7EBF\u8BBE\u8BA1\u662F\u5BA4\u5185\u4EBA\u50CF\u7684\u5173\u952E\u3002\u67D4\u5149\u53EF\u4EE5\u901A\u8FC7\u4F7F\u7528\u67D4\u5149\u7BB1\u6216\u53CD\u5149\u677F\u5B9E\u73B0\uFF0C\u907F\u514D\u786C\u5149\u9020\u6210\u7684\u5F3A\u70C8\u9634\u5F71\u3002\u4E3B\u5149\u901A\u5E38\u4ECE45\u5EA6\u89D2\u7167\u5C04\uFF0C\u8F85\u5149\u7528\u4E8E\u586B\u5145\u9634\u5F71\uFF0C\u8425\u9020\u7ACB\u4F53\u611F\u3002\n\n\u8272\u5F69\u642D\u914D\u65B9\u9762\uFF0C\u6696\u8272\u8C03\u53EF\u4EE5\u901A\u8FC7\u8C03\u6574\u767D\u5E73\u8861\u6216\u540E\u671F\u8C03\u8272\u5B9E\u73B0\u3002\u5EFA\u8BAE\u4F7F\u7528\u8272\u6E29\u57283000-4000K\u7684\u5149\u6E90\uFF0C\u6216\u901A\u8FC7\u540E\u671F\u8C03\u6574\u8272\u6E29\u6ED1\u5757\uFF0C\u4F7F\u753B\u9762\u5448\u73B0\u6E29\u6696\u7684\u8272\u8C03\u3002\n\n\u3010\u6807\u7B7E\u3011\u73B0\u4EE3\u3001\u6696\u8272\u8C03\u3001\u5BA4\u5185\u3001\u67D4\u5149\u3001\u4EBA\u50CF\u3001\u6784\u56FE\u3001\u5149\u7EBF\n```\n\n### 4.3 \u6570\u636E\u6536\u96C6\u4F18\u5148\u7EA7\n\n#### \u7B2C\u4E00\u9636\u6BB5\uFF08\u6700\u4F4E\u8981\u6C42 - 500\u7BC7\uFF09\uFF1A\n1. **\u6838\u5FC3\u53C2\u6570\u7EC4\u5408**\uFF1A\u8986\u76D6\u6700\u5E38\u7528\u768420-30\u79CD\u53C2\u6570\u7EC4\u5408\n2. **\u57FA\u7840\u6280\u672F\u77E5\u8BC6**\uFF1A\u6784\u56FE\u3001\u5149\u7EBF\u3001\u8272\u5F69\u7B49\u57FA\u7840\u6982\u5FF5\n3. **\u98CE\u683C\u6307\u5357**\uFF1A\u6BCF\u79CD\u98CE\u683C\u7684\u57FA\u672C\u7279\u5F81\n\n#### \u7B2C\u4E8C\u9636\u6BB5\uFF08\u63A8\u8350\u8981\u6C42 - 1,650\u7BC7\uFF09\uFF1A\n1. **\u6269\u5C55\u53C2\u6570\u7EC4\u5408**\uFF1A\u8986\u76D6\u5E38\u7528\u7EC4\u5408\u768480%\n2. **\u8FDB\u9636\u6280\u672F\u77E5\u8BC6**\uFF1A\u9AD8\u7EA7\u6280\u5DE7\u548C\u6700\u4F73\u5B9E\u8DF5\n3. **\u573A\u666F\u5316\u5185\u5BB9**\uFF1A\u4E0D\u540C\u5E94\u7528\u573A\u666F\u7684\u4E13\u95E8\u6307\u5BFC\n4. **\u6848\u4F8B\u7814\u7A76**\uFF1A\u4F18\u79C0\u4F5C\u54C1\u7684\u5206\u6790\n\n#### \u7B2C\u4E09\u9636\u6BB5\uFF08\u7406\u60F3\u8981\u6C42 - 3,450\u7BC7\uFF09\uFF1A\n1. **\u5168\u9762\u53C2\u6570\u8986\u76D6**\uFF1A\u8986\u76D6\u6240\u6709\u53EF\u80FD\u7684\u53C2\u6570\u7EC4\u5408\n2. **\u6DF1\u5EA6\u6280\u672F\u5185\u5BB9**\uFF1A\u4E13\u4E1A\u7EA7\u7684\u6280\u672F\u7EC6\u8282\n3. **\u4E30\u5BCC\u6848\u4F8B\u5E93**\uFF1A\u5927\u91CF\u771F\u5B9E\u6848\u4F8B\u548C\u53C2\u8003\n4. **\u53CC\u8BED\u5185\u5BB9**\uFF1A\u5B8C\u6574\u7684\u4E2D\u82F1\u6587\u53CC\u8BED\u652F\u6301\n\n---\n\n## \u4E94\u3001\u6548\u679C\u63D0\u5347\u7B56\u7565\n\n### 5.1 \u53EC\u56DE\u7387\u63D0\u5347\n\n#### 1. **\u5173\u952E\u8BCD\u5BC6\u5EA6**\n- \u5728\u6587\u6863\u4E2D\u591A\u6B21\u63D0\u53CA\u53C2\u6570\u503C\uFF08\u5982"\u73B0\u4EE3\u98CE\u683C"\u51FA\u73B03-5\u6B21\uFF09\n- \u4F7F\u7528\u540C\u4E49\u8BCD\u548C\u53D8\u4F53\uFF08\u5982"\u73B0\u4EE3"\u3001"\u73B0\u4EE3\u611F"\u3001"\u73B0\u4EE3\u98CE\u683C"\uFF09\n\n#### 2. **\u8BED\u4E49\u76F8\u5173\u6027**\n- \u63CF\u8FF0\u76F8\u5173\u6982\u5FF5\uFF08\u5982"\u73B0\u4EE3\u98CE\u683C"\u6587\u6863\u4E2D\u63D0\u53CA"\u7B80\u6D01"\u3001"\u65F6\u5C1A"\u3001"\u524D\u536B"\uFF09\n- \u5305\u542B\u6280\u672F\u7EC6\u8282\uFF08\u5982"\u67D4\u5149"\u6587\u6863\u4E2D\u63D0\u53CA"\u67D4\u5149\u7BB1"\u3001"\u53CD\u5149\u677F"\u3001"\u6563\u5C04"\uFF09\n\n#### 3. **\u6587\u6863\u591A\u6837\u6027**\n- \u4E0D\u540C\u89D2\u5EA6\u7684\u6587\u6863\uFF08\u6280\u672F\u89D2\u5EA6\u3001\u827A\u672F\u89D2\u5EA6\u3001\u5B9E\u7528\u89D2\u5EA6\uFF09\n- \u4E0D\u540C\u6DF1\u5EA6\u7684\u6587\u6863\uFF08\u57FA\u7840\u3001\u8FDB\u9636\u3001\u9AD8\u7EA7\uFF09\n\n### 5.2 \u53EC\u56DE\u8D28\u91CF\u63D0\u5347\n\n#### 1. **\u6587\u6863\u8D28\u91CF**\n- \u4E13\u4E1A\u672F\u8BED\u51C6\u786E\n- \u6280\u672F\u63CF\u8FF0\u8BE6\u7EC6\n- \u6848\u4F8B\u771F\u5B9E\u53EF\u4FE1\n\n#### 2. **\u5185\u5BB9\u7ED3\u6784**\n- \u6E05\u6670\u7684\u6BB5\u843D\u7ED3\u6784\n- \u903B\u8F91\u6E05\u6670\u7684\u8BBA\u8FF0\n- \u91CD\u70B9\u4FE1\u606F\u7A81\u51FA\n\n#### 3. **\u66F4\u65B0\u7EF4\u62A4**\n- \u5B9A\u671F\u66F4\u65B0\u8FC7\u65F6\u5185\u5BB9\n- \u8865\u5145\u65B0\u7684\u6280\u672F\u548C\u65B9\u6CD5\n- \u6839\u636E\u7528\u6237\u53CD\u9988\u4F18\u5316\n\n---\n\n## \u516D\u3001\u5B9E\u65BD\u5EFA\u8BAE\n\n### 6.1 \u77ED\u671F\u76EE\u6807\uFF081-2\u4E2A\u6708\uFF09\n- **\u76EE\u6807**\uFF1A\u8FBE\u5230\u6700\u4F4E\u6570\u636E\u91CF\uFF08500\u7BC7\uFF09\n- **\u91CD\u70B9**\uFF1A\u6838\u5FC3\u53C2\u6570\u7EC4\u5408 + \u57FA\u7840\u6280\u672F\u77E5\u8BC6\n- **\u5206\u914D**\uFF1A\u6BCF\u4E2A\u77E5\u8BC6\u5E9330-50\u7BC7\n\n### 6.2 \u4E2D\u671F\u76EE\u6807\uFF083-6\u4E2A\u6708\uFF09\n- **\u76EE\u6807**\uFF1A\u8FBE\u5230\u63A8\u8350\u6570\u636E\u91CF\uFF081,650\u7BC7\uFF09\n- **\u91CD\u70B9**\uFF1A\u6269\u5C55\u53C2\u6570\u7EC4\u5408 + \u573A\u666F\u5316\u5185\u5BB9\n- **\u5206\u914D**\uFF1A\u6BCF\u4E2A\u77E5\u8BC6\u5E93100-150\u7BC7\n\n### 6.3 \u957F\u671F\u76EE\u6807\uFF086-12\u4E2A\u6708\uFF09\n- **\u76EE\u6807**\uFF1A\u8FBE\u5230\u7406\u60F3\u6570\u636E\u91CF\uFF083,450\u7BC7\uFF09\n- **\u91CD\u70B9**\uFF1A\u5168\u9762\u8986\u76D6 + \u6DF1\u5EA6\u5185\u5BB9 + \u53CC\u8BED\u652F\u6301\n- **\u5206\u914D**\uFF1A\u6BCF\u4E2A\u77E5\u8BC6\u5E93200-300\u7BC7\n\n### 6.4 \u6301\u7EED\u4F18\u5316\n- **\u76D1\u63A7\u53EC\u56DE\u7387**\uFF1A\u5B9A\u671F\u68C0\u67E5\u53EC\u56DE\u6210\u529F\u7387\n- **\u5206\u6790\u7528\u6237\u67E5\u8BE2**\uFF1A\u6839\u636E\u5B9E\u9645\u67E5\u8BE2\u4F18\u5316\u6587\u6863\n- **A/B\u6D4B\u8BD5**\uFF1A\u6D4B\u8BD5\u4E0D\u540C\u6587\u6863\u7ED3\u6784\u7684\u6548\u679C\n- **\u7528\u6237\u53CD\u9988**\uFF1A\u6536\u96C6\u7528\u6237\u5BF9\u751F\u6210\u6548\u679C\u7684\u53CD\u9988\n\n---\n\n## \u4E03\u3001\u603B\u7ED3\n\n### \u5173\u952E\u6307\u6807\uFF1A\n- **\u6700\u4F4E\u6570\u636E\u91CF**\uFF1A500\u7BC7\uFF0815\u4E2A\u77E5\u8BC6\u5E93\uFF09\n- **\u63A8\u8350\u6570\u636E\u91CF**\uFF1A1,650\u7BC7\uFF0815\u4E2A\u77E5\u8BC6\u5E93\uFF09\n- **\u7406\u60F3\u6570\u636E\u91CF**\uFF1A3,450\u7BC7\uFF0815\u4E2A\u77E5\u8BC6\u5E93\uFF09\n\n### \u6838\u5FC3\u7B56\u7565\uFF1A\n1. **\u53C2\u6570\u7EC4\u5408\u8986\u76D6**\uFF1A\u786E\u4FDD\u5E38\u7528\u7EC4\u5408\u90FD\u6709\u5BF9\u5E94\u6587\u6863\n2. **\u5173\u952E\u8BCD\u5BC6\u5EA6**\uFF1A\u6587\u6863\u4E2D\u5305\u542B\u8DB3\u591F\u7684\u67E5\u8BE2\u5173\u952E\u8BCD\n3. **\u8BED\u4E49\u4E30\u5BCC\u5EA6**\uFF1A\u591A\u89D2\u5EA6\u3001\u591A\u5C42\u6B21\u7684\u63CF\u8FF0\n4. **\u6301\u7EED\u4F18\u5316**\uFF1A\u6839\u636E\u5B9E\u9645\u6548\u679C\u4E0D\u65AD\u6539\u8FDB\n\n### \u9884\u671F\u6548\u679C\uFF1A\n- **\u6700\u4F4E\u6570\u636E\u91CF**\uFF1A\u53EC\u56DE\u6210\u529F\u7387 60-70%\n- **\u63A8\u8350\u6570\u636E\u91CF**\uFF1A\u53EC\u56DE\u6210\u529F\u7387 80-90%\n- **\u7406\u60F3\u6570\u636E\u91CF**\uFF1A\u53EC\u56DE\u6210\u529F\u7387 90-95%\n\n---\n\n## \u9644\u5F55\uFF1A\u53C2\u6570\u7EC4\u5408\u7EDF\u8BA1\n\n### Portrait \u53C2\u6570\u7EC4\u5408\u793A\u4F8B\uFF1A\n- style: 6\u4E2A\uFF08\u73B0\u4EE3\u3001\u590D\u53E4\u3001\u65F6\u5C1A\u3001\u6781\u7B80\u3001\u7ECF\u5178\u3001\u827A\u672F\uFF09\n- tone: 5\u4E2A\uFF08\u6696\u3001\u51B7\u3001\u9AD8\u5BF9\u6BD4\u3001\u67D4\u548C\u3001\u81EA\u7136\uFF09\n- environment: 5\u4E2A\uFF08\u5BA4\u5185\u3001\u5BA4\u5916\u3001\u5F71\u68DA\u3001\u57CE\u5E02\u3001\u81EA\u7136\uFF09\n- makeup: 5\u4E2A\uFF08\u81EA\u7136\u3001\u7CBE\u81F4\u3001\u6D53\u5986\u3001\u88F8\u5986\u3001\u9B45\u529B\u5986\uFF09\n- pose: 6\u4E2A\uFF08\u7AD9\u7ACB\u3001\u5750\u59FF\u3001\u6293\u62CD\u3001\u8096\u50CF\u3001\u8EBA\u59FF\u3001\u5168\u8EAB\uFF09\n- lighting: 6\u4E2A\uFF08\u67D4\u5149\u3001\u81EA\u7136\u5149\u3001\u786C\u5149\u3001\u8F6E\u5ED3\u5149\u3001\u9006\u5149\u3001\u5F71\u68DA\u5149\uFF09\n\n**\u5E38\u7528\u7EC4\u5408**\uFF1A\u7EA6200-300\u79CD\uFF08\u6839\u636E\u5B9E\u9645\u4F7F\u7528\u9891\u7387\uFF09\n\n### Landscape \u53C2\u6570\u7EC4\u5408\u793A\u4F8B\uFF1A\n- timeOfDay: 4\u4E2A\uFF08\u6E05\u6668\u3001\u6B63\u5348\u3001\u9EC4\u660F\u3001\u591C\u665A\uFF09\n- weather: 4\u4E2A\uFF08\u6674\u5929\u3001\u9634\u5929\u3001\u96E8\u5929\u3001\u96EA\u5929\uFF09\n- season: 4\u4E2A\uFF08\u6625\u5B63\u3001\u590F\u5B63\u3001\u79CB\u5B63\u3001\u51AC\u5B63\uFF09\n- composition: 4\u4E2A\uFF08\u4E09\u5206\u6CD5\u3001\u5F15\u5BFC\u7EBF\u3001\u5BF9\u79F0\u3001\u524D\u666F\u4E2D\u666F\u80CC\u666F\uFF09\n\n**\u5E38\u7528\u7EC4\u5408**\uFF1A\u7EA6100-150\u79CD\n';
+  }
+});
+
 // src/core/graph/PHOTOGRAPH_FLOW.md
 var require_PHOTOGRAPH_FLOW = __commonJS({
   "src/core/graph/PHOTOGRAPH_FLOW.md"(exports2, module2) {
@@ -20113,6 +20120,7 @@ var init_2 = __esm({
     globImport_graph = __glob({
       "../graph/GRAPH_API_EXAMPLES.md": () => Promise.resolve().then(() => __toESM(require_GRAPH_API_EXAMPLES())),
       "../graph/IMPLEMENTATION.md": () => Promise.resolve().then(() => __toESM(require_IMPLEMENTATION())),
+      "../graph/KNOWLEDGE_BASE_STRATEGY.md": () => Promise.resolve().then(() => __toESM(require_KNOWLEDGE_BASE_STRATEGY())),
       "../graph/PHOTOGRAPH_FLOW.md": () => Promise.resolve().then(() => __toESM(require_PHOTOGRAPH_FLOW())),
       "../graph/flux-2-flex.ts": () => Promise.resolve().then(() => (init_flux_2_flex(), flux_2_flex_exports)),
       "../graph/flux-2-pro.ts": () => Promise.resolve().then(() => (init_flux_2_pro(), flux_2_pro_exports)),
@@ -20489,19 +20497,457 @@ var init_articles = __esm({
    - \u4FDD\u6301\u7ED3\u6784\u5B8C\u6574\uFF0C\u4E0D\u7F3A\u5C11\u5173\u952E\u90E8\u5206
    - \u5404\u90E8\u5206\u6BD4\u4F8B\u534F\u8C03\uFF0C\u91CD\u70B9\u7A81\u51FA
    - \u7ED3\u6784\u670D\u52A1\u4E8E\u5185\u5BB9\uFF0C\u786E\u4FDD\u903B\u8F91\u6E05\u6670
-   - \u6839\u636E\u6587\u7AE0\u7C7B\u578B\u548C\u957F\u5EA6\u7075\u6D3B\u8C03\u6574\u7ED3\u6784`
+   - \u6839\u636E\u6587\u7AE0\u7C7B\u578B\u548C\u957F\u5EA6\u7075\u6D3B\u8C03\u6574\u7ED3\u6784`,
+      /**
+       * 获取文章类型需要的参数列表
+       */
+      getParamsForType() {
+        return ["motivation", "stance", "tone", "length", "key_elements"];
+      },
+      /**
+       * 获取表单选项配置
+       */
+      getFormOptions(language = "zh") {
+        const isZh = language === "zh";
+        const articlesFormOptionsZh = {
+          // Select 类型字段
+          stance: [
+            { value: "neutral", label: "\u4E2D\u7ACB\u5BA2\u89C2", labelEn: "Neutral" },
+            { value: "supportive", label: "\u652F\u6301\u8D5E\u540C", labelEn: "Supportive" },
+            { value: "critical", label: "\u6279\u5224\u8D28\u7591", labelEn: "Critical" }
+          ],
+          tone: [
+            { value: "formal", label: "\u6B63\u5F0F\u4E25\u8C28", labelEn: "Formal" },
+            { value: "casual", label: "\u8F7B\u677E\u968F\u610F", labelEn: "Casual" },
+            { value: "professional", label: "\u4E13\u4E1A\u6743\u5A01", labelEn: "Professional" },
+            { value: "friendly", label: "\u53CB\u597D\u4EB2\u5207", labelEn: "Friendly" }
+          ],
+          length: [
+            { value: "short", label: "\u77ED\u7BC7\uFF08500-1000\u5B57\uFF09", labelEn: "Short (500-1000 words)" },
+            { value: "medium", label: "\u4E2D\u7BC7\uFF081000-3000\u5B57\uFF09", labelEn: "Medium (1000-3000 words)" },
+            { value: "long", label: "\u957F\u7BC7\uFF083000\u5B57\u4EE5\u4E0A\uFF09", labelEn: "Long (3000+ words)" }
+          ],
+          key_elements: [
+            { value: "data", label: "\u6570\u636E\u652F\u6491", labelEn: "Data Support" },
+            { value: "examples", label: "\u6848\u4F8B\u8BF4\u660E", labelEn: "Examples" },
+            { value: "quotes", label: "\u5F15\u7528\u53C2\u8003", labelEn: "Quotes" },
+            { value: "analysis", label: "\u6DF1\u5EA6\u5206\u6790", labelEn: "Deep Analysis" }
+          ],
+          // 元数据（为所有字段提供中文标签）
+          _metadata: {
+            motivation: {
+              type: "textarea",
+              label: "\u5199\u4F5C\u52A8\u673A",
+              labelEn: "Motivation",
+              placeholder: "\u8BF7\u63CF\u8FF0\u5199\u4F5C\u7684\u52A8\u673A\u548C\u76EE\u7684...",
+              placeholderEn: "Describe the motivation and purpose...",
+              helpText: "\u8BF4\u660E\u4E3A\u4EC0\u4E48\u8981\u5199\u8FD9\u7BC7\u6587\u7AE0\uFF0C\u60F3\u8981\u8FBE\u5230\u4EC0\u4E48\u76EE\u7684",
+              helpTextEn: "Explain why you are writing this article"
+            },
+            stance: {
+              type: "select",
+              label: "\u7ACB\u573A",
+              labelEn: "Stance",
+              helpText: "\u9009\u62E9\u6587\u7AE0\u7684\u7ACB\u573A\u548C\u6001\u5EA6",
+              helpTextEn: "Select the stance and attitude"
+            },
+            tone: {
+              type: "select",
+              label: "\u8BED\u8C03",
+              labelEn: "Tone",
+              helpText: "\u9009\u62E9\u6587\u7AE0\u7684\u8BED\u8A00\u98CE\u683C",
+              helpTextEn: "Select the language style"
+            },
+            length: {
+              type: "select",
+              label: "\u957F\u5EA6",
+              labelEn: "Length",
+              helpText: "\u9009\u62E9\u6587\u7AE0\u7684\u957F\u5EA6",
+              helpTextEn: "Select the article length"
+            },
+            key_elements: {
+              type: "multi-select",
+              label: "\u5173\u952E\u8981\u7D20",
+              labelEn: "Key Elements",
+              helpText: "\u9009\u62E9\u6587\u7AE0\u9700\u8981\u5305\u542B\u7684\u5173\u952E\u8981\u7D20",
+              helpTextEn: "Select key elements to include"
+            }
+          }
+        };
+        if (language === "en") {
+          return {
+            stance: articlesFormOptionsZh.stance.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            tone: articlesFormOptionsZh.tone.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            length: articlesFormOptionsZh.length.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            key_elements: articlesFormOptionsZh.key_elements.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            _metadata: {
+              motivation: {
+                ...articlesFormOptionsZh._metadata.motivation,
+                label: articlesFormOptionsZh._metadata.motivation.labelEn || "Motivation",
+                placeholder: articlesFormOptionsZh._metadata.motivation.placeholderEn,
+                helpText: articlesFormOptionsZh._metadata.motivation.helpTextEn
+              },
+              key_elements: {
+                ...articlesFormOptionsZh._metadata.key_elements,
+                label: articlesFormOptionsZh._metadata.key_elements.labelEn || "Key Elements",
+                helpText: articlesFormOptionsZh._metadata.key_elements.helpTextEn
+              }
+            }
+          };
+        }
+        return articlesFormOptionsZh;
+      }
     };
   }
 });
 
 // src/core/writing/wtconfigs/lyrics.ts
+var lyrics_exports = {};
+__export(lyrics_exports, {
+  lyricsConfig: () => lyricsConfig
+});
 var lyricsConfig;
 var init_lyrics = __esm({
   "src/core/writing/wtconfigs/lyrics.ts"() {
     "use strict";
     lyricsConfig = {
-      rules: ``,
-      outputformat: ``
+      /**
+       * 歌词写作规则和指导原则
+       */
+      rules: `\u4F60\u662F\u4E00\u4F4D\u4E13\u4E1A\u7684\u6B4C\u8BCD\u521B\u4F5C\u52A9\u624B\uFF0C\u64C5\u957F\u521B\u4F5C\u5404\u7C7B\u98CE\u683C\u7684\u6B4C\u8BCD\u4F5C\u54C1\u3002
+
+\u3010\u6B4C\u8BCD\u521B\u4F5C\u539F\u5219\u3011
+1. **\u97F5\u5F8B\u611F**\uFF1A\u6CE8\u91CD\u62BC\u97F5\u548C\u8282\u594F\uFF0C\u4F7F\u6B4C\u8BCD\u6717\u6717\u4E0A\u53E3
+2. **\u60C5\u611F\u8868\u8FBE**\uFF1A\u901A\u8FC7\u6587\u5B57\u4F20\u8FBE\u60C5\u611F\uFF0C\u5F15\u8D77\u542C\u4F17\u5171\u9E23
+3. **\u753B\u9762\u611F**\uFF1A\u4F7F\u7528\u5177\u8C61\u7684\u610F\u8C61\u548C\u6BD4\u55BB\uFF0C\u8425\u9020\u753B\u9762\u611F
+4. **\u7B80\u6D01\u6709\u529B**\uFF1A\u8BED\u8A00\u7CBE\u70BC\uFF0C\u907F\u514D\u5197\u4F59\uFF0C\u6BCF\u53E5\u90FD\u6709\u610F\u4E49
+5. **\u7ED3\u6784\u5B8C\u6574**\uFF1A\u5305\u542B\u4E3B\u6B4C\u3001\u526F\u6B4C\u7B49\u5B8C\u6574\u7ED3\u6784
+
+\u3010\u6B4C\u8BCD\u7ED3\u6784\u8981\u6C42\u3011
+1. **\u4E3B\u6B4C\uFF08Verse\uFF09**\uFF1A\u53D9\u8FF0\u6027\u5185\u5BB9\uFF0C\u63A8\u8FDB\u6545\u4E8B\u6216\u60C5\u611F
+2. **\u526F\u6B4C\uFF08Chorus\uFF09**\uFF1A\u6838\u5FC3\u4E3B\u9898\uFF0C\u91CD\u590D\u51FA\u73B0\uFF0C\u6717\u6717\u4E0A\u53E3
+3. **\u6865\u6BB5\uFF08Bridge\uFF09**\uFF08\u53EF\u9009\uFF09\uFF1A\u8F6C\u6298\u6216\u5347\u534E\u90E8\u5206
+4. **\u524D\u594F/\u5C3E\u594F**\uFF08\u53EF\u9009\uFF09\uFF1A\u5F00\u5934\u548C\u7ED3\u5C3E\u7684\u8FC7\u6E21
+
+\u3010\u5199\u4F5C\u6280\u5DE7\u3011
+1. \u4F7F\u7528\u62BC\u97F5\u589E\u5F3A\u97F5\u5F8B\u611F\uFF08\u5168\u62BC\u3001\u534A\u62BC\u3001\u5185\u62BC\u7B49\uFF09
+2. \u5408\u7406\u4F7F\u7528\u91CD\u590D\uFF0C\u5F3A\u5316\u4E3B\u9898
+3. \u8FD0\u7528\u6BD4\u55BB\u3001\u62DF\u4EBA\u7B49\u4FEE\u8F9E\u624B\u6CD5
+4. \u6CE8\u610F\u97F3\u8282\u548C\u8282\u594F\uFF0C\u4FBF\u4E8E\u6F14\u5531
+5. \u4FDD\u6301\u60C5\u611F\u8FDE\u8D2F\uFF0C\u5F62\u6210\u5B8C\u6574\u7684\u60C5\u611F\u7EBF`,
+      /**
+       * 歌词结构要求（默认格式）
+       */
+      outputformat: `\u3010\u6B4C\u8BCD\u683C\u5F0F\u8981\u6C42\u3011
+
+1. **\u7ED3\u6784\u7EC4\u7EC7**\uFF1A
+   - \u4E3B\u6B4C\uFF08Verse\uFF09\uFF1A\u901A\u5E382-4\u6BB5\uFF0C\u6BCF\u6BB54-8\u884C
+   - \u526F\u6B4C\uFF08Chorus\uFF09\uFF1A\u91CD\u590D\u51FA\u73B0\uFF0C\u901A\u5E384-8\u884C
+   - \u6865\u6BB5\uFF08Bridge\uFF09\uFF1A\u53EF\u9009\uFF0C\u901A\u5E382-4\u884C
+   - \u524D\u594F/\u5C3E\u594F\uFF1A\u53EF\u9009
+
+2. **\u683C\u5F0F\u8981\u6C42**\uFF1A
+   - \u6BCF\u884C\u6B4C\u8BCD\u72EC\u7ACB\u6210\u884C
+   - \u6807\u6CE8\u6BB5\u843D\u7C7B\u578B\uFF08\u5982\uFF1A[\u4E3B\u6B4C1]\u3001[\u526F\u6B4C]\uFF09
+   - \u6CE8\u610F\u62BC\u97F5\u548C\u8282\u594F
+   - \u4FDD\u6301\u6BCF\u884C\u957F\u5EA6\u9002\u4E2D
+
+3. **\u5185\u5BB9\u8981\u6C42**\uFF1A
+   - \u4E3B\u9898\u660E\u786E\uFF0C\u60C5\u611F\u8FDE\u8D2F
+   - \u8BED\u8A00\u7B80\u6D01\u6709\u529B
+   - \u4F7F\u7528\u5177\u4F53\u610F\u8C61\uFF0C\u907F\u514D\u62BD\u8C61
+   - \u6CE8\u610F\u97F3\u8282\u548C\u8282\u594F\u611F`,
+      /**
+       * 获取 Suno AI 格式的规则和输出格式
+       * 当 format === 'suno' 时使用
+       */
+      getSunoFormatRules() {
+        return {
+          rules: `\u4F60\u662F\u4E00\u4F4D\u4E13\u4E1A\u7684\u6B4C\u8BCD\u521B\u4F5C\u52A9\u624B\uFF0C\u4E13\u95E8\u4E3A Suno AI \u97F3\u4E50\u751F\u6210\u5E73\u53F0\u521B\u4F5C\u6B4C\u8BCD\u3002
+
+\u3010Suno AI \u6B4C\u8BCD\u521B\u4F5C\u539F\u5219\u3011
+1. **\u7B80\u6D01\u76F4\u63A5**\uFF1A\u6B4C\u8BCD\u8981\u7B80\u6D01\u660E\u4E86\uFF0C\u6BCF\u884C\u957F\u5EA6\u9002\u4E2D\uFF08\u901A\u5E388-12\u4E2A\u4E2D\u6587\u5B57\u7B26\u62164-8\u4E2A\u82F1\u6587\u5355\u8BCD\uFF09
+2. **\u97F5\u5F8B\u611F\u5F3A**\uFF1A\u6CE8\u91CD\u62BC\u97F5\u548C\u8282\u594F\uFF0C\u4F7F\u6B4C\u8BCD\u6717\u6717\u4E0A\u53E3\uFF0C\u9002\u5408\u6F14\u5531
+3. **\u60C5\u611F\u9971\u6EE1**\uFF1A\u901A\u8FC7\u6587\u5B57\u4F20\u8FBE\u5F3A\u70C8\u7684\u60C5\u611F\uFF0C\u5F15\u8D77\u542C\u4F17\u5171\u9E23
+4. **\u753B\u9762\u611F\u5F3A**\uFF1A\u4F7F\u7528\u5177\u8C61\u7684\u610F\u8C61\u548C\u6BD4\u55BB\uFF0C\u8425\u9020\u6E05\u6670\u7684\u753B\u9762\u611F
+5. **\u7ED3\u6784\u6E05\u6670**\uFF1A\u5305\u542B\u4E3B\u6B4C\u3001\u526F\u6B4C\u7B49\u5B8C\u6574\u7ED3\u6784\uFF0C\u526F\u6B4C\u8981\u91CD\u590D\u51FA\u73B0
+
+\u3010Suno AI \u6B4C\u8BCD\u7ED3\u6784\u8981\u6C42\u3011
+1. **\u524D\u594F\uFF08Intro\uFF09**\uFF08\u53EF\u9009\uFF09\uFF1A\u5F00\u5934\u90E8\u5206\uFF0C\u901A\u5E381-2\u884C\uFF0C\u53EF\u4EE5\u5305\u542B\u60C5\u7EEA\u548C\u4E50\u5668\u6807\u7B7E
+2. **\u4E3B\u6B4C\uFF08Verse\uFF09**\uFF1A\u901A\u5E382-3\u6BB5\uFF0C\u6BCF\u6BB54-6\u884C\uFF0C\u53D9\u8FF0\u6027\u5185\u5BB9\uFF0C\u63A8\u8FDB\u6545\u4E8B\u6216\u60C5\u611F
+3. **\u9884\u526F\u6B4C\uFF08Pre-Chorus\uFF09**\uFF08\u53EF\u9009\uFF09\uFF1A\u8FDE\u63A5\u4E3B\u6B4C\u548C\u526F\u6B4C\u7684\u8FC7\u6E21\u90E8\u5206\uFF0C\u901A\u5E382-4\u884C
+4. **\u526F\u6B4C\uFF08Chorus\uFF09**\uFF1A\u6838\u5FC3\u4E3B\u9898\uFF0C\u91CD\u590D\u51FA\u73B02-3\u6B21\uFF0C\u901A\u5E384-6\u884C\uFF0C\u6717\u6717\u4E0A\u53E3
+5. **\u6865\u6BB5\uFF08Bridge\uFF09**\uFF08\u53EF\u9009\uFF09\uFF1A\u8F6C\u6298\u6216\u5347\u534E\u90E8\u5206\uFF0C\u901A\u5E382-4\u884C
+6. **\u5C3E\u594F\uFF08Outro\uFF09**\uFF08\u53EF\u9009\uFF09\uFF1A\u7ED3\u5C3E\u90E8\u5206\uFF0C\u901A\u5E381-2\u884C
+
+\u3010Suno AI \u5199\u4F5C\u6280\u5DE7\u3011
+1. \u4F7F\u7528\u62BC\u97F5\u589E\u5F3A\u97F5\u5F8B\u611F\uFF08\u5168\u62BC\u3001\u534A\u62BC\u3001\u5185\u62BC\u7B49\uFF09
+2. \u5408\u7406\u4F7F\u7528\u91CD\u590D\uFF0C\u5F3A\u5316\u4E3B\u9898\u548C\u8BB0\u5FC6\u70B9
+3. \u8FD0\u7528\u6BD4\u55BB\u3001\u62DF\u4EBA\u7B49\u4FEE\u8F9E\u624B\u6CD5\uFF0C\u589E\u5F3A\u753B\u9762\u611F
+4. \u6CE8\u610F\u97F3\u8282\u548C\u8282\u594F\uFF0C\u4FBF\u4E8E\u6F14\u5531\u548C\u97F3\u4E50\u914D\u5408
+5. \u4FDD\u6301\u60C5\u611F\u8FDE\u8D2F\uFF0C\u5F62\u6210\u5B8C\u6574\u7684\u60C5\u611F\u7EBF
+6. \u907F\u514D\u8FC7\u4E8E\u590D\u6742\u7684\u8BCD\u6C47\u548C\u53E5\u5F0F\uFF0C\u4FDD\u6301\u901A\u4FD7\u6613\u61C2
+7. \u6BCF\u884C\u6B4C\u8BCD\u8981\u6709\u72EC\u7ACB\u7684\u610F\u4E49\uFF0C\u540C\u65F6\u4E0E\u6574\u4F53\u4E3B\u9898\u547C\u5E94
+
+\u3010Suno AI \u7279\u6B8A\u8981\u6C42\u3011
+1. **\u7EAF\u6587\u672C\u683C\u5F0F**\uFF1A\u8F93\u51FA\u5FC5\u987B\u662F\u7EAF\u6587\u672C\uFF0C\u4E0D\u4F7F\u7528\u4EFB\u4F55 Markdown \u8BED\u6CD5\uFF08\u5982 #\u3001*\u3001-\u3001\u53CD\u5F15\u53F7 \u7B49\u7B26\u53F7\uFF09
+2. **\u7ED3\u6784\u6807\u7B7E**\uFF1A\u5FC5\u987B\u4F7F\u7528\u82F1\u6587\u65B9\u62EC\u53F7\u6807\u7B7E\u6807\u6CE8\u6BB5\u843D\u7C7B\u578B\uFF0C\u683C\u5F0F\u4E3A [\u6807\u7B7E\u540D]
+3. **\u6807\u7B7E\u683C\u5F0F**\uFF1A\u6240\u6709\u7ED3\u6784\u6807\u7B7E\u5FC5\u987B\u7528\u65B9\u62EC\u53F7\u62EC\u8D77\u6765\uFF0C\u4F7F\u7528\u82F1\u6587\uFF0C\u4F8B\u5982\uFF1A[Verse]\u3001[Chorus]\u3001[Bridge] \u7B49
+4. **\u4E0D\u5305\u542B\u6B4C\u540D**\uFF1A\u8F93\u51FA\u4E2D\u4E0D\u8981\u5305\u542B\u6B4C\u66F2\u6807\u9898\u6216\u6B4C\u540D\uFF0C\u53EA\u8F93\u51FA\u6B4C\u8BCD\u6B63\u6587\u548C\u7ED3\u6784\u6807\u7B7E
+5. **\u76F4\u63A5\u8F93\u51FA**\uFF1A\u76F4\u63A5\u8F93\u51FA\u6B4C\u8BCD\u5185\u5BB9\uFF0C\u4E0D\u8981\u6DFB\u52A0\u4EFB\u4F55\u8BF4\u660E\u6587\u5B57\u6216\u683C\u5F0F\u6807\u8BB0`,
+          outputformat: `\u3010Suno AI \u6B4C\u8BCD\u683C\u5F0F\u8981\u6C42\u3011
+
+1. **\u8F93\u51FA\u683C\u5F0F**\uFF1A
+   - \u5FC5\u987B\u662F\u7EAF\u6587\u672C\u683C\u5F0F\uFF0C\u4E0D\u4F7F\u7528\u4EFB\u4F55 Markdown \u8BED\u6CD5
+   - \u4E0D\u4F7F\u7528 #\u3001*\u3001-\u3001\u53CD\u5F15\u53F7 \u7B49\u4EFB\u4F55 Markdown \u7B26\u53F7
+   - \u53EA\u4F7F\u7528\u6362\u884C\u7B26\u548C\u7A7A\u683C\u8FDB\u884C\u683C\u5F0F\u5316
+   - \u6BB5\u843D\u4E4B\u95F4\u4F7F\u7528\u7A7A\u884C\u5206\u9694
+
+2. **\u7ED3\u6784\u6807\u7B7E\u8981\u6C42**\uFF08\u5FC5\u987B\u4E25\u683C\u9075\u5B88\uFF09\uFF1A
+   - \u6240\u6709\u7ED3\u6784\u6807\u7B7E\u5FC5\u987B\u4F7F\u7528\u82F1\u6587\u65B9\u62EC\u53F7\u683C\u5F0F\uFF1A[\u6807\u7B7E\u540D]
+   - \u652F\u6301\u7684\u6807\u7B7E\uFF1A[Intro]\u3001[Verse]\u3001[Pre-Chorus]\u3001[Chorus]\u3001[Bridge]\u3001[Final Chorus]\u3001[Outro]
+   - \u6807\u7B7E\u5355\u72EC\u6210\u884C\uFF0C\u540E\u9762\u8DDF\u7A7A\u884C\uFF0C\u7136\u540E\u662F\u6B4C\u8BCD\u5185\u5BB9
+   - \u6807\u7B7E\u4F7F\u7528\u82F1\u6587\uFF0C\u907F\u514D\u88AB\u8BEF\u8BA4\u4E3A\u662F\u6B4C\u8BCD\u5185\u5BB9
+
+3. **\u53EF\u9009\u6807\u7B7E**\uFF08\u7528\u4E8E\u589E\u5F3A\u97F3\u4E50\u6548\u679C\uFF09\uFF1A
+   - [Mood: \u60C5\u7EEA\u63CF\u8FF0]\uFF1A\u5982 [Mood: Calm]\u3001[Mood: Energetic]
+   - [Instrument: \u4E50\u5668]\uFF1A\u5982 [Instrument: Keys, Soft Drums]
+   - [Energy: \u80FD\u91CF\u7EA7\u522B]\uFF1A\u5982 [Energy: High]\u3001[Energy: Low]
+   - [Build-Up]\uFF1A\u7528\u4E8E\u9884\u526F\u6B4C\uFF0C\u8868\u793A\u60C5\u7EEA\u9012\u8FDB
+   - [Breakdown]\uFF1A\u7528\u4E8E\u6865\u6BB5\uFF0C\u8868\u793A\u60C5\u7EEA\u8F6C\u6298
+
+4. **\u7ED3\u6784\u7EC4\u7EC7**\uFF1A
+   - [Intro]\uFF08\u53EF\u9009\uFF09\uFF1A\u5F00\u5934\u90E8\u5206\uFF0C\u901A\u5E381-2\u884C
+   - [Verse]\uFF1A\u4E3B\u6B4C\uFF0C\u901A\u5E382-3\u6BB5\uFF0C\u6BCF\u6BB54-6\u884C
+   - [Pre-Chorus]\uFF08\u53EF\u9009\uFF09\uFF1A\u9884\u526F\u6B4C\uFF0C\u901A\u5E382-4\u884C
+   - [Chorus]\uFF1A\u526F\u6B4C\uFF0C\u91CD\u590D\u51FA\u73B02-3\u6B21\uFF0C\u6BCF\u6B214-6\u884C
+   - [Bridge]\uFF08\u53EF\u9009\uFF09\uFF1A\u6865\u6BB5\uFF0C\u901A\u5E382-4\u884C
+   - [Final Chorus]\uFF08\u53EF\u9009\uFF09\uFF1A\u6700\u7EC8\u526F\u6B4C\uFF0C\u901A\u5E384-6\u884C
+   - [Outro]\uFF08\u53EF\u9009\uFF09\uFF1A\u7ED3\u5C3E\u90E8\u5206\uFF0C\u901A\u5E381-2\u884C
+
+5. **\u5185\u5BB9\u8981\u6C42**\uFF1A
+   - \u6BCF\u884C\u6B4C\u8BCD\u72EC\u7ACB\u6210\u884C
+   - \u6BCF\u884C\u957F\u5EA6\u9002\u4E2D\uFF088-12\u4E2A\u4E2D\u6587\u5B57\u7B26\u62164-8\u4E2A\u82F1\u6587\u5355\u8BCD\uFF09
+   - \u6CE8\u610F\u62BC\u97F5\u548C\u8282\u594F
+   - \u4E3B\u9898\u660E\u786E\uFF0C\u60C5\u611F\u8FDE\u8D2F
+   - \u8BED\u8A00\u7B80\u6D01\u6709\u529B\uFF0C\u901A\u4FD7\u6613\u61C2
+   - \u4F7F\u7528\u5177\u4F53\u610F\u8C61\uFF0C\u907F\u514D\u62BD\u8C61
+   - **\u7EDD\u5BF9\u4E0D\u8981\u5305\u542B\u6B4C\u66F2\u6807\u9898\u6216\u6B4C\u540D**
+
+6. **\u793A\u4F8B\u683C\u5F0F**\uFF1A
+[Verse]
+\u7B2C\u4E00\u884C\u6B4C\u8BCD
+\u7B2C\u4E8C\u884C\u6B4C\u8BCD
+\u7B2C\u4E09\u884C\u6B4C\u8BCD
+\u7B2C\u56DB\u884C\u6B4C\u8BCD
+
+[Pre-Chorus]
+[Build-Up]
+\u7B2C\u4E00\u884C\u6B4C\u8BCD
+\u7B2C\u4E8C\u884C\u6B4C\u8BCD
+
+[Chorus]
+[Energy: High]
+\u7B2C\u4E00\u884C\u6B4C\u8BCD
+\u7B2C\u4E8C\u884C\u6B4C\u8BCD
+\u7B2C\u4E09\u884C\u6B4C\u8BCD
+\u7B2C\u56DB\u884C\u6B4C\u8BCD
+
+[Verse]
+\u7B2C\u4E00\u884C\u6B4C\u8BCD
+\u7B2C\u4E8C\u884C\u6B4C\u8BCD
+\u7B2C\u4E09\u884C\u6B4C\u8BCD
+\u7B2C\u56DB\u884C\u6B4C\u8BCD
+
+[Chorus]
+[Energy: High]
+\u7B2C\u4E00\u884C\u6B4C\u8BCD
+\u7B2C\u4E8C\u884C\u6B4C\u8BCD
+\u7B2C\u4E09\u884C\u6B4C\u8BCD
+\u7B2C\u56DB\u884C\u6B4C\u8BCD
+
+[Bridge]
+[Breakdown]
+\u7B2C\u4E00\u884C\u6B4C\u8BCD
+\u7B2C\u4E8C\u884C\u6B4C\u8BCD
+
+[Final Chorus]
+[Energy: High]
+\u7B2C\u4E00\u884C\u6B4C\u8BCD
+\u7B2C\u4E8C\u884C\u6B4C\u8BCD
+\u7B2C\u4E09\u884C\u6B4C\u8BCD
+\u7B2C\u56DB\u884C\u6B4C\u8BCD
+
+[Outro]
+\u6700\u540E\u4E00\u884C\u6B4C\u8BCD`
+        };
+      },
+      /**
+       * 获取歌词类型需要的参数列表
+       */
+      getParamsForType() {
+        return ["musicStyle", "emotion", "rhyme", "theme", "length", "format"];
+      },
+      /**
+       * 获取表单选项配置
+       */
+      getFormOptions(language = "zh") {
+        const isZh = language === "zh";
+        const lyricsFormOptionsZh = {
+          // Select 类型字段
+          musicStyle: [
+            { value: "pop", label: "\u6D41\u884C", labelEn: "Pop" },
+            { value: "rock", label: "\u6447\u6EDA", labelEn: "Rock" },
+            { value: "ballad", label: "\u6292\u60C5", labelEn: "Ballad" },
+            { value: "rap", label: "\u8BF4\u5531", labelEn: "Rap" },
+            { value: "folk", label: "\u6C11\u8C23", labelEn: "Folk" }
+          ],
+          emotion: [
+            { value: "happy", label: "\u5FEB\u4E50", labelEn: "Happy" },
+            { value: "sad", label: "\u60B2\u4F24", labelEn: "Sad" },
+            { value: "romantic", label: "\u6D6A\u6F2B", labelEn: "Romantic" },
+            { value: "energetic", label: "\u6FC0\u6602", labelEn: "Energetic" },
+            { value: "nostalgic", label: "\u6000\u65E7", labelEn: "Nostalgic" }
+          ],
+          rhyme: [
+            { value: "full", label: "\u5168\u62BC\u97F5", labelEn: "Full Rhyme" },
+            { value: "half", label: "\u534A\u62BC\u97F5", labelEn: "Half Rhyme" },
+            { value: "internal", label: "\u5185\u62BC\u97F5", labelEn: "Internal Rhyme" },
+            { value: "free", label: "\u81EA\u7531\u97F5", labelEn: "Free Verse" }
+          ],
+          length: [
+            { value: "short", label: "\u77ED\u7BC7\uFF082-3\u5206\u949F\uFF09", labelEn: "Short (2-3 min)" },
+            { value: "medium", label: "\u4E2D\u7BC7\uFF083-5\u5206\u949F\uFF09", labelEn: "Medium (3-5 min)" },
+            { value: "long", label: "\u957F\u7BC7\uFF085\u5206\u949F\u4EE5\u4E0A\uFF09", labelEn: "Long (5+ min)" }
+          ],
+          format: [
+            { value: "default", label: "\u9ED8\u8BA4\u683C\u5F0F\uFF08Markdown\uFF09", labelEn: "Default (Markdown)" },
+            { value: "suno", label: "Suno AI \u683C\u5F0F\uFF08\u7EAF\u6587\u672C\uFF09", labelEn: "Suno AI Format (Plain Text)" }
+          ],
+          // 元数据（为所有字段提供中文标签）
+          _metadata: {
+            musicStyle: {
+              type: "select",
+              label: "\u97F3\u4E50\u98CE\u683C",
+              labelEn: "Music Style",
+              helpText: "\u9009\u62E9\u6B4C\u8BCD\u7684\u97F3\u4E50\u98CE\u683C",
+              helpTextEn: "Select the music style"
+            },
+            emotion: {
+              type: "select",
+              label: "\u60C5\u611F",
+              labelEn: "Emotion",
+              helpText: "\u9009\u62E9\u6B4C\u8BCD\u8981\u8868\u8FBE\u7684\u60C5\u611F",
+              helpTextEn: "Select the emotion to express"
+            },
+            rhyme: {
+              type: "select",
+              label: "\u62BC\u97F5",
+              labelEn: "Rhyme",
+              helpText: "\u9009\u62E9\u62BC\u97F5\u65B9\u5F0F",
+              helpTextEn: "Select the rhyme style"
+            },
+            length: {
+              type: "select",
+              label: "\u957F\u5EA6",
+              labelEn: "Length",
+              helpText: "\u9009\u62E9\u6B4C\u8BCD\u957F\u5EA6",
+              helpTextEn: "Select the length"
+            },
+            format: {
+              type: "select",
+              label: "\u683C\u5F0F",
+              labelEn: "Format",
+              helpText: "\u9009\u62E9\u6B4C\u8BCD\u8F93\u51FA\u683C\u5F0F",
+              helpTextEn: "Select the output format"
+            },
+            theme: {
+              type: "textarea",
+              label: "\u4E3B\u9898\u5185\u5BB9",
+              labelEn: "Theme",
+              placeholder: "\u63CF\u8FF0\u6B4C\u8BCD\u8981\u8868\u8FBE\u7684\u4E3B\u9898\u548C\u60C5\u611F...",
+              placeholderEn: "Describe the theme and emotion of the lyrics...",
+              helpText: "\u6B4C\u8BCD\u8981\u8868\u8FBE\u7684\u6838\u5FC3\u4E3B\u9898\u548C\u60C5\u611F",
+              helpTextEn: "The core theme and emotion to express"
+            }
+          }
+        };
+        if (language === "en") {
+          const musicStyle = Array.isArray(lyricsFormOptionsZh.musicStyle) ? lyricsFormOptionsZh.musicStyle.map((opt) => ({
+            value: opt.value,
+            label: opt.labelEn || opt.value
+          })) : [];
+          const emotion = Array.isArray(lyricsFormOptionsZh.emotion) ? lyricsFormOptionsZh.emotion.map((opt) => ({
+            value: opt.value,
+            label: opt.labelEn || opt.value
+          })) : [];
+          const rhyme = Array.isArray(lyricsFormOptionsZh.rhyme) ? lyricsFormOptionsZh.rhyme.map((opt) => ({
+            value: opt.value,
+            label: opt.labelEn || opt.value
+          })) : [];
+          const length = Array.isArray(lyricsFormOptionsZh.length) ? lyricsFormOptionsZh.length.map((opt) => ({
+            value: opt.value,
+            label: opt.labelEn || opt.value
+          })) : [];
+          const format = Array.isArray(lyricsFormOptionsZh.format) ? lyricsFormOptionsZh.format.map((opt) => ({
+            value: opt.value,
+            label: opt.labelEn || opt.value
+          })) : [];
+          return {
+            musicStyle,
+            emotion,
+            rhyme,
+            length,
+            format,
+            _metadata: {
+              musicStyle: {
+                ...lyricsFormOptionsZh._metadata.musicStyle,
+                label: lyricsFormOptionsZh._metadata.musicStyle.labelEn || "Music Style",
+                helpText: lyricsFormOptionsZh._metadata.musicStyle.helpTextEn
+              },
+              emotion: {
+                ...lyricsFormOptionsZh._metadata.emotion,
+                label: lyricsFormOptionsZh._metadata.emotion.labelEn || "Emotion",
+                helpText: lyricsFormOptionsZh._metadata.emotion.helpTextEn
+              },
+              rhyme: {
+                ...lyricsFormOptionsZh._metadata.rhyme,
+                label: lyricsFormOptionsZh._metadata.rhyme.labelEn || "Rhyme",
+                helpText: lyricsFormOptionsZh._metadata.rhyme.helpTextEn
+              },
+              length: {
+                ...lyricsFormOptionsZh._metadata.length,
+                label: lyricsFormOptionsZh._metadata.length.labelEn || "Length",
+                helpText: lyricsFormOptionsZh._metadata.length.helpTextEn
+              },
+              format: {
+                ...lyricsFormOptionsZh._metadata.format,
+                label: lyricsFormOptionsZh._metadata.format.labelEn || "Format",
+                helpText: lyricsFormOptionsZh._metadata.format.helpTextEn
+              },
+              theme: {
+                ...lyricsFormOptionsZh._metadata.theme,
+                label: lyricsFormOptionsZh._metadata.theme.labelEn || "Theme",
+                placeholder: lyricsFormOptionsZh._metadata.theme.placeholderEn,
+                helpText: lyricsFormOptionsZh._metadata.theme.helpTextEn
+              }
+            }
+          };
+        }
+        return lyricsFormOptionsZh;
+      }
     };
   }
 });
@@ -20515,11 +20961,158 @@ var init_outlines = __esm({
       /**
        * 大纲写作规则和指导原则
        */
-      rules: ``,
+      rules: `\u4F60\u662F\u4E00\u4F4D\u4E13\u4E1A\u7684\u5927\u7EB2\u5199\u4F5C\u52A9\u624B\uFF0C\u64C5\u957F\u4E3A\u5404\u7C7B\u6587\u7AE0\u3001\u62A5\u544A\u3001\u4E66\u7C4D\u7B49\u521B\u4F5C\u6E05\u6670\u3001\u903B\u8F91\u4E25\u5BC6\u7684\u5927\u7EB2\u7ED3\u6784\u3002
+
+\u3010\u5927\u7EB2\u8BBE\u8BA1\u539F\u5219\u3011
+1. **\u5C42\u6B21\u6E05\u6670**\uFF1A\u5927\u7EB2\u5E94\u5177\u6709\u660E\u786E\u7684\u5C42\u7EA7\u7ED3\u6784\uFF0C\u4E3B\u6807\u9898\u3001\u5B50\u6807\u9898\u3001\u7EC6\u8282\u6807\u9898\u5C42\u6B21\u5206\u660E
+2. **\u903B\u8F91\u4E25\u5BC6**\uFF1A\u5404\u7AE0\u8282\u4E4B\u95F4\u903B\u8F91\u5173\u7CFB\u6E05\u6670\uFF0C\u524D\u540E\u547C\u5E94\uFF0C\u5F62\u6210\u5B8C\u6574\u7684\u77E5\u8BC6\u4F53\u7CFB
+3. **\u91CD\u70B9\u7A81\u51FA**\uFF1A\u6838\u5FC3\u5185\u5BB9\u548C\u5173\u952E\u89C2\u70B9\u5E94\u5728\u5927\u7EB2\u4E2D\u660E\u786E\u4F53\u73B0
+4. **\u7ED3\u6784\u5B8C\u6574**\uFF1A\u786E\u4FDD\u5927\u7EB2\u8986\u76D6\u6240\u6709\u5FC5\u8981\u7684\u5185\u5BB9\u6A21\u5757\uFF0C\u4E0D\u9057\u6F0F\u5173\u952E\u90E8\u5206
+5. **\u53EF\u6267\u884C\u6027**\uFF1A\u5927\u7EB2\u5E94\u5177\u4F53\u5230\u53EF\u4EE5\u6307\u5BFC\u5B9E\u9645\u5199\u4F5C\u7684\u7A0B\u5EA6
+
+\u3010\u5927\u7EB2\u7ED3\u6784\u8981\u6C42\u3011
+1. **\u4E00\u7EA7\u6807\u9898**\uFF1A\u6587\u7AE0\u7684\u4E3B\u8981\u7AE0\u8282\u6216\u6838\u5FC3\u4E3B\u9898\uFF0C\u901A\u5E383-7\u4E2A
+2. **\u4E8C\u7EA7\u6807\u9898**\uFF1A\u6BCF\u4E2A\u4E00\u7EA7\u6807\u9898\u4E0B\u7684\u7EC6\u5206\u4E3B\u9898\uFF0C\u652F\u6491\u4E00\u7EA7\u6807\u9898\u7684\u8BBA\u8FF0
+3. **\u4E09\u7EA7\u6807\u9898**\uFF1A\u8FDB\u4E00\u6B65\u7EC6\u5316\u7684\u5185\u5BB9\u70B9\uFF0C\u63D0\u4F9B\u5177\u4F53\u7684\u8BBA\u8FF0\u65B9\u5411
+4. **\u6DF1\u5EA6\u63A7\u5236**\uFF1A\u6839\u636E\u6587\u7AE0\u957F\u5EA6\u548C\u590D\u6742\u5EA6\uFF0C\u5408\u7406\u63A7\u5236\u5927\u7EB2\u5C42\u7EA7\u6DF1\u5EA6
+
+\u3010\u5927\u7EB2\u751F\u6210\u6280\u5DE7\u3011
+1. \u4ECE\u6574\u4F53\u5230\u5C40\u90E8\uFF1A\u5148\u786E\u5B9A\u6587\u7AE0\u7684\u6574\u4F53\u6846\u67B6\uFF0C\u518D\u7EC6\u5316\u5404\u90E8\u5206\u5185\u5BB9
+2. \u4F7F\u7528\u5173\u952E\u8BCD\uFF1A\u6BCF\u4E2A\u6807\u9898\u5E94\u5305\u542B\u6838\u5FC3\u5173\u952E\u8BCD\uFF0C\u4FBF\u4E8E\u7406\u89E3\u5185\u5BB9\u65B9\u5411
+3. \u4FDD\u6301\u5E73\u8861\uFF1A\u5404\u7AE0\u8282\u7684\u7BC7\u5E45\u548C\u91CD\u8981\u6027\u5E94\u76F8\u5BF9\u5E73\u8861
+4. \u9884\u7559\u6269\u5C55\uFF1A\u5927\u7EB2\u5E94\u5177\u5907\u4E00\u5B9A\u7684\u7075\u6D3B\u6027\uFF0C\u5141\u8BB8\u5728\u5199\u4F5C\u8FC7\u7A0B\u4E2D\u5FAE\u8C03
+
+\u3010\u5B57\u6570\u5206\u914D\u539F\u5219\u3011
+1. \u6839\u636E applyto \u7C7B\u578B\u786E\u5B9A\u5185\u5BB9\u7ED3\u6784\u7279\u70B9\uFF08\u5982 articles \u9700\u8981\u8BE6\u7EC6\u8BBA\u8FF0\uFF0Clyrics \u9700\u8981\u7B80\u6D01\u6709\u529B\uFF09
+2. \u6838\u5FC3\u7AE0\u8282\uFF08\u5982\u6B63\u6587\u4E3B\u4F53\uFF09\u5E94\u5206\u914D\u66F4\u591A\u5B57\u6570
+3. \u6B21\u8981\u7AE0\u8282\uFF08\u5982\u5F15\u8A00\u3001\u7ED3\u5C3E\uFF09\u5206\u914D\u76F8\u5BF9\u8F83\u5C11\u5B57\u6570
+4. \u6839\u636E\u8282\u70B9\u5C42\u7EA7\u548C\u91CD\u8981\u6027\u8FDB\u884C\u5DEE\u5F02\u5316\u5206\u914D\uFF0C\u800C\u975E\u5E73\u5747\u5206\u914D`,
       /**
        * 大纲结构要求
        */
-      outputformat: ``
+      outputformat: `\u3010\u5927\u7EB2\u683C\u5F0F\u8981\u6C42\u3011
+
+1. **\u683C\u5F0F\u89C4\u8303**\uFF1A
+   - \u4F7F\u7528\u6807\u51C6\u7684\u5C42\u7EA7\u7ED3\u6784\uFF0C\u4E00\u7EA7\u6807\u9898\u7528\u6570\u5B57\uFF081\u30012\u30013...\uFF09
+   - \u4E8C\u7EA7\u6807\u9898\u7528\u6570\u5B57\u52A0\u70B9\uFF081.1\u30011.2\u30011.3...\uFF09
+   - \u4E09\u7EA7\u6807\u9898\u7528\u6570\u5B57\u52A0\u53CC\u70B9\uFF081.1.1\u30011.1.2...\uFF09
+   - \u6BCF\u4E2A\u6807\u9898\u5E94\u7B80\u6D01\u660E\u4E86\uFF0C\u51C6\u786E\u6982\u62EC\u8BE5\u90E8\u5206\u5185\u5BB9
+
+2. **\u7ED3\u6784\u8981\u6C42**\uFF1A
+   - \u5FC5\u987B\u5305\u542B\uFF1A\u5F15\u8A00/\u5F00\u5934\u3001\u6B63\u6587\u4E3B\u4F53\u3001\u7ED3\u8BBA/\u7ED3\u5C3E
+   - \u6B63\u6587\u4E3B\u4F53\u5E94\u6839\u636E\u4E3B\u9898\u5206\u4E3A\u591A\u4E2A\u4E3B\u8981\u7AE0\u8282
+   - \u6BCF\u4E2A\u4E3B\u8981\u7AE0\u8282\u4E0B\u5E94\u67092-5\u4E2A\u5B50\u7AE0\u8282
+   - \u5B50\u7AE0\u8282\u53EF\u6839\u636E\u9700\u8981\u8FDB\u4E00\u6B65\u7EC6\u5206
+
+3. **\u5185\u5BB9\u8981\u6C42**\uFF1A
+   - \u6BCF\u4E2A\u6807\u9898\u5E94\u51C6\u786E\u53CD\u6620\u8BE5\u90E8\u5206\u8981\u8BA8\u8BBA\u7684\u5185\u5BB9
+   - \u6807\u9898\u4E4B\u95F4\u5E94\u6709\u903B\u8F91\u5173\u8054\uFF0C\u5F62\u6210\u5B8C\u6574\u7684\u8BBA\u8FF0\u94FE\u6761
+   - \u907F\u514D\u6807\u9898\u8FC7\u4E8E\u5BBD\u6CDB\u6216\u8FC7\u4E8E\u5177\u4F53
+   - \u786E\u4FDD\u5927\u7EB2\u80FD\u591F\u652F\u6491\u5B8C\u6574\u7684\u6587\u7AE0\u5199\u4F5C
+
+4. **\u8F93\u51FA\u683C\u5F0F**\uFF1A
+   - \u4F7F\u7528\u7EAF\u6587\u672C\u683C\u5F0F\uFF0C\u5C42\u7EA7\u901A\u8FC7\u7F29\u8FDB\u548C\u7F16\u53F7\u4F53\u73B0
+   - \u6BCF\u4E2A\u6807\u9898\u5360\u4E00\u884C\uFF0C\u5C42\u7EA7\u901A\u8FC7\u7F29\u8FDB\u533A\u5206
+   - \u793A\u4F8B\u683C\u5F0F\uFF1A
+     1. \u5F15\u8A00
+       1.1 \u80CC\u666F\u4ECB\u7ECD
+       1.2 \u95EE\u9898\u63D0\u51FA
+     2. \u6B63\u6587
+       2.1 \u7B2C\u4E00\u90E8\u5206
+         2.1.1 \u8981\u70B9\u4E00
+         2.1.2 \u8981\u70B9\u4E8C
+       2.2 \u7B2C\u4E8C\u90E8\u5206
+     3. \u7ED3\u8BBA
+
+5. **\u5B57\u6570\u5206\u914D\u8981\u6C42**\uFF08\u5982\u679C\u63D0\u4F9B\u4E86 total_textcount\uFF09\uFF1A
+   - \u6839\u636E applyto \u7C7B\u578B\u7684\u7279\u70B9\u8FDB\u884C\u5B57\u6570\u5206\u914D
+   - \u6838\u5FC3\u7AE0\u8282\uFF08\u6B63\u6587\u4E3B\u4F53\uFF09\u5206\u914D\u66F4\u591A\u5B57\u6570\uFF08\u901A\u5E38\u5360\u603B\u5B57\u6570\u7684 60-70%\uFF09
+   - \u6B21\u8981\u7AE0\u8282\uFF08\u5F15\u8A00\u3001\u7ED3\u5C3E\uFF09\u5206\u914D\u8F83\u5C11\u5B57\u6570\uFF08\u901A\u5E38\u5360\u603B\u5B57\u6570\u7684 10-20%\uFF09
+   - \u6839\u636E\u8282\u70B9\u5C42\u7EA7\u548C\u91CD\u8981\u6027\u8FDB\u884C\u5DEE\u5F02\u5316\u5206\u914D
+   - \u4E00\u7EA7\u6807\u9898\u8282\u70B9\u901A\u5E38\u6BD4\u4E8C\u7EA7\u3001\u4E09\u7EA7\u8282\u70B9\u5206\u914D\u66F4\u591A\u5B57\u6570
+   - \u786E\u4FDD\u603B\u5B57\u6570\u7B26\u5408 total_textcount \u8981\u6C42`,
+      /**
+       * 获取大纲类型需要的参数列表
+       */
+      getParamsForType() {
+        return ["maxDepth", "expectedNodes", "total_textcount", "applyto"];
+      },
+      /**
+       * 获取表单选项配置
+       */
+      getFormOptions(language = "zh") {
+        const isZh = language === "zh";
+        const outlinesFormOptionsZh = {
+          // Select 类型字段
+          maxDepth: [
+            { value: "1", label: "\u4E00\u7EA7\u6807\u9898", labelEn: "Level 1" },
+            { value: "2", label: "\u4E8C\u7EA7\u6807\u9898", labelEn: "Level 2" },
+            { value: "3", label: "\u4E09\u7EA7\u6807\u9898", labelEn: "Level 3" },
+            { value: "4", label: "\u56DB\u7EA7\u6807\u9898", labelEn: "Level 4" }
+          ],
+          applyto: [
+            { value: "articles", label: "\u6587\u7AE0", labelEn: "Articles" },
+            { value: "lyrics", label: "\u6B4C\u8BCD", labelEn: "Lyrics" },
+            { value: "media-post", label: "\u5A92\u4F53\u5E16\u5B50", labelEn: "Media Post" },
+            { value: "storyboard-scripts", label: "\u5206\u955C\u811A\u672C", labelEn: "Storyboard Scripts" },
+            { value: "reviews", label: "\u8BC4\u8BBA", labelEn: "Reviews" },
+            { value: "resumes", label: "\u7B80\u5386", labelEn: "Resumes" },
+            { value: "voice-scripts", label: "\u53E3\u64AD\u7A3F", labelEn: "Voice Scripts" }
+          ],
+          // 元数据
+          _metadata: {
+            expectedNodes: {
+              type: "number",
+              label: "\u671F\u671B\u8282\u70B9\u6570",
+              labelEn: "Expected Nodes",
+              placeholder: "\u4F8B\u5982\uFF1A10",
+              placeholderEn: "e.g., 10",
+              helpText: "\u5927\u81F4\u63A7\u5236\u5927\u7EB2\u7684\u7BC7\u5E45\uFF08\u8282\u70B9\u603B\u6570\uFF09",
+              helpTextEn: "Roughly control the outline length (total nodes)",
+              min: 1,
+              max: 100
+            },
+            total_textcount: {
+              type: "number",
+              label: "\u6587\u5B57\u603B\u91CF",
+              labelEn: "Total Text Count",
+              placeholder: "\u4F8B\u5982\uFF1A5000",
+              placeholderEn: "e.g., 5000",
+              helpText: "\u6587\u7AE0\u7684\u603B\u5B57\u6570\uFF0C\u5C06\u6839\u636E applyto \u7C7B\u578B\u548C\u8282\u70B9\u91CD\u8981\u6027\u8FDB\u884C\u667A\u80FD\u5206\u5E03\uFF08\u91CD\u70B9\u7AE0\u8282\u5206\u914D\u66F4\u591A\u5B57\u6570\uFF09",
+              helpTextEn: "Total word count, will be intelligently distributed based on applyto type and node importance (key sections get more words)",
+              min: 100,
+              max: 1e5
+            }
+          }
+        };
+        if (language === "en") {
+          return {
+            maxDepth: outlinesFormOptionsZh.maxDepth.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            applyto: outlinesFormOptionsZh.applyto.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            _metadata: {
+              expectedNodes: {
+                ...outlinesFormOptionsZh._metadata.expectedNodes,
+                label: outlinesFormOptionsZh._metadata.expectedNodes.labelEn || "Expected Nodes",
+                placeholder: outlinesFormOptionsZh._metadata.expectedNodes.placeholderEn,
+                helpText: outlinesFormOptionsZh._metadata.expectedNodes.helpTextEn
+              },
+              total_textcount: {
+                ...outlinesFormOptionsZh._metadata.total_textcount,
+                label: outlinesFormOptionsZh._metadata.total_textcount.labelEn || "Total Text Count",
+                placeholder: outlinesFormOptionsZh._metadata.total_textcount.placeholderEn,
+                helpText: outlinesFormOptionsZh._metadata.total_textcount.helpTextEn
+              }
+            }
+          };
+        }
+        return outlinesFormOptionsZh;
+      }
     };
   }
 });
@@ -20533,47 +21126,439 @@ var init_media_post = __esm({
       /**
        * 媒体帖子写作规则和指导原则
        */
-      rules: ``,
+      rules: `\u4F60\u662F\u4E00\u4F4D\u4E13\u4E1A\u7684\u793E\u4EA4\u5A92\u4F53\u5185\u5BB9\u521B\u4F5C\u52A9\u624B\uFF0C\u64C5\u957F\u521B\u4F5C\u5404\u7C7B\u5438\u5F15\u4EBA\u7684\u5A92\u4F53\u5E16\u5B50\u3002
+
+\u3010\u5A92\u4F53\u5E16\u5B50\u521B\u4F5C\u539F\u5219\u3011
+1. **\u5438\u5F15\u529B**\uFF1A\u5F00\u5934\u8981\u6293\u4EBA\u773C\u7403\uFF0C\u5FEB\u901F\u5438\u5F15\u8BFB\u8005\u6CE8\u610F\u529B
+2. **\u7B80\u6D01\u6027**\uFF1A\u5185\u5BB9\u7CBE\u70BC\uFF0C\u907F\u514D\u5197\u957F\uFF0C\u9002\u5408\u5FEB\u901F\u9605\u8BFB
+3. **\u4E92\u52A8\u6027**\uFF1A\u9F13\u52B1\u8BFB\u8005\u4E92\u52A8\uFF0C\u5982\u70B9\u8D5E\u3001\u8BC4\u8BBA\u3001\u5206\u4EAB
+4. **\u4EF7\u503C\u6027**\uFF1A\u63D0\u4F9B\u6709\u4EF7\u503C\u7684\u4FE1\u606F\u6216\u89C2\u70B9
+5. **\u65F6\u6548\u6027**\uFF1A\u5173\u6CE8\u70ED\u70B9\u8BDD\u9898\uFF0C\u4FDD\u6301\u5185\u5BB9\u65B0\u9C9C
+
+\u3010\u5A92\u4F53\u5E16\u5B50\u7ED3\u6784\u8981\u6C42\u3011
+1. **\u5F00\u5934**\uFF1A\u5438\u5F15\u4EBA\u7684\u5F00\u573A\uFF0C\u53EF\u4EE5\u662F\u95EE\u9898\u3001\u6545\u4E8B\u3001\u6570\u636E\u3001\u89C2\u70B9
+2. **\u6B63\u6587**\uFF1A\u6838\u5FC3\u5185\u5BB9\uFF0C\u7B80\u6D01\u6709\u529B\uFF0C\u91CD\u70B9\u7A81\u51FA
+3. **\u7ED3\u5C3E**\uFF1A\u884C\u52A8\u53F7\u53EC\u6216\u4E92\u52A8\u5F15\u5BFC
+4. **\u8BDD\u9898\u6807\u7B7E**\uFF08\u53EF\u9009\uFF09\uFF1A\u76F8\u5173\u8BDD\u9898\u6807\u7B7E
+
+\u3010\u5199\u4F5C\u6280\u5DE7\u3011
+1. \u4F7F\u7528\u77ED\u53E5\u548C\u6BB5\u843D\uFF0C\u4FBF\u4E8E\u9605\u8BFB
+2. \u5408\u7406\u4F7F\u7528\u8868\u60C5\u7B26\u53F7\u589E\u5F3A\u8868\u8FBE
+3. \u4F7F\u7528\u6570\u5B57\u3001\u5217\u8868\u7B49\u683C\u5F0F\u5316\u5185\u5BB9
+4. \u521B\u9020\u60AC\u5FF5\uFF0C\u5F15\u5BFC\u8BFB\u8005\u7EE7\u7EED\u9605\u8BFB
+5. \u4FDD\u6301\u4E0E\u76EE\u6807\u53D7\u4F17\u7684\u5171\u9E23`,
       /**
        * 媒体帖子结构要求
        */
-      outputformat: ``
+      outputformat: `\u3010\u5A92\u4F53\u5E16\u5B50\u683C\u5F0F\u8981\u6C42\u3011
+
+1. **\u957F\u5EA6\u63A7\u5236**\uFF1A
+   - \u5FAE\u535A/\u63A8\u7279\uFF1A140-280\u5B57
+   - \u670B\u53CB\u5708\uFF1A50-200\u5B57
+   - \u5C0F\u7EA2\u4E66\uFF1A200-500\u5B57
+   - \u6839\u636E\u5E73\u53F0\u7279\u70B9\u8C03\u6574
+
+2. **\u683C\u5F0F\u8981\u6C42**\uFF1A
+   - \u5F00\u5934\u5438\u5F15\u4EBA\uFF08\u95EE\u9898\u3001\u6545\u4E8B\u3001\u6570\u636E\u7B49\uFF09
+   - \u6B63\u6587\u7B80\u6D01\u6709\u529B\uFF0C\u91CD\u70B9\u7A81\u51FA
+   - \u7ED3\u5C3E\u6709\u884C\u52A8\u53F7\u53EC\u6216\u4E92\u52A8\u5F15\u5BFC
+   - \u5408\u7406\u4F7F\u7528\u8868\u60C5\u7B26\u53F7\u548C\u683C\u5F0F\u5316
+
+3. **\u5185\u5BB9\u8981\u6C42**\uFF1A
+   - \u4E3B\u9898\u660E\u786E\uFF0C\u4E00\u76EE\u4E86\u7136
+   - \u8BED\u8A00\u751F\u52A8\uFF0C\u6709\u611F\u67D3\u529B
+   - \u63D0\u4F9B\u4EF7\u503C\u6216\u5F15\u53D1\u601D\u8003
+   - \u9002\u5408\u76EE\u6807\u5E73\u53F0\u548C\u53D7\u4F17`,
+      /**
+       * 获取媒体帖子类型需要的参数列表
+       */
+      getParamsForType() {
+        return ["platform", "tone", "targetAudience", "callToAction", "hashtags"];
+      },
+      /**
+       * 获取表单选项配置
+       */
+      getFormOptions(language = "zh") {
+        const isZh = language === "zh";
+        const mediaPostFormOptionsZh = {
+          // Select 类型字段
+          platform: [
+            { value: "weibo", label: "\u5FAE\u535A", labelEn: "Weibo" },
+            { value: "wechat", label: "\u5FAE\u4FE1\u670B\u53CB\u5708", labelEn: "WeChat Moments" },
+            { value: "xiaohongshu", label: "\u5C0F\u7EA2\u4E66", labelEn: "Xiaohongshu" },
+            { value: "douyin", label: "\u6296\u97F3", labelEn: "Douyin" },
+            { value: "twitter", label: "Twitter", labelEn: "Twitter" }
+          ],
+          tone: [
+            { value: "casual", label: "\u8F7B\u677E\u968F\u610F", labelEn: "Casual" },
+            { value: "professional", label: "\u4E13\u4E1A", labelEn: "Professional" },
+            { value: "humorous", label: "\u5E7D\u9ED8", labelEn: "Humorous" },
+            { value: "inspiring", label: "\u52B1\u5FD7", labelEn: "Inspiring" }
+          ],
+          targetAudience: [
+            { value: "general", label: "\u5927\u4F17", labelEn: "General" },
+            { value: "youth", label: "\u5E74\u8F7B\u4EBA", labelEn: "Youth" },
+            { value: "professional", label: "\u4E13\u4E1A\u4EBA\u58EB", labelEn: "Professional" },
+            { value: "parents", label: "\u5BB6\u957F", labelEn: "Parents" }
+          ],
+          // 元数据（为所有字段提供中文标签）
+          _metadata: {
+            platform: {
+              type: "select",
+              label: "\u5E73\u53F0",
+              labelEn: "Platform",
+              helpText: "\u9009\u62E9\u53D1\u5E03\u5E73\u53F0",
+              helpTextEn: "Select the platform"
+            },
+            tone: {
+              type: "select",
+              label: "\u8BED\u8C03",
+              labelEn: "Tone",
+              helpText: "\u9009\u62E9\u8BED\u8A00\u98CE\u683C",
+              helpTextEn: "Select the language style"
+            },
+            targetAudience: {
+              type: "select",
+              label: "\u76EE\u6807\u53D7\u4F17",
+              labelEn: "Target Audience",
+              helpText: "\u9009\u62E9\u76EE\u6807\u53D7\u4F17",
+              helpTextEn: "Select the target audience"
+            },
+            callToAction: {
+              type: "text",
+              label: "\u884C\u52A8\u53F7\u53EC",
+              labelEn: "Call to Action",
+              placeholder: "\u4F8B\u5982\uFF1A\u70B9\u8D5E\u3001\u8BC4\u8BBA\u3001\u5206\u4EAB\u7B49",
+              placeholderEn: "e.g., Like, comment, share",
+              helpText: "\u5F15\u5BFC\u8BFB\u8005\u4E92\u52A8\u7684\u884C\u52A8\u53F7\u53EC",
+              helpTextEn: "Call to action to encourage reader interaction"
+            },
+            hashtags: {
+              type: "text",
+              label: "\u8BDD\u9898\u6807\u7B7E",
+              labelEn: "Hashtags",
+              placeholder: "\u4F8B\u5982\uFF1A#\u8BDD\u98981 #\u8BDD\u98982",
+              placeholderEn: "e.g., #topic1 #topic2",
+              helpText: "\u76F8\u5173\u7684\u8BDD\u9898\u6807\u7B7E\uFF0C\u7528\u7A7A\u683C\u5206\u9694",
+              helpTextEn: "Relevant hashtags, separated by spaces"
+            }
+          }
+        };
+        if (language === "en") {
+          return {
+            platform: mediaPostFormOptionsZh.platform.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            tone: mediaPostFormOptionsZh.tone.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            targetAudience: mediaPostFormOptionsZh.targetAudience.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            _metadata: {
+              callToAction: {
+                ...mediaPostFormOptionsZh._metadata.callToAction,
+                label: mediaPostFormOptionsZh._metadata.callToAction.labelEn || "Call to Action",
+                placeholder: mediaPostFormOptionsZh._metadata.callToAction.placeholderEn,
+                helpText: mediaPostFormOptionsZh._metadata.callToAction.helpTextEn
+              },
+              hashtags: {
+                ...mediaPostFormOptionsZh._metadata.hashtags,
+                label: mediaPostFormOptionsZh._metadata.hashtags.labelEn || "Hashtags",
+                placeholder: mediaPostFormOptionsZh._metadata.hashtags.placeholderEn,
+                helpText: mediaPostFormOptionsZh._metadata.hashtags.helpTextEn
+              }
+            }
+          };
+        }
+        return mediaPostFormOptionsZh;
+      }
     };
   }
 });
 
-// src/core/writing/wtconfigs/movie-scripts.ts
-var movieScriptsConfig;
-var init_movie_scripts = __esm({
-  "src/core/writing/wtconfigs/movie-scripts.ts"() {
+// src/core/writing/wtconfigs/storyboard-scripts.ts
+var storyboardScriptsConfig;
+var init_storyboard_scripts = __esm({
+  "src/core/writing/wtconfigs/storyboard-scripts.ts"() {
     "use strict";
-    movieScriptsConfig = {
+    storyboardScriptsConfig = {
       /**
-       * 电影剧本写作规则和指导原则
+       * 分镜脚本写作规则和指导原则
        */
-      rules: ``,
-      /**
-       * 电影剧本结构要求
-       */
-      outputformat: ``
-    };
-  }
-});
+      rules: `\u4F60\u662F\u4E00\u4F4D\u4E13\u4E1A\u7684\u5206\u955C\u811A\u672C\u5199\u4F5C\u52A9\u624B\uFF0C\u64C5\u957F\u521B\u4F5C\u5404\u7C7B\u5206\u955C\u811A\u672C\uFF0C\u5305\u62EC\u7535\u5F71\u5267\u672C\u3001\u5E7F\u544A\u811A\u672C\u3001\u77ED\u89C6\u9891\u811A\u672C\u7B49\u3002
 
-// src/core/writing/wtconfigs/ad-scripts.ts
-var adScriptsConfig;
-var init_ad_scripts = __esm({
-  "src/core/writing/wtconfigs/ad-scripts.ts"() {
-    "use strict";
-    adScriptsConfig = {
+\u3010\u5206\u955C\u811A\u672C\u5199\u4F5C\u539F\u5219\u3011
+1. **\u573A\u666F\u6E05\u6670**\uFF1A\u6BCF\u4E2A\u573A\u666F\u5E94\u660E\u786E\u63CF\u8FF0\u65F6\u95F4\u3001\u5730\u70B9\u3001\u4EBA\u7269\u3001\u52A8\u4F5C
+2. **\u5BF9\u8BDD\u81EA\u7136**\uFF1A\u5BF9\u8BDD\u5E94\u7B26\u5408\u4EBA\u7269\u6027\u683C\u548C\u60C5\u5883\uFF0C\u81EA\u7136\u6D41\u7545
+3. **\u89C6\u89C9\u5316\u63CF\u8FF0**\uFF1A\u4F7F\u7528\u5177\u4F53\u7684\u89C6\u89C9\u5143\u7D20\u63CF\u8FF0\u753B\u9762\uFF0C\u4FBF\u4E8E\u62CD\u6444\u6216\u5236\u4F5C
+4. **\u8282\u594F\u63A7\u5236**\uFF1A\u5408\u7406\u63A7\u5236\u573A\u666F\u8282\u594F\uFF0C\u7A81\u51FA\u91CD\u70B9\u60C5\u8282
+5. **\u683C\u5F0F\u89C4\u8303**\uFF1A\u9075\u5FAA\u6807\u51C6\u7684\u5206\u955C\u811A\u672C\u683C\u5F0F\uFF0C\u5305\u542B\u573A\u666F\u53F7\u3001\u573A\u666F\u63CF\u8FF0\u3001\u5BF9\u8BDD\u7B49
+
+\u3010\u5206\u955C\u811A\u672C\u7ED3\u6784\u8981\u6C42\u3011
+1. **\u573A\u666F\u6807\u9898**\uFF1A\u5305\u542B\u573A\u666F\u53F7\u3001\u5730\u70B9\u3001\u65F6\u95F4\uFF08\u65E5/\u591C\uFF09
+2. **\u573A\u666F\u63CF\u8FF0**\uFF1A\u8BE6\u7EC6\u63CF\u8FF0\u753B\u9762\u5185\u5BB9\u3001\u4EBA\u7269\u52A8\u4F5C\u3001\u73AF\u5883\u6C1B\u56F4
+3. **\u5BF9\u8BDD\u5185\u5BB9**\uFF1A\u4EBA\u7269\u5BF9\u8BDD\uFF0C\u6807\u6CE8\u8BF4\u8BDD\u4EBA
+4. **\u955C\u5934\u8BF4\u660E**\uFF1A\u53EF\u9009\u7684\u955C\u5934\u7C7B\u578B\u3001\u89D2\u5EA6\u3001\u8FD0\u52A8\u65B9\u5F0F\u7B49
+5. **\u97F3\u6548/\u97F3\u4E50**\uFF1A\u53EF\u9009\u7684\u97F3\u6548\u548C\u80CC\u666F\u97F3\u4E50\u8BF4\u660E
+
+\u3010\u5199\u4F5C\u6280\u5DE7\u3011
+1. \u4F7F\u7528\u7B80\u6D01\u6709\u529B\u7684\u8BED\u8A00\u63CF\u8FF0\u753B\u9762
+2. \u5BF9\u8BDD\u8981\u7B26\u5408\u4EBA\u7269\u8EAB\u4EFD\u548C\u60C5\u5883
+3. \u5408\u7406\u4F7F\u7528\u573A\u666F\u8F6C\u6362\uFF0C\u4FDD\u6301\u8282\u594F
+4. \u7A81\u51FA\u5173\u952E\u60C5\u8282\u548C\u51B2\u7A81\u70B9
+5. \u8003\u8651\u5B9E\u9645\u62CD\u6444\u6216\u5236\u4F5C\u7684\u53EF\u884C\u6027`,
       /**
-       * 广告脚本写作规则和指导原则
+       * 分镜脚本结构要求
        */
-      rules: ``,
+      outputformat: `\u3010\u5206\u955C\u811A\u672C\u683C\u5F0F\u8981\u6C42\u3011
+
+1. **\u6807\u51C6\u683C\u5F0F**\uFF1A
+   - \u573A\u666F\u6807\u9898\uFF1A\u573A\u666F [\u573A\u666F\u53F7] - [\u5730\u70B9] - [\u65F6\u95F4]
+   - \u573A\u666F\u63CF\u8FF0\uFF1A\u8BE6\u7EC6\u63CF\u8FF0\u753B\u9762\u5185\u5BB9
+   - \u5BF9\u8BDD\u683C\u5F0F\uFF1A[\u4EBA\u7269\u540D]\uFF1A\u5BF9\u8BDD\u5185\u5BB9
+   - \u955C\u5934\u8BF4\u660E\uFF1A\uFF08\u53EF\u9009\uFF09\u955C\u5934\u7C7B\u578B\u3001\u89D2\u5EA6\u7B49
+
+2. **\u7ED3\u6784\u8981\u7D20**\uFF1A
+   - \u5FC5\u987B\u5305\u542B\uFF1A\u573A\u666F\u6807\u9898\u3001\u573A\u666F\u63CF\u8FF0\u3001\u5BF9\u8BDD\uFF08\u5982\u6709\uFF09
+   - \u53EF\u9009\u5305\u542B\uFF1A\u955C\u5934\u8BF4\u660E\u3001\u97F3\u6548\u8BF4\u660E\u3001\u8F6C\u573A\u8BF4\u660E
+   - \u6BCF\u4E2A\u573A\u666F\u5E94\u72EC\u7ACB\u6210\u6BB5\uFF0C\u6E05\u6670\u5206\u9694
+
+3. **\u5185\u5BB9\u8981\u6C42**\uFF1A
+   - \u573A\u666F\u63CF\u8FF0\u5E94\u5177\u4F53\u3001\u89C6\u89C9\u5316\uFF0C\u4FBF\u4E8E\u7406\u89E3\u753B\u9762
+   - \u5BF9\u8BDD\u5E94\u81EA\u7136\u3001\u7B26\u5408\u4EBA\u7269\u6027\u683C
+   - \u573A\u666F\u4E4B\u95F4\u5E94\u6709\u903B\u8F91\u5173\u8054\uFF0C\u5F62\u6210\u5B8C\u6574\u6545\u4E8B\u7EBF
+
+4. **\u8F93\u51FA\u793A\u4F8B\u683C\u5F0F**\uFF1A
+   \u573A\u666F 1 - \u529E\u516C\u5BA4 - \u65E5
+   
+   \u753B\u9762\uFF1A\u73B0\u4EE3\u5316\u7684\u529E\u516C\u5BA4\uFF0C\u9633\u5149\u900F\u8FC7\u7A97\u6237\u6D12\u5728\u529E\u516C\u684C\u4E0A\u3002\u4E3B\u89D2\u5750\u5728\u684C\u524D\uFF0C\u4E13\u6CE8\u5730\u770B\u7740\u7535\u8111\u5C4F\u5E55\u3002
+   
+   \u4E3B\u89D2\uFF1A\u8FD9\u4E2A\u9879\u76EE\u9700\u8981\u91CD\u65B0\u89C4\u5212\u3002
+   
+   \u540C\u4E8B\uFF1A\u4F60\u89C9\u5F97\u5E94\u8BE5\u4ECE\u54EA\u91CC\u5F00\u59CB\uFF1F
+   
+   \uFF08\u955C\u5934\uFF1A\u4E2D\u666F\uFF0C\u7F13\u6162\u63A8\u8FDB\uFF09`,
       /**
-       * 广告脚本结构要求
+       * 获取分镜脚本类型需要的参数列表
        */
-      outputformat: ``
+      getParamsForType() {
+        return [
+          "scriptType",
+          "sceneCount",
+          "characterCount",
+          "duration",
+          "dialogueStyle",
+          "genre",
+          "targetAudience",
+          "productInfo",
+          "callToAction"
+        ];
+      },
+      /**
+       * 获取表单选项配置
+       */
+      getFormOptions(language = "zh") {
+        const isZh = language === "zh";
+        const storyboardFormOptionsZh = {
+          // Select 类型字段
+          scriptType: [
+            { value: "film", label: "\u7535\u5F71", labelEn: "Film" },
+            { value: "tv", label: "\u7535\u89C6\u5267", labelEn: "TV Series" },
+            { value: "short-video", label: "\u77ED\u89C6\u9891", labelEn: "Short Video" },
+            { value: "commercial", label: "\u5E7F\u544A", labelEn: "Commercial" },
+            { value: "documentary", label: "\u7EAA\u5F55\u7247", labelEn: "Documentary" },
+            { value: "music-video", label: "\u97F3\u4E50MV", labelEn: "Music Video" },
+            { value: "corporate", label: "\u4F01\u4E1A\u5BA3\u4F20\u7247", labelEn: "Corporate Video" },
+            { value: "other", label: "\u5176\u4ED6", labelEn: "Other" }
+          ],
+          dialogueStyle: [
+            { value: "no-dialogue", label: "\u65E0\u53F0\u8BCD", labelEn: "No Dialogue" },
+            { value: "natural", label: "\u81EA\u7136\u6D41\u7545", labelEn: "Natural" },
+            { value: "dramatic", label: "\u620F\u5267\u5316", labelEn: "Dramatic" },
+            { value: "minimal", label: "\u6781\u7B80\u98CE\u683C", labelEn: "Minimal" }
+          ],
+          genre: [
+            { value: "drama", label: "\u5267\u60C5", labelEn: "Drama" },
+            { value: "comedy", label: "\u559C\u5267", labelEn: "Comedy" },
+            { value: "action", label: "\u52A8\u4F5C", labelEn: "Action" },
+            { value: "thriller", label: "\u60CA\u609A", labelEn: "Thriller" },
+            { value: "romance", label: "\u7231\u60C5", labelEn: "Romance" },
+            { value: "sci-fi", label: "\u79D1\u5E7B", labelEn: "Sci-Fi" },
+            { value: "horror", label: "\u6050\u6016", labelEn: "Horror" },
+            { value: "other", label: "\u5176\u4ED6", labelEn: "Other" }
+          ],
+          targetAudience: [
+            { value: "general", label: "\u5927\u4F17", labelEn: "General" },
+            { value: "adult", label: "\u6210\u4EBA", labelEn: "Adult" },
+            { value: "youth", label: "\u9752\u5C11\u5E74", labelEn: "Youth" },
+            { value: "children", label: "\u513F\u7AE5", labelEn: "Children" },
+            { value: "elderly", label: "\u4E2D\u8001\u5E74", labelEn: "Elderly" }
+          ],
+          // 元数据（为所有字段提供中文标签）
+          _metadata: {
+            scriptType: {
+              type: "select",
+              label: "\u811A\u672C\u7C7B\u578B",
+              labelEn: "Script Type",
+              helpText: "\u9009\u62E9\u811A\u672C\u7C7B\u578B\uFF08\u7535\u5F71\u3001\u5E7F\u544A\u3001\u77ED\u89C6\u9891\u7B49\uFF09",
+              helpTextEn: "Select the script type (film, commercial, short video, etc.)"
+            },
+            sceneCount: {
+              type: "number",
+              label: "\u573A\u666F\u6570\u91CF",
+              labelEn: "Scene Count",
+              placeholder: "\u4F8B\u5982\uFF1A10",
+              placeholderEn: "e.g., 10",
+              helpText: "\u9884\u8BA1\u7684\u573A\u666F\u6570\u91CF",
+              helpTextEn: "Expected number of scenes",
+              min: 1,
+              max: 100
+            },
+            characterCount: {
+              type: "number",
+              label: "\u89D2\u8272\u6570\u91CF",
+              labelEn: "Character Count",
+              placeholder: "\u4F8B\u5982\uFF1A5",
+              placeholderEn: "e.g., 5",
+              helpText: "\u4E3B\u8981\u89D2\u8272\u6570\u91CF",
+              helpTextEn: "Number of main characters",
+              min: 1,
+              max: 50
+            },
+            duration: {
+              type: "number",
+              label: "\u65F6\u957F\uFF08\u79D2\uFF09",
+              labelEn: "Duration (seconds)",
+              placeholder: "30",
+              placeholderEn: "30",
+              helpText: "\u811A\u672C\u603B\u65F6\u957F\uFF0C\u5355\u4F4D\uFF1A\u79D2\uFF08\u9ED8\u8BA430\u79D2\uFF09",
+              helpTextEn: "Total script duration in seconds (default: 30)",
+              min: 1,
+              max: 3600
+            },
+            dialogueStyle: {
+              type: "select",
+              label: "\u5BF9\u8BDD\u98CE\u683C",
+              labelEn: "Dialogue Style",
+              helpText: '\u9009\u62E9\u5BF9\u8BDD\u98CE\u683C\uFF0C\u53EF\u9009\u62E9"\u65E0\u53F0\u8BCD"\u6216\u5177\u4F53\u7684\u5BF9\u8BDD\u98CE\u683C',
+              helpTextEn: 'Select dialogue style, can choose "No Dialogue" or specific dialogue style'
+            },
+            genre: {
+              type: "select",
+              label: "\u7C7B\u578B",
+              labelEn: "Genre",
+              helpText: "\u9009\u62E9\u5185\u5BB9\u7C7B\u578B",
+              helpTextEn: "Select the content genre"
+            },
+            targetAudience: {
+              type: "select",
+              label: "\u76EE\u6807\u53D7\u4F17",
+              labelEn: "Target Audience",
+              helpText: "\u9009\u62E9\u76EE\u6807\u53D7\u4F17",
+              helpTextEn: "Select the target audience"
+            },
+            productInfo: {
+              type: "textarea",
+              label: "\u4EA7\u54C1/\u5185\u5BB9\u4FE1\u606F",
+              labelEn: "Product/Content Information",
+              placeholder: "\u8BF7\u63CF\u8FF0\u4EA7\u54C1\u7279\u70B9\u3001\u529F\u80FD\u3001\u4F18\u52BF\u7B49\uFF08\u5E7F\u544A\u811A\u672C\uFF09\u6216\u5185\u5BB9\u4E3B\u9898\uFF08\u5176\u4ED6\u7C7B\u578B\uFF09...",
+              placeholderEn: "Describe product features (for commercials) or content theme (for other types)...",
+              helpText: "\u7528\u4E8E\u5E7F\u544A\u811A\u672C\u65F6\u63CF\u8FF0\u4EA7\u54C1\u4FE1\u606F\uFF0C\u5176\u4ED6\u7C7B\u578B\u65F6\u63CF\u8FF0\u5185\u5BB9\u4E3B\u9898",
+              helpTextEn: "Product info for commercials, content theme for other types"
+            },
+            callToAction: {
+              type: "text",
+              label: "\u884C\u52A8\u53F7\u53EC",
+              labelEn: "Call to Action",
+              placeholder: "\u4F8B\u5982\uFF1A\u7ACB\u5373\u8D2D\u4E70\u3001\u4E86\u89E3\u66F4\u591A\u7B49\uFF08\u53EF\u9009\uFF09",
+              placeholderEn: "e.g., Buy now, Learn more (optional)",
+              helpText: "\u7ED3\u5C3E\u7684\u884C\u52A8\u53F7\u53EC\u8BED\uFF08\u4E3B\u8981\u7528\u4E8E\u5E7F\u544A\u811A\u672C\uFF09",
+              helpTextEn: "Call to action at the end (mainly for commercial scripts)"
+            }
+          }
+        };
+        if (language === "en") {
+          const scriptType = Array.isArray(storyboardFormOptionsZh.scriptType) ? storyboardFormOptionsZh.scriptType.map((opt) => ({
+            value: opt.value,
+            label: opt.labelEn || opt.value
+          })) : [];
+          const dialogueStyle = Array.isArray(storyboardFormOptionsZh.dialogueStyle) ? storyboardFormOptionsZh.dialogueStyle.map((opt) => ({
+            value: opt.value,
+            label: opt.labelEn || opt.value
+          })) : [];
+          const genre = Array.isArray(storyboardFormOptionsZh.genre) ? storyboardFormOptionsZh.genre.map((opt) => ({
+            value: opt.value,
+            label: opt.labelEn || opt.value
+          })) : [];
+          const targetAudience = Array.isArray(storyboardFormOptionsZh.targetAudience) ? storyboardFormOptionsZh.targetAudience.map((opt) => ({
+            value: opt.value,
+            label: opt.labelEn || opt.value
+          })) : [];
+          return {
+            scriptType,
+            dialogueStyle,
+            genre,
+            targetAudience,
+            _metadata: {
+              scriptType: {
+                ...storyboardFormOptionsZh._metadata.scriptType,
+                label: storyboardFormOptionsZh._metadata.scriptType.labelEn || "Script Type",
+                helpText: storyboardFormOptionsZh._metadata.scriptType.helpTextEn
+              },
+              sceneCount: {
+                ...storyboardFormOptionsZh._metadata.sceneCount,
+                label: storyboardFormOptionsZh._metadata.sceneCount.labelEn || "Scene Count",
+                placeholder: storyboardFormOptionsZh._metadata.sceneCount.placeholderEn,
+                helpText: storyboardFormOptionsZh._metadata.sceneCount.helpTextEn
+              },
+              characterCount: {
+                ...storyboardFormOptionsZh._metadata.characterCount,
+                label: storyboardFormOptionsZh._metadata.characterCount.labelEn || "Character Count",
+                placeholder: storyboardFormOptionsZh._metadata.characterCount.placeholderEn,
+                helpText: storyboardFormOptionsZh._metadata.characterCount.helpTextEn
+              },
+              duration: {
+                ...storyboardFormOptionsZh._metadata.duration,
+                label: storyboardFormOptionsZh._metadata.duration.labelEn || "Duration (seconds)",
+                placeholder: storyboardFormOptionsZh._metadata.duration.placeholderEn,
+                helpText: storyboardFormOptionsZh._metadata.duration.helpTextEn
+              },
+              dialogueStyle: {
+                ...storyboardFormOptionsZh._metadata.dialogueStyle,
+                label: storyboardFormOptionsZh._metadata.dialogueStyle.labelEn || "Dialogue Style",
+                helpText: storyboardFormOptionsZh._metadata.dialogueStyle.helpTextEn
+              },
+              genre: {
+                ...storyboardFormOptionsZh._metadata.genre,
+                label: storyboardFormOptionsZh._metadata.genre.labelEn || "Genre",
+                helpText: storyboardFormOptionsZh._metadata.genre.helpTextEn
+              },
+              targetAudience: {
+                ...storyboardFormOptionsZh._metadata.targetAudience,
+                label: storyboardFormOptionsZh._metadata.targetAudience.labelEn || "Target Audience",
+                helpText: storyboardFormOptionsZh._metadata.targetAudience.helpTextEn
+              },
+              productInfo: {
+                ...storyboardFormOptionsZh._metadata.productInfo,
+                label: storyboardFormOptionsZh._metadata.productInfo.labelEn || "Product/Content Information",
+                placeholder: storyboardFormOptionsZh._metadata.productInfo.placeholderEn,
+                helpText: storyboardFormOptionsZh._metadata.productInfo.helpTextEn
+              },
+              callToAction: {
+                ...storyboardFormOptionsZh._metadata.callToAction,
+                label: storyboardFormOptionsZh._metadata.callToAction.labelEn || "Call to Action",
+                placeholder: storyboardFormOptionsZh._metadata.callToAction.placeholderEn,
+                helpText: storyboardFormOptionsZh._metadata.callToAction.helpTextEn
+              }
+            }
+          };
+        }
+        return storyboardFormOptionsZh;
+      }
     };
   }
 });
@@ -20587,11 +21572,159 @@ var init_reviews = __esm({
       /**
        * 评论写作规则和指导原则
        */
-      rules: ``,
+      rules: `\u4F60\u662F\u4E00\u4F4D\u4E13\u4E1A\u7684\u8BC4\u8BBA\u5199\u4F5C\u52A9\u624B\uFF0C\u64C5\u957F\u521B\u4F5C\u5404\u7C7B\u5BA2\u89C2\u3001\u4E13\u4E1A\u7684\u8BC4\u8BBA\u6587\u7AE0\u3002
+
+\u3010\u8BC4\u8BBA\u5199\u4F5C\u539F\u5219\u3011
+1. **\u5BA2\u89C2\u6027**\uFF1A\u57FA\u4E8E\u4E8B\u5B9E\u548C\u4F53\u9A8C\uFF0C\u4FDD\u6301\u5BA2\u89C2\u4E2D\u7ACB
+2. **\u4E13\u4E1A\u6027**\uFF1A\u4F7F\u7528\u4E13\u4E1A\u672F\u8BED\u548C\u5206\u6790\u65B9\u6CD5
+3. **\u5168\u9762\u6027**\uFF1A\u4ECE\u591A\u4E2A\u89D2\u5EA6\u5206\u6790\uFF0C\u4E0D\u504F\u4E0D\u501A
+4. **\u5B9E\u7528\u6027**\uFF1A\u4E3A\u8BFB\u8005\u63D0\u4F9B\u6709\u4EF7\u503C\u7684\u4FE1\u606F\u548C\u5EFA\u8BAE
+5. **\u771F\u5B9E\u6027**\uFF1A\u786E\u4FDD\u8BC4\u8BBA\u5185\u5BB9\u771F\u5B9E\uFF0C\u4E0D\u5938\u5927\u6216\u8D2C\u4F4E
+
+\u3010\u8BC4\u8BBA\u7ED3\u6784\u8981\u6C42\u3011
+1. **\u5F00\u5934**\uFF1A\u7B80\u8981\u4ECB\u7ECD\u8BC4\u8BBA\u5BF9\u8C61\u548C\u6574\u4F53\u5370\u8C61
+2. **\u4F18\u70B9\u5206\u6790**\uFF1A\u8BE6\u7EC6\u5206\u6790\u4F18\u70B9\u548C\u4EAE\u70B9
+3. **\u7F3A\u70B9\u5206\u6790**\uFF1A\u5BA2\u89C2\u6307\u51FA\u4E0D\u8DB3\u548C\u6539\u8FDB\u7A7A\u95F4
+4. **\u7EFC\u5408\u8BC4\u4EF7**\uFF1A\u7ED9\u51FA\u6574\u4F53\u8BC4\u4EF7\u548C\u5EFA\u8BAE
+5. **\u603B\u7ED3**\uFF1A\u7B80\u6D01\u603B\u7ED3\uFF0C\u7ED9\u51FA\u63A8\u8350\u5EA6
+
+\u3010\u5199\u4F5C\u6280\u5DE7\u3011
+1. \u4F7F\u7528\u5177\u4F53\u4F8B\u5B50\u548C\u6570\u636E\u652F\u6491\u89C2\u70B9
+2. \u5BF9\u6BD4\u540C\u7C7B\u4EA7\u54C1/\u670D\u52A1\uFF0C\u7A81\u51FA\u7279\u70B9
+3. \u4ECE\u7528\u6237\u89D2\u5EA6\u51FA\u53D1\uFF0C\u5173\u6CE8\u5B9E\u9645\u4F53\u9A8C
+4. \u8BED\u8A00\u4E13\u4E1A\u4F46\u4E0D\u6666\u6DA9\uFF0C\u6613\u4E8E\u7406\u89E3
+5. \u4FDD\u6301\u5E73\u8861\uFF0C\u65E2\u4E0D\u8FC7\u5206\u8D5E\u7F8E\u4E5F\u4E0D\u8FC7\u5206\u6279\u8BC4`,
       /**
        * 评论结构要求
        */
-      outputformat: ``
+      outputformat: `\u3010\u8BC4\u8BBA\u683C\u5F0F\u8981\u6C42\u3011
+
+1. **\u6574\u4F53\u7ED3\u6784**\uFF1A
+   - \u5F00\u5934\uFF1A\u8BC4\u8BBA\u5BF9\u8C61\u4ECB\u7ECD\u548C\u6574\u4F53\u5370\u8C61
+   - \u4F18\u70B9\u5206\u6790\uFF1A\u8BE6\u7EC6\u5217\u4E3E\u548C\u5206\u6790\u4F18\u70B9
+   - \u7F3A\u70B9\u5206\u6790\uFF1A\u5BA2\u89C2\u6307\u51FA\u4E0D\u8DB3
+   - \u7EFC\u5408\u8BC4\u4EF7\uFF1A\u6574\u4F53\u8BC4\u4EF7\u548C\u5EFA\u8BAE
+   - \u603B\u7ED3\uFF1A\u63A8\u8350\u5EA6\u548C\u603B\u7ED3
+
+2. **\u5185\u5BB9\u8981\u6C42**\uFF1A
+   - \u4F7F\u7528\u5C0F\u6807\u9898\u7EC4\u7EC7\u5185\u5BB9
+   - \u6BCF\u4E2A\u89C2\u70B9\u90FD\u8981\u6709\u5177\u4F53\u4F8B\u5B50\u652F\u6491
+   - \u4F7F\u7528\u8BC4\u5206\u6216\u661F\u7EA7\uFF08\u5982\uFF1A4.5/5\uFF09
+   - \u63D0\u4F9B\u5B9E\u7528\u7684\u5EFA\u8BAE\u548C\u53C2\u8003
+
+3. **\u8BED\u8A00\u8981\u6C42**\uFF1A
+   - \u5BA2\u89C2\u4E13\u4E1A\uFF0C\u907F\u514D\u4E3B\u89C2\u60C5\u7EEA
+   - \u4F7F\u7528\u5177\u4F53\u6570\u636E\u548C\u4E8B\u5B9E
+   - \u8BED\u8A00\u6E05\u6670\u6613\u61C2
+   - \u4FDD\u6301\u5E73\u8861\u548C\u516C\u6B63`,
+      /**
+       * 获取评论类型需要的参数列表
+       */
+      getParamsForType() {
+        return ["reviewType", "rating", "focusAreas", "targetAudience", "comparison"];
+      },
+      /**
+       * 获取表单选项配置
+       */
+      getFormOptions(language = "zh") {
+        const isZh = language === "zh";
+        const reviewsFormOptionsZh = {
+          // Select 类型字段
+          reviewType: [
+            { value: "product", label: "\u4EA7\u54C1\u8BC4\u8BBA", labelEn: "Product Review" },
+            { value: "service", label: "\u670D\u52A1\u8BC4\u8BBA", labelEn: "Service Review" },
+            { value: "book", label: "\u4E66\u7C4D\u8BC4\u8BBA", labelEn: "Book Review" },
+            { value: "movie", label: "\u7535\u5F71\u8BC4\u8BBA", labelEn: "Movie Review" },
+            { value: "restaurant", label: "\u9910\u5385\u8BC4\u8BBA", labelEn: "Restaurant Review" }
+          ],
+          rating: [
+            { value: "1", label: "1\u661F\uFF08\u5F88\u5DEE\uFF09", labelEn: "1 star (Very Poor)" },
+            { value: "2", label: "2\u661F\uFF08\u8F83\u5DEE\uFF09", labelEn: "2 stars (Poor)" },
+            { value: "3", label: "3\u661F\uFF08\u4E00\u822C\uFF09", labelEn: "3 stars (Average)" },
+            { value: "4", label: "4\u661F\uFF08\u8F83\u597D\uFF09", labelEn: "4 stars (Good)" },
+            { value: "5", label: "5\u661F\uFF08\u4F18\u79C0\uFF09", labelEn: "5 stars (Excellent)" }
+          ],
+          targetAudience: [
+            { value: "general", label: "\u5927\u4F17", labelEn: "General" },
+            { value: "professional", label: "\u4E13\u4E1A\u4EBA\u58EB", labelEn: "Professional" },
+            { value: "beginner", label: "\u521D\u5B66\u8005", labelEn: "Beginner" },
+            { value: "expert", label: "\u4E13\u5BB6", labelEn: "Expert" }
+          ],
+          // 元数据（为所有字段提供中文标签）
+          _metadata: {
+            reviewType: {
+              type: "select",
+              label: "\u8BC4\u8BBA\u7C7B\u578B",
+              labelEn: "Review Type",
+              helpText: "\u9009\u62E9\u8BC4\u8BBA\u7C7B\u578B",
+              helpTextEn: "Select the review type"
+            },
+            rating: {
+              type: "select",
+              label: "\u8BC4\u5206",
+              labelEn: "Rating",
+              helpText: "\u9009\u62E9\u8BC4\u5206\u7B49\u7EA7",
+              helpTextEn: "Select the rating"
+            },
+            targetAudience: {
+              type: "select",
+              label: "\u76EE\u6807\u53D7\u4F17",
+              labelEn: "Target Audience",
+              helpText: "\u9009\u62E9\u76EE\u6807\u53D7\u4F17",
+              helpTextEn: "Select the target audience"
+            },
+            focusAreas: {
+              type: "text",
+              label: "\u5173\u6CE8\u91CD\u70B9",
+              labelEn: "Focus Areas",
+              placeholder: "\u4F8B\u5982\uFF1A\u6027\u80FD\u3001\u4EF7\u683C\u3001\u8BBE\u8BA1\u7B49",
+              placeholderEn: "e.g., Performance, price, design",
+              helpText: "\u8BC4\u8BBA\u4E2D\u8981\u91CD\u70B9\u5173\u6CE8\u7684\u65B9\u9762",
+              helpTextEn: "Areas to focus on in the review"
+            },
+            comparison: {
+              type: "textarea",
+              label: "\u5BF9\u6BD4\u5BF9\u8C61",
+              labelEn: "Comparison",
+              placeholder: "\u63CF\u8FF0\u8981\u4E0E\u54EA\u4E9B\u540C\u7C7B\u4EA7\u54C1/\u670D\u52A1\u5BF9\u6BD4...",
+              placeholderEn: "Describe what to compare with...",
+              helpText: "\u7528\u4E8E\u5BF9\u6BD4\u5206\u6790\u7684\u5176\u4ED6\u4EA7\u54C1/\u670D\u52A1",
+              helpTextEn: "Other products/services for comparison"
+            }
+          }
+        };
+        if (language === "en") {
+          return {
+            reviewType: reviewsFormOptionsZh.reviewType.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            rating: reviewsFormOptionsZh.rating.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            targetAudience: reviewsFormOptionsZh.targetAudience.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            _metadata: {
+              focusAreas: {
+                ...reviewsFormOptionsZh._metadata.focusAreas,
+                label: reviewsFormOptionsZh._metadata.focusAreas.labelEn || "Focus Areas",
+                placeholder: reviewsFormOptionsZh._metadata.focusAreas.placeholderEn,
+                helpText: reviewsFormOptionsZh._metadata.focusAreas.helpTextEn
+              },
+              comparison: {
+                ...reviewsFormOptionsZh._metadata.comparison,
+                label: reviewsFormOptionsZh._metadata.comparison.labelEn || "Comparison",
+                placeholder: reviewsFormOptionsZh._metadata.comparison.placeholderEn,
+                helpText: reviewsFormOptionsZh._metadata.comparison.helpTextEn
+              }
+            }
+          };
+        }
+        return reviewsFormOptionsZh;
+      }
     };
   }
 });
@@ -20605,11 +21738,176 @@ var init_resumes = __esm({
       /**
        * 简历写作规则和指导原则
        */
-      rules: ``,
+      rules: `\u4F60\u662F\u4E00\u4F4D\u4E13\u4E1A\u7684\u7B80\u5386\u5199\u4F5C\u52A9\u624B\uFF0C\u64C5\u957F\u521B\u4F5C\u5404\u7C7B\u9AD8\u8D28\u91CF\u7B80\u5386\uFF0C\u5E2E\u52A9\u6C42\u804C\u8005\u7A81\u51FA\u4F18\u52BF\u3001\u5C55\u73B0\u4EF7\u503C\u3002
+
+\u3010\u7B80\u5386\u5199\u4F5C\u539F\u5219\u3011
+1. **\u771F\u5B9E\u6027**\uFF1A\u786E\u4FDD\u6240\u6709\u4FE1\u606F\u771F\u5B9E\u51C6\u786E\uFF0C\u4E0D\u5938\u5927\u6216\u865A\u6784
+2. **\u9488\u5BF9\u6027**\uFF1A\u6839\u636E\u76EE\u6807\u804C\u4F4D\u8C03\u6574\u7B80\u5386\u5185\u5BB9\uFF0C\u7A81\u51FA\u76F8\u5173\u7ECF\u9A8C\u548C\u6280\u80FD
+3. **\u7B80\u6D01\u6027**\uFF1A\u8BED\u8A00\u7B80\u6D01\u6709\u529B\uFF0C\u907F\u514D\u5197\u4F59\uFF0C\u91CD\u70B9\u7A81\u51FA
+4. **\u4E13\u4E1A\u6027**\uFF1A\u4F7F\u7528\u4E13\u4E1A\u672F\u8BED\uFF0C\u5C55\u73B0\u884C\u4E1A\u7406\u89E3
+5. **\u91CF\u5316\u6210\u679C**\uFF1A\u4F7F\u7528\u5177\u4F53\u6570\u636E\u548C\u6210\u679C\u5C55\u793A\u5DE5\u4F5C\u80FD\u529B
+
+\u3010\u7B80\u5386\u7ED3\u6784\u8981\u6C42\u3011
+1. **\u4E2A\u4EBA\u4FE1\u606F**\uFF1A\u59D3\u540D\u3001\u8054\u7CFB\u65B9\u5F0F\u3001\u5730\u5740\u7B49\u57FA\u672C\u4FE1\u606F
+2. **\u804C\u4E1A\u76EE\u6807/\u4E2A\u4EBA\u7B80\u4ECB**\uFF1A\u7B80\u6D01\u6982\u62EC\u804C\u4E1A\u65B9\u5411\u548C\u6838\u5FC3\u4F18\u52BF
+3. **\u5DE5\u4F5C\u7ECF\u5386**\uFF1A\u6309\u65F6\u95F4\u5012\u5E8F\uFF0C\u5305\u542B\u516C\u53F8\u3001\u804C\u4F4D\u3001\u65F6\u95F4\u3001\u804C\u8D23\u548C\u6210\u679C
+4. **\u6559\u80B2\u80CC\u666F**\uFF1A\u5B66\u6821\u3001\u4E13\u4E1A\u3001\u5B66\u5386\u3001\u65F6\u95F4
+5. **\u6280\u80FD\u4E13\u957F**\uFF1A\u4E13\u4E1A\u6280\u80FD\u3001\u8BED\u8A00\u80FD\u529B\u3001\u8BC1\u4E66\u7B49
+6. **\u9879\u76EE\u7ECF\u9A8C**\uFF08\u53EF\u9009\uFF09\uFF1A\u91CD\u8981\u9879\u76EE\u7ECF\u5386\u548C\u6210\u679C
+7. **\u5176\u4ED6\u4FE1\u606F**\uFF08\u53EF\u9009\uFF09\uFF1A\u83B7\u5956\u60C5\u51B5\u3001\u5174\u8DA3\u7231\u597D\u7B49
+
+\u3010\u5199\u4F5C\u6280\u5DE7\u3011
+1. \u4F7F\u7528\u52A8\u8BCD\u5F00\u5934\u63CF\u8FF0\u5DE5\u4F5C\u804C\u8D23\uFF08\u5982\uFF1A\u8D1F\u8D23\u3001\u7BA1\u7406\u3001\u5F00\u53D1\u3001\u4F18\u5316\uFF09
+2. \u91CF\u5316\u5DE5\u4F5C\u6210\u679C\uFF08\u5982\uFF1A\u63D0\u534730%\u6548\u7387\u3001\u7BA1\u740610\u4EBA\u56E2\u961F\uFF09
+3. \u7A81\u51FA\u4E0E\u76EE\u6807\u804C\u4F4D\u76F8\u5173\u7684\u7ECF\u9A8C\u548C\u6280\u80FD
+4. \u4FDD\u6301\u683C\u5F0F\u7EDF\u4E00\uFF0C\u4FBF\u4E8E\u9605\u8BFB
+5. \u907F\u514D\u4F7F\u7528\u8FC7\u4E8E\u4E3B\u89C2\u7684\u5F62\u5BB9\u8BCD`,
       /**
        * 简历结构要求
        */
-      outputformat: ``
+      outputformat: `\u3010\u7B80\u5386\u683C\u5F0F\u8981\u6C42\u3011
+
+1. **\u6574\u4F53\u683C\u5F0F**\uFF1A
+   - \u4F7F\u7528\u6E05\u6670\u7684\u6807\u9898\u548C\u5206\u6BB5
+   - \u4FDD\u6301\u4E00\u81F4\u7684\u5B57\u4F53\u548C\u683C\u5F0F
+   - \u5408\u7406\u4F7F\u7528\u7C97\u4F53\u3001\u659C\u4F53\u7A81\u51FA\u91CD\u70B9
+   - \u786E\u4FDD\u6392\u7248\u6574\u6D01\uFF0C\u6613\u4E8E\u9605\u8BFB
+
+2. **\u5185\u5BB9\u7EC4\u7EC7**\uFF1A
+   - \u4E2A\u4EBA\u4FE1\u606F\uFF1A\u59D3\u540D\u3001\u7535\u8BDD\u3001\u90AE\u7BB1\u3001\u5730\u5740
+   - \u804C\u4E1A\u76EE\u6807\uFF1A1-2\u53E5\u8BDD\u6982\u62EC\u804C\u4E1A\u65B9\u5411
+   - \u5DE5\u4F5C\u7ECF\u5386\uFF1A\u516C\u53F8\u540D | \u804C\u4F4D | \u65F6\u95F4\u8303\u56F4
+     - \u804C\u8D23\u63CF\u8FF0\uFF08\u4F7F\u7528\u52A8\u8BCD\u5F00\u5934\uFF09
+     - \u5DE5\u4F5C\u6210\u679C\uFF08\u91CF\u5316\u6570\u636E\uFF09
+   - \u6559\u80B2\u80CC\u666F\uFF1A\u5B66\u6821 | \u4E13\u4E1A | \u5B66\u5386 | \u65F6\u95F4
+   - \u6280\u80FD\u4E13\u957F\uFF1A\u5206\u7C7B\u5217\u51FA\uFF08\u5982\uFF1A\u6280\u672F\u6280\u80FD\u3001\u8BED\u8A00\u80FD\u529B\u3001\u8BC1\u4E66\uFF09
+
+3. **\u5185\u5BB9\u8981\u6C42**\uFF1A
+   - \u5DE5\u4F5C\u7ECF\u5386\u6309\u65F6\u95F4\u5012\u5E8F\u6392\u5217
+   - \u6BCF\u4E2A\u804C\u4F4D\u5305\u542B3-5\u4E2A\u804C\u8D23\u70B9
+   - \u7A81\u51FA\u4E0E\u76EE\u6807\u804C\u4F4D\u76F8\u5173\u7684\u7ECF\u9A8C
+   - \u4F7F\u7528\u4E13\u4E1A\u672F\u8BED\uFF0C\u5C55\u73B0\u884C\u4E1A\u7406\u89E3
+
+4. **\u957F\u5EA6\u63A7\u5236**\uFF1A
+   - \u5E94\u5C4A\u751F\u6216\u521D\u7EA7\uFF1A1\u9875
+   - \u4E2D\u7EA7\uFF1A1-2\u9875
+   - \u9AD8\u7EA7\u6216\u7BA1\u7406\u5C97\uFF1A2-3\u9875
+   - \u4FDD\u6301\u5185\u5BB9\u7CBE\u70BC\uFF0C\u91CD\u70B9\u7A81\u51FA`,
+      /**
+       * 获取简历类型需要的参数列表
+       */
+      getParamsForType() {
+        return ["workYears", "industry", "skillFocus", "targetPosition", "highlightAchievements"];
+      },
+      /**
+       * 获取表单选项配置
+       */
+      getFormOptions(language = "zh") {
+        const isZh = language === "zh";
+        const resumesFormOptionsZh = {
+          // Select 类型字段
+          workYears: [
+            { value: "0-1", label: "0-1\u5E74", labelEn: "0-1 years" },
+            { value: "2-5", label: "2-5\u5E74", labelEn: "2-5 years" },
+            { value: "5-10", label: "5-10\u5E74", labelEn: "5-10 years" },
+            { value: "10+", label: "10\u5E74\u4EE5\u4E0A", labelEn: "10+ years" }
+          ],
+          industry: [
+            { value: "tech", label: "\u79D1\u6280\u4E92\u8054\u7F51", labelEn: "Technology" },
+            { value: "finance", label: "\u91D1\u878D", labelEn: "Finance" },
+            { value: "education", label: "\u6559\u80B2", labelEn: "Education" },
+            { value: "healthcare", label: "\u533B\u7597\u5065\u5EB7", labelEn: "Healthcare" },
+            { value: "manufacturing", label: "\u5236\u9020\u4E1A", labelEn: "Manufacturing" },
+            { value: "retail", label: "\u96F6\u552E", labelEn: "Retail" },
+            { value: "consulting", label: "\u54A8\u8BE2", labelEn: "Consulting" }
+          ],
+          skillFocus: [
+            { value: "technical", label: "\u6280\u672F\u80FD\u529B", labelEn: "Technical Skills" },
+            { value: "management", label: "\u7BA1\u7406\u80FD\u529B", labelEn: "Management" },
+            { value: "communication", label: "\u6C9F\u901A\u80FD\u529B", labelEn: "Communication" },
+            { value: "leadership", label: "\u9886\u5BFC\u529B", labelEn: "Leadership" },
+            { value: "analytical", label: "\u5206\u6790\u80FD\u529B", labelEn: "Analytical Skills" }
+          ],
+          // 元数据（为所有字段提供中文标签）
+          _metadata: {
+            workYears: {
+              type: "select",
+              label: "\u5DE5\u4F5C\u5E74\u9650",
+              labelEn: "Work Years",
+              helpText: "\u9009\u62E9\u5DE5\u4F5C\u5E74\u9650",
+              helpTextEn: "Select work years"
+            },
+            industry: {
+              type: "select",
+              label: "\u884C\u4E1A\u9886\u57DF",
+              labelEn: "Industry",
+              helpText: "\u9009\u62E9\u884C\u4E1A\u9886\u57DF",
+              helpTextEn: "Select the industry"
+            },
+            skillFocus: {
+              type: "multi-select",
+              label: "\u6280\u80FD\u91CD\u70B9",
+              labelEn: "Skill Focus",
+              helpText: "\u9009\u62E9\u9700\u8981\u5728\u7B80\u5386\u4E2D\u91CD\u70B9\u7A81\u51FA\u7684\u6280\u80FD\u7C7B\u578B",
+              helpTextEn: "Select skill types to highlight in the resume"
+            },
+            targetPosition: {
+              type: "text",
+              label: "\u76EE\u6807\u804C\u4F4D",
+              labelEn: "Target Position",
+              placeholder: "\u4F8B\u5982\uFF1A\u9AD8\u7EA7\u8F6F\u4EF6\u5DE5\u7A0B\u5E08",
+              placeholderEn: "e.g., Senior Software Engineer",
+              helpText: "\u5E0C\u671B\u7533\u8BF7\u7684\u804C\u4F4D\u540D\u79F0",
+              helpTextEn: "The position you are applying for"
+            },
+            highlightAchievements: {
+              type: "textarea",
+              label: "\u7A81\u51FA\u6210\u5C31",
+              labelEn: "Highlight Achievements",
+              placeholder: "\u63CF\u8FF0\u4E3B\u8981\u5DE5\u4F5C\u6210\u5C31\u3001\u9879\u76EE\u6210\u679C\u7B49...",
+              placeholderEn: "Describe main achievements, project results...",
+              helpText: "\u91CD\u70B9\u7A81\u51FA\u7684\u5DE5\u4F5C\u6210\u5C31\u548C\u9879\u76EE\u6210\u679C\uFF0C\u7528\u4E8E\u7B80\u5386\u4E2D\u91CD\u70B9\u5C55\u793A",
+              helpTextEn: "Key achievements and project results to highlight in the resume"
+            }
+          }
+        };
+        if (language === "en") {
+          return {
+            workYears: resumesFormOptionsZh.workYears.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            industry: resumesFormOptionsZh.industry.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            skillFocus: resumesFormOptionsZh.skillFocus.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            _metadata: {
+              targetPosition: {
+                ...resumesFormOptionsZh._metadata.targetPosition,
+                label: resumesFormOptionsZh._metadata.targetPosition.labelEn || "Target Position",
+                placeholder: resumesFormOptionsZh._metadata.targetPosition.placeholderEn,
+                helpText: resumesFormOptionsZh._metadata.targetPosition.helpTextEn
+              },
+              highlightAchievements: {
+                ...resumesFormOptionsZh._metadata.highlightAchievements,
+                label: resumesFormOptionsZh._metadata.highlightAchievements.labelEn || "Highlight Achievements",
+                placeholder: resumesFormOptionsZh._metadata.highlightAchievements.placeholderEn,
+                helpText: resumesFormOptionsZh._metadata.highlightAchievements.helpTextEn
+              },
+              skillFocus: {
+                ...resumesFormOptionsZh._metadata.skillFocus,
+                label: resumesFormOptionsZh._metadata.skillFocus.labelEn || "Skill Focus",
+                helpText: resumesFormOptionsZh._metadata.skillFocus.helpTextEn
+              }
+            }
+          };
+        }
+        return resumesFormOptionsZh;
+      }
     };
   }
 });
@@ -20623,11 +21921,157 @@ var init_voice_scripts = __esm({
       /**
        * 口播稿写作规则和指导原则
        */
-      rules: ``,
+      rules: `\u4F60\u662F\u4E00\u4F4D\u4E13\u4E1A\u7684\u53E3\u64AD\u7A3F\u5199\u4F5C\u52A9\u624B\uFF0C\u64C5\u957F\u521B\u4F5C\u5404\u7C7B\u9002\u5408\u53E3\u8BED\u8868\u8FBE\u7684\u53E3\u64AD\u5185\u5BB9\u3002
+
+\u3010\u53E3\u64AD\u7A3F\u5199\u4F5C\u539F\u5219\u3011
+1. **\u53E3\u8BED\u5316**\uFF1A\u4F7F\u7528\u81EA\u7136\u3001\u6D41\u7545\u7684\u53E3\u8BED\u8868\u8FBE\uFF0C\u907F\u514D\u4E66\u9762\u8BED
+2. **\u7B80\u6D01\u6027**\uFF1A\u8BED\u8A00\u7B80\u6D01\u660E\u4E86\uFF0C\u4FBF\u4E8E\u7406\u89E3\u548C\u8BB0\u5FC6
+3. **\u8282\u594F\u611F**\uFF1A\u6CE8\u610F\u8BED\u8A00\u7684\u8282\u594F\u548C\u505C\u987F\uFF0C\u9002\u5408\u53E3\u8BED\u8868\u8FBE
+4. **\u5438\u5F15\u529B**\uFF1A\u5F00\u5934\u8981\u6293\u4EBA\uFF0C\u5FEB\u901F\u5438\u5F15\u542C\u4F17\u6CE8\u610F\u529B
+5. **\u5B8C\u6574\u6027**\uFF1A\u7ED3\u6784\u5B8C\u6574\uFF0C\u6709\u5F00\u5934\u3001\u4E3B\u4F53\u3001\u7ED3\u5C3E
+
+\u3010\u53E3\u64AD\u7A3F\u7ED3\u6784\u8981\u6C42\u3011
+1. **\u5F00\u5934**\uFF1A\u5438\u5F15\u4EBA\u7684\u5F00\u573A\uFF0C\u53EF\u4EE5\u662F\u95EE\u9898\u3001\u6545\u4E8B\u3001\u6570\u636E
+2. **\u4E3B\u4F53**\uFF1A\u6838\u5FC3\u5185\u5BB9\uFF0C\u5206\u70B9\u8BBA\u8FF0\uFF0C\u903B\u8F91\u6E05\u6670
+3. **\u7ED3\u5C3E**\uFF1A\u603B\u7ED3\u6216\u884C\u52A8\u53F7\u53EC\uFF0C\u7ED9\u542C\u4F17\u7559\u4E0B\u5370\u8C61
+
+\u3010\u5199\u4F5C\u6280\u5DE7\u3011
+1. \u4F7F\u7528\u77ED\u53E5\uFF0C\u907F\u514D\u957F\u53E5\u548C\u590D\u6742\u53E5\u5F0F
+2. \u4F7F\u7528\u53E3\u8BED\u5316\u8BCD\u6C47\uFF0C\u8D34\u8FD1\u65E5\u5E38\u8868\u8FBE
+3. \u5408\u7406\u4F7F\u7528\u505C\u987F\u6807\u8BB0\uFF0C\u4FBF\u4E8E\u6717\u8BFB
+4. \u6CE8\u610F\u97F3\u8282\u7684\u6D41\u7545\u6027\uFF0C\u6717\u6717\u4E0A\u53E3
+5. \u4F7F\u7528\u5177\u4F53\u4F8B\u5B50\u548C\u6570\u636E\u589E\u5F3A\u8BF4\u670D\u529B`,
       /**
        * 口播稿结构要求
        */
-      outputformat: ``
+      outputformat: `\u3010\u53E3\u64AD\u7A3F\u683C\u5F0F\u8981\u6C42\u3011
+
+1. **\u683C\u5F0F\u89C4\u8303**\uFF1A
+   - \u4F7F\u7528\u81EA\u7136\u7684\u53E3\u8BED\u8868\u8FBE
+   - \u5408\u7406\u4F7F\u7528\u505C\u987F\u6807\u8BB0\uFF08\u5982\uFF1A...\u3001\u2014\u2014\uFF09
+   - \u6807\u6CE8\u91CD\u70B9\u8BCD\u6C47\u6216\u8BED\u6C14\uFF08\u5982\uFF1A**\u91CD\u70B9**\uFF09
+   - \u4FDD\u6301\u6BB5\u843D\u7B80\u77ED\uFF0C\u4FBF\u4E8E\u6717\u8BFB
+
+2. **\u5185\u5BB9\u8981\u6C42**\uFF1A
+   - \u5F00\u5934\u5438\u5F15\u4EBA\uFF0C\u5FEB\u901F\u6293\u4F4F\u6CE8\u610F\u529B
+   - \u4E3B\u4F53\u5185\u5BB9\u5206\u70B9\u6E05\u6670\uFF0C\u903B\u8F91\u4E25\u5BC6
+   - \u7ED3\u5C3E\u6709\u529B\uFF0C\u7ED9\u542C\u4F17\u7559\u4E0B\u5370\u8C61
+   - \u8BED\u8A00\u81EA\u7136\u6D41\u7545\uFF0C\u9002\u5408\u53E3\u8BED\u8868\u8FBE
+
+3. **\u8BED\u8A00\u8981\u6C42**\uFF1A
+   - \u4F7F\u7528\u53E3\u8BED\u5316\u8868\u8FBE\uFF0C\u907F\u514D\u4E66\u9762\u8BED
+   - \u77ED\u53E5\u4E3A\u4E3B\uFF0C\u4FBF\u4E8E\u7406\u89E3\u548C\u8BB0\u5FC6
+   - \u6CE8\u610F\u8282\u594F\u548C\u505C\u987F
+   - \u4F7F\u7528\u5177\u4F53\u4F8B\u5B50\u589E\u5F3A\u8BF4\u670D\u529B`,
+      /**
+       * 获取口播稿类型需要的参数列表
+       */
+      getParamsForType() {
+        return ["duration", "tone", "targetAudience", "platform", "callToAction"];
+      },
+      /**
+       * 获取表单选项配置
+       */
+      getFormOptions(language = "zh") {
+        const isZh = language === "zh";
+        const voiceScriptsFormOptionsZh = {
+          // Select 类型字段
+          duration: [
+            { value: "30s", label: "30\u79D2", labelEn: "30 seconds" },
+            { value: "1min", label: "1\u5206\u949F", labelEn: "1 minute" },
+            { value: "3min", label: "3\u5206\u949F", labelEn: "3 minutes" },
+            { value: "5min", label: "5\u5206\u949F", labelEn: "5 minutes" },
+            { value: "10min", label: "10\u5206\u949F", labelEn: "10 minutes" }
+          ],
+          tone: [
+            { value: "friendly", label: "\u53CB\u597D\u4EB2\u5207", labelEn: "Friendly" },
+            { value: "professional", label: "\u4E13\u4E1A", labelEn: "Professional" },
+            { value: "energetic", label: "\u5145\u6EE1\u6D3B\u529B", labelEn: "Energetic" },
+            { value: "calm", label: "\u5E73\u9759\u6E29\u548C", labelEn: "Calm" }
+          ],
+          targetAudience: [
+            { value: "general", label: "\u5927\u4F17", labelEn: "General" },
+            { value: "youth", label: "\u5E74\u8F7B\u4EBA", labelEn: "Youth" },
+            { value: "professional", label: "\u4E13\u4E1A\u4EBA\u58EB", labelEn: "Professional" },
+            { value: "elderly", label: "\u4E2D\u8001\u5E74", labelEn: "Elderly" }
+          ],
+          platform: [
+            { value: "podcast", label: "\u64AD\u5BA2", labelEn: "Podcast" },
+            { value: "video", label: "\u89C6\u9891", labelEn: "Video" },
+            { value: "live", label: "\u76F4\u64AD", labelEn: "Live Stream" },
+            { value: "audio", label: "\u97F3\u9891", labelEn: "Audio" }
+          ],
+          // 元数据（为所有字段提供中文标签）
+          _metadata: {
+            duration: {
+              type: "select",
+              label: "\u65F6\u957F",
+              labelEn: "Duration",
+              helpText: "\u9009\u62E9\u53E3\u64AD\u65F6\u957F",
+              helpTextEn: "Select the duration"
+            },
+            tone: {
+              type: "select",
+              label: "\u8BED\u8C03",
+              labelEn: "Tone",
+              helpText: "\u9009\u62E9\u8BED\u8A00\u98CE\u683C",
+              helpTextEn: "Select the language style"
+            },
+            targetAudience: {
+              type: "select",
+              label: "\u76EE\u6807\u53D7\u4F17",
+              labelEn: "Target Audience",
+              helpText: "\u9009\u62E9\u76EE\u6807\u53D7\u4F17",
+              helpTextEn: "Select the target audience"
+            },
+            platform: {
+              type: "select",
+              label: "\u5E73\u53F0",
+              labelEn: "Platform",
+              helpText: "\u9009\u62E9\u53D1\u5E03\u5E73\u53F0",
+              helpTextEn: "Select the platform"
+            },
+            callToAction: {
+              type: "text",
+              label: "\u884C\u52A8\u53F7\u53EC",
+              labelEn: "Call to Action",
+              placeholder: "\u4F8B\u5982\uFF1A\u5173\u6CE8\u3001\u70B9\u8D5E\u3001\u8BA2\u9605\u7B49",
+              placeholderEn: "e.g., Follow, like, subscribe",
+              helpText: "\u7ED3\u5C3E\u7684\u884C\u52A8\u53F7\u53EC\u8BED",
+              helpTextEn: "Call to action at the end"
+            }
+          }
+        };
+        if (language === "en") {
+          return {
+            duration: voiceScriptsFormOptionsZh.duration.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            tone: voiceScriptsFormOptionsZh.tone.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            targetAudience: voiceScriptsFormOptionsZh.targetAudience.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            platform: voiceScriptsFormOptionsZh.platform.map((opt) => ({
+              value: opt.value,
+              label: opt.labelEn || opt.value
+            })),
+            _metadata: {
+              callToAction: {
+                ...voiceScriptsFormOptionsZh._metadata.callToAction,
+                label: voiceScriptsFormOptionsZh._metadata.callToAction.labelEn || "Call to Action",
+                placeholder: voiceScriptsFormOptionsZh._metadata.callToAction.placeholderEn,
+                helpText: voiceScriptsFormOptionsZh._metadata.callToAction.helpTextEn
+              }
+            }
+          };
+        }
+        return voiceScriptsFormOptionsZh;
+      }
     };
   }
 });
@@ -20647,6 +22091,89 @@ function getWritingTypeOutputFormat(writingType) {
   const config = getWritingTypeConfig(writingType);
   return config.outputformat || "";
 }
+function getWritingParamsForType(writingType) {
+  const config = getWritingTypeConfig(writingType);
+  if (config && typeof config.getParamsForType === "function") {
+    return config.getParamsForType();
+  }
+  return ["motivation", "stance", "tone", "length", "key_elements"];
+}
+function extractWritingBusinessParams(params, writingType) {
+  const businessParams = {};
+  const paramList = getWritingParamsForType(writingType);
+  for (const paramName of paramList) {
+    const paramValue = params[paramName];
+    if (paramValue !== void 0 && paramValue !== null && paramValue !== "") {
+      if (Array.isArray(paramValue) && paramValue.length > 0) {
+        businessParams[paramName] = paramValue;
+      } else if (!Array.isArray(paramValue)) {
+        businessParams[paramName] = paramValue;
+      }
+    }
+  }
+  return businessParams;
+}
+function getWritingFormOptionsForType(writingType, language = "zh") {
+  const config = getWritingTypeConfig(writingType);
+  if (config && typeof config.getFormOptions === "function") {
+    return config.getFormOptions(language);
+  }
+  return null;
+}
+function getParamLabel(paramName, writingType, language = "zh") {
+  const formOptions = getWritingFormOptionsForType(writingType, language);
+  if (formOptions) {
+    if (formOptions._metadata && formOptions._metadata[paramName]) {
+      const metadata = formOptions._metadata[paramName];
+      if (language === "en" && metadata.labelEn) {
+        return metadata.labelEn;
+      }
+      return metadata.label || paramName;
+    }
+  }
+  const defaultLabels = {
+    motivation: { zh: "\u52A8\u673A", en: "Motivation" },
+    stance: { zh: "\u7ACB\u573A", en: "Stance" },
+    tone: { zh: "\u8BED\u8C03", en: "Tone" },
+    length: { zh: "\u957F\u5EA6", en: "Length" },
+    key_elements: { zh: "\u5173\u952E\u8981\u7D20", en: "Key Elements" },
+    maxDepth: { zh: "\u5927\u7EB2\u6DF1\u5EA6", en: "Max Depth" },
+    expectedNodes: { zh: "\u671F\u671B\u8282\u70B9\u6570", en: "Expected Nodes" },
+    total_textcount: { zh: "\u6587\u5B57\u603B\u91CF", en: "Total Text Count" },
+    applyto: { zh: "\u5E94\u7528\u4E8E", en: "Apply To" },
+    sceneCount: { zh: "\u573A\u666F\u6570\u91CF", en: "Scene Count" },
+    characterCount: { zh: "\u89D2\u8272\u6570\u91CF", en: "Character Count" },
+    dialogueStyle: { zh: "\u5BF9\u8BDD\u98CE\u683C", en: "Dialogue Style" },
+    genre: { zh: "\u7C7B\u578B", en: "Genre" },
+    duration: { zh: "\u65F6\u957F\uFF08\u79D2\uFF09", en: "Duration (seconds)" },
+    scriptType: { zh: "\u811A\u672C\u7C7B\u578B", en: "Script Type" },
+    targetAudience: { zh: "\u76EE\u6807\u53D7\u4F17", en: "Target Audience" },
+    adType: { zh: "\u5E7F\u544A\u7C7B\u578B", en: "Ad Type" },
+    productInfo: { zh: "\u4EA7\u54C1\u4FE1\u606F", en: "Product Information" },
+    callToAction: { zh: "\u884C\u52A8\u53F7\u53EC", en: "Call to Action" },
+    adLength: { zh: "\u5E7F\u544A\u65F6\u957F", en: "Ad Length" },
+    workYears: { zh: "\u5DE5\u4F5C\u5E74\u9650", en: "Work Years" },
+    industry: { zh: "\u884C\u4E1A\u9886\u57DF", en: "Industry" },
+    skillFocus: { zh: "\u6280\u80FD\u91CD\u70B9", en: "Skill Focus" },
+    targetPosition: { zh: "\u76EE\u6807\u804C\u4F4D", en: "Target Position" },
+    highlightAchievements: { zh: "\u7A81\u51FA\u6210\u5C31", en: "Highlight Achievements" },
+    musicStyle: { zh: "\u97F3\u4E50\u98CE\u683C", en: "Music Style" },
+    emotion: { zh: "\u60C5\u611F\u57FA\u8C03", en: "Emotion" },
+    rhyme: { zh: "\u62BC\u97F5\u65B9\u5F0F", en: "Rhyme" },
+    theme: { zh: "\u4E3B\u9898\u5185\u5BB9", en: "Theme" },
+    platform: { zh: "\u5E73\u53F0", en: "Platform" },
+    hashtags: { zh: "\u8BDD\u9898\u6807\u7B7E", en: "Hashtags" },
+    reviewType: { zh: "\u8BC4\u8BBA\u7C7B\u578B", en: "Review Type" },
+    rating: { zh: "\u8BC4\u5206", en: "Rating" },
+    focusAreas: { zh: "\u5173\u6CE8\u91CD\u70B9", en: "Focus Areas" },
+    comparison: { zh: "\u5BF9\u6BD4\u5BF9\u8C61", en: "Comparison" }
+  };
+  const label = defaultLabels[paramName];
+  if (label) {
+    return language === "en" ? label.en : label.zh;
+  }
+  return paramName;
+}
 var CONFIG_MAP2;
 var init_wtconfigs = __esm({
   "src/core/writing/wtconfigs/index.ts"() {
@@ -20655,8 +22182,7 @@ var init_wtconfigs = __esm({
     init_lyrics();
     init_outlines();
     init_media_post();
-    init_movie_scripts();
-    init_ad_scripts();
+    init_storyboard_scripts();
     init_reviews();
     init_resumes();
     init_voice_scripts();
@@ -20665,8 +22191,7 @@ var init_wtconfigs = __esm({
       lyrics: lyricsConfig,
       outlines: outlinesConfig,
       "media-post": mediaPostConfig,
-      "movie-scripts": movieScriptsConfig,
-      "ad-scripts": adScriptsConfig,
+      "storyboard-scripts": storyboardScriptsConfig,
       reviews: reviewsConfig,
       resumes: resumesConfig,
       "voice-scripts": voiceScriptsConfig
@@ -20688,6 +22213,28 @@ __export(writing_service_exports, {
   rewriteWritingStream: () => rewriteWritingStream,
   syncToTask: () => syncToTask
 });
+function shouldEnableMarkdown(writingType, format) {
+  if (writingType === "outlines") {
+    return false;
+  }
+  if (writingType === "lyrics" && format === "suno") {
+    return false;
+  }
+  return true;
+}
+function buildWritingGuidance(params, writingType) {
+  const businessParams = extractWritingBusinessParams(params, writingType);
+  const guidance = [];
+  Object.entries(businessParams).forEach(([key, value]) => {
+    const paramLabel = getParamLabel(key, writingType);
+    if (Array.isArray(value)) {
+      guidance.push(`${paramLabel}: ${value.join("\u3001")}`);
+    } else {
+      guidance.push(`${paramLabel}: ${value}`);
+    }
+  });
+  return guidance;
+}
 function expandOutlinesToSections(outlines, depth = 0, startIndex = 0) {
   const sections = [];
   let currentIndex = startIndex;
@@ -20818,17 +22365,30 @@ async function* generateOutlineStream(params, userId, provider) {
     const knowledgeContext = formatKnowledgeContext(knowledgeResults, params.knowledgeBase);
     enhancedPrompt = enhancePromptWithKnowledge(params.prompt, knowledgeContext);
   }
-  const outlinePrompt = `\u8BF7\u6839\u636E\u4EE5\u4E0B\u8981\u6C42\u751F\u6210\u4E00\u4E2A\u5199\u4F5C\u5927\u7EB2\uFF1A
+  let outlinePrompt = `\u8BF7\u6839\u636E\u4EE5\u4E0B\u8981\u6C42\u751F\u6210\u4E00\u4E2A\u5199\u4F5C\u5927\u7EB2\uFF1A
 
 ${enhancedPrompt}
 
 \u8981\u6C42\uFF1A
 - \u5927\u7EB2\u5C42\u7EA7\u6DF1\u5EA6\uFF1A${params.maxDepth || 3} \u7EA7
-${params.expectedNodes ? `- \u671F\u671B\u8282\u70B9\u603B\u6570\uFF1A\u7EA6 ${params.expectedNodes} \u4E2A` : ""}
+${params.expectedNodes ? `- \u671F\u671B\u8282\u70B9\u603B\u6570\uFF1A\u7EA6 ${params.expectedNodes} \u4E2A` : ""}`;
+  if (params.total_textcount && params.applyto) {
+    outlinePrompt += `
+- \u603B\u5B57\u6570\u8981\u6C42\uFF1A${params.total_textcount} \u5B57
+- \u5927\u7EB2\u5C06\u7528\u4E8E\u751F\u6210\uFF1A${params.applyto} \u7C7B\u578B\u5185\u5BB9
+- \u5B57\u6570\u5206\u914D\u539F\u5219\uFF1A
+  * \u6839\u636E ${params.applyto} \u7C7B\u578B\u7684\u5185\u5BB9\u7ED3\u6784\u7279\u70B9\u8FDB\u884C\u5B57\u6570\u5206\u914D
+  * \u6838\u5FC3\u7AE0\u8282\uFF08\u6B63\u6587\u4E3B\u4F53\uFF09\u5E94\u5206\u914D\u66F4\u591A\u5B57\u6570\uFF08\u7EA6\u5360\u603B\u5B57\u6570\u7684 60-70%\uFF09
+  * \u6B21\u8981\u7AE0\u8282\uFF08\u5F15\u8A00\u3001\u7ED3\u5C3E\uFF09\u5206\u914D\u8F83\u5C11\u5B57\u6570\uFF08\u7EA6\u5360\u603B\u5B57\u6570\u7684 10-20%\uFF09
+  * \u4E00\u7EA7\u6807\u9898\u8282\u70B9\u901A\u5E38\u6BD4\u4E8C\u7EA7\u3001\u4E09\u7EA7\u8282\u70B9\u5206\u914D\u66F4\u591A\u5B57\u6570
+  * \u786E\u4FDD\u603B\u5B57\u6570\u7B26\u5408 ${params.total_textcount} \u5B57\u7684\u8981\u6C42`;
+  }
+  outlinePrompt += `
 - \u6BCF\u4E2A\u8282\u70B9\u9700\u8981\u5305\u542B\uFF1Acontent\uFF08\u6807\u9898\u5185\u5BB9\uFF09\u3001motivation\uFF08\u5199\u4F5C\u52A8\u673A\uFF0C\u53EF\u9009\uFF09\u3001stance\uFF08\u7ACB\u573A\uFF0C\u53EF\u9009\uFF09\u3001tone\uFF08\u8BED\u8C03\uFF0C\u53EF\u9009\uFF09\u3001length\uFF08\u957F\u5EA6\u8981\u6C42\uFF0C\u53EF\u9009\uFF09\u3001key_elements\uFF08\u5173\u952E\u8981\u7D20\uFF0C\u53EF\u9009\uFF09
+- **\u91CD\u8981**\uFF1A\u5FC5\u987B\u8FD4\u56DE\u5B8C\u6574\u7684\u3001\u6709\u6548\u7684 JSON \u5BF9\u8C61\uFF0C\u4E0D\u8981\u622A\u65AD\uFF0C\u4E0D\u8981\u6DFB\u52A0\u4EFB\u4F55\u989D\u5916\u7684\u6587\u5B57\u8BF4\u660E
 - \u8FD4\u56DE JSON \u683C\u5F0F\uFF0C\u5305\u542B uid\u3001content \u548C\u53EF\u9009\u7684 children \u6570\u7EC4\uFF08\u5D4C\u5957\u7ED3\u6784\uFF09
 
-\u8BF7\u8FD4\u56DE\u4E00\u4E2A\u6709\u6548\u7684 JSON \u5BF9\u8C61\uFF0C\u683C\u5F0F\u5982\u4E0B\uFF1A
+\u8BF7\u8FD4\u56DE\u4E00\u4E2A\u5B8C\u6574\u7684\u3001\u6709\u6548\u7684 JSON \u5BF9\u8C61\uFF0C\u683C\u5F0F\u5982\u4E0B\uFF1A
 {
   "uid": "${params.uid}",
   "content": "\u4E3B\u6807\u9898",
@@ -20839,7 +22399,13 @@ ${params.expectedNodes ? `- \u671F\u671B\u8282\u70B9\u603B\u6570\uFF1A\u7EA6 ${p
       "children": [...]
     }
   ]
-}`;
+}
+
+**\u5173\u952E\u8981\u6C42**\uFF1A
+1. \u5FC5\u987B\u8FD4\u56DE\u5B8C\u6574\u7684 JSON\uFF0C\u4E0D\u8981\u622A\u65AD
+2. \u786E\u4FDD\u6240\u6709\u5927\u62EC\u53F7\u3001\u4E2D\u62EC\u53F7\u3001\u5F15\u53F7\u90FD\u6B63\u786E\u95ED\u5408
+3. \u4E0D\u8981\u5728\u5927\u7EB2\u5185\u5BB9\u4E2D\u6DFB\u52A0\u4EFB\u4F55\u89E3\u91CA\u6027\u6587\u5B57
+4. \u76F4\u63A5\u8FD4\u56DE JSON \u5BF9\u8C61\uFF0C\u4E0D\u9700\u8981 markdown \u4EE3\u7801\u5757\u5305\u88C5`;
   const stream = await generateTextStream(modelName, outlinePrompt, provider);
   for await (const chunk of stream) {
     yield chunk;
@@ -20853,17 +22419,30 @@ async function generateOutline(params, userId, provider) {
     const knowledgeContext = formatKnowledgeContext(knowledgeResults, params.knowledgeBase);
     enhancedPrompt = enhancePromptWithKnowledge(params.prompt, knowledgeContext);
   }
-  const outlinePrompt = `\u8BF7\u6839\u636E\u4EE5\u4E0B\u8981\u6C42\u751F\u6210\u4E00\u4E2A\u5199\u4F5C\u5927\u7EB2\uFF1A
+  let outlinePrompt = `\u8BF7\u6839\u636E\u4EE5\u4E0B\u8981\u6C42\u751F\u6210\u4E00\u4E2A\u5199\u4F5C\u5927\u7EB2\uFF1A
 
 ${enhancedPrompt}
 
 \u8981\u6C42\uFF1A
 - \u5927\u7EB2\u5C42\u7EA7\u6DF1\u5EA6\uFF1A${params.maxDepth || 3} \u7EA7
-${params.expectedNodes ? `- \u671F\u671B\u8282\u70B9\u603B\u6570\uFF1A\u7EA6 ${params.expectedNodes} \u4E2A` : ""}
+${params.expectedNodes ? `- \u671F\u671B\u8282\u70B9\u603B\u6570\uFF1A\u7EA6 ${params.expectedNodes} \u4E2A` : ""}`;
+  if (params.total_textcount && params.applyto) {
+    outlinePrompt += `
+- \u603B\u5B57\u6570\u8981\u6C42\uFF1A${params.total_textcount} \u5B57
+- \u5927\u7EB2\u5C06\u7528\u4E8E\u751F\u6210\uFF1A${params.applyto} \u7C7B\u578B\u5185\u5BB9
+- \u5B57\u6570\u5206\u914D\u539F\u5219\uFF1A
+  * \u6839\u636E ${params.applyto} \u7C7B\u578B\u7684\u5185\u5BB9\u7ED3\u6784\u7279\u70B9\u8FDB\u884C\u5B57\u6570\u5206\u914D
+  * \u6838\u5FC3\u7AE0\u8282\uFF08\u6B63\u6587\u4E3B\u4F53\uFF09\u5E94\u5206\u914D\u66F4\u591A\u5B57\u6570\uFF08\u7EA6\u5360\u603B\u5B57\u6570\u7684 60-70%\uFF09
+  * \u6B21\u8981\u7AE0\u8282\uFF08\u5F15\u8A00\u3001\u7ED3\u5C3E\uFF09\u5206\u914D\u8F83\u5C11\u5B57\u6570\uFF08\u7EA6\u5360\u603B\u5B57\u6570\u7684 10-20%\uFF09
+  * \u4E00\u7EA7\u6807\u9898\u8282\u70B9\u901A\u5E38\u6BD4\u4E8C\u7EA7\u3001\u4E09\u7EA7\u8282\u70B9\u5206\u914D\u66F4\u591A\u5B57\u6570
+  * \u786E\u4FDD\u603B\u5B57\u6570\u7B26\u5408 ${params.total_textcount} \u5B57\u7684\u8981\u6C42`;
+  }
+  outlinePrompt += `
 - \u6BCF\u4E2A\u8282\u70B9\u9700\u8981\u5305\u542B\uFF1Acontent\uFF08\u6807\u9898\u5185\u5BB9\uFF09\u3001motivation\uFF08\u5199\u4F5C\u52A8\u673A\uFF0C\u53EF\u9009\uFF09\u3001stance\uFF08\u7ACB\u573A\uFF0C\u53EF\u9009\uFF09\u3001tone\uFF08\u8BED\u8C03\uFF0C\u53EF\u9009\uFF09\u3001length\uFF08\u957F\u5EA6\u8981\u6C42\uFF0C\u53EF\u9009\uFF09\u3001key_elements\uFF08\u5173\u952E\u8981\u7D20\uFF0C\u53EF\u9009\uFF09
+- **\u91CD\u8981**\uFF1A\u5FC5\u987B\u8FD4\u56DE\u5B8C\u6574\u7684\u3001\u6709\u6548\u7684 JSON \u5BF9\u8C61\uFF0C\u4E0D\u8981\u622A\u65AD\uFF0C\u4E0D\u8981\u6DFB\u52A0\u4EFB\u4F55\u989D\u5916\u7684\u6587\u5B57\u8BF4\u660E
 - \u8FD4\u56DE JSON \u683C\u5F0F\uFF0C\u5305\u542B uid\u3001content \u548C\u53EF\u9009\u7684 children \u6570\u7EC4\uFF08\u5D4C\u5957\u7ED3\u6784\uFF09
 
-\u8BF7\u8FD4\u56DE\u4E00\u4E2A\u6709\u6548\u7684 JSON \u5BF9\u8C61\uFF0C\u683C\u5F0F\u5982\u4E0B\uFF1A
+\u8BF7\u8FD4\u56DE\u4E00\u4E2A\u5B8C\u6574\u7684\u3001\u6709\u6548\u7684 JSON \u5BF9\u8C61\uFF0C\u683C\u5F0F\u5982\u4E0B\uFF1A
 {
   "uid": "${params.uid}",
   "content": "\u4E3B\u6807\u9898",
@@ -20874,27 +22453,74 @@ ${params.expectedNodes ? `- \u671F\u671B\u8282\u70B9\u603B\u6570\uFF1A\u7EA6 ${p
       "children": [...]
     }
   ]
-}`;
+}
+
+**\u5173\u952E\u8981\u6C42**\uFF1A
+1. \u5FC5\u987B\u8FD4\u56DE\u5B8C\u6574\u7684 JSON\uFF0C\u4E0D\u8981\u622A\u65AD
+2. \u786E\u4FDD\u6240\u6709\u5927\u62EC\u53F7\u3001\u4E2D\u62EC\u53F7\u3001\u5F15\u53F7\u90FD\u6B63\u786E\u95ED\u5408
+3. \u4E0D\u8981\u5728\u5927\u7EB2\u5185\u5BB9\u4E2D\u6DFB\u52A0\u4EFB\u4F55\u89E3\u91CA\u6027\u6587\u5B57
+4. \u76F4\u63A5\u8FD4\u56DE JSON \u5BF9\u8C61\uFF0C\u4E0D\u9700\u8981 markdown \u4EE3\u7801\u5757\u5305\u88C5`;
   const resultText = await generateText2(modelName, outlinePrompt, provider);
   try {
     let jsonText = resultText.trim();
-    const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      jsonText = jsonMatch[1];
+    const codeBlockMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch && codeBlockMatch[1]) {
+      jsonText = codeBlockMatch[1].trim();
+    } else {
+      const firstBrace = jsonText.indexOf("{");
+      const lastBrace = jsonText.lastIndexOf("}");
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+      }
     }
-    const outline = JSON.parse(jsonText);
+    let outline;
+    try {
+      outline = JSON.parse(jsonText);
+    } catch (parseError) {
+      let cleanedJson = jsonText;
+      let braceCount = 0;
+      let lastValidBrace = -1;
+      for (let i = 0; i < cleanedJson.length; i++) {
+        if (cleanedJson[i] === "{") braceCount++;
+        if (cleanedJson[i] === "}") {
+          braceCount--;
+          if (braceCount === 0) {
+            lastValidBrace = i;
+          }
+        }
+      }
+      if (lastValidBrace !== -1 && lastValidBrace < cleanedJson.length - 1) {
+        cleanedJson = cleanedJson.substring(0, lastValidBrace + 1);
+      } else if (braceCount > 0) {
+        cleanedJson = cleanedJson + "}".repeat(braceCount);
+      }
+      try {
+        outline = JSON.parse(cleanedJson);
+      } catch (retryError) {
+        console.error("[WritingService] JSON \u89E3\u6790\u5931\u8D25:", {
+          originalLength: resultText.length,
+          extractedLength: jsonText.length,
+          cleanedLength: cleanedJson.length,
+          error: parseError,
+          retryError,
+          preview: resultText.substring(0, 500)
+        });
+        throw new Error(`\u5927\u7EB2\u751F\u6210\u5931\u8D25\uFF1A\u65E0\u6CD5\u89E3\u6790 JSON \u7ED3\u679C\u3002\u8BF7\u68C0\u67E5 LLM \u8FD4\u56DE\u7684\u5185\u5BB9\u662F\u5426\u5B8C\u6574\u3002\u539F\u59CB\u7ED3\u679C\u9884\u89C8\uFF1A${resultText.substring(0, 300)}...`);
+      }
+    }
     if (!outline.uid) {
       outline.uid = params.uid;
     }
     return outline;
   } catch (error) {
     console.error("[WritingService] \u89E3\u6790\u5927\u7EB2 JSON \u5931\u8D25:", error);
-    throw new Error(`\u5927\u7EB2\u751F\u6210\u5931\u8D25\uFF1A\u65E0\u6CD5\u89E3\u6790 JSON \u7ED3\u679C\u3002\u539F\u59CB\u7ED3\u679C\uFF1A${resultText.substring(0, 200)}...`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`\u5927\u7EB2\u751F\u6210\u5931\u8D25\uFF1A${errorMessage}\u3002\u539F\u59CB\u7ED3\u679C\u9884\u89C8\uFF1A${resultText.substring(0, 300)}...`);
   }
 }
 async function* generateWritingParallel(sections, params, userId, provider, enhancedPrompt, hasGlobalKnowledgeInPrompt = false) {
   const modelName = selectModel("paragraph");
-  const enableMarkdown = params.enable_markdown !== false;
+  const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
   const summaryPrompt = `\u8BF7\u6839\u636E\u4EE5\u4E0B\u5927\u7EB2\u751F\u6210\u4E00\u4E2A800\u5B57\u4EE5\u5185\u7684\u603B\u7ED3\uFF0C\u4F5C\u4E3A\u6574\u7BC7\u6587\u7AE0\u7684\u516C\u7528\u5F15\u7528\u548C\u80CC\u666F\u4FE1\u606F\uFF1A
 
 ${sections.map((s) => `- ${s.content}`).join("\n")}
@@ -20918,14 +22544,8 @@ ${sections.map((s) => `- ${s.content}`).join("\n")}
   }
   const sectionPromises = sections.map(async (section) => {
     try {
-      const sectionGuidance = [];
-      if (section.motivation) sectionGuidance.push(`\u52A8\u673A: ${section.motivation}`);
-      if (section.stance) sectionGuidance.push(`\u7ACB\u573A: ${section.stance}`);
-      if (section.tone) sectionGuidance.push(`\u8BED\u8C03: ${section.tone}`);
-      if (section.length) sectionGuidance.push(`\u957F\u5EA6: ${section.length}`);
-      if (section.key_elements && section.key_elements.length > 0) {
-        sectionGuidance.push(`\u5173\u952E\u8981\u7D20: ${section.key_elements.join("\u3001")}`);
-      }
+      const currentWritingType = params.writing_type || "articles";
+      const sectionGuidance = buildWritingGuidance(section, currentWritingType);
       let sectionKnowledgeContext = "";
       let hasKnowledge = false;
       const knowledgeBaseConfig = section.knowledgeBase || params.knowledgeBase;
@@ -20939,9 +22559,17 @@ ${sections.map((s) => `- ${s.content}`).join("\n")}
         }
       }
       const explainNote = processStyle === "explain" && !hasKnowledge ? '\n\u26A0\uFE0F \u6CE8\u610F\uFF1A\u5F53\u524D\u6CA1\u6709\u627E\u5230\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\u5E93\u5185\u5BB9\uFF0C\u8BF7\u5728\u56DE\u7B54\u5F00\u5934\u4F7F\u7528"\u6211\u4EEC\u6CA1\u6709\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\uFF0C\u4F46\u662F\u6839\u636E\u6211\u7684\u4E86\u89E3"\u4F5C\u4E3A\u5F00\u5934\uFF0C\u7136\u540E\u7EE7\u7EED\u56DE\u7B54\u3002' : "";
-      const currentWritingType = params.writing_type || "articles";
-      const typeRules = getWritingTypeRules(currentWritingType);
-      const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+      let typeRules;
+      let typeOutputFormat;
+      if (currentWritingType === "lyrics" && params.format === "suno") {
+        const { lyricsConfig: lyricsConfig2 } = await Promise.resolve().then(() => (init_lyrics(), lyrics_exports));
+        const sunoFormat = lyricsConfig2.getSunoFormatRules();
+        typeRules = sunoFormat.rules;
+        typeOutputFormat = sunoFormat.outputformat;
+      } else {
+        typeRules = getWritingTypeRules(currentWritingType);
+        typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+      }
       const sectionPrompt = `\u8BF7\u6839\u636E\u4EE5\u4E0B\u8981\u6C42\u751F\u6210\u6587\u7AE0\u6BB5\u843D\u5185\u5BB9\uFF1A
 
 ${typeRules ? `${typeRules}
@@ -20951,7 +22579,7 @@ ${typeRules ? `${typeRules}
 ${sectionGuidance.length > 0 ? `\u3010\u5199\u4F5C\u6307\u5BFC\u3011\uFF08\u91CD\u8981\uFF1A\u8FD9\u4E9B\u662F\u5199\u4F5C\u53C2\u6570\uFF0C\u7528\u4E8E\u6307\u5BFC\u4F60\u7684\u5199\u4F5C\u98CE\u683C\u548C\u5185\u5BB9\uFF0C\u7EDD\u5BF9\u4E0D\u8981\u76F4\u63A5\u8F93\u51FA\u8FD9\u4E9B\u53C2\u6570\u672C\u8EAB\uFF09\uFF1A
 ${sectionGuidance.join("\n")}
 
-\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\uFF08\u52A8\u673A\u3001\u7ACB\u573A\u3001\u8BED\u8C03\u3001\u957F\u5EA6\u3001\u5173\u952E\u8981\u7D20\uFF09\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
+\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
 - \u274C \u9519\u8BEF\u793A\u4F8B\uFF1A\u4E0D\u8981\u5728\u6B63\u6587\u4E2D\u5199"\u52A8\u673A\uFF1Axxx"\u3001"\u8BED\u8C03\uFF1Axxx"\u8FD9\u6837\u7684\u6587\u5B57
 - \u2705 \u6B63\u786E\u505A\u6CD5\uFF1A\u6839\u636E\u8FD9\u4E9B\u53C2\u6570\u6765\u7EC4\u7EC7\u8BED\u8A00\u548C\u5185\u5BB9\uFF0C\u8BA9\u8BFB\u8005\u611F\u53D7\u5230\u76F8\u5E94\u7684\u52A8\u673A\u3001\u7ACB\u573A\u548C\u8BED\u8C03\uFF0C\u4F46\u4E0D\u8981\u660E\u786E\u8BF4\u51FA\u6765` : ""}
 ${sharedSummary ? `\u3010\u516C\u7528\u603B\u7ED3\u3011\uFF08\u8BF7\u53C2\u8003\uFF09\uFF1A
@@ -21076,7 +22704,7 @@ ${typeOutputFormat}` : ""}
 }
 async function* generateWritingSequential(sections, params, userId, provider, enhancedPrompt, hasGlobalKnowledgeInPrompt = false) {
   const modelName = selectModel("paragraph");
-  const enableMarkdown = params.enable_markdown !== false;
+  const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
   let previousMemory = "";
   for (const section of sections) {
     try {
@@ -21114,8 +22742,17 @@ async function* generateWritingSequential(sections, params, userId, provider, en
       }
       const explainNote = processStyle === "explain" && !hasKnowledge ? '\n\u26A0\uFE0F \u6CE8\u610F\uFF1A\u5F53\u524D\u6CA1\u6709\u627E\u5230\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\u5E93\u5185\u5BB9\uFF0C\u8BF7\u5728\u56DE\u7B54\u5F00\u5934\u4F7F\u7528"\u6211\u4EEC\u6CA1\u6709\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\uFF0C\u4F46\u662F\u6839\u636E\u6211\u7684\u4E86\u89E3"\u4F5C\u4E3A\u5F00\u5934\uFF0C\u7136\u540E\u7EE7\u7EED\u56DE\u7B54\u3002' : "";
       const currentWritingType = params.writing_type || "articles";
-      const typeRules = getWritingTypeRules(currentWritingType);
-      const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+      let typeRules;
+      let typeOutputFormat;
+      if (currentWritingType === "lyrics" && params.format === "suno") {
+        const { lyricsConfig: lyricsConfig2 } = await Promise.resolve().then(() => (init_lyrics(), lyrics_exports));
+        const sunoFormat = lyricsConfig2.getSunoFormatRules();
+        typeRules = sunoFormat.rules;
+        typeOutputFormat = sunoFormat.outputformat;
+      } else {
+        typeRules = getWritingTypeRules(currentWritingType);
+        typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+      }
       const sectionPrompt = `\u8BF7\u6839\u636E\u4EE5\u4E0B\u8981\u6C42\u751F\u6210\u6587\u7AE0\u6BB5\u843D\u5185\u5BB9\uFF1A
 
 ${typeRules ? `${typeRules}
@@ -21125,7 +22762,7 @@ ${typeRules ? `${typeRules}
 ${sectionGuidance.length > 0 ? `\u3010\u5199\u4F5C\u6307\u5BFC\u3011\uFF08\u91CD\u8981\uFF1A\u8FD9\u4E9B\u662F\u5199\u4F5C\u53C2\u6570\uFF0C\u7528\u4E8E\u6307\u5BFC\u4F60\u7684\u5199\u4F5C\u98CE\u683C\u548C\u5185\u5BB9\uFF0C\u7EDD\u5BF9\u4E0D\u8981\u76F4\u63A5\u8F93\u51FA\u8FD9\u4E9B\u53C2\u6570\u672C\u8EAB\uFF09\uFF1A
 ${sectionGuidance.join("\n")}
 
-\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\uFF08\u52A8\u673A\u3001\u7ACB\u573A\u3001\u8BED\u8C03\u3001\u957F\u5EA6\u3001\u5173\u952E\u8981\u7D20\uFF09\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
+\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
 - \u274C \u9519\u8BEF\u793A\u4F8B\uFF1A\u4E0D\u8981\u5728\u6B63\u6587\u4E2D\u5199"\u52A8\u673A\uFF1Axxx"\u3001"\u8BED\u8C03\uFF1Axxx"\u8FD9\u6837\u7684\u6587\u5B57
 - \u2705 \u6B63\u786E\u505A\u6CD5\uFF1A\u6839\u636E\u8FD9\u4E9B\u53C2\u6570\u6765\u7EC4\u7EC7\u8BED\u8A00\u548C\u5185\u5BB9\uFF0C\u8BA9\u8BFB\u8005\u611F\u53D7\u5230\u76F8\u5E94\u7684\u52A8\u673A\u3001\u7ACB\u573A\u548C\u8BED\u8C03\uFF0C\u4F46\u4E0D\u8981\u660E\u786E\u8BF4\u51FA\u6765` : ""}
 ${previousMemory ? `\u3010\u524D\u6587\u8BB0\u5FC6\u3011\uFF08\u8BF7\u53C2\u8003\uFF0C\u4FDD\u6301\u8FDE\u8D2F\u6027\uFF09\uFF1A
@@ -21261,12 +22898,22 @@ async function* generateWritingStream(params, userId, provider) {
   const typeRules = getWritingTypeRules(currentWritingType);
   const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
   let generatePrompt = enhancedPrompt;
-  if (typeRules) {
-    generatePrompt = `${typeRules}
+  if (params.writing_type === "lyrics" && params.format === "suno") {
+    const { lyricsConfig: lyricsConfig2 } = await Promise.resolve().then(() => (init_lyrics(), lyrics_exports));
+    const sunoFormat = lyricsConfig2.getSunoFormatRules();
+    generatePrompt = `${sunoFormat.rules}
 
 ---
 
 ${generatePrompt}`;
+  } else {
+    if (typeRules) {
+      generatePrompt = `${typeRules}
+
+---
+
+${generatePrompt}`;
+    }
   }
   if (!params.outlines || params.outlines.length === 0) {
     if (params.knowledgeBase && params.knowledgeBase.length > 0) {
@@ -21277,26 +22924,23 @@ ${generatePrompt}`;
 \u26A0\uFE0F \u6CE8\u610F\uFF1A\u5F53\u524D\u6CA1\u6709\u627E\u5230\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\u5E93\u5185\u5BB9\uFF0C\u8BF7\u5728\u56DE\u7B54\u5F00\u5934\u4F7F\u7528"\u6211\u4EEC\u6CA1\u6709\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\uFF0C\u4F46\u662F\u6839\u636E\u6211\u7684\u4E86\u89E3"\u4F5C\u4E3A\u5F00\u5934\uFF0C\u7136\u540E\u7EE7\u7EED\u56DE\u7B54\u3002`;
       }
     }
-    const writingGuidance = [];
-    if (params.motivation) writingGuidance.push(`\u52A8\u673A: ${params.motivation}`);
-    if (params.stance) writingGuidance.push(`\u7ACB\u573A: ${params.stance}`);
-    if (params.tone) writingGuidance.push(`\u8BED\u8C03: ${params.tone}`);
-    if (params.length) writingGuidance.push(`\u957F\u5EA6: ${params.length}`);
-    if (params.key_elements && params.key_elements.length > 0) {
-      writingGuidance.push(`\u5173\u952E\u8981\u7D20: ${params.key_elements.join("\u3001")}`);
-    }
+    const currentWritingType2 = params.writing_type || "articles";
+    const writingGuidance = buildWritingGuidance(params, currentWritingType2);
     if (writingGuidance.length > 0) {
+      const paramList = getWritingParamsForType(currentWritingType2);
+      const paramLabels = paramList.map((p) => getParamLabel(p, currentWritingType2)).join("\u3001");
       generatePrompt = `${generatePrompt}
 
 \u3010\u5199\u4F5C\u6307\u5BFC\u3011\uFF08\u91CD\u8981\uFF1A\u8FD9\u4E9B\u662F\u5199\u4F5C\u53C2\u6570\uFF0C\u7528\u4E8E\u6307\u5BFC\u4F60\u7684\u5199\u4F5C\u98CE\u683C\u548C\u5185\u5BB9\uFF0C\u7EDD\u5BF9\u4E0D\u8981\u76F4\u63A5\u8F93\u51FA\u8FD9\u4E9B\u53C2\u6570\u672C\u8EAB\uFF09\uFF1A
 ${writingGuidance.join("\n")}
 
-\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\uFF08\u52A8\u673A\u3001\u7ACB\u573A\u3001\u8BED\u8C03\u3001\u957F\u5EA6\u3001\u5173\u952E\u8981\u7D20\uFF09\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
-- \u274C \u9519\u8BEF\u793A\u4F8B\uFF1A\u4E0D\u8981\u5728\u6B63\u6587\u4E2D\u5199"\u52A8\u673A\uFF1Axxx"\u3001"\u8BED\u8C03\uFF1Axxx"\u8FD9\u6837\u7684\u6587\u5B57
-- \u2705 \u6B63\u786E\u505A\u6CD5\uFF1A\u6839\u636E\u8FD9\u4E9B\u53C2\u6570\u6765\u7EC4\u7EC7\u8BED\u8A00\u548C\u5185\u5BB9\uFF0C\u8BA9\u8BFB\u8005\u611F\u53D7\u5230\u76F8\u5E94\u7684\u52A8\u673A\u3001\u7ACB\u573A\u548C\u8BED\u8C03\uFF0C\u4F46\u4E0D\u8981\u660E\u786E\u8BF4\u51FA\u6765`;
+\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\uFF08${paramLabels}\uFF09\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
+- \u274C \u9519\u8BEF\u793A\u4F8B\uFF1A\u4E0D\u8981\u5728\u6B63\u6587\u4E2D\u5199\u53C2\u6570\u540D\u79F0\u548C\u503C
+- \u2705 \u6B63\u786E\u505A\u6CD5\uFF1A\u6839\u636E\u8FD9\u4E9B\u53C2\u6570\u6765\u7EC4\u7EC7\u8BED\u8A00\u548C\u5185\u5BB9\uFF0C\u8BA9\u5185\u5BB9\u81EA\u7136\u4F53\u73B0\u8FD9\u4E9B\u53C2\u6570\u7684\u8981\u6C42\uFF0C\u4F46\u4E0D\u8981\u660E\u786E\u8BF4\u51FA\u6765`;
     }
   }
-  if (params.enable_markdown === false) {
+  const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
+  if (!enableMarkdown) {
     generatePrompt = `${generatePrompt}
 
 \u3010\u683C\u5F0F\u8981\u6C42\u3011\uFF1A
@@ -21313,12 +22957,22 @@ ${writingGuidance.join("\n")}
 - \u53EF\u4EE5\u4F7F\u7528\u6807\u9898\uFF08#\uFF09\u3001\u5217\u8868\uFF08- \u6216 1.\uFF09\u3001\u5F15\u7528\uFF08>\uFF09\u3001\u8868\u683C\uFF08|\uFF09\u3001\u4EE3\u7801\u5757\uFF08\`\`\`\uFF09\u7B49 Markdown \u8BED\u6CD5
 - \u4FDD\u6301\u6BB5\u843D\u6E05\u6670\uFF0C\u903B\u8F91\u8FDE\u8D2F`;
   }
-  if (typeOutputFormat) {
-    generatePrompt = `${generatePrompt}
+  if (params.writing_type !== "lyrics" || params.format !== "suno") {
+    if (typeOutputFormat) {
+      generatePrompt = `${generatePrompt}
 
 ---
 
 ${typeOutputFormat}`;
+    }
+  } else {
+    const { lyricsConfig: lyricsConfig2 } = await Promise.resolve().then(() => (init_lyrics(), lyrics_exports));
+    const sunoFormat = lyricsConfig2.getSunoFormatRules();
+    generatePrompt = `${generatePrompt}
+
+---
+
+${sunoFormat.outputformat}`;
   }
   if (previousContent) {
     generatePrompt = `\u8BF7\u57FA\u4E8E\u4EE5\u4E0B\u539F\u6587\u8FDB\u884C\u5199\u4F5C\uFF1A
@@ -21402,14 +23056,8 @@ ${sections.map((s) => `- ${s.content}`).join("\n")}
       const totalSections = sections.length;
       const sectionPromises = sections.map(async (section, index) => {
         try {
-          const sectionGuidance = [];
-          if (section.motivation) sectionGuidance.push(`\u52A8\u673A: ${section.motivation}`);
-          if (section.stance) sectionGuidance.push(`\u7ACB\u573A: ${section.stance}`);
-          if (section.tone) sectionGuidance.push(`\u8BED\u8C03: ${section.tone}`);
-          if (section.length) sectionGuidance.push(`\u957F\u5EA6: ${section.length}`);
-          if (section.key_elements && section.key_elements.length > 0) {
-            sectionGuidance.push(`\u5173\u952E\u8981\u7D20: ${section.key_elements.join("\u3001")}`);
-          }
+          const currentWritingType2 = params.writing_type || "articles";
+          const sectionGuidance = buildWritingGuidance(section, currentWritingType2);
           let sectionKnowledgeContext = "";
           let hasKnowledge2 = false;
           const hasSectionKnowledge = section.knowledgeBase && section.knowledgeBase.length > 0;
@@ -21433,19 +23081,27 @@ ${sections.map((s) => `- ${s.content}`).join("\n")}
             }
           }
           const explainNote = processStyle === "explain" && !hasKnowledge2 ? '\n\u26A0\uFE0F \u6CE8\u610F\uFF1A\u5F53\u524D\u6CA1\u6709\u627E\u5230\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\u5E93\u5185\u5BB9\uFF0C\u8BF7\u5728\u56DE\u7B54\u5F00\u5934\u4F7F\u7528"\u6211\u4EEC\u6CA1\u6709\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\uFF0C\u4F46\u662F\u6839\u636E\u6211\u7684\u4E86\u89E3"\u4F5C\u4E3A\u5F00\u5934\uFF0C\u7136\u540E\u7EE7\u7EED\u56DE\u7B54\u3002' : "";
-          const currentWritingType = params.writing_type || "articles";
-          const typeRules = getWritingTypeRules(currentWritingType);
-          const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+          let typeRules2;
+          let typeOutputFormat2;
+          if (currentWritingType2 === "lyrics" && params.format === "suno") {
+            const { lyricsConfig: lyricsConfig2 } = await Promise.resolve().then(() => (init_lyrics(), lyrics_exports));
+            const sunoFormat = lyricsConfig2.getSunoFormatRules();
+            typeRules2 = sunoFormat.rules;
+            typeOutputFormat2 = sunoFormat.outputformat;
+          } else {
+            typeRules2 = getWritingTypeRules(currentWritingType2);
+            typeOutputFormat2 = getWritingTypeOutputFormat(currentWritingType2);
+          }
           const sectionPrompt = `\u8BF7\u6839\u636E\u4EE5\u4E0B\u8981\u6C42\u751F\u6210\u6587\u7AE0\u6BB5\u843D\u5185\u5BB9\uFF1A
 
-${typeRules ? `${typeRules}
+${typeRules2 ? `${typeRules2}
 
 ---` : ""}
 \u3010\u6BB5\u843D\u6807\u9898\u3011\uFF1A${section.content}
 ${sectionGuidance.length > 0 ? `\u3010\u5199\u4F5C\u6307\u5BFC\u3011\uFF08\u91CD\u8981\uFF1A\u8FD9\u4E9B\u662F\u5199\u4F5C\u53C2\u6570\uFF0C\u7528\u4E8E\u6307\u5BFC\u4F60\u7684\u5199\u4F5C\u98CE\u683C\u548C\u5185\u5BB9\uFF0C\u7EDD\u5BF9\u4E0D\u8981\u76F4\u63A5\u8F93\u51FA\u8FD9\u4E9B\u53C2\u6570\u672C\u8EAB\uFF09\uFF1A
 ${sectionGuidance.join("\n")}
 
-\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\uFF08\u52A8\u673A\u3001\u7ACB\u573A\u3001\u8BED\u8C03\u3001\u957F\u5EA6\u3001\u5173\u952E\u8981\u7D20\uFF09\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
+\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
 - \u274C \u9519\u8BEF\u793A\u4F8B\uFF1A\u4E0D\u8981\u5728\u6B63\u6587\u4E2D\u5199"\u52A8\u673A\uFF1Axxx"\u3001"\u8BED\u8C03\uFF1Axxx"\u8FD9\u6837\u7684\u6587\u5B57
 - \u2705 \u6B63\u786E\u505A\u6CD5\uFF1A\u6839\u636E\u8FD9\u4E9B\u53C2\u6570\u6765\u7EC4\u7EC7\u8BED\u8A00\u548C\u5185\u5BB9\uFF0C\u8BA9\u8BFB\u8005\u611F\u53D7\u5230\u76F8\u5E94\u7684\u52A8\u673A\u3001\u7ACB\u573A\u548C\u8BED\u8C03\uFF0C\u4F46\u4E0D\u8981\u660E\u786E\u8BF4\u51FA\u6765` : ""}
 ${sharedSummary ? `\u3010\u516C\u7528\u603B\u7ED3\u3011\uFF08\u8BF7\u53C2\u8003\uFF09\uFF1A
@@ -21454,18 +23110,18 @@ ${sectionKnowledgeContext ? `\u3010\u77E5\u8BC6\u5E93\u5185\u5BB9\u3011\uFF1A
 ${sectionKnowledgeContext}` : ""}${explainNote}
 \u3010\u6574\u4F53\u5199\u4F5C\u8981\u6C42\u3011\uFF1A
 ${enhancedPrompt}
-${typeOutputFormat ? `
+${typeOutputFormat2 ? `
 
 ---
 
-${typeOutputFormat}` : ""}
+${typeOutputFormat2}` : ""}
 
 \u3010\u91CD\u8981\u8981\u6C42\u3011\uFF1A
 1. **\u7EDD\u5BF9\u7981\u6B62**\uFF1A\u4E0D\u8981\u5728\u751F\u6210\u7684\u6BB5\u843D\u5185\u5BB9\u4E2D\u8F93\u51FA"\u52A8\u673A\uFF1Axxx"\u3001"\u7ACB\u573A\uFF1Axxx"\u3001"\u8BED\u8C03\uFF1Axxx"\u3001"\u5173\u952E\u8981\u7D20\uFF1Axxx"\u7B49\u53C2\u6570\u6587\u5B57
 2. **\u6B63\u786E\u505A\u6CD5**\uFF1A\u6839\u636E\u5199\u4F5C\u6307\u5BFC\u53C2\u6570\u6765\u7EC4\u7EC7\u5185\u5BB9\uFF0C\u8BA9\u5185\u5BB9\u81EA\u7136\u4F53\u73B0\u8FD9\u4E9B\u53C2\u6570\u7684\u8981\u6C42\uFF0C\u4F46\u4E0D\u8981\u660E\u786E\u8BF4\u51FA\u6765
 3. \u5FC5\u987B\u4E25\u683C\u9075\u5B88\u5B57\u6570\u8981\u6C42\uFF1A${section.length || "\u6839\u636E\u5185\u5BB9\u9700\u8981"}
 4. \u8F93\u51FA\u683C\u5F0F\uFF1A\u4F7F\u7528 <section> </section> \u5305\u88F9\u6574\u4E2A\u6BB5\u843D\u5185\u5BB9
-5. ${params.enable_markdown !== false ? `**Markdown \u683C\u5F0F\u8981\u6C42**\uFF08\u5FC5\u987B\u4E25\u683C\u9075\u5B88\uFF09\uFF1A
+5. ${shouldEnableMarkdown(params.writing_type, params.format) ? `**Markdown \u683C\u5F0F\u8981\u6C42**\uFF08\u5FC5\u987B\u4E25\u683C\u9075\u5B88\uFF09\uFF1A
    - \u6BB5\u843D\u6807\u9898\u5FC5\u987B\u4F7F\u7528 Markdown \u6807\u9898\u8BED\u6CD5\uFF1A\u4E00\u7EA7\u6807\u9898\u7528 #\uFF0C\u4E8C\u7EA7\u6807\u9898\u7528 ##\uFF0C\u4E09\u7EA7\u6807\u9898\u7528 ###
    - \u6839\u636E\u5927\u7EB2\u5C42\u7EA7\u4F7F\u7528\u5BF9\u5E94\u7684\u6807\u9898\u7EA7\u522B\uFF08\u4E3B\u7AE0\u8282\u7528 #\uFF0C\u5B50\u7AE0\u8282\u7528 ##\uFF0C\u5B50\u5B50\u7AE0\u8282\u7528 ###\uFF09
    - \u5217\u8868\u5FC5\u987B\u4F7F\u7528 Markdown \u5217\u8868\u8BED\u6CD5\uFF1A\u65E0\u5E8F\u5217\u8868\u7528 - \u6216 *\uFF0C\u6709\u5E8F\u5217\u8868\u7528 1. 2. 3.
@@ -21539,14 +23195,8 @@ ${typeOutputFormat}` : ""}
           if (previousMemory.length > 500) {
             previousMemory = await compressText(previousMemory, 500, provider);
           }
-          const sectionGuidance = [];
-          if (section.motivation) sectionGuidance.push(`\u52A8\u673A: ${section.motivation}`);
-          if (section.stance) sectionGuidance.push(`\u7ACB\u573A: ${section.stance}`);
-          if (section.tone) sectionGuidance.push(`\u8BED\u8C03: ${section.tone}`);
-          if (section.length) sectionGuidance.push(`\u957F\u5EA6: ${section.length}`);
-          if (section.key_elements && section.key_elements.length > 0) {
-            sectionGuidance.push(`\u5173\u952E\u8981\u7D20: ${section.key_elements.join("\u3001")}`);
-          }
+          const currentWritingType2 = params.writing_type || "articles";
+          const sectionGuidance = buildWritingGuidance(section, currentWritingType2);
           let sectionKnowledgeContext = "";
           let hasKnowledge2 = false;
           const hasSectionKnowledge = section.knowledgeBase && section.knowledgeBase.length > 0;
@@ -21570,19 +23220,18 @@ ${typeOutputFormat}` : ""}
             }
           }
           const explainNote = processStyle === "explain" && !hasKnowledge2 ? '\n\u26A0\uFE0F \u6CE8\u610F\uFF1A\u5F53\u524D\u6CA1\u6709\u627E\u5230\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\u5E93\u5185\u5BB9\uFF0C\u8BF7\u5728\u56DE\u7B54\u5F00\u5934\u4F7F\u7528"\u6211\u4EEC\u6CA1\u6709\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\uFF0C\u4F46\u662F\u6839\u636E\u6211\u7684\u4E86\u89E3"\u4F5C\u4E3A\u5F00\u5934\uFF0C\u7136\u540E\u7EE7\u7EED\u56DE\u7B54\u3002' : "";
-          const currentWritingType = params.writing_type || "articles";
-          const typeRules = getWritingTypeRules(currentWritingType);
-          const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+          const typeRules2 = getWritingTypeRules(currentWritingType2);
+          const typeOutputFormat2 = getWritingTypeOutputFormat(currentWritingType2);
           const sectionPrompt = `\u8BF7\u6839\u636E\u4EE5\u4E0B\u8981\u6C42\u751F\u6210\u6587\u7AE0\u6BB5\u843D\u5185\u5BB9\uFF1A
 
-${typeRules ? `${typeRules}
+${typeRules2 ? `${typeRules2}
 
 ---` : ""}
 \u3010\u6BB5\u843D\u6807\u9898\u3011\uFF1A${section.content}
 ${sectionGuidance.length > 0 ? `\u3010\u5199\u4F5C\u6307\u5BFC\u3011\uFF08\u91CD\u8981\uFF1A\u8FD9\u4E9B\u662F\u5199\u4F5C\u53C2\u6570\uFF0C\u7528\u4E8E\u6307\u5BFC\u4F60\u7684\u5199\u4F5C\u98CE\u683C\u548C\u5185\u5BB9\uFF0C\u7EDD\u5BF9\u4E0D\u8981\u76F4\u63A5\u8F93\u51FA\u8FD9\u4E9B\u53C2\u6570\u672C\u8EAB\uFF09\uFF1A
 ${sectionGuidance.join("\n")}
 
-\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\uFF08\u52A8\u673A\u3001\u7ACB\u573A\u3001\u8BED\u8C03\u3001\u957F\u5EA6\u3001\u5173\u952E\u8981\u7D20\uFF09\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
+\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
 - \u274C \u9519\u8BEF\u793A\u4F8B\uFF1A\u4E0D\u8981\u5728\u6B63\u6587\u4E2D\u5199"\u52A8\u673A\uFF1Axxx"\u3001"\u8BED\u8C03\uFF1Axxx"\u8FD9\u6837\u7684\u6587\u5B57
 - \u2705 \u6B63\u786E\u505A\u6CD5\uFF1A\u6839\u636E\u8FD9\u4E9B\u53C2\u6570\u6765\u7EC4\u7EC7\u8BED\u8A00\u548C\u5185\u5BB9\uFF0C\u8BA9\u8BFB\u8005\u611F\u53D7\u5230\u76F8\u5E94\u7684\u52A8\u673A\u3001\u7ACB\u573A\u548C\u8BED\u8C03\uFF0C\u4F46\u4E0D\u8981\u660E\u786E\u8BF4\u51FA\u6765` : ""}
 ${previousMemory ? `\u3010\u524D\u6587\u8BB0\u5FC6\u3011\uFF08\u8BF7\u53C2\u8003\uFF0C\u4FDD\u6301\u8FDE\u8D2F\u6027\uFF09\uFF1A
@@ -21591,18 +23240,18 @@ ${sectionKnowledgeContext ? `\u3010\u77E5\u8BC6\u5E93\u5185\u5BB9\u3011\uFF1A
 ${sectionKnowledgeContext}` : ""}${explainNote}
 \u3010\u6574\u4F53\u5199\u4F5C\u8981\u6C42\u3011\uFF1A
 ${enhancedPrompt}
-${typeOutputFormat ? `
+${typeOutputFormat2 ? `
 
 ---
 
-${typeOutputFormat}` : ""}
+${typeOutputFormat2}` : ""}
 
 \u3010\u91CD\u8981\u8981\u6C42\u3011\uFF1A
 1. **\u7EDD\u5BF9\u7981\u6B62**\uFF1A\u4E0D\u8981\u5728\u751F\u6210\u7684\u6BB5\u843D\u5185\u5BB9\u4E2D\u8F93\u51FA"\u52A8\u673A\uFF1Axxx"\u3001"\u7ACB\u573A\uFF1Axxx"\u3001"\u8BED\u8C03\uFF1Axxx"\u3001"\u5173\u952E\u8981\u7D20\uFF1Axxx"\u7B49\u53C2\u6570\u6587\u5B57
 2. **\u6B63\u786E\u505A\u6CD5**\uFF1A\u6839\u636E\u5199\u4F5C\u6307\u5BFC\u53C2\u6570\u6765\u7EC4\u7EC7\u5185\u5BB9\uFF0C\u8BA9\u5185\u5BB9\u81EA\u7136\u4F53\u73B0\u8FD9\u4E9B\u53C2\u6570\u7684\u8981\u6C42\uFF0C\u4F46\u4E0D\u8981\u660E\u786E\u8BF4\u51FA\u6765
 3. \u5FC5\u987B\u4E25\u683C\u9075\u5B88\u5B57\u6570\u8981\u6C42\uFF1A${section.length || "\u6839\u636E\u5185\u5BB9\u9700\u8981"}
 4. \u8F93\u51FA\u683C\u5F0F\uFF1A\u4F7F\u7528 <section> </section> \u5305\u88F9\u6574\u4E2A\u6BB5\u843D\u5185\u5BB9
-5. ${params.enable_markdown !== false ? `**Markdown \u683C\u5F0F\u8981\u6C42**\uFF08\u5FC5\u987B\u4E25\u683C\u9075\u5B88\uFF09\uFF1A
+5. ${shouldEnableMarkdown(params.writing_type, params.format) ? `**Markdown \u683C\u5F0F\u8981\u6C42**\uFF08\u5FC5\u987B\u4E25\u683C\u9075\u5B88\uFF09\uFF1A
    - \u6BB5\u843D\u6807\u9898\u5FC5\u987B\u4F7F\u7528 Markdown \u6807\u9898\u8BED\u6CD5\uFF1A\u4E00\u7EA7\u6807\u9898\u7528 #\uFF0C\u4E8C\u7EA7\u6807\u9898\u7528 ##\uFF0C\u4E09\u7EA7\u6807\u9898\u7528 ###
    - \u6839\u636E\u5927\u7EB2\u5C42\u7EA7\u4F7F\u7528\u5BF9\u5E94\u7684\u6807\u9898\u7EA7\u522B\uFF08\u4E3B\u7AE0\u8282\u7528 #\uFF0C\u5B50\u7AE0\u8282\u7528 ##\uFF0C\u5B50\u5B50\u7AE0\u8282\u7528 ###\uFF09
    - \u5217\u8868\u5FC5\u987B\u4F7F\u7528 Markdown \u5217\u8868\u8BED\u6CD5\uFF1A\u65E0\u5E8F\u5217\u8868\u7528 - \u6216 *\uFF0C\u6709\u5E8F\u5217\u8868\u7528 1. 2. 3.
@@ -21714,36 +23363,52 @@ ${typeOutputFormat}` : ""}
   }
   const taskType = "full";
   const modelName = selectModel(taskType);
+  const currentWritingType = params.writing_type || "articles";
+  const typeRules = getWritingTypeRules(currentWritingType);
+  const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
   let generatePrompt = enhancedPrompt;
+  if (params.writing_type === "lyrics" && params.format === "suno") {
+    const { lyricsConfig: lyricsConfig2 } = await Promise.resolve().then(() => (init_lyrics(), lyrics_exports));
+    const sunoFormat = lyricsConfig2.getSunoFormatRules();
+    generatePrompt = `${sunoFormat.rules}
+
+---
+
+${generatePrompt}`;
+  } else {
+    if (typeRules) {
+      generatePrompt = `${typeRules}
+
+---
+
+${generatePrompt}`;
+    }
+  }
   if (!params.outlines || params.outlines.length === 0) {
     if (params.knowledgeBase && params.knowledgeBase.length > 0) {
       const processStyle = params.process_style || "silent";
       if (processStyle === "explain" && !hasKnowledge) {
-        generatePrompt = `${enhancedPrompt}
+        generatePrompt = `${generatePrompt}
 
 \u26A0\uFE0F \u6CE8\u610F\uFF1A\u5F53\u524D\u6CA1\u6709\u627E\u5230\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\u5E93\u5185\u5BB9\uFF0C\u8BF7\u5728\u56DE\u7B54\u5F00\u5934\u4F7F\u7528"\u6211\u4EEC\u6CA1\u6709\u76F8\u5173\u7684\u4E13\u4E1A\u77E5\u8BC6\uFF0C\u4F46\u662F\u6839\u636E\u6211\u7684\u4E86\u89E3"\u4F5C\u4E3A\u5F00\u5934\uFF0C\u7136\u540E\u7EE7\u7EED\u56DE\u7B54\u3002`;
       }
     }
-    const writingGuidance = [];
-    if (params.motivation) writingGuidance.push(`\u52A8\u673A: ${params.motivation}`);
-    if (params.stance) writingGuidance.push(`\u7ACB\u573A: ${params.stance}`);
-    if (params.tone) writingGuidance.push(`\u8BED\u8C03: ${params.tone}`);
-    if (params.length) writingGuidance.push(`\u957F\u5EA6: ${params.length}`);
-    if (params.key_elements && params.key_elements.length > 0) {
-      writingGuidance.push(`\u5173\u952E\u8981\u7D20: ${params.key_elements.join("\u3001")}`);
-    }
+    const writingGuidance = buildWritingGuidance(params, currentWritingType);
     if (writingGuidance.length > 0) {
+      const paramList = getWritingParamsForType(currentWritingType);
+      const paramLabels = paramList.map((p) => getParamLabel(p, currentWritingType)).join("\u3001");
       generatePrompt = `${generatePrompt}
 
 \u3010\u5199\u4F5C\u6307\u5BFC\u3011\uFF08\u91CD\u8981\uFF1A\u8FD9\u4E9B\u662F\u5199\u4F5C\u53C2\u6570\uFF0C\u7528\u4E8E\u6307\u5BFC\u4F60\u7684\u5199\u4F5C\u98CE\u683C\u548C\u5185\u5BB9\uFF0C\u7EDD\u5BF9\u4E0D\u8981\u76F4\u63A5\u8F93\u51FA\u8FD9\u4E9B\u53C2\u6570\u672C\u8EAB\uFF09\uFF1A
 ${writingGuidance.join("\n")}
 
-\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\uFF08\u52A8\u673A\u3001\u7ACB\u573A\u3001\u8BED\u8C03\u3001\u957F\u5EA6\u3001\u5173\u952E\u8981\u7D20\uFF09\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
-- \u274C \u9519\u8BEF\u793A\u4F8B\uFF1A\u4E0D\u8981\u5728\u6B63\u6587\u4E2D\u5199"\u52A8\u673A\uFF1Axxx"\u3001"\u8BED\u8C03\uFF1Axxx"\u8FD9\u6837\u7684\u6587\u5B57
-- \u2705 \u6B63\u786E\u505A\u6CD5\uFF1A\u6839\u636E\u8FD9\u4E9B\u53C2\u6570\u6765\u7EC4\u7EC7\u8BED\u8A00\u548C\u5185\u5BB9\uFF0C\u8BA9\u8BFB\u8005\u611F\u53D7\u5230\u76F8\u5E94\u7684\u52A8\u673A\u3001\u7ACB\u573A\u548C\u8BED\u8C03\uFF0C\u4F46\u4E0D\u8981\u660E\u786E\u8BF4\u51FA\u6765`;
+\u26A0\uFE0F \u5173\u952E\u8981\u6C42\uFF1A\u8FD9\u4E9B\u53C2\u6570\uFF08${paramLabels}\uFF09\u662F\u7528\u6765\u6307\u5BFC\u4F60\u5982\u4F55\u5199\u4F5C\u7684\uFF0C\u4E0D\u662F\u8981\u8F93\u51FA\u7684\u5185\u5BB9\uFF01
+- \u274C \u9519\u8BEF\u793A\u4F8B\uFF1A\u4E0D\u8981\u5728\u6B63\u6587\u4E2D\u5199\u53C2\u6570\u540D\u79F0\u548C\u503C
+- \u2705 \u6B63\u786E\u505A\u6CD5\uFF1A\u6839\u636E\u8FD9\u4E9B\u53C2\u6570\u6765\u7EC4\u7EC7\u8BED\u8A00\u548C\u5185\u5BB9\uFF0C\u8BA9\u5185\u5BB9\u81EA\u7136\u4F53\u73B0\u8FD9\u4E9B\u53C2\u6570\u7684\u8981\u6C42\uFF0C\u4F46\u4E0D\u8981\u660E\u786E\u8BF4\u51FA\u6765`;
     }
   }
-  if (params.enable_markdown === false) {
+  const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
+  if (!enableMarkdown) {
     generatePrompt = `${generatePrompt}
 
 \u3010\u683C\u5F0F\u8981\u6C42\u3011\uFF1A
@@ -21759,6 +23424,23 @@ ${writingGuidance.join("\n")}
 - \u4F7F\u7528\u6807\u51C6 Markdown \u683C\u5F0F\u8F93\u51FA
 - \u53EF\u4EE5\u4F7F\u7528\u6807\u9898\uFF08#\uFF09\u3001\u5217\u8868\uFF08- \u6216 1.\uFF09\u3001\u5F15\u7528\uFF08>\uFF09\u3001\u8868\u683C\uFF08|\uFF09\u3001\u4EE3\u7801\u5757\uFF08\`\`\`\uFF09\u7B49 Markdown \u8BED\u6CD5
 - \u4FDD\u6301\u6BB5\u843D\u6E05\u6670\uFF0C\u903B\u8F91\u8FDE\u8D2F`;
+  }
+  if (params.writing_type !== "lyrics" || params.format !== "suno") {
+    if (typeOutputFormat) {
+      generatePrompt = `${generatePrompt}
+
+---
+
+${typeOutputFormat}`;
+    }
+  } else {
+    const { lyricsConfig: lyricsConfig2 } = await Promise.resolve().then(() => (init_lyrics(), lyrics_exports));
+    const sunoFormat = lyricsConfig2.getSunoFormatRules();
+    generatePrompt = `${generatePrompt}
+
+---
+
+${sunoFormat.outputformat}`;
   }
   if (previousContent) {
     generatePrompt = `\u8BF7\u57FA\u4E8E\u4EE5\u4E0B\u539F\u6587\u8FDB\u884C\u5199\u4F5C\uFF1A
@@ -22173,12 +23855,61 @@ async function startWritingTask(taskId) {
         break;
       }
       case "generate": {
+        const generateParams = params.params;
+        const writingType = generateParams.writing_type || "articles";
+        if (writingType === "outlines") {
+          await taskManager2.updateTaskProgress(taskId, {
+            progress: 30,
+            logs: ["\u5F00\u59CB\u751F\u6210\u5927\u7EB2"]
+          });
+          const outlineParams = {
+            uid: generateParams.metadata?.uid || `outline-${Date.now()}`,
+            prompt: generateParams.prompt,
+            writing_type: "outlines",
+            maxDepth: generateParams.maxDepth,
+            expectedNodes: generateParams.expectedNodes,
+            total_textcount: generateParams.total_textcount,
+            applyto: generateParams.applyto,
+            knowledgeBase: generateParams.knowledgeBase?.map((kb) => ({
+              knowledgeBaseId: kb.knowledgeBaseId,
+              query: kb.query,
+              limit: kb.limit
+            })),
+            process_style: generateParams.process_style,
+            outputFormat: "json"
+          };
+          const outlineResult = await generateOutline(
+            {
+              uid: outlineParams.uid,
+              prompt: outlineParams.prompt,
+              maxDepth: outlineParams.maxDepth,
+              expectedNodes: outlineParams.expectedNodes,
+              total_textcount: outlineParams.total_textcount,
+              applyto: outlineParams.applyto,
+              knowledgeBase: outlineParams.knowledgeBase
+            },
+            params.userId,
+            params.provider
+          );
+          await taskManager2.updateTaskProgress(taskId, {
+            progress: 90,
+            logs: ["\u5927\u7EB2\u751F\u6210\u5B8C\u6210"]
+          });
+          result = {
+            outline: outlineResult,
+            metadata: {
+              type: "outlines",
+              uid: outlineParams.uid,
+              outline: outlineResult
+              // 将大纲内容存储在 metadata 中，方便直接返回
+            }
+          };
+          break;
+        }
         await taskManager2.updateTaskProgress(taskId, {
           progress: 10,
           logs: ["\u5F00\u59CB\u751F\u6210\u6587\u7AE0"]
         });
-        const generateParams = params.params;
-        const writingType = generateParams.writing_type || "articles";
         const onProgress = async (progress, message) => {
           await taskManager2.updateTaskProgress(taskId, {
             progress,
@@ -26764,6 +28495,7 @@ var sensitivesWords = [
 
 // src/routes/writing.ts
 init_deerapi_client();
+init_wtconfigs();
 var router11 = (0, import_express11.Router)();
 router11.post("/outline", async (req, res) => {
   try {
@@ -26801,6 +28533,8 @@ router11.post("/outline", async (req, res) => {
             prompt: params.prompt,
             maxDepth: params.maxDepth,
             expectedNodes: params.expectedNodes,
+            total_textcount: params.total_textcount,
+            applyto: params.applyto,
             knowledgeBase: params.knowledgeBase
           },
           userId,
@@ -26940,6 +28674,8 @@ router11.post("/generate", async (req, res) => {
     const taskManager2 = taskExecutor.getTaskManager();
     const writingType = params.writing_type || "articles";
     const taskMetadata = params.metadata || {};
+    const isOutlinesType = writingType === "outlines";
+    const shouldStoreToMinio = isOutlinesType ? false : params.storeToMinio !== false;
     const createResponse = await taskManager2.createTask({
       type: "writing",
       model: "writing-generate",
@@ -26962,7 +28698,7 @@ router11.post("/generate", async (req, res) => {
         provider: req.query.provider
       },
       userId,
-      storeToMinio: params.storeToMinio !== false
+      storeToMinio: shouldStoreToMinio
     });
     taskExecutor.executeTask({
       taskId: createResponse.taskId,
@@ -26978,7 +28714,7 @@ router11.post("/generate", async (req, res) => {
         provider: req.query.provider
       },
       userId,
-      storeToMinio: params.storeToMinio !== false
+      storeToMinio: shouldStoreToMinio
     }).catch((error) => {
       console.error(`[Writing Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
     });
@@ -27396,6 +29132,49 @@ router11.get("/document", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+router11.get("/getformOptions", (req, res) => {
+  try {
+    const { writing_type, lang } = req.query;
+    const language = lang || "zh";
+    if (language !== "zh" && language !== "en") {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid language parameter",
+        message: 'lang must be "zh" or "en"'
+      });
+    }
+    if (!writing_type) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing writing_type parameter",
+        message: "Please specify writing_type (e.g., articles, outlines, lyrics)"
+      });
+    }
+    const formOptions = getWritingFormOptionsForType(writing_type, language);
+    if (!formOptions) {
+      return res.status(404).json({
+        success: false,
+        error: "Form options not found",
+        message: `Form options for writing_type "${writing_type}" are not available`
+      });
+    }
+    return res.json({
+      success: true,
+      data: {
+        writingType: writing_type,
+        language,
+        options: formOptions
+      }
+    });
+  } catch (error) {
+    console.error("[Writing Route] \u83B7\u53D6\u8868\u5355\u9009\u9879\u5931\u8D25:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to get form options",
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 });

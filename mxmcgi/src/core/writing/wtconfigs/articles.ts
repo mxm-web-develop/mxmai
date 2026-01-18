@@ -2,7 +2,11 @@
  * 文章写作类型配置
  * 用于为 articles 类型的写作任务提供系统提示词和格式要求
  */
-export const articlesConfig = {
+
+import type { WritingTypeConfig } from './index';
+import type { FormOptionsConfig, FieldMetadata } from '../../shared/formOptions';
+
+export const articlesConfig: WritingTypeConfig = {
   /**
    * 文章写作规则和指导原则
    * 这些规则会被整合到生成 prompt 中，指导 AI 生成高质量的文章
@@ -98,5 +102,123 @@ export const articlesConfig = {
    - 保持结构完整，不缺少关键部分
    - 各部分比例协调，重点突出
    - 结构服务于内容，确保逻辑清晰
-   - 根据文章类型和长度灵活调整结构`
+   - 根据文章类型和长度灵活调整结构`,
+
+  /**
+   * 获取文章类型需要的参数列表
+   */
+  getParamsForType(): string[] {
+    return ['motivation', 'stance', 'tone', 'length', 'key_elements'];
+  },
+
+  /**
+   * 获取表单选项配置
+   */
+  getFormOptions(language: 'zh' | 'en' = 'zh'): FormOptionsConfig {
+    const isZh = language === 'zh';
+
+    const articlesFormOptionsZh: FormOptionsConfig = {
+      // Select 类型字段
+      stance: [
+        { value: 'neutral', label: '中立客观', labelEn: 'Neutral' },
+        { value: 'supportive', label: '支持赞同', labelEn: 'Supportive' },
+        { value: 'critical', label: '批判质疑', labelEn: 'Critical' },
+      ],
+      tone: [
+        { value: 'formal', label: '正式严谨', labelEn: 'Formal' },
+        { value: 'casual', label: '轻松随意', labelEn: 'Casual' },
+        { value: 'professional', label: '专业权威', labelEn: 'Professional' },
+        { value: 'friendly', label: '友好亲切', labelEn: 'Friendly' },
+      ],
+      length: [
+        { value: 'short', label: '短篇（500-1000字）', labelEn: 'Short (500-1000 words)' },
+        { value: 'medium', label: '中篇（1000-3000字）', labelEn: 'Medium (1000-3000 words)' },
+        { value: 'long', label: '长篇（3000字以上）', labelEn: 'Long (3000+ words)' },
+      ],
+      key_elements: [
+        { value: 'data', label: '数据支撑', labelEn: 'Data Support' },
+        { value: 'examples', label: '案例说明', labelEn: 'Examples' },
+        { value: 'quotes', label: '引用参考', labelEn: 'Quotes' },
+        { value: 'analysis', label: '深度分析', labelEn: 'Deep Analysis' },
+      ],
+
+      // 元数据（为所有字段提供中文标签）
+      _metadata: {
+        motivation: {
+          type: 'textarea',
+          label: '写作动机',
+          labelEn: 'Motivation',
+          placeholder: '请描述写作的动机和目的...',
+          placeholderEn: 'Describe the motivation and purpose...',
+          helpText: '说明为什么要写这篇文章，想要达到什么目的',
+          helpTextEn: 'Explain why you are writing this article',
+        },
+        stance: {
+          type: 'select',
+          label: '立场',
+          labelEn: 'Stance',
+          helpText: '选择文章的立场和态度',
+          helpTextEn: 'Select the stance and attitude',
+        },
+        tone: {
+          type: 'select',
+          label: '语调',
+          labelEn: 'Tone',
+          helpText: '选择文章的语言风格',
+          helpTextEn: 'Select the language style',
+        },
+        length: {
+          type: 'select',
+          label: '长度',
+          labelEn: 'Length',
+          helpText: '选择文章的长度',
+          helpTextEn: 'Select the article length',
+        },
+        key_elements: {
+          type: 'multi-select',
+          label: '关键要素',
+          labelEn: 'Key Elements',
+          helpText: '选择文章需要包含的关键要素',
+          helpTextEn: 'Select key elements to include',
+        },
+      },
+    };
+
+    if (language === 'en') {
+      // 英文版本
+      return {
+        stance: articlesFormOptionsZh.stance.map(opt => ({
+          value: opt.value,
+          label: opt.labelEn || opt.value,
+        })),
+        tone: articlesFormOptionsZh.tone.map(opt => ({
+          value: opt.value,
+          label: opt.labelEn || opt.value,
+        })),
+        length: articlesFormOptionsZh.length.map(opt => ({
+          value: opt.value,
+          label: opt.labelEn || opt.value,
+        })),
+        key_elements: articlesFormOptionsZh.key_elements.map(opt => ({
+          value: opt.value,
+          label: opt.labelEn || opt.value,
+        })),
+        _metadata: {
+          motivation: {
+            ...articlesFormOptionsZh._metadata!.motivation,
+            label: articlesFormOptionsZh._metadata!.motivation.labelEn || 'Motivation',
+            placeholder: articlesFormOptionsZh._metadata!.motivation.placeholderEn,
+            helpText: articlesFormOptionsZh._metadata!.motivation.helpTextEn,
+          },
+          key_elements: {
+            ...articlesFormOptionsZh._metadata!.key_elements,
+            label: articlesFormOptionsZh._metadata!.key_elements.labelEn || 'Key Elements',
+            helpText: articlesFormOptionsZh._metadata!.key_elements.helpTextEn,
+          },
+        },
+      };
+    }
+
+    return articlesFormOptionsZh;
+  },
 }

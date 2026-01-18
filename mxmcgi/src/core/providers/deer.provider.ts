@@ -423,8 +423,9 @@ export class DeerProvider implements ModelProvider {
         // 可以在这里添加下载并转换为 Base64 的逻辑
       }
 
-      // 获取宽高比
+      // 获取宽高比和图片尺寸
       const aspectRatio = params.parameters?.aspect_ratio || params.parameters?.aspectRatio;
+      const imageSize = params.parameters?.image_size || params.parameters?.imageSize;
 
       // 调用 Gemini generateContent 接口
       const response = await this.client.generateContent({
@@ -432,6 +433,7 @@ export class DeerProvider implements ModelProvider {
         prompt: params.prompt,
         imageInputs: imageInputs.length > 0 ? imageInputs : undefined,
         aspectRatio,
+        imageSize: imageSize as '1K' | '2K' | '4K' | undefined,
         responseModalities: ['IMAGE'], // 强制只返回图片，避免只返回文本
       });
 

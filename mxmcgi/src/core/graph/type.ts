@@ -20,6 +20,7 @@ export const DESIGN_TYPE_MAP = {
   manual: '使用手册',
   poster: '画报',
   icon: '图标',
+  coverImage: '封面图片',
 } as const;
 
 export const PAINTING_TYPE_MAP = {
@@ -74,7 +75,7 @@ export interface PhotographParams {
 // Design接口 - 兼容所有设计小类型
 // type值使用英文，可通过DESIGN_TYPE_MAP获取中文翻译
 export interface DesignParams {
-  type: '3d' | 'manual' | 'poster' | 'icon';
+  type: '3d' | 'manual' | 'poster' | 'icon' | 'coverImage';
   prompt: string;
   
   // 3D related parameters (optional)
@@ -95,6 +96,18 @@ export interface DesignParams {
   // Icon (图标) related parameters (optional)
   iconStyle?: string;     // Icon style
   size?: string;          // Size
+  
+  // CoverImage (封面图片) related parameters (optional)
+  subjectImage?: string | string[] | ReferenceImage[]; // 主体图片（人物/角色等）
+  backgroundImage?: string | string[] | ReferenceImage[]; // 背景图片
+  title?: string;         // 封面主题文字（主标题）
+  subtitle?: string;      // 副标题
+  textStyle?: string;     // 文字风格（粗体、阴影、描边等）
+  textColor?: string;     // 文字颜色
+  textPosition?: string;  // 文字位置（左上、居中、右下等）
+  layoutStyle?: string;   // 布局风格（左右分栏、上下分栏等）
+  visualEffects?: string; // 视觉效果（模糊、渐变等）
+  coverTheme?: string;    // 封面主题风格（新闻、娱乐、教育等）
   
   // Common parameters
   knowledgeBase?: KnowledgeBaseConfig[];

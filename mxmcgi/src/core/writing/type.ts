@@ -9,8 +9,7 @@ export type WritingType =
   | 'lyrics'
   | 'articles'
   | 'media-post'
-  | 'movie-scripts'
-  | 'ad-scripts'
+  | 'storyboard-scripts'
   | 'reviews'
   | 'resumes'
   | 'voice-scripts';
@@ -46,6 +45,10 @@ export interface OutlineParams {
 
  /** 期望生成的大纲节点总数（大致控制篇幅），可选 */
  expectedNodes?: number;
+ /** 文字总量，将平均分布到每个节点，可选 */
+ total_textcount?: number;
+ /** 大纲要用于生成什么内容，可选（除 outlines 和 suno-lyrics 外的所有写作类型） */
+ applyto?: Exclude<WritingType, 'outlines' | 'suno-lyrics'>;
  /** 流式输出：'stream' | 'json'，默认 'json' */
  outputFormat?: 'stream' | 'json';
   knowledgeBase?: {
@@ -69,11 +72,16 @@ export interface WritingGenerateParams {
   storage_form?: string;
   //默认true
   storeToMinio?: boolean;
-  // 流式输出：'stream' | 'json'，默认 'json'
+  /** 输出格式，可选参数
+   * - 'stream': 流式输出模式，实时返回生成内容（SSE）
+   * - 'json': 异步任务模式，返回 taskId，需要轮询查询结果（默认）
+   * 注意：如果不传此参数，默认使用异步任务模式
+   * 如果 storeToMinio === false，会自动使用流式模式
+   */
   outputFormat?: 'stream' | 'json';
-  /** 是否启用 Markdown 格式输出，默认 true
-   * - true: 输出标准 Markdown 格式（包括标题、列表、引用、表格等）
-   * - false: 输出纯文本格式（只有空格和换行，不使用 Markdown 语法）
+  /** @deprecated 已废弃：enable_markdown 参数不再使用，系统会根据 writing_type 自动判断
+   * - outlines 类型：返回 JSON 格式
+   * - 其他类型：默认使用 Markdown 格式
    */
   enable_markdown?: boolean;
   /** 生成模式，默认 'parallel'
@@ -102,6 +110,11 @@ export interface WritingGenerateParams {
   tone?: string;
   length?: string;
   key_elements?: string[];
+  /** 歌词格式（仅对 lyrics 类型有效）
+   * - 'default': 默认格式，输出 Markdown 格式的歌词
+   * - 'suno': Suno AI 格式，输出纯文本歌词（不带 Markdown 符号），遵循 Suno AI 的提示词规则
+   */
+  format?: 'default' | 'suno';
 }
 
 //POST /api/v1/writing/rewriting

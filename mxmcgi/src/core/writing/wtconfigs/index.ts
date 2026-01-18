@@ -7,16 +7,32 @@ import { articlesConfig } from './articles';
 import { lyricsConfig } from './lyrics';
 import { outlinesConfig } from './outlines';
 import { mediaPostConfig } from './media-post';
-import { movieScriptsConfig } from './movie-scripts';
-import { adScriptsConfig } from './ad-scripts';
+import { storyboardScriptsConfig } from './storyboard-scripts';
 import { reviewsConfig } from './reviews';
 import { resumesConfig } from './resumes';
 import { voiceScriptsConfig } from './voice-scripts';
 import type { WritingType } from '../type';
+import type { FormOptionsConfig } from '../../shared/formOptions';
 
 export interface WritingTypeConfig {
   rules: string;
   outputformat: string;
+  /**
+   * 获取该类型需要的参数列表
+   * @returns 参数名数组，如果未定义则使用默认参数列表
+   */
+  getParamsForType?(): string[];
+  /**
+   * 获取表单选项配置
+   * @param language 语言代码
+   * @returns 表单选项配置，如果未定义则返回 null
+   */
+  getFormOptions?(language: 'zh' | 'en'): FormOptionsConfig | null;
+  /**
+   * 获取 Suno AI 格式的规则和输出格式（仅 lyrics 类型支持）
+   * @returns Suno 格式的规则和输出格式
+   */
+  getSunoFormatRules?(): { rules: string; outputformat: string };
 }
 
 /**
@@ -28,8 +44,7 @@ const CONFIG_MAP: Record<string, WritingTypeConfig> = {
   lyrics: lyricsConfig,
   outlines: outlinesConfig,
   'media-post': mediaPostConfig,
-  'movie-scripts': movieScriptsConfig,
-  'ad-scripts': adScriptsConfig,
+  'storyboard-scripts': storyboardScriptsConfig,
   reviews: reviewsConfig,
   resumes: resumesConfig,
   'voice-scripts': voiceScriptsConfig,
@@ -104,3 +119,134 @@ export function getWritingTypeOutputFormat(writingType?: WritingType): string {
   return config.outputformat || '';
 }
 
+/**
+ * 根据 writing_type 获取该类型需要的参数列表
+ * @param writingType 写作类型
+ * @returns 参数列表，如果类型不存在或未定义则返回默认参数列表
+ */
+export function getWritingParamsForType(writingType?: WritingType): string[] {
+  const config = getWritingTypeConfig(writingType);
+  if (config && typeof config.getParamsForType === 'function') {
+    return config.getParamsForType();
+  }
+  // 默认返回通用参数（向后兼容）
+  return ['motivation', 'stance', 'tone', 'length', 'key_elements'];
+}
+
+/**
+ * 提取业务参数（根据类型动态提取）
+ * @param params 完整的参数对象
+ * @param writingType 写作类型
+ * @returns 提取的业务参数对象
+ */
+export function extractWritingBusinessParams(
+  params: any,
+  writingType?: WritingType
+): Record<string, any> {
+  const businessParams: Record<string, any> = {};
+  const paramList = getWritingParamsForType(writingType);
+
+  for (const paramName of paramList) {
+    const paramValue = params[paramName];
+    if (paramValue !== undefined && paramValue !== null && paramValue !== '') {
+      // 处理数组类型（如 key_elements）
+      if (Array.isArray(paramValue) && paramValue.length > 0) {
+        businessParams[paramName] = paramValue;
+      } else if (!Array.isArray(paramValue)) {
+        businessParams[paramName] = paramValue;
+      }
+    }
+  }
+
+  return businessParams;
+}
+
+/**
+ * 获取写作类型的表单选项配置
+ * @param writingType 写作类型
+ * @param language 语言代码
+ * @returns 表单选项配置，如果类型不存在或未定义则返回 null
+ */
+export function getWritingFormOptionsForType(
+  writingType?: WritingType,
+  language: 'zh' | 'en' = 'zh'
+): FormOptionsConfig | null {
+  const config = getWritingTypeConfig(writingType);
+  if (config && typeof config.getFormOptions === 'function') {
+    return config.getFormOptions(language);
+  }
+  return null;
+}
+
+/**
+ * 获取参数的中文标签
+ * @param paramName 参数名
+ * @param writingType 写作类型
+ * @param language 语言代码
+ * @returns 参数标签，如果不存在则返回参数名本身
+ */
+export function getParamLabel(
+  paramName: string,
+  writingType?: WritingType,
+  language: 'zh' | 'en' = 'zh'
+): string {
+  // 尝试从表单配置中获取标签
+  const formOptions = getWritingFormOptionsForType(writingType, language);
+  if (formOptions) {
+    // 从 _metadata 获取
+    if (formOptions._metadata && formOptions._metadata[paramName]) {
+      const metadata = formOptions._metadata[paramName];
+      if (language === 'en' && metadata.labelEn) {
+        return metadata.labelEn;
+      }
+      return metadata.label || paramName;
+    }
+  }
+
+  // 默认参数标签映射（通用参数）
+  const defaultLabels: Record<string, { zh: string; en: string }> = {
+    motivation: { zh: '动机', en: 'Motivation' },
+    stance: { zh: '立场', en: 'Stance' },
+    tone: { zh: '语调', en: 'Tone' },
+    length: { zh: '长度', en: 'Length' },
+    key_elements: { zh: '关键要素', en: 'Key Elements' },
+    maxDepth: { zh: '大纲深度', en: 'Max Depth' },
+    expectedNodes: { zh: '期望节点数', en: 'Expected Nodes' },
+    total_textcount: { zh: '文字总量', en: 'Total Text Count' },
+    applyto: { zh: '应用于', en: 'Apply To' },
+    sceneCount: { zh: '场景数量', en: 'Scene Count' },
+    characterCount: { zh: '角色数量', en: 'Character Count' },
+    dialogueStyle: { zh: '对话风格', en: 'Dialogue Style' },
+    genre: { zh: '类型', en: 'Genre' },
+    duration: { zh: '时长（秒）', en: 'Duration (seconds)' },
+    scriptType: { zh: '脚本类型', en: 'Script Type' },
+    targetAudience: { zh: '目标受众', en: 'Target Audience' },
+    adType: { zh: '广告类型', en: 'Ad Type' },
+    productInfo: { zh: '产品信息', en: 'Product Information' },
+    callToAction: { zh: '行动号召', en: 'Call to Action' },
+    adLength: { zh: '广告时长', en: 'Ad Length' },
+    workYears: { zh: '工作年限', en: 'Work Years' },
+    industry: { zh: '行业领域', en: 'Industry' },
+    skillFocus: { zh: '技能重点', en: 'Skill Focus' },
+    targetPosition: { zh: '目标职位', en: 'Target Position' },
+    highlightAchievements: { zh: '突出成就', en: 'Highlight Achievements' },
+    musicStyle: { zh: '音乐风格', en: 'Music Style' },
+    emotion: { zh: '情感基调', en: 'Emotion' },
+    rhyme: { zh: '押韵方式', en: 'Rhyme' },
+    theme: { zh: '主题内容', en: 'Theme' },
+    platform: { zh: '平台', en: 'Platform' },
+    hashtags: { zh: '话题标签', en: 'Hashtags' },
+    reviewType: { zh: '评论类型', en: 'Review Type' },
+    rating: { zh: '评分', en: 'Rating' },
+    focusAreas: { zh: '关注重点', en: 'Focus Areas' },
+    comparison: { zh: '对比对象', en: 'Comparison' },
+  };
+
+  const label = defaultLabels[paramName];
+  if (label) {
+    return language === 'en' ? label.en : label.zh;
+  }
+
+  // 如果找不到，返回参数名本身
+  return paramName;
+}

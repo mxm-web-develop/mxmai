@@ -1053,6 +1053,9 @@ export async function generateGraphPrompt(
         recallResult = await retrieveSystemKnowledgeForPoster(params as DesignParams, userId);
       } else if (type === 'icon') {
         recallResult = await retrieveSystemKnowledgeForIcon(params as DesignParams, userId);
+      } else if (type === 'coverImage') {
+        // coverImage 类型暂时不实现知识库召回，后续可以添加
+        console.log(`[GraphService] coverImage 类型暂未实现知识库召回，跳过`);
       }
     }
     // Painting 类型
@@ -1089,6 +1092,7 @@ export async function generateGraphPrompt(
   let processedReferenceImages: ReferenceImage[] = [];
   let referenceImagePrompt = '';
   
+  // 处理通用参考图
   if (params.referenceImage) {
     // 转换旧格式（string | string[]）为新格式（ReferenceImage[]）
     // 检查是否为旧格式：string 或 string[]（不是 ReferenceImage[]）
@@ -1116,6 +1120,66 @@ export async function generateGraphPrompt(
     if (processedReferenceImages.length > 0) {
       referenceImagePrompt = buildReferenceImagePrompt(processedReferenceImages, outputLanguage);
       console.log(`[GraphService] 参考图提示词补充 (${processedReferenceImages.length} 张):`, referenceImagePrompt);
+    }
+  }
+  
+  // 处理 coverImage 类型的特殊图片（subjectImage 和 backgroundImage）
+  if (graphType === 'design' && type === 'coverImage') {
+    const designParams = params as DesignParams;
+    
+    // 处理主体图片
+    if (designParams.subjectImage) {
+      let processedSubjectImages: ReferenceImage[] = [];
+      if (typeof designParams.subjectImage === 'string') {
+        processedSubjectImages = convertLegacyReferenceImage(designParams.subjectImage);
+      } else if (Array.isArray(designParams.subjectImage)) {
+        if (designParams.subjectImage.length > 0 && typeof designParams.subjectImage[0] === 'string') {
+          processedSubjectImages = convertLegacyReferenceImage(designParams.subjectImage as string[]);
+        } else {
+          processedSubjectImages = designParams.subjectImage as ReferenceImage[];
+        }
+      } else {
+        processedSubjectImages = [designParams.subjectImage as ReferenceImage];
+      }
+      
+      // 将主体图片合并到参考图列表中（标记为 subject）
+      processedSubjectImages.forEach(img => {
+        (img as any).role = 'subject'; // 标记为主体图片
+      });
+      processedReferenceImages = [...processedReferenceImages, ...processedSubjectImages];
+      (params as any).subjectImage = processedSubjectImages;
+      
+      console.log(`[GraphService] 主体图片处理完成 (${processedSubjectImages.length} 张)`);
+    }
+    
+    // 处理背景图片
+    if (designParams.backgroundImage) {
+      let processedBackgroundImages: ReferenceImage[] = [];
+      if (typeof designParams.backgroundImage === 'string') {
+        processedBackgroundImages = convertLegacyReferenceImage(designParams.backgroundImage);
+      } else if (Array.isArray(designParams.backgroundImage)) {
+        if (designParams.backgroundImage.length > 0 && typeof designParams.backgroundImage[0] === 'string') {
+          processedBackgroundImages = convertLegacyReferenceImage(designParams.backgroundImage as string[]);
+        } else {
+          processedBackgroundImages = designParams.backgroundImage as ReferenceImage[];
+        }
+      } else {
+        processedBackgroundImages = [designParams.backgroundImage as ReferenceImage];
+      }
+      
+      // 将背景图片合并到参考图列表中（标记为 background）
+      processedBackgroundImages.forEach(img => {
+        (img as any).role = 'background'; // 标记为背景图片
+      });
+      processedReferenceImages = [...processedReferenceImages, ...processedBackgroundImages];
+      (params as any).backgroundImage = processedBackgroundImages;
+      
+      console.log(`[GraphService] 背景图片处理完成 (${processedBackgroundImages.length} 张)`);
+    }
+    
+    // 更新 processedReferenceImages 到 params
+    if (processedReferenceImages.length > 0) {
+      (params as any).referenceImage = processedReferenceImages;
     }
   }
 
@@ -1156,6 +1220,9 @@ export async function generateGraphPrompt(
     } else if (type === 'icon') {
       const { buildIconUserPrompt } = require('./graphconfigs/design/icon');
       effectiveUserPrompt = buildIconUserPrompt(params as DesignParams, outputLanguage);
+    } else if (type === 'coverImage') {
+      const { buildCoverImageUserPrompt } = require('./graphconfigs/design/coverImage');
+      effectiveUserPrompt = buildCoverImageUserPrompt(params as DesignParams, outputLanguage);
     }
   }
   // Painting 类型
@@ -1299,9 +1366,15 @@ export async function generateGraphImage(
     // nano-banana 支持 aspect_ratio 参数
     imageParams.aspect_ratio = aspect_ratio;
     imageParams.prompt = generatedPrompt;
+    // nano-banana 默认使用 4K 画质
+    imageParams.image_size = '4K';
   }
 
   // 处理参考图（支持新格式和旧格式）
+  // 对于 coverImage 类型，需要合并 subjectImage 和 backgroundImage
+  let allReferenceImages: ReferenceImage[] = [];
+  
+  // 首先处理通用参考图
   if (referenceImage) {
     let processedReferenceImages: ReferenceImage[] = [];
     
@@ -1326,6 +1399,52 @@ export async function generateGraphImage(
       // 不应该到达这里，但为了类型安全
       processedReferenceImages = [];
     }
+    
+    allReferenceImages = [...allReferenceImages, ...processedReferenceImages];
+  }
+  
+  // 对于 coverImage 类型，还需要处理 subjectImage 和 backgroundImage（可选）
+  if (graphType === 'design' && (params as DesignParams).type === 'coverImage') {
+    const designParams = params as DesignParams;
+    
+    // 处理主体图片（可选）
+    if (designParams.subjectImage) {
+      let processedSubjectImages: ReferenceImage[] = [];
+      if (typeof designParams.subjectImage === 'string') {
+        processedSubjectImages = convertLegacyReferenceImage(designParams.subjectImage);
+      } else if (Array.isArray(designParams.subjectImage)) {
+        if (designParams.subjectImage.length > 0 && typeof designParams.subjectImage[0] === 'string') {
+          processedSubjectImages = convertLegacyReferenceImage(designParams.subjectImage as string[]);
+        } else {
+          processedSubjectImages = designParams.subjectImage as ReferenceImage[];
+        }
+      } else {
+        processedSubjectImages = [designParams.subjectImage as ReferenceImage];
+      }
+      allReferenceImages = [...allReferenceImages, ...processedSubjectImages];
+    }
+    
+    // 处理背景图片（可选）
+    if (designParams.backgroundImage) {
+      let processedBackgroundImages: ReferenceImage[] = [];
+      if (typeof designParams.backgroundImage === 'string') {
+        processedBackgroundImages = convertLegacyReferenceImage(designParams.backgroundImage);
+      } else if (Array.isArray(designParams.backgroundImage)) {
+        if (designParams.backgroundImage.length > 0 && typeof designParams.backgroundImage[0] === 'string') {
+          processedBackgroundImages = convertLegacyReferenceImage(designParams.backgroundImage as string[]);
+        } else {
+          processedBackgroundImages = designParams.backgroundImage as ReferenceImage[];
+        }
+      } else {
+        processedBackgroundImages = [designParams.backgroundImage as ReferenceImage];
+      }
+      allReferenceImages = [...allReferenceImages, ...processedBackgroundImages];
+    }
+  }
+  
+  // 使用合并后的所有参考图
+  if (allReferenceImages.length > 0) {
+    const processedReferenceImages = allReferenceImages;
     
     if (processedReferenceImages.length > 0) {
       // 处理参考图，转换为模型可接受的格式

@@ -12,6 +12,7 @@ import { get3dFormOptions } from './design/3d/formOptions';
 import { getManualFormOptions } from './design/manual/formOptions';
 import { getPosterFormOptions } from './design/poster/formOptions';
 import { getIconFormOptions } from './design/icon/formOptions';
+import { getCoverImageFormOptions } from './design/coverImage/formOptions';
 import { getIllustrationFormOptions } from './painting/illustration/formOptions';
 import { getComicFormOptions } from './painting/comic/formOptions';
 import { getConceptArtFormOptions } from './painting/conceptArt/formOptions';
@@ -52,6 +53,8 @@ export function getFormOptionsForType(
       return getPosterFormOptions(language);
     } else if (type === 'icon') {
       return getIconFormOptions(language);
+    } else if (type === 'coverImage') {
+      return getCoverImageFormOptions(language);
     }
   }
   // Painting 类型

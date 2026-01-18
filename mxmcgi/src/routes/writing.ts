@@ -17,6 +17,7 @@ import type {
   SyncToTaskParams,
 } from '../core/writing/type';
 import { DeerAPIClient } from '../core/utils/deerapi-client';
+import { getWritingFormOptionsForType } from '../core/writing/wtconfigs';
 
 const router = Router();
 
@@ -69,6 +70,8 @@ router.post('/outline', async (req: Request, res: Response) => {
             prompt: params.prompt,
             maxDepth: params.maxDepth,
             expectedNodes: params.expectedNodes,
+            total_textcount: params.total_textcount,
+            applyto: params.applyto,
             knowledgeBase: params.knowledgeBase,
           },
           userId,
@@ -234,6 +237,11 @@ router.post('/generate', async (req: Request, res: Response) => {
     const writingType = params.writing_type || 'articles';
     // 确保 metadata 中包含 writing_type_label（如果前端传递了）
     const taskMetadata = params.metadata || {};
+    
+    // outlines 类型特殊处理：不存储到 MinIO，返回 JSON 格式
+    const isOutlinesType = writingType === 'outlines';
+    const shouldStoreToMinio = isOutlinesType ? false : (params.storeToMinio !== false);
+    
     const createResponse = await taskManager.createTask({
       type: 'writing',
       model: 'writing-generate',
@@ -253,7 +261,7 @@ router.post('/generate', async (req: Request, res: Response) => {
         provider: req.query.provider as string | undefined,
       },
       userId,
-      storeToMinio: params.storeToMinio !== false,
+      storeToMinio: shouldStoreToMinio,
     });
 
     // 异步执行任务
@@ -271,7 +279,7 @@ router.post('/generate', async (req: Request, res: Response) => {
         provider: req.query.provider as string | undefined,
       },
       userId,
-      storeToMinio: params.storeToMinio !== false,
+      storeToMinio: shouldStoreToMinio,
     }).catch((error) => {
       console.error(`[Writing Route] 任务执行失败 (taskId: ${createResponse.taskId}):`, error);
     });
@@ -800,6 +808,65 @@ router.get('/document', async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
+ * GET /api/v1/writing/getformOptions
+ * 获取写作类型的表单选项配置
+ * Query params:
+ *   - writing_type: 写作类型（如 articles, outlines, lyrics 等）
+ *   - lang: 语言代码 'zh' | 'en' (默认 'zh')
+ */
+router.get('/getformOptions', (req: Request, res: Response) => {
+  try {
+    const { writing_type, lang } = req.query;
+    const language = (lang as 'zh' | 'en') || 'zh';
+
+    // 验证语言参数
+    if (language !== 'zh' && language !== 'en') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid language parameter',
+        message: 'lang must be "zh" or "en"',
+      });
+    }
+
+    // 如果没有指定 writing_type，返回错误
+    if (!writing_type) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing writing_type parameter',
+        message: 'Please specify writing_type (e.g., articles, outlines, lyrics)',
+      });
+    }
+
+    // 获取表单选项
+    const formOptions = getWritingFormOptionsForType(writing_type as any, language);
+    
+    if (!formOptions) {
+      return res.status(404).json({
+        success: false,
+        error: 'Form options not found',
+        message: `Form options for writing_type "${writing_type}" are not available`,
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        writingType: writing_type,
+        language,
+        options: formOptions,
+      },
+    });
+  } catch (error) {
+    console.error('[Writing Route] 获取表单选项失败:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get form options',
+      message: error instanceof Error ? error.message : String(error),
     });
   }
 });

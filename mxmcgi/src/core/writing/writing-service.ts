@@ -11,7 +11,14 @@ import { formatDocument, getFileExtension, getMimeType, type StorageFormat } fro
 import { RepositoryFactory } from '@mxmai/mxmdata';
 import { taskExecutor } from '../task/task-executor';
 import type { Outline, WritingGenerateParams, RewritingParams, PolishingParams, SyncToTaskParams } from './type';
-import { getWritingTypeConfig, getWritingTypeRules, getWritingTypeOutputFormat } from './wtconfigs';
+import { 
+  getWritingTypeConfig, 
+  getWritingTypeRules, 
+  getWritingTypeOutputFormat,
+  extractWritingBusinessParams,
+  getParamLabel,
+  getWritingParamsForType,
+} from './wtconfigs';
 
 export interface WritingResult {
   text: string;                    // 生成的原始文本
@@ -82,20 +89,55 @@ function formatOutlineStructure(outline: Outline, depth: number = 0): string {
 }
 
 /**
+ * 根据写作类型和格式参数判断是否启用 Markdown 格式
+ * - outlines: 返回 JSON，不使用 Markdown
+ * - lyrics + format === 'suno': 使用 Suno 格式，不使用 Markdown（纯文本）
+ * - 其他类型: 默认使用 Markdown 格式
+ */
+function shouldEnableMarkdown(writingType?: string, format?: string): boolean {
+  // outlines 类型返回 JSON，不需要 Markdown
+  if (writingType === 'outlines') {
+    return false;
+  }
+  // lyrics 类型且 format === 'suno' 时，使用纯文本格式（不带 Markdown）
+  if (writingType === 'lyrics' && format === 'suno') {
+    return false;
+  }
+  // 其他类型默认使用 Markdown
+  return true;
+}
+
+/**
+ * 构建写作指导文本（根据类型动态提取参数）
+ */
+function buildWritingGuidance(
+  params: any,
+  writingType?: string
+): string[] {
+  const businessParams = extractWritingBusinessParams(params, writingType as any);
+  const guidance: string[] = [];
+
+  Object.entries(businessParams).forEach(([key, value]) => {
+    const paramLabel = getParamLabel(key, writingType as any);
+    if (Array.isArray(value)) {
+      guidance.push(`${paramLabel}: ${value.join('、')}`);
+    } else {
+      guidance.push(`${paramLabel}: ${value}`);
+    }
+  });
+
+  return guidance;
+}
+
+/**
  * 格式化每个章节的写作指导参数（单独列出，不附加在标题后）
  */
-function formatChapterGuidance(outline: Outline, chapterPath: string = ''): string[] {
+function formatChapterGuidance(outline: Outline, chapterPath: string = '', writingType?: string): string[] {
   const results: string[] = [];
   const currentPath = chapterPath ? `${chapterPath} > ${outline.content}` : outline.content;
   
-  const guidance: string[] = [];
-  if (outline.motivation) guidance.push(`动机: ${outline.motivation}`);
-  if (outline.stance) guidance.push(`立场: ${outline.stance}`);
-  if (outline.tone) guidance.push(`语调: ${outline.tone}`);
-  if (outline.length) guidance.push(`长度: ${outline.length}`);
-  if (outline.key_elements && outline.key_elements.length > 0) {
-    guidance.push(`关键要素: ${outline.key_elements.join('、')}`);
-  }
+  // 使用动态参数提取
+  const guidance = buildWritingGuidance(outline, writingType);
   
   if (guidance.length > 0) {
     results.push(`【${currentPath}】`);
@@ -106,7 +148,7 @@ function formatChapterGuidance(outline: Outline, chapterPath: string = ''): stri
   // 递归处理子节点
   if (outline.children && outline.children.length > 0) {
     outline.children.forEach(child => {
-      results.push(...formatChapterGuidance(child, currentPath));
+      results.push(...formatChapterGuidance(child, currentPath, writingType));
     });
   }
   
@@ -336,6 +378,8 @@ export async function* generateOutlineStream(
     prompt: string;
     maxDepth?: number;
     expectedNodes?: number;
+    total_textcount?: number;
+    applyto?: string;
     knowledgeBase?: Array<{
       knowledgeBaseId: string;
       query: string;
@@ -357,17 +401,33 @@ export async function* generateOutlineStream(
   }
 
   // 3. 构建大纲生成的 prompt
-  const outlinePrompt = `请根据以下要求生成一个写作大纲：
+  let outlinePrompt = `请根据以下要求生成一个写作大纲：
 
 ${enhancedPrompt}
 
 要求：
 - 大纲层级深度：${params.maxDepth || 3} 级
-${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个` : ''}
+${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个` : ''}`;
+
+  // 添加字数分配要求（如果提供了 total_textcount 和 applyto）
+  if (params.total_textcount && params.applyto) {
+    outlinePrompt += `
+- 总字数要求：${params.total_textcount} 字
+- 大纲将用于生成：${params.applyto} 类型内容
+- 字数分配原则：
+  * 根据 ${params.applyto} 类型的内容结构特点进行字数分配
+  * 核心章节（正文主体）应分配更多字数（约占总字数的 60-70%）
+  * 次要章节（引言、结尾）分配较少字数（约占总字数的 10-20%）
+  * 一级标题节点通常比二级、三级节点分配更多字数
+  * 确保总字数符合 ${params.total_textcount} 字的要求`;
+  }
+
+  outlinePrompt += `
 - 每个节点需要包含：content（标题内容）、motivation（写作动机，可选）、stance（立场，可选）、tone（语调，可选）、length（长度要求，可选）、key_elements（关键要素，可选）
+- **重要**：必须返回完整的、有效的 JSON 对象，不要截断，不要添加任何额外的文字说明
 - 返回 JSON 格式，包含 uid、content 和可选的 children 数组（嵌套结构）
 
-请返回一个有效的 JSON 对象，格式如下：
+请返回一个完整的、有效的 JSON 对象，格式如下：
 {
   "uid": "${params.uid}",
   "content": "主标题",
@@ -378,7 +438,13 @@ ${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个
       "children": [...]
     }
   ]
-}`;
+}
+
+**关键要求**：
+1. 必须返回完整的 JSON，不要截断
+2. 确保所有大括号、中括号、引号都正确闭合
+3. 不要在大纲内容中添加任何解释性文字
+4. 直接返回 JSON 对象，不需要 markdown 代码块包装`;
 
   // 4. 调用 LLM 生成（流式）
   const stream = await generateTextStream(modelName, outlinePrompt, provider);
@@ -395,6 +461,8 @@ export async function generateOutline(
     prompt: string;
     maxDepth?: number;
     expectedNodes?: number;
+    total_textcount?: number;
+    applyto?: string;
     knowledgeBase?: Array<{
       knowledgeBaseId: string;
       query: string;
@@ -416,17 +484,33 @@ export async function generateOutline(
   }
 
   // 3. 构建大纲生成的 prompt
-  const outlinePrompt = `请根据以下要求生成一个写作大纲：
+  let outlinePrompt = `请根据以下要求生成一个写作大纲：
 
 ${enhancedPrompt}
 
 要求：
 - 大纲层级深度：${params.maxDepth || 3} 级
-${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个` : ''}
+${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个` : ''}`;
+
+  // 添加字数分配要求（如果提供了 total_textcount 和 applyto）
+  if (params.total_textcount && params.applyto) {
+    outlinePrompt += `
+- 总字数要求：${params.total_textcount} 字
+- 大纲将用于生成：${params.applyto} 类型内容
+- 字数分配原则：
+  * 根据 ${params.applyto} 类型的内容结构特点进行字数分配
+  * 核心章节（正文主体）应分配更多字数（约占总字数的 60-70%）
+  * 次要章节（引言、结尾）分配较少字数（约占总字数的 10-20%）
+  * 一级标题节点通常比二级、三级节点分配更多字数
+  * 确保总字数符合 ${params.total_textcount} 字的要求`;
+  }
+
+  outlinePrompt += `
 - 每个节点需要包含：content（标题内容）、motivation（写作动机，可选）、stance（立场，可选）、tone（语调，可选）、length（长度要求，可选）、key_elements（关键要素，可选）
+- **重要**：必须返回完整的、有效的 JSON 对象，不要截断，不要添加任何额外的文字说明
 - 返回 JSON 格式，包含 uid、content 和可选的 children 数组（嵌套结构）
 
-请返回一个有效的 JSON 对象，格式如下：
+请返回一个完整的、有效的 JSON 对象，格式如下：
 {
   "uid": "${params.uid}",
   "content": "主标题",
@@ -437,7 +521,13 @@ ${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个
       "children": [...]
     }
   ]
-}`;
+}
+
+**关键要求**：
+1. 必须返回完整的 JSON，不要截断
+2. 确保所有大括号、中括号、引号都正确闭合
+3. 不要在大纲内容中添加任何解释性文字
+4. 直接返回 JSON 对象，不需要 markdown 代码块包装`;
 
   // 4. 调用 LLM 生成
   const resultText = await generateText(modelName, outlinePrompt, provider);
@@ -446,12 +536,66 @@ ${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个
   try {
     // 尝试提取 JSON（可能包含 markdown 代码块）
     let jsonText = resultText.trim();
-    const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      jsonText = jsonMatch[1];
+    
+    // 方法1：尝试匹配 markdown 代码块（```json 或 ```）
+    const codeBlockMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch && codeBlockMatch[1]) {
+      jsonText = codeBlockMatch[1].trim();
+    } else {
+      // 方法2：尝试找到第一个 { 和最后一个 }
+      const firstBrace = jsonText.indexOf('{');
+      const lastBrace = jsonText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+      }
     }
 
-    const outline = JSON.parse(jsonText) as Outline;
+    // 尝试解析 JSON
+    let outline: Outline;
+    try {
+      outline = JSON.parse(jsonText) as Outline;
+    } catch (parseError) {
+      // 如果解析失败，尝试修复常见的 JSON 问题
+      // 1. 移除尾部的未闭合引号或括号
+      let cleanedJson = jsonText;
+      
+      // 尝试找到最后一个完整的 JSON 对象
+      let braceCount = 0;
+      let lastValidBrace = -1;
+      for (let i = 0; i < cleanedJson.length; i++) {
+        if (cleanedJson[i] === '{') braceCount++;
+        if (cleanedJson[i] === '}') {
+          braceCount--;
+          if (braceCount === 0) {
+            lastValidBrace = i;
+          }
+        }
+      }
+      
+      if (lastValidBrace !== -1 && lastValidBrace < cleanedJson.length - 1) {
+        // 如果找到完整的 JSON 对象，截取到该位置
+        cleanedJson = cleanedJson.substring(0, lastValidBrace + 1);
+      } else if (braceCount > 0) {
+        // 如果还有未闭合的大括号，尝试补全
+        cleanedJson = cleanedJson + '}'.repeat(braceCount);
+      }
+      
+      // 再次尝试解析
+      try {
+        outline = JSON.parse(cleanedJson) as Outline;
+      } catch (retryError) {
+        // 如果还是失败，记录详细错误信息
+        console.error('[WritingService] JSON 解析失败:', {
+          originalLength: resultText.length,
+          extractedLength: jsonText.length,
+          cleanedLength: cleanedJson.length,
+          error: parseError,
+          retryError: retryError,
+          preview: resultText.substring(0, 500),
+        });
+        throw new Error(`大纲生成失败：无法解析 JSON 结果。请检查 LLM 返回的内容是否完整。原始结果预览：${resultText.substring(0, 300)}...`);
+      }
+    }
     
     // 确保 uid 正确
     if (!outline.uid) {
@@ -461,7 +605,8 @@ ${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个
     return outline;
   } catch (error) {
     console.error('[WritingService] 解析大纲 JSON 失败:', error);
-    throw new Error(`大纲生成失败：无法解析 JSON 结果。原始结果：${resultText.substring(0, 200)}...`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`大纲生成失败：${errorMessage}。原始结果预览：${resultText.substring(0, 300)}...`);
   }
 }
 
@@ -477,7 +622,8 @@ async function* generateWritingParallel(
   hasGlobalKnowledgeInPrompt: boolean = false
 ): AsyncGenerator<WritingStreamChunk, void, unknown> {
   const modelName = selectModel('paragraph');
-  const enableMarkdown = params.enable_markdown !== false;
+  // 根据 writing_type 和 format 自动判断是否启用 Markdown
+  const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
 
   // 第一步：生成公用总结（500字内）
   const summaryPrompt = `请根据以下大纲生成一个800字以内的总结，作为整篇文章的公用引用和背景信息：
@@ -508,15 +654,9 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
   // 第二步：并行生成各段落
   const sectionPromises = sections.map(async (section) => {
     try {
-      // 构建段落 prompt
-      const sectionGuidance: string[] = [];
-      if (section.motivation) sectionGuidance.push(`动机: ${section.motivation}`);
-      if (section.stance) sectionGuidance.push(`立场: ${section.stance}`);
-      if (section.tone) sectionGuidance.push(`语调: ${section.tone}`);
-      if (section.length) sectionGuidance.push(`长度: ${section.length}`);
-      if (section.key_elements && section.key_elements.length > 0) {
-        sectionGuidance.push(`关键要素: ${section.key_elements.join('、')}`);
-      }
+      // 构建段落 prompt（动态提取参数）
+      const currentWritingType = params.writing_type || 'articles';
+      const sectionGuidance = buildWritingGuidance(section, currentWritingType);
 
       // 检索知识库（优先使用段落配置，否则使用全局配置）
       let sectionKnowledgeContext = '';
@@ -540,10 +680,20 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
         ? '\n⚠️ 注意：当前没有找到相关的专业知识库内容，请在回答开头使用"我们没有相关的专业知识，但是根据我的了解"作为开头，然后继续回答。'
         : '';
 
-      // 获取写作类型配置
-      const currentWritingType = params.writing_type || 'articles';
-      const typeRules = getWritingTypeRules(currentWritingType);
-      const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+      // 获取写作类型配置（使用已声明的 currentWritingType）
+      // 如果是 lyrics 类型且 format === 'suno'，使用 Suno 格式规则
+      let typeRules: string | undefined;
+      let typeOutputFormat: string | undefined;
+      
+      if (currentWritingType === 'lyrics' && params.format === 'suno') {
+        const { lyricsConfig } = await import('./wtconfigs/lyrics');
+        const sunoFormat = lyricsConfig.getSunoFormatRules!();
+        typeRules = sunoFormat.rules;
+        typeOutputFormat = sunoFormat.outputformat;
+      } else {
+        typeRules = getWritingTypeRules(currentWritingType);
+        typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+      }
 
       const sectionPrompt = `请根据以下要求生成文章段落内容：
 
@@ -554,7 +704,7 @@ ${typeRules ? `${typeRules}
 ${sectionGuidance.length > 0 ? `【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：
 ${sectionGuidance.join('\n')}
 
-⚠️ 关键要求：这些参数（动机、立场、语调、长度、关键要素）是用来指导你如何写作的，不是要输出的内容！
+⚠️ 关键要求：这些参数是用来指导你如何写作的，不是要输出的内容！
 - ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
 - ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来` : ''}
 ${sharedSummary ? `【公用总结】（请参考）：
@@ -716,7 +866,8 @@ async function* generateWritingSequential(
   hasGlobalKnowledgeInPrompt: boolean = false
 ): AsyncGenerator<WritingStreamChunk, void, unknown> {
   const modelName = selectModel('paragraph');
-  const enableMarkdown = params.enable_markdown !== false;
+  // 根据 writing_type 和 format 自动判断是否启用 Markdown
+  const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
   let previousMemory = ''; // 前文记忆
 
   for (const section of sections) {
@@ -775,8 +926,19 @@ async function* generateWritingSequential(
 
       // 获取写作类型配置
       const currentWritingType = params.writing_type || 'articles';
-      const typeRules = getWritingTypeRules(currentWritingType);
-      const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+      // 如果是 lyrics 类型且 format === 'suno'，使用 Suno 格式规则
+      let typeRules: string | undefined;
+      let typeOutputFormat: string | undefined;
+      
+      if (currentWritingType === 'lyrics' && params.format === 'suno') {
+        const { lyricsConfig } = await import('./wtconfigs/lyrics');
+        const sunoFormat = lyricsConfig.getSunoFormatRules!();
+        typeRules = sunoFormat.rules;
+        typeOutputFormat = sunoFormat.outputformat;
+      } else {
+        typeRules = getWritingTypeRules(currentWritingType);
+        typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+      }
 
       const sectionPrompt = `请根据以下要求生成文章段落内容：
 
@@ -787,7 +949,7 @@ ${typeRules ? `${typeRules}
 ${sectionGuidance.length > 0 ? `【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：
 ${sectionGuidance.join('\n')}
 
-⚠️ 关键要求：这些参数（动机、立场、语调、长度、关键要素）是用来指导你如何写作的，不是要输出的内容！
+⚠️ 关键要求：这些参数是用来指导你如何写作的，不是要输出的内容！
 - ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
 - ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来` : ''}
 ${previousMemory ? `【前文记忆】（请参考，保持连贯性）：
@@ -977,13 +1139,24 @@ export async function* generateWritingStream(
 
   let generatePrompt = enhancedPrompt;
   
-  // 整合写作类型配置的 rules
-  if (typeRules) {
-    generatePrompt = `${typeRules}
+  // 如果是 lyrics 类型且 format === 'suno'，使用 Suno 格式规则
+  if (params.writing_type === 'lyrics' && params.format === 'suno') {
+    const { lyricsConfig } = await import('./wtconfigs/lyrics');
+    const sunoFormat = lyricsConfig.getSunoFormatRules!();
+    generatePrompt = `${sunoFormat.rules}
 
 ---
 
 ${generatePrompt}`;
+  } else {
+    // 整合写作类型配置的 rules
+    if (typeRules) {
+      generatePrompt = `${typeRules}
+
+---
+
+${generatePrompt}`;
+    }
   }
   
   // 解释模式：如果没有知识库内容，在 prompt 中添加说明（仅在没有大纲的情况下）
@@ -998,28 +1171,29 @@ ${generatePrompt}`;
     }
     
     // 添加全局写作参数（仅在没有大纲的情况下）
-    const writingGuidance: string[] = [];
-    if (params.motivation) writingGuidance.push(`动机: ${params.motivation}`);
-    if (params.stance) writingGuidance.push(`立场: ${params.stance}`);
-    if (params.tone) writingGuidance.push(`语调: ${params.tone}`);
-    if (params.length) writingGuidance.push(`长度: ${params.length}`);
-    if (params.key_elements && params.key_elements.length > 0) {
-      writingGuidance.push(`关键要素: ${params.key_elements.join('、')}`);
-    }
+    // 添加全局写作参数（动态提取）
+    const currentWritingType = params.writing_type || 'articles';
+    const writingGuidance = buildWritingGuidance(params, currentWritingType);
     
     if (writingGuidance.length > 0) {
+      // 获取参数列表用于提示文本
+      const paramList = getWritingParamsForType(currentWritingType);
+      const paramLabels = paramList.map(p => getParamLabel(p, currentWritingType)).join('、');
+      
       generatePrompt = `${generatePrompt}
 
 【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：
 ${writingGuidance.join('\n')}
 
-⚠️ 关键要求：这些参数（动机、立场、语调、长度、关键要素）是用来指导你如何写作的，不是要输出的内容！
-- ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
-- ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来`;
+⚠️ 关键要求：这些参数（${paramLabels}）是用来指导你如何写作的，不是要输出的内容！
+- ❌ 错误示例：不要在正文中写参数名称和值
+- ✅ 正确做法：根据这些参数来组织语言和内容，让内容自然体现这些参数的要求，但不要明确说出来`;
     }
   }
   
-  if (params.enable_markdown === false) {
+  // 根据 writing_type 和 format 自动判断是否启用 Markdown
+  const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
+  if (!enableMarkdown) {
     generatePrompt = `${generatePrompt}
 
 【格式要求】：
@@ -1037,13 +1211,24 @@ ${writingGuidance.join('\n')}
 - 保持段落清晰，逻辑连贯`;
   }
 
-  // 整合写作类型配置的 outputformat
-  if (typeOutputFormat) {
-    generatePrompt = `${generatePrompt}
+  // 整合写作类型配置的 outputformat（如果不是 Suno 格式）
+  if (params.writing_type !== 'lyrics' || params.format !== 'suno') {
+    if (typeOutputFormat) {
+      generatePrompt = `${generatePrompt}
 
 ---
 
 ${typeOutputFormat}`;
+    }
+  } else {
+    // Suno 格式：添加 Suno 格式的输出要求
+    const { lyricsConfig } = await import('./wtconfigs/lyrics');
+    const sunoFormat = lyricsConfig.getSunoFormatRules!();
+    generatePrompt = `${generatePrompt}
+
+---
+
+${sunoFormat.outputformat}`;
   }
 
   // 如果有之前的内容，加入上下文
@@ -1173,14 +1358,9 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
       
       const sectionPromises = sections.map(async (section, index) => {
         try {
-          const sectionGuidance: string[] = [];
-          if (section.motivation) sectionGuidance.push(`动机: ${section.motivation}`);
-          if (section.stance) sectionGuidance.push(`立场: ${section.stance}`);
-          if (section.tone) sectionGuidance.push(`语调: ${section.tone}`);
-          if (section.length) sectionGuidance.push(`长度: ${section.length}`);
-          if (section.key_elements && section.key_elements.length > 0) {
-            sectionGuidance.push(`关键要素: ${section.key_elements.join('、')}`);
-          }
+          // 构建段落指导参数（动态提取）
+          const currentWritingType = params.writing_type || 'articles';
+          const sectionGuidance = buildWritingGuidance(section, currentWritingType);
 
           // 检索知识库
           let sectionKnowledgeContext = '';
@@ -1223,10 +1403,20 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
             ? '\n⚠️ 注意：当前没有找到相关的专业知识库内容，请在回答开头使用"我们没有相关的专业知识，但是根据我的了解"作为开头，然后继续回答。'
             : '';
 
-          // 获取写作类型配置
-          const currentWritingType = params.writing_type || 'articles';
-          const typeRules = getWritingTypeRules(currentWritingType);
-          const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+          // 获取写作类型配置（使用已声明的 currentWritingType）
+          // 如果是 lyrics 类型且 format === 'suno'，使用 Suno 格式规则
+          let typeRules: string | undefined;
+          let typeOutputFormat: string | undefined;
+          
+          if (currentWritingType === 'lyrics' && params.format === 'suno') {
+            const { lyricsConfig } = await import('./wtconfigs/lyrics');
+            const sunoFormat = lyricsConfig.getSunoFormatRules!();
+            typeRules = sunoFormat.rules;
+            typeOutputFormat = sunoFormat.outputformat;
+          } else {
+            typeRules = getWritingTypeRules(currentWritingType);
+            typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+          }
 
           const sectionPrompt = `请根据以下要求生成文章段落内容：
 
@@ -1237,7 +1427,7 @@ ${typeRules ? `${typeRules}
 ${sectionGuidance.length > 0 ? `【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：
 ${sectionGuidance.join('\n')}
 
-⚠️ 关键要求：这些参数（动机、立场、语调、长度、关键要素）是用来指导你如何写作的，不是要输出的内容！
+⚠️ 关键要求：这些参数是用来指导你如何写作的，不是要输出的内容！
 - ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
 - ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来` : ''}
 ${sharedSummary ? `【公用总结】（请参考）：
@@ -1257,7 +1447,7 @@ ${typeOutputFormat}` : ''}
 2. **正确做法**：根据写作指导参数来组织内容，让内容自然体现这些参数的要求，但不要明确说出来
 3. 必须严格遵守字数要求：${section.length || '根据内容需要'}
 4. 输出格式：使用 <section> </section> 包裹整个段落内容
-5. ${params.enable_markdown !== false 
+5. ${shouldEnableMarkdown(params.writing_type, params.format) 
   ? `**Markdown 格式要求**（必须严格遵守）：
    - 段落标题必须使用 Markdown 标题语法：一级标题用 #，二级标题用 ##，三级标题用 ###
    - 根据大纲层级使用对应的标题级别（主章节用 #，子章节用 ##，子子章节用 ###）
@@ -1347,14 +1537,9 @@ ${typeOutputFormat}` : ''}
             previousMemory = await compressText(previousMemory, 500, provider);
           }
 
-          const sectionGuidance: string[] = [];
-          if (section.motivation) sectionGuidance.push(`动机: ${section.motivation}`);
-          if (section.stance) sectionGuidance.push(`立场: ${section.stance}`);
-          if (section.tone) sectionGuidance.push(`语调: ${section.tone}`);
-          if (section.length) sectionGuidance.push(`长度: ${section.length}`);
-          if (section.key_elements && section.key_elements.length > 0) {
-            sectionGuidance.push(`关键要素: ${section.key_elements.join('、')}`);
-          }
+          // 构建段落指导参数（动态提取）
+          const currentWritingType = params.writing_type || 'articles';
+          const sectionGuidance = buildWritingGuidance(section, currentWritingType);
 
           // 检索知识库
           let sectionKnowledgeContext = '';
@@ -1397,8 +1582,7 @@ ${typeOutputFormat}` : ''}
             ? '\n⚠️ 注意：当前没有找到相关的专业知识库内容，请在回答开头使用"我们没有相关的专业知识，但是根据我的了解"作为开头，然后继续回答。'
             : '';
 
-          // 获取写作类型配置
-          const currentWritingType = params.writing_type || 'articles';
+          // 获取写作类型配置（使用已声明的 currentWritingType）
           const typeRules = getWritingTypeRules(currentWritingType);
           const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
 
@@ -1411,7 +1595,7 @@ ${typeRules ? `${typeRules}
 ${sectionGuidance.length > 0 ? `【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：
 ${sectionGuidance.join('\n')}
 
-⚠️ 关键要求：这些参数（动机、立场、语调、长度、关键要素）是用来指导你如何写作的，不是要输出的内容！
+⚠️ 关键要求：这些参数是用来指导你如何写作的，不是要输出的内容！
 - ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
 - ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来` : ''}
 ${previousMemory ? `【前文记忆】（请参考，保持连贯性）：
@@ -1431,7 +1615,7 @@ ${typeOutputFormat}` : ''}
 2. **正确做法**：根据写作指导参数来组织内容，让内容自然体现这些参数的要求，但不要明确说出来
 3. 必须严格遵守字数要求：${section.length || '根据内容需要'}
 4. 输出格式：使用 <section> </section> 包裹整个段落内容
-5. ${params.enable_markdown !== false 
+5. ${shouldEnableMarkdown(params.writing_type, params.format) 
   ? `**Markdown 格式要求**（必须严格遵守）：
    - 段落标题必须使用 Markdown 标题语法：一级标题用 #，二级标题用 ##，三级标题用 ###
    - 根据大纲层级使用对应的标题级别（主章节用 #，子章节用 ##，子子章节用 ###）
@@ -1570,42 +1754,67 @@ ${typeOutputFormat}` : ''}
   const modelName = selectModel(taskType);
 
   // 5. 构建生成 prompt
+  // 获取写作类型配置
+  const currentWritingType = params.writing_type || 'articles';
+  const typeRules = getWritingTypeRules(currentWritingType);
+  const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+  
   let generatePrompt = enhancedPrompt;
+  
+  // 如果是 lyrics 类型且 format === 'suno'，使用 Suno 格式规则
+  if (params.writing_type === 'lyrics' && params.format === 'suno') {
+    const { lyricsConfig } = await import('./wtconfigs/lyrics');
+    const sunoFormat = lyricsConfig.getSunoFormatRules!();
+    generatePrompt = `${sunoFormat.rules}
+
+---
+
+${generatePrompt}`;
+  } else {
+    // 整合写作类型配置的 rules
+    if (typeRules) {
+      generatePrompt = `${typeRules}
+
+---
+
+${generatePrompt}`;
+    }
+  }
   
   // 解释模式：如果没有知识库内容，在 prompt 中添加说明（仅在没有大纲的情况下）
   if (!params.outlines || params.outlines.length === 0) {
     if (params.knowledgeBase && params.knowledgeBase.length > 0) {
       const processStyle = params.process_style || 'silent';
       if (processStyle === 'explain' && !hasKnowledge) {
-        generatePrompt = `${enhancedPrompt}
+        generatePrompt = `${generatePrompt}
 
 ⚠️ 注意：当前没有找到相关的专业知识库内容，请在回答开头使用"我们没有相关的专业知识，但是根据我的了解"作为开头，然后继续回答。`;
       }
     }
     
     // 添加全局写作参数（仅在没有大纲的情况下）
-    const writingGuidance: string[] = [];
-    if (params.motivation) writingGuidance.push(`动机: ${params.motivation}`);
-    if (params.stance) writingGuidance.push(`立场: ${params.stance}`);
-    if (params.tone) writingGuidance.push(`语调: ${params.tone}`);
-    if (params.length) writingGuidance.push(`长度: ${params.length}`);
-    if (params.key_elements && params.key_elements.length > 0) {
-      writingGuidance.push(`关键要素: ${params.key_elements.join('、')}`);
-    }
+    // 添加全局写作参数（动态提取）
+    const writingGuidance = buildWritingGuidance(params, currentWritingType);
     
     if (writingGuidance.length > 0) {
+      // 获取参数列表用于提示文本
+      const paramList = getWritingParamsForType(currentWritingType);
+      const paramLabels = paramList.map(p => getParamLabel(p, currentWritingType)).join('、');
+      
       generatePrompt = `${generatePrompt}
 
 【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：
 ${writingGuidance.join('\n')}
 
-⚠️ 关键要求：这些参数（动机、立场、语调、长度、关键要素）是用来指导你如何写作的，不是要输出的内容！
-- ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
-- ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来`;
+⚠️ 关键要求：这些参数（${paramLabels}）是用来指导你如何写作的，不是要输出的内容！
+- ❌ 错误示例：不要在正文中写参数名称和值
+- ✅ 正确做法：根据这些参数来组织语言和内容，让内容自然体现这些参数的要求，但不要明确说出来`;
     }
   }
   
-  if (params.enable_markdown === false) {
+  // 根据 writing_type 和 format 自动判断是否启用 Markdown
+  const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
+  if (!enableMarkdown) {
     generatePrompt = `${generatePrompt}
 
 【格式要求】：
@@ -1621,6 +1830,26 @@ ${writingGuidance.join('\n')}
 - 使用标准 Markdown 格式输出
 - 可以使用标题（#）、列表（- 或 1.）、引用（>）、表格（|）、代码块（\`\`\`）等 Markdown 语法
 - 保持段落清晰，逻辑连贯`;
+  }
+
+  // 整合写作类型配置的 outputformat（如果不是 Suno 格式）
+  if (params.writing_type !== 'lyrics' || params.format !== 'suno') {
+    if (typeOutputFormat) {
+      generatePrompt = `${generatePrompt}
+
+---
+
+${typeOutputFormat}`;
+    }
+  } else {
+    // Suno 格式：添加 Suno 格式的输出要求
+    const { lyricsConfig } = await import('./wtconfigs/lyrics');
+    const sunoFormat = lyricsConfig.getSunoFormatRules!();
+    generatePrompt = `${generatePrompt}
+
+---
+
+${sunoFormat.outputformat}`;
   }
 
   // 如果有之前的内容，加入上下文

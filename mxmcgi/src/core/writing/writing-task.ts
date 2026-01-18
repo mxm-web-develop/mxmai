@@ -102,13 +102,70 @@ export async function startWritingTask(taskId: string): Promise<void> {
       }
 
       case 'generate': {
+        const generateParams = params.params as WritingGenerateParams;
+        const writingType = generateParams.writing_type || 'articles';
+
+        // outlines 类型特殊处理：调用 generateOutline 而不是 generateWriting
+        if (writingType === 'outlines') {
+          await taskManager.updateTaskProgress(taskId, {
+            progress: 30,
+            logs: ['开始生成大纲'],
+          });
+
+          // 构建 outline 参数
+          const outlineParams: OutlineParams = {
+            uid: generateParams.metadata?.uid || `outline-${Date.now()}`,
+            prompt: generateParams.prompt,
+            writing_type: 'outlines',
+            maxDepth: (generateParams as any).maxDepth,
+            expectedNodes: (generateParams as any).expectedNodes,
+            total_textcount: (generateParams as any).total_textcount,
+            applyto: (generateParams as any).applyto,
+            knowledgeBase: generateParams.knowledgeBase?.map(kb => ({
+              knowledgeBaseId: kb.knowledgeBaseId,
+              query: kb.query,
+              limit: kb.limit,
+            })),
+            process_style: generateParams.process_style,
+            outputFormat: 'json',
+          };
+
+          const outlineResult = await generateOutline(
+            {
+              uid: outlineParams.uid,
+              prompt: outlineParams.prompt,
+              maxDepth: outlineParams.maxDepth,
+              expectedNodes: outlineParams.expectedNodes,
+              total_textcount: outlineParams.total_textcount,
+              applyto: outlineParams.applyto,
+              knowledgeBase: outlineParams.knowledgeBase,
+            },
+            params.userId,
+            params.provider as any
+          );
+
+          await taskManager.updateTaskProgress(taskId, {
+            progress: 90,
+            logs: ['大纲生成完成'],
+          });
+
+          // outlines 类型返回 JSON 格式，不存储到 MinIO
+          result = {
+            outline: outlineResult,
+            metadata: {
+              type: 'outlines',
+              uid: outlineParams.uid,
+              outline: outlineResult, // 将大纲内容存储在 metadata 中，方便直接返回
+            },
+          };
+          break;
+        }
+
+        // 其他类型使用正常的 generateWriting
         await taskManager.updateTaskProgress(taskId, {
           progress: 10,
           logs: ['开始生成文章'],
         });
-
-        const generateParams = params.params as WritingGenerateParams;
-        const writingType = generateParams.writing_type || 'articles';
 
         // 创建进度回调函数
         const onProgress = async (progress: number, message: string) => {
