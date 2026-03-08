@@ -3,7 +3,10 @@
  * 根据 writing_type 加载对应的配置
  */
 
-import { articlesConfig } from './articles';
+export { WRITING_MODEL_SELECTION, type TaskType, type WritingModelSelection } from './writing-models';
+import { getWritingFormOptionsForType } from '../../../clientServer/writing';
+import { articlesConfig, getArticlesParamsForSubtype } from './articles';
+export { getArticlesFormOptions } from './articles';
 import { lyricsConfig } from './lyrics';
 import { outlinesConfig } from './outlines';
 import { mediaPostConfig } from './media-post';
@@ -11,7 +14,7 @@ import { storyboardScriptsConfig } from './storyboard-scripts';
 import { reviewsConfig } from './reviews';
 import { resumesConfig } from './resumes';
 import { voiceScriptsConfig } from './voice-scripts';
-import type { WritingType } from '../type';
+import type { WritingType, OutlineType } from '../type';
 import type { FormOptionsConfig } from '../../shared/formOptions';
 
 export interface WritingTypeConfig {
@@ -33,6 +36,11 @@ export interface WritingTypeConfig {
    * @returns Suno 格式的规则和输出格式
    */
   getSunoFormatRules?(): { rules: string; outputformat: string };
+  /**
+   * 获取 TTS 口播格式的规则和输出格式（仅 voice-scripts 类型支持）
+   * 当 format === 'tts' 时使用
+   */
+  getTtsFormatRules?(): { rules: string; outputformat: string };
 }
 
 /**
@@ -125,6 +133,19 @@ export function getWritingTypeOutputFormat(writingType?: WritingType): string {
  * @returns 参数列表，如果类型不存在或未定义则返回默认参数列表
  */
 export function getWritingParamsForType(writingType?: WritingType): string[] {
+  // articles：根据细分类型返回不同参数（story-novel / academic-paper）
+  // 注意：为向后兼容，第二参可选；未提供时默认按 tech-article 参数处理
+  // @ts-ignore - overload implemented below
+  return getWritingParamsForTypeWithSubtype(writingType);
+}
+
+export function getWritingParamsForTypeWithSubtype(
+  writingType?: WritingType,
+  outlineType?: OutlineType
+): string[] {
+  if (writingType === 'articles') {
+    return getArticlesParamsForSubtype(outlineType as any);
+  }
   const config = getWritingTypeConfig(writingType);
   if (config && typeof config.getParamsForType === 'function') {
     return config.getParamsForType();
@@ -141,10 +162,12 @@ export function getWritingParamsForType(writingType?: WritingType): string[] {
  */
 export function extractWritingBusinessParams(
   params: any,
-  writingType?: WritingType
+  writingType?: WritingType,
+  outlineType?: OutlineType
 ): Record<string, any> {
   const businessParams: Record<string, any> = {};
-  const paramList = getWritingParamsForType(writingType);
+  // 使用细分类型参数表（仅 articles 需要）
+  const paramList = getWritingParamsForTypeWithSubtype(writingType, outlineType);
 
   for (const paramName of paramList) {
     const paramValue = params[paramName];
@@ -161,22 +184,8 @@ export function extractWritingBusinessParams(
   return businessParams;
 }
 
-/**
- * 获取写作类型的表单选项配置
- * @param writingType 写作类型
- * @param language 语言代码
- * @returns 表单选项配置，如果类型不存在或未定义则返回 null
- */
-export function getWritingFormOptionsForType(
-  writingType?: WritingType,
-  language: 'zh' | 'en' = 'zh'
-): FormOptionsConfig | null {
-  const config = getWritingTypeConfig(writingType);
-  if (config && typeof config.getFormOptions === 'function') {
-    return config.getFormOptions(language);
-  }
-  return null;
-}
+/** 写作类型表单选项由 clientServer 统一提供，此处复导出 */
+export { getWritingFormOptionsForType } from '../../../clientServer/writing';
 
 /**
  * 获取参数的中文标签
@@ -188,10 +197,11 @@ export function getWritingFormOptionsForType(
 export function getParamLabel(
   paramName: string,
   writingType?: WritingType,
-  language: 'zh' | 'en' = 'zh'
+  language: 'zh' | 'en' = 'zh',
+  outlineType?: OutlineType
 ): string {
   // 尝试从表单配置中获取标签
-  const formOptions = getWritingFormOptionsForType(writingType, language);
+  const formOptions = getWritingFormOptionsForType(writingType, language, outlineType);
   if (formOptions) {
     // 从 _metadata 获取
     if (formOptions._metadata && formOptions._metadata[paramName]) {
@@ -216,10 +226,8 @@ export function getParamLabel(
     applyto: { zh: '应用于', en: 'Apply To' },
     sceneCount: { zh: '场景数量', en: 'Scene Count' },
     characterCount: { zh: '角色数量', en: 'Character Count' },
-    dialogueStyle: { zh: '对话风格', en: 'Dialogue Style' },
     genre: { zh: '类型', en: 'Genre' },
     duration: { zh: '时长（秒）', en: 'Duration (seconds)' },
-    scriptType: { zh: '脚本类型', en: 'Script Type' },
     targetAudience: { zh: '目标受众', en: 'Target Audience' },
     adType: { zh: '广告类型', en: 'Ad Type' },
     productInfo: { zh: '产品信息', en: 'Product Information' },

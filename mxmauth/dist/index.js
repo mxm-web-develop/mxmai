@@ -438,9 +438,12 @@ var require_loadEnv = __commonJS({
     var import_path = require("path");
     if (!global.__MXMAUTH_ENV_LOADED__) {
       process.env.DOTENV_CONFIG_DEBUG = "false";
+      const projectRootEnvPath = (0, import_path.resolve)(__dirname, "../../..", ".env");
       const workspaceEnvPath = (0, import_path.resolve)(__dirname, "../../../mxmdata/.env");
-      import_dotenv.default.config({ path: workspaceEnvPath });
-      import_dotenv.default.config();
+      const mxmauthEnvPath = (0, import_path.resolve)(__dirname, "..", ".env");
+      import_dotenv.default.config({ path: projectRootEnvPath, override: false });
+      import_dotenv.default.config({ path: workspaceEnvPath, override: false });
+      import_dotenv.default.config({ path: mxmauthEnvPath, override: false });
       global.__MXMAUTH_ENV_LOADED__ = true;
     }
   }
@@ -31748,7 +31751,7 @@ var health_default = router;
 // src/routes/account.ts
 var import_loadEnv = __toESM(require_loadEnv());
 var import_express2 = __toESM(require_express2());
-var import_mxmdata3 = require("@mxmai/mxmdata");
+var import_mxmdata5 = require("@mxmai/mxmdata");
 
 // src/auth/password.ts
 var import_bcrypt = __toESM(require("bcrypt"));
@@ -31970,7 +31973,7 @@ var CaptchaService = class {
 // src/middleware/captcha.middleware.ts
 var captchaService = new CaptchaService();
 function captchaMiddleware(req, res, next) {
-  const captchaEnabled = process.env.CAPTCHA_ENABLE !== "false";
+  const captchaEnabled = process.env.CAPTCHA_ENABLE === "true";
   if (!captchaEnabled) {
     return next();
   }
@@ -32004,7 +32007,7 @@ function captchaMiddleware(req, res, next) {
 }
 
 // src/routes/account.ts
-var import_mxmdata4 = require("@mxmai/mxmdata");
+var import_mxmdata6 = require("@mxmai/mxmdata");
 
 // src/services/wallet.service.ts
 var import_axios = __toESM(require("axios"));
@@ -32100,6 +32103,29 @@ var WalletService = class {
     }
   }
   /**
+   * 获取用户主钱包余额（用于 account/profile 合并返回）
+   * 优先返回 CNY，若无可返回第一个可用资产
+   */
+  async getPrimaryBalance(userId) {
+    try {
+      const response = await this.client.get("/wallets", {
+        headers: { "x-user-id": userId },
+        timeout: 3e3
+      });
+      if (response.data.code !== 200 || !response.data.data) return null;
+      const wallets = Array.isArray(response.data.data) ? response.data.data : response.data.data.wallets || [];
+      const cny = wallets.find((w) => w.asset_code === "CNY" || w.assetCode === "CNY");
+      const primary = cny || wallets[0];
+      if (!primary) return null;
+      return {
+        assetCode: primary.asset_code || primary.assetCode || "CNY",
+        availableBalance: primary.available_balance ?? primary.availableBalance ?? "0"
+      };
+    } catch {
+      return null;
+    }
+  }
+  /**
    * 获取用户钱包列表
    */
   async getUserWallets(userId) {
@@ -32120,13 +32146,87 @@ var WalletService = class {
   }
 };
 
+// src/services/folder.service.ts
+var import_mxmdata2 = require("@mxmai/mxmdata");
+var import_mxmdata3 = require("@mxmai/mxmdata");
+var FolderService = class {
+  folderRepo = import_mxmdata2.RepositoryFactory.createFolderRepository();
+  /**
+   * 检查文件夹服务是否可用
+   */
+  async checkServiceAvailable() {
+    try {
+      await this.folderRepo.getFolders("00000000-0000-0000-0000-000000000000", {});
+      return true;
+    } catch (error) {
+      if (error?.message?.includes("Could not find the table") || error?.message?.includes("does not exist")) {
+        return false;
+      }
+      return true;
+    }
+  }
+  /**
+   * 为用户创建默认文件夹
+   * @param userId 用户 ID
+   * @returns 文件夹信息，如果创建失败或服务不可用则返回 null
+   */
+  async createDefaultFolder(userId) {
+    const isAvailable = await this.checkServiceAvailable();
+    if (!isAvailable) {
+      console.warn(`\u26A0\uFE0F \u6587\u4EF6\u5939\u670D\u52A1\u4E0D\u53EF\u7528\uFF0C\u8DF3\u8FC7\u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA`);
+      return null;
+    }
+    try {
+      const folders = await this.folderRepo.getFolders(userId, { parent_id: null });
+      const defaultFolder = folders.find((f) => f.name === "\u9ED8\u8BA4");
+      if (defaultFolder) {
+        console.log(`\u2705 \u7528\u6237 ${userId} \u5DF2\u5B58\u5728\u9ED8\u8BA4\u6587\u4EF6\u5939:`, defaultFolder.id);
+        return {
+          id: defaultFolder.id,
+          name: defaultFolder.name,
+          created: false
+        };
+      }
+      const folder = await this.folderRepo.createFolder(userId, {
+        name: "\u9ED8\u8BA4",
+        parent_id: null
+      });
+      console.log(`\u2705 \u7528\u6237 ${userId} \u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA\u6210\u529F:`, folder.id);
+      return {
+        id: folder.id,
+        name: folder.name,
+        created: true
+      };
+    } catch (error) {
+      if (error instanceof import_mxmdata3.DuplicateError) {
+        console.warn(`\u26A0\uFE0F \u7528\u6237 ${userId} \u9ED8\u8BA4\u6587\u4EF6\u5939\u5DF2\u5B58\u5728\uFF08\u91CD\u590D\u521B\u5EFA\uFF09`);
+        try {
+          const folders = await this.folderRepo.getFolders(userId, { parent_id: null });
+          const defaultFolder = folders.find((f) => f.name === "\u9ED8\u8BA4");
+          if (defaultFolder) {
+            return {
+              id: defaultFolder.id,
+              name: defaultFolder.name,
+              created: false
+            };
+          }
+        } catch (e) {
+        }
+        return null;
+      }
+      console.error(`\u274C \u7528\u6237 ${userId} \u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA\u5931\u8D25:`, error);
+      return null;
+    }
+  }
+};
+
 // src/routes/account.ts
-var import_mxmdata5 = require("@mxmai/mxmdata");
+var import_mxmdata7 = require("@mxmai/mxmdata");
 
 // src/services/media.service.ts
-var import_mxmdata2 = require("@mxmai/mxmdata");
+var import_mxmdata4 = require("@mxmai/mxmdata");
 var MediaService = class {
-  client = (0, import_mxmdata2.getSupabaseClient)();
+  client = (0, import_mxmdata4.getSupabaseClient)();
   /**
    * 批量添加用户媒体资源
    */
@@ -32187,8 +32287,9 @@ var MediaService = class {
 
 // src/routes/account.ts
 var router2 = (0, import_express2.Router)();
-var userRepo2 = import_mxmdata3.RepositoryFactory.createUserRepository();
+var userRepo2 = import_mxmdata5.RepositoryFactory.createUserRepository();
 var walletService = new WalletService();
+var folderService = new FolderService();
 var captchaService2 = new CaptchaService();
 var mediaService = new MediaService();
 router2.get("/captcha", async (req, res, next) => {
@@ -32228,11 +32329,11 @@ router2.post("/register", captchaMiddleware, async (req, res, next) => {
         phone,
         password_hash
       });
-      const walletInfo = await walletService.createDefaultWallet(user.id);
-      if (walletInfo) {
-        console.log(`\u2705 \u7528\u6237 ${user.id} \u94B1\u5305\u521B\u5EFA\u6210\u529F:`, walletInfo);
+      const folderInfo = await folderService.createDefaultFolder(user.id);
+      if (folderInfo) {
+        console.log(`\u2705 \u7528\u6237 ${user.id} \u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA\u6210\u529F:`, folderInfo);
       } else {
-        console.warn(`\u26A0\uFE0F \u7528\u6237 ${user.id} \u94B1\u5305\u521B\u5EFA\u5931\u8D25\u6216\u670D\u52A1\u4E0D\u53EF\u7528`);
+        console.warn(`\u26A0\uFE0F \u7528\u6237 ${user.id} \u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA\u5931\u8D25\u6216\u670D\u52A1\u4E0D\u53EF\u7528`);
       }
       const tokens = generateTokenPair({
         userId: user.id,
@@ -32244,13 +32345,11 @@ router2.post("/register", captchaMiddleware, async (req, res, next) => {
         message: "User registered successfully",
         data: {
           user: userWithoutPassword,
-          tokens,
-          wallet: walletInfo
-          // 返回钱包信息
+          tokens
         }
       });
     } catch (error) {
-      if (error instanceof import_mxmdata4.DuplicateError) {
+      if (error instanceof import_mxmdata6.DuplicateError) {
         return res.status(409).json({
           code: 409,
           message: error.message,
@@ -32388,9 +32487,18 @@ router2.get("/profile", authMiddleware, async (req, res, next) => {
       });
     }
     const { password_hash: _, ...userWithoutPassword } = user;
+    let primaryBalance;
+    try {
+      const balance = await walletService.getPrimaryBalance(userId);
+      if (balance) primaryBalance = balance;
+    } catch {
+    }
     res.json({
       code: 200,
-      data: userWithoutPassword
+      data: {
+        ...userWithoutPassword,
+        ...primaryBalance && { primaryBalance }
+      }
     });
   } catch (error) {
     next(error);
@@ -32649,7 +32757,7 @@ router2.get("/admin/users", adminMiddleware, async (req, res, next) => {
         search
       }
     });
-    const supabase2 = (0, import_mxmdata5.getSupabaseClient)();
+    const supabase2 = (0, import_mxmdata7.getSupabaseClient)();
     const userIds = result.users.map((u) => u.id);
     const { data: activeSessions } = await supabase2.from("user_sessions").select("user_id").in("user_id", userIds).gt("expires_at", (/* @__PURE__ */ new Date()).toISOString());
     const loggedInUserIds = new Set(
@@ -32678,16 +32786,58 @@ router2.get("/admin/users", adminMiddleware, async (req, res, next) => {
     next(error);
   }
 });
+router2.put("/admin/users/:id/status", adminMiddleware, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!status || !["active", "suspended", "banned"].includes(status)) {
+      return res.status(400).json({
+        code: 400,
+        message: "status must be one of: active, suspended, banned",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const user = await userRepo2.update(id, { status });
+    const { password_hash: _, ...userWithoutPassword } = user;
+    res.json({
+      code: 200,
+      message: "User status updated successfully",
+      data: userWithoutPassword
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+router2.post("/admin/users/:id/force-logout", adminMiddleware, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const supabase2 = (0, import_mxmdata7.getSupabaseClient)();
+    const { error } = await supabase2.from("user_sessions").delete().eq("user_id", id);
+    if (error) {
+      return res.status(500).json({
+        code: 500,
+        message: "Failed to force logout",
+        error: error.message
+      });
+    }
+    res.json({
+      code: 200,
+      message: "User logged out successfully"
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 var account_default = router2;
 
 // src/routes/assets.ts
 var import_loadEnv2 = __toESM(require_loadEnv());
 var import_express3 = __toESM(require_express2());
-var import_mxmdata6 = require("@mxmai/mxmdata");
-var import_mxmdata7 = require("@mxmai/mxmdata");
+var import_mxmdata8 = require("@mxmai/mxmdata");
+var import_mxmdata9 = require("@mxmai/mxmdata");
 var router3 = (0, import_express3.Router)();
-var folderRepo = import_mxmdata6.RepositoryFactory.createFolderRepository();
-var supabase = (0, import_mxmdata6.getSupabaseClient)();
+var folderRepo = import_mxmdata8.RepositoryFactory.createFolderRepository();
+var supabase = (0, import_mxmdata8.getSupabaseClient)();
 function cleanAndValidateUUID(id) {
   if (!id) return null;
   let cleaned = id.trim().replace(/^["']+|["']+$/g, "");
@@ -32714,7 +32864,7 @@ router3.get("/folders", authMiddleware, async (req, res, next) => {
       }
     });
   } catch (error) {
-    if (error instanceof import_mxmdata7.DataAccessError && (error.message?.includes("Could not find the table") || error.message?.includes("does not exist") || error.originalError?.message?.includes("Could not find the table"))) {
+    if (error instanceof import_mxmdata9.DataAccessError && (error.message?.includes("Could not find the table") || error.message?.includes("does not exist") || error.originalError?.message?.includes("Could not find the table"))) {
       return res.json({
         code: 200,
         message: "\u83B7\u53D6\u6587\u4EF6\u5939\u5217\u8868\u6210\u529F",
@@ -32765,7 +32915,7 @@ router3.post("/folders", authMiddleware, async (req, res, next) => {
       data: folder
     });
   } catch (error) {
-    if (error instanceof import_mxmdata7.DuplicateError) {
+    if (error instanceof import_mxmdata9.DuplicateError) {
       return res.status(409).json({
         code: 409,
         message: "\u6587\u4EF6\u5939\u540D\u79F0\u5DF2\u5B58\u5728",
@@ -32803,21 +32953,21 @@ router3.put("/folders/:id", authMiddleware, async (req, res, next) => {
       data: folder
     });
   } catch (error) {
-    if (error instanceof import_mxmdata7.NotFoundError) {
+    if (error instanceof import_mxmdata9.NotFoundError) {
       return res.status(404).json({
         code: 404,
         message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
         error: "NOT_FOUND"
       });
     }
-    if (error instanceof import_mxmdata7.DuplicateError) {
+    if (error instanceof import_mxmdata9.DuplicateError) {
       return res.status(409).json({
         code: 409,
         message: "\u6587\u4EF6\u5939\u540D\u79F0\u5DF2\u5B58\u5728",
         error: "DUPLICATE_ERROR"
       });
     }
-    if (error instanceof import_mxmdata7.DataAccessError && error.type === "PERMISSION_ERROR") {
+    if (error instanceof import_mxmdata9.DataAccessError && error.type === "PERMISSION_ERROR") {
       return res.status(403).json({
         code: 403,
         message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939",
@@ -32844,14 +32994,14 @@ router3.delete("/folders/:id", authMiddleware, async (req, res, next) => {
       message: "\u5220\u9664\u6587\u4EF6\u5939\u6210\u529F"
     });
   } catch (error) {
-    if (error instanceof import_mxmdata7.NotFoundError) {
+    if (error instanceof import_mxmdata9.NotFoundError) {
       return res.status(404).json({
         code: 404,
         message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
         error: "NOT_FOUND"
       });
     }
-    if (error instanceof import_mxmdata7.DataAccessError) {
+    if (error instanceof import_mxmdata9.DataAccessError) {
       if (error.type === "PERMISSION_ERROR") {
         return res.status(403).json({
           code: 403,
@@ -32969,7 +33119,7 @@ router3.get("/folders/:id/items", authMiddleware, async (req, res, next) => {
       }
     });
   } catch (error) {
-    if (error instanceof import_mxmdata7.DataAccessError && (error.message?.includes("Could not find the table") || error.message?.includes("does not exist") || error.originalError?.message?.includes("Could not find the table"))) {
+    if (error instanceof import_mxmdata9.DataAccessError && (error.message?.includes("Could not find the table") || error.message?.includes("does not exist") || error.originalError?.message?.includes("Could not find the table"))) {
       return res.json({
         code: 200,
         message: "\u83B7\u53D6\u6587\u4EF6\u5939\u5185\u5BB9\u6210\u529F",
@@ -33110,25 +33260,25 @@ function responseMiddleware(_req, res, next) {
 }
 
 // src/middleware/errorHandler.ts
-var import_mxmdata8 = require("@mxmai/mxmdata");
+var import_mxmdata10 = require("@mxmai/mxmdata");
 function errorHandler(error, _req, res, _next) {
   let statusCode = 500;
   let errorResponse;
-  if (error instanceof import_mxmdata8.NotFoundError) {
+  if (error instanceof import_mxmdata10.NotFoundError) {
     statusCode = 404;
     errorResponse = {
       code: 404,
       message: error.message,
       error: "NOT_FOUND"
     };
-  } else if (error instanceof import_mxmdata8.DuplicateError) {
+  } else if (error instanceof import_mxmdata10.DuplicateError) {
     statusCode = 409;
     errorResponse = {
       code: 409,
       message: error.message,
       error: "DUPLICATE"
     };
-  } else if (error instanceof import_mxmdata8.ValidationError) {
+  } else if (error instanceof import_mxmdata10.ValidationError) {
     statusCode = 400;
     errorResponse = {
       code: 400,
@@ -33136,7 +33286,7 @@ function errorHandler(error, _req, res, _next) {
       error: "VALIDATION_ERROR",
       details: error.field ? { field: error.field } : void 0
     };
-  } else if (error instanceof import_mxmdata8.ConnectionError) {
+  } else if (error instanceof import_mxmdata10.ConnectionError) {
     statusCode = 503;
     errorResponse = {
       code: 503,
@@ -33144,7 +33294,7 @@ function errorHandler(error, _req, res, _next) {
       error: "CONNECTION_ERROR",
       details: true ? error.message : void 0
     };
-  } else if (error instanceof import_mxmdata8.TransactionError) {
+  } else if (error instanceof import_mxmdata10.TransactionError) {
     statusCode = 500;
     errorResponse = {
       code: 500,
@@ -33152,7 +33302,7 @@ function errorHandler(error, _req, res, _next) {
       error: "TRANSACTION_ERROR",
       details: true ? error.message : void 0
     };
-  } else if (error instanceof import_mxmdata8.DataAccessError) {
+  } else if (error instanceof import_mxmdata10.DataAccessError) {
     statusCode = 500;
     errorResponse = {
       code: 500,
@@ -33186,10 +33336,10 @@ function notFoundHandler(_req, res) {
 }
 
 // src/index.ts
-var import_mxmdata9 = require("@mxmai/mxmdata");
+var import_mxmdata11 = require("@mxmai/mxmdata");
 try {
-  const config = (0, import_mxmdata9.loadDataConfig)();
-  import_mxmdata9.RepositoryFactory.init(config);
+  const config = (0, import_mxmdata11.loadDataConfig)();
+  import_mxmdata11.RepositoryFactory.init(config);
   console.log("\u2705 mxmdata \u521D\u59CB\u5316\u6210\u529F");
 } catch (error) {
   console.error("\u274C mxmdata \u521D\u59CB\u5316\u5931\u8D25:", error instanceof Error ? error.message : error);

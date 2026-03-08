@@ -7,12 +7,26 @@
 import dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import { textToImage as nanoBananaTextToImage, editImage as nanoBananaEditImage, multiImageGeneration as nanoBananaMultiImage } from '../core/graph/nano-banana';
-import { textToImage as fluxKontextFastTextToImage, editImage as fluxKontextFastEditImage } from '../core/graph/flux-kontext-fast';
-import { textToImage as ideogramTextToImage } from '../core/graph/ideogram-v2a';
-import { textToImage as recraftTextToImage, upscaleImage as recraftUpscaleImage } from '../core/graph/recraft-crisp-upscale';
-import { textToImage as fluxFastTextToImage } from '../core/graph/flux-fast';
-import { textToImage as seedream4TextToImage, editImage as seedream4EditImage, multiReferenceGeneration as seedream4MultiReference } from '../core/graph/seedream-4';
+import { runByModelKey } from '../models/run';
+
+// 单轨：通过 registry 执行，兼容旧测试的 textToImage/editImage 等语义
+async function graphGenerate(modelKey: string, params: Record<string, any>) {
+  const r = await runByModelKey('graph', modelKey, params, undefined);
+  return { ...r, image_urls: (r as any).mediaUrls || (r as any).image_urls || [] };
+}
+const nanoBananaTextToImage = (p: string, o?: any) => graphGenerate('nano-banana', { prompt: p, ...o });
+const nanoBananaEditImage = (p: string, img: string, o?: any) => graphGenerate('nano-banana', { prompt: p, parameters: { image: img }, ...o });
+const nanoBananaMultiImage = (p: string, o?: any) => graphGenerate('nano-banana', { prompt: p, ...o });
+// flux-kontext-fast 已禁用，用 flux-fast 占位
+const fluxKontextFastTextToImage = (p: string, o?: any) => graphGenerate('flux-fast', { prompt: p, ...o });
+const fluxKontextFastEditImage = (p: string, img: string, o?: any) => graphGenerate('flux-fast', { prompt: p, parameters: { input_image: img }, ...o });
+const ideogramTextToImage = (p: string, o?: any) => graphGenerate('ideogram-v2a', { prompt: p, ...o });
+const recraftTextToImage = (p: string, o?: any) => graphGenerate('recraft-crisp-upscale', { prompt: p, ...o });
+const recraftUpscaleImage = (img: string, o?: any) => graphGenerate('recraft-crisp-upscale', { prompt: '', parameters: { image: img }, ...o });
+const fluxFastTextToImage = (p: string, o?: any) => graphGenerate('flux-fast', { prompt: p, ...o });
+const seedream4TextToImage = (p: string, o?: any) => graphGenerate('seedream-4', { prompt: p, ...o });
+const seedream4EditImage = (p: string, img: string, o?: any) => graphGenerate('seedream-4', { prompt: p, parameters: { image_input: [img] }, ...o });
+const seedream4MultiReference = (p: string, imgs: string[], o?: any) => graphGenerate('seedream-4', { prompt: p, parameters: { image_input: imgs }, ...o });
 
 // 加载 .env 文件
 const envPaths = [
@@ -125,9 +139,7 @@ async function testNanoBanana() {
     console.log('正在生成图片...');
 
     // 使用 generate 函数以支持进度监控
-    const { generate } = await import('../core/graph/nano-banana');
-    
-    const result1 = await generate({
+    const result1 = await graphGenerate('nano-banana', {
       prompt: prompt1,
       aspect_ratio: '16:9',
       // image_size: '1K', // Replicate 的 nano-banana-pro 不支持此参数
@@ -275,9 +287,7 @@ async function testFluxKontextFast() {
     console.log('正在生成图片...');
 
     // 使用 generate 函数以支持进度监控
-    const { generate } = await import('../core/graph/flux-kontext-fast');
-    
-    const result1 = await generate({
+    const result1 = await graphGenerate('flux-fast', {
       prompt: prompt1,
       aspect_ratio: '16:9',
       num_outputs: 1,
@@ -393,9 +403,7 @@ async function testIdeogramV2A() {
     console.log('正在生成图片...');
 
     // 使用 generate 函数以支持进度监控
-    const { generate } = await import('../core/graph/ideogram-v2a');
-    
-    const result1 = await generate({
+    const result1 = await graphGenerate('ideogram-v2a', {
       prompt: prompt1,
       aspect_ratio: '16:9',
       style_type: 'Anime', // 使用 Anime 风格类型（注意：API 要求首字母大写）
@@ -473,9 +481,7 @@ async function testRecraftCrispUpscale() {
     console.log('正在生成图片...');
 
     // 使用 generate 函数以支持进度监控
-    const { generate } = await import('../core/graph/recraft-crisp-upscale');
-    
-    const result1 = await generate({
+    const result1 = await graphGenerate('recraft-crisp-upscale', {
       prompt: prompt1,
       image_size: 'square_hd',
       style: 'digital_illustration',
@@ -587,9 +593,7 @@ async function testFluxFast() {
     console.log('正在生成图片...');
 
     // 使用 generate 函数以支持进度监控
-    const { generate } = await import('../core/graph/flux-fast');
-    
-    const result1 = await generate({
+    const result1 = await graphGenerate('flux-fast', {
       prompt: prompt1,
       aspect_ratio: '16:9',
       num_outputs: 1,
@@ -666,9 +670,7 @@ async function testSeedream4() {
     console.log('正在生成图片...');
 
     // 使用 generate 函数以支持进度监控
-    const { generate } = await import('../core/graph/seedream-4');
-    
-    const result1 = await generate({
+    const result1 = await graphGenerate('seedream-4', {
       prompt: prompt1,
       size: '2K',
       aspect_ratio: '16:9',

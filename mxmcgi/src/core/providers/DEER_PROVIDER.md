@@ -8,13 +8,16 @@ DeerAPI Provider 支持通过 DeerAPI 平台调用各种 AI 模型，包括图�
 
 ### 2.1 图片生成模型
 
-| 模型名称 | DeerAPI 模型标识符 | 价格 | 说明 |
-|---------|------------------|------|------|
-| nano-banana | nano-banana | - | Google Gemini 3 Pro Image Preview，支持图片生成和编辑 |
-| flux-2-flex | black-forest-labs/flux-2-flex | $0.06/次 | Flux 2 灵活版本 |
-| flux-2-pro | black-forest-labs/flux-2-pro | $0.03/次 | Flux 2 专业版本 |
-| flux-fast | black-forest-labs/flux-1.1-pro | - | 快速图片生成（兼容） |
-| flux-kontext-fast | black-forest-labs/flux-kontext-pro | - | 快速图片编辑（兼容） |
+| 模型名称        | DeerAPI 模型标识符             | 价格（以线上 Pricing 为准）          | 说明                                                         |
+| --------------- | ------------------------------ | ------------------------------------- | ------------------------------------------------------------ |
+| nano-banana     | gemini-2.5-flash-image         | 参考 [`https://api.deerapi.com/pricing`](https://api.deerapi.com/pricing) | Gemini 2.5 Flash Image 封装，兼顾速度与画质                  |
+| nano-banana-pro | gemini-3-pro-image             | 参考 [`https://api.deerapi.com/pricing`](https://api.deerapi.com/pricing) | Gemini 3 Pro Image 封装，最高画质                            |
+| nano-banana-2   | gemini-3.1-flash-image-preview | 参考 [`https://api.deerapi.com/pricing`](https://api.deerapi.com/pricing) | 基于 Gemini 3.1 Flash Image Preview 的新一代快速图像模型     |
+| nano-banana-2-pro | gemini-3.1-flash-image       | 参考 [`https://api.deerapi.com/pricing`](https://api.deerapi.com/pricing) | 基于 Gemini 3.1 Flash Image 正式版的高画质图像模型           |
+| flux-2-flex     | black-forest-labs/flux-2-flex  | $0.06/次                              | Flux 2 灵活版本                                             |
+| flux-2-pro      | black-forest-labs/flux-2-pro   | $0.03/次                              | Flux 2 专业版本                                             |
+| flux-fast       | black-forest-labs/flux-1.1-pro | -                                     | 快速图片生成（兼容）                                         |
+| flux-kontext-fast | black-forest-labs/flux-kontext-pro | -                               | 快速图片编辑（兼容）                                         |
 
 ### 2.2 文本生成模型
 
@@ -42,7 +45,7 @@ DEERAPI_GROUP=your_group_name  # 可选，用于指定令牌分组（某些模�
 
 ### 3.2 获取 API Key
 
-访问 https://api.deerapi.com/pricing 获取 API Key。
+访问 [`https://api.deerapi.com/pricing`](https://api.deerapi.com/pricing) 获取 API Key。
 
 ## 四、API 格式
 
@@ -147,6 +150,11 @@ if (result.progress) {
 - 使用 `image_input` 参数而不是 `image_urls` 或 `image_base64s`
 - 不支持 `image_size` 参数，只支持 `aspect_ratio`
 - 支持多图输入（数组格式）
+
+> **nano-banana-2 / nano-banana-2-pro 兼容性**
+>
+> - 两个模型在调用方式上与 `nano-banana` / `nano-banana-pro` 保持一致，依旧通过 `graph` 作用域 + `runByModelKey('graph', 'nano-banana-2', ...)` 或 `runByModelKey('graph', 'nano-banana-2-pro', ...)` 统一调用；
+> - 具体计费价格与上游 Gemini 3.1 Flash Image 系列保持同步，详见 DeerAPI 定价文档：`https://api.deerapi.com/pricing` 与更新说明：`https://api.deerapi.com/gemini-3.1-flash-image-update`。
 
 ### 7.2 Flux 模型
 

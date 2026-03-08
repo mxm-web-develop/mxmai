@@ -7,9 +7,17 @@ import { ServerResponse } from 'http';
 import { Router, Request, Response, NextFunction } from 'express';
 import { createProxyMiddleware, Options, fixRequestBody } from 'http-proxy-middleware';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { createCgiStorageHandler } from '../middleware/cgiStorage';
-import { createTaskNotificationHandler } from '../middleware/taskNotification';
 import { logger } from '../utils/logger';
+
+function isLegacyGatewayTaskNotificationEnabled(): boolean {
+  // 默认关闭：由 mxmcgi 统一发送任务事件到 mxmnotify，避免双写/重复通知
+  return String(process.env.ENABLE_LEGACY_GATEWAY_TASK_NOTIFICATION || '').toLowerCase() === 'true';
+}
+
+function isLegacyGatewayCgiStorageEnabled(): boolean {
+  // 默认关闭：由 mxmcgi 统一负责 storeToMinio/data-store 与元数据落库，避免双写/重复存储
+  return String(process.env.ENABLE_LEGACY_GATEWAY_CGI_STORAGE || '').toLowerCase() === 'true';
+}
 
 /**
  * 创建代理路由
@@ -280,8 +288,11 @@ export function createProxyRouter(): Router {
     authMiddleware,
     (req: Request, res: Response, next: NextFunction) => {
       const authReq = req as AuthRequest;
-      const storageHandler = createCgiStorageHandler(authReq);
-      const taskNotificationHandler = createTaskNotificationHandler(authReq);
+      // 遗留逻辑：网关层创建/更新任务、拦截响应体做存储（默认关闭）
+      const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
+      const enableLegacyStorage = isLegacyGatewayCgiStorageEnabled();
+      const storageHandler = enableLegacyStorage ? require('../middleware/cgiStorage').createCgiStorageHandler(authReq) : null;
+      const taskNotificationHandler = enableLegacyTaskNotify ? require('../middleware/taskNotification').createTaskNotificationHandler(authReq) : null;
       
       const proxyMiddleware = createProxyMiddleware({
         target: services.generation,
@@ -313,20 +324,28 @@ export function createProxyRouter(): Router {
             fixRequestBody(proxyReq, req);
 
             // 调用任务通知处理（创建任务）
-            taskNotificationHandler.onProxyReq(proxyReq, req);
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyReq(proxyReq, req);
+            }
           },
           proxyRes: (proxyRes: any, req: Request, res: Response) => {
             logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
             // 调用存储处理
-            storageHandler.onProxyRes(proxyRes, req, res);
+            if (storageHandler) {
+              storageHandler.onProxyRes(proxyRes, req, res);
+            }
             // 调用任务通知处理（更新任务并发送通知）
-            taskNotificationHandler.onProxyRes(proxyRes, req, res);
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyRes(proxyRes, req, res);
+            }
           },
           error: (err: Error, req: Request, res: any) => {
             logger.error(`Proxy error: ${req.method} ${req.path}`, err);
             // 调用任务通知处理（处理错误）
             if (res && typeof res.status === 'function') {
-              taskNotificationHandler.onError(err, req, res);
+              if (taskNotificationHandler) {
+                taskNotificationHandler.onError(err, req, res);
+              }
             }
             if (res && typeof res.status === 'function' && !res.headersSent) {
               res.status(502).json({
@@ -380,8 +399,10 @@ export function createProxyRouter(): Router {
     authMiddleware,
     (req: Request, res: Response, next: NextFunction) => {
       const authReq = req as AuthRequest;
-      const storageHandler = createCgiStorageHandler(authReq);
-      const taskNotificationHandler = createTaskNotificationHandler(authReq);
+      const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
+      const enableLegacyStorage = isLegacyGatewayCgiStorageEnabled();
+      const storageHandler = enableLegacyStorage ? require('../middleware/cgiStorage').createCgiStorageHandler(authReq) : null;
+      const taskNotificationHandler = enableLegacyTaskNotify ? require('../middleware/taskNotification').createTaskNotificationHandler(authReq) : null;
       
       const proxyMiddleware = createProxyMiddleware({
         target: services.generation,
@@ -420,20 +441,28 @@ export function createProxyRouter(): Router {
             }
 
             // 调用任务通知处理（创建任务）
-            taskNotificationHandler.onProxyReq(proxyReq, req);
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyReq(proxyReq, req);
+            }
           },
           proxyRes: (proxyRes: any, req: Request, res: Response) => {
             logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
             // 调用存储处理
-            storageHandler.onProxyRes(proxyRes, req, res);
+            if (storageHandler) {
+              storageHandler.onProxyRes(proxyRes, req, res);
+            }
             // 调用任务通知处理（更新任务并发送通知）
-            taskNotificationHandler.onProxyRes(proxyRes, req, res);
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyRes(proxyRes, req, res);
+            }
           },
           error: (err: Error, req: Request, res: any) => {
             logger.error(`Proxy error: ${req.method} ${req.path}`, err);
             // 调用任务通知处理（处理错误）
             if (res && typeof res.status === 'function') {
-              taskNotificationHandler.onError(err, req, res);
+              if (taskNotificationHandler) {
+                taskNotificationHandler.onError(err, req, res);
+              }
             }
             if (res && typeof res.status === 'function' && !res.headersSent) {
               res.status(502).json({
@@ -459,8 +488,10 @@ export function createProxyRouter(): Router {
     authMiddleware,
     (req: Request, res: Response, next: NextFunction) => {
       const authReq = req as AuthRequest;
-      const storageHandler = createCgiStorageHandler(authReq);
-      const taskNotificationHandler = createTaskNotificationHandler(authReq);
+      const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
+      const enableLegacyStorage = isLegacyGatewayCgiStorageEnabled();
+      const storageHandler = enableLegacyStorage ? require('../middleware/cgiStorage').createCgiStorageHandler(authReq) : null;
+      const taskNotificationHandler = enableLegacyTaskNotify ? require('../middleware/taskNotification').createTaskNotificationHandler(authReq) : null;
       
       const proxyMiddleware = createProxyMiddleware({
         target: services.generation,
@@ -504,20 +535,28 @@ export function createProxyRouter(): Router {
             });
 
             // 调用任务通知处理（创建任务）
-            taskNotificationHandler.onProxyReq(proxyReq, req);
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyReq(proxyReq, req);
+            }
           },
           proxyRes: (proxyRes: any, req: Request, res: Response) => {
             logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
             // 调用存储处理
-            storageHandler.onProxyRes(proxyRes, req, res);
+            if (storageHandler) {
+              storageHandler.onProxyRes(proxyRes, req, res);
+            }
             // 调用任务通知处理（更新任务并发送通知）
-            taskNotificationHandler.onProxyRes(proxyRes, req, res);
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyRes(proxyRes, req, res);
+            }
           },
           error: (err: Error, req: Request, res: any) => {
             logger.error(`Proxy error: ${req.method} ${req.path}`, err);
             // 调用任务通知处理（处理错误）
             if (res && typeof res.status === 'function') {
-              taskNotificationHandler.onError(err, req, res);
+              if (taskNotificationHandler) {
+                taskNotificationHandler.onError(err, req, res);
+              }
             }
             if (res && typeof res.status === 'function' && !res.headersSent) {
               res.status(502).json({
@@ -543,8 +582,10 @@ export function createProxyRouter(): Router {
     authMiddleware,
     (req: Request, res: Response, next: NextFunction) => {
       const authReq = req as AuthRequest;
-      const storageHandler = createCgiStorageHandler(authReq);
-      const taskNotificationHandler = createTaskNotificationHandler(authReq);
+      const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
+      const enableLegacyStorage = isLegacyGatewayCgiStorageEnabled();
+      const storageHandler = enableLegacyStorage ? require('../middleware/cgiStorage').createCgiStorageHandler(authReq) : null;
+      const taskNotificationHandler = enableLegacyTaskNotify ? require('../middleware/taskNotification').createTaskNotificationHandler(authReq) : null;
       
       const proxyMiddleware = createProxyMiddleware({
         target: services.generation,
@@ -576,20 +617,28 @@ export function createProxyRouter(): Router {
             fixRequestBody(proxyReq, req);
 
             // 调用任务通知处理（创建任务）
-            taskNotificationHandler.onProxyReq(proxyReq, req);
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyReq(proxyReq, req);
+            }
           },
           proxyRes: (proxyRes: any, req: Request, res: Response) => {
             logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
             // 调用存储处理
-            storageHandler.onProxyRes(proxyRes, req, res);
+            if (storageHandler) {
+              storageHandler.onProxyRes(proxyRes, req, res);
+            }
             // 调用任务通知处理（更新任务并发送通知）
-            taskNotificationHandler.onProxyRes(proxyRes, req, res);
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyRes(proxyRes, req, res);
+            }
           },
           error: (err: Error, req: Request, res: any) => {
             logger.error(`Proxy error: ${req.method} ${req.path}`, err);
             // 调用任务通知处理（处理错误）
             if (res && typeof res.status === 'function') {
-              taskNotificationHandler.onError(err, req, res);
+              if (taskNotificationHandler) {
+                taskNotificationHandler.onError(err, req, res);
+              }
             }
             if (res && typeof res.status === 'function' && !res.headersSent) {
               res.status(502).json({
@@ -616,21 +665,26 @@ export function createProxyRouter(): Router {
     createProxyMiddleware({
       target: services.generation,
       changeOrigin: true,
+      timeout: 60000, // 60 秒（敏感词等 admin 操作）
+      proxyTimeout: 60000,
       pathRewrite: (path, req) => {
-        // 将 /api/v1/system 替换为 /system
-        // 由于 router.use('/system', ...)，path 参数已经是去掉 /system 前缀后的路径
-        // 例如：请求 /api/v1/system/models，path 参数是 /models
-        // 我们需要返回 /system/models
-        return '/system' + path;
+        const originalPath = (req as Request).originalUrl || path;
+        // /api/v1/system/admin/sensitive-words/lists -> /system/admin/sensitive-words/lists
+        return originalPath.replace(/^\/api\/v1\/system/, '/system');
       },
       on: {
         proxyReq: (proxyReq, req: Request) => {
-          // 转发用户信息（如果已认证）
+          // 转发用户信息（如果已认证）；x-user-role 由 mxmauth JWT 写入，下游可免查库校验 admin
           const authReq = req as AuthRequest;
           if (authReq.user) {
             proxyReq.setHeader('x-user-id', authReq.user.userId);
             proxyReq.setHeader('x-username', authReq.user.username);
+            if (authReq.user.role) {
+              proxyReq.setHeader('x-user-role', authReq.user.role);
+            }
           }
+          // Gateway 已用 express.json() 解析 body，必须用 fixRequestBody 重新写入代理请求，否则 mxmcgi 收不到 body 会挂起并 request aborted
+          fixRequestBody(proxyReq, req);
         },
         proxyRes: (proxyRes: any, req: Request, res: Response) => {
           logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
@@ -862,6 +916,73 @@ export function createProxyRouter(): Router {
               error: {
                 code: 'PROXY_ERROR',
                 message: 'Service unavailable',
+              },
+            });
+          }
+        },
+      },
+    })
+  );
+
+  // Character角色服务路由 (/api/v1/characters) - 需要认证
+  // 将 /api/v1/characters/* 代理到 mxmcgi 的 /api/v1/characters/*
+  router.use(
+    '/characters',
+    authMiddleware,
+    createProxyMiddleware({
+      target: services.generation,
+      changeOrigin: true,
+      timeout: 30000, // 30秒超时
+      proxyTimeout: 30000,
+      pathRewrite: (path, req) => {
+        // 保持路径不变，因为mxmcgi的路由已经是 /api/v1/characters
+        const originalPath = (req as Request).originalUrl || path;
+        logger.debug(`[Character Proxy] Path rewrite: ${originalPath} -> ${originalPath}`);
+        return originalPath;
+      },
+      on: {
+        proxyReq: (proxyReq, req: Request) => {
+          // 转发原始请求头
+          if (req.headers['x-forwarded-for']) {
+            proxyReq.setHeader('x-forwarded-for', req.headers['x-forwarded-for']);
+          }
+          if (req.headers['x-real-ip']) {
+            proxyReq.setHeader('x-real-ip', req.headers['x-real-ip']);
+          }
+          // 转发用户信息（如果已认证）
+          const authReq = req as AuthRequest;
+          if (authReq.user) {
+            proxyReq.setHeader('x-user-id', authReq.user.userId);
+            proxyReq.setHeader('x-username', authReq.user.username);
+            logger.debug(`[Character Proxy] Forwarding user: ${authReq.user.userId}`);
+          }
+
+          // 重要：使用 fixRequestBody 修复请求体
+          // 当 Express 已经解析了请求体（通过 express.json()）时，
+          // 原始请求流已经被消费，需要使用 fixRequestBody 重新构建请求体
+          fixRequestBody(proxyReq, req);
+        },
+        proxyRes: (proxyRes: any, req: Request, res: Response) => {
+          logger.debug(`[Character Proxy] Response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+          // 确保响应头正确设置，避免Postman卡住
+          // 移除可能导致问题的响应头
+          if (proxyRes.headers['transfer-encoding']) {
+            delete proxyRes.headers['transfer-encoding'];
+          }
+          // 确保Connection头正确
+          if (!proxyRes.headers['connection']) {
+            proxyRes.headers['connection'] = 'close';
+          }
+        },
+        error: (err: Error, req: Request, res: any) => {
+          logger.error(`[Character Proxy] Error: ${req.method} ${req.path}`, err);
+          if (res && typeof res.status === 'function' && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: {
+                code: 'PROXY_ERROR',
+                message: 'Character service unavailable',
+                details: err.message,
               },
             });
           }

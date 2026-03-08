@@ -4,7 +4,6 @@
  */
 
 import type { WritingTypeConfig } from './index';
-import type { FormOptionsConfig, FieldMetadata } from '../../shared/formOptions';
 
 export const resumesConfig: WritingTypeConfig = {
   /**
@@ -72,120 +71,6 @@ export const resumesConfig: WritingTypeConfig = {
    */
   getParamsForType(): string[] {
     return ['workYears', 'industry', 'skillFocus', 'targetPosition', 'highlightAchievements'];
-  },
-
-  /**
-   * 获取表单选项配置
-   */
-  getFormOptions(language: 'zh' | 'en' = 'zh'): FormOptionsConfig {
-    const isZh = language === 'zh';
-
-    const resumesFormOptionsZh: FormOptionsConfig = {
-      // Select 类型字段
-      workYears: [
-        { value: '0-1', label: '0-1年', labelEn: '0-1 years' },
-        { value: '2-5', label: '2-5年', labelEn: '2-5 years' },
-        { value: '5-10', label: '5-10年', labelEn: '5-10 years' },
-        { value: '10+', label: '10年以上', labelEn: '10+ years' },
-      ],
-      industry: [
-        { value: 'tech', label: '科技互联网', labelEn: 'Technology' },
-        { value: 'finance', label: '金融', labelEn: 'Finance' },
-        { value: 'education', label: '教育', labelEn: 'Education' },
-        { value: 'healthcare', label: '医疗健康', labelEn: 'Healthcare' },
-        { value: 'manufacturing', label: '制造业', labelEn: 'Manufacturing' },
-        { value: 'retail', label: '零售', labelEn: 'Retail' },
-        { value: 'consulting', label: '咨询', labelEn: 'Consulting' },
-      ],
-      skillFocus: [
-        { value: 'technical', label: '技术能力', labelEn: 'Technical Skills' },
-        { value: 'management', label: '管理能力', labelEn: 'Management' },
-        { value: 'communication', label: '沟通能力', labelEn: 'Communication' },
-        { value: 'leadership', label: '领导力', labelEn: 'Leadership' },
-        { value: 'analytical', label: '分析能力', labelEn: 'Analytical Skills' },
-      ],
-
-      // 元数据（为所有字段提供中文标签）
-      _metadata: {
-        workYears: {
-          type: 'select',
-          label: '工作年限',
-          labelEn: 'Work Years',
-          helpText: '选择工作年限',
-          helpTextEn: 'Select work years',
-        },
-        industry: {
-          type: 'select',
-          label: '行业领域',
-          labelEn: 'Industry',
-          helpText: '选择行业领域',
-          helpTextEn: 'Select the industry',
-        },
-        skillFocus: {
-          type: 'multi-select',
-          label: '技能重点',
-          labelEn: 'Skill Focus',
-          helpText: '选择需要在简历中重点突出的技能类型',
-          helpTextEn: 'Select skill types to highlight in the resume',
-        },
-        targetPosition: {
-          type: 'text',
-          label: '目标职位',
-          labelEn: 'Target Position',
-          placeholder: '例如：高级软件工程师',
-          placeholderEn: 'e.g., Senior Software Engineer',
-          helpText: '希望申请的职位名称',
-          helpTextEn: 'The position you are applying for',
-        },
-        highlightAchievements: {
-          type: 'textarea',
-          label: '突出成就',
-          labelEn: 'Highlight Achievements',
-          placeholder: '描述主要工作成就、项目成果等...',
-          placeholderEn: 'Describe main achievements, project results...',
-          helpText: '重点突出的工作成就和项目成果，用于简历中重点展示',
-          helpTextEn: 'Key achievements and project results to highlight in the resume',
-        },
-      },
-    };
-
-    if (language === 'en') {
-      return {
-        workYears: resumesFormOptionsZh.workYears.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        industry: resumesFormOptionsZh.industry.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        skillFocus: resumesFormOptionsZh.skillFocus.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        _metadata: {
-          targetPosition: {
-            ...resumesFormOptionsZh._metadata!.targetPosition,
-            label: resumesFormOptionsZh._metadata!.targetPosition.labelEn || 'Target Position',
-            placeholder: resumesFormOptionsZh._metadata!.targetPosition.placeholderEn,
-            helpText: resumesFormOptionsZh._metadata!.targetPosition.helpTextEn,
-          },
-          highlightAchievements: {
-            ...resumesFormOptionsZh._metadata!.highlightAchievements,
-            label: resumesFormOptionsZh._metadata!.highlightAchievements.labelEn || 'Highlight Achievements',
-            placeholder: resumesFormOptionsZh._metadata!.highlightAchievements.placeholderEn,
-            helpText: resumesFormOptionsZh._metadata!.highlightAchievements.helpTextEn,
-          },
-          skillFocus: {
-            ...resumesFormOptionsZh._metadata!.skillFocus,
-            label: resumesFormOptionsZh._metadata!.skillFocus.labelEn || 'Skill Focus',
-            helpText: resumesFormOptionsZh._metadata!.skillFocus.helpTextEn,
-          },
-        },
-      };
-    }
-
-    return resumesFormOptionsZh;
   },
 }
 

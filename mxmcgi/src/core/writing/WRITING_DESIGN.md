@@ -99,6 +99,21 @@ Authorization: Bearer <token>
 }
 ```
 
+#### 3.1.4 口播稿（voice-scripts）输出格式说明
+
+- voice-scripts 类型：默认输出为纯文本（txt），不使用任何 Markdown 语法。
+- 若需要为 TTS 增强“精确停顿/换气”，可在请求中传入：
+  - writing_type: "voice-scripts"
+  - format: "tts"
+
+TTS 精确停顿标签：
+- 格式：<#x#>
+- x = 停顿秒数（0.01～99.99，最多两位小数）
+- 约束：必须放在两个可发音文本之间；不能在开头/结尾；不能连续多个标签
+
+示例（text 字段直接可用）：
+你好，<#0.8#>今天天气真不错啊，<#1.5#>我们出去走走吧？
+
 **注意**：
 - 不再需要用户指定 `:modelName`，系统根据 `taskType` 自动选择模型
 - `taskType` 说明：
@@ -391,11 +406,11 @@ ${prompt}`;
 - **文件命名**：如果提供了 `title`，可以作为文件名的一部分
 - **元数据**：在 MinIO 的 metadata 中存储文档信息（title, wordCount, format 等）
 
-### 4.4 与 Text 模块的集成
+### 4.4 与 Writing 模型列表的集成
 
 ```typescript
 // writing-service.ts
-import { MODEL_MAP } from '../../routes/text';
+import { MODEL_MAP } from '../../routes/writing';
 
 async function generateText(
   modelName: string,

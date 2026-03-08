@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Router } from 'express';
-import { taskManager } from '../core/task/task-manager';
+import { taskManager } from '../task/task-manager';
 import { RepositoryFactory } from '@mxmai/mxmdata';
 
 const router = Router();
@@ -84,7 +84,113 @@ router.get('/graph/:taskId', async (req: Request, res: Response) => {
       });
     }
 
+    // 检查是否是 MinIO 连接错误
+    const isConnectionError = 
+      error?.code === 'CONNECTION_ERROR' ||
+      error?.originalError?.code === 'ECONNREFUSED' ||
+      error?.message?.includes('connection') ||
+      error?.message?.includes('ECONNREFUSED') ||
+      error?.message?.includes('MinIO connection failed');
+
+    if (isConnectionError) {
+      console.error('[Media Route] 获取图片失败: MinIO 连接错误', error);
+      return res.status(503).json({
+        success: false,
+        error: 'Storage service unavailable. Please check if MinIO is running.',
+        details: 'MinIO connection failed. The storage service may be down or misconfigured.',
+      });
+    }
+
     console.error('[Media Route] 获取图片失败:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
+ * 通过 bucket + key 访问用户上传的资源
+ * 用于 uploadAssets 上传的文件，路径格式：userId/upload/graph/xxx.jpg
+ *
+ * 路径示例：
+ *   GET /media/asset?bucket=user-media&key=userId/upload/graph/xxx.jpg
+ *
+ * 权限：key 必须是以 {userId}/upload/ 开头，且 x-user-id 与 userId 一致
+ */
+router.get('/asset', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.headers['x-user-id'] as string | undefined) || undefined;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Missing x-user-id header',
+      });
+    }
+
+    const bucket = (req.query.bucket as string) || '';
+    const key = (req.query.key as string) || '';
+
+    if (!bucket || !key) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing bucket or key query parameter',
+      });
+    }
+
+    // 权限校验：key 必须属于当前用户
+    if (!key.startsWith(`${userId}/upload/`)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: You can only access your own uploads',
+      });
+    }
+
+    const storageRepo = RepositoryFactory.createStorageRepository();
+
+    const fileBuffer = await storageRepo.downloadFile(bucket, key);
+    const metadata = await storageRepo.getFileMetadata(bucket, key);
+
+    const contentType =
+      metadata?.contentType ||
+      (key.endsWith('.png')
+        ? 'image/png'
+        : key.endsWith('.jpg') || key.endsWith('.jpeg')
+        ? 'image/jpeg'
+        : key.endsWith('.webp')
+        ? 'image/webp'
+        : key.endsWith('.gif')
+        ? 'image/gif'
+        : 'application/octet-stream');
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', fileBuffer.length.toString());
+
+    return res.send(fileBuffer);
+  } catch (error: any) {
+    if (error instanceof Error && error.message.includes('not found')) {
+      return res.status(404).json({
+        success: false,
+        error: error.message,
+      });
+    }
+
+    const isConnectionError =
+      error?.code === 'CONNECTION_ERROR' ||
+      error?.originalError?.code === 'ECONNREFUSED' ||
+      error?.message?.includes('connection') ||
+      error?.message?.includes('ECONNREFUSED') ||
+      error?.message?.includes('MinIO connection failed');
+
+    if (isConnectionError) {
+      console.error('[Media Route] 获取资源失败: MinIO 连接错误', error);
+      return res.status(503).json({
+        success: false,
+        error: 'Storage service unavailable.',
+      });
+    }
+
+    console.error('[Media Route] 获取资源失败:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -173,6 +279,23 @@ router.get('/video/:taskId', async (req: Request, res: Response) => {
       });
     }
 
+    // 检查是否是 MinIO 连接错误
+    const isConnectionError = 
+      error?.code === 'CONNECTION_ERROR' ||
+      error?.originalError?.code === 'ECONNREFUSED' ||
+      error?.message?.includes('connection') ||
+      error?.message?.includes('ECONNREFUSED') ||
+      error?.message?.includes('MinIO connection failed');
+
+    if (isConnectionError) {
+      console.error('[Media Route] 获取视频失败: MinIO 连接错误', error);
+      return res.status(503).json({
+        success: false,
+        error: 'Storage service unavailable. Please check if MinIO is running.',
+        details: 'MinIO connection failed. The storage service may be down or misconfigured.',
+      });
+    }
+
     console.error('[Media Route] 获取视频失败:', error);
     return res.status(500).json({
       success: false,
@@ -248,21 +371,35 @@ router.get('/writing/:taskId', async (req: Request, res: Response) => {
 
         const storageRepo = RepositoryFactory.createStorageRepository();
 
-        // 下载文件内容（Buffer）
-        const fileBuffer = await storageRepo.downloadFile(bucket, key);
-        const fileMetadata = await storageRepo.getFileMetadata(bucket, key);
+        try {
+          // 下载文件内容（Buffer）
+          const fileBuffer = await storageRepo.downloadFile(bucket, key);
+          const fileMetadata = await storageRepo.getFileMetadata(bucket, key);
 
-        contentType =
-          fileMetadata?.contentType ||
-          (key.endsWith('.md')
-            ? 'text/markdown; charset=utf-8'
-            : key.endsWith('.txt')
-            ? 'text/plain; charset=utf-8'
-            : key.endsWith('.pdf')
-            ? 'application/pdf'
-            : 'text/plain; charset=utf-8');
+          contentType =
+            fileMetadata?.contentType ||
+            (key.endsWith('.md')
+              ? 'text/markdown; charset=utf-8'
+              : key.endsWith('.txt')
+              ? 'text/plain; charset=utf-8'
+              : key.endsWith('.pdf')
+              ? 'application/pdf'
+              : 'text/plain; charset=utf-8');
 
-        content = fileBuffer;
+          content = fileBuffer;
+        } catch (error: any) {
+          // 如果是连接错误，记录日志但继续尝试从 metadata 获取内容
+          if (error?.code === 'CONNECTION_ERROR' || 
+              error?.originalError?.code === 'ECONNREFUSED' ||
+              error?.message?.includes('connection') ||
+              error?.message?.includes('ECONNREFUSED')) {
+            console.warn(`[Media Route] MinIO 连接失败，尝试从 metadata 获取内容: ${error.message}`);
+            // 不抛出错误，继续执行后续逻辑从 metadata 获取内容
+          } else {
+            // 其他错误（如文件不存在）也记录日志，继续尝试从 metadata 获取
+            console.warn(`[Media Route] 从 MinIO 获取文件失败，尝试从 metadata 获取内容: ${error.message}`);
+          }
+        }
       }
     } 
     // 如果没有 storageInfo，从 metadata 中获取文本内容
@@ -407,9 +544,10 @@ router.put('/writing/:taskId', async (req: Request, res: Response) => {
       });
     }
 
-    const { content, format } = req.body as {
+    const { content, format, characters } = req.body as {
       content?: string | any[]; // 可以是字符串或 JSON 数组（大纲）
       format?: 'markdown' | 'txt' | 'pdf' | 'json';
+      characters?: any[]; // 角色画像（可选，仅对 format === 'json' 有效）
     };
 
     if (content === undefined) {
@@ -446,6 +584,12 @@ router.put('/writing/:taskId', async (req: Request, res: Response) => {
         });
       }
 
+      // 分镜脚本：根据当前字段重新拼接每个 chunk 的 prompt，使编辑后最终 prompt 跟随变化
+      if (typeof content === 'object' && content !== null && Array.isArray((content as any).chunks)) {
+        const { fillChunkPrompts } = await import('../core/writing/storyboard-chunk-utils');
+        fillChunkPrompts((content as any).chunks);
+      }
+
       // 更新大纲到 metadata
       // 如果 content 是数组，取第一个元素作为根大纲；如果是对象，直接使用
       const outline = Array.isArray(content) && content.length > 0 ? content[0] : content;
@@ -453,6 +597,7 @@ router.put('/writing/:taskId', async (req: Request, res: Response) => {
       const updatedMetadata = {
         ...existingResult.metadata,
         outline: outline,
+        ...(Array.isArray(characters) ? { characters } : {}),
         updatedAt: new Date().toISOString(),
       };
 
@@ -466,6 +611,7 @@ router.put('/writing/:taskId', async (req: Request, res: Response) => {
         data: {
           storageType: 'outline',
           outline: outline,
+          ...(Array.isArray(characters) ? { characters } : {}),
         },
       });
     }
@@ -659,6 +805,23 @@ router.get('/audio/:taskId', async (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         error: error.message,
+      });
+    }
+
+    // 检查是否是 MinIO 连接错误
+    const isConnectionError = 
+      error?.code === 'CONNECTION_ERROR' ||
+      error?.originalError?.code === 'ECONNREFUSED' ||
+      error?.message?.includes('connection') ||
+      error?.message?.includes('ECONNREFUSED') ||
+      error?.message?.includes('MinIO connection failed');
+
+    if (isConnectionError) {
+      console.error('[Media Route] 获取音频失败: MinIO 连接错误', error);
+      return res.status(503).json({
+        success: false,
+        error: 'Storage service unavailable. Please check if MinIO is running.',
+        details: 'MinIO connection failed. The storage service may be down or misconfigured.',
       });
     }
 

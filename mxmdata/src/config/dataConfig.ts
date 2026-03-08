@@ -63,8 +63,11 @@ export function loadDataConfig(): DataLayerConfig {
       throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY are required when using Supabase adapter');
     }
 
+    // 规范化 URL：移除末尾斜杠，Supabase 客户端会自动添加路径
+    const normalizedUrl = supabaseUrl.trim().replace(/\/+$/, '');
+
     config.supabase = {
-      url: supabaseUrl,
+      url: normalizedUrl,
       anonKey: supabaseAnonKey,
       serviceKey: supabaseServiceKey,
     };

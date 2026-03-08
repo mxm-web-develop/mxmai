@@ -3,7 +3,7 @@
  * 从知识库检索相关内容并增强 prompt
  */
 
-import { KnowledgeService } from '../knowledge/knowledge-service';
+import { KnowledgeService } from '../../knowledge/knowledge-service';
 import type { KnowledgeSearchResult, KnowledgeHybridSearchResult } from '@mxmai/mxmdata';
 
 export interface KnowledgeBaseConfig {

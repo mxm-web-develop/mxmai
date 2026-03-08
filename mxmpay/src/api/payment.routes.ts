@@ -65,10 +65,10 @@ export function createPaymentRoutes(paymentService: PaymentService): Router {
       body('currency')
         .custom((value, { req }) => {
           const channel = req.body.channel;
-          // 对于 voucher 渠道，允许 CNY 和 USD
-          if (channel === PaymentChannel.VOUCHER) {
+          // 对于 voucher / apple_iap 渠道，允许 CNY 和 USD
+          if (channel === PaymentChannel.VOUCHER || channel === PaymentChannel.APPLE_IAP) {
             if (value !== PaymentMethod.CNY && value !== PaymentMethod.USD) {
-              throw new Error('voucher 渠道的 currency 必须是 cny 或 usd');
+              throw new Error(`${channel} 渠道的 currency 必须是 cny 或 usd`);
             }
             return true;
           }
@@ -79,7 +79,7 @@ export function createPaymentRoutes(paymentService: PaymentService): Router {
           }
           return true;
         }),
-      body('channel').isIn([PaymentChannel.ALIPAY, PaymentChannel.WECHAT, PaymentChannel.PAYPAL, PaymentChannel.CARD, PaymentChannel.CRYPTO, PaymentChannel.VOUCHER])
+      body('channel').isIn([PaymentChannel.ALIPAY, PaymentChannel.WECHAT, PaymentChannel.PAYPAL, PaymentChannel.CARD, PaymentChannel.CRYPTO, PaymentChannel.VOUCHER, PaymentChannel.APPLE_IAP])
         .withMessage('无效的支付通道'),
       // 对于 crypto 渠道，toAddress 是可选的（会从环境变量获取）
       // 对于其他渠道，toAddress 是必需的
@@ -87,8 +87,8 @@ export function createPaymentRoutes(paymentService: PaymentService): Router {
         .optional()
         .custom((value, { req }) => {
           const channel = req.body.channel;
-          // 如果是 crypto 或 voucher 渠道，toAddress 可以为空
-          if (channel === PaymentChannel.CRYPTO || channel === PaymentChannel.VOUCHER) {
+          // 如果是 crypto、voucher 或 apple_iap 渠道，toAddress 可以为空
+          if (channel === PaymentChannel.CRYPTO || channel === PaymentChannel.VOUCHER || channel === PaymentChannel.APPLE_IAP) {
             return true;
           }
           // 其他渠道需要 toAddress
@@ -118,6 +118,37 @@ export function createPaymentRoutes(paymentService: PaymentService): Router {
         res.status(201).json(ApiResponseDto.success(order, '支付订单创建成功'));
       } catch (error: any) {
         res.status(400).json(ApiResponseDto.error(error.message || '创建订单失败', 400));
+      }
+    }
+  );
+
+  /**
+   * Apple IAP 收据校验与入账
+   * POST /payment/iap/verify
+   * Body: { orderId, receipt, productId? }
+   */
+  router.post(
+    '/iap/verify',
+    [
+      body('orderId').isString().notEmpty().withMessage('orderId 不能为空'),
+      body('receipt').isString().notEmpty().withMessage('receipt 不能为空'),
+      body('productId').optional().isString(),
+      validate,
+    ],
+    async (req: Request, res: Response) => {
+      try {
+        const userId = req.headers['x-user-id'] as string || req.body.userId;
+        if (!userId) {
+          return res.status(401).json(ApiResponseDto.error('缺少 x-user-id 或 userId', 401));
+        }
+        const order = await paymentService.verifyIapReceipt(
+          req.body.orderId,
+          req.body.receipt,
+          req.body.productId,
+        );
+        res.json(ApiResponseDto.success(order, 'IAP 校验成功，已入账'));
+      } catch (error: any) {
+        res.status(400).json(ApiResponseDto.error(error.message || 'IAP 校验失败', 400));
       }
     }
   );

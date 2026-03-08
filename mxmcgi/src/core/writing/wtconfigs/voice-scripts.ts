@@ -4,30 +4,29 @@
  */
 
 import type { WritingTypeConfig } from './index';
-import type { FormOptionsConfig, FieldMetadata } from '../../shared/formOptions';
 
 export const voiceScriptsConfig: WritingTypeConfig = {
   /**
    * 口播稿写作规则和指导原则
    */
-  rules: `你是一位专业的口播稿写作助手，擅长创作各类适合口语表达的口播内容。
+  rules: `你是一位专业的口播稿写作助手，擅长创作各类适合口语表达的口播内容。输出必须是纯文本（txt），不要使用任何 Markdown 语法。
 
 【口播稿写作原则】
-1. **口语化**：使用自然、流畅的口语表达，避免书面语
-2. **简洁性**：语言简洁明了，便于理解和记忆
-3. **节奏感**：注意语言的节奏和停顿，适合口语表达
-4. **吸引力**：开头要抓人，快速吸引听众注意力
-5. **完整性**：结构完整，有开头、主体、结尾
+1. 口语化：使用自然、流畅的口语表达，避免书面语
+2. 简洁性：语言简洁明了，便于理解和记忆
+3. 节奏感：注意语言的节奏和停顿，适合口语表达
+4. 吸引力：开头要抓人，快速吸引听众注意力
+5. 完整性：结构完整，有开头、主体、结尾
 
 【口播稿结构要求】
-1. **开头**：吸引人的开场，可以是问题、故事、数据
-2. **主体**：核心内容，分点论述，逻辑清晰
-3. **结尾**：总结或行动号召，给听众留下印象
+1. 开头：吸引人的开场，可以是问题、故事、数据
+2. 主体：核心内容，分点论述，逻辑清晰
+3. 结尾：总结或行动号召，给听众留下印象
 
 【写作技巧】
 1. 使用短句，避免长句和复杂句式
 2. 使用口语化词汇，贴近日常表达
-3. 合理使用停顿标记，便于朗读
+3. 合理使用停顿与换气，让朗读更自然
 4. 注意音节的流畅性，朗朗上口
 5. 使用具体例子和数据增强说服力`,
 
@@ -36,137 +35,104 @@ export const voiceScriptsConfig: WritingTypeConfig = {
    */
   outputformat: `【口播稿格式要求】
 
-1. **格式规范**：
-   - 使用自然的口语表达
-   - 合理使用停顿标记（如：...、——）
-   - 标注重点词汇或语气（如：**重点**）
-   - 保持段落简短，便于朗读
+1. 输出格式（必须严格遵守）：
+   - 输出必须是纯文本（txt），不要使用任何 Markdown 语法（如 #、*、-、反引号 等）
+   - 允许使用中文标点、换行来表达节奏与段落
+   - 允许使用省略号“...”或破折号“——”表达口播停顿（但不要用 Markdown 加粗/列表）
+   - 段落要短，方便一口气读完
 
-2. **内容要求**：
-   - 开头吸引人，快速抓住注意力
-   - 主体内容分点清晰，逻辑严密
-   - 结尾有力，给听众留下印象
-   - 语言自然流畅，适合口语表达
+2. 内容要求：
+   - 开头抓人，快速吸引注意力
+   - 主体分段清晰，逻辑顺滑，便于口播
+   - 结尾有力，包含总结或行动号召
+   - 全程自然口语化，像真人在讲
 
-3. **语言要求**：
-   - 使用口语化表达，避免书面语
-   - 短句为主，便于理解和记忆
-   - 注意节奏和停顿
-   - 使用具体例子增强说服力`,
+3. 语言要求：
+   - 以短句为主，避免堆叠长句
+   - 多用“你、我们、大家”等口播常用称呼
+   - 适度加入过渡词（比如：先说结论、接着、最后）
+   - 用例子增强说服力`,
+
+  /**
+   * 获取 TTS 口播格式的规则和输出格式
+   * 当 format === 'tts' 时使用
+   */
+  getTtsFormatRules(): { rules: string; outputformat: string } {
+    return {
+      rules: `你是一位专业的 TTS 口播稿写作助手。输出必须是纯文本（txt），并使用 <#x#> 标签来控制精确停顿与换气，让语音更真实自然。
+
+你必须根据用户参数（duration、tone、targetAudience、platform、outline_type、voice_script_rhythm 等）来安排整段口播的节奏、停顿密度、语气助词与换气位置，确保符合对应场景。
+
+**特别重要**：如果用户指定了 voice_script_rhythm 参数，你必须严格遵守该参数的要求：
+- voice_script_rhythm=fast（快节奏）：停顿必须非常短（0.1-0.3秒），停顿数量必须极少（30秒内容最多1个停顿），文字总量要相对较多
+- voice_script_rhythm=normal（正常节奏）：停顿适中，停顿频率正常
+- voice_script_rhythm=slow（慢节奏）：停顿更长，停顿频率更低，文字总量相对较少`,
+      outputformat: `【TTS 口播稿精确停顿与口语化要求（必须严格遵守）】
+
+0. 纯文本要求：
+   - 输出必须是纯文本（txt），不要使用任何 Markdown 语法（如 #、*、-、反引号 等）。
+   - 不要输出“规则说明/格式要求/示例解释”等任何额外说明，只输出最终口播稿正文。
+   - 不要输出任何标题/题目/章节名（包括开头一行“XXX：”或“《XXX》”），直接从第一句口播开始。
+
+1. <#x#> 精确停顿标签（必须使用，且全篇必须出现）：
+   - 格式：<#x#>
+   - x 为停顿秒数，范围 0.01～99.99，最多两位小数（如 <#0.5#>、<#1.2#>、<#3#>）
+2. 标签使用限制（非常重要）：
+   - 必须放在两个可发音的文本之间（不能放在开头、结尾）
+   - 不能连续多个标签（如 <#0.5#><#1#>）
+   - 不要把标签放在纯标点之间
+3. 停顿密度要求（请务必克制，不要过密）：
+   - 只能在"需要换气/转折/强调/留白"的位置使用 <#x#>，不要在每个逗号后都加。
+   - 最低要求：全文至少出现 2 个 <#x#>（保证可用于 TTS 测试），但不建议超过以下范围（根据 voice_script_rhythm 参数调整）：
+     * voice_script_rhythm=slow（慢节奏，停顿频率低）：
+       - 30 秒：约 1～3 个
+       - 1 分钟：约 2～5 个
+       - 3 分钟：约 5～10 个
+       - 5 分钟：约 8～15 个
+       - 10 分钟：约 15～25 个
+     * voice_script_rhythm=normal（正常节奏）：
+       - 30 秒：约 2～5 个
+       - 1 分钟：约 4～8 个
+       - 3 分钟：约 8～14 个
+       - 5 分钟：约 12～20 个
+       - 10 分钟：约 20～35 个
+     * voice_script_rhythm=fast（快节奏，停顿频率低，尽量少用停顿）：
+       - 30 秒：约 0～1 个（尽量不用，只在必要时使用）
+       - 1 分钟：约 0～2 个（尽量少用）
+       - 3 分钟：约 0～4 个（尽量少用）
+       - 5 分钟：约 0～6 个（尽量少用）
+       - 10 分钟：约 0～8 个（尽量少用）
+   - 开头建议在第 2～6 句出现第 1 个 <#x#>，不要一上来就连续插停顿。
+
+4. 场景化节奏（根据参数自动调整）：
+   - duration 更短：句子更短，停顿更紧凑；duration 更长：段落更清晰，停顿更自然。
+   - platform=live：节奏更快、互动更强，适度加入"诶、来、你听我说、懂我意思吗"等口语引导；停顿偏短（<#0.2#>～<#0.6#>）。
+   - platform=podcast：节奏更稳，叙事更连贯，停顿更有层次；允许中等停顿（<#0.4#>～<#1.2#>），关键情绪处可用更长停顿（<#1.2#>～<#2.0#>）。
+   - targetAudience=elderly：语速更慢、表达更清楚，停顿稍长（<#0.5#>～<#1.5#>），少用过度网络化词汇。
+   - targetAudience=youth：语速更轻快，停顿更短（<#0.2#>～<#0.8#>），允许少量口头禅但不要密集。
+   - tone=friendly：更多亲切称呼（你、咱们、大家），停顿自然；tone=professional：更克制，少口头禅，停顿用于分段与强调。
+   - voice_script_rhythm=slow：慢节奏，停顿更长（短停顿 <#0.5#>～<#0.8#>，中停顿 <#1.2#>～<#1.8#>，长停顿 <#2.0#>～<#3.0#>），停顿频率更低（每 4～7 句出现 1 次），文字总量相对较少。
+   - voice_script_rhythm=normal：正常节奏，停顿适中（短停顿 <#0.3#>～<#0.6#>，中停顿 <#0.8#>～<#1.2#>，长停顿 <#1.5#>～<#2.0#>），停顿频率正常（每 3～5 句出现 1 次），文字总量适中。
+   - voice_script_rhythm=fast：快节奏，停顿更短（短停顿 <#0.1#>～<#0.2#>，中停顿 <#0.15#>～<#0.25#>，长停顿 <#0.2#>～<#0.3#>），停顿频率更低（每 4～8 句出现 1 次，甚至更少），文字总量相对较多。
+
+5. 口语助词与换气（按需使用，不要滥用）：
+   - 允许适度加入：嗯、诶、哎、那个、你知道吗、说真的、我跟你讲、先别急、咱们先…、然后…、最后…
+   - 规则：平均每 3～6 句出现 1 次即可；专业语气可更少（每 6～10 句 1 次）。
+   - 助词不要连续堆叠，不要影响信息密度。
+
+6. 换行：
+   - 换行会产生自然段落停顿但时长不可控；关键停顿务必用 <#x#> 精确控制。
+
+示例：
+你好，<#0.8#>今天天气真不错啊，<#1.5#>我们出去走走吧？`,
+    };
+  },
 
   /**
    * 获取口播稿类型需要的参数列表
    */
   getParamsForType(): string[] {
-    return ['duration', 'tone', 'targetAudience', 'platform', 'callToAction'];
-  },
-
-  /**
-   * 获取表单选项配置
-   */
-  getFormOptions(language: 'zh' | 'en' = 'zh'): FormOptionsConfig {
-    const isZh = language === 'zh';
-
-    const voiceScriptsFormOptionsZh: FormOptionsConfig = {
-      // Select 类型字段
-      duration: [
-        { value: '30s', label: '30秒', labelEn: '30 seconds' },
-        { value: '1min', label: '1分钟', labelEn: '1 minute' },
-        { value: '3min', label: '3分钟', labelEn: '3 minutes' },
-        { value: '5min', label: '5分钟', labelEn: '5 minutes' },
-        { value: '10min', label: '10分钟', labelEn: '10 minutes' },
-      ],
-      tone: [
-        { value: 'friendly', label: '友好亲切', labelEn: 'Friendly' },
-        { value: 'professional', label: '专业', labelEn: 'Professional' },
-        { value: 'energetic', label: '充满活力', labelEn: 'Energetic' },
-        { value: 'calm', label: '平静温和', labelEn: 'Calm' },
-      ],
-      targetAudience: [
-        { value: 'general', label: '大众', labelEn: 'General' },
-        { value: 'youth', label: '年轻人', labelEn: 'Youth' },
-        { value: 'professional', label: '专业人士', labelEn: 'Professional' },
-        { value: 'elderly', label: '中老年', labelEn: 'Elderly' },
-      ],
-      platform: [
-        { value: 'podcast', label: '播客', labelEn: 'Podcast' },
-        { value: 'video', label: '视频', labelEn: 'Video' },
-        { value: 'live', label: '直播', labelEn: 'Live Stream' },
-        { value: 'audio', label: '音频', labelEn: 'Audio' },
-      ],
-
-      // 元数据（为所有字段提供中文标签）
-      _metadata: {
-        duration: {
-          type: 'select',
-          label: '时长',
-          labelEn: 'Duration',
-          helpText: '选择口播时长',
-          helpTextEn: 'Select the duration',
-        },
-        tone: {
-          type: 'select',
-          label: '语调',
-          labelEn: 'Tone',
-          helpText: '选择语言风格',
-          helpTextEn: 'Select the language style',
-        },
-        targetAudience: {
-          type: 'select',
-          label: '目标受众',
-          labelEn: 'Target Audience',
-          helpText: '选择目标受众',
-          helpTextEn: 'Select the target audience',
-        },
-        platform: {
-          type: 'select',
-          label: '平台',
-          labelEn: 'Platform',
-          helpText: '选择发布平台',
-          helpTextEn: 'Select the platform',
-        },
-        callToAction: {
-          type: 'text',
-          label: '行动号召',
-          labelEn: 'Call to Action',
-          placeholder: '例如：关注、点赞、订阅等',
-          placeholderEn: 'e.g., Follow, like, subscribe',
-          helpText: '结尾的行动号召语',
-          helpTextEn: 'Call to action at the end',
-        },
-      },
-    };
-
-    if (language === 'en') {
-      return {
-        duration: voiceScriptsFormOptionsZh.duration.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        tone: voiceScriptsFormOptionsZh.tone.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        targetAudience: voiceScriptsFormOptionsZh.targetAudience.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        platform: voiceScriptsFormOptionsZh.platform.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        _metadata: {
-          callToAction: {
-            ...voiceScriptsFormOptionsZh._metadata!.callToAction,
-            label: voiceScriptsFormOptionsZh._metadata!.callToAction.labelEn || 'Call to Action',
-            placeholder: voiceScriptsFormOptionsZh._metadata!.callToAction.placeholderEn,
-            helpText: voiceScriptsFormOptionsZh._metadata!.callToAction.helpTextEn,
-          },
-        },
-      };
-    }
-
-    return voiceScriptsFormOptionsZh;
+    return ['duration', 'tone', 'targetAudience', 'platform', 'callToAction', 'format', 'voice_script_rhythm'];
   },
 }
 

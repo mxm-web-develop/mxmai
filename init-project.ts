@@ -42,11 +42,13 @@ async function main() {
       // 创建或升级一个管理员账号（role=admin），用于系统管理和内部知识库
       command: 'pnpm --filter @mxmai/mxmdata create:admin',
     },
-    // 预留：后续可以在这里追加系统知识库初始化脚本
     {
-      name: 'init-system-knowledge-bases',
-      command: 'pnpm --filter @mxmai/mxmcgi init:system-kb',
+      name: 'migrate-kb-defaults',
+      // 创建 knowledge_base_defaults 表，供 Admin 配置默认知识库
+      command: 'pnpm --filter @mxmai/mxmdata migrate:kb-defaults',
     },
+    // 系统知识库改为由 Admin 通过 API 管理（GET/PUT/DELETE /knowledge/admin/*）
+    // 可选：首次部署可手动运行 pnpm --filter @mxmai/mxmcgi init:system-kb 创建种子知识库
   ];
 
   console.log('🚀 开始执行项目初始化脚本（project_init/init-project.ts）');

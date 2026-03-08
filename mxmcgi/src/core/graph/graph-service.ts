@@ -3,13 +3,12 @@
  * 处理图片生成提示词生成、图片生成等核心逻辑
  */
 
-import type { ProviderType } from '../providers/types';
-import { MODEL_MAP } from '../../routes/text';
-import { getGraphRulesForType, getGraphParamsForType } from './graphconfigs';
+import { providerFactory, type ProviderType } from '../../models/providers';
+import { getGraphRulesResolved, getPromptFullConfig } from '../../prompts';
+import { getGraphParamsForType } from './graphconfigs';
 import type { PhotographParams, DesignParams, PaintingParams } from './type';
-import * as nanoBanana from './nano-banana';
-import * as seedream4 from './seedream-4';
-import { KnowledgeService } from '../knowledge/knowledge-service';
+import { runByModelKey } from '../../models/run';
+import { KnowledgeService } from '../../knowledge/knowledge-service';
 import type { KnowledgeSearchResult, KnowledgeHybridSearchResult } from '@mxmai/mxmdata';
 import { generateDefaultPortraitKnowledge } from './graphconfigs/photograph/portrait';
 import { generateDefaultLandscapeKnowledge } from './graphconfigs/photograph/landscape';
@@ -25,6 +24,7 @@ import { generateDefaultComicKnowledge } from './graphconfigs/painting/comic';
 import { generateDefaultConceptArtKnowledge } from './graphconfigs/painting/conceptArt';
 import { generateDefaultCartoonKnowledge } from './graphconfigs/painting/cartoon';
 import { RepositoryFactory } from '@mxmai/mxmdata';
+import { resolveGraphModel } from './graph-model-routing';
 import {
   type ReferenceImage,
   convertLegacyReferenceImage,
@@ -35,41 +35,13 @@ import {
   compressImage,
   extractBase64FromDataUri,
 } from './reference-image';
+import { runBasicText } from '../text/basic-text';
 
 type OutputLanguage = 'zh' | 'en';
 
 function detectOutputLanguage(userPrompt: string): OutputLanguage {
   // 简单规则：包含中文字符就输出中文，否则输出英文
   return /[\u4e00-\u9fff]/.test(userPrompt) ? 'zh' : 'en';
-}
-
-/**
- * 生成文本（调用 LLM）- 同步模式
- * 
- * 注意：此函数直接调用模型接口，不会创建 writing 任务
- * 用于 graph 任务中生成提示词，属于内部调用，不应记录为独立的写作任务
- */
-async function generateText(
-  modelName: string,
-  prompt: string,
-  provider?: ProviderType
-): Promise<string> {
-  const model = MODEL_MAP[modelName];
-  if (!model) {
-    throw new Error(`模型 "${modelName}" 不存在`);
-  }
-
-  // 直接调用模型接口，不通过任务系统，避免创建多余的 writing 任务
-  const result = await model.generate({
-    prompt,
-    outputFormat: 'json',
-  }, provider);
-
-  if (!result.text) {
-    throw new Error('LLM 生成结果为空');
-  }
-
-  return result.text;
 }
 
 /**
@@ -93,7 +65,7 @@ function extractBusinessParams(
 }
 
 /**
- * 构建提示词生成请求
+ * 构建提示词生成请求（rules 由调用方从 DB/代码解析得到后传入）
  */
 function buildPromptGenerationRequest(
   graphType: string,
@@ -101,11 +73,9 @@ function buildPromptGenerationRequest(
   userPrompt: string,
   businessParams: Record<string, any>,
   knowledgeContext: string,
-  outputLanguage: OutputLanguage
+  outputLanguage: OutputLanguage,
+  rules: string
 ): string {
-  // 获取特定类型的规则（规则中已包含完整的提示词生成要求）
-  const rules = getGraphRulesForType(graphType, type);
-
   // 构建业务参数描述
   const businessParamsDesc = Object.entries(businessParams)
     .map(([key, value]) => `- ${key}: ${value}`)
@@ -218,18 +188,43 @@ function getSystemKnowledgeBaseName(
   graphType: 'photograph' | 'design' | 'painting',
   type: string
 ): string {
-  // 处理特殊类型名称转换
-  let normalizedType = type;
-  
-  // painting 的 conceptArt 需要转换为 concept-art (驼峰转连字符)
+  const subType = normalizeSubTypeForStorage(graphType, type);
+  return `graph-${graphType}-${subType}`;
+}
+
+/** 将 type 转为存储用的 sub_type（如 conceptArt -> concept-art） */
+function normalizeSubTypeForStorage(
+  graphType: 'photograph' | 'design' | 'painting',
+  type: string
+): string {
   if (graphType === 'painting' && type === 'conceptArt') {
-    normalizedType = 'concept-art';
+    return 'concept-art';
   }
-  // design 的 '3d' 保持原样（已经是连字符格式）
-  // 其他类型保持原样
-  
-  const kbName = `graph-${graphType}-${normalizedType}`;
-  return kbName;
+  return type;
+}
+
+/**
+ * 解析默认知识库名称：优先从 Admin 配置的 knowledge_base_defaults 表获取，否则回退到命名规则
+ */
+async function resolveSystemKnowledgeBaseName(
+  graphType: 'photograph' | 'design' | 'painting',
+  type: string
+): Promise<string> {
+  const subType = normalizeSubTypeForStorage(graphType, type);
+  try {
+    const defaultsRepo = RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    const kbId = await defaultsRepo.getDefault('graph', graphType, subType);
+    if (kbId) {
+      const kbRepo = RepositoryFactory.createKnowledgeBaseRepository();
+      const kb = await kbRepo.findKnowledgeBaseById(kbId);
+      if (kb) {
+        return kb.name;
+      }
+    }
+  } catch (e) {
+    console.warn('[GraphService] 读取默认知识库配置失败，使用命名规则:', e);
+  }
+  return getSystemKnowledgeBaseName(graphType, type);
 }
 
 /**
@@ -244,9 +239,8 @@ export async function retrieveSystemKnowledgeForPortrait(
   const { prompt: userPrompt, style, tone, lighting, environment, pose, makeup } = params;
   const knowledgeService = new KnowledgeService();
   
-  // 动态生成知识库名称：根据 graphType 和 type 自动选择对应的系统知识库
-  // 例如：photograph + portrait -> graph-photograph-portrait
-  const knowledgeBaseName = getSystemKnowledgeBaseName('photograph', params.type || 'portrait');
+  // 优先从 Admin 配置的默认绑定获取，否则使用命名规则
+  const knowledgeBaseName = await resolveSystemKnowledgeBaseName('photograph', params.type || 'portrait');
   console.log(`[GraphService] 选择系统知识库: ${knowledgeBaseName} (graphType=photograph, type=${params.type || 'portrait'})`);
   
   const allChunks: (KnowledgeSearchResult | KnowledgeHybridSearchResult)[] = [];
@@ -483,7 +477,7 @@ async function retrieveSystemKnowledgeCommon(
   userId?: string
 ): Promise<{ content: string; metadata: KnowledgeRecallMetadata }> {
   const knowledgeService = new KnowledgeService();
-  const knowledgeBaseName = getSystemKnowledgeBaseName(graphType, type);
+  const knowledgeBaseName = await resolveSystemKnowledgeBaseName(graphType, type);
   console.log(`[GraphService] 选择系统知识库: ${knowledgeBaseName} (graphType=${graphType}, type=${type})`);
   
   const allChunks: (KnowledgeSearchResult | KnowledgeHybridSearchResult)[] = [];
@@ -1003,6 +997,36 @@ export async function retrieveSystemKnowledgeForCartoon(
   );
 }
 
+/** 按 graphType + type 分发到对应的知识库召回函数；无对应实现时返回 null */
+async function retrieveSystemKnowledgeByType(
+  graphType: 'photograph' | 'design' | 'painting',
+  type: string,
+  params: PhotographParams | DesignParams | PaintingParams,
+  userId?: string
+): Promise<{ content: string; metadata: KnowledgeRecallMetadata } | null> {
+  if (graphType === 'photograph') {
+    if (type === 'portrait') return retrieveSystemKnowledgeForPortrait(params as PhotographParams, userId);
+    if (type === 'landscape') return retrieveSystemKnowledgeForLandscape(params as PhotographParams, userId);
+    if (type === 'cinematic') return retrieveSystemKnowledgeForCinematic(params as PhotographParams, userId);
+    if (type === 'commercial') return retrieveSystemKnowledgeForCommercial(params as PhotographParams, userId);
+    if (type === 'documentary') return retrieveSystemKnowledgeForDocumentary(params as PhotographParams, userId);
+  }
+  if (graphType === 'design') {
+    if (type === '3d') return retrieveSystemKnowledgeFor3d(params as DesignParams, userId);
+    if (type === 'manual') return retrieveSystemKnowledgeForManual(params as DesignParams, userId);
+    if (type === 'poster') return retrieveSystemKnowledgeForPoster(params as DesignParams, userId);
+    if (type === 'icon') return retrieveSystemKnowledgeForIcon(params as DesignParams, userId);
+    // coverImage 无单独召回实现，返回 null
+  }
+  if (graphType === 'painting') {
+    if (type === 'illustration') return retrieveSystemKnowledgeForIllustration(params as PaintingParams, userId);
+    if (type === 'comic') return retrieveSystemKnowledgeForComic(params as PaintingParams, userId);
+    if (type === 'conceptArt') return retrieveSystemKnowledgeForConceptArt(params as PaintingParams, userId);
+    if (type === 'cartoon') return retrieveSystemKnowledgeForCartoon(params as PaintingParams, userId);
+  }
+  return null;
+}
+
 /**
  * 生成Graph提示词（返回提示词和召回元数据）
  */
@@ -1010,83 +1034,41 @@ export async function generateGraphPrompt(
   graphType: 'photograph' | 'design' | 'painting',
   params: PhotographParams | DesignParams | PaintingParams,
   userId?: string,
-  provider?: ProviderType
-): Promise<{ prompt: string; knowledgeRecallMetadata?: KnowledgeRecallMetadata }> {
+  provider?: ProviderType,
+  parentTaskId?: string
+): Promise<{
+  prompt: string;
+  knowledgeRecallMetadata?: KnowledgeRecallMetadata;
+  /** BasicText: writing-graph-prompt 的用量记录（已完成 Provider 扣费） */
+  promptGenerationUsage?: { mediaUrls: string[]; metadata?: Record<string, any> };
+  /** BasicText: writing-graph-prompt 的 Provider 成本（USD），供用户侧 Billing 使用 */
+  promptGenerationCostUsd?: number;
+}> {
   const { type, prompt: userPrompt } = params;
 
   // 1. 提取业务参数
   const businessParams = extractBusinessParams(params, graphType, type);
 
-  // 2. 检索知识库内容（系统内部）
-  // 根据 graphType 和 type 动态选择对应的系统知识库
-  let knowledgeContext = '';
-  let knowledgeRecallMetadata: KnowledgeRecallMetadata | null = null;
-  
-  // 根据类型调用对应的知识库召回函数
-  try {
-    const expectedKBName = getSystemKnowledgeBaseName(graphType, type);
-    console.log(`[GraphService] 开始知识库召回 (graphType=${graphType}, type=${type}, 知识库=${expectedKBName})`);
-    
-    let recallResult: { content: string; metadata: KnowledgeRecallMetadata } | null = null;
-    
-    // Photograph 类型
-    if (graphType === 'photograph') {
-      if (type === 'portrait') {
-        recallResult = await retrieveSystemKnowledgeForPortrait(params as PhotographParams, userId);
-      } else if (type === 'landscape') {
-        recallResult = await retrieveSystemKnowledgeForLandscape(params as PhotographParams, userId);
-      } else if (type === 'cinematic') {
-        recallResult = await retrieveSystemKnowledgeForCinematic(params as PhotographParams, userId);
-      } else if (type === 'commercial') {
-        recallResult = await retrieveSystemKnowledgeForCommercial(params as PhotographParams, userId);
-      } else if (type === 'documentary') {
-        recallResult = await retrieveSystemKnowledgeForDocumentary(params as PhotographParams, userId);
-      }
-    }
-    // Design 类型
-    else if (graphType === 'design') {
-      if (type === '3d') {
-        recallResult = await retrieveSystemKnowledgeFor3d(params as DesignParams, userId);
-      } else if (type === 'manual') {
-        recallResult = await retrieveSystemKnowledgeForManual(params as DesignParams, userId);
-      } else if (type === 'poster') {
-        recallResult = await retrieveSystemKnowledgeForPoster(params as DesignParams, userId);
-      } else if (type === 'icon') {
-        recallResult = await retrieveSystemKnowledgeForIcon(params as DesignParams, userId);
-      } else if (type === 'coverImage') {
-        // coverImage 类型暂时不实现知识库召回，后续可以添加
-        console.log(`[GraphService] coverImage 类型暂未实现知识库召回，跳过`);
-      }
-    }
-    // Painting 类型
-    else if (graphType === 'painting') {
-      if (type === 'illustration') {
-        recallResult = await retrieveSystemKnowledgeForIllustration(params as PaintingParams, userId);
-      } else if (type === 'comic') {
-        recallResult = await retrieveSystemKnowledgeForComic(params as PaintingParams, userId);
-      } else if (type === 'conceptArt') {
-        recallResult = await retrieveSystemKnowledgeForConceptArt(params as PaintingParams, userId);
-      } else if (type === 'cartoon') {
-        recallResult = await retrieveSystemKnowledgeForCartoon(params as PaintingParams, userId);
-      }
-    }
-    
-    if (recallResult) {
-      knowledgeContext = recallResult.content;
-      knowledgeRecallMetadata = recallResult.metadata;
-      console.log(`[GraphService] 知识库召回完成，内容长度: ${knowledgeContext.length} 字符`);
-    } else {
-      console.log(`[GraphService] 当前类型 (graphType=${graphType}, type=${type}) 暂未实现知识库召回，跳过`);
-    }
-  } catch (error) {
-    console.error('[GraphService] 知识库召回失败:', error);
-    // 知识库召回失败不影响主流程，继续使用空的 knowledgeContext
-    knowledgeContext = '';
-    knowledgeRecallMetadata = null;
-  }
-
   // 2.5 根据用户输入语言决定输出语言（中文/英文）
   const outputLanguage = detectOutputLanguage(userPrompt || '');
+  const lang = outputLanguage === 'zh' ? 'zh' : 'en';
+
+  // 2. 知识库召回：仅当 prompt_engineering_config 中 use_knowledge=true 时执行
+  const promptConfig = await getPromptFullConfig('graph', graphType, type, lang);
+  let knowledgeContext = '';
+  let knowledgeRecallMetadata: KnowledgeRecallMetadata | null = null;
+  if (promptConfig?.use_knowledge === true) {
+    const result = await retrieveSystemKnowledgeByType(graphType, type, params, userId);
+    if (result) {
+      knowledgeContext = result.content;
+      knowledgeRecallMetadata = result.metadata;
+      console.log(`[GraphService] 知识库召回已启用，内容长度: ${knowledgeContext.length} 字符`);
+    } else {
+      console.log(`[GraphService] 知识库召回已启用，但当前 (graphType=${graphType}, type=${type}) 无对应召回实现，跳过`);
+    }
+  } else {
+    console.log('[GraphService] 知识库召回未启用（use_knowledge 为 false 或未配置）');
+  }
 
   // 2.6 处理参考图（但不立即拼装到提示词，等大模型生成后再拼装）
   let processedReferenceImages: ReferenceImage[] = [];
@@ -1242,18 +1224,19 @@ export async function generateGraphPrompt(
     }
   }
 
-  // 3. 构建提示词生成请求
+  // 3. 解析规则（优先 DB，回退代码配置）并构建提示词生成请求
+  const rules = await getGraphRulesResolved(graphType, type, outputLanguage === 'zh' ? 'zh' : 'en');
   const promptGenerationRequest = buildPromptGenerationRequest(
     graphType,
     type,
     effectiveUserPrompt,
     businessParams,
     knowledgeContext,
-    outputLanguage
+    outputLanguage,
+    rules
   );
 
   // 添加调试日志，方便查看实际发送给大模型的提示词
-  const rules = getGraphRulesForType(graphType, type);
   console.log(
     `[GraphService] 提示词生成开始 (graphType: ${graphType}, type: ${type}, outputLanguage: ${outputLanguage}, userId: ${userId || 'anonymous'})`
   );
@@ -1261,16 +1244,23 @@ export async function generateGraphPrompt(
   console.log(`[GraphService] 业务参数:`, businessParams);
   console.log(`[GraphService] 提示词生成请求前缀: ${promptGenerationRequest.substring(0, 500)}${promptGenerationRequest.length > 500 ? '...' : ''}`);
 
-  // 4. 调用大模型生成提示词
-  // 使用默认的文本模型（可以通过环境变量配置）
-  // 默认使用 gemini-3-pro，走 DeerAPI
-  const textModelName = process.env.GRAPH_PROMPT_MODEL || 'gemini-3-pro';
-  // 如果未指定 provider，默认使用 deerapi
-  const finalProvider = provider || 'deer';
-  
-  console.log(`[GraphService] 使用模型: ${textModelName}, Provider: ${finalProvider}`);
-  
-  const generatedPrompt = await generateText(textModelName, promptGenerationRequest, finalProvider);
+  // 4. 调用 BasicText 生成提示词
+  // 默认逻辑模型：writing-graph-prompt，可通过 Admin 路由到不同物理模型
+  // 如果未指定 provider，使用工厂默认（DEFAULT_PROVIDER 或路由）
+  const finalProvider = provider ?? providerFactory.getDefaultProvider();
+  console.log(
+    `[GraphService] 使用 BasicText 生成提示词: logicalModel=writing-graph-prompt, providerOverride=${finalProvider}`
+  );
+
+  const basicTextResult = await runBasicText('writing-graph-prompt', promptGenerationRequest, {
+    userId,
+    parentTaskId,
+    providerOverride: finalProvider,
+  });
+
+  const generatedPrompt = basicTextResult.text;
+  const promptGenerationUsage = basicTextResult.usage;
+  const promptGenerationCostUsd = basicTextResult.costUsd;
 
   console.log(`[GraphService] 生成的提示词前缀: ${generatedPrompt.substring(0, 220)}${generatedPrompt.length > 220 ? '...' : ''}`);
 
@@ -1289,10 +1279,56 @@ export async function generateGraphPrompt(
     console.log(`[GraphService] 参考图提示词已拼装到最终提示词前面`);
   }
 
+  // 2.9 检测是否为九宫格模式
+  const isGrid9 = (params as any).grid9 === true;
+  
+  if (isGrid9) {
+    console.log(`[GraphService] 检测到九宫格模式，开始生成九宫格 prompt`);
+    
+    // 导入九宫格相关模块
+    const { generateGrid9Variants, getDefaultGrid9Purpose } = await import('./graphconfigs/grid9-variants');
+    const { buildGrid9Prompt } = await import('./graphconfigs/grid9-prompt');
+    
+    // 解析多图用途（未传则按 (graphType, type) 默认）
+    const purpose = (params as any).grid9Purpose || getDefaultGrid9Purpose(graphType, type);
+
+    // 生成9个变体配置
+    const variants = generateGrid9Variants(
+      params,
+      graphType,
+      type,
+      (params as any).grid9Mode,
+      purpose
+    );
+    
+    console.log(`[GraphService] 已生成 ${variants.length} 个变体配置，模式: ${variants[0]?.mode || 'unknown'}`);
+    
+    // 构建九宫格 prompt
+    const grid9Prompt = buildGrid9Prompt(
+      finalPrompt, // 使用最终拼装后的 prompt 作为基础
+      params,
+      variants,
+      outputLanguage,
+      purpose
+    );
+    
+    console.log(`[GraphService] 九宫格 prompt 生成完成，长度: ${grid9Prompt.length} 字符`);
+    
+    // 返回九宫格 prompt
+    return {
+      prompt: grid9Prompt,
+      knowledgeRecallMetadata: knowledgeRecallMetadata || undefined,
+      promptGenerationUsage,
+      promptGenerationCostUsd,
+    };
+  }
+
   // 返回最终拼装后的提示词和召回元数据（如果存在）
   return {
     prompt: finalPrompt,
     knowledgeRecallMetadata: knowledgeRecallMetadata || undefined,
+    promptGenerationUsage,
+    promptGenerationCostUsd,
   };
 }
 
@@ -1305,10 +1341,37 @@ export async function generateGraphImage(
   generatedPrompt: string,
   provider?: ProviderType
 ): Promise<{ image_urls: string[]; modelName: string }> {
-  const { quality = 'high', referenceImage, aspect_ratio } = params;
+  const { referenceImage, aspect_ratio } = params;
 
-  // 根据quality选择模型
-  const modelName = quality === 'high' ? 'nano-banana' : 'seedream-4';
+  const subType = (params as any).type;
+
+  // 检测是否为九宫格模式
+  const isGrid9 = (params as any).grid9 === true;
+
+  // 九宫格模式支持用户选择的宽高比，但需要验证是否为支持的宽高比
+  let effectiveAspectRatio = aspect_ratio;
+  if (isGrid9) {
+    // 验证宽高比是否为支持的格式（1:1、16:9、9:16）
+    const supportedAspectRatios = ['1:1', '16:9', '9:16'];
+    if (!aspect_ratio || !supportedAspectRatios.includes(aspect_ratio)) {
+      // 如果不支持，默认使用 1:1
+      console.warn(`[GraphService] 九宫格模式：不支持的宽高比 ${aspect_ratio}，使用默认 1:1`);
+      effectiveAspectRatio = '1:1';
+    }
+  }
+
+  // 根据业务配置解析模型
+  const { modelName, provider: resolvedProvider } = await resolveGraphModel(
+    graphType,
+    subType,
+    provider
+  );
+
+  if (isGrid9) {
+    console.log(
+      `[GraphService] 九宫格模式：使用 ${modelName} 模型（graphType=${graphType}, type=${subType}），aspect_ratio: ${effectiveAspectRatio}, image_size: 4K`
+    );
+  }
 
   // 准备图片参数
   let imageParams: any = {
@@ -1316,13 +1379,13 @@ export async function generateGraphImage(
   };
   
   // 根据模型类型处理 aspect_ratio
-  if (modelName === 'seedream-4') {
-    // seedream-4 不支持 aspect_ratio 参数，只支持 size ('1k', '2k', '4k')
-    // 根据文档，size 是必需参数，默认使用 2k
-    // 注意：seedream-4 的 size 参数会决定输出分辨率，但不直接控制宽高比
+  if (modelName === 'seedream-4' || modelName === 'seedream-5') {
+    // seedream-4/5 不支持 aspect_ratio 参数，只支持 size ('1k', '2k', '4k')
+    // 与 nano-banana 一致，默认写死 4k 画质
+    // 注意：seedream-4/5 的 size 参数会决定输出分辨率，但不直接控制宽高比
     // 我们需要在 prompt 中明确说明宽高比要求
     if (!params.size) {
-      imageParams.size = '2k'; // 默认 2k
+      imageParams.size = '4k'; // 默认 4k，与 nano-banana 系列一致
     } else {
       // 将 '1K'/'2K'/'4K' 转换为 '1k'/'2k'/'4k'（DeerAPI 要求小写）
       const sizeValue = typeof params.size === 'string' ? params.size.toLowerCase() : params.size;
@@ -1331,7 +1394,7 @@ export async function generateGraphImage(
     
     // 在 prompt 中添加宽高比说明（如果提供了 aspect_ratio）
     // 这样模型可以根据 prompt 中的宽高比要求生成对应比例的图片
-    if (aspect_ratio) {
+    if (effectiveAspectRatio) {
       const aspectRatioMap: Record<string, string> = {
         '16:9': '16:9 宽屏横向比例',
         '9:16': '9:16 竖屏纵向比例',
@@ -1339,7 +1402,7 @@ export async function generateGraphImage(
         '4:3': '4:3 标准横向比例',
         '3:4': '3:4 标准纵向比例',
       };
-      const aspectRatioText = aspectRatioMap[aspect_ratio] || `${aspect_ratio} 比例`;
+      const aspectRatioText = aspectRatioMap[effectiveAspectRatio] || `${effectiveAspectRatio} 比例`;
       
       // 检查 prompt 中是否已经包含宽高比信息
       const promptLower = generatedPrompt.toLowerCase();
@@ -1354,7 +1417,7 @@ export async function generateGraphImage(
       if (!hasAspectInfo) {
         // 在 prompt 末尾添加宽高比说明
         imageParams.prompt = `${generatedPrompt}\n\n宽高比要求: ${aspectRatioText}`;
-        console.log(`[GraphService] seedream-4 不支持 aspect_ratio 参数，已在 prompt 中添加宽高比说明: ${aspectRatioText}`);
+        console.log(`[GraphService] ${modelName} 不支持 aspect_ratio 参数，已在 prompt 中添加宽高比说明: ${aspectRatioText}`);
       } else {
         imageParams.prompt = generatedPrompt;
         console.log(`[GraphService] prompt 中已包含宽高比信息，无需重复添加`);
@@ -1363,11 +1426,11 @@ export async function generateGraphImage(
       imageParams.prompt = generatedPrompt;
     }
   } else {
-    // nano-banana 支持 aspect_ratio 参数
-    imageParams.aspect_ratio = aspect_ratio;
+    // nano-banana-pro 支持 aspect_ratio 参数
+    imageParams.aspect_ratio = effectiveAspectRatio;
     imageParams.prompt = generatedPrompt;
-    // nano-banana 默认使用 4K 画质
-    imageParams.image_size = '4K';
+    // nano-banana-pro 默认使用 4K 画质（九宫格模式强制4K）
+    imageParams.image_size = isGrid9 ? '4K' : '4K';
   }
 
   // 处理参考图（支持新格式和旧格式）
@@ -1448,34 +1511,85 @@ export async function generateGraphImage(
     
     if (processedReferenceImages.length > 0) {
       // 处理参考图，转换为模型可接受的格式
-      const { urls, base64s } = processReferenceImages(processedReferenceImages, modelName);
+      const { urls, base64s } = processReferenceImages(
+        processedReferenceImages,
+        modelName as 'nano-banana' | 'nano-banana-pro' | 'nano-banana-2' | 'nano-banana-2-pro' | 'seedream-4' | 'seedream-5'
+      );
       
       console.log(`[GraphService] 处理参考图: ${processedReferenceImages.length} 张, URLs: ${urls.length}, Base64s: ${base64s.length}`);
       
-      if (modelName === 'nano-banana') {
-        // nano-banana 支持 image_urls 和 image_base64s
-        if (urls.length > 0) {
-          imageParams.image_urls = urls;
+      if (modelName === 'nano-banana-pro') {
+        // nano-banana 系列（Gemini）当前不支持直接使用图片 URL，需要先转换为 Base64 / data URI
+        const storageRepo = RepositoryFactory.createStorageRepository();
+        const toDataUriFromUrl = async (u: string): Promise<string> => {
+          // 优先识别内部 /api/v1/media/asset?bucket=...&key=...
+          try {
+            const parsed = new URL(u);
+            if (parsed.pathname.endsWith('/api/v1/media/asset') || parsed.pathname.endsWith('/media/asset')) {
+              const bucket = parsed.searchParams.get('bucket') || '';
+              const key = parsed.searchParams.get('key') || '';
+              if (bucket && key) {
+                const buf = await storageRepo.downloadFile(bucket, key);
+                const meta = await storageRepo.getFileMetadata(bucket, key);
+                const ct =
+                  meta?.contentType ||
+                  (key.endsWith('.png')
+                    ? 'image/png'
+                    : key.endsWith('.webp')
+                    ? 'image/webp'
+                    : key.endsWith('.gif')
+                    ? 'image/gif'
+                    : 'image/jpeg');
+                const b64 = Buffer.from(buf).toString('base64');
+                return `data:${ct};base64,${b64}`;
+              }
+            }
+          } catch {
+            // ignore
+          }
+
+          // 外部 URL：HTTP 拉取后转 base64
+          const resp = await fetch(u);
+          if (!resp.ok) throw new Error(`下载参考图失败: ${resp.status} ${resp.statusText}`);
+          const ct = resp.headers.get('content-type') || 'image/jpeg';
+          const ab = await resp.arrayBuffer();
+          const b64 = Buffer.from(ab).toString('base64');
+          return `data:${ct};base64,${b64}`;
+        };
+
+        const imageInputs: string[] = [];
+        for (const ref of processedReferenceImages) {
+          const c = ref.content;
+          if (isBase64(c)) {
+            imageInputs.push(c);
+            continue;
+          }
+          if (isUrl(c)) {
+            const dataUri = await toDataUriFromUrl(c);
+            const base64Data = extractBase64FromDataUri(dataUri);
+            const sizeMB = base64Data.length / 1024 / 1024;
+            if (sizeMB > 2) {
+              const compressed = await compressImage(dataUri, 2, 2048, 2048, 85);
+              imageInputs.push(compressed.compressed);
+            } else {
+              imageInputs.push(dataUri);
+            }
+          }
         }
-        if (base64s.length > 0) {
-          imageParams.image_base64s = base64s;
-        }
-        // 如果只有一张图片，也可以使用 image 参数
-        if (urls.length === 1 && base64s.length === 0) {
-          imageParams.image = urls[0];
-        } else if (base64s.length === 1 && urls.length === 0) {
-          // base64 需要保持 data URI 格式
-          const ref = processedReferenceImages[0];
-          imageParams.image = ref.content.startsWith('data:') ? ref.content : `data:image/jpeg;base64,${base64s[0]}`;
+
+        if (imageInputs.length === 1) {
+          imageParams.image = imageInputs[0];
+        } else if (imageInputs.length > 1) {
+          imageParams.image_base64s = imageInputs;
         }
       } else {
-        // seedream-4 使用 image_input 数组（支持 URL 和 base64）
+        // seedream-4/5 使用 image_input 数组（支持 URL 和 base64）
         const imageInput: string[] = [];
         imageInput.push(...urls);
         
-        // seedream-4 需要完整的 data URI 格式
+        // seedream-4/5 需要完整的 data URI 格式
         // 对于 Base64 图片，如果太大则自动压缩
-        console.log(`[GraphService] 处理 seedream-4 参考图，开始压缩大图片...`);
+        console.log(`[GraphService] 处理 ${modelName} 参考图，开始压缩大图片...`);
         for (const ref of processedReferenceImages) {
           if (isUrl(ref.content)) {
             // URL 已经在 urls 数组中，跳过
@@ -1520,16 +1634,14 @@ export async function generateGraphImage(
           }
         }
         
-        // 根据文档，seedream-4 使用 'image' 参数（必需参数）
-        // 注意：如果 imageInput 为空，seedream-4 可能不支持无参考图生成，需要检查文档
+        // 根据文档，Seedream 使用 'image' 参数
         if (imageInput.length > 0) {
           imageParams.image = imageInput;
         }
-        // 同时设置 image_input 以保持兼容性
         imageParams.image_input = imageInput;
         const totalSize = imageInput.reduce((sum: number, img: string): number => sum + img.length, 0);
         const totalSizeMB = totalSize / 1024 / 1024;
-        console.log(`[GraphService] seedream-4 image_input 准备完成: ${imageInput.length} 张图片，总大小: ${totalSizeMB.toFixed(2)} MB`);
+        console.log(`[GraphService] ${modelName} image_input 准备完成: ${imageInput.length} 张图片，总大小: ${totalSizeMB.toFixed(2)} MB`);
         if (totalSizeMB > 5) {
           console.warn(`[GraphService] 警告：参考图总大小仍然较大 (${totalSizeMB.toFixed(2)} MB)，可能导致 API 请求失败。建议使用 URL 而不是 Base64，或先上传到 MinIO。`);
         }
@@ -1545,17 +1657,13 @@ export async function generateGraphImage(
   }
   
   try {
-    if (modelName === 'nano-banana') {
-      console.log(`[GraphService] 调用 nano-banana 生成图片...`);
-      const result = await nanoBanana.generate(imageParams, provider);
-      console.log(`[GraphService] nano-banana 生成完成，图片数量: ${result.image_urls.length}`);
-      return { image_urls: result.image_urls, modelName };
-    } else {
-      console.log(`[GraphService] 调用 seedream-4 生成图片...`);
-      const result = await seedream4.generate(imageParams, provider);
-      console.log(`[GraphService] seedream-4 生成完成，图片数量: ${result.image_urls.length}`);
-      return { image_urls: result.image_urls, modelName };
-    }
+    console.log(`[GraphService] 调用模型 ${modelName} (provider=${resolvedProvider}) 生成图片...`);
+    const result = await runByModelKey('graph', modelName, imageParams, {
+      providerOverride: resolvedProvider,
+    }) as { image_urls?: string[]; mediaUrls?: string[] };
+    const urls = result.image_urls ?? result.mediaUrls ?? [];
+    console.log(`[GraphService] ${modelName} 生成完成，图片数量: ${urls.length}`);
+    return { image_urls: urls, modelName };
   } catch (error) {
     console.error(`[GraphService] 模型 ${modelName} 生成失败:`, error);
     throw error;
@@ -1571,8 +1679,18 @@ export async function generateGraph(
   graphType: 'photograph' | 'design' | 'painting',
   params: PhotographParams | DesignParams | PaintingParams,
   userId?: string,
-  provider?: ProviderType
-): Promise<{ prompt: string; image_urls: string[]; modelName: string; knowledgeRecallMetadata?: KnowledgeRecallMetadata }> {
+  provider?: ProviderType,
+  parentTaskId?: string
+): Promise<{
+  prompt: string;
+  image_urls: string[];
+  modelName: string;
+  knowledgeRecallMetadata?: KnowledgeRecallMetadata;
+  /** 生图前一次文字模型调用用量，用于计入 Provider 扣费与用户计费 */
+  promptGenerationUsage?: { mediaUrls: string[]; metadata?: Record<string, any> };
+  /** 生图前一次文字模型调用 Provider 成本（USD），用于用户侧计费 */
+  promptGenerationCostUsd?: number;
+}> {
   console.log(`\n========== [GraphService] 开始生成图片 (graphType: ${graphType}) ==========`);
   console.log(`[GraphService] 用户参数:`, {
     type: (params as any).type,
@@ -1585,7 +1703,7 @@ export async function generateGraph(
     quality: (params as any).quality,
   });
   // 1. 生成提示词
-  const promptResult = await generateGraphPrompt(graphType, params, userId, provider);
+  const promptResult = await generateGraphPrompt(graphType, params, userId, provider, parentTaskId);
 
   // 2. 生成图片
   const imageResult = await generateGraphImage(graphType, params, promptResult.prompt, provider);
@@ -1595,5 +1713,7 @@ export async function generateGraph(
     image_urls: imageResult.image_urls,
     modelName: imageResult.modelName,
     knowledgeRecallMetadata: promptResult.knowledgeRecallMetadata,
+    promptGenerationUsage: promptResult.promptGenerationUsage,
+    promptGenerationCostUsd: promptResult.promptGenerationCostUsd,
   };
 }

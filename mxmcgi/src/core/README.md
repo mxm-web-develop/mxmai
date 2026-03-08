@@ -6,104 +6,69 @@ Core 模块提供了统一的模型接口，支持多个 provider（replicate、
 
 ```
 core/
-├── providers/          # Provider 实现
-│   ├── types.ts       # 类型定义
-│   ├── replicate.provider.ts
-│   ├── ppio.provider.ts
-│   ├── deer.provider.ts
-│   └── index.ts       # Provider 工厂
-├── graph/             # 图片生成模型
-│   ├── nano-banana.ts
-│   ├── flux-kontext-fast.ts
-│   ├── flux-fast.ts
-│   ├── ideogram-v2a.ts
-│   └── recraft-crisp-upscale.ts
-└── text/              # 文本生成模型
-    ├── deepseek-r1.ts
-    ├── gemini-2.5-flash.ts
-    ├── claude-4.5-sonnet.ts
-    └── gpt-5-nano.ts
+├── providers/          # Provider 类型、工厂、keys、stats（实现已迁至 models/*/provider）
+├── graph/             # 图生图配置与编排（graphconfigs、type、reference-image、graph-task、graph-service）
+├── writing/           # 写作配置与服务（wtconfigs、writing-task、writing-service、model-selector）
+└── video/             # 视频编排（video-service、videoconfigs）
+
+模型实现已单轨迁至 src/models/，通过 registry + runByModelKey 调用。
 ```
 
 ## 使用方法
 
 ### 图片生成模型示例
 
-#### Nano Banana (默认使用 replicate)
+#### 图生图（单轨：models/run）
 
 ```typescript
-import { textToImage } from './core/graph/nano-banana';
+import { runByModelKey } from './models/run';
 
-// 使用默认 provider (replicate)
-const result = await textToImage('A beautiful sunset', {
-  aspect_ratio: '16:9',
-  image_size: '2K',
+// 使用默认 provider
+const result = await runByModelKey('graph', 'nano-banana', {
+  prompt: 'A beautiful sunset',
+  parameters: { aspect_ratio: '16:9', image_size: '2K' },
 });
+console.log(result.mediaUrls);
 
-console.log(result.image_urls);
-
-// 使用指定 provider
-const result2 = await textToImage('A beautiful sunset', {
-  aspect_ratio: '16:9',
-  provider: 'ppio', // 或 'deer'
-});
-```
-
-#### Flux Kontext Fast
-
-```typescript
-import { textToImage, editImage } from './core/graph/flux-kontext-fast';
-
-// 文本生成图片
-const result = await textToImage('A cat running', {
-  aspect_ratio: '1:1',
-  num_outputs: 2,
-});
-
-// 图片编辑
-const edited = await editImage(
-  'Make it more colorful',
-  'https://example.com/image.jpg',
-  {
-    aspect_ratio: '1:1',
-  }
-);
+// 指定 provider
+const result2 = await runByModelKey('graph', 'nano-banana', {
+  prompt: 'A beautiful sunset',
+  parameters: { aspect_ratio: '16:9' },
+}, { providerOverride: 'deer' });
 ```
 
 ### 文本生成模型示例
 
-#### DeepSeek R1
+#### 文本/写作（单轨：models/run）
 
 ```typescript
-import { textGeneration } from './core/text/deepseek-r1';
+import { runByModelKey } from './models/run';
 
-const result = await textGeneration('Explain quantum computing', {
+const result = await runByModelKey('writing', 'deepseek-r1', {
+  prompt: 'Explain quantum computing',
+  outputFormat: 'json',
   max_tokens: 1000,
   temperature: 0.7,
-  system_prompt: 'You are a helpful assistant.',
 });
-
-console.log(result.text);
+console.log((result as { text?: string }).text);
 ```
 
-#### Gemini 2.5 Flash (支持多模态)
+#### Gemini 2.5 Flash
 
 ```typescript
-import { textGeneration, multimodalGeneration } from './core/text/gemini-2.5-flash';
-
-// 纯文本生成
-const textResult = await textGeneration('What is AI?', {
+// 纯文本
+const textResult = await runByModelKey('writing', 'gemini-2-5-flash', {
+  prompt: 'What is AI?',
+  outputFormat: 'json',
   temperature: 0.8,
 });
 
-// 多模态生成（文本 + 图片）
-const multiResult = await multimodalGeneration(
-  'Describe this image',
-  'data:image/png;base64,...',
-  {
-    temperature: 0.7,
-  }
-);
+// 多模态由同一 generate 支持，传相应 parameters 即可
+const multiResult = await runByModelKey('writing', 'gemini-2-5-flash', {
+  prompt: 'Describe this image',
+  outputFormat: 'json',
+  parameters: { image: '...' },
+});
 ```
 
 ## Provider 说明

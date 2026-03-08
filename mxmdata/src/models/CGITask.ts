@@ -4,7 +4,7 @@
  */
 
 export type CGITaskStatus = 'pending' | 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
-export type CGITaskType = 'text' | 'image' | 'video' | 'audio';
+export type CGITaskType = 'text' | 'image' | 'video' | 'audio' | 'graph' | 'graph-grid9-parent' | 'video-batch-parent';
 export type CGITaskResultFormat = 'base64' | 'minio';
 
 export interface CGITask {
@@ -51,6 +51,7 @@ export interface CreateCGITaskDto {
 }
 
 export interface UpdateCGITaskDto {
+  task_type?: CGITaskType; // 支持更新任务类型（用于九宫格父任务转换）
   status?: CGITaskStatus;
   progress?: number;
   error_message?: string;

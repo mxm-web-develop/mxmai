@@ -23,6 +23,23 @@ cp .env.example .env
 
 ### 2. 启动数据服务
 
+**方式一：一键启动（推荐）**
+
+```bash
+# 在 mxmdata 目录下
+pnpm start:all
+# 或
+./start-all.sh
+```
+
+一键启动脚本会自动：
+- 启动所有 Docker 服务（MinIO, Redis, PostgreSQL, Supabase 等）
+- 等待服务就绪
+- 测试连接
+- 可选：初始化数据库表结构
+
+**方式二：手动启动**
+
 ```bash
 # 在 mxmdata 目录下
 pnpm docker:up
@@ -94,6 +111,7 @@ mxmdata/
 
 ```bash
 # 服务管理
+pnpm start:all          # 一键启动所有服务（推荐）
 pnpm docker:up          # 启动服务
 pnpm docker:down        # 停止服务
 pnpm docker:restart     # 重启服务

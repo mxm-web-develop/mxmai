@@ -1,25 +1,113 @@
 /**
  * Writing 路由
- * 提供写作相关的 API 接口
+ * 提供写作相关的 API 接口，以及按模型名直接调 LLM 的 completion 接口（原 text 路由能力已并入）
  */
 
 import { Router, Request, Response } from 'express';
-import { taskExecutor } from '../core/task/task-executor';
+import type { ProviderType } from '../core/providers/types';
+import { taskExecutor } from '../task/task-executor';
 import { startWritingTask } from '../core/writing/writing-task';
 import { RepositoryFactory } from '@mxmai/mxmdata';
 import { containsSensitiveWords, checkObjectForSensitiveWords } from '../core/utils/sensitive-check';
-import { sensitivesWords } from '../core/writing/sensitives_words';
+import { getSensitiveWordsForSlot } from '../prompts/sensitive-resolver';
+import { getResolvedRouting } from '../models/providers';
+import { BillingService } from '../core/billing/billing-service';
 import type {
   OutlineParams,
   WritingGenerateParams,
-  RewritingParams,
-  PolishingParams,
   SyncToTaskParams,
 } from '../core/writing/type';
 import { DeerAPIClient } from '../core/utils/deerapi-client';
-import { getWritingFormOptionsForType } from '../core/writing/wtconfigs';
+import { getWritingFormOptionsForType } from '../clientServer/writing';
+import { getWritingBusinessKey, getWritingBusinessKeyFromParams } from '../core/writing/business-key';
+import { listModels, getModelsByKey } from '../models/registry';
+import { runByModelKey } from '../models/run';
 
 const router = Router();
+
+// ---------- 按模型名调 LLM（原 text 路由逻辑，统一到 writing） ----------
+const WRITING_MODELS = listModels({ scope: 'writing' });
+const WRITING_MODEL_KEYS: string[] = Array.from(new Set(WRITING_MODELS.map(d => d.modelKey)));
+
+function isWritingModelSupported(modelName: string): boolean {
+  return getModelsByKey('writing', modelName).length > 0;
+}
+
+/** 兼容 graph-service、character-service 等：由 registry 驱动 */
+export const MODEL_MAP: Record<string, { generate: (params: any, provider?: ProviderType) => Promise<any> }> = (() => {
+  const map: Record<string, { generate: (params: any, provider?: ProviderType) => Promise<any> }> = {};
+  for (const modelKey of WRITING_MODEL_KEYS) {
+    map[modelKey] = {
+      generate: (params: any, provider?: ProviderType) =>
+        runByModelKey('writing', modelKey, params, { providerOverride: provider }),
+    };
+  }
+  return map;
+})();
+
+/** GET /writing/models - 可用写作/LLM 模型列表 */
+router.get('/models', (_req: Request, res: Response) => {
+  res.json({ models: WRITING_MODEL_KEYS.map(name => ({ name })) });
+});
+
+/** POST /writing/completion/:modelName - 按模型名直接生成（原 POST /text/:modelName） */
+router.post('/completion/:modelName', async (req: Request, res: Response) => {
+  try {
+    const { modelName } = req.params;
+    const provider = req.query.provider as string | undefined;
+    if (!isWritingModelSupported(modelName)) {
+      return res.status(404).json({
+        error: 'Model not found',
+        message: `Model "${modelName}" is not available. Available models: ${WRITING_MODEL_KEYS.join(', ')}`,
+      });
+    }
+    const params = req.body;
+    if (!params.prompt) {
+      return res.status(400).json({
+        error: 'Missing required parameter',
+        message: 'prompt is required',
+      });
+    }
+    if (params.sensitives && Array.isArray(params.sensitives) && params.sensitives.length > 0) {
+      if (containsSensitiveWords(params.prompt, params.sensitives)) {
+        return res.status(400).json({
+          error: 'Sensitive content detected',
+          message: '你提交的内容涉及敏感内容，请检查',
+        });
+      }
+    }
+    const outputFormat = params.outputFormat || 'json';
+    if (outputFormat === 'stream') {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      const result = await runByModelKey('writing', modelName, params, { providerOverride: provider as ProviderType });
+      const r = result as { stream?: AsyncIterable<any>; streamString?: AsyncIterable<string> };
+      if (r.stream) {
+        for await (const chunk of r.stream) {
+          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        }
+      } else if (r.streamString) {
+        for await (const chunk of r.streamString) {
+          res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+        }
+      }
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } else {
+      const result = await runByModelKey('writing', modelName, params, { providerOverride: provider as ProviderType });
+      res.json({ success: true, model: modelName, result });
+    }
+  } catch (error) {
+    console.error(`[Writing Route] completion/${req.params.modelName} failed:`, error);
+    res.status(500).json({
+      error: 'Generation failed',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// ---------- 写作业务接口 ----------
 
 /**
  * POST /api/v1/writing/outline
@@ -45,8 +133,13 @@ router.post('/outline', async (req: Request, res: Response) => {
       });
     }
 
-    // 敏感词检查（使用系统预设的敏感词列表）
-    if (sensitivesWords.length > 0 && containsSensitiveWords(params.prompt, sensitivesWords)) {
+    // 敏感词检查（优先 DB 绑定，无则回退代码默认列表）
+    const outlineSensitiveWords = await getSensitiveWordsForSlot(
+      'writing',
+      (params as any).writing_type || 'outlines',
+      (params as any).outline_type ?? null
+    );
+    if (outlineSensitiveWords.length > 0 && containsSensitiveWords(params.prompt, outlineSensitiveWords)) {
       return res.status(400).json({
         success: false,
         error: '你提交的内容涉及敏感内容，请检查',
@@ -73,6 +166,9 @@ router.post('/outline', async (req: Request, res: Response) => {
             total_textcount: params.total_textcount,
             applyto: params.applyto,
             knowledgeBase: params.knowledgeBase,
+            cast_character_count: params.cast_character_count,
+            cast_character_ids: params.cast_character_ids,
+            language: (params as any).language,
           },
           userId,
           req.query.provider as string | undefined
@@ -93,17 +189,35 @@ router.post('/outline', async (req: Request, res: Response) => {
 
     // 异步任务模式（默认）
     const taskManager = taskExecutor.getTaskManager();
-    // 统一使用 type: 'writing'，通过 metadata.type 区分具体类型
     const writingType = params.writing_type || 'outlines';
+    const businessKey = getWritingBusinessKeyFromParams(
+      { writing_type: writingType, applyto: params.applyto },
+      'outline'
+    );
+
+    // 余额预检：用路由表解析实际 provider+model，以 total_textcount 估算 token
+    const { provider: rwProvider, model: rwModel } = getResolvedRouting('writing-outlines');
+    const estTokens = Math.ceil(Number(params.total_textcount || 1000) * 1.5); // 输出约 1.5x 字符数
+    const balanceCheckW = await BillingService.checkBalance({
+      userId, provider: rwProvider, modelKey: rwModel, scope: 'writing',
+      estimatedOutputTokens: estTokens, estimatedInputTokens: 500,
+    });
+    if (!balanceCheckW.allowed) {
+      return res.status(402).json({
+        success: false, code: 'INSUFFICIENT_BALANCE',
+        message: `余额不足，本次预计消耗约 ${balanceCheckW.estimatedTokens} MXM-TOKEN，当前余额 ${balanceCheckW.currentBalance}`,
+      });
+    }
+
     const createResponse = await taskManager.createTask({
-      type: 'writing', // 统一使用 writing 类型
-      model: 'writing-outline', // 占位模型名
-      provider: undefined,
+      type: 'writing',
+      model: businessKey,
+      provider: req.query.provider as string | undefined,
       params: {
         taskType: 'outline',
         params: {
           ...params,
-          writing_type: writingType, // 确保 writing_type 传递到任务参数中
+          writing_type: writingType,
         },
         userId,
         provider: req.query.provider as string | undefined,
@@ -112,10 +226,9 @@ router.post('/outline', async (req: Request, res: Response) => {
       storeToMinio: false,
     });
 
-    // 异步执行任务
     taskExecutor.executeTask({
       taskId: createResponse.taskId,
-      modelName: 'writing-outline',
+      modelName: businessKey,
       provider: undefined,
       params: {
         taskType: 'outline',
@@ -172,18 +285,21 @@ router.post('/generate', async (req: Request, res: Response) => {
       });
     }
 
-    // 敏感词检查（使用系统预设的敏感词列表）
-    if (sensitivesWords.length > 0) {
-      // 检查 prompt
-      if (containsSensitiveWords(params.prompt, sensitivesWords)) {
+    // 敏感词检查（优先 DB 绑定，无则回退代码默认列表）
+    const generateSensitiveWords = await getSensitiveWordsForSlot(
+      'writing',
+      params.writing_type || 'articles',
+      params.outline_type ?? null
+    );
+    if (generateSensitiveWords.length > 0) {
+      if (containsSensitiveWords(params.prompt, generateSensitiveWords)) {
         return res.status(400).json({
           success: false,
           error: '你提交的内容涉及敏感内容，请检查',
         });
       }
-      // 检查 outlines 中的 content
       if (params.outlines && params.outlines.length > 0) {
-        if (checkObjectForSensitiveWords(params.outlines, sensitivesWords)) {
+        if (checkObjectForSensitiveWords(params.outlines, generateSensitiveWords)) {
           return res.status(400).json({
             success: false,
             error: '你提交的内容涉及敏感内容，请检查',
@@ -235,26 +351,40 @@ router.post('/generate', async (req: Request, res: Response) => {
     const taskManager = taskExecutor.getTaskManager();
     // 统一使用 type: 'writing'，通过 metadata.type 区分具体类型
     const writingType = params.writing_type || 'articles';
-    // 确保 metadata 中包含 writing_type_label（如果前端传递了）
+    const businessKey = getWritingBusinessKey(writingType);
     const taskMetadata = params.metadata || {};
-    
-    // outlines 类型特殊处理：不存储到 MinIO，返回 JSON 格式
+
     const isOutlinesType = writingType === 'outlines';
     const shouldStoreToMinio = isOutlinesType ? false : (params.storeToMinio !== false);
-    
+
+    // 余额预检
+    const routingKey = isOutlinesType ? 'writing-outlines' : `writing-${writingType}`;
+    const { provider: rgProvider, model: rgModel } = getResolvedRouting(routingKey);
+    const estOutputTokens = Math.ceil(Number((params as any).expected_textcount || (params as any).total_textcount || 1500) * 1.5);
+    const balanceCheckG = await BillingService.checkBalance({
+      userId, provider: rgProvider, modelKey: rgModel, scope: 'writing',
+      estimatedOutputTokens: estOutputTokens, estimatedInputTokens: 1000,
+    });
+    if (!balanceCheckG.allowed) {
+      return res.status(402).json({
+        success: false, code: 'INSUFFICIENT_BALANCE',
+        message: `余额不足，本次预计消耗约 ${balanceCheckG.estimatedTokens} MXM-TOKEN，当前余额 ${balanceCheckG.currentBalance}`,
+      });
+    }
+
     const createResponse = await taskManager.createTask({
       type: 'writing',
-      model: 'writing-generate',
-      provider: undefined,
+      model: businessKey,
+      provider: req.query.provider as string | undefined,
       params: {
         taskType: 'generate',
         params: {
           ...params,
-          writing_type: writingType, // 确保 writing_type 传递到任务参数中
+          writing_type: writingType,
           metadata: {
             ...taskMetadata,
-            writing_type: writingType, // 同时保存到 metadata
-            writing_type_label: taskMetadata.writing_type_label, // 保存中文标签（如果有）
+            writing_type: writingType,
+            writing_type_label: taskMetadata.writing_type_label,
           },
         },
         userId,
@@ -264,11 +394,10 @@ router.post('/generate', async (req: Request, res: Response) => {
       storeToMinio: shouldStoreToMinio,
     });
 
-    // 异步执行任务
     taskExecutor.executeTask({
       taskId: createResponse.taskId,
-      modelName: 'writing-generate',
-      provider: undefined,
+      modelName: businessKey,
+      provider: req.query.provider as string | undefined,
       params: {
         taskType: 'generate',
         params: {
@@ -293,270 +422,6 @@ router.post('/generate', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('[Writing Route] 生成文章失败:', error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-});
-
-/**
- * POST /api/v1/writing/rewriting
- * 改写文章（支持流式和异步任务两种模式）
- */
-router.post('/rewriting', async (req: Request, res: Response) => {
-  try {
-    const userId = req.headers['x-user-id'] as string | undefined;
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: 'Missing x-user-id header',
-      });
-    }
-
-    const params = req.body as RewritingParams;
-
-    // 验证必需参数
-    if (!params.prompt) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required field: prompt',
-      });
-    }
-
-    if (!params.previous_content && !params.previous_task) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required field: previous_content or previous_task',
-      });
-    }
-
-    // 敏感词检查（使用系统预设的敏感词列表）
-    if (sensitivesWords.length > 0) {
-      // 检查 prompt
-      if (containsSensitiveWords(params.prompt, sensitivesWords)) {
-        return res.status(400).json({
-          success: false,
-          error: '你提交的内容涉及敏感内容，请检查',
-        });
-      }
-      // 检查 previous_content
-      if (params.previous_content && containsSensitiveWords(params.previous_content, sensitivesWords)) {
-        return res.status(400).json({
-          success: false,
-          error: '你提交的内容涉及敏感内容，请检查',
-        });
-      }
-    }
-
-    const outputFormat = params.outputFormat || 'json';
-
-    // 流式输出模式
-    if (outputFormat === 'stream') {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-
-      try {
-        const { rewriteWritingStream } = await import('../core/writing/writing-service');
-        const stream = rewriteWritingStream(params, userId, req.query.provider as string | undefined);
-
-        for await (const chunk of stream) {
-          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-        }
-
-        res.write('data: [DONE]\n\n');
-        res.end();
-      } catch (error) {
-        res.write(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n\n`);
-        res.end();
-      }
-      return;
-    }
-
-    // 异步任务模式（默认）
-    const taskManager = taskExecutor.getTaskManager();
-    // 统一使用 type: 'writing'，通过 metadata.type 区分具体类型
-    const writingType = params.writing_type || 'articles';
-    const createResponse = await taskManager.createTask({
-      type: 'writing',
-      model: 'writing-rewrite',
-      provider: undefined,
-      params: {
-        taskType: 'rewrite',
-        params: {
-          ...params,
-          writing_type: writingType, // 确保 writing_type 传递到任务参数中
-        },
-        userId,
-        provider: req.query.provider as string | undefined,
-      },
-      userId,
-      storeToMinio: false,
-    });
-
-    // 异步执行任务
-    taskExecutor.executeTask({
-      taskId: createResponse.taskId,
-      modelName: 'writing-rewrite',
-      provider: undefined,
-      params: {
-        taskType: 'rewrite',
-        params: {
-          ...params,
-          writing_type: writingType,
-        },
-        userId,
-        provider: req.query.provider as string | undefined,
-      },
-      userId,
-      storeToMinio: false,
-    }).catch((error) => {
-      console.error(`[Writing Route] 任务执行失败 (taskId: ${createResponse.taskId}):`, error);
-    });
-
-    return res.json({
-      success: true,
-      data: {
-        taskId: createResponse.taskId,
-        status: createResponse.status,
-      },
-    });
-  } catch (error) {
-    console.error('[Writing Route] 改写文章失败:', error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-});
-
-/**
- * POST /api/v1/writing/polishing
- * 润色文章（支持流式和异步任务两种模式）
- */
-router.post('/polishing', async (req: Request, res: Response) => {
-  try {
-    const userId = req.headers['x-user-id'] as string | undefined;
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: 'Missing x-user-id header',
-      });
-    }
-
-    const params = req.body as PolishingParams;
-
-    // 验证必需参数
-    if (!params.prompt) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required field: prompt',
-      });
-    }
-
-    if (!params.previous_content && !params.previous_task) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required field: previous_content or previous_task',
-      });
-    }
-
-    // 敏感词检查（使用系统预设的敏感词列表）
-    if (sensitivesWords.length > 0) {
-      // 检查 prompt
-      if (containsSensitiveWords(params.prompt, sensitivesWords)) {
-        return res.status(400).json({
-          success: false,
-          error: '你提交的内容涉及敏感内容，请检查',
-        });
-      }
-      // 检查 previous_content
-      if (params.previous_content && containsSensitiveWords(params.previous_content, sensitivesWords)) {
-        return res.status(400).json({
-          success: false,
-          error: '你提交的内容涉及敏感内容，请检查',
-        });
-      }
-    }
-
-    const outputFormat = params.outputFormat || 'json';
-
-    // 流式输出模式
-    if (outputFormat === 'stream') {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no');
-
-      try {
-        const { polishWritingStream } = await import('../core/writing/writing-service');
-        const stream = polishWritingStream(params, userId, req.query.provider as string | undefined);
-
-        for await (const chunk of stream) {
-          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-        }
-
-        res.write('data: [DONE]\n\n');
-        res.end();
-      } catch (error) {
-        res.write(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n\n`);
-        res.end();
-      }
-      return;
-    }
-
-    // 异步任务模式（默认）
-    const taskManager = taskExecutor.getTaskManager();
-    // 统一使用 type: 'writing'，通过 metadata.type 区分具体类型
-    const writingType = params.writing_type || 'articles';
-    const createResponse = await taskManager.createTask({
-      type: 'writing',
-      model: 'writing-polish',
-      provider: undefined,
-      params: {
-        taskType: 'polish',
-        params: {
-          ...params,
-          writing_type: writingType, // 确保 writing_type 传递到任务参数中
-        },
-        userId,
-        provider: req.query.provider as string | undefined,
-      },
-      userId,
-      storeToMinio: false,
-    });
-
-    // 异步执行任务
-    taskExecutor.executeTask({
-      taskId: createResponse.taskId,
-      modelName: 'writing-polish',
-      provider: undefined,
-      params: {
-        taskType: 'polish',
-        params: {
-          ...params,
-          writing_type: writingType,
-        },
-        userId,
-        provider: req.query.provider as string | undefined,
-      },
-      userId,
-      storeToMinio: false,
-    }).catch((error) => {
-      console.error(`[Writing Route] 任务执行失败 (taskId: ${createResponse.taskId}):`, error);
-    });
-
-    return res.json({
-      success: true,
-      data: {
-        taskId: createResponse.taskId,
-        status: createResponse.status,
-      },
-    });
-  } catch (error) {
-    console.error('[Writing Route] 润色文章失败:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -592,8 +457,9 @@ router.post('/suno/lyrics', async (req: Request, res: Response) => {
       });
     }
 
-    // 敏感词检查（沿用写作模块的规则）
-    if (sensitivesWords.length > 0 && containsSensitiveWords(prompt, sensitivesWords)) {
+    // 敏感词检查（优先 DB 绑定，slot 为 writing/lyrics）
+    const sunoSensitiveWords = await getSensitiveWordsForSlot('writing', 'lyrics', null);
+    if (sunoSensitiveWords.length > 0 && containsSensitiveWords(prompt, sunoSensitiveWords)) {
       return res.status(400).json({
         success: false,
         error: '你提交的内容涉及敏感内容，请检查',
@@ -821,7 +687,7 @@ router.get('/document', async (req: Request, res: Response) => {
  */
 router.get('/getformOptions', (req: Request, res: Response) => {
   try {
-    const { writing_type, lang } = req.query;
+    const { writing_type, lang, outline_type } = req.query;
     const language = (lang as 'zh' | 'en') || 'zh';
 
     // 验证语言参数
@@ -843,7 +709,11 @@ router.get('/getformOptions', (req: Request, res: Response) => {
     }
 
     // 获取表单选项
-    const formOptions = getWritingFormOptionsForType(writing_type as any, language);
+    const formOptions = getWritingFormOptionsForType(
+      writing_type as any,
+      language,
+      outline_type as any
+    );
     
     if (!formOptions) {
       return res.status(404).json({

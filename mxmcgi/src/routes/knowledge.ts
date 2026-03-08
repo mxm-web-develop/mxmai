@@ -6,10 +6,10 @@
 import { Router, Request, Response } from 'express';
 import { uid } from 'uid';
 import multer from 'multer';
-import { KnowledgeService } from '../core/knowledge/knowledge-service';
+import { KnowledgeService } from '../knowledge/knowledge-service';
 import { RepositoryFactory } from '@mxmai/mxmdata';
-import { taskExecutor } from '../core/task/task-executor';
-import { startKnowledgeImportTask } from '../core/knowledge/knowledge-task';
+import { taskExecutor } from '../task/task-executor';
+import { startKnowledgeImportTask } from '../knowledge/knowledge-task';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -276,6 +276,122 @@ router.get('/bases', async (req: Request, res: Response) => {
     });
   }
 });
+
+// ==================== Admin 专用：公开知识库与默认使用 ====================
+
+/**
+ * GET /knowledge/admin/public-bases
+ * [Admin] 列出所有公开或内置的公用知识库
+ */
+router.get('/admin/public-bases', async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminUser(req))) {
+      return res.status(403).json({ success: false, error: 'Admin only' });
+    }
+    const { limit, offset } = req.query;
+    const result = await getKnowledgeService().listKnowledgeBases({
+      public_or_builtin: true,
+      limit: limit ? Number(limit) : undefined,
+      offset: offset ? Number(offset) : undefined,
+    });
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('[Knowledge Route] Admin list public bases failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
+ * GET /knowledge/admin/defaults
+ * [Admin] 列出所有默认知识库绑定
+ * Query: scope 可选，筛选 scope
+ */
+router.get('/admin/defaults', async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminUser(req))) {
+      return res.status(403).json({ success: false, error: 'Admin only' });
+    }
+    const { scope } = req.query;
+    const repo = RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    const list = await repo.listDefaults(scope as string | undefined);
+    return res.json({ success: true, data: { defaults: list } });
+  } catch (error) {
+    console.error('[Knowledge Route] Admin list defaults failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
+ * PUT /knowledge/admin/defaults
+ * [Admin] 设置默认知识库
+ * Body: { scope, category, sub_type, knowledge_base_id }
+ */
+router.put('/admin/defaults', async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminUser(req))) {
+      return res.status(403).json({ success: false, error: 'Admin only' });
+    }
+    const { scope, category, sub_type, knowledge_base_id } = req.body;
+    if (!scope || !category || !sub_type || !knowledge_base_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: scope, category, sub_type, knowledge_base_id',
+      });
+    }
+    const kbRepo = RepositoryFactory.createKnowledgeBaseRepository();
+    const kb = await kbRepo.findKnowledgeBaseById(knowledge_base_id);
+    if (!kb) {
+      return res.status(404).json({
+        success: false,
+        error: `Knowledge base "${knowledge_base_id}" not found`,
+      });
+    }
+    const repo = RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    const def = await repo.setDefault({
+      scope,
+      category,
+      sub_type,
+      knowledge_base_id,
+    });
+    return res.json({ success: true, data: def });
+  } catch (error) {
+    console.error('[Knowledge Route] Admin set default failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
+ * DELETE /knowledge/admin/defaults/:scope/:category/:subType
+ * [Admin] 移除默认知识库绑定
+ */
+router.delete('/admin/defaults/:scope/:category/:subType', async (req: Request, res: Response) => {
+  try {
+    if (!(await isAdminUser(req))) {
+      return res.status(403).json({ success: false, error: 'Admin only' });
+    }
+    const { scope, category, subType } = req.params;
+    const repo = RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    await repo.removeDefault(scope, category, subType);
+    return res.json({ success: true, message: 'Default removed' });
+  } catch (error) {
+    console.error('[Knowledge Route] Admin remove default failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// ==================== 以上 Admin 专用 ====================
 
 /**
  * GET /knowledge/bases/:id

@@ -8,6 +8,7 @@ export interface TokenPayload {
   userId: string;
   username: string;
   type: 'access' | 'refresh';
+  role?: 'user' | 'admin';
 }
 
 export interface TokenPair {
@@ -29,10 +30,15 @@ function getRefreshTokenExpiresIn(): number {
   return Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN || 604800); // 默认7天
 }
 
+/** 供会话表写入使用：返回 refresh token 有效秒数 */
+export function getRefreshTokenExpiresInSeconds(): number {
+  return getRefreshTokenExpiresIn();
+}
+
 /**
  * 生成 Access Token
  */
-export function generateAccessToken(payload: Omit<TokenPayload, 'type'>): string {
+export function generateAccessToken(payload: Omit<TokenPayload, 'type'> & { role?: 'user' | 'admin' }): string {
   return jwt.sign(
     {
       ...payload,
@@ -48,7 +54,7 @@ export function generateAccessToken(payload: Omit<TokenPayload, 'type'>): string
 /**
  * 生成 Refresh Token
  */
-export function generateRefreshToken(payload: Omit<TokenPayload, 'type'>): string {
+export function generateRefreshToken(payload: Omit<TokenPayload, 'type'> & { role?: 'user' | 'admin' }): string {
   return jwt.sign(
     {
       ...payload,
@@ -64,7 +70,7 @@ export function generateRefreshToken(payload: Omit<TokenPayload, 'type'>): strin
 /**
  * 生成 Token 对
  */
-export function generateTokenPair(payload: Omit<TokenPayload, 'type'>): TokenPair {
+export function generateTokenPair(payload: Omit<TokenPayload, 'type'> & { role?: 'user' | 'admin' }): TokenPair {
   return {
     accessToken: generateAccessToken(payload),
     refreshToken: generateRefreshToken(payload),

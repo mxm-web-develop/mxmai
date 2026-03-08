@@ -3,9 +3,17 @@
  */
 
 import { ModelProvider, ProviderType, GenerateParams, GenerateResult } from './types';
-import { ReplicateProvider } from './replicate.provider';
-import { PPIOProvider } from './ppio.provider';
-import { DeerProvider } from './deer.provider';
+import { ReplicateProvider } from '../../models/replicate/provider';
+import { PPIOProvider } from '../../models/ppio/provider';
+import { DeerProvider } from '../../models/deerapi/provider';
+import { OpenAIProvider } from '../../models/openai/provider';
+import { GoogleProvider } from '../../models/google/provider';
+import { AnthropicProvider } from '../../models/anthropic/provider';
+import { QwenProvider } from '../../models/qwen/provider';
+import { VolcProvider } from '../../models/volc/provider';
+import { MinimaxProvider } from '../../models/minimax/provider';
+import { getResolvedRouting } from './model-routing';
+import { listModels } from '../../models/registry';
 
 /**
  * 模型到提供商的映射表
@@ -14,58 +22,29 @@ import { DeerProvider } from './deer.provider';
 type ModelProviderMap = Record<string, ProviderType[]>;
 
 /**
- * 构建模型到提供商的映射表
- * 从 suport-list.ts 导入模型列表
+ * 基于 models/registry 构建「逻辑模型名 -> 支持的 ProviderType 列表」映射。
  */
 function buildModelProviderMap(providerTypes: ProviderType[]): ModelProviderMap {
   const map: ModelProviderMap = {};
-  
-  // 从 suport-list.ts 导入模型列表
-  const supportList = require('../utils/suport-list').default;
-  
-  // 收集所有模型
-  const knownModels = new Set<string>();
-  
-  // 从各个 provider 收集模型（从对象键中提取）
-  const replicateModels = [
-    ...Object.keys(supportList.replicate?.graph || {}),
-    ...Object.keys(supportList.replicate?.text || {}),
-    ...Object.keys(supportList.replicate?.audio || {}),
-  ];
-  const ppioModels = [
-    ...Object.keys(supportList.ppio?.graph || {}),
-    ...Object.keys(supportList.ppio?.text || {}),
-    ...Object.keys(supportList.ppio?.audio || {}),
-  ];
-  const deerModels = [
-    ...Object.keys(supportList.deer?.graph || {}),
-    ...Object.keys(supportList.deer?.text || {}),
-    ...Object.keys(supportList.deer?.audio || {}),
-  ];
-  
-  replicateModels.forEach(m => knownModels.add(m));
-  ppioModels.forEach(m => knownModels.add(m));
-  deerModels.forEach(m => knownModels.add(m));
-  
-  // 为每个模型记录支持的提供商
-  knownModels.forEach(modelName => {
-    const supportedProviders: ProviderType[] = [];
-    
-    if (replicateModels.includes(modelName)) {
-      supportedProviders.push('replicate');
+
+  // 从 registry 读取所有已注册模型定义
+  const allModels = listModels();
+
+  for (const def of allModels) {
+    const provider = def.provider as ProviderType;
+    const modelKey = def.modelKey;
+
+    // 仅收集我们关心的 providerType
+    if (!providerTypes.includes(provider)) continue;
+
+    if (!map[modelKey]) {
+      map[modelKey] = [];
     }
-    if (ppioModels.includes(modelName)) {
-      supportedProviders.push('ppio');
+    if (!map[modelKey].includes(provider)) {
+      map[modelKey].push(provider);
     }
-    if (deerModels.includes(modelName)) {
-      supportedProviders.push('deer');
-    }
-    
-    if (supportedProviders.length > 0) {
-      map[modelName] = supportedProviders;
-    }
-  });
-  
+  }
+
   return map;
 }
 
@@ -102,9 +81,67 @@ export class ProviderFactory {
         throw new Error(`DeerProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
+
+    this.providerInitializers.set('openai', () => {
+      try {
+        return new OpenAIProvider();
+      } catch (error) {
+        throw new Error(`OpenAIProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+
+    this.providerInitializers.set('google', () => {
+      try {
+        return new GoogleProvider();
+      } catch (error) {
+        throw new Error(`GoogleProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+
+    this.providerInitializers.set('anthropic', () => {
+      try {
+        return new AnthropicProvider();
+      } catch (error) {
+        throw new Error(`AnthropicProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+
+    this.providerInitializers.set('qwen', () => {
+      try {
+        return new QwenProvider();
+      } catch (error) {
+        throw new Error(`QwenProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+
+    this.providerInitializers.set('volc', () => {
+      try {
+        return new VolcProvider();
+      } catch (error) {
+        throw new Error(`VolcProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+
+    this.providerInitializers.set('minimax', () => {
+      try {
+        return new MinimaxProvider();
+      } catch (error) {
+        throw new Error(`MinimaxProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
     
-    // 构建模型到提供商的映射表
-    this.modelProviderMap = buildModelProviderMap(['replicate', 'ppio', 'deer']);
+    // 构建模型到提供商的映射表（全部真实 ProviderType）
+    this.modelProviderMap = buildModelProviderMap([
+      'replicate',
+      'ppio',
+      'deer',
+      'openai',
+      'google',
+      'anthropic',
+      'qwen',
+      'volc',
+      'minimax',
+    ]);
     
     // 从环境变量读取默认提供商
     const envDefaultProvider = process.env.DEFAULT_PROVIDER?.toLowerCase();
@@ -119,7 +156,17 @@ export class ProviderFactory {
     if (envDefaultProvider === 'deerapi') {
       this.defaultProvider = 'deer';
       console.log(`[ProviderFactory] ✅ 检测到 'deerapi'，映射为 'deer'`);
-    } else if (envDefaultProvider === 'replicate' || envDefaultProvider === 'ppio' || envDefaultProvider === 'deer') {
+    } else if (
+      envDefaultProvider === 'replicate' ||
+      envDefaultProvider === 'ppio' ||
+      envDefaultProvider === 'deer' ||
+      envDefaultProvider === 'openai' ||
+      envDefaultProvider === 'google' ||
+      envDefaultProvider === 'anthropic' ||
+      envDefaultProvider === 'qwen' ||
+      envDefaultProvider === 'volc' ||
+      envDefaultProvider === 'minimax'
+    ) {
       this.defaultProvider = envDefaultProvider;
       console.log(`[ProviderFactory] ✅ 使用环境变量中的 provider: ${envDefaultProvider}`);
     } else {
@@ -170,6 +217,23 @@ export class ProviderFactory {
     } catch (error) {
       return null;
     }
+  }
+
+  /**
+   * 根据逻辑模型名或物理模型名解析出 Provider 与物理模型名
+   * 若路由表中有该逻辑名，使用路由的 provider + model；否则将名称视为物理模型名，由 getProviderForModel 选 provider
+   */
+  getProviderAndModel(logicalOrPhysicalName: string, preferredProvider?: ProviderType): { provider: ModelProvider; model: string } {
+    const resolved = getResolvedRouting(logicalOrPhysicalName, preferredProvider);
+    if (resolved.fromRouting) {
+      const provider = this.get(resolved.provider);
+      if (provider.supportsModel(resolved.model)) {
+        return { provider, model: resolved.model };
+      }
+      // 路由指向的 provider 不支持该 model，回退为按物理模型选择
+    }
+    const provider = this.getProviderForModel(resolved.model, resolved.provider);
+    return { provider, model: resolved.model };
   }
 
   /**
@@ -376,4 +440,17 @@ export const providerFactory = new Proxy({} as ProviderFactory, {
 
 // 导出类型和类
 export * from './types';
-export { ReplicateProvider, PPIOProvider, DeerProvider };
+export { ReplicateProvider, PPIOProvider, DeerProvider, OpenAIProvider, GoogleProvider, AnthropicProvider, QwenProvider, VolcProvider, MinimaxProvider };
+export {
+  getResolvedRouting,
+  getFullRoutingTable,
+  setRoutingOverride,
+  clearRoutingOverride,
+  clearAllOverrides,
+  defaultRouting,
+} from './model-routing';
+export type { RoutingEntry } from './model-routing';
+export { recordStats, getProviderStats } from './provider-stats';
+export type { ProviderStatsRecord, ProviderStatsAggregate } from './provider-stats';
+export { getProviderKeys, getFirstProviderKey } from './provider-keys';
+export type { ProviderKeyKind, OfficialService } from './provider-keys';

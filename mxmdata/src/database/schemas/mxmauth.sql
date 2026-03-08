@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   avatar_url TEXT,
   level INTEGER DEFAULT 1,
-  balance DECIMAL(10, 2) DEFAULT 0.00,
+  balance DECIMAL(10, 2) DEFAULT 0.00, -- DEPRECATED: 使用 wallets 表，此字段仅作兼容
   membership_type VARCHAR(20) DEFAULT 'free', -- free, pro, premium
   membership_expires_at TIMESTAMP,
   status VARCHAR(20) DEFAULT 'active', -- active, suspended, banned

@@ -63,14 +63,24 @@ export class PaymentService {
       }
       // 代金券支付直接从钱包扣除，不需要外部支付流程
       // 这里先创建订单，然后在后面直接处理支付
+    } else if (createPaymentDto.channel === 'apple_iap') {
+      // Apple IAP 必须提供 assetCode（如 CNY, CREDITS）和 userId
+      if (!createPaymentDto.assetCode) {
+        throw new Error('apple_iap 渠道必须提供 asset_code (如 CNY, CREDITS)');
+      }
+      if (!createPaymentDto.userId) {
+        throw new Error('apple_iap 渠道必须提供 userId');
+      }
+      // IAP 由客户端完成 StoreKit 购买后调用 iap/verify 入账
     }
 
     // 确定 order_type
     const orderType = createPaymentDto.bizType === 'subscription' ? 'subscription' :
                      createPaymentDto.bizType === 'token_purchase' ? 'purchase' : 'recharge';
 
-    // 创建支付订单
+    // 创建支付订单（order_no 需与 orderId 一致，供 iap/verify 等查找）
     const paymentOrder = await this.paymentRepo.createOrder({
+      ...({ order_no: orderId } as any),
       user_id: createPaymentDto.userId || '',
       order_type: orderType,
       amount: createPaymentDto.amount,
@@ -424,6 +434,43 @@ export class PaymentService {
     }
 
     return await this.mapToDto(updated);
+  }
+
+  /**
+   * Apple IAP 收据校验与入账
+   * 客户端完成 StoreKit 购买后调用此接口
+   * TODO: 接入 Apple verifyReceipt API 进行真实校验
+   */
+  async verifyIapReceipt(
+    orderId: string,
+    receipt: string,
+    productId?: string,
+  ): Promise<PaymentOrderDto> {
+    const payment = await this.paymentRepo.findOrderByOrderNo(orderId);
+    if (!payment) {
+      throw new Error(`订单 ${orderId} 不存在`);
+    }
+    if (payment.payment_channel !== 'apple_iap') {
+      throw new Error(`订单 ${orderId} 不是 Apple IAP 订单`);
+    }
+    if (payment.status === 'paid') {
+      return await this.mapToDto(payment);
+    }
+    if (payment.status !== 'pending') {
+      throw new Error(`订单 ${orderId} 状态为 ${payment.status}，无法完成校验`);
+    }
+
+    // TODO: 调用 Apple 服务器校验收据 (verifyReceipt)
+    // 当前为占位实现，后续需接入 https://buy.itunes.apple.com/verifyReceipt
+    if (!receipt || receipt.trim().length === 0) {
+      throw new Error('receipt 不能为空');
+    }
+
+    return await this.markPaymentSuccess(orderId, undefined, undefined, {
+      receipt: receipt.substring(0, 100) + '...',
+      productId,
+      channel: 'apple_iap',
+    });
   }
 
   /**

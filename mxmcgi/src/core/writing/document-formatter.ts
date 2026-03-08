@@ -6,7 +6,7 @@
 // PDF 功能需要安装 pdfkit: npm install pdfkit @types/pdfkit
 // import PDFDocument from 'pdfkit';
 
-export type StorageFormat = 'markdown' | 'txt' | 'pdf' | 'md';
+export type StorageFormat = 'markdown' | 'txt' | 'pdf' | 'md' | 'json';
 
 /**
  * 格式化文档为 Markdown
@@ -61,6 +61,32 @@ export function formatToTxt(
   txt += text;
 
   return txt;
+}
+
+/**
+ * 格式化文档为 JSON
+ */
+export function formatToJson(
+  text: string,
+  title?: string,
+  metadata?: Record<string, any>
+): string {
+  // 如果文本已经是 JSON 格式，直接返回
+  try {
+    JSON.parse(text);
+    return text;
+  } catch {
+    // 如果不是有效的 JSON，尝试构建 JSON 对象
+    const jsonObj: Record<string, any> = {};
+    if (title) {
+      jsonObj.title = title;
+    }
+    jsonObj.content = text;
+    if (metadata) {
+      Object.assign(jsonObj, metadata);
+    }
+    return JSON.stringify(jsonObj, null, 2);
+  }
 }
 
 /**
@@ -149,6 +175,8 @@ export async function formatDocument(
       return formatToMarkdown(text, title, metadata);
     case 'txt':
       return formatToTxt(text, title, metadata);
+    case 'json':
+      return formatToJson(text, title, metadata);
     case 'pdf':
       return await formatToPdf(text, title, metadata);
     default:
@@ -167,6 +195,8 @@ export function getFileExtension(format: StorageFormat): string {
       return 'md';
     case 'txt':
       return 'txt';
+    case 'json':
+      return 'json';
     case 'pdf':
       return 'pdf';
     default:
@@ -184,6 +214,8 @@ export function getMimeType(format: StorageFormat): string {
       return 'text/markdown';
     case 'txt':
       return 'text/plain';
+    case 'json':
+      return 'application/json';
     case 'pdf':
       return 'application/pdf';
     default:

@@ -13,7 +13,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { uid } from 'uid';
 import { RepositoryFactory } from '@mxmai/mxmdata';
-import { taskExecutor } from '../core/task/task-executor';
+import { taskExecutor } from '../task/task-executor';
 import type { ProviderType } from '../core/providers/types';
 
 // ⚠️ 重要：必须在导入任何模块之前加载 .env 文件

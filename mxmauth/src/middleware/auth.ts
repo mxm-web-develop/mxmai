@@ -5,7 +5,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, extractTokenFromHeader } from '../auth/jwt';
 
-// 扩展 Request 类型以包含用户信息
+// 扩展 Request 类型以包含用户信息与原始 token（供登出时删除会话）
 declare global {
   namespace Express {
     interface Request {
@@ -13,6 +13,7 @@ declare global {
         userId: string;
         username: string;
       };
+      token?: string;
     }
   }
 }
@@ -47,11 +48,12 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
       return;
     }
 
-    // 注入用户信息到请求对象
+    // 注入用户信息与原始 token 到请求对象（token 供登出时按会话删除）
     req.user = {
       userId: payload.userId,
       username: payload.username,
     };
+    req.token = token;
 
     next();
   } catch (error) {

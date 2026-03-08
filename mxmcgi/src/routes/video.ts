@@ -1,64 +1,78 @@
 import { Router, Request, Response } from 'express';
 import type { ProviderType } from '../core/providers/types';
-import { taskExecutor } from '../core/task/task-executor';
+import { taskExecutor } from '../task/task-executor';
 import { processReferenceImage } from '../core/utils/image-processor';
+import { getVideoFormOptions } from '../clientServer/video/formOptions';
+import { generate as videoGenerate } from '../core/video/video-service';
+import { listModels, getModelsByKey } from '../models/registry';
 
-// 导入所有 video 模型文件
-import * as sora2 from '../core/video/sora-2';
-import * as sora2Pro from '../core/video/sora-2-pro';
-import * as sora2All from '../core/video/sora-2-all';
-import * as sora2ProAll from '../core/video/sora-2-pro-all';
-import * as runway from '../core/video/runway';
+// 模型列表与存在性：仅通过 registry（单轨）
+const VIDEO_MODELS = listModels({ scope: 'video' });
+const SUPPORTED_MODELS: string[] = Array.from(new Set(VIDEO_MODELS.map(d => d.modelKey)));
 
-// 统一从 suport-list.ts 读取所有 provider 的 video 模型列表
-// 约定：对外暴露的模型名 = suport-list.ts 中各 provider.video 的 key
-// 内部真实模型 ID（DeerAPI 等）由各 provider 自己根据 suport-list 的 value 处理
-const supportList = require('../core/utils/suport-list').default as any;
-
-const VIDEO_MODELS_FROM_PROVIDERS = [
-  ...(Object.keys(supportList.deer?.video || {})),
-];
-
-// 去重后的模型列表
-const SUPPORTED_MODELS: string[] = Array.from(new Set(VIDEO_MODELS_FROM_PROVIDERS));
-
-// 模型映射（key 为我们对外暴露的模型名）
-// 约定：这里的 key 必须与 `suport-list.ts` 中各 provider.video 的 key 完全一致
-// 每个模型文件内部使用 providerFactory.getProviderForModel() 自动选择支持的 provider
-const MODEL_MAP: Record<
-  string,
-  {
-    generate: (params: any, provider?: ProviderType) => Promise<any>;
-  }
-> = {
-  'sora-2': {
-    generate: sora2.generate,
-  },
-  'sora-2-pro': {
-    generate: sora2Pro.generate,
-  },
-  // 逆向异步 Sora（自研接口）
-  'sora-2-all': {
-    generate: sora2All.generate,
-  },
-  'sora-2-pro-all': {
-    generate: sora2ProAll.generate,
-  },
-  // Runway 统一视频生成接口（自动选择：图片转视频/文本转视频/视频转视频）
-  'runway': {
-    generate: runway.generate,
-  },
-};
+function isVideoModelSupported(modelName: string): boolean {
+  return getModelsByKey('video', modelName).length > 0;
+}
 
 const router = Router();
 
-// 获取所有可用的视频模型列表
+// 获取所有可用的视频模型列表（来自 registry）
 router.get('/models', (_req: Request, res: Response) => {
-  // 返回 MODEL_MAP 中的模型（确保都有对应的实现文件）
-  const models = Object.keys(MODEL_MAP).map(modelName => ({
-    name: modelName,
-  }));
+  const models = SUPPORTED_MODELS.map(modelName => ({ name: modelName }));
   res.json({ models });
+});
+
+// 业务层：chunk_seconds 表单选项（按 mode：sora-2 => 4/8/12，sora-2-deer => 10/15）
+router.get('/getformOptions', (req: Request, res: Response) => {
+  const lang = (req.query.lang as string) === 'en' ? 'en' : 'zh';
+  const modeParam = req.query.mode as string | undefined;
+  const mode = modeParam === 'sora-2-deer' ? 'sora-2-deer' : 'sora-2';
+  const options = getVideoFormOptions(lang, mode);
+  res.json({ success: true, data: options });
+});
+
+// 业务层：统一生成入口（需在 /:modelName 之前注册）
+router.post('/generate', async (req: Request, res: Response) => {
+  try {
+    const userId = req.headers['x-user-id'] as string | undefined;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Missing x-user-id header',
+        message: 'User authentication required',
+      });
+    }
+    const body = req.body as Record<string, any>;
+    const provider = (req.query.provider as string) || undefined;
+    // 调试：打印入参（便于排查“参数传的是什么”）
+    const chunks = body.chunks;
+    console.log('[Video Route] POST /video/generate 入参:', {
+      keys: Object.keys(body),
+      hasChunks: Array.isArray(chunks),
+      chunkCount: Array.isArray(chunks) ? chunks.length : 0,
+      scriptType: body.scriptType,
+      label: body.label,
+      storeToMinio: body.storeToMinio,
+      ...(Array.isArray(chunks) && chunks.length > 0
+        ? {
+            firstChunkKeys: Object.keys(chunks[0] || {}),
+            firstChunkPromptLength: (chunks[0]?.prompt ?? '').length,
+            firstChunkSeconds: chunks[0]?.chunk_seconds,
+            firstChunkHasRef: !!(chunks[0]?.reference_image_url ?? chunks[0]?.input_reference),
+          }
+        : {}),
+    });
+    const result = await videoGenerate(body, { userId, provider });
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[Video Route] POST /video/generate error:', message);
+    return res.status(400).json({
+      success: false,
+      error: 'Bad request',
+      message,
+    });
+  }
 });
 
 // 生成视频（异步任务）
@@ -70,12 +84,12 @@ router.post('/:modelName', async (req: Request, res: Response) => {
     const { modelName } = req.params;
     const provider = req.query.provider as string | undefined;
     
-    // 检查模型是否存在（优先检查 MODEL_MAP，确保有对应的实现文件）
-    if (!MODEL_MAP[modelName]) {
+    // 检查模型是否在 registry 中注册（单轨）
+    if (!isVideoModelSupported(modelName)) {
       return res.status(404).json({
         success: false,
         error: 'Model not found',
-        message: `Model "${modelName}" is not available. Available models: ${Object.keys(MODEL_MAP).join(', ')}`,
+        message: `Model "${modelName}" is not available. Available models: ${SUPPORTED_MODELS.join(', ')}`,
       });
     }
 
@@ -205,7 +219,7 @@ router.post('/:modelName', async (req: Request, res: Response) => {
     }
 
     // 调试日志：记录接收到的参数和 provider 选择
-    const { providerFactory } = require('../core/providers');
+    const { providerFactory } = require('../models/providers');
     const defaultProvider = providerFactory.getDefaultProvider();
     console.log(`[Video Route] 模型: ${modelName}, 指定 provider: ${provider || '(未指定，将使用默认: ' + defaultProvider + ')'}, 默认 provider: ${defaultProvider}`);
 

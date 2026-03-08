@@ -3,10 +3,11 @@
  */
 
 import '../config/loadEnv';
+import crypto from 'crypto';
 import { Router } from 'express';
 import { RepositoryFactory } from '@mxmai/mxmdata';
 import { hashPassword, verifyPassword } from '../auth/password';
-import { generateTokenPair } from '../auth/jwt';
+import { generateTokenPair, getRefreshTokenExpiresInSeconds } from '../auth/jwt';
 import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin.middleware';
 import { captchaMiddleware } from '../middleware/captcha.middleware';
@@ -43,7 +44,7 @@ router.get('/captcha', async (req, res, next) => {
 
 /**
  * POST /api/v1/account/register
- * 用户注册（验证码由 captchaMiddleware 控制，可通过 CAPTCHA_ENABLE 环境变量禁用）
+ * 用户注册（验证码默认禁用，正式上线前可通过设置 CAPTCHA_ENABLE=true 启用）
  */
 router.post('/register', captchaMiddleware, async (req, res, next) => {
   try {
@@ -79,14 +80,7 @@ router.post('/register', captchaMiddleware, async (req, res, next) => {
         password_hash,
       });
 
-      // 自动创建默认钱包（CNY）
-      // 钱包创建失败不影响用户注册流程
-      const walletInfo = await walletService.createDefaultWallet(user.id);
-      if (walletInfo) {
-        console.log(`✅ 用户 ${user.id} 钱包创建成功:`, walletInfo);
-      } else {
-        console.warn(`⚠️ 用户 ${user.id} 钱包创建失败或服务不可用`);
-      }
+      // 钱包改为懒加载：用户首次访问 /wallets 时由 mxmpay 自动创建
 
       // 自动创建默认文件夹
       // 文件夹创建失败不影响用户注册流程
@@ -97,10 +91,11 @@ router.post('/register', captchaMiddleware, async (req, res, next) => {
         console.warn(`⚠️ 用户 ${user.id} 默认文件夹创建失败或服务不可用`);
       }
 
-      // 生成 Token
+      // 生成 Token（写入 role 供 gateway 转发，避免下游每次查库校验 admin）
       const tokens = generateTokenPair({
         userId: user.id,
         username: user.username,
+        role: user.role,
       });
 
       // 返回用户信息（不包含密码）
@@ -112,7 +107,6 @@ router.post('/register', captchaMiddleware, async (req, res, next) => {
         data: {
           user: userWithoutPassword,
           tokens,
-          wallet: walletInfo, // 返回钱包信息
         },
       });
     } catch (error) {
@@ -132,7 +126,7 @@ router.post('/register', captchaMiddleware, async (req, res, next) => {
 
 /**
  * POST /api/v1/account/login
- * 用户登录（验证码由 captchaMiddleware 控制，可通过 CAPTCHA_ENABLE 环境变量禁用）
+ * 用户登录（验证码默认禁用，正式上线前可通过设置 CAPTCHA_ENABLE=true 启用）
  */
 router.post('/login', captchaMiddleware, async (req, res, next) => {
   try {
@@ -201,10 +195,23 @@ router.post('/login', captchaMiddleware, async (req, res, next) => {
       });
     }
 
-    // 生成 Token
+    // 生成 Token（写入 role 供 gateway 转发，避免下游每次查库校验 admin）
     const tokens = generateTokenPair({
       userId: user.id,
       username: user.username,
+      role: user.role,
+    });
+
+    // 写入 user_sessions，供管理员「已登录」状态查询
+    const tokenHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
+    const refreshHash = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+    const expiresAt = new Date(Date.now() + getRefreshTokenExpiresInSeconds() * 1000);
+    const supabase = getSupabaseClient();
+    await supabase.from('user_sessions').insert({
+      user_id: user.id,
+      token_hash: tokenHash,
+      refresh_token_hash: refreshHash,
+      expires_at: expiresAt.toISOString(),
     });
 
     // 返回用户信息（不包含密码）
@@ -225,11 +232,13 @@ router.post('/login', captchaMiddleware, async (req, res, next) => {
 
 /**
  * POST /api/v1/account/logout
- * 用户登出（需要认证）
+ * 用户登出（需要认证），并删除当前会话记录
  */
 router.post('/logout', authMiddleware, async (req, res) => {
-  // TODO: 实现 Token 黑名单或从会话表中删除
-  // 目前只是返回成功，实际的 Token 失效需要客户端删除
+  if (req.user?.userId && req.token) {
+    const tokenHash = crypto.createHash('sha256').update(req.token).digest('hex');
+    await getSupabaseClient().from('user_sessions').delete().eq('user_id', req.user.userId).eq('token_hash', tokenHash);
+  }
   res.json({
     code: 200,
     message: 'Logout successful',
@@ -274,10 +283,25 @@ router.post('/refresh-token', async (req, res, next) => {
       });
     }
 
-    // 生成新的 Token 对
+    // 生成新的 Token 对（带上 role）
     const tokens = generateTokenPair({
       userId: user.id,
       username: user.username,
+      role: user.role,
+    });
+
+    // 删除旧会话并用新 token 写入新会话，保持「已登录」状态与会话表一致
+    const supabaseRefresh = getSupabaseClient();
+    const oldRefreshHash = crypto.createHash('sha256').update(refresh_token).digest('hex');
+    await supabaseRefresh.from('user_sessions').delete().eq('user_id', user.id).eq('refresh_token_hash', oldRefreshHash);
+    const tokenHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
+    const refreshHash = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+    const expiresAt = new Date(Date.now() + getRefreshTokenExpiresInSeconds() * 1000);
+    await supabaseRefresh.from('user_sessions').insert({
+      user_id: user.id,
+      token_hash: tokenHash,
+      refresh_token_hash: refreshHash,
+      expires_at: expiresAt.toISOString(),
     });
 
     res.json({
@@ -310,9 +334,21 @@ router.get('/profile', authMiddleware, async (req, res, next) => {
     // 返回用户信息（不包含密码）
     const { password_hash: _, ...userWithoutPassword } = user;
 
+    // 可选：合并主钱包余额（mxmpay 不可用时不影响，不返回 primaryBalance）
+    let primaryBalance: { assetCode: string; availableBalance: string } | undefined;
+    try {
+      const balance = await walletService.getPrimaryBalance(userId);
+      if (balance) primaryBalance = balance;
+    } catch {
+      // 忽略
+    }
+
     res.json({
       code: 200,
-      data: userWithoutPassword,
+      data: {
+        ...userWithoutPassword,
+        ...(primaryBalance && { primaryBalance }),
+      },
     });
   } catch (error) {
     next(error);
@@ -733,6 +769,65 @@ router.get('/admin/users', adminMiddleware, async (req, res, next) => {
           totalPages: Math.ceil(result.total / result.limit),
         },
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/v1/account/admin/users/:id/status
+ * 管理员：封禁/解封用户
+ */
+router.put('/admin/users/:id/status', adminMiddleware, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['active', 'suspended', 'banned'].includes(status)) {
+      return res.status(400).json({
+        code: 400,
+        message: 'status must be one of: active, suspended, banned',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    const user = await userRepo.update(id, { status });
+
+    const { password_hash: _, ...userWithoutPassword } = user;
+
+    res.json({
+      code: 200,
+      message: 'User status updated successfully',
+      data: userWithoutPassword,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/v1/account/admin/users/:id/force-logout
+ * 管理员：强制登出用户，删除该用户所有会话
+ */
+router.post('/admin/users/:id/force-logout', adminMiddleware, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.from('user_sessions').delete().eq('user_id', id);
+
+    if (error) {
+      return res.status(500).json({
+        code: 500,
+        message: 'Failed to force logout',
+        error: error.message,
+      });
+    }
+
+    res.json({
+      code: 200,
+      message: 'User logged out successfully',
     });
   } catch (error) {
     next(error);

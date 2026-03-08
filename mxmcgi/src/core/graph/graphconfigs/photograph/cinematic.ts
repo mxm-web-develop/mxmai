@@ -10,12 +10,19 @@ export const cinematicConfig = {
   /**
    * 角色设定 + 专业规范（给 LLM 看的规则）
    */
-  rules: `你是一位顶级电影摄影师，擅长创作具有电影感的画面。请严格根据用户需求、业务参数和知识库内容，设计一条用于 AI 图像生成的电影画面提示词（prompt）。
+  rules: `你是一位顶级好莱坞电影摄影师，擅长创作具有真实电影摄影感的画面。请严格根据用户需求、业务参数和知识库内容，设计一条用于 AI 图像生成的电影画面提示词（prompt）。
+
+【核心要求：真实电影摄影】
+- **必须**：生成真实电影摄影风格，如同好莱坞大片的电影截图
+- **必须**：使用真实摄影设备和技术（如 ARRI Alexa、RED、电影镜头、变形宽银幕镜头等）
+- **禁止**：动画风格、漫画风格、卡通风格、插画风格
+- **禁止**：任何非真实摄影的视觉风格
 
 【电影画面专业要求】
 1. 电影风格：
    - 根据用户选择的电影风格（赛博朋克、黑色电影、科幻、文艺等）调整整体调性
    - 不同风格的特点：赛博朋克（霓虹、未来感）、黑色电影（高对比、阴影）、科幻（宏大、科技感）、文艺（柔和、情感）
+   - **强调**：所有风格都必须基于真实电影摄影，而非动画或漫画
 2. 情绪氛围：
    - 根据用户选择的情绪（神秘、紧张、浪漫、悲伤等）营造相应氛围
    - 通过光线、色彩、构图等手段传达情绪
@@ -31,10 +38,16 @@ export const cinematicConfig = {
 6. 光线设计：
    - 使用戏剧性的光线设计，增强画面表现力
    - 主光、辅光、轮廓光的合理运用
+7. 摄影设备与技术：
+   - 使用专业电影摄影设备（ARRI Alexa、RED、Sony Venice 等）
+   - 使用电影镜头（35mm、50mm、85mm、变形宽银幕镜头等）
+   - 自然透视、真实景深、电影级画质
 
 【提示词生成要求】
 - 使用专业电影摄影术语，语言自然流畅
 - 提示词应覆盖：场景描述、电影风格、情绪氛围、拍摄角度、色彩分级、光线设计、景深控制等核心要素
+- **必须强调**：photorealistic、Hollywood blockbuster cinematography、real film photography
+- **必须禁止**：animated、cartoon、comic book、illustration style
 - 结合业务参数（filmStyle、mood、cameraAngle 等）做有针对性的细化描述
 - 允许适度发挥创造力，但必须符合用户的核心需求和设定`,
 
@@ -148,14 +161,14 @@ export function buildCinematicUserPrompt(
   })()}`;
 
   const detailLineEn =
-    'Details & Texture: rich scene details, professional color grading, precise depth of field control, overall cinematic image quality with strong visual impact and emotional appeal.';
+    'Details & Texture: photorealistic Hollywood blockbuster cinematography, shot with professional cinema cameras (ARRI Alexa, RED, Sony Venice), using cinema lenses (35mm, 50mm, 85mm, anamorphic), natural perspective, real depth of field, rich scene details, professional color grading, precise depth of field control, overall cinematic image quality with strong visual impact and emotional appeal. **CRITICAL: This must be real film photography, NOT animated, NOT cartoon, NOT comic book style, NOT illustration. It should look like a screenshot from a Hollywood blockbuster movie.**';
 
   const specLineEn = aspect_ratio
     ? `Output Spec: aspect ratio ${aspect_ratio}, composition suitable for cinematic display.`
     : 'Output Spec: widescreen horizontal composition (e.g. 16:9 or 21:9) suitable for cinematic display.';
 
   return [
-    'You are a professional cinematographer.',
+    'You are a professional Hollywood cinematographer specializing in photorealistic film photography.',
     taskLineEn,
     subjectLineEn,
     styleLineEn,
@@ -163,6 +176,7 @@ export function buildCinematicUserPrompt(
     angleLineEn,
     detailLineEn,
     specLineEn,
+    '**IMPORTANT**: The output must be photorealistic Hollywood blockbuster cinematography, shot with real cinema cameras and lenses. Do NOT use animated, cartoon, comic book, or illustration styles. It should look like a screenshot from a real Hollywood movie.',
     'Within about 300 English words, integrate the above elements into a single fluent cinematic prompt text.',
   ].join('\n');
 }

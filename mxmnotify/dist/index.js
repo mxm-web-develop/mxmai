@@ -25,9 +25,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/dotenv/package.json
+// ../node_modules/.pnpm/dotenv@16.6.1/node_modules/dotenv/package.json
 var require_package = __commonJS({
-  "node_modules/dotenv/package.json"(exports2, module2) {
+  "../node_modules/.pnpm/dotenv@16.6.1/node_modules/dotenv/package.json"(exports2, module2) {
     module2.exports = {
       name: "dotenv",
       version: "16.6.1",
@@ -93,9 +93,9 @@ var require_package = __commonJS({
   }
 });
 
-// node_modules/dotenv/lib/main.js
+// ../node_modules/.pnpm/dotenv@16.6.1/node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
-  "node_modules/dotenv/lib/main.js"(exports2, module2) {
+  "../node_modules/.pnpm/dotenv@16.6.1/node_modules/dotenv/lib/main.js"(exports2, module2) {
     "use strict";
     var fs = require("fs");
     var path = require("path");
@@ -992,25 +992,50 @@ var NotificationService = class {
       if (!notificationIds || notificationIds.length === 0) {
         return [];
       }
-      const { data: notifications, error: fetchError } = await this.getSupabase().from("notifications").select("id, user_id").in("id", notificationIds);
-      if (fetchError) {
-        throw new Error(`Failed to fetch notifications: ${fetchError.message}`);
+      const BATCH_SIZE = 50;
+      const allValidIds = [];
+      const allInvalidIds = [];
+      for (let i = 0; i < notificationIds.length; i += BATCH_SIZE) {
+        const batch = notificationIds.slice(i, i + BATCH_SIZE);
+        try {
+          const { data: notifications, error: fetchError } = await this.getSupabase().from("notifications").select("id, user_id").in("id", batch);
+          if (fetchError) {
+            logger.error(`Failed to fetch notifications batch (${i}-${i + batch.length}):`, fetchError);
+            throw new Error(`Failed to fetch notifications: ${fetchError.message}`);
+          }
+          const unauthorizedNotifications = notifications.filter((n) => n.user_id !== userId);
+          if (unauthorizedNotifications.length > 0) {
+            throw new Error(`Unauthorized: Some notifications do not belong to user`);
+          }
+          const validIds = notifications.map((n) => n.id);
+          const invalidIds = batch.filter((id) => !validIds.includes(id));
+          allValidIds.push(...validIds);
+          allInvalidIds.push(...invalidIds);
+        } catch (batchError) {
+          logger.error(`Error processing batch (${i}-${i + batch.length}):`, batchError);
+          throw batchError;
+        }
       }
-      const unauthorizedNotifications = notifications.filter((n) => n.user_id !== userId);
-      if (unauthorizedNotifications.length > 0) {
-        throw new Error(`Unauthorized: Some notifications do not belong to user`);
+      if (allInvalidIds.length > 0) {
+        logger.warn(`Some notification IDs not found: ${allInvalidIds.join(", ")}`);
       }
-      const validIds = notifications.map((n) => n.id);
-      const invalidIds = notificationIds.filter((id) => !validIds.includes(id));
-      if (invalidIds.length > 0) {
-        logger.warn(`Some notification IDs not found: ${invalidIds.join(", ")}`);
+      const allDeletedIds = [];
+      for (let i = 0; i < allValidIds.length; i += BATCH_SIZE) {
+        const batch = allValidIds.slice(i, i + BATCH_SIZE);
+        try {
+          const { error } = await this.getSupabase().from("notifications").delete().in("id", batch);
+          if (error) {
+            logger.error(`Failed to delete notifications batch (${i}-${i + batch.length}):`, error);
+            throw new Error(`Failed to delete notifications: ${error.message}`);
+          }
+          allDeletedIds.push(...batch);
+        } catch (batchError) {
+          logger.error(`Error deleting batch (${i}-${i + batch.length}):`, batchError);
+          throw batchError;
+        }
       }
-      const { error } = await this.getSupabase().from("notifications").delete().in("id", validIds);
-      if (error) {
-        throw new Error(`Failed to delete notifications: ${error.message}`);
-      }
-      logger.info(`Notifications deleted: ${validIds.length} by user ${userId}`);
-      return validIds;
+      logger.info(`Notifications deleted: ${allDeletedIds.length} by user ${userId}`);
+      return allDeletedIds;
     } catch (error) {
       logger.error("Failed to delete notifications:", error);
       throw error;

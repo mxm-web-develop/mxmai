@@ -23,14 +23,17 @@
     "dev:gateway": "pnpm --filter @mxmai/gateway dev",
     "build:gateway": "pnpm --filter @mxmai/gateway build",
     "start:gateway": "pnpm --filter @mxmai/gateway start",
+    "dev:web": "pnpm --filter web dev",
+    "build:web": "pnpm --filter web build",
     "dev:mxmdata": "pnpm --filter @mxmai/mxmdata dev",
     "build:mxmdata": "pnpm --filter @mxmai/mxmdata build",
     "start:mxmdata": "pnpm --filter @mxmai/mxmdata start",
     "clear:ports": "bash scripts/clear-ports.sh",
-    "dev:all": "pnpm clear:ports && concurrently \"pnpm dev:mxmauth\" \"pnpm dev:mxmpay\" \"pnpm dev:mxmcgi\" \"pnpm dev:mxmagent\" \"pnpm dev:mxmnotify\" \"pnpm dev:gateway\" --names \"mxmauth,mxmpay,mxmcgi,mxmagent,mxmnotify,gateway\" --prefix-colors \"blue,yellow,cyan,white,magenta,green\"",
+    "dev:all": "(test -f mxmdata/dist/index.js || pnpm --filter @mxmai/mxmdata run build:dist) && pnpm clear:ports && concurrently \"pnpm dev:mxmauth\" \"pnpm dev:mxmpay\" \"pnpm dev:mxmcgi\" \"pnpm dev:mxmagent\" \"pnpm dev:mxmnotify\" \"pnpm dev:gateway\" --names \"mxmauth,mxmpay,mxmcgi,mxmagent,mxmnotify,gateway\" --prefix-colors \"blue,yellow,cyan,white,magenta,green\"",
     "start:all": "concurrently \"pnpm start:mxmauth\" \"pnpm start:mxmcgi\" \"pnpm start:mxmagent\" \"pnpm start:mxmnotify\" \"pnpm start:gateway\" --names \"mxmauth,mxmcgi,mxmagent,mxmnotify,gateway\" --prefix-colors \"blue,cyan,white,magenta,green\"",
     "init:project": "tsx ./init-project.ts",
-    "embedding:systemkb": "tsx embedding-systemkb.ts"
+    "embedding:systemkb": "tsx embedding-systemkb.ts",
+    "seed:prompt-config": "pnpm --filter @mxmai/mxmcgi run seed:prompt-config"
   },
   "keywords": [
     "Ai",

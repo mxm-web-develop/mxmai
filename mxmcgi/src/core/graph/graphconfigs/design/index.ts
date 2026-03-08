@@ -99,6 +99,23 @@ const TYPE_RULES: Record<string, string> = {
 - **关键要求**：如果用户提供了标题或副标题，必须在提示词中明确指定使用用户输入的原始文字，格式如："text overlay: [用户提供的原始标题]" 或 "title text: [用户提供的原始标题]"，确保生成的图片中显示的是用户提供的原始文字，不要翻译或更改语言类型（如果用户输入的是中文就显示中文，如果是英文就显示英文，如果是其他语言就显示那种语言）
 - 参考知识库中的封面设计知识
 - 确保提示词能够生成高质量、吸引眼球的封面图片`,
+
+  'ui-design': `你是一位资深 UI 设计师，擅长为网页、移动端应用和游戏设计高质量的产品界面。请根据用户需求、可选的 UI 参数和参考图（如果有），生成一个适合图像生成模型的英文提示词，用于产出高保真 UI 效果图。
+
+【UI 设计关注点】
+1. **画布与设备**：根据 uiResolution 选择（mobile-app 手机应用、web 网页、game 游戏、element 元素）确定合适的画布尺寸和布局风格
+2. **风格与品牌**：根据 uiStyleKeywords（多选，逗号分隔）控制整体视觉风格，如 glassmorphism（玻璃态）、neumorphism（新拟态）、flat（扁平化）、material（Material Design）等
+3. **色彩系统**：根据 uiColorTokens 描述的色彩（格式：主色: #FF0000, 副色1: #00FF00, 副色2: #0000FF），构建一致的色彩体系。如果没有提供颜色，可以自由发挥，选择适合风格和平台的配色方案
+
+【参考图使用（style-reference）】
+- 如果提供 style-reference 类型的参考图，将其视为 UI 风格/布局/组件语言的参考，不要照搬具体内容
+- 重点学习其配色、排版节奏、留白、组件圆角与阴影等视觉特征
+
+【提示词生成要求】
+- 只输出最终的英文图片生成提示词本身，不要附加解释文字
+- 明确说明：UI 类型（根据 uiResolution：手机应用/网页/游戏/元素）、风格关键词（根据 uiStyleKeywords）、色板（根据 uiColorTokens，如果没有则自由发挥）
+- 要求生成"高保真 product UI mockup"，背景干净、文字可读（避免乱码）、组件边界清晰、符合所选风格
+`,
 };
 
 // 各类型需要的参数列表
@@ -108,6 +125,11 @@ const TYPE_PARAMS: Record<string, string[]> = {
   poster: ['artStyle', 'theme'],
   icon: ['iconStyle', 'size'],
   coverImage: ['title', 'subtitle', 'textStyle', 'textColor', 'textPosition', 'layoutStyle', 'visualEffects', 'coverTheme'],
+  'ui-design': [
+    'uiResolution',
+    'uiStyleKeywords',
+    'uiColorTokens',
+  ],
 };
 
 export const designConfig: DesignTypeConfig = {

@@ -3,21 +3,40 @@
  * 处理文本生成、格式化、存储等核心逻辑
  */
 
-import { MODEL_MAP } from '../../routes/text';
 import type { ProviderType } from '../providers/types';
-import { selectModel, type TaskType } from './model-selector';
+import { runByModelKey } from '../../models/run';
+import { selectModel, selectModelWithRouting, type TaskType } from './model-selector';
+import { getWritingBusinessKeyFromParams } from './business-key';
 import { retrieveKnowledge, formatKnowledgeContext, enhancePromptWithKnowledge, hasKnowledgeResults } from './knowledge-enhancer';
 import { formatDocument, getFileExtension, getMimeType, type StorageFormat } from './document-formatter';
 import { RepositoryFactory } from '@mxmai/mxmdata';
-import { taskExecutor } from '../task/task-executor';
-import type { Outline, WritingGenerateParams, RewritingParams, PolishingParams, SyncToTaskParams } from './type';
+import crypto from 'crypto';
+import { taskExecutor } from '../../task/task-executor';
+import type {
+  Outline,
+  WritingGenerateParams,
+  SyncToTaskParams,
+  OutlineType,
+  OutlineStructureType,
+  CharacterProfile,
+  OutlineApplyTo,
+  StoryboardChunk,
+  StoryboardShot,
+  StoryboardChunkSeconds,
+} from './type';
+import { OUTLINE_APPLY_TO_VALUES } from './type';
+import { fillChunkPrompts } from './storyboard-chunk-utils';
+import { CHUNK_MAX_CHARS, getStoryboardChunkOutputFormat, fillStoryboardOutputFormatTemplate } from './wtconfigs/storyboard-scripts';
+import { SUBTYPE_RULES_MAP } from './wtconfigs/subtype-rules';
+import { isStructureTypeAvailable, getStructurePromptTemplate } from './outline-structure-types';
+import { getWritingRulesAndFormatResolved, getPromptFullConfig } from '../../prompts';
+import { runBasicText } from '../text/basic-text';
 import { 
   getWritingTypeConfig, 
-  getWritingTypeRules, 
-  getWritingTypeOutputFormat,
   extractWritingBusinessParams,
   getParamLabel,
   getWritingParamsForType,
+  getWritingParamsForTypeWithSubtype,
 } from './wtconfigs';
 
 export interface WritingResult {
@@ -35,6 +54,33 @@ export interface WritingResult {
     fileSize: number;
     [key: string]: any;
   };
+}
+
+function shouldGenerateCharactersForOutline(params: {
+  applyto?: OutlineApplyTo;
+  outline_type?: OutlineType;
+}): boolean {
+  // 规则：故事小说 或 口播/分镜
+  return (
+    params.outline_type === 'story-novel' ||
+    params.applyto === 'voice-scripts' ||
+    params.applyto === 'storyboard-scripts'
+  );
+}
+
+function ensureUuid36(id: unknown): string {
+  const s = typeof id === 'string' ? id : '';
+  // 36位 UUID（含4个连字符），允许大小写
+  const uuid36 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuid36.test(s) ? s : crypto.randomUUID();
+}
+
+function normalizeCharacters(characters?: CharacterProfile[]): CharacterProfile[] | undefined {
+  if (!characters || characters.length === 0) return characters;
+  return characters.map((c) => ({
+    ...c,
+    id: ensureUuid36((c as any).id),
+  }));
 }
 
 /**
@@ -61,6 +107,7 @@ interface ExpandedSection {
   motivation?: string;
   stance?: string;
   tone?: string;
+  cast?: string[];
   length?: string;
   key_elements?: string[];
   depth: number;  // 嵌套深度
@@ -71,6 +118,68 @@ interface ExpandedSection {
     query: string;
     limit?: number;
   }[];
+  /** 全局参数（作为基础，节点参数在此基础上进行相对调整） */
+  globalParams?: {
+    motivation?: string;
+    stance?: string;
+    tone?: string;
+    length?: string;
+    key_elements?: string[];
+  };
+}
+
+async function getCharactersFromParams(
+  params: WritingGenerateParams,
+  userId?: string
+): Promise<CharacterProfile[] | undefined> {
+  const chars = (params as any)?.metadata?.characters as CharacterProfile[] | undefined;
+  const characterIds = (params as any)?.characterIds as string[] | undefined;
+  let fromLibrary: CharacterProfile[] = [];
+
+  if (characterIds && characterIds.length > 0 && userId) {
+    try {
+      const { CharacterService } = await import('../../characters/character-service');
+      const characterService = new CharacterService();
+      fromLibrary = await characterService.getCharactersForWriting(characterIds, userId);
+    } catch (error) {
+      console.error('[WritingService] 从Character模块获取角色失败:', error);
+    }
+  }
+
+  if (fromLibrary.length > 0) {
+    const fromLibraryIds = new Set(fromLibrary.map((c) => c.id));
+    const inline = Array.isArray(chars) ? chars.filter((c) => c && !fromLibraryIds.has(c.id)) : [];
+    return [...fromLibrary, ...inline].length > 0 ? [...fromLibrary, ...inline] : undefined;
+  }
+
+  return Array.isArray(chars) && chars.length > 0 ? chars : undefined;
+}
+
+function formatCharactersForPrompt(characters: CharacterProfile[]): string {
+  return characters
+    .map((c) => {
+      const parts: string[] = [];
+      parts.push(`- id=${c.id} name=${c.name}`);
+      if (c.age) parts.push(`  age: ${c.age}`);
+      if (c.appearance) parts.push(`  appearance: ${c.appearance}`);
+      if (c.voice_description) parts.push(`  voice_description: ${c.voice_description}`);
+      if (c.clothing_style) parts.push(`  clothing_style: ${c.clothing_style}`);
+      if (c.personality) parts.push(`  personality: ${c.personality}`);
+      if (c.others) parts.push(`  others: ${c.others}`);
+      return parts.join('\n');
+    })
+    .join('\n');
+}
+
+function resolveCastCharacters(
+  characters: CharacterProfile[],
+  cast?: string[],
+): CharacterProfile[] {
+  if (!cast || cast.length === 0) return [];
+  const castSet = new Set(cast.map((s) => String(s).trim()).filter(Boolean));
+  return characters.filter(
+    (c) => castSet.has(c.id) || castSet.has(c.name),
+  );
 }
 
 /**
@@ -89,9 +198,531 @@ function formatOutlineStructure(outline: Outline, depth: number = 0): string {
 }
 
 /**
+ * 解析和验证 Suno 歌词 JSON 格式
+ * @param text 生成的文本内容
+ * @returns 解析后的 JSON 对象，如果解析失败返回 null
+ */
+function parseSunoLyricsJson(text: string): {
+  title?: string;
+  prompt: string;
+  tags?: string;
+  negative_tags?: string;
+} | null {
+  try {
+    // 尝试解析 JSON
+    // 先清理可能的 markdown 代码块标记
+    let cleanedText = text.trim();
+    
+    // 移除可能的 markdown 代码块标记
+    if (cleanedText.startsWith('```json')) {
+      cleanedText = cleanedText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
+    } else if (cleanedText.startsWith('```')) {
+      cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    // 尝试找到 JSON 对象的开始和结束
+    const jsonStart = cleanedText.indexOf('{');
+    const jsonEnd = cleanedText.lastIndexOf('}');
+    
+    if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+      console.warn('[Writing Service] 未找到有效的 JSON 对象');
+      return null;
+    }
+    
+    const jsonText = cleanedText.substring(jsonStart, jsonEnd + 1);
+    const parsed = JSON.parse(jsonText);
+    
+    // 验证必需字段
+    if (!parsed.prompt || typeof parsed.prompt !== 'string') {
+      console.warn('[Writing Service] JSON 缺少必需的 prompt 字段');
+      return null;
+    }
+    
+    // 返回验证后的对象
+    return {
+      title: parsed.title && typeof parsed.title === 'string' ? parsed.title : undefined,
+      prompt: parsed.prompt,
+      tags: parsed.tags && typeof parsed.tags === 'string' ? parsed.tags : undefined,
+      negative_tags: parsed.negative_tags && typeof parsed.negative_tags === 'string' ? parsed.negative_tags : undefined,
+    };
+  } catch (error) {
+    console.error('[Writing Service] 解析 Suno 歌词 JSON 失败:', error);
+    return null;
+  }
+}
+
+/**
+ * 若 video_description 实为内嵌的 JSON 字符串（如 '{"chunks":[...]}' 或单 chunk 对象），则解析并返回应使用的字段
+ * 用于修复 LLM 把整段 JSON 写进 video_description 导致的格式错误
+ */
+function unwrapJsonFromVideoDescription(videoDescription: string): {
+  video_description: string;
+  dialogue?: string;
+  camera_movement?: string;
+  sound_effects?: string;
+  transition?: string;
+  chunk_seconds?: number;
+  characters_in_shot?: string[];
+} | null {
+  const raw = (videoDescription || '').trim();
+  if (!raw || raw.length < 10) return null;
+  let toParse = raw;
+  if ((toParse.startsWith("'") && toParse.endsWith("'")) || (toParse.startsWith('"') && toParse.endsWith('"'))) {
+    toParse = toParse.slice(1, -1).trim();
+  }
+  if (!toParse.startsWith('{') || (!toParse.includes('"chunks"') && !toParse.includes('"video_description"'))) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(toParse) as any;
+    if (parsed && typeof parsed === 'object') {
+      if (Array.isArray(parsed.chunks) && parsed.chunks.length > 0) {
+        const first = parsed.chunks[0];
+        return {
+          video_description: typeof first.video_description === 'string' ? first.video_description : String(first.video_description ?? ''),
+          dialogue: first.dialogue,
+          camera_movement: first.camera_movement,
+          sound_effects: first.sound_effects,
+          transition: first.transition,
+          chunk_seconds: first.chunk_seconds,
+          characters_in_shot: Array.isArray(first.characters_in_shot) ? first.characters_in_shot : undefined,
+        };
+      }
+      if (typeof parsed.video_description === 'string') {
+        return {
+          video_description: parsed.video_description,
+          dialogue: parsed.dialogue,
+          camera_movement: parsed.camera_movement,
+          sound_effects: parsed.sound_effects,
+          transition: parsed.transition,
+          chunk_seconds: parsed.chunk_seconds,
+          characters_in_shot: Array.isArray(parsed.characters_in_shot) ? parsed.characters_in_shot : undefined,
+        };
+      }
+    }
+  } catch {
+    // 非合法 JSON，忽略
+  }
+  return null;
+}
+
+/**
+ * 从 video_description 中解析段落标记，提取到对应字段
+ * 当 LLM 把「画面」「对话」「镜头说明」「音效/音乐」「转场」全写在一个字段时，自动拆分
+ */
+function extractSectionsFromVideoDescription(videoDescription: string): {
+  video_description: string;
+  dialogue?: string;
+  camera_movement?: string;
+  sound_effects?: string;
+  transition?: string;
+} | null {
+  const raw = (videoDescription || '').trim();
+  if (!raw) return null;
+  const markers = ['画面：', '场景描述：', '对话：', '镜头说明：', '音效/音乐：', '转场：'] as const;
+  const hasAny = markers.some((m) => raw.includes(m));
+  if (!hasAny) return null;
+
+  let video_description = raw;
+  let dialogue: string | undefined;
+  let camera_movement: string | undefined;
+  let sound_effects: string | undefined;
+  let transition: string | undefined;
+
+  const transitionM = raw.match(/转场：\s*([\s\S]*)$/);
+  if (transitionM) {
+    transition = transitionM[1].trim();
+    video_description = raw.replace(/转场：\s*[\s\S]*$/, '').trim();
+  }
+
+  const soundM = raw.match(/音效\/音乐：\s*([\s\S]*?)(?=转场：|$)/);
+  if (soundM) {
+    sound_effects = soundM[1].trim();
+  }
+
+  const cameraM = raw.match(/镜头说明：\s*([\s\S]*?)(?=音效\/音乐：|转场：|$)/);
+  if (cameraM) {
+    camera_movement = cameraM[1].trim();
+  }
+
+  const dialogueM = raw.match(/对话：\s*([\s\S]*?)(?=镜头说明：|音效\/音乐：|转场：|$)/);
+  if (dialogueM) {
+    dialogue = dialogueM[1].trim();
+  }
+
+  const pictureM = raw.match(/(?:画面|场景描述)：\s*([\s\S]*?)(?=对话：|镜头说明：|音效\/音乐：|转场：|$)/);
+  if (pictureM) {
+    video_description = pictureM[1].trim();
+  } else {
+    const beforeFirst = raw.split(/(?=对话：|镜头说明：|音效\/音乐：|转场：)/)[0]?.trim() ?? '';
+    if (beforeFirst && !dialogue && !camera_movement && !sound_effects && !transition) {
+      video_description = beforeFirst;
+    }
+  }
+
+  return {
+    video_description,
+    ...(dialogue && { dialogue }),
+    ...(camera_movement && { camera_movement }),
+    ...(sound_effects && { sound_effects }),
+    ...(transition && { transition }),
+  };
+}
+
+/**
+ * 分镜脚本：根据节奏参数（rhythm）生成镜头拆分与时长的规则说明
+ */
+function getStoryboardRhythmRules(
+  rhythm: string | undefined,
+  chunkSeconds: StoryboardChunkSeconds
+): string | null {
+  if (!rhythm) return null;
+  const base = chunkSeconds;
+  switch (rhythm) {
+    case 'fast-cut':
+      return `快剪（fast-cut）：每个 ${base} 秒的 chunk 内请使用大量短镜头和频繁转场：
+- 建议每个 chunk 拆成 3–6 个镜头；
+- 每个镜头的 chunk_seconds 约 2–4 秒，不要超过 4 秒；
+- 镜头之间的转场要明显，节奏紧凑，避免长时间停留在同一构图。`;
+    case 'fast':
+      return `快节奏（fast）：每个 ${base} 秒的 chunk 内镜头保持快速切换：
+- 建议每个 chunk 拆成 2–4 个镜头；
+- 每个镜头的 chunk_seconds 约 2–4 秒，**单个镜头不要超过 4 秒**；
+- 适合节奏明快的行进、动作或情绪推进场景。`;
+    case 'narrative':
+      return `叙事节奏（narrative）：每个 ${base} 秒的 chunk 内使用 4–8 秒混合镜头：
+- 建议每个 chunk 拆成 2–3 个镜头；
+- 每个镜头的 chunk_seconds 约 4–8 秒，可根据叙事需要略有长短变化；
+- 适合讲述故事、情绪递进，兼顾画面连贯与信息量。`;
+    case 'long-take':
+      return `长镜头（long-take）：每个 ${base} 秒的 chunk 内以少量 6–10 秒镜头为主：
+- 建议每个 chunk 使用 1–2 个镜头；
+- 每个镜头的 chunk_seconds 约 6–10 秒，鼓励使用连续运镜、较少切换；
+- 适合氛围营造、慢节奏观察或需要一镜到底感受的场景。`;
+    default:
+      return null;
+  }
+}
+
+/** 根据节奏参数与 chunk 时长，给出后处理自动拆分时的目标镜头数（用于 LLM 未返回 shots 时） */
+function getTargetShotCountFromRhythm(
+  rhythm: string | undefined,
+  chunkSeconds: number
+): number {
+  if (chunkSeconds < 10) return 1;
+  switch (rhythm) {
+    case 'fast-cut':
+      return Math.min(6, Math.max(3, Math.floor(chunkSeconds / 3)));
+    case 'fast':
+      return Math.min(4, Math.max(2, Math.floor(chunkSeconds / 4)));
+    case 'narrative':
+      return Math.min(3, Math.max(2, Math.floor(chunkSeconds / 6)));
+    case 'long-take':
+      return Math.max(1, Math.min(2, Math.floor(chunkSeconds / 8)));
+    default:
+      return Math.min(4, Math.max(2, Math.floor(chunkSeconds / 5)));
+  }
+}
+
+function secondsToMMSS(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+function getEqualShotTimeline(chunkSeconds: number, shotCount: number): string[] {
+  if (shotCount <= 0) return [];
+  if (shotCount === 1) return [`00:00-${secondsToMMSS(chunkSeconds)}`];
+  const step = chunkSeconds / shotCount;
+  const segs: string[] = [];
+  for (let i = 0; i < shotCount; i++) {
+    const start = i * step;
+    const end = (i + 1) * step;
+    segs.push(`${secondsToMMSS(start)}-${secondsToMMSS(end)}`);
+  }
+  return segs;
+}
+
+/** 按句号、问号、感叹号、分号、换行拆分描述文本为句子数组（用于后处理自动拆镜头） */
+function splitVideoDescriptionIntoSentences(text: string): string[] {
+  const t = (text || '').trim();
+  if (!t) return [];
+  const parts = t.split(/([。！？；\n]+)/);
+  const sentences: string[] = [];
+  let buf = '';
+  for (let i = 0; i < parts.length; i++) {
+    if (/^[。！？；\n]+$/.test(parts[i])) {
+      if (buf.trim()) {
+        sentences.push((buf + parts[i]).trim());
+        buf = '';
+      }
+    } else {
+      buf += parts[i];
+    }
+  }
+  if (buf.trim()) sentences.push(buf.trim());
+  return sentences.filter(Boolean);
+}
+
+/**
+ * 将「单镜头扁平 chunk」按节奏拆成多镜头（shots 数组）。
+ * 仅当 chunk 无 shots、chunk_seconds >= 10 时调用；根据 rhythm 决定镜头数，按句子均分 video_description。
+ */
+function autoSplitSingleChunkToShots(
+  chunk: StoryboardChunk,
+  chunkSeconds: number,
+  rhythm?: string
+): StoryboardChunk {
+  const targetCount = getTargetShotCountFromRhythm(rhythm, chunkSeconds);
+  if (targetCount <= 1) return chunk;
+
+  const rawDesc = (chunk.video_description ?? '').trim();
+  if (!rawDesc) return chunk;
+
+  const sentences = splitVideoDescriptionIntoSentences(rawDesc);
+  if (sentences.length <= 1) return chunk;
+
+  const shotCount = Math.min(targetCount, sentences.length);
+  const timeline = getEqualShotTimeline(chunkSeconds, shotCount);
+  const secPerShot = chunkSeconds / shotCount;
+  const shotSec = Math.max(2, Math.round(secPerShot));
+
+  const shots: StoryboardShot[] = [];
+  const groupSize = Math.ceil(sentences.length / shotCount);
+  for (let i = 0; i < shotCount; i++) {
+    const startIdx = i * groupSize;
+    const endIdx = Math.min(startIdx + groupSize, sentences.length);
+    const partDesc = sentences.slice(startIdx, endIdx).join('');
+    const seg = timeline[i] ?? `${secondsToMMSS(i * secPerShot)}-${secondsToMMSS((i + 1) * secPerShot)}`;
+    shots.push({
+      shot_index: i + 1,
+      chunk_seconds: shotSec,
+      video_description: partDesc,
+      camera_movement: chunk.camera_movement,
+      dialogue: chunk.dialogue,
+      sound_effects: chunk.sound_effects,
+      transition: chunk.transition,
+      characters_in_shot: chunk.characters_in_shot,
+      shot_timeline: [seg],
+      prompt: '',
+    });
+  }
+
+  return {
+    index: chunk.index,
+    chunk_seconds: chunkSeconds,
+    shots,
+    prompt: '',
+  };
+}
+
+/**
+ * 解析分镜脚本 JSON（chunks 数组或 { chunks: [...] }）
+ * 支持从 markdown 代码块中提取；并对 video_description 做后处理：若内含「画面：」「对话：」「镜头说明：」「音效/音乐：」「转场：」则自动拆到对应字段
+ * 当 chunk_seconds >= 10 且 LLM 未返回 shots 时，根据 rhythm 自动将单镜头拆成多镜头（后处理）
+ */
+function parseStoryboardChunksJson(
+  text: string,
+  desiredChunkSeconds?: StoryboardChunkSeconds,
+  rhythm?: string
+): { chunks: StoryboardChunk[] } {
+  let cleanedText = text.trim();
+  if (cleanedText.startsWith('```json')) {
+    cleanedText = cleanedText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
+  } else if (cleanedText.startsWith('```')) {
+    cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+  }
+  const firstBrace = cleanedText.indexOf('{');
+  const firstBracket = cleanedText.indexOf('[');
+  const jsonStart = firstBrace < 0 ? firstBracket : firstBracket < 0 ? firstBrace : Math.min(firstBrace, firstBracket);
+  const lastBrace = cleanedText.lastIndexOf('}');
+  const lastBracket = cleanedText.lastIndexOf(']');
+  const jsonEnd = (lastBrace > lastBracket ? lastBrace : lastBracket) + 1;
+  if (jsonStart < 0 || jsonEnd <= jsonStart) {
+    throw new Error('分镜脚本 JSON 解析失败：未找到有效的 JSON');
+  }
+  const jsonText = cleanedText.substring(jsonStart, jsonEnd);
+  const parsed = JSON.parse(jsonText);
+  let chunks: StoryboardChunk[] = Array.isArray(parsed) ? parsed : (parsed?.chunks ?? []);
+  const validChunkSeconds = [4, 5, 8, 10, 15, 20, 25] as const;
+  const enforcedChunkSeconds: StoryboardChunkSeconds = (desiredChunkSeconds ?? 15) as StoryboardChunkSeconds;
+
+  /** 规范化单个镜头对象（用于 shots 数组内） */
+  const normalizeShot = (s: any, shotIdx: number): StoryboardShot => {
+    const sd = typeof s.video_description === 'string' ? s.video_description : String(s.video_description ?? '');
+    const secRaw = s.chunk_seconds ?? 4;
+    const secNum = typeof secRaw === 'number' ? secRaw : parseInt(String(secRaw), 10);
+    const sec = validChunkSeconds.includes(secNum as any) ? (secNum as any) : 4;
+    return {
+      shot_index: typeof s.shot_index === 'number' ? s.shot_index : shotIdx + 1,
+      chunk_seconds: sec,
+      video_description: sd,
+      camera_movement: s.camera_movement,
+      dialogue: s.dialogue,
+      sound_effects: s.sound_effects,
+      transition: s.transition,
+      characters_in_shot: s.characters_in_shot,
+      relate_outline_uid: s.relate_outline_uid,
+      shot_timeline: Array.isArray(s.shot_timeline) ? s.shot_timeline.filter((x: any) => typeof x === 'string') : undefined,
+      prompt: typeof s.prompt === 'string' ? s.prompt : '',
+    };
+  };
+
+  chunks = chunks.map((c: any, i: number) => {
+    // 多镜头 chunk：含有 shots 数组，一个 chunk 对应多段分镜（如 15 秒 chunk 内含多个 4 秒镜头）
+    if (Array.isArray(c.shots) && c.shots.length > 0) {
+      const shots = c.shots.map((s: any, si: number) => normalizeShot(s, si));
+      return {
+        index: typeof c.index === 'number' ? c.index : i + 1,
+        // 重要：chunk_seconds 必须等于用户选择的 chunk 时长；镜头级时长放到 shots[].chunk_seconds
+        chunk_seconds: enforcedChunkSeconds,
+        shots,
+        prompt: typeof c.prompt === 'string' ? c.prompt : '',
+      } as StoryboardChunk;
+    }
+
+    let video_description = typeof c.video_description === 'string' ? c.video_description : String(c.video_description ?? '');
+    let camera_movement = c.camera_movement;
+    let dialogue = c.dialogue;
+    let sound_effects = c.sound_effects;
+    let transition = c.transition;
+    let characters_in_shot = c.characters_in_shot;
+
+    // 特殊修复：LLM 把 {"chunks":[...]} 整段 JSON 写进 video_description / prompt
+    // 这种情况下，将内嵌 chunks 转为当前 chunk 的 shots 数组，并强制 chunk_seconds=用户选择值
+    // 注意：内嵌的 chunks 既可能是单镜头（扁平字段），也可能本身就是多镜头结构（每个 chunk 内有 shots 数组）
+    let rawVD = (video_description || '').trim();
+    // 与 unwrapJsonFromVideoDescription 保持一致：先去掉首尾引号
+    let toParse = rawVD;
+    if (
+      (toParse.startsWith("'") && toParse.endsWith("'")) ||
+      (toParse.startsWith('"') && toParse.endsWith('"'))
+    ) {
+      toParse = toParse.slice(1, -1).trim();
+    }
+
+    if (toParse.startsWith('{') && toParse.includes('"chunks"')) {
+      try {
+        const embedded = JSON.parse(toParse) as any;
+        const embeddedChunks = Array.isArray(embedded?.chunks) ? embedded.chunks : [];
+        if (embeddedChunks.length > 0) {
+          const shotsFromEmbedded: StoryboardShot[] = [];
+          for (const ec of embeddedChunks) {
+            // 若内嵌 chunk 本身已有 shots 数组（多镜头结构），则展开其内部每个 shot
+            if (Array.isArray(ec.shots) && ec.shots.length > 0) {
+              ec.shots.forEach((s: any, si: number) => {
+                shotsFromEmbedded.push(
+                  normalizeShot(
+                    {
+                      ...s,
+                      shot_index: typeof s.shot_index === 'number' ? s.shot_index : shotsFromEmbedded.length + 1,
+                    },
+                    shotsFromEmbedded.length
+                  )
+                );
+              });
+            } else {
+              // 否则将该 chunk 视为单镜头，直接转为一个 shot
+              shotsFromEmbedded.push(
+                normalizeShot(
+                  {
+                    ...ec,
+                    shot_index: typeof ec.shot_index === 'number' ? ec.shot_index : shotsFromEmbedded.length + 1,
+                  },
+                  shotsFromEmbedded.length
+                )
+              );
+            }
+          }
+          return {
+            index: typeof c.index === 'number' ? c.index : i + 1,
+            chunk_seconds: enforcedChunkSeconds,
+            shots: shotsFromEmbedded,
+            prompt: typeof c.prompt === 'string' ? c.prompt : '',
+          } as StoryboardChunk;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // 格式检查 1：若 video_description 实为内嵌 JSON 字符串，先解析再使用
+    const unwrapped = unwrapJsonFromVideoDescription(video_description);
+    if (unwrapped) {
+      video_description = unwrapped.video_description;
+      if (unwrapped.dialogue != null) dialogue = unwrapped.dialogue;
+      if (unwrapped.camera_movement != null) camera_movement = unwrapped.camera_movement;
+      if (unwrapped.sound_effects != null) sound_effects = unwrapped.sound_effects;
+      if (unwrapped.transition != null) transition = unwrapped.transition;
+      if (unwrapped.characters_in_shot != null) characters_in_shot = unwrapped.characters_in_shot;
+    }
+
+    // 格式检查 2：若仍含「画面：」「对话：」等段落标记，拆到对应字段
+    const extracted = extractSectionsFromVideoDescription(video_description);
+    if (extracted) {
+      video_description = extracted.video_description;
+      if (extracted.dialogue != null && (dialogue === undefined || dialogue === '')) dialogue = extracted.dialogue;
+      if (extracted.camera_movement != null && (camera_movement === undefined || camera_movement === '')) camera_movement = extracted.camera_movement;
+      if (extracted.sound_effects != null && (sound_effects === undefined || sound_effects === '')) sound_effects = extracted.sound_effects;
+      if (extracted.transition != null && (transition === undefined || transition === '')) transition = extracted.transition;
+    }
+
+    return {
+      index: typeof c.index === 'number' ? c.index : i + 1,
+      // 重要：chunk_seconds 必须等于用户选择的 chunk 时长；不要信任 LLM 返回的 4 秒
+      chunk_seconds: enforcedChunkSeconds,
+      video_description,
+      camera_movement,
+      dialogue,
+      sound_effects,
+      transition,
+      characters_in_shot,
+      reference_image_url: c.reference_image_url,
+      start_frame_image_url: c.start_frame_image_url,
+      end_frame_image_url: c.end_frame_image_url,
+      relate_outline_uid: c.relate_outline_uid,
+      shot_timeline: Array.isArray(c.shot_timeline) ? c.shot_timeline.filter((s: any) => typeof s === 'string') : undefined,
+      prompt: typeof c.prompt === 'string' ? c.prompt : '',
+    };
+  });
+
+  // 全部输出完后做一次格式检查：确保 video_description 不为 JSON 字符串、长度合理（多镜头 chunk 已单独处理，跳过）
+  chunks = chunks.map((chunk, i) => {
+    if (chunk.shots?.length) return chunk;
+    let { video_description } = chunk;
+    const again = unwrapJsonFromVideoDescription(video_description);
+    if (again) {
+      video_description = again.video_description;
+      return {
+        ...chunk,
+        video_description,
+        ...(again.dialogue != null && { dialogue: again.dialogue }),
+        ...(again.camera_movement != null && { camera_movement: again.camera_movement }),
+        ...(again.sound_effects != null && { sound_effects: again.sound_effects }),
+        ...(again.transition != null && { transition: again.transition }),
+        ...(again.characters_in_shot != null && { characters_in_shot: again.characters_in_shot }),
+      };
+    }
+    return chunk;
+  });
+
+  // 后处理：当 chunk_seconds >= 10 且 LLM 未返回 shots 时，按节奏（rhythm）自动将单镜头拆成多镜头
+  chunks = chunks.map((chunk) => {
+    if (chunk.shots?.length) return chunk;
+    const sec = chunk.chunk_seconds ?? enforcedChunkSeconds;
+    if (sec < 10) return chunk;
+    return autoSplitSingleChunkToShots(chunk, enforcedChunkSeconds, rhythm);
+  });
+
+  return { chunks };
+}
+
+/**
  * 根据写作类型和格式参数判断是否启用 Markdown 格式
  * - outlines: 返回 JSON，不使用 Markdown
  * - lyrics + format === 'suno': 使用 Suno 格式，不使用 Markdown（纯文本）
+ * - voice-scripts: 口播稿统一输出 txt，不使用 Markdown
  * - 其他类型: 默认使用 Markdown 格式
  */
 function shouldEnableMarkdown(writingType?: string, format?: string): boolean {
@@ -103,8 +734,169 @@ function shouldEnableMarkdown(writingType?: string, format?: string): boolean {
   if (writingType === 'lyrics' && format === 'suno') {
     return false;
   }
+  // voice-scripts 类型统一使用纯文本（不带 Markdown）
+  if (writingType === 'voice-scripts') {
+    return false;
+  }
   // 其他类型默认使用 Markdown
   return true;
+}
+
+function isAsciiHeaderValue(value: string): boolean {
+  // S3/MinIO x-amz-meta-* header value must be ASCII; Node will throw ERR_INVALID_CHAR otherwise.
+  return /^[\x09\x0A\x0D\x20-\x7E]*$/.test(value);
+}
+
+function sanitizeMinioMetadata(input?: Record<string, any>): Record<string, string> {
+  if (!input) return {};
+  const out: Record<string, string> = {};
+  const dropped: Record<string, string> = {};
+  for (const [k, v] of Object.entries(input)) {
+    const str = String(v);
+    if (isAsciiHeaderValue(str)) {
+      out[k] = str;
+    } else {
+      dropped[k] = str;
+    }
+  }
+  if (Object.keys(dropped).length > 0) {
+    out['meta_json_b64'] = Buffer.from(JSON.stringify(dropped), 'utf8').toString('base64');
+  }
+  return out;
+}
+
+function hasTtsPauseTag(text: string): boolean {
+  return /<#[0-9]{1,2}(?:\.[0-9]{1,2})?#>/.test(text);
+}
+
+function inferTtsPauseDurations(params: any): { short: number; mid: number; long: number } {
+  const platform = String(params?.platform || '').toLowerCase();
+  const target = String(params?.targetAudience || '').toLowerCase();
+  const duration = String(params?.duration || '').toLowerCase();
+  const rhythm = String(params?.voice_script_rhythm || '').toLowerCase();
+
+  // baseline
+  let short = 0.35;
+  let mid = 0.8;
+  let long = 1.4;
+
+  if (platform === 'live') {
+    short = 0.25;
+    mid = 0.6;
+    long = 1.1;
+  } else if (platform === 'podcast') {
+    short = 0.4;
+    mid = 0.9;
+    long = 1.6;
+  }
+
+  if (target === 'elderly') {
+    short = Math.max(short, 0.45);
+    mid = Math.max(mid, 1.0);
+    long = Math.max(long, 1.7);
+  } else if (target === 'youth') {
+    short = Math.min(short, 0.3);
+    mid = Math.min(mid, 0.75);
+    long = Math.min(long, 1.2);
+  }
+
+  // very short scripts: keep pauses tighter
+  if (duration === '30s') {
+    short = Math.min(short, 0.3);
+    mid = Math.min(mid, 0.7);
+    long = Math.min(long, 1.1);
+  }
+
+  // 根据节奏参数调整停顿时长
+  if (rhythm === 'slow') {
+    // 慢节奏：停顿更长
+    short = short * 1.5;
+    mid = mid * 1.5;
+    long = long * 1.5;
+  } else if (rhythm === 'fast') {
+    // 快节奏：停顿更短，严格限制在 0.1-0.3 秒之间
+    short = Math.max(0.1, Math.min(0.2, short * 0.4));
+    mid = Math.max(0.15, Math.min(0.25, mid * 0.3));
+    long = Math.max(0.2, Math.min(0.3, long * 0.25));
+  }
+  // normal 节奏：保持原值
+
+  return { short, mid, long };
+}
+
+function injectBasicTtsPauses(text: string, params: any): string {
+  if (!text || hasTtsPauseTag(text)) return text;
+
+  const { short, mid, long } = inferTtsPauseDurations(params);
+  const fmt = (n: number) => String(Number(n.toFixed(2)));
+  const rhythm = String(params?.voice_script_rhythm || '').toLowerCase();
+
+  const isPunct = (ch: string) => ch === '，' || ch === '。' || ch === '！' || ch === '？' || ch === '；' || ch === '：';
+  const isSentenceEnd = (ch: string) => ch === '。' || ch === '！' || ch === '？' || ch === '；';
+
+  // 快节奏下，只在句子结尾插入停顿，跳过逗号等中间标点
+  const shouldInsertPause = (ch: string) => {
+    if (rhythm === 'fast') {
+      // 快节奏：只在句子结尾插入停顿
+      return isSentenceEnd(ch);
+    }
+    // 其他节奏：在所有标点后插入
+    return isPunct(ch);
+  };
+
+  let out = '';
+  let pauseCount = 0; // 统计已插入的停顿数量
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    out += ch;
+
+    if (!shouldInsertPause(ch)) continue;
+    // avoid inserting before newline/end
+    const next = text[i + 1];
+    if (!next || next === '\n') continue;
+    // avoid double inserting if next already starts a tag
+    if (next === '<' && text.slice(i + 1, i + 3) === '<#') continue;
+    // avoid inserting right after an existing tag
+    const tail = out.slice(Math.max(0, out.length - 8));
+    if (tail.includes('#>')) continue;
+
+    // 快节奏下，限制停顿数量（每 8-10 句才插入一个）
+    if (rhythm === 'fast') {
+      pauseCount++;
+      // 只在每 8 个句子结尾插入一个停顿
+      if (pauseCount % 8 !== 0) continue;
+    }
+
+    const dur = isSentenceEnd(ch) ? (ch === '；' ? mid : long) : short;
+    out += `<#${fmt(dur)}#>`;
+  }
+
+  return out;
+}
+
+function stripLeadingTitleForTts(text: string): string {
+  if (!text) return text;
+  const trimmed = text.trimStart();
+  const lines = trimmed.split('\n');
+  if (lines.length < 2) return text;
+
+  const first = lines[0].trim();
+  const second = lines[1].trim();
+
+  // Typical "title + blank line" or "title + underline" patterns
+  const looksLikeColonTitle = first.length > 0 && first.length <= 40 && /[:：]/.test(first) && !/[。！？]/.test(first);
+  const looksLikeBracketTitle = first.length > 0 && first.length <= 40 && /^《.+》$/.test(first);
+  const underline = second.length > 0 && /^=+$/.test(second);
+  const blankLine = second.length === 0;
+
+  if ((looksLikeColonTitle || looksLikeBracketTitle) && (blankLine || underline)) {
+    // drop first line + optional underline/blank
+    const startIdx = underline ? 2 : 2;
+    const rest = lines.slice(startIdx).join('\n').trimStart();
+    return rest.length > 0 ? rest : text;
+  }
+
+  return text;
 }
 
 /**
@@ -112,13 +904,16 @@ function shouldEnableMarkdown(writingType?: string, format?: string): boolean {
  */
 function buildWritingGuidance(
   params: any,
-  writingType?: string
+  writingType?: string,
+  outlineType?: OutlineType
 ): string[] {
-  const businessParams = extractWritingBusinessParams(params, writingType as any);
+  const effectiveOutlineType = outlineType ?? ((params as any)?.outline_type as OutlineType | undefined);
+  const lang = (params as any)?.language ?? 'zh';
+  const businessParams = extractWritingBusinessParams(params, writingType as any, effectiveOutlineType as any);
   const guidance: string[] = [];
 
   Object.entries(businessParams).forEach(([key, value]) => {
-    const paramLabel = getParamLabel(key, writingType as any);
+    const paramLabel = getParamLabel(key, writingType as any, lang, effectiveOutlineType as any);
     if (Array.isArray(value)) {
       guidance.push(`${paramLabel}: ${value.join('、')}`);
     } else {
@@ -156,6 +951,30 @@ function formatChapterGuidance(outline: Outline, chapterPath: string = '', writi
 }
 
 /**
+ * 根据细分类型获取额外的规则说明（优先 DB，未配置时回退此处）
+ */
+function getSubtypeRules(writingType?: string, outlineType?: OutlineType): string | null {
+  if (!writingType || !outlineType) return null;
+  return SUBTYPE_RULES_MAP[writingType]?.[outlineType] ?? null;
+}
+
+/**
+ * 分镜输出格式：优先从 DB extra.storyboard_output_format_template_zh 取模板并替换占位符，否则用代码内生成
+ */
+async function resolveStoryboardOutputFormat(
+  chunkSeconds: StoryboardChunkSeconds,
+  maxChars: number,
+  expectedChunkCount?: number
+): Promise<string> {
+  const config = await getPromptFullConfig('writing', 'storyboard-scripts', null);
+  const template = config?.storyboard_output_format_template_zh;
+  if (template && typeof template === 'string') {
+    return fillStoryboardOutputFormatTemplate(template, chunkSeconds, maxChars, expectedChunkCount);
+  }
+  return getStoryboardChunkOutputFormat(chunkSeconds, maxChars, expectedChunkCount);
+}
+
+/**
  * 计算总字数要求
  */
 function calculateTotalLength(outlines: Outline[]): string {
@@ -187,37 +1006,51 @@ function calculateTotalLength(outlines: Outline[]): string {
  * 递归展开大纲为扁平列表（包括所有节点，包括有 children 的）
  * 每一段都按照自己的配置进行生成，如果该层没有配置则只生成标题，无实际内容
  */
+/**
+ * 展开大纲为扁平列表，保留全局参数和节点参数（全局参数作为基础，节点参数在此基础上进行相对调整）
+ */
 function expandOutlinesToSections(
   outlines: Outline[],
   depth: number = 0,
-  startIndex: number = 0
+  startIndex: number = 0,
+  globalParams?: {
+    motivation?: string;
+    stance?: string;
+    tone?: string;
+    length?: string;
+    key_elements?: string[];
+  }
 ): ExpandedSection[] {
   const sections: ExpandedSection[] = [];
   let currentIndex = startIndex;
 
   for (const outline of outlines) {
+    // 保留节点参数和全局参数，不合并（在生成时，全局参数作为基础，节点参数作为相对调整）
     const section: ExpandedSection = {
       uid: outline.uid,
       content: outline.content,
       motivation: outline.motivation,
       stance: outline.stance,
       tone: outline.tone,
+      cast: outline.cast,
       length: outline.length,
       key_elements: outline.key_elements,
       depth,
       index: currentIndex,
       position: currentIndex,
       knowledgeBase: outline.knowledgeBase,
+      globalParams: globalParams, // 保存全局参数，用于生成时作为基础
     };
     sections.push(section);
     currentIndex++;
 
-    // 递归处理子节点
+    // 递归处理子节点，传递全局参数
     if (outline.children && outline.children.length > 0) {
       const childSections = expandOutlinesToSections(
         outline.children,
         depth + 1,
-        currentIndex
+        currentIndex,
+        globalParams
       );
       sections.push(...childSections);
       currentIndex += childSections.length;
@@ -230,11 +1063,13 @@ function expandOutlinesToSections(
 /**
  * 文本压缩函数（滑动窗口：保留最后200字 + 总结前文）
  * 如果文本超过500字，则压缩到800字以内
+ * @param usageAccumulator 可选，用于长文写作时累积 LLM 用量（计费）
  */
 async function compressText(
   text: string,
   maxLength: number = 500,
-  provider?: ProviderType
+  provider?: ProviderType,
+  usageAccumulator?: UsageAccumulator
 ): Promise<string> {
   // 如果文本已经在限制内，直接返回
   if (text.length <= maxLength) {
@@ -246,8 +1081,7 @@ async function compressText(
   const lastPart = text.slice(-keepLastChars);
   const firstPart = text.slice(0, text.length - keepLastChars);
 
-  // 使用 LLM 总结压缩前文部分
-  const modelName = selectModel('paragraph');
+  // 使用 BasicText 能力总结压缩前文部分
   const compressPrompt = `请将以下内容压缩总结到${maxLength - keepLastChars}字以内，保留关键信息和逻辑关系：
 
 ${firstPart}
@@ -259,7 +1093,32 @@ ${firstPart}
 - 只返回压缩后的文本，不要添加任何说明或标记`;
 
   try {
-    const compressedFirstPart = await generateText(modelName, compressPrompt, provider);
+    let compressedFirstPart: string;
+    if (usageAccumulator) {
+      const basicResult = await runBasicText('writing-basic-text', compressPrompt, {
+        providerOverride: provider,
+      });
+      const meta = basicResult.usage.metadata as
+        | {
+            usage?: {
+              prompt_tokens?: number;
+              completion_tokens?: number;
+              total_tokens?: number;
+              input_tokens?: number;
+              output_tokens?: number;
+            };
+            model?: string;
+            provider?: string;
+          }
+        | undefined;
+      addUsage(usageAccumulator, meta);
+      compressedFirstPart = basicResult.text;
+    } else {
+      const basicResult = await runBasicText('writing-basic-text', compressPrompt, {
+        providerOverride: provider,
+      });
+      compressedFirstPart = basicResult.text;
+    }
     return compressedFirstPart.trim() + lastPart;
   } catch (error) {
     console.error('[WritingService] 文本压缩失败，使用截断方式:', error);
@@ -305,6 +1164,7 @@ async function getPreviousContentFromTask(taskId: string, userId?: string): Prom
 
 /**
  * 生成文本（调用 LLM）- 同步模式
+ * 仅通过 models/registry + runByModelKey（单轨）
  */
 async function generateText(
   modelName: string,
@@ -312,58 +1172,119 @@ async function generateText(
   provider?: ProviderType,
   llmParams?: Record<string, any>
 ): Promise<string> {
-  const model = MODEL_MAP[modelName];
-  if (!model) {
-    throw new Error(`模型 "${modelName}" 不存在`);
+  const result = await runByModelKey(
+    'writing',
+    modelName,
+    { prompt, outputFormat: 'json', ...llmParams },
+    { providerOverride: provider }
+  );
+  const text = (result as { text?: string }).text;
+  if (text == null || text === '') throw new Error('LLM 生成结果为空');
+  return text;
+}
+
+/**
+ * 用于多轮 LLM 调用的 usage 累加器（并行/流水形长文写作）
+ */
+export interface UsageAccumulator {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  model?: string;
+  provider?: string;
+}
+
+function createUsageAccumulator(): UsageAccumulator {
+  return { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+}
+
+function addUsage(
+  acc: UsageAccumulator,
+  meta?: { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; input_tokens?: number; output_tokens?: number }; model?: string; provider?: string }
+): void {
+  if (!meta) return;
+  const u = meta.usage as Record<string, number> | undefined;
+  if (u) {
+    const pt = Number(u.prompt_tokens ?? u.input_tokens ?? 0) || 0;
+    const ct = Number(u.completion_tokens ?? u.output_tokens ?? 0) || 0;
+    acc.inputTokens += pt;
+    acc.outputTokens += ct;
+    acc.totalTokens = acc.inputTokens + acc.outputTokens;
   }
+  if (meta.model) acc.model = meta.model;
+  if (meta.provider) acc.provider = meta.provider;
+}
 
-  const result = await model.generate({
-    prompt,
-    outputFormat: 'json', // 强制使用 JSON 格式获取完整文本
-    ...llmParams,
-  }, provider);
+function toLlmMetadata(acc: UsageAccumulator): { usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }; model: string; provider: string } | undefined {
+  if (acc.inputTokens === 0 && acc.outputTokens === 0) return undefined;
+  return {
+    usage: {
+      prompt_tokens: acc.inputTokens,
+      completion_tokens: acc.outputTokens,
+      total_tokens: acc.totalTokens || acc.inputTokens + acc.outputTokens,
+    },
+    model: acc.model || 'unknown',
+    provider: acc.provider || 'unknown',
+  };
+}
 
-  if (!result.text) {
-    throw new Error('LLM 生成结果为空');
-  }
-
-  return result.text;
+/**
+ * 生成文本并返回 usage / model / provider（用于 Provider 用量记录与余额扣减）
+ */
+async function generateTextWithMetadata(
+  modelName: string,
+  prompt: string,
+  provider?: ProviderType,
+  llmParams?: Record<string, any>
+): Promise<{ text: string; metadata?: { usage?: unknown; model?: string; provider?: string } }> {
+  const result = await runByModelKey(
+    'writing',
+    modelName,
+    { prompt, outputFormat: 'json', ...llmParams },
+    { providerOverride: provider }
+  );
+  const text = (result as { text?: string }).text;
+  if (text == null || text === '') throw new Error('LLM 生成结果为空');
+  const meta = (result as { metadata?: Record<string, unknown> }).metadata;
+  return {
+    text,
+    metadata: meta
+      ? {
+          usage: meta.usage,
+          model: meta.model as string | undefined,
+          provider: meta.provider as string | undefined,
+        }
+      : undefined,
+  };
 }
 
 /**
  * 生成文本（调用 LLM）- 流式模式
+ * 仅通过 models/registry + runByModelKey（单轨）
  */
 async function generateTextStream(
   modelName: string,
   prompt: string,
   provider?: ProviderType,
   llmParams?: Record<string, any>
-): Promise<AsyncIterable<any>> {
-  const model = MODEL_MAP[modelName];
-  if (!model) {
-    throw new Error(`模型 "${modelName}" 不存在`);
-  }
-
-  const result = await model.generate({
-    prompt,
-    outputFormat: 'stream', // 使用流式输出
-    enableCollection: false, // 禁用 collection 累积，节省内存和带宽
-    ...llmParams,
-  }, provider);
-
-  if (result.stream) {
-    return result.stream;
-  } else if (result.streamString) {
-    // 兼容旧格式：将 streamString 转换为 stream 格式
+): Promise<AsyncIterable<unknown>> {
+  const result = await runByModelKey(
+    'writing',
+    modelName,
+    { prompt, outputFormat: 'stream', enableCollection: false, ...llmParams },
+    { providerOverride: provider }
+  );
+  const r = result as { stream?: AsyncIterable<unknown>; streamString?: AsyncIterable<string> };
+  if (r.stream) return r.stream;
+  if (r.streamString) {
     return (async function* () {
-      for await (const chunk of result.streamString!) {
+      for await (const chunk of r.streamString!) {
         yield { chunk, status: 'streaming' as const, collection: '' };
       }
       yield { chunk: '', status: 'completed' as const, collection: '' };
     })();
-  } else {
-    throw new Error('LLM 不支持流式输出');
   }
+  throw new Error('LLM 不支持流式输出');
 }
 
 /**
@@ -379,20 +1300,110 @@ export async function* generateOutlineStream(
     maxDepth?: number;
     expectedNodes?: number;
     total_textcount?: number;
-    applyto?: string;
+    total_duration_seconds?: number;
+    /** @deprecated 请使用 total_duration_seconds，兼容旧请求：分钟转秒 */
+    total_duration_minutes?: number;
+    applyto?: OutlineApplyTo;
+    outline_type?: OutlineType;
+    outline_structure_type?: OutlineStructureType;
+    stance?: string;
+    tone?: string;
+    speech_rate?: string;
+    voice_script_rhythm?: string;
+    rhythm?: string;
     knowledgeBase?: Array<{
       knowledgeBaseId: string;
       query: string;
       limit?: number;
     }>;
+    cast_character_count?: number;
+    cast_character_ids?: string[];
+    /** 输出语言：'zh' | 'en'，默认 'zh' */
+    language?: 'zh' | 'en';
   },
   userId?: string,
   provider?: ProviderType
 ): AsyncGenerator<{ chunk: string; status: 'streaming' | 'completed'; collection: string }, void, unknown> {
-  // 1. 选择模型（大纲生成使用 outline 类型）
-  const modelName = selectModel('outline');
+  const lang = params.language ?? 'zh';
+  // 0. 参数验证（与 generateOutline 相同）
+  if (params.applyto) {
+    if (!OUTLINE_APPLY_TO_VALUES.includes(params.applyto)) {
+      throw new Error(`不支持的 applyto 类型: ${params.applyto}。仅支持: ${OUTLINE_APPLY_TO_VALUES.join(', ')}`);
+    }
 
-  // 2. 检索知识库内容（如果有）
+    // total_duration_seconds 为选填：不填则可在写作分镜/口播时再补充
+
+    if (params.outline_structure_type) {
+      const isValid = isStructureTypeAvailable(
+        params.applyto,
+        params.outline_type,
+        params.outline_structure_type
+      );
+      if (!isValid) {
+        throw new Error(`结构类型 ${params.outline_structure_type} 不适用于 applyto=${params.applyto}, outline_type=${params.outline_type || '未指定'}`);
+      }
+    }
+  }
+
+  // 1. 按业务 key 解析 provider + 模型（四步流程：业务 → Admin 配置）
+  const outlineParamsForKey = { writing_type: 'outlines' as const, applyto: params.applyto };
+  const businessKey = getWritingBusinessKeyFromParams(outlineParamsForKey, 'outline');
+  const resolved = selectModelWithRouting(businessKey, 'outline', provider);
+  const modelName = resolved.modelName;
+  const effectiveProvider = resolved.provider;
+
+  // 2. 获取或生成参演角色信息（如果有）
+  let castCharacters: CharacterProfile[] | undefined;
+  const isAcademicPaper = params.outline_type === 'academic-paper';
+
+  if (!isAcademicPaper) {
+    // 如果提供了角色ID列表，从 Character 模块获取
+    if (params.cast_character_ids && params.cast_character_ids.length > 0 && userId) {
+      try {
+        const { CharacterService } = await import('../../characters/character-service');
+        const characterService = new CharacterService();
+        castCharacters = await characterService.getCharactersForWriting(params.cast_character_ids, userId);
+      } catch (error) {
+        console.error('[WritingService] 获取参演角色失败:', error);
+        // 失败不影响大纲生成，继续执行
+      }
+    }
+
+    // 如果指定了角色人数但没有提供角色ID，或者提供的角色ID数量不足，生成角色
+    if (params.cast_character_count && params.cast_character_count > 0 && userId) {
+      const currentCount = castCharacters?.length || 0;
+      const neededCount = params.cast_character_count - currentCount;
+
+      if (neededCount > 0) {
+        try {
+          const { CharacterService } = await import('../../characters/character-service');
+          const characterService = new CharacterService();
+          const generatedCharacters = await characterService.generateCharacters(
+            {
+              count: neededCount,
+              prompt: params.prompt, // 使用大纲的 prompt 作为角色生成的提示词
+            },
+            userId,
+            effectiveProvider
+          );
+
+          // 将生成的角色与已有角色合并
+          if (castCharacters) {
+            castCharacters = [...castCharacters, ...generatedCharacters];
+          } else {
+            castCharacters = generatedCharacters;
+          }
+
+          console.log(`[WritingService] 已生成 ${generatedCharacters.length} 个角色用于大纲生成`);
+        } catch (error) {
+          console.error('[WritingService] 生成参演角色失败:', error);
+          // 如果角色生成失败，继续使用已有角色（如果有）
+        }
+      }
+    }
+  }
+
+  // 3. 检索知识库内容（如果有）
   let enhancedPrompt = params.prompt;
   if (params.knowledgeBase && params.knowledgeBase.length > 0) {
     const knowledgeResults = await retrieveKnowledge(params.knowledgeBase, userId);
@@ -400,32 +1411,94 @@ export async function* generateOutlineStream(
     enhancedPrompt = enhancePromptWithKnowledge(params.prompt, knowledgeContext);
   }
 
-  // 3. 构建大纲生成的 prompt
-  let outlinePrompt = `请根据以下要求生成一个写作大纲：
+  // 4. 构建大纲生成的 prompt
+  const effectiveMaxDepth =
+    params.applyto === 'storyboard-scripts'
+      ? (params.maxDepth ?? 2)
+      : (params.maxDepth || 3);
+
+  const langInstruction = lang === 'en'
+    ? 'Respond entirely in English. Output all outline node content (content, motivation, length, key_elements, etc.) in English. Use the same JSON structure.\n\n'
+    : '';
+
+  let outlinePrompt = `${langInstruction}${lang === 'zh' ? '请根据以下要求生成一个写作大纲：' : 'Generate a writing outline according to the following requirements:'}
 
 ${enhancedPrompt}
 
-要求：
-- 大纲层级深度：${params.maxDepth || 3} 级
-${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个` : ''}`;
+${lang === 'zh' ? '要求：' : 'Requirements:'}
+- ${lang === 'zh' ? '大纲层级深度' : 'Outline depth'}: ${effectiveMaxDepth} ${lang === 'zh' ? '级' : 'levels'}
+${params.expectedNodes ? `- ${lang === 'zh' ? '期望节点总数：约' : 'Expected nodes: about'} ${params.expectedNodes} ${lang === 'zh' ? '个' : ''}` : ''}`;
 
-  // 添加字数分配要求（如果提供了 total_textcount 和 applyto）
-  if (params.total_textcount && params.applyto) {
+  // 根据 applyto 添加字数或时长要求
+  if (params.applyto === 'articles' && params.total_textcount) {
     outlinePrompt += `
 - 总字数要求：${params.total_textcount} 字
-- 大纲将用于生成：${params.applyto} 类型内容
+- 大纲将用于生成：文章类型内容
 - 字数分配原则：
-  * 根据 ${params.applyto} 类型的内容结构特点进行字数分配
+  * 根据文章类型的内容结构特点进行字数分配
   * 核心章节（正文主体）应分配更多字数（约占总字数的 60-70%）
   * 次要章节（引言、结尾）分配较少字数（约占总字数的 10-20%）
   * 一级标题节点通常比二级、三级节点分配更多字数
   * 确保总字数符合 ${params.total_textcount} 字的要求`;
+  } else if (params.applyto === 'articles' && !params.total_textcount) {
+    outlinePrompt += `
+- 总字数要求：未指定（请你根据主题、结构、节点数与写作场景，自行确定整体篇幅与各节点篇幅，保持合理分配即可）`;
+  } else if ((params.applyto === 'voice-scripts' || params.applyto === 'storyboard-scripts') && (params.total_duration_seconds != null || params.total_duration_minutes != null)) {
+    const totalDurationSec = params.total_duration_seconds ?? (params.total_duration_minutes != null ? params.total_duration_minutes * 60 : undefined);
+    if (totalDurationSec != null) {
+      const typeName = params.applyto === 'voice-scripts' ? '口播稿' : '分镜脚本';
+      outlinePrompt += `
+- 总时长要求：${totalDurationSec} 秒
+- 大纲将用于生成：${typeName}类型内容
+- 时长分配原则：
+  * 根据 ${typeName} 类型的内容结构特点进行时长分配
+  * 核心部分应分配更多时长（约占总时长的 60-70%）
+  * 次要部分分配较少时长（约占总时长的 10-20%）
+  * 请根据时长合理分配各部分的篇幅，确保总时长符合 ${totalDurationSec} 秒的要求`;
+    }
   }
 
+  // 添加结构类型模板（如果指定了结构类型）
+  if (params.outline_structure_type) {
+    const structureTemplate = getStructurePromptTemplate(params.outline_structure_type, lang);
+    if (structureTemplate) {
+      outlinePrompt += `\n\n${structureTemplate}`;
+    }
+  }
+
+  // 分镜脚本不需要整体立场/语调：即使传入也忽略，避免影响分镜生成
+  if (params.applyto !== 'storyboard-scripts') {
+    // 添加整体立场和语调要求（如果提供了）
+    if (params.stance) {
+      outlinePrompt += `
+- 整体立场要求：${params.stance}（整个大纲应保持一致的立场）`;
+    }
+    if (params.tone) {
+      outlinePrompt += `
+- 整体语调要求：${params.tone}（整个大纲应保持一致的语调）`;
+    }
+  }
+
+  const requireStanceTonePerNode =
+    params.applyto !== 'storyboard-scripts' && (!!params.stance || !!params.tone);
+
+  const requireVoiceSpeechRatePerNode =
+    params.applyto === 'voice-scripts' && !!params.speech_rate;
+
+  const requireStoryboardRhythmPerNode =
+    params.applyto === 'storyboard-scripts' && !!params.rhythm;
+
+  const totalDurationSecForNode =
+    params.total_duration_seconds ?? (params.total_duration_minutes != null ? params.total_duration_minutes * 60 : undefined);
+
   outlinePrompt += `
-- 每个节点需要包含：content（标题内容）、motivation（写作动机，可选）、stance（立场，可选）、tone（语调，可选）、length（长度要求，可选）、key_elements（关键要素，可选）
+- 每个节点需要包含：content（标题内容）、motivation（写作动机，可选）、length（长度要求，可选）、key_elements（关键要素，可选）
+- cast（出场角色，可选）：string 数组，可填角色 id 或 name；可省略或空数组表示纯镜头/旁白/氛围段落（正常）
+${requireStanceTonePerNode ? `- **强制要求**：由于已指定整体立场/语调，**每个节点都必须输出 stance 和 tone 字段**，并默认继承整体值：stance="${params.stance || ''}", tone="${params.tone || ''}"（如需局部差异才在该节点修改，但必须始终输出这两个字段）` : `- stance（立场，可选）、tone（语调，可选）`}
+${requireVoiceSpeechRatePerNode && totalDurationSecForNode != null ? `- **强制要求（口播稿）**：已指定语速 speech_rate="${params.speech_rate}"（单位：字/分钟，CPM）。请按以下可计算规则约束每个节点：\n  1) 总字数估算：total_chars ≈ (total_duration_seconds/60) * speech_rate，总时长=${totalDurationSecForNode}秒\n  2) 每个节点必须输出 speech_rate 字段（默认继承全局）\n  3) 每个节点的 length 必须以“秒”为单位，并同时给出字数估算：例如 "30秒（约100字）"\n  4) 计算关系：node_chars ≈ (node_seconds/60) * speech_rate\n  5) 所有有 content 的节点时长之和 ≈ ${totalDurationSecForNode} 秒（允许 2-5% 浮动用于停顿/转场）` : requireVoiceSpeechRatePerNode ? `- **强制要求（口播稿）**：已指定语速 speech_rate="${params.speech_rate}"（单位：字/分钟，CPM）。请按可计算规则约束每个节点：每个节点必须输出 speech_rate 字段，length 以“秒”为单位并给出字数估算。` : ''}
+${requireStoryboardRhythmPerNode && totalDurationSecForNode != null ? `- **强制要求（分镜脚本）**：已指定节奏 rhythm="${params.rhythm}"（单位：镜头/分钟，SPM）。请按以下可计算规则约束每个节点：\n  1) 平均镜头时长：avg_shot_seconds ≈ 60 / rhythm\n  2) 每个节点必须输出 rhythm 字段（默认继承全局）\n  3) 每个节点的 length 必须以“秒”为单位，例如 "12秒"\n  4) 快节奏=更短镜头/更密集，慢节奏=更长镜头/更留白；节点时长应与 avg_shot_seconds 合理匹配\n  5) 所有有 content 的节点时长之和 ≈ ${totalDurationSecForNode} 秒（允许 2-5% 浮动用于转场/留白）` : requireStoryboardRhythmPerNode ? `- **强制要求（分镜脚本）**：已指定节奏 rhythm="${params.rhythm}"（单位：镜头/分钟，SPM）。请按可计算规则约束每个节点：每个节点必须输出 rhythm 字段，length 以“秒”为单位。` : ''}
 - **重要**：必须返回完整的、有效的 JSON 对象，不要截断，不要添加任何额外的文字说明
-- 返回 JSON 格式，包含 uid、content 和可选的 children 数组（嵌套结构）
+- 返回 JSON：直接返回 Outline 对象（不包含 characters 字段，角色信息已在上方提供）
 
 请返回一个完整的、有效的 JSON 对象，格式如下：
 {
@@ -435,7 +1508,7 @@ ${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个
     {
       "uid": "sub_1",
       "content": "子标题1",
-      "children": [...]
+      "children": []
     }
   ]
 }
@@ -446,8 +1519,8 @@ ${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个
 3. 不要在大纲内容中添加任何解释性文字
 4. 直接返回 JSON 对象，不需要 markdown 代码块包装`;
 
-  // 4. 调用 LLM 生成（流式）
-  const stream = await generateTextStream(modelName, outlinePrompt, provider);
+  // 5. 调用 LLM 生成（流式）
+  const stream = await generateTextStream(modelName, outlinePrompt, effectiveProvider);
 
   // 5. 返回流式结果
   for await (const chunk of stream) {
@@ -462,20 +1535,111 @@ export async function generateOutline(
     maxDepth?: number;
     expectedNodes?: number;
     total_textcount?: number;
-    applyto?: string;
+    total_duration_seconds?: number;
+    /** @deprecated 请使用 total_duration_seconds，兼容旧请求：分钟转秒 */
+    total_duration_minutes?: number;
+    applyto?: OutlineApplyTo;
+    outline_type?: OutlineType;
+    outline_structure_type?: OutlineStructureType;
+    stance?: string;
+    tone?: string;
+    speech_rate?: string;
+    voice_script_rhythm?: string;
+    rhythm?: string;
     knowledgeBase?: Array<{
       knowledgeBaseId: string;
       query: string;
       limit?: number;
     }>;
+    cast_character_count?: number;
+    cast_character_ids?: string[];
+    language?: 'zh' | 'en';
   },
   userId?: string,
   provider?: ProviderType
-): Promise<Outline> {
-  // 1. 选择模型（大纲生成使用 outline 类型）
-  const modelName = selectModel('outline');
+): Promise<{ outline: Outline; characters?: CharacterProfile[] }> {
+  const lang = params.language ?? 'zh';
+  // 0. 参数验证
+  if (params.applyto) {
+    if (!OUTLINE_APPLY_TO_VALUES.includes(params.applyto)) {
+      throw new Error(`不支持的 applyto 类型: ${params.applyto}。仅支持: ${OUTLINE_APPLY_TO_VALUES.join(', ')}`);
+    }
 
-  // 2. 检索知识库内容（如果有）
+    // total_duration_seconds 为选填：不填则可在写作分镜/口播时再补充
+
+    // 验证结构类型匹配
+    if (params.outline_structure_type) {
+      const isValid = isStructureTypeAvailable(
+        params.applyto,
+        params.outline_type,
+        params.outline_structure_type
+      );
+      if (!isValid) {
+        throw new Error(`结构类型 ${params.outline_structure_type} 不适用于 applyto=${params.applyto}, outline_type=${params.outline_type || '未指定'}`);
+      }
+    }
+  }
+
+  // 1. 按业务 key 解析 provider + 模型（四步流程：业务 → Admin 配置）
+  const outlineParamsForKey = { writing_type: 'outlines' as const, applyto: params.applyto };
+  const businessKey = getWritingBusinessKeyFromParams(outlineParamsForKey, 'outline');
+  const resolved = selectModelWithRouting(businessKey, 'outline', provider);
+  const modelName = resolved.modelName;
+  const effectiveProvider = resolved.provider;
+
+  // 2. 获取或生成参演角色信息（如果有）
+  let castCharacters: CharacterProfile[] | undefined;
+  const isAcademicPaper = params.outline_type === 'academic-paper';
+
+  if (!isAcademicPaper) {
+    // 如果提供了角色ID列表，从 Character 模块获取
+    if (params.cast_character_ids && params.cast_character_ids.length > 0 && userId) {
+      try {
+        const { CharacterService } = await import('../../characters/character-service');
+        const characterService = new CharacterService();
+        castCharacters = await characterService.getCharactersForWriting(params.cast_character_ids, userId);
+      } catch (error) {
+        console.error('[WritingService] 获取参演角色失败:', error);
+        // 失败不影响大纲生成，继续执行
+      }
+    }
+
+    // 如果指定了角色人数但没有提供角色ID，或者提供的角色ID数量不足，生成角色
+    if (params.cast_character_count && params.cast_character_count > 0 && userId) {
+      const currentCount = castCharacters?.length || 0;
+      const neededCount = params.cast_character_count - currentCount;
+
+      if (neededCount > 0) {
+        try {
+          const { CharacterService } = await import('../../characters/character-service');
+          const characterService = new CharacterService();
+          const generatedCharacters = await characterService.generateCharacters(
+            {
+              count: neededCount,
+              prompt: params.prompt, // 使用大纲的 prompt 作为角色生成的提示词
+            },
+            userId,
+            effectiveProvider
+          );
+
+          // 将生成的角色与已有角色合并
+          if (castCharacters) {
+            castCharacters = [...castCharacters, ...generatedCharacters];
+          } else {
+            castCharacters = generatedCharacters;
+          }
+
+          console.log(`[WritingService] 已生成 ${generatedCharacters.length} 个角色用于大纲生成`);
+        } catch (error) {
+          console.error('[WritingService] 生成参演角色失败:', error);
+          // 如果角色生成失败，继续使用已有角色（如果有）
+          // 如果没有角色，大纲生成时不会包含角色信息
+        }
+      }
+    }
+  }
+
+  // 3. 检索知识库内容（如果有）
   let enhancedPrompt = params.prompt;
   if (params.knowledgeBase && params.knowledgeBase.length > 0) {
     const knowledgeResults = await retrieveKnowledge(params.knowledgeBase, userId);
@@ -483,32 +1647,127 @@ export async function generateOutline(
     enhancedPrompt = enhancePromptWithKnowledge(params.prompt, knowledgeContext);
   }
 
-  // 3. 构建大纲生成的 prompt
-  let outlinePrompt = `请根据以下要求生成一个写作大纲：
+  // 4. 构建大纲生成的 prompt
+  const effectiveMaxDepth =
+    params.applyto === 'storyboard-scripts'
+      ? (params.maxDepth ?? 2)
+      : (params.maxDepth || 3);
+
+  const langInstruction = lang === 'en'
+    ? 'Respond entirely in English. Output all outline node content (content, motivation, length, key_elements, etc.) in English. Use the same JSON structure.\n\n'
+    : '';
+
+  let outlinePrompt = `${langInstruction}${lang === 'zh' ? '请根据以下要求生成一个写作大纲：' : 'Generate a writing outline according to the following requirements:'}
 
 ${enhancedPrompt}
 
-要求：
-- 大纲层级深度：${params.maxDepth || 3} 级
-${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个` : ''}`;
+${lang === 'zh' ? '要求：' : 'Requirements:'}
+- ${lang === 'zh' ? '大纲层级深度' : 'Outline depth'}: ${effectiveMaxDepth} ${lang === 'zh' ? '级' : 'levels'}
+${params.expectedNodes ? `- ${lang === 'zh' ? '期望节点总数：约' : 'Expected nodes: about'} ${params.expectedNodes} ${lang === 'zh' ? '个' : ''}` : ''}`;
 
-  // 添加字数分配要求（如果提供了 total_textcount 和 applyto）
-  if (params.total_textcount && params.applyto) {
+  // 根据 applyto 添加字数或时长要求
+  if (params.applyto === 'articles' && params.total_textcount) {
     outlinePrompt += `
 - 总字数要求：${params.total_textcount} 字
-- 大纲将用于生成：${params.applyto} 类型内容
+- 大纲将用于生成：文章类型内容
 - 字数分配原则：
-  * 根据 ${params.applyto} 类型的内容结构特点进行字数分配
+  * 根据文章类型的内容结构特点进行字数分配
   * 核心章节（正文主体）应分配更多字数（约占总字数的 60-70%）
   * 次要章节（引言、结尾）分配较少字数（约占总字数的 10-20%）
   * 一级标题节点通常比二级、三级节点分配更多字数
   * 确保总字数符合 ${params.total_textcount} 字的要求`;
+  } else if ((params.applyto === 'voice-scripts' || params.applyto === 'storyboard-scripts') && (params.total_duration_seconds != null || params.total_duration_minutes != null)) {
+    const totalDurationSec = params.total_duration_seconds ?? (params.total_duration_minutes != null ? params.total_duration_minutes * 60 : undefined);
+    if (totalDurationSec != null) {
+      const typeName = params.applyto === 'voice-scripts' ? '口播稿' : '分镜脚本';
+      outlinePrompt += `
+- 总时长要求：${totalDurationSec} 秒
+- 大纲将用于生成：${typeName}类型内容
+- 时长分配原则：
+  * 根据 ${typeName} 类型的内容结构特点进行时长分配
+  * 核心部分应分配更多时长（约占总时长的 60-70%）
+  * 次要部分分配较少时长（约占总时长的 10-20%）
+  * 请根据时长合理分配各部分的篇幅，确保总时长符合 ${totalDurationSec} 秒的要求`;
+    }
   }
 
+  // 添加结构类型模板（如果指定了结构类型）
+  if (params.outline_structure_type) {
+    const structureTemplate = getStructurePromptTemplate(params.outline_structure_type, lang);
+    if (structureTemplate) {
+      outlinePrompt += `\n\n${structureTemplate}`;
+    }
+  }
+
+  // 添加参演角色信息（如果有）
+  if (!isAcademicPaper && castCharacters && castCharacters.length > 0) {
+    // 如果提供了角色列表（无论是用户提供的还是生成的），在prompt中添加角色信息
+    const charactersText = formatCharactersForPrompt(castCharacters);
+    
+    // 如果有角色关系信息，也添加到 prompt 中
+    let relationsText = '';
+    const allRelations: Record<string, Record<string, string>> = {};
+    castCharacters.forEach(char => {
+      if (char.relations) {
+        Object.keys(char.relations).forEach(otherCharId => {
+          if (!allRelations[char.id]) {
+            allRelations[char.id] = {};
+          }
+          const relationValue = char.relations![otherCharId];
+          if (typeof relationValue === 'string') {
+            allRelations[char.id][otherCharId] = relationValue;
+          }
+        });
+      }
+    });
+    
+    if (Object.keys(allRelations).length > 0) {
+      relationsText = `\n\n【角色关系】：
+${Object.keys(allRelations).map(charId => {
+  const char = castCharacters!.find(c => c.id === charId);
+  const charName = char?.name || charId;
+  const relations = allRelations[charId];
+  return `- ${charName}(${charId}): ${Object.keys(relations).map(otherCharId => {
+    const otherChar = castCharacters!.find(c => c.id === otherCharId);
+    const otherCharName = otherChar?.name || otherCharId;
+    return `${otherCharName}(${otherCharId}) - ${relations[otherCharId]}`;
+  }).join(', ')}`;
+}).join('\n')}`;
+    }
+    
+    outlinePrompt += `
+
+【参演角色】（以下角色将参与大纲内容，请在合适的节点中添加 cast 字段）：
+${charactersText}${relationsText}
+
+重要提示：
+- 请根据内容需要，在合适的节点中添加 cast 字段，指定该节点出场的角色
+- cast 字段值为角色 id 或 name 的数组，例如：["角色1的id", "角色2的id"] 或 ["角色1", "角色2"]
+- 如果某个节点不需要角色出场（纯旁白/镜头/氛围），可以不添加 cast 字段或设置为空数组
+- 请确保角色出场符合内容逻辑，合理分配角色到各个节点
+- 注意角色之间的关系，在安排角色出场时考虑他们的关系设定`;
+  }
+
+  const requireStanceTonePerNode =
+    params.applyto !== 'storyboard-scripts' && (!!params.stance || !!params.tone);
+
+  const requireVoiceSpeechRatePerNode =
+    params.applyto === 'voice-scripts' && !!params.speech_rate;
+
+  const requireStoryboardRhythmPerNode =
+    params.applyto === 'storyboard-scripts' && !!params.rhythm;
+
+  const totalDurationSecForNode =
+    params.total_duration_seconds ?? (params.total_duration_minutes != null ? params.total_duration_minutes * 60 : undefined);
+
   outlinePrompt += `
-- 每个节点需要包含：content（标题内容）、motivation（写作动机，可选）、stance（立场，可选）、tone（语调，可选）、length（长度要求，可选）、key_elements（关键要素，可选）
+- 每个节点需要包含：content（标题内容）、motivation（写作动机，可选）、length（长度要求，可选）、key_elements（关键要素，可选）
+- cast（出场角色，可选）：string 数组，可填角色 id 或 name；可省略或空数组表示纯镜头/旁白/氛围段落（正常）
+${requireStanceTonePerNode ? `- **强制要求**：由于已指定整体立场/语调，**每个节点都必须输出 stance 和 tone 字段**，并默认继承整体值：stance="${params.stance || ''}", tone="${params.tone || ''}"（如需局部差异才在该节点修改，但必须始终输出这两个字段）` : `- stance（立场，可选）、tone（语调，可选）`}
+${requireVoiceSpeechRatePerNode && totalDurationSecForNode != null ? `- **强制要求（口播稿）**：已指定语速 speech_rate="${params.speech_rate}"（单位：字/分钟，CPM）。请按以下可计算规则约束每个节点：\n  1) 总字数估算：total_chars ≈ (total_duration_seconds/60) * speech_rate，总时长=${totalDurationSecForNode}秒\n  2) 每个节点必须输出 speech_rate 字段（默认继承全局）\n  3) 每个节点的 length 必须以“秒”为单位，并同时给出字数估算：例如 "30秒（约100字）"\n  4) 计算关系：node_chars ≈ (node_seconds/60) * speech_rate\n  5) 所有有 content 的节点时长之和 ≈ ${totalDurationSecForNode} 秒（允许 2-5% 浮动用于停顿/转场）` : requireVoiceSpeechRatePerNode ? `- **强制要求（口播稿）**：已指定语速 speech_rate="${params.speech_rate}"（单位：字/分钟，CPM）。请按可计算规则约束每个节点：每个节点必须输出 speech_rate 字段，length 以“秒”为单位并给出字数估算。` : ''}
+${requireStoryboardRhythmPerNode && totalDurationSecForNode != null ? `- **强制要求（分镜脚本）**：已指定节奏 rhythm="${params.rhythm}"（单位：镜头/分钟，SPM）。请按以下可计算规则约束每个节点：\n  1) 平均镜头时长：avg_shot_seconds ≈ 60 / rhythm\n  2) 每个节点必须输出 rhythm 字段（默认继承全局）\n  3) 每个节点的 length 必须以“秒”为单位，例如 "12秒"\n  4) 快节奏=更短镜头/更密集，慢节奏=更长镜头/更留白；节点时长应与 avg_shot_seconds 合理匹配\n  5) 所有有 content 的节点时长之和 ≈ ${totalDurationSecForNode} 秒（允许 2-5% 浮动用于转场/留白）` : requireStoryboardRhythmPerNode ? `- **强制要求（分镜脚本）**：已指定节奏 rhythm="${params.rhythm}"（单位：镜头/分钟，SPM）。请按可计算规则约束每个节点：每个节点必须输出 rhythm 字段，length 以“秒”为单位。` : ''}
 - **重要**：必须返回完整的、有效的 JSON 对象，不要截断，不要添加任何额外的文字说明
-- 返回 JSON 格式，包含 uid、content 和可选的 children 数组（嵌套结构）
+- 返回 JSON：直接返回 Outline 对象（不包含 characters 字段，角色信息已在上方提供）
 
 请返回一个完整的、有效的 JSON 对象，格式如下：
 {
@@ -518,7 +1777,7 @@ ${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个
     {
       "uid": "sub_1",
       "content": "子标题1",
-      "children": [...]
+      "children": []
     }
   ]
 }
@@ -529,8 +1788,12 @@ ${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个
 3. 不要在大纲内容中添加任何解释性文字
 4. 直接返回 JSON 对象，不需要 markdown 代码块包装`;
 
-  // 4. 调用 LLM 生成
-  const resultText = await generateText(modelName, outlinePrompt, provider);
+  // 4. 调用 LLM 生成（带回 metadata 用于 usage 记录与 provider 余额扣减）
+  const { text: resultText, metadata: llmMetadata } = await generateTextWithMetadata(
+    modelName,
+    outlinePrompt,
+    effectiveProvider
+  );
 
   // 5. 解析 JSON 结果
   try {
@@ -553,7 +1816,14 @@ ${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个
     // 尝试解析 JSON
     let outline: Outline;
     try {
-      outline = JSON.parse(jsonText) as Outline;
+      const parsed: any = JSON.parse(jsonText);
+      // 如果返回的是包含 outline 字段的对象，提取 outline
+      if (parsed && typeof parsed === 'object' && parsed.outline) {
+        outline = parsed.outline as Outline;
+      } else {
+        // 否则直接使用解析结果作为 outline
+        outline = parsed as Outline;
+      }
     } catch (parseError) {
       // 如果解析失败，尝试修复常见的 JSON 问题
       // 1. 移除尾部的未闭合引号或括号
@@ -582,7 +1852,14 @@ ${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个
       
       // 再次尝试解析
       try {
-        outline = JSON.parse(cleanedJson) as Outline;
+        const parsed: any = JSON.parse(cleanedJson);
+        // 如果返回的是包含 outline 字段的对象，提取 outline
+        if (parsed && typeof parsed === 'object' && parsed.outline) {
+          outline = parsed.outline as Outline;
+        } else {
+          // 否则直接使用解析结果作为 outline
+          outline = parsed as Outline;
+        }
       } catch (retryError) {
         // 如果还是失败，记录详细错误信息
         console.error('[WritingService] JSON 解析失败:', {
@@ -602,7 +1879,14 @@ ${params.expectedNodes ? `- 期望节点总数：约 ${params.expectedNodes} 个
       outline.uid = params.uid;
     }
 
-    return outline;
+    // 返回大纲、角色信息及 LLM metadata（用于 Provider 用量记录与余额扣减）
+    return {
+      outline,
+      characters: castCharacters && castCharacters.length > 0 ? normalizeCharacters(castCharacters) : undefined,
+      _llmMetadata: llmMetadata
+        ? { usage: llmMetadata.usage, model: llmMetadata.model || modelName, provider: llmMetadata.provider || effectiveProvider }
+        : { usage: undefined, model: modelName, provider: effectiveProvider },
+    };
   } catch (error) {
     console.error('[WritingService] 解析大纲 JSON 失败:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -619,7 +1903,8 @@ async function* generateWritingParallel(
   userId: string | undefined,
   provider: ProviderType | undefined,
   enhancedPrompt: string,
-  hasGlobalKnowledgeInPrompt: boolean = false
+  hasGlobalKnowledgeInPrompt: boolean = false,
+  useKnowledge: boolean = true
 ): AsyncGenerator<WritingStreamChunk, void, unknown> {
   const modelName = selectModel('paragraph');
   // 根据 writing_type 和 format 自动判断是否启用 Markdown
@@ -656,7 +1941,12 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
     try {
       // 构建段落 prompt（动态提取参数）
       const currentWritingType = params.writing_type || 'articles';
-      const sectionGuidance = buildWritingGuidance(section, currentWritingType);
+      
+      // 构建写作指导：全局参数作为基础，节点参数作为相对调整
+      const globalGuidance = section.globalParams 
+        ? buildWritingGuidance(section.globalParams, currentWritingType, params.outline_type as any)
+        : [];
+      const sectionGuidance = buildWritingGuidance(section, currentWritingType, params.outline_type as any);
 
       // 检索知识库（优先使用段落配置，否则使用全局配置）
       let sectionKnowledgeContext = '';
@@ -664,7 +1954,7 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
       const knowledgeBaseConfig = section.knowledgeBase || params.knowledgeBase;
       const processStyle = params.process_style || 'silent';
       
-      if (knowledgeBaseConfig && knowledgeBaseConfig.length > 0) {
+      if (useKnowledge && knowledgeBaseConfig && knowledgeBaseConfig.length > 0) {
         const knowledgeResults = await retrieveKnowledge(knowledgeBaseConfig, userId);
         hasKnowledge = hasKnowledgeResults(knowledgeResults, knowledgeBaseConfig);
         sectionKnowledgeContext = formatKnowledgeContext(knowledgeResults, knowledgeBaseConfig);
@@ -681,7 +1971,7 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
         : '';
 
       // 获取写作类型配置（使用已声明的 currentWritingType）
-      // 如果是 lyrics 类型且 format === 'suno'，使用 Suno 格式规则
+      // 特殊格式分支：lyrics+suno / voice-scripts+tts
       let typeRules: string | undefined;
       let typeOutputFormat: string | undefined;
       
@@ -690,23 +1980,73 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
         const sunoFormat = lyricsConfig.getSunoFormatRules!();
         typeRules = sunoFormat.rules;
         typeOutputFormat = sunoFormat.outputformat;
+      } else if (currentWritingType === 'voice-scripts' && params.format === 'tts') {
+        const { voiceScriptsConfig } = await import('./wtconfigs/voice-scripts');
+        const ttsFormat = voiceScriptsConfig.getTtsFormatRules?.();
+        const resolved = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, 'zh');
+        typeRules = ttsFormat?.rules || resolved.rules;
+        typeOutputFormat = ttsFormat?.outputformat || resolved.outputFormat;
       } else {
-        typeRules = getWritingTypeRules(currentWritingType);
-        typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+        const resolved = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, 'zh');
+        typeRules = resolved.rules;
+        typeOutputFormat = resolved.outputFormat;
       }
+
+      // 构建写作指导文本（全局参数作为基础，节点参数作为相对调整）
+      let guidanceText = '';
+      if (globalGuidance.length > 0 || sectionGuidance.length > 0) {
+        guidanceText = '【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：\n';
+        
+        if (globalGuidance.length > 0) {
+          guidanceText += `【整体基础参数】（整篇文章的基础风格，必须始终遵循）：\n${globalGuidance.map(g => `  ${g}`).join('\n')}\n`;
+        }
+        
+        if (sectionGuidance.length > 0) {
+          if (globalGuidance.length > 0) {
+            guidanceText += `【本段落调整参数】（在整体基础参数上的相对调整，用于本段落的特殊需求）：\n${sectionGuidance.map(g => `  ${g}`).join('\n')}\n`;
+            guidanceText += `\n⚠️ 重要：本段落的最终风格 = 整体基础参数 + 本段落调整参数。必须在整体风格基础上进行自然过渡，避免突然的风格转换（例如：不能从"完全批判"突然转到"完全支持"）。`;
+          } else {
+            guidanceText += `${sectionGuidance.join('\n')}\n`;
+          }
+        }
+        
+        guidanceText += `\n⚠️ 关键要求：这些参数是用来指导你如何写作的，不是要输出的内容！
+- ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
+- ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来`;
+      }
+
+      // 根据细分类型添加额外的规则说明
+      const subtypeRules = params.outline_type 
+        ? getSubtypeRules(params.writing_type, params.outline_type)
+        : null;
+
+      // 角色画像与出场角色（cast）
+      const characters = await getCharactersFromParams(params, userId);
+      const charactersText =
+        characters && characters.length > 0
+          ? `【角色画像库】（全局设定，需保持一致，可用于台词/镜头风格化）：\n${formatCharactersForPrompt(characters)}`
+          : '';
+      const castCharacters =
+        characters && characters.length > 0 ? resolveCastCharacters(characters, section.cast) : [];
+      const castText =
+        section.cast && section.cast.length > 0
+          ? castCharacters.length > 0
+            ? `【本段出场角色（cast）】（仅这些角色出场/发言；其他角色不得出现）：\n- ${castCharacters.map((c) => `${c.name}(${c.id})`).join('\n- ')}`
+            : `【本段出场角色（cast）】（按 name/id 引用未匹配到角色画像，请检查）：\n- ${section.cast.join('\n- ')}`
+          : `【本段 cast】未指定（允许纯镜头/旁白/氛围段落，不强制角色出场）`;
 
       const sectionPrompt = `请根据以下要求生成文章段落内容：
 
 ${typeRules ? `${typeRules}
 
 ---` : ''}
-【段落标题】：${section.content}
-${sectionGuidance.length > 0 ? `【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：
-${sectionGuidance.join('\n')}
+${subtypeRules ? `【细分类型要求】：
+${subtypeRules}
 
-⚠️ 关键要求：这些参数是用来指导你如何写作的，不是要输出的内容！
-- ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
-- ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来` : ''}
+---` : ''}
+${charactersText ? `${charactersText}\n\n---\n\n${castText}\n\n---` : ''}
+【段落标题】：${section.content}
+${guidanceText}
 ${sharedSummary ? `【公用总结】（请参考）：
 ${sharedSummary}` : ''}
 ${sectionKnowledgeContext ? `【知识库内容】：
@@ -863,7 +2203,8 @@ async function* generateWritingSequential(
   userId: string | undefined,
   provider: ProviderType | undefined,
   enhancedPrompt: string,
-  hasGlobalKnowledgeInPrompt: boolean = false
+  hasGlobalKnowledgeInPrompt: boolean = false,
+  useKnowledge: boolean = true
 ): AsyncGenerator<WritingStreamChunk, void, unknown> {
   const modelName = selectModel('paragraph');
   // 根据 writing_type 和 format 自动判断是否启用 Markdown
@@ -877,14 +2218,34 @@ async function* generateWritingSequential(
         previousMemory = await compressText(previousMemory, 500, provider);
       }
 
-      // 构建段落 prompt
-      const sectionGuidance: string[] = [];
-      if (section.motivation) sectionGuidance.push(`动机: ${section.motivation}`);
-      if (section.stance) sectionGuidance.push(`立场: ${section.stance}`);
-      if (section.tone) sectionGuidance.push(`语调: ${section.tone}`);
-      if (section.length) sectionGuidance.push(`长度: ${section.length}`);
-      if (section.key_elements && section.key_elements.length > 0) {
-        sectionGuidance.push(`关键要素: ${section.key_elements.join('、')}`);
+      // 构建段落 prompt：全局参数作为基础，节点参数作为相对调整
+      const currentWritingType = params.writing_type || 'articles';
+      const globalGuidance = section.globalParams 
+        ? buildWritingGuidance(section.globalParams, currentWritingType, params.outline_type as any)
+        : [];
+      const sectionGuidance = buildWritingGuidance(section, currentWritingType, params.outline_type as any);
+      
+      // 构建写作指导文本
+      let guidanceText = '';
+      if (globalGuidance.length > 0 || sectionGuidance.length > 0) {
+        guidanceText = '【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：\n';
+        
+        if (globalGuidance.length > 0) {
+          guidanceText += `【整体基础参数】（整篇文章的基础风格，必须始终遵循）：\n${globalGuidance.map(g => `  ${g}`).join('\n')}\n`;
+        }
+        
+        if (sectionGuidance.length > 0) {
+          if (globalGuidance.length > 0) {
+            guidanceText += `【本段落调整参数】（在整体基础参数上的相对调整，用于本段落的特殊需求）：\n${sectionGuidance.map(g => `  ${g}`).join('\n')}\n`;
+            guidanceText += `\n⚠️ 重要：本段落的最终风格 = 整体基础参数 + 本段落调整参数。必须在整体风格基础上进行自然过渡，避免突然的风格转换（例如：不能从"完全批判"突然转到"完全支持"）。`;
+          } else {
+            guidanceText += `${sectionGuidance.join('\n')}\n`;
+          }
+        }
+        
+        guidanceText += `\n⚠️ 关键要求：这些参数是用来指导你如何写作的，不是要输出的内容！
+- ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
+- ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来`;
       }
 
       // 检索知识库（优先使用段落配置，否则使用全局配置）
@@ -895,7 +2256,7 @@ async function* generateWritingSequential(
       const processStyle = params.process_style || 'silent';
       
       // 只有当段落有段落级配置，或者全局知识库没有整合到 enhancedPrompt 中时，才检索和显示知识库
-      if (knowledgeBaseConfig && knowledgeBaseConfig.length > 0) {
+      if (useKnowledge && knowledgeBaseConfig && knowledgeBaseConfig.length > 0) {
         // 如果段落没有段落级配置，且全局知识库已经整合到 enhancedPrompt 中，则跳过
         if (!hasSectionKnowledge && hasGlobalKnowledgeInPrompt) {
           // 仍然需要检查是否有知识（用于 process_style 判断），但不显示在段落 prompt 中
@@ -924,9 +2285,8 @@ async function* generateWritingSequential(
         ? '\n⚠️ 注意：当前没有找到相关的专业知识库内容，请在回答开头使用"我们没有相关的专业知识，但是根据我的了解"作为开头，然后继续回答。'
         : '';
 
-      // 获取写作类型配置
-      const currentWritingType = params.writing_type || 'articles';
-      // 如果是 lyrics 类型且 format === 'suno'，使用 Suno 格式规则
+      // 获取写作类型配置（使用已声明的 currentWritingType）
+      // 特殊格式分支：lyrics+suno / voice-scripts+tts
       let typeRules: string | undefined;
       let typeOutputFormat: string | undefined;
       
@@ -935,16 +2295,48 @@ async function* generateWritingSequential(
         const sunoFormat = lyricsConfig.getSunoFormatRules!();
         typeRules = sunoFormat.rules;
         typeOutputFormat = sunoFormat.outputformat;
+      } else if (currentWritingType === 'voice-scripts' && params.format === 'tts') {
+        const { voiceScriptsConfig } = await import('./wtconfigs/voice-scripts');
+        const ttsFormat = voiceScriptsConfig.getTtsFormatRules?.();
+        const resolved = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, 'zh');
+        typeRules = ttsFormat?.rules || resolved.rules;
+        typeOutputFormat = ttsFormat?.outputformat || resolved.outputFormat;
       } else {
-        typeRules = getWritingTypeRules(currentWritingType);
-        typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+        const resolved = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, 'zh');
+        typeRules = resolved.rules;
+        typeOutputFormat = resolved.outputFormat;
       }
+
+      // 根据细分类型添加额外的规则说明
+      const subtypeRules = params.outline_type 
+        ? getSubtypeRules(params.writing_type, params.outline_type)
+        : null;
+
+      // 角色画像与出场角色（cast）
+      const characters = await getCharactersFromParams(params, userId);
+      const charactersText =
+        characters && characters.length > 0
+          ? `【角色画像库】（全局设定，需保持一致，可用于台词/镜头风格化）：\n${formatCharactersForPrompt(characters)}`
+          : '';
+      const castCharacters =
+        characters && characters.length > 0 ? resolveCastCharacters(characters, section.cast) : [];
+      const castText =
+        section.cast && section.cast.length > 0
+          ? castCharacters.length > 0
+            ? `【本段出场角色（cast）】（仅这些角色出场/发言；其他角色不得出现）：\n- ${castCharacters.map((c) => `${c.name}(${c.id})`).join('\n- ')}`
+            : `【本段出场角色（cast）】（按 name/id 引用未匹配到角色画像，请检查）：\n- ${section.cast.join('\n- ')}`
+          : `【本段 cast】未指定（允许纯镜头/旁白/氛围段落，不强制角色出场）`;
 
       const sectionPrompt = `请根据以下要求生成文章段落内容：
 
 ${typeRules ? `${typeRules}
 
 ---` : ''}
+${subtypeRules ? `【细分类型要求】：
+${subtypeRules}
+
+---` : ''}
+${charactersText ? `${charactersText}\n\n---\n\n${castText}\n\n---` : ''}
 【段落标题】：${section.content}
 ${sectionGuidance.length > 0 ? `【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：
 ${sectionGuidance.join('\n')}
@@ -1075,8 +2467,15 @@ export async function* generateWritingStream(
   let enhancedPrompt = params.prompt;
   let knowledgeResults: Map<string, any[]> | null = null;
   let hasKnowledge = true; // 默认认为有知识（如果没有配置知识库）
-  
-  if (params.knowledgeBase && params.knowledgeBase.length > 0) {
+  const promptConfig = await getPromptFullConfig(
+    'writing',
+    params.writing_type || 'articles',
+    params.outline_type ?? null,
+    'zh'
+  );
+  const useKnowledge = promptConfig?.use_knowledge !== false; // 未配置时默认 true，保持现有行为
+
+  if (useKnowledge && params.knowledgeBase && params.knowledgeBase.length > 0) {
     // 检查是否有段落级知识库配置，如果没有则使用全局配置
     const hasSectionKnowledge = params.outlines?.some(outline => 
       outline.knowledgeBase && outline.knowledgeBase.length > 0
@@ -1091,8 +2490,19 @@ export async function* generateWritingStream(
 
   // 3. 如果有大纲，使用新的多段生成模式
   if (params.outlines && params.outlines.length > 0) {
-    // 展开大纲为扁平列表
-    const sections = expandOutlinesToSections(params.outlines);
+    // 展开大纲为扁平列表，合并全局参数（全局参数作为默认值，节点参数优先）
+    const globalParams = {
+      motivation: params.motivation,
+      stance: params.stance,
+      tone: params.tone,
+      length: params.length,
+      key_elements: params.key_elements,
+    };
+    const sections = expandOutlinesToSections(params.outlines, 0, 0, globalParams);
+
+    const isStoryboardChunkMode = params.writing_type === 'storyboard-scripts';
+    const storyboardChunkSeconds: StoryboardChunkSeconds = (params.storyboard_chunk_seconds ?? 15) as StoryboardChunkSeconds;
+    const storyboardChunkMaxChars = isStoryboardChunkMode ? (CHUNK_MAX_CHARS[storyboardChunkSeconds] ?? 1600) : 0;
     
     // 确定生成模式
     let generationMode = params.generation_mode || 'parallel';
@@ -1103,16 +2513,16 @@ export async function* generateWritingStream(
 
     // 判断 enhancedPrompt 是否已经包含全局知识库内容
     // 如果有全局知识库且没有段落级配置，enhancedPrompt 会包含知识库内容
-    const hasGlobalKnowledgeInPrompt = !!(params.knowledgeBase && params.knowledgeBase.length > 0 && 
+    const hasGlobalKnowledgeInPrompt = useKnowledge && !!(params.knowledgeBase && params.knowledgeBase.length > 0 && 
       !params.outlines?.some(outline => outline.knowledgeBase && outline.knowledgeBase.length > 0));
 
     // 根据模式选择生成函数
     if (generationMode === 'parallel') {
       // 并行模式
-      yield* generateWritingParallel(sections, params, userId, provider, enhancedPrompt, hasGlobalKnowledgeInPrompt);
+      yield* generateWritingParallel(sections, params, userId, provider, enhancedPrompt, hasGlobalKnowledgeInPrompt, useKnowledge);
     } else {
       // 流水形模式
-      yield* generateWritingSequential(sections, params, userId, provider, enhancedPrompt, hasGlobalKnowledgeInPrompt);
+      yield* generateWritingSequential(sections, params, userId, provider, enhancedPrompt, hasGlobalKnowledgeInPrompt, useKnowledge);
     }
     return;
   }
@@ -1129,13 +2539,17 @@ export async function* generateWritingStream(
   }
 
   const taskType: TaskType = 'full';
-  const modelName = selectModel(taskType);
+  const currentWritingType = params.writing_type || 'articles';
+  const businessKey = getWritingBusinessKeyFromParams({ writing_type: currentWritingType }, taskType);
+  const resolved = selectModelWithRouting(businessKey, taskType, provider);
+  const modelName = resolved.modelName;
+  const effectiveProvider = resolved.provider;
 
   // 5. 构建生成 prompt（无大纲时的单次生成）
-  // 获取写作类型配置
-  const currentWritingType = params.writing_type || 'articles';
-  const typeRules = getWritingTypeRules(currentWritingType);
-  const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+  // 获取写作类型配置（并处理特殊 format 分支）
+  const resolvedBase = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, 'zh');
+  let typeRules = resolvedBase.rules;
+  let typeOutputFormat = resolvedBase.outputFormat;
 
   let generatePrompt = enhancedPrompt;
   
@@ -1148,6 +2562,19 @@ export async function* generateWritingStream(
 ---
 
 ${generatePrompt}`;
+  } else if (params.writing_type === 'voice-scripts' && params.format === 'tts') {
+    // voice-scripts + tts：强制使用 TTS 规则与输出格式（要求 <#x#> 停顿标签）
+    const { voiceScriptsConfig } = await import('./wtconfigs/voice-scripts');
+    const ttsFormat = voiceScriptsConfig.getTtsFormatRules?.();
+    if (ttsFormat?.rules) typeRules = ttsFormat.rules;
+    if (ttsFormat?.outputformat) typeOutputFormat = ttsFormat.outputformat;
+    if (typeRules) {
+      generatePrompt = `${typeRules}
+
+---
+
+${generatePrompt}`;
+    }
   } else {
     // 整合写作类型配置的 rules
     if (typeRules) {
@@ -1156,6 +2583,19 @@ ${generatePrompt}`;
 ---
 
 ${generatePrompt}`;
+    }
+  }
+  
+  // 根据细分类型添加额外的规则说明
+  if (params.outline_type) {
+    const subtypeRules = getSubtypeRules(params.writing_type, params.outline_type);
+    if (subtypeRules) {
+      generatePrompt = `${generatePrompt}
+
+---
+
+【细分类型要求】：
+${subtypeRules}`;
     }
   }
   
@@ -1177,8 +2617,9 @@ ${generatePrompt}`;
     
     if (writingGuidance.length > 0) {
       // 获取参数列表用于提示文本
-      const paramList = getWritingParamsForType(currentWritingType);
-      const paramLabels = paramList.map(p => getParamLabel(p, currentWritingType)).join('、');
+      const paramList = getWritingParamsForTypeWithSubtype(currentWritingType as any, params.outline_type as any);
+      const writeLang = params.language ?? 'zh';
+      const paramLabels = paramList.map(p => getParamLabel(p, currentWritingType as any, writeLang, params.outline_type as any)).join(writeLang === 'en' ? ', ' : '、');
       
       generatePrompt = `${generatePrompt}
 
@@ -1243,14 +2684,49 @@ ${generatePrompt}`;
   }
 
   // 5. 调用 LLM 生成（流式）
-  const stream = await generateTextStream(modelName, generatePrompt, provider);
+  const stream = await generateTextStream(modelName, generatePrompt, effectiveProvider);
 
   // 6. 返回流式结果（转换为新的数据结构）
+  // 如果是 Suno JSON 格式，需要收集完整文本后解析
+  let collectedText = '';
+  let isSunoJson = params.writing_type === 'lyrics' && params.format === 'suno';
+  
   for await (const chunk of stream) {
+    const chunkText = chunk.chunk || '';
+    collectedText += chunkText;
+    
+    // 如果是 Suno JSON 且流已完成，尝试解析并格式化
+    if (isSunoJson && chunk.status === 'completed') {
+      const sunoJsonData = parseSunoLyricsJson(collectedText);
+      if (sunoJsonData) {
+        // 返回格式化后的 JSON
+        const formattedJson = JSON.stringify(sunoJsonData, null, 2);
+        // 计算需要补充的文本
+        const remainingText = formattedJson.substring(collectedText.length);
+        if (remainingText) {
+          yield {
+            chunk: remainingText,
+            status: 'completed',
+            collection: formattedJson,
+          };
+        } else {
+          yield {
+            chunk: '',
+            status: 'completed',
+            collection: formattedJson,
+          };
+        }
+        return;
+      } else {
+        // 解析失败，使用原始文本
+        console.warn('[Writing Service] Suno 歌词 JSON 解析失败，使用原始文本');
+      }
+    }
+    
     yield {
-      chunk: chunk.chunk || '',
+      chunk: chunkText,
       status: chunk.status || 'streaming',
-      collection: chunk.collection || '',
+      collection: collectedText,
     };
   }
 }
@@ -1281,8 +2757,15 @@ export async function generateWriting(
   let enhancedPrompt = params.prompt;
   let knowledgeResults: Map<string, any[]> | null = null;
   let hasKnowledge = true; // 默认认为有知识（如果没有配置知识库）
-  
-  if (params.knowledgeBase && params.knowledgeBase.length > 0) {
+  const promptConfig = await getPromptFullConfig(
+    'writing',
+    params.writing_type || 'articles',
+    params.outline_type ?? null,
+    'zh'
+  );
+  const useKnowledge = promptConfig?.use_knowledge !== false; // 未配置时默认 true，保持现有行为
+
+  if (useKnowledge && params.knowledgeBase && params.knowledgeBase.length > 0) {
     // 检查是否有段落级知识库配置，如果没有则使用全局配置
     const hasSectionKnowledge = params.outlines?.some(outline => 
       outline.knowledgeBase && outline.knowledgeBase.length > 0
@@ -1297,9 +2780,29 @@ export async function generateWriting(
 
   // 3. 如果有大纲，使用新的多段生成模式
   if (params.outlines && params.outlines.length > 0) {
-    // 展开大纲为扁平列表
-    const sections = expandOutlinesToSections(params.outlines);
-    
+    // 展开大纲为扁平列表，合并全局参数（全局参数作为默认值，节点参数优先）
+    const globalParams = {
+      motivation: params.motivation,
+      stance: params.stance,
+      tone: params.tone,
+      length: params.length,
+      key_elements: params.key_elements,
+    };
+    const sections = expandOutlinesToSections(params.outlines, 0, 0, globalParams);
+
+    const isStoryboardChunkMode = params.writing_type === 'storyboard-scripts';
+    const storyboardChunkSeconds: StoryboardChunkSeconds = (params.storyboard_chunk_seconds ?? 15) as StoryboardChunkSeconds;
+    const storyboardChunkMaxChars = isStoryboardChunkMode ? (CHUNK_MAX_CHARS[storyboardChunkSeconds] ?? 1600) : 0;
+    // 有大纲时分镜：若传了期望总时长（秒），则按总时长与段落数分配每段约多少 chunk，用于控制总时长
+    const rawTotalSec = params.storyboard_total_duration_seconds;
+    const targetTotalSec = (rawTotalSec != null && Number(rawTotalSec) >= storyboardChunkSeconds)
+      ? Math.max(storyboardChunkSeconds, Math.floor(Number(rawTotalSec)))
+      : 0;
+    const expectedChunksTotal = targetTotalSec > 0 ? Math.max(1, Math.ceil(targetTotalSec / storyboardChunkSeconds)) : 0;
+    const expectedChunksPerSection = (isStoryboardChunkMode && expectedChunksTotal > 0 && sections.length > 0)
+      ? Math.max(1, Math.ceil(expectedChunksTotal / sections.length))
+      : undefined;
+
     if (onProgress) {
       await onProgress(20, `已展开大纲，共 ${sections.length} 个段落`);
     }
@@ -1313,6 +2816,8 @@ export async function generateWriting(
 
     // 收集所有段落内容
     const sectionContents: Array<{ position: number; content: string }> = [];
+    // 用于多轮 LLM 调用的 usage 累加（Provider 扣费 + 用户 MXM-TOKEN 扣费）
+    const usageAccumulator = createUsageAccumulator();
     
     // 进度分配：30% 开始，80% 完成所有段落生成
     // 并行模式：30% 开始，35% 总结完成，35-80% 段落生成（每个段落占 (80-35)/段落数）
@@ -1341,7 +2846,9 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
         if (onProgress) {
           await onProgress(30, '开始生成公用总结...');
         }
-        sharedSummary = await generateText(modelName, summaryPrompt, provider);
+        const { text, metadata } = await generateTextWithMetadata(modelName, summaryPrompt, provider);
+        addUsage(usageAccumulator, metadata);
+        sharedSummary = text;
         if (onProgress) {
           await onProgress(35, '公用总结生成完成');
         }
@@ -1358,9 +2865,35 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
       
       const sectionPromises = sections.map(async (section, index) => {
         try {
-          // 构建段落指导参数（动态提取）
+          // 构建段落指导参数（动态提取）：全局参数作为基础，节点参数作为相对调整
           const currentWritingType = params.writing_type || 'articles';
-          const sectionGuidance = buildWritingGuidance(section, currentWritingType);
+          const globalGuidance = section.globalParams 
+            ? buildWritingGuidance(section.globalParams, currentWritingType, params.outline_type as any)
+            : [];
+          const sectionGuidance = buildWritingGuidance(section, currentWritingType, params.outline_type as any);
+          
+          // 构建写作指导文本
+          let guidanceText = '';
+          if (globalGuidance.length > 0 || sectionGuidance.length > 0) {
+            guidanceText = '【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：\n';
+            
+            if (globalGuidance.length > 0) {
+              guidanceText += `【整体基础参数】（整篇文章的基础风格，必须始终遵循）：\n${globalGuidance.map(g => `  ${g}`).join('\n')}\n`;
+            }
+            
+            if (sectionGuidance.length > 0) {
+              if (globalGuidance.length > 0) {
+                guidanceText += `【本段落调整参数】（在整体基础参数上的相对调整，用于本段落的特殊需求）：\n${sectionGuidance.map(g => `  ${g}`).join('\n')}\n`;
+                guidanceText += `\n⚠️ 重要：本段落的最终风格 = 整体基础参数 + 本段落调整参数。必须在整体风格基础上进行自然过渡，避免突然的风格转换（例如：不能从"完全批判"突然转到"完全支持"）。`;
+              } else {
+                guidanceText += `${sectionGuidance.join('\n')}\n`;
+              }
+            }
+            
+            guidanceText += `\n⚠️ 关键要求：这些参数是用来指导你如何写作的，不是要输出的内容！
+- ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
+- ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来`;
+          }
 
           // 检索知识库
           let sectionKnowledgeContext = '';
@@ -1370,11 +2903,11 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
           const processStyle = params.process_style || 'silent';
           
           // 判断 enhancedPrompt 是否已经包含全局知识库内容
-          const hasGlobalKnowledgeInPrompt = !!(params.knowledgeBase && params.knowledgeBase.length > 0 && 
+          const hasGlobalKnowledgeInPrompt = useKnowledge && !!(params.knowledgeBase && params.knowledgeBase.length > 0 && 
             !params.outlines?.some(outline => outline.knowledgeBase && outline.knowledgeBase.length > 0));
           
           // 只有当段落有段落级配置，或者全局知识库没有整合到 enhancedPrompt 中时，才检索和显示知识库
-          if (knowledgeBaseConfig && knowledgeBaseConfig.length > 0) {
+          if (useKnowledge && knowledgeBaseConfig && knowledgeBaseConfig.length > 0) {
             // 如果段落没有段落级配置，且全局知识库已经整合到 enhancedPrompt 中，则跳过
             if (!hasSectionKnowledge && hasGlobalKnowledgeInPrompt) {
               // 仍然需要检查是否有知识（用于 process_style 判断），但不显示在段落 prompt 中
@@ -1404,7 +2937,7 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
             : '';
 
           // 获取写作类型配置（使用已声明的 currentWritingType）
-          // 如果是 lyrics 类型且 format === 'suno'，使用 Suno 格式规则
+          // 特殊格式分支：lyrics+suno / voice-scripts+tts
           let typeRules: string | undefined;
           let typeOutputFormat: string | undefined;
           
@@ -1413,23 +2946,54 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
             const sunoFormat = lyricsConfig.getSunoFormatRules!();
             typeRules = sunoFormat.rules;
             typeOutputFormat = sunoFormat.outputformat;
+          } else if (currentWritingType === 'voice-scripts' && params.format === 'tts') {
+            const { voiceScriptsConfig } = await import('./wtconfigs/voice-scripts');
+            const ttsFormat = voiceScriptsConfig.getTtsFormatRules?.();
+            const resolved = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, 'zh');
+            typeRules = ttsFormat?.rules || resolved.rules;
+            typeOutputFormat = ttsFormat?.outputformat || resolved.outputFormat;
+          } else if (currentWritingType === 'storyboard-scripts' && isStoryboardChunkMode) {
+            const resolved = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, 'zh');
+            typeRules = resolved.rules;
+            typeOutputFormat = await resolveStoryboardOutputFormat(storyboardChunkSeconds, storyboardChunkMaxChars, expectedChunksPerSection);
           } else {
-            typeRules = getWritingTypeRules(currentWritingType);
-            typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+            const resolved = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, 'zh');
+            typeRules = resolved.rules;
+            typeOutputFormat = resolved.outputFormat;
           }
+
+          // 根据细分类型添加额外的规则说明
+          const subtypeRules = params.outline_type 
+            ? getSubtypeRules(params.writing_type, params.outline_type)
+            : null;
+
+          // 角色画像与出场角色（cast）
+          const characters = await getCharactersFromParams(params, userId);
+          const charactersText =
+            characters && characters.length > 0
+              ? `【角色画像库】（全局设定，需保持一致，可用于台词/镜头风格化）：\n${formatCharactersForPrompt(characters)}`
+              : '';
+          const castCharacters =
+            characters && characters.length > 0 ? resolveCastCharacters(characters, section.cast) : [];
+          const castText =
+            section.cast && section.cast.length > 0
+              ? castCharacters.length > 0
+                ? `【本段出场角色（cast）】（仅这些角色出场/发言；其他角色不得出现）：\n- ${castCharacters.map((c) => `${c.name}(${c.id})`).join('\n- ')}`
+                : `【本段出场角色（cast）】（按 name/id 引用未匹配到角色画像，请检查）：\n- ${section.cast.join('\n- ')}`
+              : `【本段 cast】未指定（允许纯镜头/旁白/氛围段落，不强制角色出场）`;
 
           const sectionPrompt = `请根据以下要求生成文章段落内容：
 
 ${typeRules ? `${typeRules}
 
 ---` : ''}
-【段落标题】：${section.content}
-${sectionGuidance.length > 0 ? `【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：
-${sectionGuidance.join('\n')}
+${subtypeRules ? `【细分类型要求】：
+${subtypeRules}
 
-⚠️ 关键要求：这些参数是用来指导你如何写作的，不是要输出的内容！
-- ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
-- ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来` : ''}
+---` : ''}
+${charactersText ? `${charactersText}\n\n---\n\n${castText}\n\n---` : ''}
+【段落标题】：${section.content}
+${guidanceText}
 ${sharedSummary ? `【公用总结】（请参考）：
 ${sharedSummary}` : ''}
 ${sectionKnowledgeContext ? `【知识库内容】：
@@ -1446,8 +3010,8 @@ ${typeOutputFormat}` : ''}
 1. **绝对禁止**：不要在生成的段落内容中输出"动机：xxx"、"立场：xxx"、"语调：xxx"、"关键要素：xxx"等参数文字
 2. **正确做法**：根据写作指导参数来组织内容，让内容自然体现这些参数的要求，但不要明确说出来
 3. 必须严格遵守字数要求：${section.length || '根据内容需要'}
-4. 输出格式：使用 <section> </section> 包裹整个段落内容
-5. ${shouldEnableMarkdown(params.writing_type, params.format) 
+4. 输出格式：${isStoryboardChunkMode ? '**仅输出一个合法的 JSON 对象**，包含 "chunks" 数组；每个 chunk 必须按字段填写 video_description、dialogue、camera_movement、sound_effects、transition（见上方【输出要求】）。不要输出 <section> 或 Markdown 或解释文字。' : '使用 <section> </section> 包裹整个段落内容'}
+5. ${!isStoryboardChunkMode && shouldEnableMarkdown(params.writing_type, params.format) 
   ? `**Markdown 格式要求**（必须严格遵守）：
    - 段落标题必须使用 Markdown 标题语法：一级标题用 #，二级标题用 ##，三级标题用 ###
    - 根据大纲层级使用对应的标题级别（主章节用 #，子章节用 ##，子子章节用 ###）
@@ -1455,18 +3019,19 @@ ${typeOutputFormat}` : ''}
    - 可以使用引用（>）、代码块（\`\`\`）、表格（|）等 Markdown 语法
    - 段落之间使用空行分隔
    - 在 <section> 标签内的内容必须使用完整的 Markdown 格式` 
-  : `**纯文本格式要求**：
+  : !isStoryboardChunkMode ? `**纯文本格式要求**：
    - 不使用任何 Markdown 语法
    - 只使用空格和换行符进行格式化
    - 标题使用空行分隔，不使用 # 等符号
-   - 列表使用数字或符号，但不要使用 Markdown 列表语法`}
+   - 列表使用数字或符号，但不要使用 Markdown 列表语法` : ''}
 6. 如果该段落没有配置（无 motivation、stance、tone、length、key_elements），则只生成标题，无实际内容
 
-请开始生成段落正文（不要输出任何参数说明）：`;
+请开始生成${isStoryboardChunkMode ? '分镜 JSON（仅输出 JSON，不要输出任何参数说明）' : '段落正文（不要输出任何参数说明）'}：`;
 
-          const sectionText = await generateText(modelName, sectionPrompt, provider);
-          const sectionMatch = sectionText.match(/<section[^>]*>([\s\S]*?)<\/section>/);
-          let content = sectionMatch ? sectionMatch[1].trim() : sectionText.trim();
+          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName, sectionPrompt, provider);
+          addUsage(usageAccumulator, sectionMeta);
+          const sectionMatch = !isStoryboardChunkMode ? sectionText.match(/<section[^>]*>([\s\S]*?)<\/section>/) : null;
+          let content = isStoryboardChunkMode ? sectionText.trim() : (sectionMatch ? sectionMatch[1].trim() : sectionText.trim());
           
           // 解释模式：如果没有知识库内容，在结果前添加说明前缀
           if (processStyle === 'explain' && !hasKnowledge) {
@@ -1534,12 +3099,38 @@ ${typeOutputFormat}` : ''}
           
           // 压缩记忆
           if (previousMemory.length > 500) {
-            previousMemory = await compressText(previousMemory, 500, provider);
+            previousMemory = await compressText(previousMemory, 500, provider, usageAccumulator);
           }
 
-          // 构建段落指导参数（动态提取）
+          // 构建段落指导参数（动态提取）：全局参数作为基础，节点参数作为相对调整
           const currentWritingType = params.writing_type || 'articles';
-          const sectionGuidance = buildWritingGuidance(section, currentWritingType);
+          const globalGuidance = section.globalParams 
+            ? buildWritingGuidance(section.globalParams, currentWritingType, params.outline_type as any)
+            : [];
+          const sectionGuidance = buildWritingGuidance(section, currentWritingType, params.outline_type as any);
+          
+          // 构建写作指导文本
+          let guidanceText = '';
+          if (globalGuidance.length > 0 || sectionGuidance.length > 0) {
+            guidanceText = '【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：\n';
+            
+            if (globalGuidance.length > 0) {
+              guidanceText += `【整体基础参数】（整篇文章的基础风格，必须始终遵循）：\n${globalGuidance.map(g => `  ${g}`).join('\n')}\n`;
+            }
+            
+            if (sectionGuidance.length > 0) {
+              if (globalGuidance.length > 0) {
+                guidanceText += `【本段落调整参数】（在整体基础参数上的相对调整，用于本段落的特殊需求）：\n${sectionGuidance.map(g => `  ${g}`).join('\n')}\n`;
+                guidanceText += `\n⚠️ 重要：本段落的最终风格 = 整体基础参数 + 本段落调整参数。必须在整体风格基础上进行自然过渡，避免突然的风格转换（例如：不能从"完全批判"突然转到"完全支持"）。`;
+              } else {
+                guidanceText += `${sectionGuidance.join('\n')}\n`;
+              }
+            }
+            
+            guidanceText += `\n⚠️ 关键要求：这些参数是用来指导你如何写作的，不是要输出的内容！
+- ❌ 错误示例：不要在正文中写"动机：xxx"、"语调：xxx"这样的文字
+- ✅ 正确做法：根据这些参数来组织语言和内容，让读者感受到相应的动机、立场和语调，但不要明确说出来`;
+          }
 
           // 检索知识库
           let sectionKnowledgeContext = '';
@@ -1549,11 +3140,11 @@ ${typeOutputFormat}` : ''}
           const processStyle = params.process_style || 'silent';
           
           // 判断 enhancedPrompt 是否已经包含全局知识库内容
-          const hasGlobalKnowledgeInPrompt = !!(params.knowledgeBase && params.knowledgeBase.length > 0 && 
+          const hasGlobalKnowledgeInPrompt = useKnowledge && !!(params.knowledgeBase && params.knowledgeBase.length > 0 && 
             !params.outlines?.some(outline => outline.knowledgeBase && outline.knowledgeBase.length > 0));
           
           // 只有当段落有段落级配置，或者全局知识库没有整合到 enhancedPrompt 中时，才检索和显示知识库
-          if (knowledgeBaseConfig && knowledgeBaseConfig.length > 0) {
+          if (useKnowledge && knowledgeBaseConfig && knowledgeBaseConfig.length > 0) {
             // 如果段落没有段落级配置，且全局知识库已经整合到 enhancedPrompt 中，则跳过
             if (!hasSectionKnowledge && hasGlobalKnowledgeInPrompt) {
               // 仍然需要检查是否有知识（用于 process_style 判断），但不显示在段落 prompt 中
@@ -1583,14 +3174,50 @@ ${typeOutputFormat}` : ''}
             : '';
 
           // 获取写作类型配置（使用已声明的 currentWritingType）
-          const typeRules = getWritingTypeRules(currentWritingType);
-          const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+          const resolvedSection = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, 'zh');
+          const typeRules = resolvedSection.rules;
+          const typeOutputFormat = (currentWritingType === 'storyboard-scripts' && isStoryboardChunkMode)
+            ? await resolveStoryboardOutputFormat(storyboardChunkSeconds, storyboardChunkMaxChars)
+            : resolvedSection.outputFormat;
 
-          const sectionPrompt = `请根据以下要求生成文章段落内容：
+          // 根据细分类型和节奏添加额外的规则说明
+          const subtypeRules = params.outline_type 
+            ? getSubtypeRules(params.writing_type, params.outline_type)
+            : null;
+          const rhythmRules =
+            currentWritingType === 'storyboard-scripts' && isStoryboardChunkMode
+              ? getStoryboardRhythmRules(params.rhythm, storyboardChunkSeconds)
+              : null;
+
+          // 角色画像与出场角色（cast）
+          const characters = await getCharactersFromParams(params, userId);
+          const charactersText =
+            characters && characters.length > 0
+              ? `【角色画像库】（全局设定，需保持一致，可用于台词/镜头风格化）：\n${formatCharactersForPrompt(characters)}`
+              : '';
+          const castCharacters =
+            characters && characters.length > 0 ? resolveCastCharacters(characters, section.cast) : [];
+          const castText =
+            section.cast && section.cast.length > 0
+              ? castCharacters.length > 0
+                ? `【本段出场角色（cast）】（仅这些角色出场/发言；其他角色不得出现）：\n- ${castCharacters.map((c) => `${c.name}(${c.id})`).join('\n- ')}`
+                : `【本段出场角色（cast）】（按 name/id 引用未匹配到角色画像，请检查）：\n- ${section.cast.join('\n- ')}`
+              : `【本段 cast】未指定（允许纯镜头/旁白/氛围段落，不强制角色出场）`;
+
+          const sectionPrompt = `请根据以下要求生成${isStoryboardChunkMode ? '本段分镜 JSON' : '文章段落内容'}：
 
 ${typeRules ? `${typeRules}
 
 ---` : ''}
+${subtypeRules ? `【细分类型要求】：
+${subtypeRules}
+
+---` : ''}
+${rhythmRules ? `【节奏要求】：
+${rhythmRules}
+
+---` : ''}
+${charactersText ? `${charactersText}\n\n---\n\n${castText}\n\n---` : ''}
 【段落标题】：${section.content}
 ${sectionGuidance.length > 0 ? `【写作指导】（重要：这些是写作参数，用于指导你的写作风格和内容，绝对不要直接输出这些参数本身）：
 ${sectionGuidance.join('\n')}
@@ -1614,8 +3241,8 @@ ${typeOutputFormat}` : ''}
 1. **绝对禁止**：不要在生成的段落内容中输出"动机：xxx"、"立场：xxx"、"语调：xxx"、"关键要素：xxx"等参数文字
 2. **正确做法**：根据写作指导参数来组织内容，让内容自然体现这些参数的要求，但不要明确说出来
 3. 必须严格遵守字数要求：${section.length || '根据内容需要'}
-4. 输出格式：使用 <section> </section> 包裹整个段落内容
-5. ${shouldEnableMarkdown(params.writing_type, params.format) 
+4. 输出格式：${isStoryboardChunkMode ? '**仅输出一个合法的 JSON 对象**，包含 "chunks" 数组；每个 chunk 必须按字段填写 video_description、dialogue、camera_movement、sound_effects、transition（见上方【输出要求】）。不要输出 <section> 或 Markdown 或解释文字。' : '使用 <section> </section> 包裹整个段落内容'}
+5. ${!isStoryboardChunkMode && shouldEnableMarkdown(params.writing_type, params.format) 
   ? `**Markdown 格式要求**（必须严格遵守）：
    - 段落标题必须使用 Markdown 标题语法：一级标题用 #，二级标题用 ##，三级标题用 ###
    - 根据大纲层级使用对应的标题级别（主章节用 #，子章节用 ##，子子章节用 ###）
@@ -1623,22 +3250,23 @@ ${typeOutputFormat}` : ''}
    - 可以使用引用（>）、代码块（\`\`\`）、表格（|）等 Markdown 语法
    - 段落之间使用空行分隔
    - 在 <section> 标签内的内容必须使用完整的 Markdown 格式` 
-  : `**纯文本格式要求**：
+  : !isStoryboardChunkMode ? `**纯文本格式要求**：
    - 不使用任何 Markdown 语法
    - 只使用空格和换行符进行格式化
    - 标题使用空行分隔，不使用 # 等符号
-   - 列表使用数字或符号，但不要使用 Markdown 列表语法`}
+   - 列表使用数字或符号，但不要使用 Markdown 列表语法` : ''}
 6. 如果该段落没有配置（无 motivation、stance、tone、length、key_elements），则只生成标题，无实际内容
 7. 与前文保持逻辑连贯，自然过渡
 
-请开始生成段落正文（不要输出任何参数说明）：`;
+请开始生成${isStoryboardChunkMode ? '分镜 JSON（仅输出 JSON，不要输出任何参数说明）' : '段落正文（不要输出任何参数说明）'}：`;
 
-          const sectionText = await generateText(modelName, sectionPrompt, provider);
-          const sectionMatch = sectionText.match(/<section[^>]*>([\s\S]*?)<\/section>/);
-          let content = sectionMatch ? sectionMatch[1].trim() : sectionText.trim();
+          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName, sectionPrompt, provider);
+          addUsage(usageAccumulator, sectionMeta);
+          const sectionMatch = !isStoryboardChunkMode ? sectionText.match(/<section[^>]*>([\s\S]*?)<\/section>/) : null;
+          let content = isStoryboardChunkMode ? sectionText.trim() : (sectionMatch ? sectionMatch[1].trim() : sectionText.trim());
           
-          // 解释模式：如果没有知识库内容，在结果前添加说明前缀
-          if (processStyle === 'explain' && !hasKnowledge) {
+          // 解释模式：如果没有知识库内容，在结果前添加说明前缀（分镜模式不添加）
+          if (!isStoryboardChunkMode && processStyle === 'explain' && !hasKnowledge) {
             const explainPrefix = '我们没有相关的专业知识，但是根据我的了解，';
             if (!content.startsWith(explainPrefix)) {
               content = explainPrefix + content;
@@ -1668,6 +3296,77 @@ ${typeOutputFormat}` : ''}
 
     // 按 position 排序并拼接
     sectionContents.sort((a, b) => a.position - b.position);
+
+    // 分镜脚本 JSON chunk 模式（有大纲时：每段可能为 JSON chunks，合并后返回）
+    if (isStoryboardChunkMode) {
+      const allChunks: StoryboardChunk[] = [];
+      for (const sc of sectionContents) {
+        try {
+          const parsed = parseStoryboardChunksJson(sc.content, storyboardChunkSeconds, params.rhythm);
+          if (parsed.chunks?.length) {
+            allChunks.push(...parsed.chunks);
+          }
+        } catch {
+          // 某段不是 JSON，忽略或当作单段描述生成一个 chunk
+          if (sc.content?.trim()) {
+            allChunks.push({
+              index: allChunks.length + 1,
+              chunk_seconds: storyboardChunkSeconds,
+              video_description: sc.content.trim(),
+              prompt: '',
+            });
+          }
+        }
+      }
+      if (allChunks.length > 0) {
+        // 若用户指定了期望总时长，则严格截断到预期 chunk 总数，避免返回远超期望时长的结果
+        const finalChunks =
+          expectedChunksTotal > 0 && allChunks.length > expectedChunksTotal
+            ? allChunks.slice(0, expectedChunksTotal)
+            : allChunks;
+        finalChunks.forEach((c, i) => { c.index = i + 1; });
+        fillChunkPrompts(finalChunks);
+        const totalDurationSeconds = finalChunks.length * storyboardChunkSeconds;
+        const payload = {
+          chunks: finalChunks,
+          metadata: {
+            ...params.metadata,
+            total_duration_seconds: totalDurationSeconds,
+            chunk_seconds: storyboardChunkSeconds,
+          },
+        };
+        const formattedContent = JSON.stringify(payload, null, 2);
+        const format: StorageFormat = 'json';
+        const wordCount = formattedContent.length;
+        const fileSize = Buffer.byteLength(formattedContent, 'utf-8');
+        let storageInfo: WritingResult['storageInfo'] = undefined;
+        if (params.storeToMinio !== false) {
+          if (onProgress) await onProgress(90, '正在保存到 MinIO...');
+          const storageRepo = RepositoryFactory.createStorageRepository();
+          const timestamp = Date.now();
+          const randomStr = Math.random().toString(36).substring(2, 8);
+          const key = `${userId || 'anonymous'}/writing/${timestamp}-${randomStr}.json`;
+          const bucket = 'user-media';
+          await storageRepo.uploadFile(bucket, key, Buffer.from(formattedContent, 'utf-8'), {
+            contentType: `${getMimeType(format)}; charset=utf-8`,
+            metadata: { 'user-id': userId || 'anonymous', format, 'word-count': wordCount.toString() },
+          });
+          const url = await storageRepo.getPresignedUrl(bucket, key, 7 * 24 * 60 * 60);
+          storageInfo = { key, bucket, url };
+          if (onProgress) await onProgress(95, '文件已保存到 MinIO');
+        }
+        const llmMeta = toLlmMetadata(usageAccumulator);
+        return {
+          text: formattedContent,
+          formattedContent,
+          format,
+          storageInfo,
+          metadata: { wordCount, fileSize, ...params.metadata },
+          ...(llmMeta ? { _llmMetadata: llmMeta } : {}),
+        };
+      }
+    }
+
     const generatedText = sectionContents.map(sc => sc.content).join('\n\n');
 
     if (onProgress) {
@@ -1726,6 +3425,7 @@ ${typeOutputFormat}` : ''}
       }
     }
 
+    const llmMeta = toLlmMetadata(usageAccumulator);
     return {
       text: generatedText,
       formattedContent,
@@ -1736,6 +3436,7 @@ ${typeOutputFormat}` : ''}
         fileSize,
         ...params.metadata,
       },
+      ...(llmMeta ? { _llmMetadata: llmMeta } : {}),
     };
   }
 
@@ -1750,14 +3451,134 @@ ${typeOutputFormat}` : ''}
     }
   }
 
+  // 4.2. 分镜脚本 JSON chunk 模式（无大纲时单次生成整片 chunks）
+  if (
+    (!params.outlines || params.outlines.length === 0) &&
+    params.writing_type === 'storyboard-scripts'
+  ) {
+    const chunkSeconds: StoryboardChunkSeconds = (params.storyboard_chunk_seconds ?? 15) as StoryboardChunkSeconds;
+    const maxChars = CHUNK_MAX_CHARS[chunkSeconds] ?? 1600;
+    const rawTotalSec = params.storyboard_total_duration_seconds;
+    const targetTotalSeconds = rawTotalSec != null && Number(rawTotalSec) >= chunkSeconds
+      ? Math.max(chunkSeconds, Math.floor(Number(rawTotalSec)))
+      : Math.max(chunkSeconds * 2, 30);
+    const expectedChunkCount = Math.max(1, Math.ceil(targetTotalSeconds / chunkSeconds));
+    const modelName = selectModel('full');
+    const outputFormatJson = await resolveStoryboardOutputFormat(chunkSeconds, maxChars, expectedChunkCount);
+    // 分镜脚本：直接以 DB 中的细分类型规则为准（writing/storyboard-scripts/{outline_type}），
+    // 无细分类型时才使用 type 级（subtype = null）配置作为回退
+    const { rules: resolvedRules } = await getWritingRulesAndFormatResolved(
+      'storyboard-scripts',
+      params.outline_type ?? null,
+      'zh'
+    );
+    const rhythmRules = getStoryboardRhythmRules(params.rhythm, chunkSeconds);
+    let storyboardPrompt = `${resolvedRules || ''}
+
+---
+
+【输出要求】
+${outputFormatJson}`;
+    if (rhythmRules) {
+      storyboardPrompt += `
+
+【节奏要求】：
+${rhythmRules}`;
+    }
+    storyboardPrompt += `
+
+---
+
+用户需求：
+${enhancedPrompt}`;
+
+    if (onProgress) {
+      await onProgress(50, '正在生成分镜 JSON...');
+    }
+    const noOutlineUsageAccumulator = createUsageAccumulator();
+    const { text: rawText, metadata: storyboardMeta } = await generateTextWithMetadata(modelName, storyboardPrompt, provider);
+    addUsage(noOutlineUsageAccumulator, storyboardMeta);
+    const parsed = parseStoryboardChunksJson(rawText, chunkSeconds, params.rhythm);
+    if (!parsed.chunks?.length) {
+      throw new Error('分镜脚本生成失败：无法解析 JSON 或 chunks 为空。请检查 LLM 返回内容。');
+    }
+    let chunks: StoryboardChunk[] = parsed.chunks;
+    // 仅当用户明确传入期望总时长时，截断到预期 chunk 数，避免返回远超期望时长的结果
+    if (params.storyboard_total_duration_seconds != null && Number(params.storyboard_total_duration_seconds) > 0 && chunks.length > expectedChunkCount) {
+      chunks = chunks.slice(0, expectedChunkCount);
+      chunks.forEach((c, idx) => { c.index = idx + 1; });
+    }
+    fillChunkPrompts(chunks);
+    const totalDurationSeconds = chunks.length * chunkSeconds;
+    const payload = {
+      chunks,
+      metadata: {
+        ...params.metadata,
+        total_duration_seconds: totalDurationSeconds,
+        chunk_seconds: chunkSeconds,
+      },
+    };
+    const formattedContent = JSON.stringify(payload, null, 2);
+    const format: StorageFormat = 'json';
+    const wordCount = formattedContent.length;
+    const fileSize = Buffer.byteLength(formattedContent, 'utf-8');
+
+    let storageInfo: WritingResult['storageInfo'] | undefined;
+    if (params.storeToMinio !== false) {
+      if (onProgress) {
+        await onProgress(90, '正在保存到 MinIO...');
+      }
+      const storageRepo = RepositoryFactory.createStorageRepository();
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 8);
+      const key = `${userId || 'anonymous'}/writing/${timestamp}-${randomStr}.json`;
+      const bucket = 'user-media';
+      await storageRepo.uploadFile(
+        bucket,
+        key,
+        Buffer.from(formattedContent, 'utf-8'),
+        {
+          contentType: `${getMimeType(format)}; charset=utf-8`,
+          metadata: {
+            'user-id': userId || 'anonymous',
+            format,
+            'word-count': wordCount.toString(),
+          },
+        }
+      );
+      const url = await storageRepo.getPresignedUrl(bucket, key, 7 * 24 * 60 * 60);
+      storageInfo = { key, bucket, url };
+      if (onProgress) {
+        await onProgress(95, '文件已保存到 MinIO');
+      }
+    }
+
+    const storyboardLlmMeta = toLlmMetadata(noOutlineUsageAccumulator);
+    return {
+      text: formattedContent,
+      formattedContent,
+      format,
+      storageInfo,
+      metadata: {
+        wordCount,
+        fileSize,
+        ...params.metadata,
+      },
+      ...(storyboardLlmMeta ? { _llmMetadata: storyboardLlmMeta } : {}),
+    };
+  }
+
   const taskType: TaskType = 'full';
-  const modelName = selectModel(taskType);
+  const currentWritingType = params.writing_type || 'articles';
+  const businessKey = getWritingBusinessKeyFromParams({ writing_type: currentWritingType }, taskType);
+  const resolved = selectModelWithRouting(businessKey, taskType, provider);
+  const modelName = resolved.modelName;
+  const effectiveProvider = resolved.provider;
 
   // 5. 构建生成 prompt
-  // 获取写作类型配置
-  const currentWritingType = params.writing_type || 'articles';
-  const typeRules = getWritingTypeRules(currentWritingType);
-  const typeOutputFormat = getWritingTypeOutputFormat(currentWritingType);
+  const resolvedFinal = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, 'zh');
+  let typeRules = resolvedFinal.rules;
+  let typeOutputFormat = resolvedFinal.outputFormat;
   
   let generatePrompt = enhancedPrompt;
   
@@ -1770,6 +3591,19 @@ ${typeOutputFormat}` : ''}
 ---
 
 ${generatePrompt}`;
+  } else if (params.writing_type === 'voice-scripts' && params.format === 'tts') {
+    // voice-scripts + tts：强制使用 TTS 规则与输出格式（要求 <#x#> 停顿标签）
+    const { voiceScriptsConfig } = await import('./wtconfigs/voice-scripts');
+    const ttsFormat = voiceScriptsConfig.getTtsFormatRules?.();
+    if (ttsFormat?.rules) typeRules = ttsFormat.rules;
+    if (ttsFormat?.outputformat) typeOutputFormat = ttsFormat.outputformat;
+    if (typeRules) {
+      generatePrompt = `${typeRules}
+
+---
+
+${generatePrompt}`;
+    }
   } else {
     // 整合写作类型配置的 rules
     if (typeRules) {
@@ -1778,6 +3612,19 @@ ${generatePrompt}`;
 ---
 
 ${generatePrompt}`;
+    }
+  }
+  
+  // 根据细分类型添加额外的规则说明
+  if (params.outline_type) {
+    const subtypeRules = getSubtypeRules(params.writing_type, params.outline_type);
+    if (subtypeRules) {
+      generatePrompt = `${generatePrompt}
+
+---
+
+【细分类型要求】：
+${subtypeRules}`;
     }
   }
   
@@ -1798,8 +3645,9 @@ ${generatePrompt}`;
     
     if (writingGuidance.length > 0) {
       // 获取参数列表用于提示文本
-      const paramList = getWritingParamsForType(currentWritingType);
-      const paramLabels = paramList.map(p => getParamLabel(p, currentWritingType)).join('、');
+      const paramList = getWritingParamsForTypeWithSubtype(currentWritingType as any, params.outline_type as any);
+      const writeLang = params.language ?? 'zh';
+      const paramLabels = paramList.map(p => getParamLabel(p, currentWritingType as any, writeLang, params.outline_type as any)).join(writeLang === 'en' ? ', ' : '、');
       
       generatePrompt = `${generatePrompt}
 
@@ -1864,14 +3712,39 @@ ${generatePrompt}`;
   }
 
   // 5. 调用 LLM 生成
-  let generatedText = await generateText(modelName, generatePrompt, provider);
+  const fullModeUsageAccumulator = createUsageAccumulator();
+  const { text: generatedTextRaw, metadata: fullModeMeta } = await generateTextWithMetadata(modelName, generatePrompt, effectiveProvider);
+  addUsage(fullModeUsageAccumulator, fullModeMeta);
+  let generatedText = generatedTextRaw;
+  
+  // 如果是 Suno 格式的歌词，解析 JSON
+  let sunoJsonData: { title?: string; prompt: string; tags?: string; negative_tags?: string } | null = null;
+  if (params.writing_type === 'lyrics' && params.format === 'suno') {
+    sunoJsonData = parseSunoLyricsJson(generatedText);
+    if (sunoJsonData) {
+      // 使用解析后的 JSON 字符串作为生成文本
+      generatedText = JSON.stringify(sunoJsonData, null, 2);
+    } else {
+      // 如果解析失败，记录警告但继续使用原始文本
+      console.warn('[Writing Service] Suno 歌词 JSON 解析失败，使用原始文本');
+    }
+  }
+  
+  // 兜底：如果是 TTS 口播且模型没输出任何 <#x#>，自动插入基础停顿，保证可直接用于 TTS
+  if (params.writing_type === 'voice-scripts' && params.format === 'tts') {
+    generatedText = stripLeadingTitleForTts(generatedText);
+    generatedText = injectBasicTtsPauses(generatedText, params);
+  }
 
   // 6. 格式化文档
-  const format: StorageFormat = (params.storage_form as StorageFormat) || 'markdown';
+  // 如果是 Suno JSON 格式，使用 json 格式存储（无论解析是否成功，只要选择了 Suno 格式就存为 json）
+  const format: StorageFormat = (params.writing_type === 'lyrics' && params.format === 'suno')
+    ? 'json'
+    : ((params.storage_form as StorageFormat) || 'markdown');
   const formattedContent = await formatDocument(
     generatedText,
     format,
-    params.metadata?.title,
+    params.metadata?.title || sunoJsonData?.title,
     params.metadata
   );
 
@@ -1910,9 +3783,7 @@ ${generatePrompt}`;
         format,
         wordCount: wordCount.toString(),
         charset: 'utf-8',
-        ...(params.metadata ? Object.fromEntries(
-          Object.entries(params.metadata).map(([k, v]) => [k, String(v)])
-        ) : {}),
+        ...sanitizeMinioMetadata(params.metadata),
       },
     });
 
@@ -1925,6 +3796,7 @@ ${generatePrompt}`;
     };
   }
 
+  const fullLlmMeta = toLlmMetadata(fullModeUsageAccumulator);
   return {
     text: generatedText,
     formattedContent,
@@ -1935,246 +3807,7 @@ ${generatePrompt}`;
       fileSize,
       ...params.metadata,
     },
-  };
-}
-
-/**
- * 改写文章（流式模式）
- */
-export async function* rewriteWritingStream(
-  params: RewritingParams,
-  userId?: string,
-  provider?: ProviderType
-): AsyncGenerator<{ chunk: string; status: 'streaming' | 'completed'; collection: string }, void, unknown> {
-  // 获取之前的文本内容
-  let previousContent: string | null = null;
-  if (params.previous_content) {
-    previousContent = params.previous_content;
-  } else if (params.previous_task) {
-    previousContent = await getPreviousContentFromTask(params.previous_task, userId);
-  }
-
-  if (!previousContent) {
-    throw new Error('改写需要提供 previous_content 或 previous_task');
-  }
-
-  // 选择模型（段落写作）
-  const modelName = selectModel('paragraph');
-
-  // 检索知识库内容（如果有）
-  let enhancedPrompt = params.prompt;
-  if (params.knowledgeBase && params.knowledgeBase.length > 0) {
-    const knowledgeResults = await retrieveKnowledge(params.knowledgeBase, userId);
-    const knowledgeContext = formatKnowledgeContext(knowledgeResults, params.knowledgeBase);
-    enhancedPrompt = enhancePromptWithKnowledge(params.prompt, knowledgeContext);
-  }
-
-  // 构建改写 prompt
-  const rewritePrompt = `请基于以下原文进行改写：
-
-原文：
-${previousContent}
-
-改写要求：
-${enhancedPrompt}`;
-
-  // 调用 LLM 生成（流式）
-  const stream = await generateTextStream(modelName, rewritePrompt, provider);
-
-  // 返回流式结果
-  for await (const chunk of stream) {
-    yield chunk;
-  }
-}
-
-/**
- * 改写文章（同步模式）
- */
-export async function rewriteWriting(
-  params: RewritingParams,
-  userId?: string,
-  provider?: ProviderType
-): Promise<WritingResult> {
-  // 获取之前的文本内容
-  let previousContent: string | null = null;
-  if (params.previous_content) {
-    previousContent = params.previous_content;
-  } else if (params.previous_task) {
-    previousContent = await getPreviousContentFromTask(params.previous_task, userId);
-  }
-
-  if (!previousContent) {
-    throw new Error('改写需要提供 previous_content 或 previous_task');
-  }
-
-  // 选择模型（段落写作）
-  const modelName = selectModel('paragraph');
-
-  // 检索知识库内容（如果有）
-  let enhancedPrompt = params.prompt;
-  if (params.knowledgeBase && params.knowledgeBase.length > 0) {
-    const knowledgeResults = await retrieveKnowledge(params.knowledgeBase, userId);
-    const knowledgeContext = formatKnowledgeContext(knowledgeResults, params.knowledgeBase);
-    enhancedPrompt = enhancePromptWithKnowledge(params.prompt, knowledgeContext);
-  }
-
-  // 构建改写 prompt
-  const rewritePrompt = `请基于以下原文进行改写：
-
-原文：
-${previousContent}
-
-改写要求：
-${enhancedPrompt}`;
-
-  // 调用 LLM 生成
-  const rewrittenText = await generateText(modelName, rewritePrompt, provider);
-
-  // 格式化（默认 Markdown）
-  const formattedContent = await formatDocument(rewrittenText, 'markdown');
-
-  const wordCount = rewrittenText.length;
-  const fileSize = Buffer.isBuffer(formattedContent)
-    ? formattedContent.length
-    : Buffer.byteLength(formattedContent, 'utf-8');
-
-  return {
-    text: rewrittenText,
-    formattedContent,
-    format: 'markdown',
-    metadata: {
-      wordCount,
-      fileSize,
-    },
-  };
-}
-
-/**
- * 润色文章（流式模式）
- */
-export async function* polishWritingStream(
-  params: PolishingParams,
-  userId?: string,
-  provider?: ProviderType
-): AsyncGenerator<{ chunk: string; status: 'streaming' | 'completed'; collection: string }, void, unknown> {
-  // 获取之前的文本内容
-  let previousContent: string | null = null;
-  if (params.previous_content) {
-    previousContent = params.previous_content;
-  } else if (params.previous_task) {
-    previousContent = await getPreviousContentFromTask(params.previous_task, userId);
-  }
-
-  if (!previousContent) {
-    throw new Error('润色需要提供 previous_content 或 previous_task');
-  }
-
-  // 选择模型（段落写作）
-  const modelName = selectModel('paragraph');
-
-  // 检索知识库内容（如果有）
-  let enhancedPrompt = params.prompt;
-  if (params.knowledgeBase && params.knowledgeBase.length > 0) {
-    const knowledgeResults = await retrieveKnowledge(params.knowledgeBase, userId);
-    const knowledgeContext = formatKnowledgeContext(knowledgeResults, params.knowledgeBase);
-    enhancedPrompt = enhancePromptWithKnowledge(params.prompt, knowledgeContext);
-  }
-
-  // 构建润色 prompt（包含润色参数）
-  const polishRequirements: string[] = [];
-  if (params.motivation) polishRequirements.push(`写作动机：${params.motivation}`);
-  if (params.stance) polishRequirements.push(`立场：${params.stance}`);
-  if (params.tone) polishRequirements.push(`语调：${params.tone}`);
-  if (params.length) polishRequirements.push(`长度：${params.length}`);
-  if (params.key_elements && params.key_elements.length > 0) {
-    polishRequirements.push(`关键要素：${params.key_elements.join('、')}`);
-  }
-
-  const polishPrompt = `请对以下文章进行润色，保持原意不变：
-
-原文：
-${previousContent}
-
-${polishRequirements.length > 0 ? `润色要求：\n${polishRequirements.join('\n')}\n\n` : ''}其他要求：
-${enhancedPrompt}`;
-
-  // 调用 LLM 生成（流式）
-  const stream = await generateTextStream(modelName, polishPrompt, provider);
-
-  // 返回流式结果
-  for await (const chunk of stream) {
-    yield chunk;
-  }
-}
-
-/**
- * 润色文章（同步模式）
- */
-export async function polishWriting(
-  params: PolishingParams,
-  userId?: string,
-  provider?: ProviderType
-): Promise<WritingResult> {
-  // 获取之前的文本内容
-  let previousContent: string | null = null;
-  if (params.previous_content) {
-    previousContent = params.previous_content;
-  } else if (params.previous_task) {
-    previousContent = await getPreviousContentFromTask(params.previous_task, userId);
-  }
-
-  if (!previousContent) {
-    throw new Error('润色需要提供 previous_content 或 previous_task');
-  }
-
-  // 选择模型（段落写作）
-  const modelName = selectModel('paragraph');
-
-  // 检索知识库内容（如果有）
-  let enhancedPrompt = params.prompt;
-  if (params.knowledgeBase && params.knowledgeBase.length > 0) {
-    const knowledgeResults = await retrieveKnowledge(params.knowledgeBase, userId);
-    const knowledgeContext = formatKnowledgeContext(knowledgeResults, params.knowledgeBase);
-    enhancedPrompt = enhancePromptWithKnowledge(params.prompt, knowledgeContext);
-  }
-
-  // 构建润色 prompt（包含润色参数）
-  const polishRequirements: string[] = [];
-  if (params.motivation) polishRequirements.push(`写作动机：${params.motivation}`);
-  if (params.stance) polishRequirements.push(`立场：${params.stance}`);
-  if (params.tone) polishRequirements.push(`语调：${params.tone}`);
-  if (params.length) polishRequirements.push(`长度：${params.length}`);
-  if (params.key_elements && params.key_elements.length > 0) {
-    polishRequirements.push(`关键要素：${params.key_elements.join('、')}`);
-  }
-
-  const polishPrompt = `请对以下文章进行润色，保持原意不变：
-
-原文：
-${previousContent}
-
-${polishRequirements.length > 0 ? `润色要求：\n${polishRequirements.join('\n')}\n\n` : ''}其他要求：
-${enhancedPrompt}`;
-
-  // 调用 LLM 生成
-  const polishedText = await generateText(modelName, polishPrompt, provider);
-
-  // 格式化（默认 Markdown）
-  const formattedContent = await formatDocument(polishedText, 'markdown');
-
-  const wordCount = polishedText.length;
-  const fileSize = Buffer.isBuffer(formattedContent)
-    ? formattedContent.length
-    : Buffer.byteLength(formattedContent, 'utf-8');
-
-  return {
-    text: polishedText,
-    formattedContent,
-    format: 'markdown',
-    metadata: {
-      wordCount,
-      fileSize,
-    },
+    ...(fullLlmMeta ? { _llmMetadata: fullLlmMeta } : {}),
   };
 }
 
@@ -2200,7 +3833,16 @@ export async function syncToTask(
   };
 }> {
   // 1. 格式化文档
-  const format: StorageFormat = (params.storage_form as StorageFormat) || 'markdown';
+  // 检查是否为 Suno JSON 格式（从 metadata 中获取 writing_type 和 format）
+  const writingType = params.metadata?.writing_type;
+  const formatParam = params.metadata?.format;
+  const isSunoJson = writingType === 'lyrics' && formatParam === 'suno';
+  
+  // 如果是 Suno JSON 格式，使用 json 格式存储；否则使用 storage_form 或默认 markdown
+  const format: StorageFormat = isSunoJson
+    ? 'json'
+    : ((params.storage_form as StorageFormat) || 'markdown');
+  
   const formattedContent = await formatDocument(
     params.text,
     format,

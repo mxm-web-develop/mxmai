@@ -11,3 +11,6 @@ export * from './Conversation';
 export * from './Smartflow';
 export * from './PromptTemplate';
 export * from './CGITask';
+export * from './PromptEngineeringConfig';
+export * from './ProviderApiKey';
+export * from './SensitiveWord';

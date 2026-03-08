@@ -117,6 +117,30 @@ export class WalletService {
   }
 
   /**
+   * 获取用户主钱包余额（用于 account/profile 合并返回）
+   * 优先返回 CNY，若无可返回第一个可用资产
+   */
+  async getPrimaryBalance(userId: string): Promise<{ assetCode: string; availableBalance: string } | null> {
+    try {
+      const response = await this.client.get('/wallets', {
+        headers: { 'x-user-id': userId },
+        timeout: 3000,
+      });
+      if (response.data.code !== 200 || !response.data.data) return null;
+      const wallets = Array.isArray(response.data.data) ? response.data.data : response.data.data.wallets || [];
+      const cny = wallets.find((w: any) => w.asset_code === 'CNY' || w.assetCode === 'CNY');
+      const primary = cny || wallets[0];
+      if (!primary) return null;
+      return {
+        assetCode: primary.asset_code || primary.assetCode || 'CNY',
+        availableBalance: primary.available_balance ?? primary.availableBalance ?? '0',
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * 获取用户钱包列表
    */
   async getUserWallets(userId: string): Promise<any[]> {

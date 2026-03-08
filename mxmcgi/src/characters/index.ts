@@ -1,0 +1,6 @@
+/**
+ * Character模块导出
+ */
+
+export * from './character-service';
+export * from './type';

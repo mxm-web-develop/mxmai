@@ -32,6 +32,7 @@ export enum PaymentChannel {
   CARD = 'card',
   CRYPTO = 'crypto',
   VOUCHER = 'voucher',
+  APPLE_IAP = 'apple_iap',
 }
 
 /**

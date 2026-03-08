@@ -1,74 +1,27 @@
 import { Router, Request, Response } from 'express';
 import type { ProviderType } from '../core/providers/types';
-import { taskExecutor } from '../core/task/task-executor';
+import { taskExecutor } from '../task/task-executor';
 import type { PhotographParams, DesignParams, PaintingParams } from '../core/graph/type';
 import { getGraphTypeOptions } from '../core/graph/graphconfigs';
-import { getFormOptionsForType } from '../core/graph/graphconfigs/getFormOptions';
+import { getFormOptionsForType } from '../clientServer/graph';
+import { listModels, getModelsByKey } from '../models/registry';
+import { getResolvedRouting } from '../models/providers';
+import { resolveGraphModel } from '../core/graph/graph-model-routing';
+import { BillingService } from '../core/billing/billing-service';
 
-// 导入所有 graph 模型文件
-import * as nanoBanana from '../core/graph/nano-banana';
-import * as fluxFast from '../core/graph/flux-fast';
-import * as flux2Flex from '../core/graph/flux-2-flex';
-import * as flux2Pro from '../core/graph/flux-2-pro';
-// import * as fluxKontextFast from '../core/graph/flux-kontext-fast'; // 已禁用：该模型是图片编辑模型，需要 input_image 参数，仅传 prompt 时生成内容与提示词无关
-import * as seedream4 from '../core/graph/seedream-4';
-import * as ideogramV2A from '../core/graph/ideogram-v2a';
-import * as recraftCrispUpscale from '../core/graph/recraft-crisp-upscale';
+// 模型列表与存在性检查：仅通过 registry（单轨）
+const GRAPH_MODELS = listModels({ scope: 'graph' });
+const SUPPORTED_MODELS: string[] = Array.from(new Set(GRAPH_MODELS.map(d => d.modelKey)));
 
-// 统一从 suport-list.ts 读取所有 provider 的 graph 模型列表
-// 约定：对外暴露的模型名 = suport-list.ts 中各 provider.graph 的 key
-// 内部真实模型 ID（Replicate / Deer / PPIO 等）由各 provider 自己根据 suport-list 的 value 处理
-const supportList = require('../core/utils/suport-list').default as any;
-
-const GRAPH_MODELS_FROM_PROVIDERS = [
-  ...(Object.keys(supportList.replicate?.graph || {})),
-  ...(Object.keys(supportList.ppio?.graph || {})),
-  ...(Object.keys(supportList.deer?.graph || {})),
-];
-
-// 去重后的模型列表
-const SUPPORTED_MODELS: string[] = Array.from(new Set(GRAPH_MODELS_FROM_PROVIDERS));
-
-// 模型映射（key 为我们对外暴露的模型名）
-// 约定：这里的 key 必须与 `suport-list.ts` 中各 provider.graph 的 key 完全一致
-// 每个模型文件内部使用 providerFactory.getProviderForModel() 自动选择支持的 provider
-const MODEL_MAP: Record<string, {
-  generate: (params: any, provider?: ProviderType) => Promise<any>;
-}> = {
-  'nano-banana': {
-    generate: nanoBanana.generate,
-  },
-  'flux-fast': {
-    generate: fluxFast.generate,
-  },
-  'flux-2-flex': {
-    generate: flux2Flex.generate,
-  },
-  'flux-2-pro': {
-    generate: flux2Pro.generate,
-  },
-  // 'flux-kontext-fast': {
-  //   generate: fluxKontextFast.generate,
-  // }, // 已禁用：该模型是图片编辑模型，需要 input_image 参数，仅传 prompt 时生成内容与提示词无关
-  'seedream-4': {
-    generate: seedream4.generate,
-  },
-  'ideogram-v2a': {
-    generate: ideogramV2A.generate,
-  },
-  'recraft-crisp-upscale': {
-    generate: recraftCrispUpscale.generate,
-  },
-};
+function isGraphModelSupported(modelName: string): boolean {
+  return getModelsByKey('graph', modelName).length > 0;
+}
 
 const router = Router();
 
-// 获取所有可用的图模型列表
+// 获取所有可用的图模型列表（来自 registry）
 router.get('/models', (_req: Request, res: Response) => {
-  // 返回 MODEL_MAP 中的模型（确保都有对应的实现文件）
-  const models = Object.keys(MODEL_MAP).map(modelName => ({
-    name: modelName,
-  }));
+  const models = SUPPORTED_MODELS.map(modelName => ({ name: modelName }));
   res.json({ models });
 });
 
@@ -203,16 +156,30 @@ router.post('/photograph', async (req: Request, res: Response) => {
       });
     }
 
+    // 余额预检：根据业务维度解析实际模型，估算 1 张图的费用
+    const resolvedPhotograph = await resolveGraphModel('photograph', params.type, req.query.provider as ProviderType | undefined);
+    const rProvider = resolvedPhotograph.provider;
+    const rModel = resolvedPhotograph.modelName;
+    const balanceCheck = await BillingService.checkBalance({
+      userId, provider: rProvider, modelKey: rModel, scope: 'graph', estimatedImageCount: 1,
+    });
+    if (!balanceCheck.allowed) {
+      return res.status(402).json({
+        success: false, code: 'INSUFFICIENT_BALANCE',
+        message: `余额不足，本次预计消耗约 ${balanceCheck.estimatedTokens} MXM-TOKEN，当前余额 ${balanceCheck.currentBalance}`,
+      });
+    }
+
     // 获取存储配置（默认启用MinIO存储）
-    const storeToMinio = req.body.storeToMinio !== undefined 
-      ? req.body.storeToMinio 
+    const storeToMinio = req.body.storeToMinio !== undefined
+      ? req.body.storeToMinio
       : (req.query.storeToMinio !== undefined ? req.query.storeToMinio === 'true' : true); // 默认true
-    
+
     const storageConfig = {
       bucket: process.env.CGI_STORAGE_BUCKET || 'user-media',
       pathTemplate: '{userId}/graph/photograph/{timestamp}-{randomId}.{ext}',
     };
-    
+
     if (req.body.storageConfig) {
       Object.assign(storageConfig, req.body.storageConfig);
     }
@@ -306,16 +273,30 @@ router.post('/design', async (req: Request, res: Response) => {
       });
     }
 
+    // 余额预检：根据业务维度解析实际模型
+    const resolvedDesign = await resolveGraphModel('design', params.type, req.query.provider as ProviderType | undefined);
+    const rProviderD = resolvedDesign.provider;
+    const rModelD = resolvedDesign.modelName;
+    const balanceCheckD = await BillingService.checkBalance({
+      userId, provider: rProviderD, modelKey: rModelD, scope: 'graph', estimatedImageCount: 1,
+    });
+    if (!balanceCheckD.allowed) {
+      return res.status(402).json({
+        success: false, code: 'INSUFFICIENT_BALANCE',
+        message: `余额不足，本次预计消耗约 ${balanceCheckD.estimatedTokens} MXM-TOKEN，当前余额 ${balanceCheckD.currentBalance}`,
+      });
+    }
+
     // 获取存储配置（默认启用MinIO存储）
-    const storeToMinio = req.body.storeToMinio !== undefined 
-      ? req.body.storeToMinio 
+    const storeToMinio = req.body.storeToMinio !== undefined
+      ? req.body.storeToMinio
       : (req.query.storeToMinio !== undefined ? req.query.storeToMinio === 'true' : true); // 默认true
-    
+
     const storageConfig = {
       bucket: process.env.CGI_STORAGE_BUCKET || 'user-media',
       pathTemplate: '{userId}/graph/design/{timestamp}-{randomId}.{ext}',
     };
-    
+
     if (req.body.storageConfig) {
       Object.assign(storageConfig, req.body.storageConfig);
     }
@@ -409,16 +390,30 @@ router.post('/painting', async (req: Request, res: Response) => {
       });
     }
 
+    // 余额预检：根据业务维度解析实际模型
+    const resolvedPainting = await resolveGraphModel('painting', params.type, req.query.provider as ProviderType | undefined);
+    const rProviderP = resolvedPainting.provider;
+    const rModelP = resolvedPainting.modelName;
+    const balanceCheckP = await BillingService.checkBalance({
+      userId, provider: rProviderP, modelKey: rModelP, scope: 'graph', estimatedImageCount: 1,
+    });
+    if (!balanceCheckP.allowed) {
+      return res.status(402).json({
+        success: false, code: 'INSUFFICIENT_BALANCE',
+        message: `余额不足，本次预计消耗约 ${balanceCheckP.estimatedTokens} MXM-TOKEN，当前余额 ${balanceCheckP.currentBalance}`,
+      });
+    }
+
     // 获取存储配置（默认启用MinIO存储）
-    const storeToMinio = req.body.storeToMinio !== undefined 
-      ? req.body.storeToMinio 
+    const storeToMinio = req.body.storeToMinio !== undefined
+      ? req.body.storeToMinio
       : (req.query.storeToMinio !== undefined ? req.query.storeToMinio === 'true' : true); // 默认true
-    
+
     const storageConfig = {
       bucket: process.env.CGI_STORAGE_BUCKET || 'user-media',
       pathTemplate: '{userId}/graph/painting/{timestamp}-{randomId}.{ext}',
     };
-    
+
     if (req.body.storageConfig) {
       Object.assign(storageConfig, req.body.storageConfig);
     }
@@ -485,12 +480,12 @@ router.post('/:modelName', async (req: Request, res: Response) => {
     const { modelName } = req.params;
     const provider = req.query.provider as string | undefined;
     
-    // 检查模型是否存在（优先检查 MODEL_MAP，确保有对应的实现文件）
-    if (!MODEL_MAP[modelName]) {
+    // 检查模型是否在 registry 中注册（单轨）
+    if (!isGraphModelSupported(modelName)) {
       return res.status(404).json({
         success: false,
         error: 'Model not found',
-        message: `Model "${modelName}" is not available. Available models: ${Object.keys(MODEL_MAP).join(', ')}`,
+        message: `Model "${modelName}" is not available. Available models: ${SUPPORTED_MODELS.join(', ')}`,
       });
     }
 
@@ -533,7 +528,7 @@ router.post('/:modelName', async (req: Request, res: Response) => {
     }
 
     // 调试日志：记录接收到的参数和 provider 选择
-    const { providerFactory } = require('../core/providers');
+    const { providerFactory } = require('../models/providers');
     const defaultProvider = providerFactory.getDefaultProvider();
     console.log(`[Graph Route] 模型: ${modelName}, 指定 provider: ${provider || '(未指定，将使用默认: ' + defaultProvider + ')'}, 默认 provider: ${defaultProvider}`);
 

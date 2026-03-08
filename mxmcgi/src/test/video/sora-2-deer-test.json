@@ -1,0 +1,104 @@
+{
+  "description": "Sora 2 Deer 视频生成测试请求示例",
+  "baseUrl": "http://localhost:3000",
+  "endpoints": {
+    "sora-2-deer": {
+      "url": "POST /api/v1/cgi/video/sora-2-deer",
+      "description": "基础版，支持 10/15 秒，固定按次 $0.1 计费",
+      "headers": {
+        "Content-Type": "application/json",
+        "x-user-id": "3f6cf0d7-1ac5-44eb-835b-5a59ec973909",
+        "Authorization": "Bearer YOUR_TOKEN"
+      },
+      "examples": [
+        {
+          "name": "基础请求（15秒）",
+          "body": {
+            "prompt": "A cute orange cat playing in a sunny garden",
+            "seconds": "15",
+            "size": "1280x720",
+            "storeToMinio": true
+          }
+        },
+        {
+          "name": "带参考图片",
+          "body": {
+            "prompt": "A beautiful landscape with mountains and lakes",
+            "seconds": "10",
+            "size": "1280x720",
+            "input_reference": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
+            "storeToMinio": true
+          }
+        },
+        {
+          "name": "带角色一致性参数",
+          "body": {
+            "prompt": "A cartoon character walking through a magical forest",
+            "seconds": "15",
+            "size": "1280x720",
+            "character_url": "https://filesystem.site/cdn/20251030/javYrU4etHVFDqg8by7mViTWHlMOZy.mp4",
+            "character_timestamps": "1,8",
+            "storeToMinio": true
+          }
+        }
+      ]
+    },
+    "sora-2-deer-pro": {
+      "url": "POST /api/v1/cgi/video/sora-2-deer-pro",
+      "description": "Pro 版，支持 10/15/25 秒，固定按次 $1 计费",
+      "headers": {
+        "Content-Type": "application/json",
+        "x-user-id": "3f6cf0d7-1ac5-44eb-835b-5a59ec973909",
+        "Authorization": "Bearer YOUR_TOKEN"
+      },
+      "examples": [
+        {
+          "name": "25秒视频（仅 Pro 支持）",
+          "body": {
+            "prompt": "A beautiful sunset over the ocean with waves crashing on the shore",
+            "seconds": "25",
+            "size": "1280x720",
+            "storeToMinio": true
+          }
+        },
+        {
+          "name": "高分辨率 25秒视频",
+          "body": {
+            "prompt": "A cinematic view of a futuristic city at night",
+            "seconds": "25",
+            "size": "1792x1024",
+            "storeToMinio": true
+          },
+          "note": "⚠️ 注意：使用 seconds=25 时，有较大几率无法输出 1024x1792 或 1792x1024 分辨率，而是返回较低的 720x1280 或 1280x720 分辨率结果。如需确保高分辨率输出，建议使用 10 或 15 秒时长。"
+        },
+        {
+          "name": "带角色一致性参数（Pro 版）",
+          "body": {
+            "prompt": "A superhero character flying through the clouds",
+            "seconds": "25",
+            "size": "1280x720",
+            "character_url": "https://filesystem.site/cdn/20251030/javYrU4etHVFDqg8by7mViTWHlMOZy.mp4",
+            "character_timestamps": "1,8",
+            "storeToMinio": true
+          }
+        }
+      ]
+    }
+  },
+  "response": {
+    "success": true,
+    "data": {
+      "taskId": "4525a231a18381900c467",
+      "status": "processing"
+    }
+  },
+  "queryTask": {
+    "url": "GET /api/v1/tasks/{taskId}",
+    "description": "查询任务状态和结果",
+    "example": "GET /api/v1/tasks/4525a231a18381900c467"
+  },
+  "curlExamples": {
+    "sora-2-deer": "curl -X POST http://localhost:3000/api/v1/cgi/video/sora-2-deer \\\n  -H \"Content-Type: application/json\" \\\n  -H \"x-user-id: 3f6cf0d7-1ac5-44eb-835b-5a59ec973909\" \\\n  -H \"Authorization: Bearer YOUR_TOKEN\" \\\n  -d '{\n    \"prompt\": \"A cute orange cat playing in a sunny garden\",\n    \"seconds\": \"15\",\n    \"size\": \"1280x720\",\n    \"storeToMinio\": true\n  }'",
+    "sora-2-deer-pro": "curl -X POST http://localhost:3000/api/v1/cgi/video/sora-2-deer-pro \\\n  -H \"Content-Type: application/json\" \\\n  -H \"x-user-id: 3f6cf0d7-1ac5-44eb-835b-5a59ec973909\" \\\n  -H \"Authorization: Bearer YOUR_TOKEN\" \\\n  -d '{\n    \"prompt\": \"A beautiful sunset over the ocean with waves crashing on the shore\",\n    \"seconds\": \"25\",\n    \"size\": \"1280x720\",\n    \"storeToMinio\": true\n  }'"
+  }
+}

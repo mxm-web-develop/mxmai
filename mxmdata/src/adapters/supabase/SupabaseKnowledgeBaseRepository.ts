@@ -313,6 +313,7 @@ export class SupabaseKnowledgeBaseRepository implements IKnowledgeBaseRepository
     agent_id?: string;
     owner_id?: string;
     is_public?: boolean;
+    public_or_builtin?: boolean;
     limit?: number;
     offset?: number;
   }): Promise<{ knowledge_bases: KnowledgeBase[]; total: number }> {
@@ -328,14 +329,16 @@ export class SupabaseKnowledgeBaseRepository implements IKnowledgeBaseRepository
       if (options?.is_public !== undefined) {
         query = query.eq('is_public', options.is_public);
       }
+      if (options?.public_or_builtin === true) {
+        query = query.or('is_public.eq.true,is_builtin.eq.true');
+      }
 
       query = query.order('created_at', { ascending: false });
 
+      // 使用 range 方法替代 offset（PostgREST 推荐方式）
       if (options?.limit) {
-        query = query.limit(options.limit);
-      }
-      if (options?.offset) {
-        query = query.offset(options.offset);
+        const offset = options.offset || 0;
+        query = query.range(offset, offset + options.limit - 1);
       }
 
       const { data, error, count } = await query;
@@ -555,11 +558,10 @@ export class SupabaseKnowledgeBaseRepository implements IKnowledgeBaseRepository
 
       query = query.order('created_at', { ascending: false });
 
+      // 使用 range 方法替代 offset（PostgREST 推荐方式）
       if (options?.limit) {
-        query = query.limit(options.limit);
-      }
-      if (options?.offset) {
-        query = query.offset(options.offset);
+        const offset = options.offset || 0;
+        query = query.range(offset, offset + options.limit - 1);
       }
 
       const { data, error, count } = await query;

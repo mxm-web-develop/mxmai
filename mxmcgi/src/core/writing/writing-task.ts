@@ -3,24 +3,23 @@
  * 处理写作相关的异步任务（生成、改写、润色）
  */
 
-import { TaskManager } from '../task/task-manager';
-import { taskExecutor } from '../task/task-executor';
+import { TaskManager } from '../../task/task-manager';
+import { taskExecutor } from '../../task/task-executor';
+import { UsageService } from '../usage/usage-service';
+import { BillingService } from '../billing/billing-service';
 import {
   generateOutline,
   generateWriting,
-  rewriteWriting,
-  polishWriting,
 } from './writing-service';
 import type {
   OutlineParams,
   WritingGenerateParams,
-  RewritingParams,
-  PolishingParams,
 } from './type';
+import { OUTLINE_APPLY_TO_VALUES } from './type';
 
 export interface WritingTaskParams {
-  taskType: 'outline' | 'generate' | 'rewrite' | 'polish';
-  params: OutlineParams | WritingGenerateParams | RewritingParams | PolishingParams;
+  taskType: 'outline' | 'generate';
+  params: OutlineParams | WritingGenerateParams;
   userId: string;
   provider?: string;
 }
@@ -71,16 +70,48 @@ export async function startWritingTask(taskId: string): Promise<void> {
 
     switch (params.taskType) {
       case 'outline': {
+        const outlineParams = params.params as OutlineParams;
+        const writingType = outlineParams.writing_type || 'outlines';
+
+        // 参数验证（提前验证，避免任务开始后才发现错误）
+        try {
+          if (outlineParams.applyto) {
+            if (!OUTLINE_APPLY_TO_VALUES.includes(outlineParams.applyto)) {
+              throw new Error(`不支持的 applyto 类型: ${outlineParams.applyto}。仅支持: ${OUTLINE_APPLY_TO_VALUES.join(', ')}`);
+            }
+
+            // voice-scripts / storyboard-scripts 的 total_duration_seconds 为选填：不填则可在写作时再补充
+          }
+        } catch (validationError) {
+          // 验证失败，立即抛出错误，不继续执行
+          throw validationError;
+        }
+
         await taskManager.updateTaskProgress(taskId, {
           progress: 30,
           logs: ['开始生成大纲'],
         });
 
-        const outlineParams = params.params as OutlineParams;
-        const writingType = outlineParams.writing_type || 'outlines';
-
         const outlineResult = await generateOutline(
-          outlineParams,
+          {
+            uid: outlineParams.uid,
+            prompt: outlineParams.prompt,
+            maxDepth: outlineParams.maxDepth,
+            expectedNodes: outlineParams.expectedNodes,
+            total_textcount: outlineParams.total_textcount,
+            total_duration_seconds: outlineParams.total_duration_seconds,
+            applyto: outlineParams.applyto,
+            outline_type: outlineParams.outline_type,
+            outline_structure_type: outlineParams.outline_structure_type,
+            stance: outlineParams.stance,
+            tone: outlineParams.tone,
+            speech_rate: outlineParams.speech_rate,
+            rhythm: outlineParams.rhythm,
+            knowledgeBase: outlineParams.knowledgeBase,
+            cast_character_count: outlineParams.cast_character_count,
+            cast_character_ids: outlineParams.cast_character_ids,
+            language: outlineParams.language,
+          },
           params.userId,
           params.provider as any
         );
@@ -90,13 +121,20 @@ export async function startWritingTask(taskId: string): Promise<void> {
           logs: ['大纲生成完成'],
         });
 
+        // 注意：生成的角色不会自动保存，用户可以在编辑大纲时手动保存角色
+        // 保留 _llmMetadata 用于 Provider 扣费和用户 MXM-TOKEN 扣费
         result = {
-          outline: outlineResult,
+          outline: outlineResult.outline,
           metadata: {
             type: writingType, // 使用 writing_type，默认 'outlines'
             uid: outlineParams.uid,
-            outline: outlineResult, // 将大纲内容存储在 metadata 中，方便直接返回
+            outline: outlineResult.outline, // 将大纲内容存储在 metadata 中，方便直接返回
+            ...(outlineParams.total_duration_seconds != null ? { total_duration_seconds: outlineParams.total_duration_seconds } : {}),
+            ...(outlineResult.characters && outlineResult.characters.length > 0
+              ? { characters: outlineResult.characters }
+              : {}),
           },
+          _llmMetadata: (outlineResult as { _llmMetadata?: unknown })._llmMetadata,
         };
         break;
       }
@@ -120,7 +158,14 @@ export async function startWritingTask(taskId: string): Promise<void> {
             maxDepth: (generateParams as any).maxDepth,
             expectedNodes: (generateParams as any).expectedNodes,
             total_textcount: (generateParams as any).total_textcount,
+            total_duration_seconds: (generateParams as any).total_duration_seconds ?? ((generateParams as any).total_duration_minutes != null ? (generateParams as any).total_duration_minutes * 60 : undefined),
             applyto: (generateParams as any).applyto,
+            outline_type: (generateParams as any).outline_type,
+            outline_structure_type: (generateParams as any).outline_structure_type,
+            stance: (generateParams as any).stance,
+            tone: (generateParams as any).tone,
+            speech_rate: (generateParams as any).speech_rate,
+            rhythm: (generateParams as any).rhythm,
             knowledgeBase: generateParams.knowledgeBase?.map(kb => ({
               knowledgeBaseId: kb.knowledgeBaseId,
               query: kb.query,
@@ -128,6 +173,7 @@ export async function startWritingTask(taskId: string): Promise<void> {
             })),
             process_style: generateParams.process_style,
             outputFormat: 'json',
+            language: (generateParams as any).language,
           };
 
           const outlineResult = await generateOutline(
@@ -137,8 +183,12 @@ export async function startWritingTask(taskId: string): Promise<void> {
               maxDepth: outlineParams.maxDepth,
               expectedNodes: outlineParams.expectedNodes,
               total_textcount: outlineParams.total_textcount,
+              total_duration_seconds: outlineParams.total_duration_seconds,
               applyto: outlineParams.applyto,
+              outline_type: outlineParams.outline_type,
+              outline_structure_type: outlineParams.outline_structure_type,
               knowledgeBase: outlineParams.knowledgeBase,
+              language: outlineParams.language,
             },
             params.userId,
             params.provider as any
@@ -150,13 +200,19 @@ export async function startWritingTask(taskId: string): Promise<void> {
           });
 
           // outlines 类型返回 JSON 格式，不存储到 MinIO
+          // 保留 _llmMetadata 用于 Provider 扣费和用户 MXM-TOKEN 扣费
           result = {
-            outline: outlineResult,
+            outline: outlineResult.outline,
             metadata: {
               type: 'outlines',
               uid: outlineParams.uid,
-              outline: outlineResult, // 将大纲内容存储在 metadata 中，方便直接返回
+              outline: outlineResult.outline, // 将大纲内容存储在 metadata 中，方便直接返回
+              ...(outlineParams.total_duration_seconds != null ? { total_duration_seconds: outlineParams.total_duration_seconds } : {}),
+              ...(outlineResult.characters && outlineResult.characters.length > 0
+                ? { characters: outlineResult.characters }
+                : {}),
             },
+            _llmMetadata: (outlineResult as { _llmMetadata?: unknown })._llmMetadata,
           };
           break;
         }
@@ -198,74 +254,7 @@ export async function startWritingTask(taskId: string): Promise<void> {
             ...writingResult.metadata,
             type: writingType, // 确保 metadata.type 设置为 writing_type
           },
-        };
-        break;
-      }
-
-      case 'rewrite': {
-        await taskManager.updateTaskProgress(taskId, {
-          progress: 30,
-          logs: ['开始改写文章'],
-        });
-
-        const rewriteParams = params.params as RewritingParams;
-        const writingType = rewriteParams.writing_type || 'articles';
-
-        const rewriteResult = await rewriteWriting(
-          rewriteParams,
-          params.userId,
-          params.provider as any
-        );
-
-        await taskManager.updateTaskProgress(taskId, {
-          progress: 90,
-          logs: ['文章改写完成'],
-        });
-
-        result = {
-          text: rewriteResult.text,
-          formattedContent: Buffer.isBuffer(rewriteResult.formattedContent)
-            ? rewriteResult.formattedContent.toString('base64')
-            : rewriteResult.formattedContent,
-          format: rewriteResult.format,
-          metadata: {
-            ...rewriteResult.metadata,
-            type: writingType, // 确保 metadata.type 设置为 writing_type
-          },
-        };
-        break;
-      }
-
-      case 'polish': {
-        await taskManager.updateTaskProgress(taskId, {
-          progress: 30,
-          logs: ['开始润色文章'],
-        });
-
-        const polishParams = params.params as PolishingParams;
-        const writingType = polishParams.writing_type || 'articles';
-
-        const polishResult = await polishWriting(
-          polishParams,
-          params.userId,
-          params.provider as any
-        );
-
-        await taskManager.updateTaskProgress(taskId, {
-          progress: 90,
-          logs: ['文章润色完成'],
-        });
-
-        result = {
-          text: polishResult.text,
-          formattedContent: Buffer.isBuffer(polishResult.formattedContent)
-            ? polishResult.formattedContent.toString('base64')
-            : polishResult.formattedContent,
-          format: polishResult.format,
-          metadata: {
-            ...polishResult.metadata,
-            type: writingType, // 确保 metadata.type 设置为 writing_type
-          },
+          _llmMetadata: (writingResult as { _llmMetadata?: unknown })._llmMetadata,
         };
         break;
       }
@@ -291,6 +280,10 @@ export async function startWritingTask(taskId: string): Promise<void> {
     if (params.taskType === 'outline' && result.outline) {
       taskResult.metadata.outline = result.outline;
     }
+    // 如果 outline 任务包含角色画像，写入 result.metadata.characters
+    if (params.taskType === 'outline' && (result as any).metadata?.characters) {
+      taskResult.metadata.characters = (result as any).metadata.characters;
+    }
 
     // 如果是其他任务类型，将文本内容存储在 metadata 中（如果没有存储到 MinIO）
     if (params.taskType !== 'outline' && result.text && !result.storageInfo) {
@@ -303,6 +296,46 @@ export async function startWritingTask(taskId: string): Promise<void> {
 
     // setTaskResult 内部会调用 updateTaskStatus 发送通知，不需要重复调用
     await taskManager.setTaskResult(taskId, taskResult);
+
+    // 记录 Provider 用量并按 provider_pricing 扣减余额（outline、长文写作等所有带 _llmMetadata 的任务）
+    const llmMeta = (result as { _llmMetadata?: { usage?: unknown; model?: string; provider?: string } })._llmMetadata;
+    const needsUsageLog = !!llmMeta;
+    if (needsUsageLog && llmMeta) {
+      const { costUsd } = await UsageService.logProviderUsage({
+        taskId,
+        userId: params.userId,
+        logicalModel: llmMeta.model,
+        result: {
+          metadata: {
+            usage: llmMeta.usage,
+            model: llmMeta.model,
+            provider: llmMeta.provider,
+          },
+        } as any,
+        providerOverride: llmMeta.provider as any,
+      });
+
+      // 扣减用户 MXM-TOKEN
+      if (params.userId) {
+        const usageAny = llmMeta.usage as any;
+        try {
+          await BillingService.consumeForTask({
+            taskId,
+            userId: params.userId,
+            provider: llmMeta.provider || 'unknown',
+            modelKey: llmMeta.model || 'unknown',
+            scope: 'writing',
+            inputTokens: Number(usageAny?.prompt_tokens ?? usageAny?.input_tokens ?? 0),
+            outputTokens: Number(usageAny?.completion_tokens ?? usageAny?.output_tokens ?? 0),
+            totalTokens: Number(usageAny?.total_tokens ?? 0),
+            requestCount: 1,
+            providerCostUsd: costUsd,
+          });
+        } catch (billingErr) {
+          console.warn('[WritingTask] 用户扣费失败:', billingErr instanceof Error ? billingErr.message : String(billingErr));
+        }
+      }
+    }
   } catch (error) {
     await taskManager.setTaskError(
       taskId,

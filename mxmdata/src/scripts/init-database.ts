@@ -91,6 +91,7 @@ async function initDatabase() {
       'supabase-init.sql', // 扩展/基础配置
       'mxmauth.sql', // 用户/认证
       'mxmcgi.sql', // CGI 任务
+      'character.sql', // Character 角色模块（依赖users表）
       'mxmnotify.sql', // 通知
       'mxmpay.sql', // 支付/钱包
       'mxmprompt.sql', // Prompt 优化

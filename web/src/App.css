@@ -1,0 +1,1128 @@
+/* ---------- Root height chain ---------- */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+:root {
+  --page-padding: 1.5rem;
+  --page-radius: 8px;
+  --page-border: #333;
+  --page-bg: #1e1e1e;
+  --text-main: #e0e0e0;
+  --text-muted: #888;
+}
+
+/* antd ConfigProvider / App 容器需占满高度，否则 dashboard 的 height: 100% 失效 */
+#root > div,
+.ant-app {
+  height: 100%;
+}
+
+/* ---------- Dashboard layout ---------- */
+.app-dashboard {
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+  background: #1a1a1a;
+}
+
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  flex-shrink: 0;
+  background: #252525;
+  border-right: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-brand {
+  padding: 1rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e0e0e0;
+  border-bottom: 1px solid #333;
+}
+
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 0;
+}
+
+.nav-group {
+  margin-bottom: 0.5rem;
+}
+
+.nav-group-title {
+  padding: 0.35rem 1.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+}
+
+.nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-list li {
+  margin: 0;
+}
+
+.nav-list button {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 1.25rem;
+  text-align: left;
+  font-size: 0.875rem;
+  color: #b0b0b0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav-list button:hover {
+  background: #333;
+  color: #e0e0e0;
+}
+
+.nav-list button.active {
+  background: #2d2d4a;
+  color: #a5b4fc;
+  border-right: 3px solid #6366f1;
+}
+
+.main-wrap {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: #252525;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.dashboard-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+  color: #e0e0e0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-status {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.btn-logout {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #333;
+  color: #e0e0e0;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background: #444;
+  border-color: #555;
+}
+
+.sidebar-toggle {
+  display: none;
+}
+
+.dashboard-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: var(--page-padding);
+}
+
+.dashboard-main-inner {
+  flex: 1;
+  min-height: 0;
+  min-width: 0; /* 防止 flex 子项撑开导致横向滚动，表格自身有横向滚动 */
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ---------- Dashboard home ---------- */
+.dashboard-home .dashboard-stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.dashboard-home .stat-card {
+  background: #252525;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dashboard-home .stat-label {
+  font-size: 0.75rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dashboard-home .stat-value {
+  font-size: 0.95rem;
+  color: #e0e0e0;
+}
+
+.dashboard-home .truncate {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-home .quick-links {
+  margin-top: 1.5rem;
+}
+
+.dashboard-home .quick-links h3 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+  color: #b0b0b0;
+}
+
+.dashboard-home .quick-links ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #888;
+  font-size: 0.875rem;
+  line-height: 1.8;
+}
+
+.dashboard-home .login-form {
+  margin-top: 0.5rem;
+}
+
+.dashboard-home .login-form h3 {
+  font-size: 1rem;
+  margin: 0 0 1rem 0;
+  color: #c0c0c0;
+}
+
+/* ---------- Page card (shared) ---------- */
+.page-card {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 100%;
+  min-width: 759px;
+}
+
+.page-card h2 {
+  font-size: 1.25rem;
+  margin: 0 0 1rem 0;
+  color: #e0e0e0;
+}
+
+.page-card h3 {
+  font-size: 1rem;
+  color: #c0c0c0;
+}
+
+.page-card .hint {
+  font-size: 0.875rem;
+  color: #888;
+  margin: 0 0 1rem 0;
+}
+
+.page-card .muted {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* 通用弱提示文案 */
+.muted {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.page-card .hint code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8em;
+  padding: 0.15em 0.4em;
+  background: #333;
+  border-radius: 4px;
+  color: #c0c0c0;
+}
+
+/* ---------- 通用双栏布局（列表 + 表单） ---------- */
+.two-pane-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.two-pane-left,
+.two-pane-right {
+  min-width: 0;
+}
+
+/* 默认左列表略宽一些，右表单略窄，可在具体页面通过附加 class 覆盖 */
+.two-pane-left {
+  flex: 7;
+}
+
+.two-pane-right {
+  flex: 5;
+}
+
+@media (max-width: 767px) {
+  .two-pane-layout {
+    gap: 1rem;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100%;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease-out;
+    z-index: 1100;
+  }
+
+  .sidebar.sidebar--open {
+    transform: translateX(0);
+  }
+
+  .main-wrap {
+    position: relative;
+  }
+
+  .dashboard-header {
+    padding-inline: 1rem;
+  }
+
+  .dashboard-main {
+    padding: 1rem;
+  }
+
+  .sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin-right: 0.5rem;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #1b1b1b;
+    color: #e0e0e0;
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 1199px) {
+  /* 非大屏：双栏布局只展示列表，表单通过浮层弹出 */
+  .two-pane-layout--mobile {
+    position: relative;
+  }
+
+  .two-pane-right {
+    display: none;
+  }
+
+  .two-pane-fab {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 1200;
+    padding: 0.6rem 0.9rem;
+    border-radius: 999px;
+    border: none;
+    background: #6366f1;
+    color: #f9fafb;
+    font-size: 0.85rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+  }
+
+  .two-pane-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .two-pane-overlay-inner {
+    width: 100%;
+    max-height: 90vh;
+    background: #111827;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border: 1px solid #374151;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .two-pane-overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #374151;
+  }
+
+  .two-pane-overlay-title {
+    font-size: 0.9rem;
+    color: #e5e7eb;
+  }
+
+  .two-pane-overlay-close {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 1.4rem;
+    cursor: pointer;
+  }
+
+  .two-pane-overlay-body {
+    padding: 1rem;
+    overflow-y: auto;
+  }
+}
+
+/* ---------- 任务监控（Admin）黑色主题下白色/浅色字体 + 表格占满整屏、最小 900px ---------- */
+.admin-tasks-page {
+  max-width: none;
+  width: 95%;
+  min-width: 0; /* 不撑开父容器，横向滚动仅由内部 table-wrap 负责 */
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-tasks-page,
+.admin-tasks-page .admin-tasks-form,
+.admin-tasks-page .admin-tasks-muted,
+.admin-tasks-page .admin-tasks-pagination {
+  color: #e0e0e0;
+}
+
+.admin-tasks-page .admin-tasks-input,
+.admin-tasks-page .admin-tasks-select {
+  background: #262626;
+  border: 1px solid #444;
+  color: #e0e0e0;
+}
+
+.admin-tasks-page .admin-tasks-error {
+  color: #f87171;
+}
+
+.admin-tasks-page .admin-tasks-table-wrap {
+  color: #e0e0e0;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden; /* 禁止容器横向滚动，仅表格内部横向滚动 */
+  overflow-y: auto;
+}
+
+/* 表格右侧留白：内层宽度留出 16px，表格不贴容器右缘 */
+.admin-tasks-page .admin-tasks-table-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+.admin-tasks-page .admin-tasks-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+  font-size: 14px;
+  color: #e0e0e0;
+}
+
+.admin-tasks-page .admin-tasks-table th,
+.admin-tasks-page .admin-tasks-table td {
+  padding: 8px;
+  border-bottom: 1px solid #333;
+  text-align: left;
+}
+
+.admin-tasks-page .admin-tasks-table th {
+  color: #c0c0c0;
+  font-weight: 600;
+}
+
+.admin-tasks-page .admin-tasks-table .admin-tasks-cell-id,
+.admin-tasks-page .admin-tasks-table .admin-tasks-cell-user {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-tasks-page .admin-tasks-table .admin-tasks-cell-user {
+  max-width: 120px;
+}
+
+.admin-tasks-page .admin-tasks-table .admin-tasks-cell-error {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fca5a5;
+}
+
+/* ---------- 系统概览（Admin）布局与任务监控一致：容器对齐、内部滚动 ---------- */
+.admin-stats-page {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-stats-page .admin-stats-content-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.admin-stats-page .admin-stats-content-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+/* 系统概览图表：深色主题下强制坐标轴、图例、标签为浅色且始终可见 */
+.admin-stats-page .admin-stats-chart-wrap svg text {
+  fill: #e0e0e0 !important;
+  opacity: 1 !important;
+}
+.admin-stats-page .admin-stats-chart-wrap .g2-html-annotation,
+.admin-stats-page .admin-stats-chart-wrap [class*="label"],
+.admin-stats-page .admin-stats-chart-wrap [class*="legend"] text,
+.admin-stats-page .admin-stats-chart-wrap [class*="axis"] text {
+  fill: #e0e0e0 !important;
+  color: #e0e0e0 !important;
+  opacity: 1 !important;
+}
+/* 图例可能是 HTML 渲染，强制所有图例区域内的文字为浅色、不透明 */
+.admin-stats-page .admin-stats-chart-wrap [class*="legend"] span,
+.admin-stats-page .admin-stats-chart-wrap [class*="legend"] div,
+.admin-stats-page .admin-stats-chart-wrap [class*="legend"] * {
+  color: #e0e0e0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.admin-stats-page .admin-stats-chart-wrap canvas {
+  display: block;
+}
+
+/* ---------- 用户管理（Admin）布局与任务监控一致、深色主题 ---------- */
+.admin-users-page {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-users-page .hint,
+.admin-users-page .admin-users-error {
+  color: #e0e0e0;
+}
+
+.admin-users-page .admin-users-error {
+  color: #f87171;
+}
+
+.admin-users-page .admin-users-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.admin-users-page .admin-users-table-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+/* antd Table 在深色主题下的文字与分页 */
+.admin-users-page .ant-table,
+.admin-users-page .ant-table-content,
+.admin-users-page .ant-pagination {
+  color: #e0e0e0;
+}
+
+.admin-users-page .ant-table-thead > tr > th {
+  background: #262626 !important;
+  color: #c0c0c0 !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+.admin-users-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #333 !important;
+  color: #e0e0e0 !important;
+}
+
+.admin-users-page .ant-table-tbody > tr:hover > td {
+  background: #333 !important;
+}
+
+.admin-users-page .ant-pagination .ant-pagination-item a,
+.admin-users-page .ant-pagination .ant-pagination-item-link,
+.admin-users-page .ant-pagination .ant-pagination-options .ant-select-selector {
+  color: #e0e0e0 !important;
+}
+
+.admin-users-page .ant-pagination .ant-pagination-item.ant-pagination-item-active {
+  background: #1677ff;
+}
+
+.admin-users-page .ant-pagination .ant-pagination-item.ant-pagination-item-active a {
+  color: #fff !important;
+}
+
+/* ---------- 提示词工程（Admin）布局与用户管理一致、容器内滚动 ---------- */
+.admin-prompt-config-page {
+  max-width: 95%;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-prompt-config-page .admin-prompt-config-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-width: 100%;
+}
+
+.admin-prompt-config-page .admin-prompt-config-table-inner {
+  width: 100%;
+  max-width: 95%;
+  box-sizing: border-box;
+}
+
+.admin-prompt-config-page .ant-table,
+.admin-prompt-config-page .ant-table-content,
+.admin-prompt-config-page .ant-pagination {
+  color: #e0e0e0;
+}
+
+.admin-prompt-config-page .ant-table-thead > tr > th {
+  background: #262626 !important;
+  color: #c0c0c0 !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+.admin-prompt-config-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #333 !important;
+  color: #e0e0e0 !important;
+}
+
+.admin-prompt-config-page .ant-table-tbody > tr:hover > td {
+  background: #333 !important;
+}
+
+/* ---------- 敏感词管理（Admin）布局与用户管理一致、容器内滚动 ---------- */
+.admin-sensitive-words-page {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-sensitive-words-page .admin-sensitive-words-content-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.admin-sensitive-words-page .admin-sensitive-words-content-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+.admin-sensitive-words-page .ant-table,
+.admin-sensitive-words-page .ant-table-content {
+  color: #e0e0e0;
+}
+
+.admin-sensitive-words-page .ant-table-thead > tr > th {
+  background: #262626 !important;
+  color: #c0c0c0 !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+.admin-sensitive-words-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #333 !important;
+  color: #e0e0e0 !important;
+}
+
+.admin-sensitive-words-page .ant-table-tbody > tr:hover > td {
+  background: #333 !important;
+}
+
+/* ---------- 系统知识库管理（Admin）布局与用户管理一致、容器内滚动 ---------- */
+.admin-knowledge-defaults-page {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-knowledge-defaults-page .admin-knowledge-defaults-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.admin-knowledge-defaults-page .admin-knowledge-defaults-table-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+.admin-knowledge-defaults-page .ant-table,
+.admin-knowledge-defaults-page .ant-table-content {
+  color: #e0e0e0;
+}
+
+.admin-knowledge-defaults-page .ant-table-thead > tr > th {
+  background: #262626 !important;
+  color: #c0c0c0 !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+.admin-knowledge-defaults-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #333 !important;
+  color: #e0e0e0 !important;
+}
+
+.admin-knowledge-defaults-page .ant-table-tbody > tr:hover > td {
+  background: #333 !important;
+}
+
+/* ---------- 表单选项（Admin）布局与用户管理一致、容器内滚动 ---------- */
+.admin-form-options-page {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-form-options-page .admin-form-options-content-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.admin-form-options-page .admin-form-options-content-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+/* ---------- 模型通道管理（Admin）布局与任务监控一致、深色主题 ---------- */
+.admin-providers-page {
+  max-width: none;
+  width: 95%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-providers-page .admin-providers-hint,
+.admin-providers-page .admin-providers-error {
+  color: #e0e0e0;
+}
+
+.admin-providers-page .admin-providers-error {
+  color: #f87171;
+}
+
+.admin-providers-page .admin-providers-content-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.admin-providers-page .admin-providers-content-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+.admin-providers-page .ant-table,
+.admin-providers-page .ant-table-content,
+.admin-providers-page .ant-card,
+.admin-providers-page .ant-statistic-content {
+  color: #e0e0e0;
+}
+
+.admin-providers-page .ant-table-thead > tr > th {
+  background: #262626 !important;
+  color: #c0c0c0 !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+.admin-providers-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #333 !important;
+  color: #e0e0e0 !important;
+}
+
+.admin-providers-page .ant-table-tbody > tr:hover > td {
+  background: #333 !important;
+}
+
+.admin-providers-page .ant-card {
+  background: #262626;
+  border: 1px solid #444;
+}
+
+.admin-providers-page .ant-card-head {
+  color: #c0c0c0;
+  border-bottom: 1px solid #444;
+}
+
+.admin-providers-page .ant-statistic-title,
+.admin-providers-page .ant-statistic-content {
+  color: #e0e0e0;
+}
+
+/* ---------- Admin 每日用量图表（旧，保留兼容） ---------- */
+.admin-daily-chart {
+  margin-top: 1rem;
+}
+
+.admin-daily-chart h3,
+.admin-top-users h3 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem 0;
+  color: #c0c0c0;
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 160px;
+  padding: 0.5rem 0;
+}
+
+.chart-bar-wrap {
+  flex: 1;
+  min-width: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.chart-bar {
+  width: 100%;
+  max-width: 32px;
+  min-height: 4px;
+  background: linear-gradient(to top, #6366f1, #818cf8);
+  border-radius: 4px 4px 0 0;
+  margin-bottom: 4px;
+  transition: height 0.2s ease;
+}
+
+.chart-label {
+  font-size: 0.65rem;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+}
+
+.chart-value {
+  font-size: 0.7rem;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.admin-top-users {
+  margin-top: 1rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #262626;
+  color: #e0e0e0;
+  font-family: ui-monospace, monospace;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+}
+
+.form-group textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.form-group button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: #333;
+  color: #e0e0e0;
+  cursor: pointer;
+}
+
+.form-group button:hover:not(:disabled) {
+  background: #444;
+  border-color: #6366f1;
+}
+
+.form-group button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.response {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #0d0d0d;
+  border: 1px solid #333;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  overflow: auto;
+  max-height: 400px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #c0c0c0;
+}
+
+.message {
+  margin-top: 1rem;
+  color: #86efac;
+}
+
+.page-card hr {
+  border: none;
+  border-top: 1px solid #333;
+  margin: 1.5rem 0;
+}
+
+/* ---------- Light mode ---------- */
+@media (prefers-color-scheme: light) {
+  .app-dashboard {
+    background: #f0f0f0;
+  }
+  .sidebar {
+    background: #fff;
+    border-right-color: #e0e0e0;
+  }
+  .sidebar-brand {
+    color: #213547;
+    border-bottom-color: #e0e0e0;
+  }
+  .nav-group-title {
+    color: #666;
+  }
+  .nav-list button {
+    color: #444;
+  }
+  .nav-list button:hover {
+    background: #f0f0f0;
+    color: #213547;
+  }
+  .nav-list button.active {
+    background: #eef2ff;
+    color: #4338ca;
+    border-right-color: #6366f1;
+  }
+  .dashboard-header {
+    background: #fff;
+    border-bottom-color: #e0e0e0;
+  }
+  .dashboard-title {
+    color: #213547;
+  }
+  .user-status {
+    color: #666;
+  }
+  .btn-logout {
+    background: #f5f5f5;
+    border-color: #ddd;
+    color: #213547;
+  }
+  .btn-logout:hover {
+    background: #eee;
+    border-color: #ccc;
+  }
+  .dashboard-main {
+    background: #f8f8f8;
+  }
+  .page-card {
+    background: #fff;
+    border-color: #e0e0e0;
+  }
+  .page-card h2,
+  .page-card h3 {
+    color: #213547;
+  }
+  .page-card .hint {
+    color: #666;
+  }
+  .admin-tasks-page,
+  .admin-tasks-page .admin-tasks-form,
+  .admin-tasks-page .admin-tasks-muted,
+  .admin-tasks-page .admin-tasks-pagination {
+    color: #213547;
+  }
+  .admin-tasks-page .admin-tasks-input,
+  .admin-tasks-page .admin-tasks-select {
+    background: #fff;
+    border-color: #ddd;
+    color: #213547;
+  }
+  .admin-tasks-page .admin-tasks-error {
+    color: #b91c1c;
+  }
+  .admin-tasks-page .admin-tasks-table-wrap,
+  .admin-tasks-page .admin-tasks-table {
+    color: #213547;
+  }
+  .admin-tasks-page .admin-tasks-table th {
+    color: #374151;
+  }
+  .admin-tasks-page .admin-tasks-table td {
+    border-bottom-color: #e5e7eb;
+  }
+  .admin-tasks-page .admin-tasks-table .admin-tasks-cell-error {
+    color: #b91c1c;
+  }
+  .form-group label {
+    color: #555;
+  }
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    background: #fff;
+    border-color: #ddd;
+    color: #213547;
+  }
+  .form-group button {
+    background: #f0f0f0;
+    color: #213547;
+    border-color: #ddd;
+  }
+  .form-group button:hover:not(:disabled) {
+    background: #eef2ff;
+    border-color: #6366f1;
+    color: #4338ca;
+  }
+  .response {
+    background: #fafafa;
+    border-color: #e0e0e0;
+    color: #213547;
+  }
+  .message {
+    color: #15803d;
+  }
+  .page-card hr {
+    border-top-color: #e0e0e0;
+  }
+  .dashboard-home .stat-card {
+    background: #fff;
+    border-color: #e0e0e0;
+  }
+  .dashboard-home .stat-value {
+    color: #213547;
+  }
+  .dashboard-home .quick-links h3 {
+    color: #444;
+  }
+  .dashboard-home .quick-links ul {
+    color: #555;
+  }
+}

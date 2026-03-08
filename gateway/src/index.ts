@@ -152,6 +152,7 @@ server.listen(port, () => {
   logger.info(`   - /api/v1/cgi/video -> mxmcgi/video (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
   logger.info(`   - /api/v1/system -> mxmcgi/system (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
   logger.info(`   - /api/v1/knowledge -> mxmcgi/knowledge (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
+  logger.info(`   - /api/v1/characters -> mxmcgi/characters (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
   logger.info(`   - /api/v1/agents -> mxmagent (${process.env.MXMAGENT_URL || 'http://localhost:4004'})`);
   logger.info(`   - /api/v1/smartflows -> mxmagent (${process.env.MXMAGENT_URL || 'http://localhost:4004'})`);
   logger.info(`   - /api/v1/smartflow-tasks -> mxmagent/tasks (${process.env.MXMAGENT_URL || 'http://localhost:4004'})`);

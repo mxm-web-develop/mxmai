@@ -1,0 +1,299 @@
+{
+  "info": {
+    "name": "九宫格模式测试",
+    "description": "测试九宫格图片生成功能的 Postman 请求集合\n\n重要说明：\n1. 所有请求通过 Gateway 访问（baseUrl: http://localhost:3000）\n2. 使用 JWT Token 认证（Authorization: Bearer <token>）\n3. Gateway 会自动从 token 中提取 userId，无需手动传递 x-user-id\n4. 请先设置环境变量 token（从登录接口获取）",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. 摄影-人像-九宫格（组合模式）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "description": "JWT Token，Gateway会自动提取userId"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"portrait\",\n  \"prompt\": \"一位优雅的女性，在现代化的室内环境中\",\n  \"style\": \"modern\",\n  \"tone\": \"warm\",\n  \"environment\": \"indoor\",\n  \"lighting\": \"soft\",\n  \"quality\": \"high\",\n  \"grid9\": true,\n  \"grid9Mode\": \"combination\",\n  \"storeToMinio\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cgi/graph/photograph",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cgi", "graph", "photograph"]
+        },
+        "description": "测试人像摄影的九宫格模式，使用组合模式（不同镜头、景深、角度等参数组合）"
+      }
+    },
+    {
+      "name": "2. 摄影-电影画面-九宫格（序列模式）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "description": "JWT Token，Gateway会自动提取userId"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"cinematic\",\n  \"prompt\": \"一个悬疑电影的片段，展现紧张的氛围\",\n  \"filmStyle\": \"noir\",\n  \"mood\": \"mysterious\",\n  \"cameraAngle\": \"low-angle\",\n  \"quality\": \"high\",\n  \"grid9\": true,\n  \"grid9Mode\": \"sequence\",\n  \"storeToMinio\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cgi/graph/photograph",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cgi", "graph", "photograph"]
+        },
+        "description": "测试电影画面的九宫格模式，使用序列模式（9个分镜图片，展现故事线）"
+      }
+    },
+    {
+      "name": "3. 设计-插画-九宫格（变体模式）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "description": "JWT Token，Gateway会自动提取userId"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"illustration\",\n  \"prompt\": \"一只可爱的小猫，坐在窗台上看风景\",\n  \"illustrationStyle\": \"flat\",\n  \"colorPalette\": \"warm\",\n  \"quality\": \"high\",\n  \"grid9\": true,\n  \"grid9Mode\": \"variation\",\n  \"storeToMinio\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cgi/graph/design",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cgi", "graph", "design"]
+        },
+        "description": "测试设计插画的九宫格模式，使用变体模式（9个不同风格/色彩的变体，方便选择）\n注意：design类型下没有illustration子类型，这个示例可能需要调整"
+      }
+    },
+    {
+      "name": "4. 设计-3D-九宫格（变体模式）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "description": "JWT Token，Gateway会自动提取userId"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"3d\",\n  \"prompt\": \"一个未来感的机器人，具有流线型设计\",\n  \"modelStyle\": \"realistic\",\n  \"material\": \"metal\",\n  \"lighting\": \"three-point\",\n  \"perspective\": \"isometric\",\n  \"quality\": \"high\",\n  \"grid9\": true,\n  \"storeToMinio\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cgi/graph/design",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cgi", "graph", "design"]
+        },
+        "description": "测试3D设计的九宫格模式，系统会自动选择variation模式（9个不同视角/材质/光照的变体）"
+      }
+    },
+    {
+      "name": "5. 绘画-漫画-九宫格（序列模式）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "description": "JWT Token，Gateway会自动提取userId"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"comic\",\n  \"prompt\": \"一个超级英雄拯救城市的场景\",\n  \"comicStyle\": \"american\",\n  \"panelLayout\": \"multi-panel\",\n  \"quality\": \"high\",\n  \"grid9\": true,\n  \"storeToMinio\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cgi/graph/painting",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cgi", "graph", "painting"]
+        },
+        "description": "测试漫画的九宫格模式，系统会自动选择sequence模式（9个分镜图片，展现故事线）"
+      }
+    },
+    {
+      "name": "6. 绘画-插画-九宫格（变体模式）",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}",
+            "description": "JWT Token，Gateway会自动提取userId"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"illustration\",\n  \"prompt\": \"一幅描绘森林中精灵的插画\",\n  \"illustrationStyle\": \"watercolor\",\n  \"colorPalette\": \"vibrant\",\n  \"quality\": \"high\",\n  \"grid9\": true,\n  \"grid9Mode\": \"variation\",\n  \"storeToMinio\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cgi/graph/painting",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cgi", "graph", "painting"]
+        },
+        "description": "测试绘画插画的九宫格模式，使用变体模式（9个不同风格/色彩的变体）"
+      }
+    },
+    {
+      "name": "7. 查询任务列表（验证父任务已隐藏）",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cgi-tasks?type=graph&limit=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cgi-tasks"],
+          "query": [
+            {
+              "key": "type",
+              "value": "graph"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "查询graph类型的任务列表，验证graph-grid9-parent类型的任务已被过滤，只显示子任务"
+      }
+    },
+    {
+      "name": "8. 查询单个子任务（验证metadata）",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cgi-tasks/:taskId",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cgi-tasks", ":taskId"],
+          "variable": [
+            {
+              "key": "taskId",
+              "value": "child-task-id-here",
+              "description": "替换为子任务的ID"
+            }
+          ]
+        },
+        "description": "查询单个子任务，验证metadata中包含parentTaskId、grid9Index、grid9Position等信息"
+      }
+    },
+    {
+      "name": "9. 查询父任务（验证完整大图）",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cgi-tasks/:taskId?includeDeleted=true",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cgi-tasks", ":taskId"],
+          "query": [
+            {
+              "key": "includeDeleted",
+              "value": "true"
+            }
+          ],
+          "variable": [
+            {
+              "key": "taskId",
+              "value": "parent-task-id-here",
+              "description": "替换为父任务的ID（从子任务的metadata.parentTaskId获取）"
+            }
+          ]
+        },
+        "description": "通过子任务的parentTaskId查询父任务，验证父任务包含完整大图和childTaskIds"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string",
+      "description": "Gateway地址（不是直接访问mxmcgi）"
+    },
+    {
+      "key": "token",
+      "value": "your-jwt-token-here",
+      "type": "string",
+      "description": "JWT Token，从登录接口获取"
+    }
+  ]
+}

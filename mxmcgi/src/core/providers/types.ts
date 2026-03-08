@@ -2,7 +2,7 @@
  * Provider 类型定义
  */
 
-export type ProviderType = 'replicate' | 'ppio' | 'deer';
+export type ProviderType = 'replicate' | 'ppio' | 'deer' | 'openai' | 'google' | 'anthropic' | 'qwen' | 'volc' | 'minimax';
 
 export interface ModelConfig {
   provider?: ProviderType;
@@ -51,6 +51,32 @@ export interface GenerateResult {
   progress?: AsyncIterable<ProgressEvent>;
 }
 
+/** Admin 监控：Provider 用量汇总（内部统计） */
+export interface ProviderUsageSummary {
+  provider: ProviderType;
+  /** 可选：表示子服务（如多租户时） */
+  service?: string;
+  requestCount: number;
+  successCount: number;
+  errorRate: number;
+  avgLatencyMs: number;
+  window: string; // e.g. '1h', '24h'
+}
+
+/** Admin 监控：Provider 余额/用量（若官方 API 支持） */
+export interface ProviderBillingInfo {
+  provider: ProviderType;
+  service?: string;
+  supported: boolean;
+  /** 总额度（若支持） */
+  totalLimit?: string | number;
+  /** 已用额度（若支持） */
+  used?: string | number;
+  /** 重置时间等说明 */
+  resetAt?: string;
+  raw?: Record<string, unknown>;
+}
+
 export interface ModelProvider {
   readonly provider: ProviderType;
   readonly name: string;
@@ -64,4 +90,14 @@ export interface ModelProvider {
    * 生成内容
    */
   generate(modelName: string, params: GenerateParams): Promise<GenerateResult>;
+  
+  /**
+   * 可选：返回用量汇总（仅 admin 可查，来自内部统计）
+   */
+  getUsageSummary?(window: string): Promise<ProviderUsageSummary>;
+  
+  /**
+   * 可选：返回余额/用量（仅 admin 可查，若官方 API 支持）
+   */
+  getBillingInfo?(): Promise<ProviderBillingInfo>;
 }

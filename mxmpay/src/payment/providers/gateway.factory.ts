@@ -6,6 +6,7 @@ import { PaypalGateway } from './paypal.gateway';
 import { CardGateway } from './card.gateway';
 import { CryptoGateway } from './crypto.gateway';
 import { VoucherGateway } from './voucher.gateway';
+import { AppleIapGateway } from './apple-iap.gateway';
 
 export class GatewayFactory {
   private readonly gateways: Record<string, PaymentGateway>;
@@ -18,6 +19,7 @@ export class GatewayFactory {
       [PaymentChannel.CARD]: new CardGateway(),
       [PaymentChannel.CRYPTO]: new CryptoGateway(),
       [PaymentChannel.VOUCHER]: new VoucherGateway(),
+      [PaymentChannel.APPLE_IAP]: new AppleIapGateway(),
     };
   }
 

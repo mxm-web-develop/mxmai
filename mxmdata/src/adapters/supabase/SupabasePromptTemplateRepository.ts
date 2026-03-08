@@ -49,7 +49,7 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
       throw new DataAccessError(
         `Unexpected error finding prompt template by id: ${error}`,
         'UNKNOWN_ERROR',
-        error
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }
@@ -84,7 +84,7 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
       throw new DataAccessError(
         `Unexpected error finding prompt template by name: ${error}`,
         'UNKNOWN_ERROR',
-        error
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }
@@ -129,7 +129,7 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
       throw new DataAccessError(
         `Unexpected error finding prompt templates by user id: ${error}`,
         'UNKNOWN_ERROR',
-        error
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }
@@ -171,7 +171,7 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
       throw new DataAccessError(
         `Unexpected error finding public prompt templates: ${error}`,
         'UNKNOWN_ERROR',
-        error
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }
@@ -211,7 +211,7 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
       throw new DataAccessError(
         `Unexpected error finding all prompt templates: ${error}`,
         'UNKNOWN_ERROR',
-        error
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }
@@ -257,7 +257,7 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
       throw new DataAccessError(
         `Unexpected error finding prompt templates by category: ${error}`,
         'UNKNOWN_ERROR',
-        error
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }
@@ -311,7 +311,7 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
       throw new DataAccessError(
         `Unexpected error creating prompt template: ${error}`,
         'UNKNOWN_ERROR',
-        error
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }
@@ -351,12 +351,12 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
 
       if (error) {
         if (error.code === 'PGRST116') {
-          throw new NotFoundError(`Prompt template with id ${id} not found`);
+          throw new NotFoundError('Prompt template', id);
         }
         throw new DataAccessError(
           `Failed to update prompt template: ${error.message}`,
           'UPDATE_ERROR',
-          error
+          error instanceof Error ? error : new Error(String(error))
         );
       }
 
@@ -368,7 +368,7 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
       throw new DataAccessError(
         `Unexpected error updating prompt template: ${error}`,
         'UNKNOWN_ERROR',
-        error
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }
@@ -397,7 +397,7 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
       throw new DataAccessError(
         `Unexpected error deleting prompt template: ${error}`,
         'UNKNOWN_ERROR',
-        error
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }
@@ -411,11 +411,25 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
         template_id: id,
       });
 
-      // 如果 RPC 函数不存在，使用更新方式
+      // 如果 RPC 函数不存在，先查询当前值再更新
       if (error && error.message.includes('function') && error.message.includes('does not exist')) {
+        const { data: current, error: fetchError } = await this.client
+          .from('prompt_templates')
+          .select('usage_count')
+          .eq('id', id)
+          .single();
+
+        if (fetchError) {
+          throw new DataAccessError(
+            `Failed to fetch current usage count: ${fetchError.message}`,
+            'QUERY_ERROR',
+            fetchError
+          );
+        }
+
         const { error: updateError } = await this.client
           .from('prompt_templates')
-          .update({ usage_count: this.client.raw('usage_count + 1') })
+          .update({ usage_count: (current?.usage_count || 0) + 1 })
           .eq('id', id);
 
         if (updateError) {
@@ -439,7 +453,7 @@ export class SupabasePromptTemplateRepository implements IPromptTemplateReposito
       throw new DataAccessError(
         `Unexpected error incrementing usage count: ${error}`,
         'UNKNOWN_ERROR',
-        error
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }

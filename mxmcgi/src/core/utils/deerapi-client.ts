@@ -20,6 +20,8 @@ export interface DeerAPIChatRequest {
   messages: DeerAPIChatMessage[];
   temperature?: number;
   max_tokens?: number;
+  /** GPT-5 系列推荐使用的字段名（对应 OpenAI 的 max_completion_tokens） */
+  max_completion_tokens?: number;
   stream?: boolean;
   // 其余参数（top_p、presence_penalty、frequency_penalty 等）透传即可
   [key: string]: any;
@@ -134,6 +136,144 @@ export class DeerAPIClient {
       return this.config.apiKey;
     }
     return `Bearer ${this.config.apiKey}`;
+  }
+
+  /**
+   * 调试：是否打印发往 DeerAPI 的“请求参数”
+   * - 默认关闭（避免在日志中泄露 prompt / 图片 base64 等敏感内容）
+   * - 开启方式：DEBUG_DEERAPI_REQUEST=true
+   */
+  private shouldDebugRequest(): boolean {
+    const v = (process.env.DEBUG_DEERAPI_REQUEST || '').toLowerCase();
+    return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+  }
+
+  private sanitizeForLog(value: unknown, keyPath: string[] = []): unknown {
+    if (value === null || value === undefined) return value;
+
+    if (typeof value === 'string') {
+      const key = keyPath[keyPath.length - 1] || '';
+
+      // 1) Data URI
+      if (value.startsWith('data:') && value.includes('base64,')) {
+        const base64Part = value.split('base64,')[1] || '';
+        return `[DataURI base64Len=${base64Part.length}]`;
+      }
+
+      // 2) 可能是 Base64（长字符串 + base64 字符集）
+      if (value.length > 500) {
+        const sample = value.substring(0, 500);
+        const base64Pattern = /^[A-Za-z0-9+/=\s]*$/;
+        if (base64Pattern.test(sample) && value.length > 1500) {
+          return `[Base64 len=${value.length}]`;
+        }
+      }
+
+      // 3) 对 prompt / messages / text 等字段做截断（保留长度用于 debug）
+      const shouldTruncate =
+        ['prompt', 'text', 'content', 'system', 'messages'].includes(key) ||
+        keyPath.includes('messages') ||
+        keyPath.includes('parts');
+      if (shouldTruncate && value.length > 300) {
+        return `${value.slice(0, 300)}…(len=${value.length})`;
+      }
+
+      return value;
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((v, i) => this.sanitizeForLog(v, [...keyPath, String(i)]));
+    }
+
+    if (typeof value === 'object') {
+      const obj = value as Record<string, unknown>;
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(obj)) {
+        // 不打印任何疑似敏感 key（尽管通常不会出现在 body）
+        if (k.toLowerCase().includes('authorization') || k.toLowerCase().includes('api_key') || k.toLowerCase() === 'apikey') {
+          out[k] = '[REDACTED]';
+          continue;
+        }
+        out[k] = this.sanitizeForLog(v, [...keyPath, k]);
+      }
+      return out;
+    }
+
+    return value;
+  }
+
+  private debugLogRequest(label: string, url: string, body: unknown, bodySizeMB?: number) {
+    if (!this.shouldDebugRequest()) return;
+    try {
+      const safeBody = this.sanitizeForLog(body);
+      console.log(
+        `[DeerAPIClient] 请求参数调试(${label}): ${url}` +
+          (typeof bodySizeMB === 'number' ? ` bodySize≈${bodySizeMB.toFixed(2)}MB` : '')
+      );
+      console.log(JSON.stringify(safeBody, null, 2));
+    } catch (e) {
+      console.warn('[DeerAPIClient] 请求参数调试打印失败:', e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  /**
+   * 对 DeerAPI 的上游网关错误进行自动重试（502/503/504），降低瞬时故障导致的任务失败。
+   * 注意：只对幂等/可安全重试的请求启用；目前用于 LLM 调用（chat / messages）。
+   */
+  private async fetchWithRetry(
+    url: string,
+    init: RequestInit,
+    opts?: {
+      maxRetries?: number;
+      baseDelayMs?: number;
+      retryOnStatuses?: number[];
+      requestLabel?: string;
+      bodySizeHintMB?: number;
+    }
+  ): Promise<Response> {
+    const maxRetries = opts?.maxRetries ?? 3;
+    const baseDelayMs = opts?.baseDelayMs ?? 800;
+    const retryOnStatuses = opts?.retryOnStatuses ?? [502, 503, 504];
+    const label = opts?.requestLabel ?? 'DeerAPI';
+
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fetch(url, init);
+        if (!res.ok && retryOnStatuses.includes(res.status) && attempt < maxRetries) {
+          // 读取少量错误内容用于日志/诊断（避免吞掉 body）
+          let errSnippet = '';
+          try {
+            const txt = await res.text();
+            errSnippet = txt.slice(0, 300);
+          } catch {
+            // ignore
+          }
+          const jitter = Math.floor(Math.random() * 200);
+          const delay = baseDelayMs * Math.pow(2, attempt) + jitter;
+          console.warn(
+            `[DeerAPIClient] ${label} 请求返回 ${res.status}，准备重试（${attempt + 1}/${maxRetries}），等待 ${delay}ms。` +
+              (opts?.bodySizeHintMB ? ` 请求体大小约 ${opts.bodySizeHintMB.toFixed(2)}MB。` : '') +
+              (errSnippet ? ` 错误片段: ${errSnippet}` : '')
+          );
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        return res;
+      } catch (e) {
+        lastError = e;
+        if (attempt >= maxRetries) break;
+        const jitter = Math.floor(Math.random() * 200);
+        const delay = baseDelayMs * Math.pow(2, attempt) + jitter;
+        console.warn(
+          `[DeerAPIClient] ${label} 请求异常，准备重试（${attempt + 1}/${maxRetries}），等待 ${delay}ms。错误: ${
+            e instanceof Error ? e.message : String(e)
+          }`
+        );
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error(`${label} 请求失败: ${String(lastError)}`);
   }
 
   /**
@@ -296,6 +436,199 @@ export class DeerAPIClient {
   }
 
   /**
+   * Suno 音乐生成：提交音乐任务
+   *
+   * 文档参考：
+   * - POST https://api.deerapi.com/suno/submit/music
+   *
+   * 说明：
+   * - DeerAPI 返回格式通常为 { code, message, data: "task_id" }
+   * - 我们返回 taskId + raw，供上层做轮询或调试
+   */
+  async submitSunoMusic(request: Record<string, any>): Promise<{
+    taskId: string;
+    raw: any;
+  }> {
+    const url = `${this.config.baseUrl}/suno/submit/music`;
+    const authHeader = this.getAuthHeader();
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: authHeader,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request || {}),
+    });
+
+    const text = await response.text();
+
+    if (!response.ok) {
+      throw new Error(`DeerAPI Suno 音乐提交失败: ${response.status} ${response.statusText} - ${text}`);
+    }
+
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(
+        `DeerAPI Suno 音乐响应解析失败: 无法解析为 JSON。原始响应: ${text.substring(0, 200)}...`,
+      );
+    }
+
+    // 兼容不同格式：优先使用 data 字段
+    let taskId: string | undefined;
+    if (typeof data.data === 'string') {
+      taskId = data.data;
+    } else if (data.data && typeof data.data === 'object') {
+      taskId = data.data.task_id || data.data.taskId || data.data.id;
+    } else if (typeof data === 'string') {
+      taskId = data;
+    }
+
+    if (!taskId) {
+      throw new Error(
+        `DeerAPI Suno 音乐响应中缺少任务 ID 字段（data / data.task_id / data.id）。完整响应: ${JSON.stringify(data).substring(0, 500)}...`,
+      );
+    }
+
+    return { taskId, raw: data };
+  }
+
+  /**
+   * Suno 单任务查询：查询音乐/歌词生成任务状态
+   *
+   * 文档参考（DeerAPI Suno 查询接口通常为 fetch）：
+   * - GET /suno/fetch/:task_id
+   */
+  async fetchSunoTask(taskId: string): Promise<{
+    taskId: string;
+    status: string;
+    audioUrls: string[];
+    raw: any;
+  }> {
+    const url = `${this.config.baseUrl}/suno/fetch/${encodeURIComponent(taskId)}`;
+    const authHeader = this.getAuthHeader();
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: authHeader,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(`DeerAPI Suno 任务查询失败: ${response.status} ${response.statusText} - ${text}`);
+    }
+
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(`DeerAPI Suno 任务查询响应解析失败: 无法解析为 JSON。原始响应: ${text.substring(0, 200)}...`);
+    }
+
+    const payload = data?.data ?? data;
+    const rawStatus =
+      payload?.status ||
+      payload?.task_status ||
+      payload?.state ||
+      payload?.progress?.status ||
+      data?.status ||
+      'unknown';
+    const status = String(rawStatus);
+
+    // 尽可能从响应中提取音频 URL
+    const audioUrls: string[] = [];
+    const pushUrl = (u: any) => {
+      if (typeof u !== 'string') return;
+      const s = u.trim();
+      if (!s) return;
+      if (!(s.startsWith('http://') || s.startsWith('https://'))) return;
+      // 过滤明显不是音频的链接（尽量宽松：只要包含 audio 或以常见音频后缀结尾就收）
+      const lower = s.toLowerCase();
+      const looksLikeAudio =
+        lower.includes('audio') ||
+        lower.endsWith('.mp3') ||
+        lower.endsWith('.wav') ||
+        lower.endsWith('.flac') ||
+        lower.endsWith('.m4a') ||
+        lower.endsWith('.aac') ||
+        lower.endsWith('.ogg');
+      if (looksLikeAudio) audioUrls.push(s);
+    };
+
+    // 常见字段：audioUrl / audio_url / audio_urls / clips[]
+    pushUrl(payload?.audioUrl);
+    pushUrl(payload?.audio_url);
+    pushUrl(payload?.streamUrl);
+    pushUrl(payload?.stream_url);
+    if (Array.isArray(payload?.audio_urls)) payload.audio_urls.forEach(pushUrl);
+    if (Array.isArray(payload?.audioUrlList)) payload.audioUrlList.forEach(pushUrl);
+    if (Array.isArray(payload?.clips)) {
+      for (const clip of payload.clips) {
+        pushUrl(clip?.audio_url);
+        pushUrl(clip?.audioUrl);
+        pushUrl(clip?.stream_url);
+        pushUrl(clip?.streamUrl);
+        pushUrl(clip?.url);
+      }
+    }
+    if (Array.isArray(payload)) {
+      for (const item of payload) {
+        pushUrl(item?.audio_url);
+        pushUrl(item?.audioUrl);
+        pushUrl(item?.stream_url);
+        pushUrl(item?.streamUrl);
+        pushUrl(item?.url);
+      }
+    }
+
+    // 兜底：递归扫描整个 payload，抓取任何“看起来像音频”的 URL
+    const seen = new Set<any>();
+    const collect = (obj: any, depth: number) => {
+      if (depth > 6) return;
+      if (obj === null || obj === undefined) return;
+      if (typeof obj === 'string') {
+        pushUrl(obj);
+        return;
+      }
+      if (typeof obj !== 'object') return;
+      if (seen.has(obj)) return;
+      seen.add(obj);
+      if (Array.isArray(obj)) {
+        for (const it of obj) collect(it, depth + 1);
+        return;
+      }
+      for (const [k, v] of Object.entries(obj)) {
+        // 针对 key 含 audio/url 的字段优先递归
+        if (typeof v === 'string') {
+          pushUrl(v);
+        } else {
+          collect(v, depth + 1);
+        }
+        // 额外：如果 key 本身提示是 clip/music/result，也继续深入
+        if (k && typeof k === 'string') {
+          const kl = k.toLowerCase();
+          if (kl.includes('clip') || kl.includes('song') || kl.includes('music') || kl.includes('result')) {
+            collect(v, depth + 1);
+          }
+        }
+      }
+    };
+    collect(payload, 0);
+
+    return {
+      taskId,
+      status,
+      audioUrls: Array.from(new Set(audioUrls)),
+      raw: data,
+    };
+  }
+
+  /**
    * OpenAI chat/completions 兼容接口
    * 参考文档：https://apidoc.deerapi.com/chat-completions-276386060e0
    */
@@ -304,30 +637,48 @@ export class DeerAPIClient {
 
     const authHeader = this.getAuthHeader();
 
+    const isGpt5 = typeof request.model === 'string' && request.model.startsWith('gpt-5');
+
     const body: any = {
       model: request.model,
       messages: request.messages,
       temperature: request.temperature,
-      max_tokens: request.max_tokens,
       stream: request.stream ?? false,
     };
 
+    // GPT-5 系列（除 gpt-5-chat-latest）推荐使用 max_completion_tokens
+    if (isGpt5 && request.model !== 'gpt-5-chat-latest') {
+      if (request.max_completion_tokens != null) {
+        body.max_completion_tokens = request.max_completion_tokens;
+      } else if (request.max_tokens != null) {
+        body.max_completion_tokens = request.max_tokens;
+      }
+    } else if (request.max_tokens != null) {
+      body.max_tokens = request.max_tokens;
+    }
+
     // 透传其余参数（top_p、presence_penalty、frequency_penalty 等）
     const extraKeys = Object.keys(request).filter(
-      (k) => !['model', 'messages', 'temperature', 'max_tokens', 'stream'].includes(k)
+      (k) => !['model', 'messages', 'temperature', 'max_tokens', 'max_completion_tokens', 'stream'].includes(k)
     );
     for (const key of extraKeys) {
       body[key] = (request as any)[key];
     }
 
-    const response = await fetch(url, {
+    const response = await this.fetchWithRetry(
+      url,
+      {
       method: 'POST',
       headers: {
         Authorization: authHeader,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
-    });
+      },
+      {
+        requestLabel: 'chat/completions',
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -338,75 +689,6 @@ export class DeerAPIClient {
   }
 
   /**
-   * OpenAI embeddings 兼容接口
-   * 调用 DeerAPI 的 /v1/embeddings 接口
-   * 支持渠道分组（group）参数
-   */
-  async embeddings(request: {
-    input: string | string[];
-    model?: string;
-    dimensions?: number; // OpenAI 支持降维参数（仅 text-embedding-3-large 支持）
-  }): Promise<{
-    data: Array<{
-      embedding: number[];
-      index: number;
-    }>;
-    model: string;
-    usage: {
-      prompt_tokens: number;
-      total_tokens: number;
-    };
-  }> {
-    const url = `${this.config.baseUrl}/v1/embeddings`;
-
-    const authHeader = this.getAuthHeader();
-
-    const body: any = {
-      input: request.input,
-      model: request.model || 'text-embedding-3-small',
-    };
-
-    // 如果指定了 dimensions（仅 text-embedding-3-large 支持降维）
-    if (request.dimensions !== undefined) {
-      body.dimensions = request.dimensions;
-    }
-
-    const headers: Record<string, string> = {
-      Authorization: authHeader,
-      'Content-Type': 'application/json',
-    };
-
-    // DeerAPI 支持通过查询参数传递 group
-    const queryParams = this.config.group ? `?group=${encodeURIComponent(this.config.group)}` : '';
-    const fullUrl = `${url}${queryParams}`;
-
-    const response = await fetch(fullUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `DeerAPI Embeddings 请求失败: ${response.status} ${response.statusText} - ${errorText}`
-      );
-    }
-
-    return (await response.json()) as {
-      data: Array<{
-        embedding: number[];
-        index: number;
-      }>;
-      model: string;
-      usage: {
-        prompt_tokens: number;
-        total_tokens: number;
-      };
-    };
-  }
-
-  /**
    * OpenAI chat/completions 流式接口（返回纯文本 chunk）
    */
   async *chatStream(request: DeerAPIChatRequest): AsyncGenerator<string, void, unknown> {
@@ -414,16 +696,27 @@ export class DeerAPIClient {
 
     const authHeader = this.getAuthHeader();
 
+    const isGpt5 = typeof request.model === 'string' && request.model.startsWith('gpt-5');
+
     const body: any = {
       model: request.model,
       messages: request.messages,
       temperature: request.temperature,
-      max_tokens: request.max_tokens,
       stream: true,
     };
 
+    if (isGpt5 && request.model !== 'gpt-5-chat-latest') {
+      if (request.max_completion_tokens != null) {
+        body.max_completion_tokens = request.max_completion_tokens;
+      } else if (request.max_tokens != null) {
+        body.max_completion_tokens = request.max_tokens;
+      }
+    } else if (request.max_tokens != null) {
+      body.max_tokens = request.max_tokens;
+    }
+
     const extraKeys = Object.keys(request).filter(
-      (k) => !['model', 'messages', 'temperature', 'max_tokens', 'stream'].includes(k)
+      (k) => !['model', 'messages', 'temperature', 'max_tokens', 'max_completion_tokens', 'stream'].includes(k)
     );
     for (const key of extraKeys) {
       body[key] = (request as any)[key];
@@ -505,15 +798,25 @@ export class DeerAPIClient {
     if (request.system) body.system = request.system;
     if (request.temperature !== undefined) body.temperature = request.temperature;
 
-    const response = await fetch(url, {
+    const bodyString = JSON.stringify(body);
+    const bodySizeHintMB = bodyString.length / 1024 / 1024;
+
+    const response = await this.fetchWithRetry(
+      url,
+      {
       method: 'POST',
       headers: {
         Authorization: authHeader,
         'Content-Type': 'application/json',
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify(body),
-    });
+        body: bodyString,
+      },
+      {
+        requestLabel: 'anthropic/messages',
+        bodySizeHintMB,
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -546,15 +849,25 @@ export class DeerAPIClient {
     if (request.system) body.system = request.system;
     if (request.temperature !== undefined) body.temperature = request.temperature;
 
-    const response = await fetch(url, {
+    const bodyString = JSON.stringify(body);
+    const bodySizeHintMB = bodyString.length / 1024 / 1024;
+
+    const response = await this.fetchWithRetry(
+      url,
+      {
       method: 'POST',
       headers: {
         Authorization: authHeader,
         'Content-Type': 'application/json',
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify(body),
-    });
+        body: bodyString,
+      },
+      {
+        requestLabel: 'anthropic/messages:stream',
+        bodySizeHintMB,
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -672,18 +985,45 @@ export class DeerAPIClient {
       headers['x-group'] = this.config.group;
     }
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
+    // 调试：打印最终发送给 DeerAPI 的请求参数（脱敏/截断）
+    this.debugLogRequest('gemini.generateContent', url, body);
 
-    if (!response.ok) {
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
       const errorText = await response.text();
-      throw new Error(`DeerAPI generateContent 失败: ${response.status} ${response.statusText} - ${errorText}`);
+
+      if (response.ok) {
+        return JSON.parse(errorText || '{}') as any;
+      }
+
+      const is429 =
+        response.status === 429 ||
+        (response.status === 500 &&
+          (errorText.includes('"code":429') || errorText.includes('Resource exhausted')));
+
+      lastError = new Error(`DeerAPI generateContent 失败: ${response.status} ${response.statusText} - ${errorText}`);
+
+      if (is429 && attempt < maxRetries) {
+        const waitMs = Math.min(2000 * Math.pow(2, attempt), 15000);
+        console.warn(
+          `[DeerAPIClient] generateContent 限流/资源耗尽 (429)，${waitMs}ms 后重试 (${attempt + 1}/${maxRetries})`
+        );
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+
+      throw lastError;
     }
 
-    return (await response.json()) as any;
+    throw lastError ?? new Error('DeerAPI generateContent 失败: 重试次数已用尽');
   }
 
   /**
@@ -1019,7 +1359,10 @@ export class DeerAPIClient {
     if (bodySizeMB > 10) {
       console.warn(`[DeerAPIClient] 警告：请求体较大 (${bodySizeMB.toFixed(2)} MB)，可能导致请求超时或失败`);
     }
-    console.log(`[DeerAPIClient] 发送 Seedream 图像生成请求，请求体大小: ${bodySizeMB.toFixed(2)} MB`);
+    if (this.shouldDebugRequest()) {
+      console.log(`[DeerAPIClient] 发送 Seedream 图像生成请求，请求体大小: ${bodySizeMB.toFixed(2)} MB`);
+    }
+    this.debugLogRequest('seedream.images/generations', url, body, bodySizeMB);
 
     // 设置超时（10 分钟，因为大图片上传和生成可能需要更长时间）
     const timeoutMs = 10 * 60 * 1000; // 10 分钟
@@ -1076,41 +1419,34 @@ export class DeerAPIClient {
   }
 
   /**
-   * 创建视频生成任务
-   * 参考文档：https://apidoc.deerapi.com/video/sora/official/create
-   * 
+   * 创建视频生成任务（OpenAI Sora 接口，异步）
+   * 接口：POST https://api.deerapi.com/v1/videos（multipart/form-data）
+   * 官方约定：seconds 枚举 4|8|12 默认4，size 枚举 720x1280|1280x720|1024x1792|1792x1024 默认720x1280；
+   * input_reference 上传图像尺寸需等同于 size。
+   *
    * @param request 视频生成请求参数
    * @returns 视频任务信息
    */
   async createVideo(request: {
     prompt: string;
     /**
-     * 视频生成模型
-     * 官方格式：
-     * - sora-2
-     * - sora-2-pro
-     * 逆向异步自研格式（参考：https://apidoc.deerapi.com/sora/self-developed/create）：
-     * - sora-2-all
-     * - sora-2-pro-all
+     * 视频生成模型。官方：sora-2（默认）| sora-2-pro；自研：sora-2-all | sora-2-pro-all
      */
     model?: 'sora-2' | 'sora-2-pro' | 'sora-2-all' | 'sora-2-pro-all';
     /**
-     * 剪辑时长
-     * 官方格式：4 / 8 / 12
-     * 自研格式：10 / 15 / 25（仅 -all / -pro-all 支持）
+     * 剪辑时长（秒）。官方：4|8|12 默认4；自研：10|15|25
      */
     seconds?: '4' | '8' | '12' | '10' | '15' | '25';
+    /**
+     * 输出分辨率 宽x高。官方仅支持 720x1280|1280x720|1024x1792|1792x1024，默认 720x1280
+     */
     size?: '720x1280' | '1280x720' | '1024x1792' | '1792x1024';
     /**
-     * 图像参考（仅本地路径上传，不支持 URL）
-     * - File：浏览器环境
-     * - Buffer：Node.js 环境（已处理为 Blob）
-     * - string：Base64 字符串
+     * 图像参考（引导生成）；仅本地/二进制上传不支持 URL；上传图像尺寸需等同于 size
      */
     input_reference?: File | Buffer | string;
     /**
-     * 角色一致性相关参数（仅自研 sora-2-all / sora-2-pro-all 支持）
-     * 文档参考：https://apidoc.deerapi.com/sora/self-developed/create
+     * 角色一致性（仅自研 sora-2-all / sora-2-pro-all）
      */
     character_url?: string;
     character_timestamps?: string; // 例如 "1,8"
@@ -1267,6 +1603,9 @@ export class DeerAPIClient {
     const url = `${this.config.baseUrl}/v1/videos/${videoId}`;
     const authHeader = this.getAuthHeader();
 
+    console.log(`[DeerAPI Client] 查询视频状态: ${url}`);
+    console.log(`[DeerAPI Client] Video ID: ${videoId}`);
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -1277,12 +1616,17 @@ export class DeerAPIClient {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`[DeerAPI Client] 查询失败 (${response.status}):`, errorText);
       throw new Error(
         `DeerAPI 查询视频状态失败: ${response.status} ${response.statusText} - ${errorText}`,
       );
     }
 
     const data: any = await response.json();
+    
+    // 打印完整的响应内容（用于调试）
+    console.log(`[DeerAPI Client] 视频状态查询响应 (${videoId}):`);
+    console.log(JSON.stringify(data, null, 2));
 
     // 1) 逆向 / 自研格式：{ message, data: { error: {...} } }
     if (data && data.data && data.data.error) {
@@ -1488,7 +1832,7 @@ export class DeerAPIClient {
       throw new Error(`DeerAPI Runway 图片转视频失败: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     // 避免打印 Base64 数据，只显示响应结构
     const safeData = JSON.parse(JSON.stringify(data, (key, value) => {
       if (key === 'data' && typeof value === 'string' && value.length > 100 && /^[A-Za-z0-9+/=]+$/.test(value.substring(0, 50))) {
@@ -1570,7 +1914,7 @@ export class DeerAPIClient {
       throw new Error(`DeerAPI Runway 文本转视频失败: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return {
       id: data.id,
       status: 'queued',
@@ -1621,7 +1965,7 @@ export class DeerAPIClient {
       throw new Error(`DeerAPI Runway 视频转视频失败: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return {
       id: data.id,
       status: 'queued',
@@ -1724,7 +2068,7 @@ export class DeerAPIClient {
       throw new Error(`DeerAPI Runway 查询任务状态失败: 响应不是 JSON 格式，可能是 HTML 错误页面`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     // 避免打印 Base64 数据，只显示响应结构
     const safeData = JSON.parse(JSON.stringify(data, (key, value) => {
       if (key === 'data' && typeof value === 'string' && value.length > 100 && /^[A-Za-z0-9+/=]+$/.test(value.substring(0, 50))) {

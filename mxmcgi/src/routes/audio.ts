@@ -1,83 +1,25 @@
 import { Router, Request, Response } from 'express';
 import type { ProviderType } from '../core/providers/types';
-import { taskExecutor } from '../core/task/task-executor';
+import { taskExecutor } from '../task/task-executor';
+import { listModels, getModelsByKey } from '../models/registry';
+import { runByModelKey } from '../models/run';
 
-// 导入所有 audio 模型文件
-import * as minimaxVoiceCloning from '../core/audio/minimax-voice-cloning';
-import * as minimaxSpeech02Turbo from '../core/audio/minimax-speech-02-turbo';
-import * as minimaxSpeech02HdAsync from '../core/audio/minimax-speech-02-hd-async';
-import * as minimaxSpeech26HdAsync from '../core/audio/minimax-speech-2.6-hd-async';
-import * as minimaxSpeech25HdAsync from '../core/audio/minimax-speech-2.5-hd-async';
-import * as minimaxSpeech25TurboAsync from '../core/audio/minimax-speech-2.5-turbo-async';
-import * as minimaxSpeech26Hd from '../core/audio/minimax-speech-2.6-hd';
-import * as minimaxSpeech25Turbo from '../core/audio/minimax-speech-2.5-turbo';
-import * as minimaxSpeech25Hd from '../core/audio/minimax-speech-2.5-hd';
+// 模型列表与存在性：仅通过 registry（单轨）
+const AUDIO_MODELS = listModels({ scope: 'audio' });
+const SUPPORTED_MODELS: string[] = Array.from(new Set(AUDIO_MODELS.map(d => d.modelKey)));
 
-// 统一从 suport-list.ts 读取所有 provider 的 audio 模型列表
-// 约定：对外暴露的模型名 = suport-list.ts 中各 provider.audio 的 key
-// 内部真实模型 ID（PPIO 等）由各 provider 自己根据 suport-list 的 value 处理
-const supportList = require('../core/utils/suport-list').default as any;
-
-const AUDIO_MODELS_FROM_PROVIDERS = [
-  ...(Object.keys(supportList.replicate?.audio || {})),
-  ...(Object.keys(supportList.ppio?.audio || {})),
-  ...(Object.keys(supportList.deer?.audio || {})),
-];
-
-// 去重后的模型列表
-const SUPPORTED_MODELS: string[] = Array.from(new Set(AUDIO_MODELS_FROM_PROVIDERS));
+function isAudioModelSupported(modelName: string): boolean {
+  return getModelsByKey('audio', modelName).length > 0;
+}
 
 // 同步模型列表（直接返回结果，不创建任务）
-const SYNC_MODELS: string[] = [
-  'minimax-speech-02-turbo', // 同步语音合成
-  'minimax-speech-2.6-hd', // 同步语音合成
-  'minimax-speech-2.5-turbo', // 同步语音合成
-  'minimax-speech-2.5-hd', // 同步语音合成
-];
-
-// 模型映射（key 为我们对外暴露的模型名）
-// 约定：这里的 key 必须与 `suport-list.ts` 中各 provider.audio 的 key 完全一致
-// 每个模型文件内部使用 providerFactory.getProviderForModel() 自动选择支持的 provider
-const MODEL_MAP: Record<string, {
-  generate: (params: any, provider?: ProviderType) => Promise<any>;
-}> = {
-  'minimax-voice-cloning': {
-    generate: minimaxVoiceCloning.generate,
-  },
-  'minimax-speech-02-turbo': {
-    generate: minimaxSpeech02Turbo.generate,
-  },
-  'minimax-speech-02-hd-async': {
-    generate: minimaxSpeech02HdAsync.generate,
-  },
-  'minimax-speech-2.6-hd-async': {
-    generate: minimaxSpeech26HdAsync.generate,
-  },
-  'minimax-speech-2.5-hd-async': {
-    generate: minimaxSpeech25HdAsync.generate,
-  },
-  'minimax-speech-2.5-turbo-async': {
-    generate: minimaxSpeech25TurboAsync.generate,
-  },
-  'minimax-speech-2.6-hd': {
-    generate: minimaxSpeech26Hd.generate,
-  },
-  'minimax-speech-2.5-turbo': {
-    generate: minimaxSpeech25Turbo.generate,
-  },
-  'minimax-speech-2.5-hd': {
-    generate: minimaxSpeech25Hd.generate,
-  },
-};
+const SYNC_MODELS: string[] = ['minimax-speech-2.8-hd'];
 
 const router = Router();
 
-// 获取所有可用的音频模型列表
+// 获取所有可用的音频模型列表（来自 registry）
 router.get('/models', (_req: Request, res: Response) => {
-  // 返回 MODEL_MAP 中的模型（确保都有对应的实现文件）
-  const models = Object.keys(MODEL_MAP).map(modelName => ({
-    name: modelName,
-  }));
+  const models = SUPPORTED_MODELS.map(modelName => ({ name: modelName }));
   res.json({ models });
 });
 
@@ -91,12 +33,12 @@ router.post('/:modelName', async (req: Request, res: Response) => {
     const { modelName } = req.params;
     const provider = req.query.provider as string | undefined;
     
-    // 检查模型是否存在（优先检查 MODEL_MAP，确保有对应的实现文件）
-    if (!MODEL_MAP[modelName]) {
+    // 检查模型是否在 registry 中注册（单轨）
+    if (!isAudioModelSupported(modelName)) {
       return res.status(404).json({
         success: false,
         error: 'Model not found',
-        message: `Model "${modelName}" is not available. Available models: ${Object.keys(MODEL_MAP).join(', ')}`,
+        message: `Model "${modelName}" is not available. Available models: ${SUPPORTED_MODELS.join(', ')}`,
       });
     }
 
@@ -162,52 +104,74 @@ router.post('/:modelName', async (req: Request, res: Response) => {
     }
 
     // 调试日志：记录接收到的参数和 provider 选择
-    const { providerFactory } = require('../core/providers');
+    const { providerFactory } = require('../models/providers');
     const defaultProvider = providerFactory.getDefaultProvider();
     console.log(`[Audio Route] 模型: ${modelName}, 指定 provider: ${provider || '(未指定，将使用默认: ' + defaultProvider + ')'}, 默认 provider: ${defaultProvider}`);
 
     // 判断是否为同步模型
     const isSyncModel = SYNC_MODELS.includes(modelName);
 
-    // 1) 同步模型 + 不需要 MinIO：直接调用并返回（保持原有快速体验）
+    // 1) 同步模型 + 不需要 MinIO：直接返回流数据
     if (isSyncModel && !storeToMinio) {
-      console.log(`[Audio Route] 同步模型（不存储），直接返回结果`);
+      console.log(`[Audio Route] 同步模型（不存储），直接返回流数据`);
       
       try {
-        const modelHandler = MODEL_MAP[modelName];
-        const result = await modelHandler.generate(
+        // 设置 SSE 响应头
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // 禁用 nginx 缓冲
+
+        const result = await runByModelKey(
+          'audio',
+          modelName,
           {
             prompt: params.text || params.prompt,
             voice_setting: params.voice_setting,
             audio_setting: params.audio_setting,
             pronunciation_dict: params.pronunciation_dict,
             timbre_weights: params.timbre_weights,
-            stream: params.stream,
+            stream: true,
             stream_options: params.stream_options,
             language_boost: params.language_boost,
             output_format: params.output_format || 'url',
             voice_modify: params.voice_modify,
-            provider: provider as ProviderType | undefined,
           },
-          provider as ProviderType | undefined,
+          { providerOverride: provider as ProviderType },
         );
 
-        return res.json({
-          success: true,
-          model: modelName,
-          data: {
-            mediaUrls: result.mediaUrls || [],
-            metadata: result.metadata || {},
-          },
-        });
+        // 如果有流数据，流式返回
+        if (result.stream) {
+          for await (const chunk of result.stream) {
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+            // 立即刷新缓冲区
+            if (typeof (res as any).flush === 'function') {
+              (res as any).flush();
+            }
+          }
+          res.write('data: [DONE]\n\n');
+          res.end();
+        } else if (result.mediaUrls && result.mediaUrls.length > 0) {
+          // 如果没有流，但有 URL，返回完整结果
+          res.write(`data: ${JSON.stringify({
+            status: 'completed',
+            mediaUrls: result.mediaUrls,
+            metadata: result.metadata,
+          })}\n\n`);
+          res.write('data: [DONE]\n\n');
+          res.end();
+        } else {
+          throw new Error('未返回音频数据');
+        }
       } catch (error) {
         console.error(`[Audio Route] 同步模型生成失败:`, error);
-        return res.status(500).json({
-          success: false,
-          error: 'Generation failed',
-          message: error instanceof Error ? error.message : String(error),
-        });
+        res.write(`data: ${JSON.stringify({
+          status: 'error',
+          error: error instanceof Error ? error.message : String(error),
+        })}\n\n`);
+        res.end();
       }
+      return; // 确保不继续执行后续代码
     }
 
     // 2) 其他情况（异步模型，或者同步模型但需要存储到 MinIO）：统一走任务系统

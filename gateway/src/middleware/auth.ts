@@ -11,6 +11,7 @@ export interface AuthRequest extends Request {
     userId: string;
     username: string;
     type: 'access' | 'refresh';
+    role?: 'user' | 'admin';
   };
 }
 
@@ -84,11 +85,12 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     // 如果提供了 ADMIN_TOKEN 且匹配，直接通过（用于测试）
     if (adminToken && token === adminToken) {
       logger.debug(`[Auth] Admin token authenticated for ${req.method} ${req.path}`);
-      // 设置一个虚拟的 admin 用户信息（用于测试）
+      // 设置一个虚拟的 admin 用户信息（用于测试），role 供下游免查库
       req.user = {
         userId: 'admin-test-user',
         username: 'admin-test',
         type: 'access',
+        role: 'admin',
       };
       return next();
     }
@@ -108,10 +110,13 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     }
 
     try {
-      const decoded = jwt.verify(token, secret) as {
+      // clockTolerance：允许签发端与校验端时钟偏差（秒），避免“刚登录就报过期”
+      const clockTolerance = Number(process.env.JWT_CLOCK_TOLERANCE_SECONDS) || 120;
+      const decoded = jwt.verify(token, secret, { clockTolerance }) as {
         userId: string;
         username: string;
         type: 'access' | 'refresh';
+        role?: 'user' | 'admin';
       };
 
       // 只接受 access token
@@ -127,11 +132,12 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
         return;
       }
 
-      // 将用户信息附加到请求对象
+      // 将用户信息附加到请求对象（含 role，供 /system/admin 等下游免查库校验）
       req.user = {
         userId: decoded.userId,
         username: decoded.username,
         type: decoded.type,
+        role: decoded.role,
       };
 
       logger.debug(`[Auth] JWT token authenticated for user ${decoded.username} (${req.method} ${req.path})`);

@@ -41,12 +41,41 @@ export class WalletService {
     return this.walletRepo.findAllAssets();
   }
 
+  /**
+   * 获取用户全部钱包，懒创建：若没有任何钱包则自动创建默认 CNY 钱包
+   */
   async getWallets(userId: string): Promise<Wallet[]> {
-    return this.walletRepo.findWalletsByUserId(userId);
+    const wallets = await this.walletRepo.findWalletsByUserId(userId);
+    if (wallets.length === 0) {
+      const defaultAsset = (await this.walletRepo.findAllAssets()).find((a) => a.code === 'CNY') || { code: 'CNY' };
+      const created = await this.getOrCreateWallet(userId, defaultAsset.code);
+      return [created];
+    }
+    return wallets;
   }
 
+  /**
+   * 获取单个资产钱包，懒创建：若不存在则自动创建
+   */
   async getWallet(userId: string, assetCode: string): Promise<Wallet | null> {
-    return this.walletRepo.findWalletByUserAndAsset(userId, assetCode);
+    const wallet = await this.walletRepo.findWalletByUserAndAsset(userId, assetCode);
+    if (wallet) return wallet;
+    const asset = await this.walletRepo.findAssetByCode(assetCode);
+    if (!asset) return null;
+    return this.getOrCreateWallet(userId, assetCode);
+  }
+
+  private async getOrCreateWallet(userId: string, assetCode: string): Promise<Wallet> {
+    let wallet = await this.walletRepo.findWalletByUserAndAsset(userId, assetCode);
+    if (!wallet) {
+      wallet = await this.walletRepo.createWallet({
+        user_id: userId,
+        asset_code: assetCode,
+        available_balance: '0',
+        frozen_balance: '0',
+      });
+    }
+    return wallet;
   }
 
   async getTransactions(userId: string, assetCode: string, limit = 20): Promise<WalletTransaction[]> {
@@ -73,17 +102,7 @@ export class WalletService {
       throw new Error('金额必须大于 0');
     }
 
-    // 获取或创建钱包
-    let wallet = await this.walletRepo.findWalletByUserAndAsset(userId, assetCode);
-    
-    if (!wallet) {
-      wallet = await this.walletRepo.createWallet({
-        user_id: userId,
-        asset_code: assetCode,
-        available_balance: '0',
-        frozen_balance: '0',
-      });
-    }
+    const wallet = await this.getOrCreateWallet(userId, assetCode);
 
     // 获取资产配置
     const asset = await this.walletRepo.findAssetByCode(assetCode);

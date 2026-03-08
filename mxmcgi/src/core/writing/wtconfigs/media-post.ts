@@ -4,7 +4,6 @@
  */
 
 import type { WritingTypeConfig } from './index';
-import type { FormOptionsConfig, FieldMetadata } from '../../shared/formOptions';
 
 export const mediaPostConfig: WritingTypeConfig = {
   /**
@@ -60,112 +59,6 @@ export const mediaPostConfig: WritingTypeConfig = {
    */
   getParamsForType(): string[] {
     return ['platform', 'tone', 'targetAudience', 'callToAction', 'hashtags'];
-  },
-
-  /**
-   * 获取表单选项配置
-   */
-  getFormOptions(language: 'zh' | 'en' = 'zh'): FormOptionsConfig {
-    const isZh = language === 'zh';
-
-    const mediaPostFormOptionsZh: FormOptionsConfig = {
-      // Select 类型字段
-      platform: [
-        { value: 'weibo', label: '微博', labelEn: 'Weibo' },
-        { value: 'wechat', label: '微信朋友圈', labelEn: 'WeChat Moments' },
-        { value: 'xiaohongshu', label: '小红书', labelEn: 'Xiaohongshu' },
-        { value: 'douyin', label: '抖音', labelEn: 'Douyin' },
-        { value: 'twitter', label: 'Twitter', labelEn: 'Twitter' },
-      ],
-      tone: [
-        { value: 'casual', label: '轻松随意', labelEn: 'Casual' },
-        { value: 'professional', label: '专业', labelEn: 'Professional' },
-        { value: 'humorous', label: '幽默', labelEn: 'Humorous' },
-        { value: 'inspiring', label: '励志', labelEn: 'Inspiring' },
-      ],
-      targetAudience: [
-        { value: 'general', label: '大众', labelEn: 'General' },
-        { value: 'youth', label: '年轻人', labelEn: 'Youth' },
-        { value: 'professional', label: '专业人士', labelEn: 'Professional' },
-        { value: 'parents', label: '家长', labelEn: 'Parents' },
-      ],
-
-      // 元数据（为所有字段提供中文标签）
-      _metadata: {
-        platform: {
-          type: 'select',
-          label: '平台',
-          labelEn: 'Platform',
-          helpText: '选择发布平台',
-          helpTextEn: 'Select the platform',
-        },
-        tone: {
-          type: 'select',
-          label: '语调',
-          labelEn: 'Tone',
-          helpText: '选择语言风格',
-          helpTextEn: 'Select the language style',
-        },
-        targetAudience: {
-          type: 'select',
-          label: '目标受众',
-          labelEn: 'Target Audience',
-          helpText: '选择目标受众',
-          helpTextEn: 'Select the target audience',
-        },
-        callToAction: {
-          type: 'text',
-          label: '行动号召',
-          labelEn: 'Call to Action',
-          placeholder: '例如：点赞、评论、分享等',
-          placeholderEn: 'e.g., Like, comment, share',
-          helpText: '引导读者互动的行动号召',
-          helpTextEn: 'Call to action to encourage reader interaction',
-        },
-        hashtags: {
-          type: 'text',
-          label: '话题标签',
-          labelEn: 'Hashtags',
-          placeholder: '例如：#话题1 #话题2',
-          placeholderEn: 'e.g., #topic1 #topic2',
-          helpText: '相关的话题标签，用空格分隔',
-          helpTextEn: 'Relevant hashtags, separated by spaces',
-        },
-      },
-    };
-
-    if (language === 'en') {
-      return {
-        platform: mediaPostFormOptionsZh.platform.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        tone: mediaPostFormOptionsZh.tone.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        targetAudience: mediaPostFormOptionsZh.targetAudience.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        _metadata: {
-          callToAction: {
-            ...mediaPostFormOptionsZh._metadata!.callToAction,
-            label: mediaPostFormOptionsZh._metadata!.callToAction.labelEn || 'Call to Action',
-            placeholder: mediaPostFormOptionsZh._metadata!.callToAction.placeholderEn,
-            helpText: mediaPostFormOptionsZh._metadata!.callToAction.helpTextEn,
-          },
-          hashtags: {
-            ...mediaPostFormOptionsZh._metadata!.hashtags,
-            label: mediaPostFormOptionsZh._metadata!.hashtags.labelEn || 'Hashtags',
-            placeholder: mediaPostFormOptionsZh._metadata!.hashtags.placeholderEn,
-            helpText: mediaPostFormOptionsZh._metadata!.hashtags.helpTextEn,
-          },
-        },
-      };
-    }
-
-    return mediaPostFormOptionsZh;
   },
 }
 

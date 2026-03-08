@@ -6,10 +6,28 @@
 
 import dotenv from 'dotenv';
 import * as path from 'path';
-import { textGeneration as deepseekTextGeneration } from '../core/text/deepseek-r1';
-import { textGeneration as geminiTextGeneration, multimodalGeneration as geminiMultimodalGeneration, multiImageGeneration as geminiMultiImageGeneration } from '../core/text/gemini-3-pro';
-import { textGeneration as claudeTextGeneration, multimodalGeneration as claudeMultimodalGeneration } from '../core/text/claude-4.5-sonnet';
-import { textGeneration as gptTextGeneration, multimodalGeneration as gptMultimodalGeneration } from '../core/text/gpt-5-nano';
+import { runByModelKey } from '../models/run';
+
+async function textGeneration(modelKey: string, params: Record<string, any>) {
+  const r = await runByModelKey('writing', modelKey, { ...params, outputFormat: 'json' }, undefined);
+  return (r as { text?: string }).text ?? '';
+}
+async function multimodalGeneration(modelKey: string, params: Record<string, any>) {
+  const r = await runByModelKey('writing', modelKey, { ...params, outputFormat: 'json' }, undefined);
+  return r;
+}
+async function multiImageGeneration(modelKey: string, params: Record<string, any>) {
+  const r = await runByModelKey('writing', modelKey, { ...params, outputFormat: 'json' }, undefined);
+  return r;
+}
+const deepseekTextGeneration = (p: string, o?: any) => textGeneration('deepseek-r1', { prompt: p, ...o });
+const geminiTextGeneration = (p: string, o?: any) => textGeneration('gemini-3-pro', { prompt: p, ...o });
+const geminiMultimodalGeneration = (p: string, o?: any) => multimodalGeneration('gemini-3-pro', { prompt: p, ...o });
+const geminiMultiImageGeneration = (p: string, o?: any) => multiImageGeneration('gemini-3-pro', { prompt: p, ...o });
+const claudeTextGeneration = (p: string, o?: any) => textGeneration('claude-4.5-sonnet', { prompt: p, ...o });
+const claudeMultimodalGeneration = (p: string, o?: any) => multimodalGeneration('claude-4.5-sonnet', { prompt: p, ...o });
+const gptTextGeneration = (p: string, o?: any) => textGeneration('gpt-5-nano', { prompt: p, ...o });
+const gptMultimodalGeneration = (p: string, o?: any) => multimodalGeneration('gpt-5-nano', { prompt: p, ...o });
 // import { formatFileSize } from '../../../moblie/lib/storage/file-utils';
 
 // 加载 .env 文件

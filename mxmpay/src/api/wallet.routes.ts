@@ -4,6 +4,7 @@ import { WalletService } from '../wallet/wallet.service';
 import { WalletTaskService } from '../wallet/wallet-task.service';
 import { ApiResponseDto } from '../common/dto/common.dto';
 import { validate } from '../common/middleware/validation.middleware';
+import { adminMiddleware } from '../common/middleware/admin.middleware';
 
 function resolveUserId(req: Request): string | null {
   return (
@@ -208,6 +209,60 @@ export function createWalletRoutes(walletService: WalletService, walletTaskServi
         res.json(ApiResponseDto.success(result, '获取任务列表成功'));
       } catch (error: any) {
         res.status(400).json(ApiResponseDto.error(error.message || '查询失败', 400));
+      }
+    }
+  );
+
+  // ────────────────────────────────────────────────────────────────
+  // Admin endpoints (admin only)
+  // ────────────────────────────────────────────────────────────────
+
+  /** Admin: get any user's wallet */
+  router.get(
+    '/admin/:targetUserId/:assetCode',
+    [adminMiddleware, param('targetUserId').isString().notEmpty(), param('assetCode').isString().notEmpty(), validate],
+    async (req: Request, res: Response) => {
+      const wallet = await walletService.getWallet(req.params.targetUserId, req.params.assetCode);
+      if (!wallet) {
+        return res.status(404).json(ApiResponseDto.error('钱包不存在', 404));
+      }
+      res.json(ApiResponseDto.success(wallet, '获取用户钱包成功'));
+    }
+  );
+
+  /** Admin: list all wallets for a target user */
+  router.get(
+    '/admin/:targetUserId',
+    [adminMiddleware, param('targetUserId').isString().notEmpty(), validate],
+    async (req: Request, res: Response) => {
+      const wallets = await walletService.getWallets(req.params.targetUserId);
+      res.json(ApiResponseDto.success(wallets, '获取用户钱包列表成功'));
+    }
+  );
+
+  /** Admin: deposit MXM-TOKEN (or any asset) to a specific user's wallet */
+  router.post(
+    '/admin/:targetUserId/:assetCode/deposit',
+    [
+      adminMiddleware,
+      param('targetUserId').isString().notEmpty(),
+      param('assetCode').isString().notEmpty(),
+      body('amount').isString().notEmpty().withMessage('amount 不能为空'),
+      body('referenceId').optional().isString(),
+      body('metadata').optional().isObject(),
+      validate,
+    ],
+    async (req: Request, res: Response) => {
+      try {
+        const wallet = await walletService.deposit(
+          req.params.targetUserId,
+          req.params.assetCode,
+          req.body.amount,
+          req.body,
+        );
+        res.status(201).json(ApiResponseDto.success(wallet, '充值成功'));
+      } catch (error: any) {
+        res.status(400).json(ApiResponseDto.error(error.message || '充值失败', 400));
       }
     }
   );

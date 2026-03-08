@@ -10,15 +10,15 @@ const captchaService = new CaptchaService();
 /**
  * 验证码验证中间件
  * 从请求 body 中读取 captchaId 和 captchaAnswer 进行验证
- * 可通过环境变量 CAPTCHA_ENABLE 控制是否启用验证码
+ * 默认禁用验证码（正式上线前可通过设置 CAPTCHA_ENABLE=true 启用）
  */
 export function captchaMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
 ): void {
-  // 检查是否启用验证码（默认启用）
-  const captchaEnabled = process.env.CAPTCHA_ENABLE !== 'false';
+  // 检查是否启用验证码（默认禁用，正式上线前可通过 CAPTCHA_ENABLE=true 启用）
+  const captchaEnabled = process.env.CAPTCHA_ENABLE === 'true';
   
   if (!captchaEnabled) {
     // 验证码已禁用，直接通过

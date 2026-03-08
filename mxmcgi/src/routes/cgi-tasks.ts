@@ -4,10 +4,11 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { taskExecutor } from '../core/task/task-executor';
-import type { TaskType } from '../core/task/types';
+import { taskExecutor } from '../task/task-executor';
+import type { TaskType } from '../task/types';
 import type { ProviderType } from '../core/providers/types';
 import { sanitizeBase64InObject } from '../core/graph/reference-image';
+import { CharacterService } from '../characters/character-service';
 
 const router = Router();
 
@@ -94,6 +95,79 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * Admin 专用：查询所有用户任务
+ * GET /api/v1/cgi-tasks/admin
+ */
+router.get('/admin', async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await isAdminUser(req);
+    if (!isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Admin access required',
+      });
+    }
+
+    const {
+      type,
+      status,
+      model,
+      userId,
+      limit = 20,
+      offset = 0,
+      startDate,
+      endDate,
+      includeDeleted,
+    } = req.query;
+
+    const taskManager = taskExecutor.getTaskManager();
+    const response = await taskManager.listTasks({
+      userId: typeof userId === 'string' && userId.length > 0 ? userId : undefined,
+      type: type as TaskType | undefined,
+      status: status as any,
+      model: model as string | undefined,
+      limit: Number(limit),
+      offset: Number(offset),
+      includeDeleted: includeDeleted === 'true',
+      startDate: typeof startDate === 'string' && startDate.length > 0 ? startDate : undefined,
+      endDate: typeof endDate === 'string' && endDate.length > 0 ? endDate : undefined,
+    });
+
+    // 为每条任务解析用户名，便于监控页展示
+    const userIds = [...new Set(response.tasks.map((t) => t.metadata?.userId).filter(Boolean))] as string[];
+    const userIdToName = new Map<string, string>();
+    try {
+      const { RepositoryFactory } = await import('@mxmai/mxmdata');
+      const userRepo = RepositoryFactory.createUserRepository();
+      for (const uid of userIds) {
+        const user = await userRepo.findById(uid);
+        userIdToName.set(uid, user?.username ?? uid);
+      }
+    } catch (err) {
+      console.warn('[CGI Task Route] 解析用户名失败，列表仍返回 userId:', err);
+    }
+    const tasksWithUserNames = response.tasks.map((t) => ({
+      ...t,
+      metadata: {
+        ...t.metadata,
+        userName: t.metadata?.userId ? userIdToName.get(t.metadata.userId) ?? t.metadata.userId : undefined,
+      },
+    }));
+
+    return res.json({
+      success: true,
+      data: { ...response, tasks: tasksWithUserNames },
+    });
+  } catch (error) {
+    console.error('[CGI Task Route] Admin 查询任务列表失败:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
  * 查询任务详情
  * GET /api/v1/cgi-tasks/:taskId
  * 支持通过可选查询参数 type 进一步限制任务类型：
@@ -128,6 +202,32 @@ router.get('/:taskId', async (req: Request, res: Response) => {
           success: false,
           error: `Task type mismatch: expected ${expectedType}, got ${response.task.type}`,
         });
+      }
+    }
+
+    // 写作任务：若 result.metadata 仅有 character_ids（已保存到角色库），则从角色库解析并填充 characters
+    const meta = response.task.result?.metadata;
+    const characterIds = meta?.character_ids as string[] | undefined;
+    const hasCharacterIds = Array.isArray(characterIds) && characterIds.length > 0;
+    const hasCharacters = Array.isArray(meta?.characters) && meta.characters.length > 0;
+    if (hasCharacterIds && !hasCharacters && response.task.metadata?.userId) {
+      try {
+        const characterService = new CharacterService();
+        const profiles = await characterService.getCharactersForWriting(
+          characterIds,
+          response.task.metadata.userId
+        );
+        if (profiles.length > 0) {
+          response.task = {
+            ...response.task,
+            result: {
+              ...response.task.result!,
+              metadata: { ...meta, characters: profiles },
+            },
+          };
+        }
+      } catch (e) {
+        console.warn('[CGI Task] Resolve character_ids to characters failed:', e);
       }
     }
 
@@ -176,6 +276,8 @@ router.get('/', async (req: Request, res: Response) => {
       model,
       limit = 20,
       offset = 0,
+      startDate,
+      endDate,
     } = req.query;
 
     const taskManager = taskExecutor.getTaskManager();
@@ -186,6 +288,8 @@ router.get('/', async (req: Request, res: Response) => {
       model: model as string | undefined,
       limit: Number(limit),
       offset: Number(offset),
+      startDate: typeof startDate === 'string' && startDate.length > 0 ? startDate : undefined,
+      endDate: typeof endDate === 'string' && endDate.length > 0 ? endDate : undefined,
     });
 
     return res.json({
@@ -261,12 +365,13 @@ router.post('/:taskId/cancel', async (req: Request, res: Response) => {
   try {
     const { taskId } = req.params;
     const userId = req.headers['x-user-id'] as string | undefined;
+    const isAdmin = await isAdminUser(req);
 
     const taskManager = taskExecutor.getTaskManager();
     const taskResponse = await taskManager.getTask(taskId);
 
-    // 检查权限
-    if (userId && taskResponse.task.metadata.userId !== userId) {
+    // 检查权限：Admin 可操作任意任务，普通用户只能操作自己的
+    if (!isAdmin && userId && taskResponse.task.metadata.userId !== userId) {
       return res.status(403).json({
         success: false,
         error: 'Forbidden: You can only cancel your own tasks',
@@ -311,12 +416,13 @@ const handleRecover = async (req: Request, res: Response) => {
   try {
     const { taskId } = req.params;
     const userId = req.headers['x-user-id'] as string | undefined;
+    const isAdmin = await isAdminUser(req);
 
     const taskManager = taskExecutor.getTaskManager();
     const taskResponse = await taskManager.getTask(taskId);
 
-    // 检查权限
-    if (userId && taskResponse.task.metadata.userId !== userId) {
+    // 检查权限：Admin 可操作任意任务，普通用户只能操作自己的
+    if (!isAdmin && userId && taskResponse.task.metadata.userId !== userId) {
       return res.status(403).json({
         success: false,
         error: 'Forbidden: You can only recover your own tasks',
@@ -366,23 +472,39 @@ const handleRetry = async (req: Request, res: Response) => {
   try {
     const { taskId } = req.params;
     const userId = req.headers['x-user-id'] as string | undefined;
+    const isAdmin = await isAdminUser(req);
 
     const taskManager = taskExecutor.getTaskManager();
     const taskResponse = await taskManager.getTask(taskId);
 
-    // 检查权限
-    if (userId && taskResponse.task.metadata.userId !== userId) {
+    const task = taskResponse.task;
+
+    // 检查权限：Admin 可操作任意任务，普通用户只能操作自己的
+    if (!isAdmin && userId && task.metadata.userId !== userId) {
       return res.status(403).json({
         success: false,
         error: 'Forbidden: You can only retry your own tasks',
       });
     }
 
-    // 检查任务状态
-    if (!['failed', 'processing'].includes(taskResponse.task.status)) {
+    // 检查任务状态：
+    // - 正常允许：failed / processing
+    // - 兼容处理：有些任务在早期实现中可能被标记为 completed，
+    //   但 progress.status === 'failed' 或存在 progress.error，此时也应视为可重试
+    const status = task.status;
+    const progressStatus = task.progress?.status;
+    const hasError = !!task.progress?.error;
+
+    const canRetry =
+      status === 'processing' ||
+      status === 'failed' ||
+      progressStatus === 'failed' ||
+      (status === 'completed' && hasError);
+
+    if (!canRetry) {
       return res.status(400).json({
         success: false,
-        error: `Cannot retry task in status: ${taskResponse.task.status}. Only failed or processing tasks can be retried.`,
+        error: `Cannot retry task in status: ${status}. Only failed or processing tasks can be retried.`,
       });
     }
 

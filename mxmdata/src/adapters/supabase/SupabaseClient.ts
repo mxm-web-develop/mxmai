@@ -20,11 +20,17 @@ export function initSupabaseClient(config: SupabaseConfig): SupabaseClient {
     return supabaseClient;
   }
 
+  // 规范化 URL：移除末尾斜杠，Supabase 客户端会自动添加路径
+  const normalizedUrl = config.url.trim().replace(/\/+$/, '');
+  
   // 优先使用 serviceKey（服务端），否则使用 anonKey
   const key = config.serviceKey || config.anonKey;
-  supabaseClient = createClient(config.url, key, {
+  supabaseClient = createClient(normalizedUrl, key, {
     auth: {
       persistSession: false, // 服务端不需要持久化会话
+    },
+    db: {
+      schema: 'public',
     },
   });
 

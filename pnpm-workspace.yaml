@@ -6,3 +6,4 @@ packages:
   - mxmnotify
   - mxmdata
   - gateway
+  - web

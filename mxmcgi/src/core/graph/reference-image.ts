@@ -154,7 +154,8 @@ export type ReferenceImageType =
   | 'main-subject'    // 主体（人物、物体等，保持完全一致）
   | 'background'      // 背景场景和光线
   | 'outfits'         // 服装、道具、次要角色
-  | 'color-reference'; // 风格和色彩参考
+  | 'color-reference' // 风格和色彩参考
+  | 'style-reference'; // UI / 全局风格参考（布局、色彩、字体、组件风格等）
 
 /**
  * 参考图对象
@@ -172,6 +173,7 @@ const REFERENCE_TYPE_DESCRIPTIONS_EN: Record<ReferenceImageType, string> = {
   'background': 'Background scene and lighting',
   'outfits': 'Additional props or secondary character',
   'color-reference': 'Style and color grading reference',
+  'style-reference': 'UI style reference (layout, colors, typography, components and overall design language)',
 };
 
 /**
@@ -182,6 +184,7 @@ const REFERENCE_TYPE_DESCRIPTIONS_ZH: Record<ReferenceImageType, string> = {
   'background': '背景场景和光线',
   'outfits': '服装、道具或次要角色',
   'color-reference': '风格和色彩参考',
+  'style-reference': 'UI 风格参考（布局、配色、字体、组件与整体设计语言）',
 };
 
 /**
@@ -265,12 +268,12 @@ export function extractBase64FromDataUri(dataUri: string): string {
 /**
  * 处理参考图数组，转换为模型可接受的格式
  * @param referenceImages 参考图数组
- * @param modelName 模型名称 ('nano-banana' | 'seedream-4')
+ * @param modelName 模型名称 ('nano-banana' | 'nano-banana-pro' | 'nano-banana-2' | 'nano-banana-2-pro' | 'seedream-4' | 'seedream-5')
  * @returns 处理后的图片数组（URL 或 base64）
  */
 export function processReferenceImages(
   referenceImages: ReferenceImage[],
-  modelName: 'nano-banana' | 'seedream-4'
+  modelName: 'nano-banana' | 'nano-banana-pro' | 'nano-banana-2' | 'nano-banana-2-pro' | 'seedream-4' | 'seedream-5'
 ): { urls: string[]; base64s: string[] } {
   const urls: string[] = [];
   const base64s: string[] = [];

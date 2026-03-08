@@ -21,6 +21,12 @@ export class MinIOStorageRepository implements IStorageRepository {
     this.client = client || getMinIOClient();
   }
 
+  private isAsciiHeaderValue(value: string): boolean {
+    // S3/MinIO x-amz-meta-* header value must be ASCII; Node will throw ERR_INVALID_CHAR otherwise.
+    // Allow visible ASCII plus common whitespace.
+    return /^[\x09\x0A\x0D\x20-\x7E]*$/.test(value);
+  }
+
   async uploadFile(
     bucket: string,
     key: string,
@@ -39,8 +45,20 @@ export class MinIOStorageRepository implements IStorageRepository {
       const metadata: Record<string, string> = {};
       if (options?.metadata) {
         // 将 metadata 中的所有值转换为字符串
+        const dropped: Record<string, string> = {};
         for (const [k, v] of Object.entries(options.metadata)) {
-          metadata[k] = String(v);
+          const str = String(v);
+          if (this.isAsciiHeaderValue(str)) {
+            metadata[k] = str;
+          } else {
+            // 非 ASCII 值不能进 header；先丢到一个聚合字段里（ASCII-safe）
+            dropped[k] = str;
+          }
+        }
+        if (Object.keys(dropped).length > 0) {
+          // 用 base64 保存被丢弃的元数据（仍然是 ASCII），避免信息完全丢失
+          const json = JSON.stringify(dropped);
+          metadata['meta_json_b64'] = Buffer.from(json, 'utf8').toString('base64');
         }
       }
 
@@ -68,11 +86,18 @@ export class MinIOStorageRepository implements IStorageRepository {
         presignedUrl,
       };
     } catch (error) {
-      throw new DataAccessError(
-        `Failed to upload file: ${error}`,
-        'UPLOAD_ERROR',
-        error as Error
-      );
+      const err = error as Error & { errors?: unknown[]; cause?: unknown };
+      let detail = '';
+      if (err?.name === 'AggregateError' && Array.isArray(err?.errors)) {
+        detail = err.errors.map((e: any) => e?.message ?? e?.code ?? String(e)).join('; ');
+      } else if (err?.cause != null) {
+        const c = err.cause as any;
+        detail = c?.message ?? c?.code ?? String(c);
+      }
+      const message = detail
+        ? `Failed to upload file: ${detail}`
+        : `Failed to upload file: ${error}`;
+      throw new DataAccessError(message, 'UPLOAD_ERROR', error as Error);
     }
   }
 
@@ -100,10 +125,33 @@ export class MinIOStorageRepository implements IStorageRepository {
           }
         });
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof NotFoundError || error instanceof DataAccessError) {
         throw error;
       }
+      
+      // 检查是否是连接错误
+      const isConnectionError = 
+        error?.code === 'ECONNREFUSED' ||
+        error?.code === 'ETIMEDOUT' ||
+        error?.code === 'ENOTFOUND' ||
+        error?.message?.includes('ECONNREFUSED') ||
+        error?.message?.includes('ETIMEDOUT') ||
+        error?.message?.includes('ENOTFOUND') ||
+        (error?.originalError && (
+          error.originalError.code === 'ECONNREFUSED' ||
+          error.originalError.code === 'ETIMEDOUT' ||
+          error.originalError.code === 'ENOTFOUND'
+        ));
+      
+      if (isConnectionError) {
+        throw new DataAccessError(
+          `MinIO connection failed: Unable to connect to MinIO service. Please check if MinIO is running and the configuration is correct.`,
+          'CONNECTION_ERROR',
+          error as Error
+        );
+      }
+      
       throw new DataAccessError(`Unexpected error downloading file: ${error}`, 'UNEXPECTED_ERROR', error as Error);
     }
   }

@@ -74,6 +74,8 @@ export interface IKnowledgeBaseRepository {
     agent_id?: string;
     owner_id?: string;
     is_public?: boolean;
+    /** 为 true 时筛选 is_public=true 或 is_builtin=true 的知识库（Admin 公用知识库列表用） */
+    public_or_builtin?: boolean;
     limit?: number;
     offset?: number;
   }): Promise<{ knowledge_bases: KnowledgeBase[]; total: number }>;

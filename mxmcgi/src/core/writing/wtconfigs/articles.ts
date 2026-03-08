@@ -5,6 +5,335 @@
 
 import type { WritingTypeConfig } from './index';
 import type { FormOptionsConfig, FieldMetadata } from '../../shared/formOptions';
+import type { OutlineType } from '../type';
+
+type ArticlesOutlineType = Extract<OutlineType, 'tech-article' | 'story-novel' | 'academic-paper'> | undefined;
+
+export function getArticlesParamsForSubtype(outlineType?: ArticlesOutlineType): string[] {
+  if (outlineType === 'story-novel') {
+    return [
+      'genre',
+      'pov',
+      'writing_style',
+      'pacing',
+      'length',
+      'setting',
+      'main_characters',
+      'conflict',
+      'ending_type',
+      'themes',
+    ];
+  }
+  if (outlineType === 'academic-paper') {
+    return [
+      'discipline',
+      'paper_type',
+      'paper_structure',
+      'research_question',
+      'methodology',
+      'data_sources',
+      'citation_style',
+      'keywords',
+      'contribution',
+      'length',
+    ];
+  }
+  // 默认：科技文章（也兼容 outlineType 未指定的情况）
+  return ['motivation', 'stance', 'tone', 'targetAudience', 'depth', 'length', 'key_elements'];
+}
+
+export function getArticlesFormOptions(
+  language: 'zh' | 'en' = 'zh',
+  outlineType?: ArticlesOutlineType
+): FormOptionsConfig {
+  const asOptionArray = (config: FormOptionsConfig, key: string) => {
+    const v = config[key];
+    return Array.isArray(v) ? v : [];
+  };
+
+  // 为 metadata-only 字段提供空数组 key，确保前端能渲染
+  const ensureKeys = (config: FormOptionsConfig) => {
+    const meta = config._metadata || {};
+    Object.keys(meta).forEach((k) => {
+      if (!(k in config)) {
+        (config as any)[k] = [];
+      }
+    });
+    return config;
+  };
+
+  // ===== tech-article（默认） =====
+  const techZh: FormOptionsConfig = ensureKeys({
+    motivation: [],
+    stance: [
+      { value: 'neutral', label: '中立客观', labelEn: 'Neutral' },
+      { value: 'supportive', label: '支持赞同', labelEn: 'Supportive' },
+      { value: 'critical', label: '批判质疑', labelEn: 'Critical' },
+    ],
+    tone: [
+      { value: 'formal', label: '正式严谨', labelEn: 'Formal' },
+      { value: 'casual', label: '轻松随意', labelEn: 'Casual' },
+      { value: 'professional', label: '专业权威', labelEn: 'Professional' },
+      { value: 'friendly', label: '友好亲切', labelEn: 'Friendly' },
+    ],
+    targetAudience: [
+      { value: 'general', label: '大众读者', labelEn: 'General Audience' },
+      { value: 'tech', label: '技术读者', labelEn: 'Tech Readers' },
+      { value: 'product', label: '产品/业务读者', labelEn: 'Product/Business' },
+      { value: 'investor', label: '投资/管理读者', labelEn: 'Investor/Management' },
+    ],
+    depth: [
+      { value: 'overview', label: '科普概览', labelEn: 'Overview' },
+      { value: 'practical', label: '实践导向', labelEn: 'Practical' },
+      { value: 'deep', label: '深度解析', labelEn: 'Deep Dive' },
+    ],
+    length: [
+      { value: 'short', label: '短篇（500-1000字）', labelEn: 'Short (500-1000 words)' },
+      { value: 'medium', label: '中篇（1000-3000字）', labelEn: 'Medium (1000-3000 words)' },
+      { value: 'long', label: '长篇（3000字以上）', labelEn: 'Long (3000+ words)' },
+    ],
+    key_elements: [
+      { value: 'data', label: '数据支撑', labelEn: 'Data Support' },
+      { value: 'examples', label: '案例说明', labelEn: 'Examples' },
+      { value: 'quotes', label: '引用参考', labelEn: 'Quotes' },
+      { value: 'analysis', label: '深度分析', labelEn: 'Deep Analysis' },
+    ],
+    _metadata: {
+      motivation: {
+        type: 'textarea',
+        label: '写作动机',
+        labelEn: 'Motivation',
+        placeholder: '例如：面向谁？解决什么问题？希望读者得到什么？',
+        placeholderEn: 'Audience, problem, and takeaway...',
+        helpText: '说明为什么要写这篇科技文章以及想达到的效果',
+        helpTextEn: 'Explain why you write this tech article and the goal',
+      },
+      stance: { type: 'select', label: '立场', labelEn: 'Stance', helpText: '文章态度', helpTextEn: 'Article stance' },
+      tone: { type: 'select', label: '语调', labelEn: 'Tone', helpText: '语言风格', helpTextEn: 'Language style' },
+      targetAudience: {
+        type: 'select',
+        label: '目标读者',
+        labelEn: 'Target Audience',
+        helpText: '选择文章主要面向的读者群体',
+        helpTextEn: 'Select the target audience',
+      },
+      depth: {
+        type: 'select',
+        label: '深度',
+        labelEn: 'Depth',
+        helpText: '选择内容深度（科普/实践/深度）',
+        helpTextEn: 'Select content depth',
+      },
+      length: { type: 'select', label: '长度', labelEn: 'Length', helpText: '选择篇幅', helpTextEn: 'Select length' },
+      key_elements: {
+        type: 'select',
+        label: '关键要素',
+        labelEn: 'Key Elements',
+        helpText: '选择文章侧重点（数据/案例/引用/分析）',
+        helpTextEn: 'Select key elements',
+      },
+    } satisfies Record<string, FieldMetadata>,
+  });
+
+  // ===== story-novel =====
+  const storyZh: FormOptionsConfig = ensureKeys({
+    genre: [
+      { value: 'sci-fi', label: '科幻', labelEn: 'Sci-Fi' },
+      { value: 'fantasy', label: '奇幻', labelEn: 'Fantasy' },
+      { value: 'suspense', label: '悬疑', labelEn: 'Suspense' },
+      { value: 'romance', label: '爱情', labelEn: 'Romance' },
+      { value: 'realism', label: '现实主义', labelEn: 'Realism' },
+    ],
+    pov: [
+      { value: 'first', label: '第一人称', labelEn: 'First-person' },
+      { value: 'third-limited', label: '第三人称（有限视角）', labelEn: 'Third-person (limited)' },
+      { value: 'third-omniscient', label: '第三人称（全知视角）', labelEn: 'Third-person (omniscient)' },
+    ],
+    writing_style: [
+      { value: 'cinematic', label: '电影感（画面强）', labelEn: 'Cinematic' },
+      { value: 'literary', label: '文学性（细腻）', labelEn: 'Literary' },
+      { value: 'fast-paced', label: '爽文节奏（高密度）', labelEn: 'Fast-paced' },
+      { value: 'dialogue-heavy', label: '对话驱动', labelEn: 'Dialogue-driven' },
+    ],
+    pacing: [
+      { value: 'slow', label: '慢热铺垫', labelEn: 'Slow burn' },
+      { value: 'balanced', label: '均衡推进', labelEn: 'Balanced' },
+      { value: 'fast', label: '快节奏推进', labelEn: 'Fast' },
+    ],
+    ending_type: [
+      { value: 'happy', label: '圆满结局', labelEn: 'Happy ending' },
+      { value: 'tragic', label: '悲剧结局', labelEn: 'Tragic ending' },
+      { value: 'open', label: '开放式结局', labelEn: 'Open ending' },
+    ],
+    length: [
+      { value: 'short', label: '短篇（1k-3k字）', labelEn: 'Short (1k-3k)' },
+      { value: 'medium', label: '中篇（3k-10k字）', labelEn: 'Medium (3k-10k)' },
+      { value: 'long', label: '长篇（10k+字）', labelEn: 'Long (10k+)' },
+    ],
+    setting: [],
+    main_characters: [],
+    conflict: [],
+    themes: [],
+    _metadata: {
+      genre: { type: 'select', label: '题材', labelEn: 'Genre', helpText: '选择故事题材', helpTextEn: 'Select genre' },
+      pov: { type: 'select', label: '叙事视角', labelEn: 'POV', helpText: '选择叙事人称', helpTextEn: 'Select POV' },
+      writing_style: {
+        type: 'select',
+        label: '文风',
+        labelEn: 'Style',
+        helpText: '选择故事语言与表现方式',
+        helpTextEn: 'Select narrative style',
+      },
+      pacing: { type: 'select', label: '节奏', labelEn: 'Pacing', helpText: '选择故事推进节奏', helpTextEn: 'Select pacing' },
+      length: { type: 'select', label: '目标篇幅', labelEn: 'Target Length', helpText: '选择目标篇幅', helpTextEn: 'Select target length' },
+      setting: {
+        type: 'textarea',
+        label: '世界观/背景设定',
+        labelEn: 'Setting',
+        placeholder: '例如：时间、地点、规则、科技/魔法体系...',
+        placeholderEn: 'Time, place, rules, systems...',
+      },
+      main_characters: {
+        type: 'textarea',
+        label: '主要人物',
+        labelEn: 'Main Characters',
+        placeholder: '例如：主角/反派/关键配角的目标与缺陷...',
+        placeholderEn: 'Protagonist/antagonist/key roles...',
+      },
+      conflict: {
+        type: 'textarea',
+        label: '核心冲突',
+        labelEn: 'Core Conflict',
+        placeholder: '例如：人物冲突/价值冲突/外部危机...',
+        placeholderEn: 'Internal/external conflict...',
+      },
+      ending_type: {
+        type: 'select',
+        label: '结局类型',
+        labelEn: 'Ending Type',
+        helpText: '选择结局倾向',
+        helpTextEn: 'Select ending type',
+      },
+      themes: {
+        type: 'text',
+        label: '主题关键词',
+        labelEn: 'Themes',
+        placeholder: '例如：时间、代价、宿命、救赎...',
+        placeholderEn: 'e.g. time, cost, fate, redemption...',
+      },
+    } satisfies Record<string, FieldMetadata>,
+  });
+
+  // ===== academic-paper =====
+  const paperZh: FormOptionsConfig = ensureKeys({
+    paper_type: [
+      { value: 'survey', label: '综述/调研', labelEn: 'Survey' },
+      { value: 'empirical', label: '实证研究', labelEn: 'Empirical' },
+      { value: 'theoretical', label: '理论研究', labelEn: 'Theoretical' },
+      { value: 'case-study', label: '案例研究', labelEn: 'Case study' },
+    ],
+    paper_structure: [
+      { value: 'imrad', label: 'IMRaD（引言-方法-结果-讨论）', labelEn: 'IMRaD' },
+      { value: 'classic', label: '摘要-引言-相关工作-方法-实验-结论', labelEn: 'Classic' },
+    ],
+    citation_style: [
+      { value: 'gost', label: 'GB/T 7714', labelEn: 'GB/T 7714' },
+      { value: 'apa', label: 'APA', labelEn: 'APA' },
+      { value: 'ieee', label: 'IEEE', labelEn: 'IEEE' },
+      { value: 'mla', label: 'MLA', labelEn: 'MLA' },
+    ],
+    length: [
+      { value: 'short', label: '短文（2k-4k字）', labelEn: 'Short (2k-4k)' },
+      { value: 'medium', label: '常规（4k-8k字）', labelEn: 'Medium (4k-8k)' },
+      { value: 'long', label: '长文（8k+字）', labelEn: 'Long (8k+)' },
+    ],
+    discipline: [],
+    research_question: [],
+    methodology: [],
+    data_sources: [],
+    keywords: [],
+    contribution: [],
+    _metadata: {
+      discipline: {
+        type: 'text',
+        label: '学科/领域',
+        labelEn: 'Discipline',
+        placeholder: '例如：计算机科学、社会学、教育学...',
+        placeholderEn: 'e.g. CS, sociology, education...',
+      },
+      paper_type: { type: 'select', label: '论文类型', labelEn: 'Paper Type' },
+      paper_structure: { type: 'select', label: '结构模板', labelEn: 'Structure' },
+      research_question: {
+        type: 'textarea',
+        label: '研究问题/假设',
+        labelEn: 'Research Question',
+        placeholder: '明确你的研究问题、假设或目标...',
+        placeholderEn: 'Define research question/hypothesis...',
+      },
+      methodology: {
+        type: 'textarea',
+        label: '方法与设计',
+        labelEn: 'Methodology',
+        placeholder: '例如：方法、样本、变量、实验/调研设计...',
+        placeholderEn: 'Methods, samples, variables, design...',
+      },
+      data_sources: {
+        type: 'textarea',
+        label: '数据/材料来源',
+        labelEn: 'Data Sources',
+        placeholder: '例如：公开数据集、问卷、访谈、文献...',
+        placeholderEn: 'Datasets, surveys, interviews, literature...',
+      },
+      citation_style: { type: 'select', label: '引用格式', labelEn: 'Citation Style' },
+      keywords: {
+        type: 'text',
+        label: '关键词（用、分隔）',
+        labelEn: 'Keywords',
+        placeholder: '例如：时间操控、蝴蝶效应、因果推断...',
+        placeholderEn: 'e.g. ...',
+      },
+      contribution: {
+        type: 'textarea',
+        label: '主要贡献/结论要点',
+        labelEn: 'Contributions',
+        placeholder: '写出你希望论文得出的关键结论或贡献点...',
+        placeholderEn: 'Key contributions/conclusions...',
+      },
+      length: { type: 'select', label: '目标篇幅', labelEn: 'Target Length' },
+    } satisfies Record<string, FieldMetadata>,
+  });
+
+  const zhConfig =
+    outlineType === 'story-novel' ? storyZh : outlineType === 'academic-paper' ? paperZh : techZh;
+
+  if (language === 'en') {
+    const meta = zhConfig._metadata || {};
+    const enMeta: Record<string, FieldMetadata> = {};
+    Object.entries(meta).forEach(([k, m]) => {
+      enMeta[k] = {
+        ...m,
+        label: m.labelEn || m.label,
+        placeholder: m.placeholderEn || m.placeholder,
+        helpText: m.helpTextEn || m.helpText,
+      };
+    });
+
+    const enConfig: FormOptionsConfig = { _metadata: enMeta };
+    Object.keys(zhConfig)
+      .filter((k) => k !== '_metadata')
+      .forEach((k) => {
+        const opts = asOptionArray(zhConfig, k);
+        (enConfig as any)[k] = opts.map((opt: any) => ({
+          value: opt.value,
+          label: opt.labelEn || opt.label || opt.value,
+        }));
+      });
+
+    return ensureKeys(enConfig);
+  }
+
+  return zhConfig;
+}
 
 export const articlesConfig: WritingTypeConfig = {
   /**
@@ -30,8 +359,8 @@ export const articlesConfig: WritingTypeConfig = {
 4. **结尾**：总结全文要点，可以提出思考或展望，给读者留下深刻印象
 
 【语言风格要求】
-1. **正式程度**：根据文章类型和受众调整语言风格（学术、通俗、专业等）
-2. **语调**：保持客观、专业，避免过于主观或情绪化的表达
+1. **正式程度**：根据细分类型与受众调整语言风格（科技、故事、学术等）
+2. **语调**：根据细分类型选择合适的表达方式（故事可更具画面感与情绪张力；学术应规范严谨）
 3. **用词**：准确、恰当，避免重复和冗余
 4. **句式**：长短句结合，避免过于复杂或过于简单的句式
 
@@ -43,7 +372,7 @@ export const articlesConfig: WritingTypeConfig = {
 
 【注意事项】
 - 避免使用过于绝对化的表述
-- 尊重不同观点，保持客观中立
+- 尊重不同观点，避免偏见；故事类可更注重情绪与体验
 - 确保内容符合相关法律法规和道德规范
 - 如涉及专业知识，确保准确性和权威性`,
 
@@ -108,117 +437,7 @@ export const articlesConfig: WritingTypeConfig = {
    * 获取文章类型需要的参数列表
    */
   getParamsForType(): string[] {
-    return ['motivation', 'stance', 'tone', 'length', 'key_elements'];
-  },
-
-  /**
-   * 获取表单选项配置
-   */
-  getFormOptions(language: 'zh' | 'en' = 'zh'): FormOptionsConfig {
-    const isZh = language === 'zh';
-
-    const articlesFormOptionsZh: FormOptionsConfig = {
-      // Select 类型字段
-      stance: [
-        { value: 'neutral', label: '中立客观', labelEn: 'Neutral' },
-        { value: 'supportive', label: '支持赞同', labelEn: 'Supportive' },
-        { value: 'critical', label: '批判质疑', labelEn: 'Critical' },
-      ],
-      tone: [
-        { value: 'formal', label: '正式严谨', labelEn: 'Formal' },
-        { value: 'casual', label: '轻松随意', labelEn: 'Casual' },
-        { value: 'professional', label: '专业权威', labelEn: 'Professional' },
-        { value: 'friendly', label: '友好亲切', labelEn: 'Friendly' },
-      ],
-      length: [
-        { value: 'short', label: '短篇（500-1000字）', labelEn: 'Short (500-1000 words)' },
-        { value: 'medium', label: '中篇（1000-3000字）', labelEn: 'Medium (1000-3000 words)' },
-        { value: 'long', label: '长篇（3000字以上）', labelEn: 'Long (3000+ words)' },
-      ],
-      key_elements: [
-        { value: 'data', label: '数据支撑', labelEn: 'Data Support' },
-        { value: 'examples', label: '案例说明', labelEn: 'Examples' },
-        { value: 'quotes', label: '引用参考', labelEn: 'Quotes' },
-        { value: 'analysis', label: '深度分析', labelEn: 'Deep Analysis' },
-      ],
-
-      // 元数据（为所有字段提供中文标签）
-      _metadata: {
-        motivation: {
-          type: 'textarea',
-          label: '写作动机',
-          labelEn: 'Motivation',
-          placeholder: '请描述写作的动机和目的...',
-          placeholderEn: 'Describe the motivation and purpose...',
-          helpText: '说明为什么要写这篇文章，想要达到什么目的',
-          helpTextEn: 'Explain why you are writing this article',
-        },
-        stance: {
-          type: 'select',
-          label: '立场',
-          labelEn: 'Stance',
-          helpText: '选择文章的立场和态度',
-          helpTextEn: 'Select the stance and attitude',
-        },
-        tone: {
-          type: 'select',
-          label: '语调',
-          labelEn: 'Tone',
-          helpText: '选择文章的语言风格',
-          helpTextEn: 'Select the language style',
-        },
-        length: {
-          type: 'select',
-          label: '长度',
-          labelEn: 'Length',
-          helpText: '选择文章的长度',
-          helpTextEn: 'Select the article length',
-        },
-        key_elements: {
-          type: 'multi-select',
-          label: '关键要素',
-          labelEn: 'Key Elements',
-          helpText: '选择文章需要包含的关键要素',
-          helpTextEn: 'Select key elements to include',
-        },
-      },
-    };
-
-    if (language === 'en') {
-      // 英文版本
-      return {
-        stance: articlesFormOptionsZh.stance.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        tone: articlesFormOptionsZh.tone.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        length: articlesFormOptionsZh.length.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        key_elements: articlesFormOptionsZh.key_elements.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        _metadata: {
-          motivation: {
-            ...articlesFormOptionsZh._metadata!.motivation,
-            label: articlesFormOptionsZh._metadata!.motivation.labelEn || 'Motivation',
-            placeholder: articlesFormOptionsZh._metadata!.motivation.placeholderEn,
-            helpText: articlesFormOptionsZh._metadata!.motivation.helpTextEn,
-          },
-          key_elements: {
-            ...articlesFormOptionsZh._metadata!.key_elements,
-            label: articlesFormOptionsZh._metadata!.key_elements.labelEn || 'Key Elements',
-            helpText: articlesFormOptionsZh._metadata!.key_elements.helpTextEn,
-          },
-        },
-      };
-    }
-
-    return articlesFormOptionsZh;
+    // 默认返回科技文章参数；细分类型由外层根据 outline_type 选择
+    return getArticlesParamsForSubtype(undefined);
   },
 }

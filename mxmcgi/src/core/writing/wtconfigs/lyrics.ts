@@ -4,7 +4,6 @@
  */
 
 import type { WritingTypeConfig } from './index';
-import type { FormOptionsConfig, FieldMetadata } from '../../shared/formOptions';
 
 export const lyricsConfig: WritingTypeConfig = {
   /**
@@ -94,28 +93,38 @@ export const lyricsConfig: WritingTypeConfig = {
 4. **不包含歌名**：输出中不要包含歌曲标题或歌名，只输出歌词正文和结构标签
 5. **直接输出**：直接输出歌词内容，不要添加任何说明文字或格式标记`,
       
-      outputformat: `【Suno AI 歌词格式要求】
+      outputformat: `【Suno AI 歌词格式要求 - JSON 格式输出】
 
 1. **输出格式**：
+   - 必须输出有效的 JSON 格式
+   - 不要使用 Markdown 代码块包裹（不要使用 \`\`\`json 等标记）
+   - 直接输出 JSON 对象，确保格式正确，可以被 JSON.parse() 解析
+
+2. **JSON 结构要求**：
+   - 必须包含以下字段：
+     * \`prompt\`（必需）：歌词内容，纯文本格式，包含带英文标签的歌词
+     * \`title\`（可选）：歌曲标题
+     * \`tags\`（可选）：音乐标签，逗号分隔的字符串，如 "pop, rock, energetic"
+     * \`negative_tags\`（可选）：负面标签，逗号分隔的字符串，如 "slow, sad"
+   
+3. **prompt 字段要求**（歌词内容）：
    - 必须是纯文本格式，不使用任何 Markdown 语法
    - 不使用 #、*、-、反引号 等任何 Markdown 符号
    - 只使用换行符和空格进行格式化
    - 段落之间使用空行分隔
-
-2. **结构标签要求**（必须严格遵守）：
    - 所有结构标签必须使用英文方括号格式：[标签名]
    - 支持的标签：[Intro]、[Verse]、[Pre-Chorus]、[Chorus]、[Bridge]、[Final Chorus]、[Outro]
    - 标签单独成行，后面跟空行，然后是歌词内容
    - 标签使用英文，避免被误认为是歌词内容
 
-3. **可选标签**（用于增强音乐效果）：
+4. **可选标签**（用于增强音乐效果，放在 prompt 中）：
    - [Mood: 情绪描述]：如 [Mood: Calm]、[Mood: Energetic]
    - [Instrument: 乐器]：如 [Instrument: Keys, Soft Drums]
    - [Energy: 能量级别]：如 [Energy: High]、[Energy: Low]
    - [Build-Up]：用于预副歌，表示情绪递进
    - [Breakdown]：用于桥段，表示情绪转折
 
-4. **结构组织**：
+5. **结构组织**（在 prompt 字段中）：
    - [Intro]（可选）：开头部分，通常1-2行
    - [Verse]：主歌，通常2-3段，每段4-6行
    - [Pre-Chorus]（可选）：预副歌，通常2-4行
@@ -124,61 +133,27 @@ export const lyricsConfig: WritingTypeConfig = {
    - [Final Chorus]（可选）：最终副歌，通常4-6行
    - [Outro]（可选）：结尾部分，通常1-2行
 
-5. **内容要求**：
+6. **内容要求**（在 prompt 字段中）：
    - 每行歌词独立成行
    - 每行长度适中（8-12个中文字符或4-8个英文单词）
    - 注意押韵和节奏
    - 主题明确，情感连贯
    - 语言简洁有力，通俗易懂
    - 使用具体意象，避免抽象
-   - **绝对不要包含歌曲标题或歌名**
+   - **绝对不要包含歌曲标题或歌名**（标题应放在 title 字段中）
 
-6. **示例格式**：
-[Verse]
-第一行歌词
-第二行歌词
-第三行歌词
-第四行歌词
+7. **JSON 示例格式**：
+{
+  "title": "青春之歌",
+  "prompt": "[Verse]\\n第一行歌词\\n第二行歌词\\n第三行歌词\\n第四行歌词\\n\\n[Pre-Chorus]\\n[Build-Up]\\n第一行歌词\\n第二行歌词\\n\\n[Chorus]\\n[Energy: High]\\n第一行歌词\\n第二行歌词\\n第三行歌词\\n第四行歌词\\n\\n[Verse]\\n第一行歌词\\n第二行歌词\\n第三行歌词\\n第四行歌词\\n\\n[Chorus]\\n[Energy: High]\\n第一行歌词\\n第二行歌词\\n第三行歌词\\n第四行歌词\\n\\n[Bridge]\\n[Breakdown]\\n第一行歌词\\n第二行歌词\\n\\n[Final Chorus]\\n[Energy: High]\\n第一行歌词\\n第二行歌词\\n第三行歌词\\n第四行歌词\\n\\n[Outro]\\n最后一行歌词",
+  "tags": "pop, rock, energetic",
+  "negative_tags": "slow, sad"
+}
 
-[Pre-Chorus]
-[Build-Up]
-第一行歌词
-第二行歌词
-
-[Chorus]
-[Energy: High]
-第一行歌词
-第二行歌词
-第三行歌词
-第四行歌词
-
-[Verse]
-第一行歌词
-第二行歌词
-第三行歌词
-第四行歌词
-
-[Chorus]
-[Energy: High]
-第一行歌词
-第二行歌词
-第三行歌词
-第四行歌词
-
-[Bridge]
-[Breakdown]
-第一行歌词
-第二行歌词
-
-[Final Chorus]
-[Energy: High]
-第一行歌词
-第二行歌词
-第三行歌词
-第四行歌词
-
-[Outro]
-最后一行歌词`,
+**重要提示**：
+- prompt 字段中的换行符必须使用 \\n 转义
+- 确保 JSON 格式完全正确，所有字符串都用双引号包裹
+- 不要输出任何 JSON 之外的说明文字`,
     };
   },
 
@@ -187,169 +162,5 @@ export const lyricsConfig: WritingTypeConfig = {
    */
   getParamsForType(): string[] {
     return ['musicStyle', 'emotion', 'rhyme', 'theme', 'length', 'format'];
-  },
-
-  /**
-   * 获取表单选项配置
-   */
-  getFormOptions(language: 'zh' | 'en' = 'zh'): FormOptionsConfig {
-    const isZh = language === 'zh';
-
-    const lyricsFormOptionsZh: FormOptionsConfig = {
-      // Select 类型字段
-      musicStyle: [
-        { value: 'pop', label: '流行', labelEn: 'Pop' },
-        { value: 'rock', label: '摇滚', labelEn: 'Rock' },
-        { value: 'ballad', label: '抒情', labelEn: 'Ballad' },
-        { value: 'rap', label: '说唱', labelEn: 'Rap' },
-        { value: 'folk', label: '民谣', labelEn: 'Folk' },
-      ],
-      emotion: [
-        { value: 'happy', label: '快乐', labelEn: 'Happy' },
-        { value: 'sad', label: '悲伤', labelEn: 'Sad' },
-        { value: 'romantic', label: '浪漫', labelEn: 'Romantic' },
-        { value: 'energetic', label: '激昂', labelEn: 'Energetic' },
-        { value: 'nostalgic', label: '怀旧', labelEn: 'Nostalgic' },
-      ],
-      rhyme: [
-        { value: 'full', label: '全押韵', labelEn: 'Full Rhyme' },
-        { value: 'half', label: '半押韵', labelEn: 'Half Rhyme' },
-        { value: 'internal', label: '内押韵', labelEn: 'Internal Rhyme' },
-        { value: 'free', label: '自由韵', labelEn: 'Free Verse' },
-      ],
-      length: [
-        { value: 'short', label: '短篇（2-3分钟）', labelEn: 'Short (2-3 min)' },
-        { value: 'medium', label: '中篇（3-5分钟）', labelEn: 'Medium (3-5 min)' },
-        { value: 'long', label: '长篇（5分钟以上）', labelEn: 'Long (5+ min)' },
-      ],
-      format: [
-        { value: 'default', label: '默认格式（Markdown）', labelEn: 'Default (Markdown)' },
-        { value: 'suno', label: 'Suno AI 格式（纯文本）', labelEn: 'Suno AI Format (Plain Text)' },
-      ],
-
-      // 元数据（为所有字段提供中文标签）
-      _metadata: {
-        musicStyle: {
-          type: 'select',
-          label: '音乐风格',
-          labelEn: 'Music Style',
-          helpText: '选择歌词的音乐风格',
-          helpTextEn: 'Select the music style',
-        },
-        emotion: {
-          type: 'select',
-          label: '情感',
-          labelEn: 'Emotion',
-          helpText: '选择歌词要表达的情感',
-          helpTextEn: 'Select the emotion to express',
-        },
-        rhyme: {
-          type: 'select',
-          label: '押韵',
-          labelEn: 'Rhyme',
-          helpText: '选择押韵方式',
-          helpTextEn: 'Select the rhyme style',
-        },
-        length: {
-          type: 'select',
-          label: '长度',
-          labelEn: 'Length',
-          helpText: '选择歌词长度',
-          helpTextEn: 'Select the length',
-        },
-        format: {
-          type: 'select',
-          label: '格式',
-          labelEn: 'Format',
-          helpText: '选择歌词输出格式',
-          helpTextEn: 'Select the output format',
-        },
-        theme: {
-          type: 'textarea',
-          label: '主题内容',
-          labelEn: 'Theme',
-          placeholder: '描述歌词要表达的主题和情感...',
-          placeholderEn: 'Describe the theme and emotion of the lyrics...',
-          helpText: '歌词要表达的核心主题和情感',
-          helpTextEn: 'The core theme and emotion to express',
-        },
-      },
-    };
-
-    if (language === 'en') {
-      const musicStyle = Array.isArray(lyricsFormOptionsZh.musicStyle)
-        ? lyricsFormOptionsZh.musicStyle.map((opt: any) => ({
-            value: opt.value,
-            label: opt.labelEn || opt.value,
-          }))
-        : [];
-      const emotion = Array.isArray(lyricsFormOptionsZh.emotion)
-        ? lyricsFormOptionsZh.emotion.map((opt: any) => ({
-            value: opt.value,
-            label: opt.labelEn || opt.value,
-          }))
-        : [];
-      const rhyme = Array.isArray(lyricsFormOptionsZh.rhyme)
-        ? lyricsFormOptionsZh.rhyme.map((opt: any) => ({
-            value: opt.value,
-            label: opt.labelEn || opt.value,
-          }))
-        : [];
-      const length = Array.isArray(lyricsFormOptionsZh.length)
-        ? lyricsFormOptionsZh.length.map((opt: any) => ({
-            value: opt.value,
-            label: opt.labelEn || opt.value,
-          }))
-        : [];
-      const format = Array.isArray(lyricsFormOptionsZh.format)
-        ? lyricsFormOptionsZh.format.map((opt: any) => ({
-            value: opt.value,
-            label: opt.labelEn || opt.value,
-          }))
-        : [];
-
-      return {
-        musicStyle,
-        emotion,
-        rhyme,
-        length,
-        format,
-        _metadata: {
-          musicStyle: {
-            ...lyricsFormOptionsZh._metadata!.musicStyle,
-            label: lyricsFormOptionsZh._metadata!.musicStyle.labelEn || 'Music Style',
-            helpText: lyricsFormOptionsZh._metadata!.musicStyle.helpTextEn,
-          },
-          emotion: {
-            ...lyricsFormOptionsZh._metadata!.emotion,
-            label: lyricsFormOptionsZh._metadata!.emotion.labelEn || 'Emotion',
-            helpText: lyricsFormOptionsZh._metadata!.emotion.helpTextEn,
-          },
-          rhyme: {
-            ...lyricsFormOptionsZh._metadata!.rhyme,
-            label: lyricsFormOptionsZh._metadata!.rhyme.labelEn || 'Rhyme',
-            helpText: lyricsFormOptionsZh._metadata!.rhyme.helpTextEn,
-          },
-          length: {
-            ...lyricsFormOptionsZh._metadata!.length,
-            label: lyricsFormOptionsZh._metadata!.length.labelEn || 'Length',
-            helpText: lyricsFormOptionsZh._metadata!.length.helpTextEn,
-          },
-          format: {
-            ...lyricsFormOptionsZh._metadata!.format,
-            label: lyricsFormOptionsZh._metadata!.format.labelEn || 'Format',
-            helpText: lyricsFormOptionsZh._metadata!.format.helpTextEn,
-          },
-          theme: {
-            ...lyricsFormOptionsZh._metadata!.theme,
-            label: lyricsFormOptionsZh._metadata!.theme.labelEn || 'Theme',
-            placeholder: lyricsFormOptionsZh._metadata!.theme.placeholderEn,
-            helpText: lyricsFormOptionsZh._metadata!.theme.helpTextEn,
-          },
-        },
-      };
-    }
-
-    return lyricsFormOptionsZh;
   },
 }

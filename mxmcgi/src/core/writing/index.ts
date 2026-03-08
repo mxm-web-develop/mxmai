@@ -8,4 +8,5 @@ export * from './knowledge-enhancer';
 export * from './document-formatter';
 export * from './writing-service';
 export * from './writing-task';
+export * from './storyboard-chunk-utils';
 

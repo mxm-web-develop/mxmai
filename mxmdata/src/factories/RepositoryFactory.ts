@@ -16,8 +16,14 @@ import type { ISmartflowExecutionRepository } from '../interfaces/ISmartflowExec
 import type { IPromptTemplateRepository } from '../interfaces/IPromptTemplateRepository';
 import type { ICGITaskRepository } from '../interfaces/ICGITaskRepository';
 import type { IKnowledgeBaseRepository } from '../interfaces/IKnowledgeBaseRepository';
+import type { IKnowledgeBaseDefaultsRepository } from '../interfaces/IKnowledgeBaseDefaultsRepository';
 import type { IFolderRepository } from '../interfaces/IFolderRepository';
-import { SupabaseUserRepository, SupabasePaymentRepository, SupabaseWalletRepository, SupabasePromptOptimizerRepository, SupabaseConversationRepository, SupabaseSmartflowRepository, SupabaseSmartflowExecutionRepository, SupabasePromptTemplateRepository, SupabaseCGITaskRepository, SupabaseKnowledgeBaseRepository, SupabaseFolderRepository, initSupabaseClient } from '../adapters/supabase';
+import type { ICharacterRepository } from '../interfaces/ICharacterRepository';
+import type { IPromptEngineeringConfigRepository } from '../interfaces/IPromptEngineeringConfigRepository';
+import type { IProviderApiKeyRepository } from '../interfaces/IProviderApiKeyRepository';
+import type { IGraphModelConfigRepository } from '../interfaces/IGraphModelConfigRepository';
+import type { ISensitiveWordRepository } from '../interfaces/ISensitiveWordRepository';
+import { SupabaseUserRepository, SupabasePaymentRepository, SupabaseWalletRepository, SupabasePromptOptimizerRepository, SupabaseConversationRepository, SupabaseSmartflowRepository, SupabaseSmartflowExecutionRepository, SupabasePromptTemplateRepository, SupabaseCGITaskRepository, SupabaseKnowledgeBaseRepository, SupabaseKnowledgeBaseDefaultsRepository, SupabaseFolderRepository, SupabaseCharacterRepository, SupabasePromptEngineeringConfigRepository, SupabaseProviderApiKeyRepository, SupabaseSensitiveWordRepository, SupabaseGraphModelConfigRepository, initSupabaseClient } from '../adapters/supabase';
 import { MinIOStorageRepository, initMinIOClient } from '../adapters/minio';
 import { loadDataConfig, type DataLayerConfig } from '../config/dataConfig';
 
@@ -215,10 +221,50 @@ export class RepositoryFactory {
   }
 
   /**
+   * 创建知识库默认绑定 Repository
+   */
+  static createKnowledgeBaseDefaultsRepository(): IKnowledgeBaseDefaultsRepository {
+    return createKnowledgeBaseDefaultsRepository();
+  }
+
+  /**
    * 创建文件夹 Repository
    */
   static createFolderRepository(): IFolderRepository {
     return createFolderRepository();
+  }
+
+  /**
+   * 创建角色 Repository
+   */
+  static createCharacterRepository(): ICharacterRepository {
+    return createCharacterRepository();
+  }
+
+  /**
+   * 创建提示词工程配置 Repository
+   */
+  static createPromptEngineeringConfigRepository(): IPromptEngineeringConfigRepository {
+    return createPromptEngineeringConfigRepository();
+  }
+
+  static createProviderApiKeyRepository(): IProviderApiKeyRepository {
+    return createProviderApiKeyRepository();
+  }
+
+  static createSensitiveWordRepository(): ISensitiveWordRepository {
+    return createSensitiveWordRepository();
+  }
+
+  /**
+   * 创建 Graph 模型配置 Repository
+   */
+  static createGraphModelConfigRepository(): IGraphModelConfigRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabaseGraphModelConfigRepository();
   }
 }
 
@@ -321,6 +367,19 @@ export function createKnowledgeBaseRepository(): IKnowledgeBaseRepository {
 }
 
 /**
+ * 创建知识库默认绑定 Repository
+ */
+export function createKnowledgeBaseDefaultsRepository(): IKnowledgeBaseDefaultsRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+
+  return new SupabaseKnowledgeBaseDefaultsRepository();
+}
+
+/**
  * 创建文件夹 Repository
  */
 export function createFolderRepository(): IFolderRepository {
@@ -333,3 +392,48 @@ export function createFolderRepository(): IFolderRepository {
   return new SupabaseFolderRepository();
 }
 
+/**
+ * 创建角色 Repository
+ */
+export function createCharacterRepository(): ICharacterRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+  
+  return new SupabaseCharacterRepository();
+}
+
+/**
+ * 创建提示词工程配置 Repository
+ */
+export function createPromptEngineeringConfigRepository(): IPromptEngineeringConfigRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+
+  return new SupabasePromptEngineeringConfigRepository();
+}
+
+export function createProviderApiKeyRepository(): IProviderApiKeyRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+
+  return new SupabaseProviderApiKeyRepository();
+}
+
+export function createSensitiveWordRepository(): ISensitiveWordRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+
+  return new SupabaseSensitiveWordRepository();
+}

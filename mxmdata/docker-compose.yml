@@ -100,6 +100,7 @@ services:
       PGRST_DB_SCHEMAS: public
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-token-with-at-least-32-characters-long}
+      PGRST_DB_SCHEMAS_CACHE: "0"  # 禁用 schema cache，强制每次查询时重新加载
     depends_on:
       postgres:
         condition: service_healthy

@@ -14,4 +14,10 @@ export * from './SupabaseSmartflowExecutionRepository';
 export * from './SupabasePromptTemplateRepository';
 export * from './SupabaseCGITaskRepository';
 export * from './SupabaseKnowledgeBaseRepository';
+export * from './SupabaseKnowledgeBaseDefaultsRepository';
+export * from './SupabaseGraphModelConfigRepository';
+export * from './SupabaseCharacterRepository';
+export * from './SupabasePromptEngineeringConfigRepository';
+export * from './SupabaseProviderApiKeyRepository';
+export * from './SupabaseSensitiveWordRepository';
 

@@ -14,7 +14,7 @@ import dotenv from 'dotenv';
 import { join } from 'path';
 import { mkdirSync, existsSync } from 'fs';
 import { RepositoryFactory } from '@mxmai/mxmdata';
-import { KnowledgeService } from '../core/knowledge/knowledge-service';
+import { KnowledgeService } from '../knowledge/knowledge-service';
 
 // 使用进程工作目录作为 mxmcgi 包根目录
 const MXMCGI_ROOT = process.cwd();

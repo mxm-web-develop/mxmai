@@ -290,42 +290,89 @@ export class NotificationService {
         return [];
       }
 
-      // 验证所有通知都属于该用户
-      const { data: notifications, error: fetchError } = await this.getSupabase()
-        .from('notifications')
-        .select('id, user_id')
-        .in('id', notificationIds);
+      // 分批处理，避免 Supabase .in() 查询的数组大小限制
+      // 每批处理 10 个 ID（保守的批次大小，避免 Supabase 连接问题）
+      const BATCH_SIZE = 10;
+      const allValidIds: string[] = [];
+      const allInvalidIds: string[] = [];
 
-      if (fetchError) {
-        throw new Error(`Failed to fetch notifications: ${fetchError.message}`);
+      // 分批验证通知
+      for (let i = 0; i < notificationIds.length; i += BATCH_SIZE) {
+        const batch = notificationIds.slice(i, i + BATCH_SIZE);
+        
+        try {
+          // 验证这批通知都属于该用户
+          logger.debug(`Processing batch ${i}-${i + batch.length}, batch size: ${batch.length}`);
+          const supabase = this.getSupabase();
+          
+          // 使用 .in() 查询，批次大小已减小到 10
+          const { data: notifications, error: fetchError } = await supabase
+            .from('notifications')
+            .select('id, user_id')
+            .in('id', batch);
+
+          if (fetchError) {
+            logger.error(`Failed to fetch notifications batch (${i}-${i + batch.length}):`, {
+              error: fetchError,
+              message: fetchError.message,
+              details: fetchError.details,
+              hint: fetchError.hint,
+              code: fetchError.code,
+              batchSize: batch.length,
+              batchIds: batch.slice(0, 3), // 只记录前3个ID用于调试
+            });
+            throw new Error(`Failed to fetch notifications: ${fetchError.message}`);
+          }
+          
+          logger.debug(`Batch ${i}-${i + batch.length} fetched ${notifications?.length || 0} notifications`);
+
+          // 检查是否有不属于该用户的通知
+          const unauthorizedNotifications = notifications.filter(n => n.user_id !== userId);
+          if (unauthorizedNotifications.length > 0) {
+            throw new Error(`Unauthorized: Some notifications do not belong to user`);
+          }
+
+          // 获取这批有效的通知ID
+          const validIds = notifications.map(n => n.id);
+          const invalidIds = batch.filter(id => !validIds.includes(id));
+          
+          allValidIds.push(...validIds);
+          allInvalidIds.push(...invalidIds);
+        } catch (batchError) {
+          logger.error(`Error processing batch (${i}-${i + batch.length}):`, batchError);
+          throw batchError;
+        }
       }
-
-      // 检查是否有不属于该用户的通知
-      const unauthorizedNotifications = notifications.filter(n => n.user_id !== userId);
-      if (unauthorizedNotifications.length > 0) {
-        throw new Error(`Unauthorized: Some notifications do not belong to user`);
-      }
-
-      // 获取所有有效的通知ID
-      const validIds = notifications.map(n => n.id);
-      const invalidIds = notificationIds.filter(id => !validIds.includes(id));
       
-      if (invalidIds.length > 0) {
-        logger.warn(`Some notification IDs not found: ${invalidIds.join(', ')}`);
+      if (allInvalidIds.length > 0) {
+        logger.warn(`Some notification IDs not found: ${allInvalidIds.join(', ')}`);
       }
 
-      // 批量删除通知
-      const { error } = await this.getSupabase()
-        .from('notifications')
-        .delete()
-        .in('id', validIds);
+      // 分批删除通知
+      const allDeletedIds: string[] = [];
+      for (let i = 0; i < allValidIds.length; i += BATCH_SIZE) {
+        const batch = allValidIds.slice(i, i + BATCH_SIZE);
+        
+        try {
+          const { error } = await this.getSupabase()
+            .from('notifications')
+            .delete()
+            .in('id', batch);
 
-      if (error) {
-        throw new Error(`Failed to delete notifications: ${error.message}`);
+          if (error) {
+            logger.error(`Failed to delete notifications batch (${i}-${i + batch.length}):`, error);
+            throw new Error(`Failed to delete notifications: ${error.message}`);
+          }
+
+          allDeletedIds.push(...batch);
+        } catch (batchError) {
+          logger.error(`Error deleting batch (${i}-${i + batch.length}):`, batchError);
+          throw batchError;
+        }
       }
 
-      logger.info(`Notifications deleted: ${validIds.length} by user ${userId}`);
-      return validIds;
+      logger.info(`Notifications deleted: ${allDeletedIds.length} by user ${userId}`);
+      return allDeletedIds;
     } catch (error) {
       logger.error('Failed to delete notifications:', error);
       throw error;

@@ -21,6 +21,7 @@ export const DESIGN_TYPE_MAP = {
   poster: '画报',
   icon: '图标',
   coverImage: '封面图片',
+  'ui-design': 'UI 设计',
 } as const;
 
 export const PAINTING_TYPE_MAP = {
@@ -69,13 +70,18 @@ export interface PhotographParams {
   referenceImage?: string | string[] | ReferenceImage[]; // Reference image(s) - 支持旧格式和新格式
   quality?: 'high' | 'fast';
   aspect_ratio?: string;
+  // Grid9 parameters
+  grid9?: boolean; // 是否启用九宫格模式
+  grid9Mode?: 'variation' | 'sequence' | 'combination'; // 变体模式（可选，系统会根据类型自动选择）
+  grid9Purpose?: 'options' | 'storyboard' | 'variants' | 'character'; // 多图用途：9方案 / 分镜 / 同set变体 / 角色画像多角度
+  grid9Split?: boolean; // 是否切图为9张并创建子任务，默认 true
   [key: string]: any; // Support future extension
 }
 
 // Design接口 - 兼容所有设计小类型
 // type值使用英文，可通过DESIGN_TYPE_MAP获取中文翻译
 export interface DesignParams {
-  type: '3d' | 'manual' | 'poster' | 'icon' | 'coverImage';
+  type: '3d' | 'manual' | 'poster' | 'icon' | 'coverImage' | 'ui-design';
   prompt: string;
   
   // 3D related parameters (optional)
@@ -108,12 +114,22 @@ export interface DesignParams {
   layoutStyle?: string;   // 布局风格（左右分栏、上下分栏等）
   visualEffects?: string; // 视觉效果（模糊、渐变等）
   coverTheme?: string;    // 封面主题风格（新闻、娱乐、教育等）
+
+  // UI Design (网页 / 移动端 / 游戏 UI) 相关参数（仅在 type === 'ui-design' 时使用）
+  uiResolution?: string;      // 分辨率/画布类型（mobile-app, web, game, element）
+  uiStyleKeywords?: string;   // 风格关键词（多选，逗号分隔，如 glassmorphism,neumorphism）
+  uiColorTokens?: string;     // 色板/主辅色（格式：主色: #FF0000, 副色1: #00FF00, 副色2: #0000FF，可选）
   
   // Common parameters
   knowledgeBase?: KnowledgeBaseConfig[];
   referenceImage?: string | string[] | ReferenceImage[]; // Reference image(s) - 支持旧格式和新格式
   quality?: 'high' | 'fast';
   aspect_ratio?: string;
+  // Grid9 parameters
+  grid9?: boolean; // 是否启用九宫格模式
+  grid9Mode?: 'variation' | 'sequence' | 'combination'; // 变体模式（可选，系统会根据类型自动选择）
+  grid9Purpose?: 'options' | 'storyboard' | 'variants' | 'character'; // 多图用途：9方案 / 分镜 / 同set变体 / 角色画像多角度
+  grid9Split?: boolean; // 是否切图为9张并创建子任务，默认 true
   [key: string]: any; // Support future extension
 }
 
@@ -144,5 +160,10 @@ export interface PaintingParams {
   referenceImage?: string | string[] | ReferenceImage[]; // Reference image(s) - 支持旧格式和新格式
   quality?: 'high' | 'fast';
   aspect_ratio?: string;
+  // Grid9 parameters
+  grid9?: boolean; // 是否启用九宫格模式
+  grid9Mode?: 'variation' | 'sequence' | 'combination'; // 变体模式（可选，系统会根据类型自动选择）
+  grid9Purpose?: 'options' | 'storyboard' | 'variants' | 'character'; // 多图用途：9方案 / 分镜 / 同set变体 / 角色画像多角度
+  grid9Split?: boolean; // 是否切图为9张并创建子任务，默认 true
   [key: string]: any; // Support future extension
 }

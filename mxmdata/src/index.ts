@@ -14,8 +14,12 @@ export * from './interfaces/IConversationRepository';
 export * from './interfaces/ISmartflowRepository';
 export * from './interfaces/ISmartflowExecutionRepository';
 export * from './interfaces/ICGITaskRepository';
+export * from './interfaces/ICharacterRepository';
+export * from './interfaces/IPromptEngineeringConfigRepository';
 export * from './interfaces/IKnowledgeBaseRepository';
+export * from './interfaces/IKnowledgeBaseDefaultsRepository';
 export * from './interfaces/IPromptTemplateRepository';
+export * from './interfaces/ISensitiveWordRepository';
 export * from './interfaces/errors';
 
 // 导出 IPromptOptimizerRepository 接口（排除与 models 重复的类型：PromptTemplate, CreatePromptTemplateDto, UpdatePromptTemplateDto）

@@ -1,10 +1,10 @@
 /**
  * 大纲写作类型配置
  * 用于为 outlines 类型的写作任务提供系统提示词和格式要求
+ * 表单选项已迁至 clientServer/writing/outlines.ts，此处仅保留 rules / outputformat / getParamsForType
  */
 
 import type { WritingTypeConfig } from './index';
-import type { FormOptionsConfig, FieldMetadata } from '../../shared/formOptions';
 
 export const outlinesConfig: WritingTypeConfig = {
   /**
@@ -86,88 +86,19 @@ export const outlinesConfig: WritingTypeConfig = {
    * 获取大纲类型需要的参数列表
    */
   getParamsForType(): string[] {
-    return ['maxDepth', 'expectedNodes', 'total_textcount', 'applyto'];
-  },
-
-  /**
-   * 获取表单选项配置
-   */
-  getFormOptions(language: 'zh' | 'en' = 'zh'): FormOptionsConfig {
-    const isZh = language === 'zh';
-
-    const outlinesFormOptionsZh: FormOptionsConfig = {
-      // Select 类型字段
-      maxDepth: [
-        { value: '1', label: '一级标题', labelEn: 'Level 1' },
-        { value: '2', label: '二级标题', labelEn: 'Level 2' },
-        { value: '3', label: '三级标题', labelEn: 'Level 3' },
-        { value: '4', label: '四级标题', labelEn: 'Level 4' },
-      ],
-      applyto: [
-        { value: 'articles', label: '文章', labelEn: 'Articles' },
-        { value: 'lyrics', label: '歌词', labelEn: 'Lyrics' },
-        { value: 'media-post', label: '媒体帖子', labelEn: 'Media Post' },
-        { value: 'storyboard-scripts', label: '分镜脚本', labelEn: 'Storyboard Scripts' },
-        { value: 'reviews', label: '评论', labelEn: 'Reviews' },
-        { value: 'resumes', label: '简历', labelEn: 'Resumes' },
-        { value: 'voice-scripts', label: '口播稿', labelEn: 'Voice Scripts' },
-      ],
-
-      // 元数据
-      _metadata: {
-        expectedNodes: {
-          type: 'number',
-          label: '期望节点数',
-          labelEn: 'Expected Nodes',
-          placeholder: '例如：10',
-          placeholderEn: 'e.g., 10',
-          helpText: '大致控制大纲的篇幅（节点总数）',
-          helpTextEn: 'Roughly control the outline length (total nodes)',
-          min: 1,
-          max: 100,
-        },
-        total_textcount: {
-          type: 'number',
-          label: '文字总量',
-          labelEn: 'Total Text Count',
-          placeholder: '例如：5000',
-          placeholderEn: 'e.g., 5000',
-          helpText: '文章的总字数，将根据 applyto 类型和节点重要性进行智能分布（重点章节分配更多字数）',
-          helpTextEn: 'Total word count, will be intelligently distributed based on applyto type and node importance (key sections get more words)',
-          min: 100,
-          max: 100000,
-        },
-      },
-    };
-
-    if (language === 'en') {
-      return {
-        maxDepth: outlinesFormOptionsZh.maxDepth.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        applyto: outlinesFormOptionsZh.applyto.map(opt => ({
-          value: opt.value,
-          label: opt.labelEn || opt.value,
-        })),
-        _metadata: {
-          expectedNodes: {
-            ...outlinesFormOptionsZh._metadata!.expectedNodes,
-            label: outlinesFormOptionsZh._metadata!.expectedNodes.labelEn || 'Expected Nodes',
-            placeholder: outlinesFormOptionsZh._metadata!.expectedNodes.placeholderEn,
-            helpText: outlinesFormOptionsZh._metadata!.expectedNodes.helpTextEn,
-          },
-          total_textcount: {
-            ...outlinesFormOptionsZh._metadata!.total_textcount,
-            label: outlinesFormOptionsZh._metadata!.total_textcount.labelEn || 'Total Text Count',
-            placeholder: outlinesFormOptionsZh._metadata!.total_textcount.placeholderEn,
-            helpText: outlinesFormOptionsZh._metadata!.total_textcount.helpTextEn,
-          },
-        },
-      };
-    }
-
-    return outlinesFormOptionsZh;
+    return [
+      'maxDepth',
+      'expectedNodes',
+      'total_textcount',
+      'total_duration_seconds',
+      'applyto',
+      'outline_type',
+      'outline_structure_type',
+      'stance',
+      'tone',
+      'speech_rate',
+      'rhythm',
+    ];
   },
 }
 
