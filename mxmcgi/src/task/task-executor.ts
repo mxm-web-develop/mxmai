@@ -5,15 +5,14 @@
 
 import { TaskManager, type TaskStorage } from './task-manager';
 import { DatabaseTaskStorage } from './database-storage';
-import type { GenerateResult, ProgressEvent, GenerateParams } from '../core/providers/types';
-import type { ProviderType } from '../core/providers/types';
+import type { GenerateResult, ProgressEvent, GenerateParams, ProviderType } from '../models/providers';
 import { providerFactory, getResolvedRouting } from '../models/providers';
 import { runByModelKeyAnyScope } from '../models/run';
-import { storeFromGenerateResult, type StorageConfig } from '../core/utils/data-store';
+import { storeFromGenerateResult, type StorageConfig } from './data-store';
 import type { TaskStatus } from './types';
 import { RepositoryFactory, type UploadOptions } from '@mxmai/mxmdata';
-import { UsageService } from '../core/usage/usage-service';
-import { BillingService } from '../core/billing/billing-service';
+import { UsageService } from '../statistics/usage-service';
+import { BillingService } from '../statistics/billing-service';
 
 export interface ExecuteTaskOptions {
   taskId: string;
@@ -656,7 +655,7 @@ export class TaskExecutor {
 
       // 如果需要存储到 MinIO（用户指定或强制）
       if ((storeToMinio || shouldForceMinIO) && finalStorageConfig && mediaUrls.length > 0) {
-        const { storeFromGenerateResult } = await import('../core/utils/data-store');
+        const { storeFromGenerateResult } = await import('./data-store');
         // 从 result.metadata 中获取 modelName（确保 metadata 存在）
         const finalModelName = modelName || (result.metadata && result.metadata.model) || 'unknown';
         const storageResults = await storeFromGenerateResult(result, finalStorageConfig, userId, finalModelName);

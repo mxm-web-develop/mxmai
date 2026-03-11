@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { login, setBaseUrl } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 function LoginForm() {
-  const { setToken, logout } = useAuth();
+  const { setToken } = useAuth();
   const [baseUrl, setBaseUrlState] = useState(localStorage.getItem('api_base_url') ?? '');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -74,16 +75,19 @@ function LoginForm() {
 }
 
 export default function Dashboard() {
-  const { isLoggedIn, isAdmin, user, logout } = useAuth();
-  const [sessionExpired, setSessionExpired] = useState(false);
+  const { isLoggedIn, isAdmin, user } = useAuth();
   const baseUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('api_base_url') || '（留空则用当前域名代理）' : '';
+  const sessionExpired = useMemo(() => {
+    if (typeof sessionStorage === 'undefined') return false;
+    return !isLoggedIn && !!sessionStorage.getItem('auth_401');
+  }, [isLoggedIn]);
 
   useEffect(() => {
-    if (!isLoggedIn && typeof sessionStorage !== 'undefined' && sessionStorage.getItem('auth_401')) {
+    if (!sessionExpired) return;
+    if (typeof sessionStorage !== 'undefined') {
       sessionStorage.removeItem('auth_401');
-      setSessionExpired(true);
     }
-  }, [isLoggedIn]);
+  }, [sessionExpired]);
 
   return (
     <section className="page-card dashboard-home">
@@ -96,37 +100,75 @@ export default function Dashboard() {
         </>
       ) : (
         <>
-          <div className="dashboard-stats">
-            <div className="stat-card">
-              <span className="stat-label">登录状态</span>
-              <span className="stat-value">已登录 {user?.username ?? ''}</span>
+          <div className="dashboard-hero">
+            <div className="dashboard-hero-left">
+              <div className="dashboard-hero-kicker">
+                <Sparkles size={16} />
+                <span>AI Workflow Console</span>
+              </div>
+              <h3 className="dashboard-hero-title">描述你的目标，我们来生成与编排</h3>
+              <p className="dashboard-hero-subtitle">
+                从角色设定 → 大纲 → 写作 → 图片/音频/视频，一站式调试与生产。
+              </p>
+              <div className="dashboard-hero-inputRow">
+                <input
+                  className="dashboard-hero-input"
+                  placeholder="输入一个提示词或任务描述（仅 UI，占位）"
+                  aria-label="提示词输入（占位）"
+                />
+                <button type="button" className="dashboard-hero-cta" aria-label="开始（占位）">
+                  开始
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+              <div className="dashboard-hero-meta">
+                <span className="dashboard-hero-pill">已登录 {user?.username ?? ''}</span>
+                <span className="dashboard-hero-pill">{isAdmin ? 'Admin' : '普通用户'}</span>
+                <span className="dashboard-hero-pill truncate">API: {baseUrl}</span>
+              </div>
             </div>
-            <div className="stat-card">
-              <span className="stat-label">角色</span>
-              <span className="stat-value">{isAdmin ? 'Admin' : '普通用户'}</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-label">API Base URL</span>
-              <span className="stat-value truncate">{baseUrl}</span>
+            <div className="dashboard-hero-right">
+              <div className="dashboard-miniCard">
+                <div className="dashboard-miniCard-label">状态</div>
+                <div className="dashboard-miniCard-value">Online</div>
+              </div>
+              <div className="dashboard-miniCard">
+                <div className="dashboard-miniCard-label">建议路径</div>
+                <div className="dashboard-miniCard-value">Outline → Writing → Video</div>
+              </div>
             </div>
           </div>
-          <div className="header-actions" style={{ marginBottom: '1rem' }}>
-            <button type="button" className="btn-logout" onClick={logout}>
-              退出登录
-            </button>
-          </div>
+
           <p className="hint">
             左侧「数据与接口测试」可调试各业务接口；Admin 用户可访问「控制监控」进行用户管理等操作。
           </p>
-          <div className="quick-links">
+          <div className="dashboard-bento">
             <h3>快捷入口</h3>
-            <ul>
-              <li>角色 / 大纲 / 写作 / 任务 / 视频 — 全流程测试（大纲→写作→视频）</li>
-              <li>图文 / 文本 / 音频 / 知识库 / 媒体 — 其他接口调试</li>
-              <li>表单选项 — 获取写作/视频/图文表单参数</li>
-              <li>提示词 · 配置管理 — Admin 编辑 rules_i18n / output_format_i18n</li>
-              <li>提示词 · 索引说明 — 配置文件路径与优化说明</li>
-            </ul>
+            <div className="bento-grid">
+              <div className="bento-card">
+                <div className="bento-title">生成任务</div>
+                <div className="bento-desc">角色 / 大纲 / 写作 / 图片 / 音频 / 视频</div>
+                <div className="bento-foot">从左侧导航进入 <ArrowRight size={14} /></div>
+              </div>
+              <div className="bento-card">
+                <div className="bento-title">资产管理</div>
+                <div className="bento-desc">知识库 / 虚拟文件夹 / 账号信息</div>
+                <div className="bento-foot">组织你的素材与上下文 <ArrowRight size={14} /></div>
+              </div>
+              {isAdmin ? (
+                <div className="bento-card">
+                  <div className="bento-title">管理员</div>
+                  <div className="bento-desc">Provider / 用户 / 概览 / 任务 / 提示词工程</div>
+                  <div className="bento-foot">监控与配置 <ArrowRight size={14} /></div>
+                </div>
+              ) : (
+                <div className="bento-card">
+                  <div className="bento-title">提示</div>
+                  <div className="bento-desc">需要 Admin 权限才能访问部分控制台能力</div>
+                  <div className="bento-foot">联系管理员开通 <ArrowRight size={14} /></div>
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}

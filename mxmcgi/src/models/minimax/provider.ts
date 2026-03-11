@@ -7,17 +7,16 @@
  * 其他历史的 minimax-* 能力仍通过 PPIOProvider 走 PPIO 通道。
  */
 
-import {
-  type ModelProvider,
-  type ProviderType,
-  type GenerateParams,
-  type GenerateResult,
-  type ProviderUsageSummary,
-  type ProviderBillingInfo,
-} from '../../core/providers/types';
-import { getFirstProviderKey } from '../../core/providers/provider-keys';
+import type {
+  ModelProvider,
+  ProviderType,
+  GenerateParams,
+  GenerateResult,
+  ProviderUsageSummary,
+  ProviderBillingInfo,
+} from '../providers-inner';
+import { getFirstProviderKey, recordStats, getProviderStats } from '../providers-inner';
 import { type ModelMapping, getModelName } from '../suport-list';
-import { recordStats, getProviderStats } from '../../core/providers/provider-stats';
 
 export class MinimaxProvider implements ModelProvider {
   readonly provider: ProviderType = 'minimax';

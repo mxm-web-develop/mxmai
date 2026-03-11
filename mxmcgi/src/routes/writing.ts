@@ -4,20 +4,20 @@
  */
 
 import { Router, Request, Response } from 'express';
-import type { ProviderType } from '../core/providers/types';
+import type { ProviderType } from '../models/providers';
 import { taskExecutor } from '../task/task-executor';
 import { startWritingTask } from '../core/writing/writing-task';
 import { RepositoryFactory } from '@mxmai/mxmdata';
-import { containsSensitiveWords, checkObjectForSensitiveWords } from '../core/utils/sensitive-check';
+import { containsSensitiveWords, checkObjectForSensitiveWords } from '../sensitive/check';
 import { getSensitiveWordsForSlot } from '../prompts/sensitive-resolver';
 import { getResolvedRouting } from '../models/providers';
-import { BillingService } from '../core/billing/billing-service';
+import { BillingService } from '../statistics/billing-service';
 import type {
   OutlineParams,
   WritingGenerateParams,
   SyncToTaskParams,
 } from '../core/writing/type';
-import { DeerAPIClient } from '../core/utils/deerapi-client';
+import { DeerAPIClient } from '../models/deerapi/client';
 import { getWritingFormOptionsForType } from '../clientServer/writing';
 import { getWritingBusinessKey, getWritingBusinessKeyFromParams } from '../core/writing/business-key';
 import { listModels, getModelsByKey } from '../models/registry';
@@ -133,12 +133,17 @@ router.post('/outline', async (req: Request, res: Response) => {
       });
     }
 
-    // 敏感词检查（优先 DB 绑定，无则回退代码默认列表）
-    const outlineSensitiveWords = await getSensitiveWordsForSlot(
-      'writing',
-      (params as any).writing_type || 'outlines',
-      (params as any).outline_type ?? null
-    );
+    // 敏感词检查（失败不阻塞，仅打日志）
+    let outlineSensitiveWords: string[] = [];
+    try {
+      outlineSensitiveWords = await getSensitiveWordsForSlot(
+        'writing',
+        (params as any).writing_type || 'outlines',
+        (params as any).outline_type ?? null
+      );
+    } catch (e) {
+      console.warn('[Writing Route] getSensitiveWordsForSlot failed, skip check:', e instanceof Error ? e.message : e);
+    }
     if (outlineSensitiveWords.length > 0 && containsSensitiveWords(params.prompt, outlineSensitiveWords)) {
       return res.status(400).json({
         success: false,
@@ -195,13 +200,22 @@ router.post('/outline', async (req: Request, res: Response) => {
       'outline'
     );
 
-    // 余额预检：用路由表解析实际 provider+model，以 total_textcount 估算 token
-    const { provider: rwProvider, model: rwModel } = getResolvedRouting('writing-outlines');
-    const estTokens = Math.ceil(Number(params.total_textcount || 1000) * 1.5); // 输出约 1.5x 字符数
-    const balanceCheckW = await BillingService.checkBalance({
-      userId, provider: rwProvider, modelKey: rwModel, scope: 'writing',
-      estimatedOutputTokens: estTokens, estimatedInputTokens: 500,
-    });
+    // 余额预检：用当前任务实际使用的 businessKey 对应路由
+    let balanceCheckW: { allowed: boolean; estimatedTokens: number; currentBalance: number };
+    try {
+      const { provider: rwProvider, model: rwModel } = getResolvedRouting(businessKey);
+      const estTokens = Math.ceil(Number(params.total_textcount || 1000) * 1.5);
+      balanceCheckW = await BillingService.checkBalance({
+        userId, provider: rwProvider, modelKey: rwModel, scope: 'writing',
+        estimatedOutputTokens: estTokens, estimatedInputTokens: 500,
+      });
+    } catch (e) {
+      console.error('[Writing Route] outline balance check failed:', e);
+      return res.status(503).json({
+        success: false,
+        error: '服务暂时不可用，请稍后重试',
+      });
+    }
     if (!balanceCheckW.allowed) {
       return res.status(402).json({
         success: false, code: 'INSUFFICIENT_BALANCE',

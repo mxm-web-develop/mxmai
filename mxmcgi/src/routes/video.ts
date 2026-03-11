@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import type { ProviderType } from '../core/providers/types';
+import type { ProviderType } from '../models/providers';
 import { taskExecutor } from '../task/task-executor';
-import { processReferenceImage } from '../core/utils/image-processor';
+import { processReferenceImage } from '../clientServer/graph/utils/image-processor';
 import { getVideoFormOptions } from '../clientServer/video/formOptions';
 import { generate as videoGenerate } from '../core/video/video-service';
 import { listModels, getModelsByKey } from '../models/registry';

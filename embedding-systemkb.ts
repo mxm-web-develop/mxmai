@@ -23,7 +23,7 @@ const mxmdataModule = await import('./mxmdata/src/index.js');
 const RepositoryFactory = mxmdataModule.RepositoryFactory;
 
 // 使用 require 导入 CommonJS 模块（mxmcgi 使用 CommonJS）
-const mxmcgiKnowledgeModule = require('./mxmcgi/src/core/knowledge/knowledge-service.ts');
+const mxmcgiKnowledgeModule = require('./mxmcgi/src/knowledge/knowledge-service.ts');
 const KnowledgeService = mxmcgiKnowledgeModule.KnowledgeService;
 
 // 项目根目录

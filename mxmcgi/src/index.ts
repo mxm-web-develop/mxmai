@@ -134,7 +134,7 @@ app.listen(port, async () => {
   // 从 DB 加载业务模型路由覆盖，使 Admin 配置在重启后生效
   try {
     const { getSupabaseClient } = await import('@mxmai/mxmdata');
-    const { setRoutingOverride } = await import('./core/providers/model-routing');
+    const { setRoutingOverride } = await import('./models/providers');
     const supabase = getSupabaseClient();
     const { data: rows, error } = await supabase
       .from('model_routing_overrides')

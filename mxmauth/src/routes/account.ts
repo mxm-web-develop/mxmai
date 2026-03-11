@@ -8,7 +8,7 @@ import { Router } from 'express';
 import { RepositoryFactory } from '@mxmai/mxmdata';
 import { hashPassword, verifyPassword } from '../auth/password';
 import { generateTokenPair, getRefreshTokenExpiresInSeconds } from '../auth/jwt';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, gatewayOrJwtAuth } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin.middleware';
 import { captchaMiddleware } from '../middleware/captcha.middleware';
 import { DuplicateError, NotFoundError } from '@mxmai/mxmdata';
@@ -20,6 +20,7 @@ import { MediaService, type MediaItemInput } from '../services/media.service';
 
 const router = Router();
 const userRepo = RepositoryFactory.createUserRepository();
+const userApiKeyRepo = RepositoryFactory.createUserApiKeyRepository();
 const walletService = new WalletService();
 const folderService = new FolderService();
 const captchaService = new CaptchaService();
@@ -202,17 +203,22 @@ router.post('/login', captchaMiddleware, async (req, res, next) => {
       role: user.role,
     });
 
-    // 写入 user_sessions，供管理员「已登录」状态查询
+    // 写入 user_sessions，供管理员「已登录」状态查询（失败不影响登录成功）
     const tokenHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
     const refreshHash = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const expiresAt = new Date(Date.now() + getRefreshTokenExpiresInSeconds() * 1000);
-    const supabase = getSupabaseClient();
-    await supabase.from('user_sessions').insert({
-      user_id: user.id,
-      token_hash: tokenHash,
-      refresh_token_hash: refreshHash,
-      expires_at: expiresAt.toISOString(),
-    });
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.from('user_sessions').insert({
+        user_id: user.id,
+        token_hash: tokenHash,
+        refresh_token_hash: refreshHash,
+        expires_at: expiresAt.toISOString(),
+      });
+      if (error) console.warn('[account/login] user_sessions insert failed:', error.message);
+    } catch (e) {
+      console.warn('[account/login] user_sessions insert error:', e instanceof Error ? e.message : e);
+    }
 
     // 返回用户信息（不包含密码）
     const { password_hash: _, ...userWithoutPassword } = user;
@@ -385,6 +391,75 @@ router.put('/profile', authMiddleware, async (req, res, next) => {
       code: 200,
       message: 'Profile updated successfully',
       data: userWithoutPassword,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/v1/account/password
+ * 修改当前用户密码（需要认证）
+ *
+ * body:
+ * - current_password: string
+ * - new_password: string
+ */
+router.put('/password', authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user!.userId;
+    const { current_password, new_password } = req.body as {
+      current_password?: string;
+      new_password?: string;
+    };
+
+    if (!current_password || !new_password) {
+      return res.status(400).json({
+        code: 400,
+        message: 'current_password and new_password are required',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    if (String(new_password).length < 8) {
+      return res.status(400).json({
+        code: 400,
+        message: 'new_password must be at least 8 characters',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    const user = await userRepo.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        code: 404,
+        message: 'User not found',
+        error: 'NOT_FOUND',
+      });
+    }
+
+    const isValid = await verifyPassword(current_password, user.password_hash);
+    if (!isValid) {
+      return res.status(400).json({
+        code: 400,
+        message: '当前密码不正确',
+        error: 'INVALID_CURRENT_PASSWORD',
+      });
+    }
+
+    const password_hash = await hashPassword(new_password);
+    await userRepo.update(userId, { password_hash });
+
+    // 安全起见：修改密码后清理该用户所有会话（强制重新登录）
+    try {
+      await getSupabaseClient().from('user_sessions').delete().eq('user_id', userId);
+    } catch (e) {
+      console.warn('[account/password] failed to clear user_sessions:', e instanceof Error ? e.message : e);
+    }
+
+    res.json({
+      code: 200,
+      message: 'Password updated successfully',
     });
   } catch (error) {
     next(error);
@@ -639,6 +714,96 @@ router.get('/membership', authMiddleware, async (req, res, next) => {
         level: user.level,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const MAX_API_KEYS_PER_USER = 10;
+const API_KEY_PREFIX = 'mxm_';
+const API_KEY_RANDOM_LENGTH = 32;
+
+/**
+ * POST /api/v1/account/api-keys
+ * 创建 API 密钥（需要认证）。明文 key 仅在本次响应中返回一次。
+ */
+router.post('/api-keys', gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const userId = req.user!.userId;
+    const { name } = req.body || {};
+
+    const list = await userApiKeyRepo.listByUserId(userId);
+    if (list.length >= MAX_API_KEYS_PER_USER) {
+      return res.status(400).json({
+        code: 400,
+        message: `最多允许创建 ${MAX_API_KEYS_PER_USER} 个 API 密钥`,
+        error: 'LIMIT_EXCEEDED',
+      });
+    }
+
+    const rawKey = API_KEY_PREFIX + crypto.randomBytes(24).toString('base64url').slice(0, API_KEY_RANDOM_LENGTH);
+    const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+    const keyPrefix = rawKey.slice(0, API_KEY_PREFIX.length + 8);
+
+    const record = await userApiKeyRepo.create({
+      userId,
+      keyHash,
+      keyPrefix,
+      name: name != null ? String(name).trim() || null : null,
+    });
+
+    res.status(201).json({
+      code: 201,
+      message: 'API 密钥已创建，请妥善保存，关闭后无法再次查看',
+      data: {
+        id: record.id,
+        name: record.name,
+        key_prefix: record.key_prefix,
+        created_at: record.created_at,
+        key: rawKey,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/account/api-keys
+ * 列出当前用户的 API 密钥（不包含明文）。表未创建或查询失败时返回空数组，不报 500。
+ */
+router.get('/api-keys', gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const userId = req.user!.userId;
+    const list = await userApiKeyRepo.listByUserId(userId);
+    res.json({
+      code: 200,
+      data: list,
+    });
+  } catch (error) {
+    // 表未迁移或 schema 未刷新时返回空数组，避免前端报错
+    console.warn('[account/api-keys] listByUserId failed, returning []:', error instanceof Error ? error.message : error);
+    res.json({ code: 200, data: [] });
+  }
+});
+
+/**
+ * DELETE /api/v1/account/api-keys/:id
+ * 撤销指定 API 密钥（需归属当前用户）
+ */
+router.delete('/api-keys/:id', gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const userId = req.user!.userId;
+    const { id } = req.params;
+    const deleted = await userApiKeyRepo.delete(id, userId);
+    if (!deleted) {
+      return res.status(404).json({
+        code: 404,
+        message: 'API 密钥不存在或已撤销',
+        error: 'NOT_FOUND',
+      });
+    }
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

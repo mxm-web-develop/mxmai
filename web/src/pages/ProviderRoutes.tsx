@@ -97,7 +97,29 @@ function getScopeFromLogicalModel(logicalModel: string): 'graph' | 'text' | 'aud
   return undefined;
 }
 
-type RoutingRow = { key: string; logicalModel: string; provider: string; model: string; overridden?: boolean; rawProvider: string };
+/** 基础文字/内部调用类逻辑模型（生图提示词、写作内压缩等统一用此），需在业务模型管理中展示并可切换 */
+const BASIC_TEXT_LOGICAL_MODELS = ['writing-basic-text'];
+
+function getRoutingRowCategory(logicalModel: string): string {
+  if (logicalModel === 'writing-basic-text') return '基础文字（内部调用）';
+  if (logicalModel.startsWith('graph-')) return '图片';
+  if (logicalModel.startsWith('writing-')) return '写作';
+  if (logicalModel.startsWith('audio-')) return '音频';
+  if (logicalModel.startsWith('video-')) return '视频';
+  return '其他';
+}
+
+/** 排序权重：保证基础文字模型紧接在写作后、音频前，便于在列表中看到 */
+function routingSortOrder(logicalModel: string): number {
+  if (logicalModel.startsWith('graph-')) return 0;
+  if (logicalModel.startsWith('writing-') && !BASIC_TEXT_LOGICAL_MODELS.includes(logicalModel)) return 1;
+  if (BASIC_TEXT_LOGICAL_MODELS.includes(logicalModel)) return 2;
+  if (logicalModel.startsWith('audio-')) return 3;
+  if (logicalModel.startsWith('video-')) return 4;
+  return 5;
+}
+
+type RoutingRow = { key: string; logicalModel: string; provider: string; model: string; overridden?: boolean; rawProvider: string; category: string };
 type ProviderPricingForm = Omit<Partial<ProviderPricingRow>, 'metadata'>;
 
 export default function ProviderRoutes() {
@@ -402,14 +424,22 @@ export default function ProviderRoutes() {
     );
   }
 
-  const routingData: RoutingRow[] = Object.entries(routing).map(([key, entry]) => ({
-    key,
-    logicalModel: key,
-    provider: entry.provider + (entry.overridden ? ' (已覆盖)' : ''),
-    model: entry.model,
-    overridden: entry.overridden,
-    rawProvider: entry.provider,
-  }));
+  const routingData: RoutingRow[] = Object.entries(routing)
+    .map(([key, entry]) => ({
+      key,
+      logicalModel: key,
+      provider: entry.provider + (entry.overridden ? ' (已覆盖)' : ''),
+      model: entry.model,
+      overridden: entry.overridden,
+      rawProvider: entry.provider,
+      category: getRoutingRowCategory(key),
+    }))
+    .sort((a, b) => {
+      const orderA = routingSortOrder(a.logicalModel);
+      const orderB = routingSortOrder(b.logicalModel);
+      if (orderA !== orderB) return orderA - orderB;
+      return a.logicalModel.localeCompare(b.logicalModel);
+    });
 
   const openEdit = (row: RoutingRow) => {
     setEditingRow(row);
@@ -448,6 +478,7 @@ export default function ProviderRoutes() {
 
   const routingColumns: ColumnsType<RoutingRow> = [
     { title: '逻辑模型', dataIndex: 'logicalModel', key: 'logicalModel', width: 220 },
+    { title: '说明', dataIndex: 'category', key: 'category', width: 160, render: (c: string) => c || '—' },
     { title: 'Provider', dataIndex: 'provider', key: 'provider', width: 160 },
     { title: '物理模型', dataIndex: 'model', key: 'model', width: 180 },
     {
@@ -477,6 +508,7 @@ export default function ProviderRoutes() {
       <h2>模型通道管理</h2>
       <p className="admin-providers-hint" style={{ marginBottom: 16 }}>
         查看并配置「业务逻辑模型 → Provider/物理模型」路由；监控与余额仅 Admin 可查看。
+        基础文字模型（<code>writing-basic-text</code>，供生图提示词、写作内压缩等内部调用）也在此切换，说明列会标注「基础文字（内部调用）」；若列表中未出现请重启 mxmcgi 服务以加载最新默认路由。
       </p>
       {error && <div className="admin-providers-error" style={{ marginBottom: 8 }}>{error}</div>}
       <div className="admin-providers-content-wrap">
@@ -518,7 +550,7 @@ export default function ProviderRoutes() {
                         <Card
                           key={s.provider}
                           size="small"
-                          style={{ background: '#1f1f1f', border: '1px solid #444' }}
+                          style={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                         >
                           <Statistic title={s.provider} value={s.requestCount} suffix="请求" />
                           <div style={{ marginTop: 8 }}>
@@ -531,7 +563,7 @@ export default function ProviderRoutes() {
                                 <div style={{ marginTop: 8 }}>
                                   预计成本: ${cost.estimatedCost.toFixed(4)}
                                 </div>
-                                <div style={{ fontSize: 12, color: '#999' }}>
+                                <div style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>
                                   Tokens: {cost.totalTokens.toLocaleString()}
                                 </div>
                               </>
@@ -540,7 +572,7 @@ export default function ProviderRoutes() {
                         );
                       })}
                       {stats.length === 0 && !loading && (
-                        <span style={{ color: '#888' }}>暂无统计数据</span>
+                        <span style={{ color: 'hsl(var(--muted-foreground))' }}>暂无统计数据</span>
                       )}
                     </div>
                   </Card>
@@ -554,7 +586,7 @@ export default function ProviderRoutes() {
                     size="small"
                     title="余额/用量"
                     extra={
-                      <span style={{ fontSize: 12, color: '#888' }}>
+                      <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>
                         手动余额按 provider_pricing 计费后自动扣减
                       </span>
                     }
@@ -564,7 +596,7 @@ export default function ProviderRoutes() {
                         <Card
                           key={b.provider}
                           size="small"
-                          style={{ minWidth: 180, background: '#1f1f1f', border: '1px solid #444' }}
+                          style={{ minWidth: 180, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                         >
                           <div style={{ fontWeight: 600, marginBottom: 8 }}>{b.provider}</div>
                           {b.supported ? (
@@ -586,10 +618,10 @@ export default function ProviderRoutes() {
                               {b.manualBalance !== undefined ? (
                                 <div>
                                   <div style={{ color: '#69c' }}>余额: {b.manualBalance} {b.currency ?? 'USD'}</div>
-                                  <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>按 provider_pricing 计费扣减</div>
+                                  <div style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))', marginTop: 4 }}>按 provider_pricing 计费扣减</div>
                                 </div>
                               ) : (
-                                <span style={{ color: '#888' }}>无官方余额，可手动录入</span>
+                                <span style={{ color: 'hsl(var(--muted-foreground))' }}>无官方余额，可手动录入</span>
                               )}
                               <div><Button type="link" size="small" style={{ padding: 0, marginTop: 6 }} onClick={() => openBalanceModal(b)}>
                                 {b.manualBalance !== undefined ? '编辑余额' : '录入余额'}

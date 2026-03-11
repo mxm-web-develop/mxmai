@@ -17,7 +17,7 @@ import {
   TaskResult,
 } from './types';
 import { DatabaseTaskStorage } from './database-storage';
-import { sanitizeBase64InObject } from '../core/graph/reference-image';
+import { sanitizeBase64InObject } from './reference-image';
 import { deductForTask } from './payment-client';
 
 /**

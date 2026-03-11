@@ -52,6 +52,15 @@ if (envResult2.parsed) {
 // 最后尝试从当前工作目录加载（兼容性）
 dotenv.config();
 
+// 初始化数据层（API Key 校验需查 user_api_keys / users）
+try {
+  const { RepositoryFactory } = require('@mxmai/mxmdata');
+  RepositoryFactory.init();
+  logger.info('[Gateway] ✅ mxmdata RepositoryFactory 已初始化');
+} catch (e) {
+  logger.warn('[Gateway] mxmdata 初始化失败（API Key 认证将不可用）:', e instanceof Error ? e.message : String(e));
+}
+
 // 验证 JWT_SECRET 是否已加载
 if (process.env.JWT_SECRET) {
   const secretLength = process.env.JWT_SECRET.length;
@@ -75,11 +84,11 @@ const app = express();
 const server = createServer(app);
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
 
-// CORS 配置
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+// CORS 配置（开发时前端多为 5173，生产为 3000 或实际域名）
+const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173';
 app.use(
   cors({
-    origin: corsOrigin.split(','),
+    origin: corsOrigin.split(',').map((s) => s.trim()).filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

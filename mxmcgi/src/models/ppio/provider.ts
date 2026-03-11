@@ -5,8 +5,8 @@
  * 保持原有行为，只调整 import 路径以归档到 models 层。
  */
 
-import { ModelProvider, GenerateParams, GenerateResult, ProviderType } from '../../core/providers/types';
-import { PPIOClient } from '../../core/utils/ppio-client';
+import { ModelProvider, GenerateParams, GenerateResult, ProviderType } from '../providers';
+import { PPIOClient } from './client';
 import { ModelMapping, getModelName } from '../suport-list';
 
 export class PPIOProvider implements ModelProvider {

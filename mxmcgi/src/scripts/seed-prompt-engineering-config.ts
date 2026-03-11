@@ -10,10 +10,14 @@
 import dotenv from 'dotenv';
 import { join } from 'path';
 import { RepositoryFactory } from '@mxmai/mxmdata';
-import { getWritingTypeConfig, getWritingTypeOutputFormat } from '../core/writing/wtconfigs';
-import { SUBTYPE_RULES_MAP } from '../core/writing/wtconfigs/subtype-rules';
-import { rules as storyboardRules, outputformat as storyboardOutputformat, storyboard_output_format_template_zh } from './initial-prompt-data/storyboard-scripts';
-import { getGraphTypeConfig, getGraphTypeOptions } from '../core/graph/graphconfigs';
+import { getWritingTypeConfig, getWritingTypeOutputFormat } from '../clientServer/writing';
+import { SUBTYPE_RULES_MAP } from '../clientServer/writing/subtype-rules';
+import {
+  rules as storyboardRules,
+  outputformat as storyboardOutputformat,
+  storyboard_output_format_template_zh,
+} from './initial-prompt-data/storyboard-scripts';
+import { getGraphTypeConfig, getGraphTypeOptions } from '../clientServer/graph';
 
 const MXMCGI_ROOT = process.cwd();
 const PROJECT_ROOT = join(MXMCGI_ROOT, '..');

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { notification } from 'antd';
+import { Drawer, notification } from 'antd';
 import {
   createWriting,
   listWritingTasks,
@@ -11,7 +11,6 @@ import {
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { WritingViewerModal } from '../components/WritingViewerModal';
-import { TwoPaneLayout } from '../components/TwoPaneLayout';
 
 // 写作类型选项（排除 outlines，与 mobile 对齐）
 const WRITING_TYPE_OPTIONS = [
@@ -125,6 +124,7 @@ export default function Writing() {
   const [viewerContent, setViewerContent] = useState<string>('');
   const [viewerLoading, setViewerLoading] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const loadTasks = useCallback(async () => {
     if (!isLoggedIn) return;
@@ -169,6 +169,135 @@ export default function Writing() {
       const bTime = new Date(b.createdAt ?? 0).getTime();
       return bTime - aTime;
     });
+
+  const renderForm = () => (
+    <form onSubmit={handleSubmit} className="form-group writing-form">
+      <div className="form-row">
+        <label>写作类型</label>
+        <select
+          value={writingType}
+          onChange={(e) => {
+            setWritingType(e.target.value);
+            setOutlineType('');
+          }}
+        >
+          {WRITING_TYPE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {writingType === 'articles' && (
+        <div className="form-row">
+          <label>总字数</label>
+          <input
+            type="number"
+            value={totalTextCount}
+            onChange={(e) => setTotalTextCount(e.target.value)}
+            placeholder="可选，100-100000"
+            min={0}
+          />
+        </div>
+      )}
+
+      {(writingType === 'articles' || writingType === 'voice-scripts' || writingType === 'storyboard-scripts') &&
+        OUTLINE_TYPE_OPTIONS[writingType] && (
+          <div className="form-row">
+            <label>细分类型</label>
+            <select
+              value={outlineType}
+              onChange={(e) => setOutlineType(e.target.value)}
+            >
+              <option value="">请选择</option>
+              {OUTLINE_TYPE_OPTIONS[writingType].map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+      {writingType === 'storyboard-scripts' && (
+        <div className="form-row-group">
+          <div className="form-row">
+            <label>每段时长（秒）</label>
+            <select
+              value={storyboardChunkSeconds}
+              onChange={(e) => setStoryboardChunkSeconds(e.target.value)}
+            >
+              {[4, 5, 8, 10, 15, 20, 25].map((n) => (
+                <option key={n} value={n}>
+                  {n} 秒
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-row">
+            <label>期望总时长（秒）</label>
+            <input
+              type="number"
+              value={storyboardTotalDurationSeconds}
+              onChange={(e) => setStoryboardTotalDurationSeconds(e.target.value)}
+              placeholder="可选"
+              min={0}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="form-row">
+        <label>使用大纲</label>
+        <select
+          value={selectedOutlineId}
+          onChange={(e) => setSelectedOutlineId(e.target.value)}
+        >
+          <option value="">不使用大纲</option>
+          {outlineTasks.map((ot) => (
+            <option key={ot.id} value={ot.id}>
+              {getTaskTitle(ot)}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-row">
+        <label>提示词 *</label>
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="请输入写作内容需求，或根据大纲生成时填「根据大纲进行生成」..."
+          rows={4}
+          required
+        />
+      </div>
+
+      <div className="form-row-group">
+        <div className="form-row">
+          <label>语言</label>
+          <select value={language} onChange={(e) => setLanguage(e.target.value as 'zh' | 'en')}>
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div className="form-row">
+          <label>任务名称</label>
+          <input
+            type="text"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="可选，用于列表展示"
+          />
+        </div>
+      </div>
+
+      <button type="submit" className="btn-primary" disabled={loading}>
+        {loading ? '提交中...' : '生成'}
+      </button>
+    </form>
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -315,237 +444,118 @@ export default function Writing() {
   };
 
   return (
-    <div className="writing-page">
-      <TwoPaneLayout
-        leftClassName="writing-list-pane"
-        rightClassName="writing-form-pane"
-        left={
-          // 左侧：任务列表
-          <section className="writing-list-pane">
-        <h3 className="writing-list-title">我的写作任务</h3>
-        <div className="writing-filters">
-          <select
-            value={filterWritingType}
-            onChange={(e) => setFilterWritingType(e.target.value)}
-            className="writing-filter-select"
-          >
-            <option value="">全部类型</option>
-            {WRITING_TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="writing-filter-select"
-          >
-            <option value="">全部状态</option>
-            {Object.entries(STATUS_MAP).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="writing-list-scroll">
-          {!isLoggedIn ? (
-            <p className="muted">请先登录以查看任务列表。</p>
-          ) : loadingTasks ? (
-            <p className="muted">加载中...</p>
-          ) : filteredTasks.length === 0 ? (
-            <p className="muted">暂无写作任务，提交右侧表单创建新任务。</p>
-          ) : (
-            <ul className="writing-task-list">
-              {filteredTasks.map((t) => {
-                const wt = extractWritingType(t);
-                const ot = extractOutlineType(t);
-                const subtypeLabel = getSubtypeLabel(wt, ot);
-                return (
-                  <li
-                    key={t.id}
-                    className="writing-task-item writing-task-item-clickable"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleTaskClick(t)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
-                  >
-                    <div className="writing-task-main">
-                      <span className="writing-task-title" title={getTaskTitle(t)}>
-                        {getTaskTitle(t)}
-                      </span>
-                      <span className="writing-task-actions">
-                        <span className={`writing-task-status writing-task-status--${t.status}`}>
-                          {STATUS_MAP[t.status] ?? t.status}
-                        </span>
-                        <button
-                          type="button"
-                          className="writing-task-delete"
-                          title="删除"
-                          onClick={(e) => handleDeleteTask(e, t)}
-                          disabled={deletingId === t.id}
-                        >
-                          {deletingId === t.id ? '…' : '删除'}
-                        </button>
-                      </span>
-                    </div>
-                    <div className="writing-task-meta">
-                      {subtypeLabel && (
-                        <span className="writing-task-subtype">{subtypeLabel}</span>
-                      )}
-                      <code className="writing-task-id">{t.id}</code>
-                      {t.progress?.progress != null && (
-                        <span className="writing-task-progress">{t.progress.progress}%</span>
-                      )}
-                      {t.progress?.error && (
-                        <span className="writing-task-error" title={t.progress.error}>
-                          {t.progress.error.slice(0, 60)}
-                          {t.progress.error.length > 60 ? '…' : ''}
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-          </section>
-        }
-        right={
-          // 右侧：新建表单
-          <section className="writing-form-pane">
-        <h3 className="writing-form-title">新建写作任务</h3>
-        <form onSubmit={handleSubmit} className="form-group writing-form">
-          <div className="form-row">
-            <label>写作类型</label>
+    <section className="page-card writing-page">
+      <div className="writing-header">
+        <div className="writing-header-main">
+          <div className="writing-filters">
             <select
-              value={writingType}
-              onChange={(e) => {
-                setWritingType(e.target.value);
-                setOutlineType('');
-              }}
+              value={filterWritingType}
+              onChange={(e) => setFilterWritingType(e.target.value)}
+              className="writing-filter-select"
             >
+              <option value="">全部类型</option>
               {WRITING_TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
             </select>
-          </div>
-
-          {writingType === 'articles' && (
-            <div className="form-row">
-              <label>总字数</label>
-              <input
-                type="number"
-                value={totalTextCount}
-                onChange={(e) => setTotalTextCount(e.target.value)}
-                placeholder="可选，100-100000"
-                min={0}
-              />
-            </div>
-          )}
-
-          {(writingType === 'articles' || writingType === 'voice-scripts' || writingType === 'storyboard-scripts') &&
-            OUTLINE_TYPE_OPTIONS[writingType] && (
-              <div className="form-row">
-                <label>细分类型</label>
-                <select
-                  value={outlineType}
-                  onChange={(e) => setOutlineType(e.target.value)}
-                >
-                  <option value="">请选择</option>
-                  {OUTLINE_TYPE_OPTIONS[writingType].map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-          {writingType === 'storyboard-scripts' && (
-            <div className="form-row-group">
-              <div className="form-row">
-                <label>每段时长（秒）</label>
-                <select
-                  value={storyboardChunkSeconds}
-                  onChange={(e) => setStoryboardChunkSeconds(e.target.value)}
-                >
-                  {[4, 5, 8, 10, 15, 20, 25].map((n) => (
-                    <option key={n} value={n}>
-                      {n} 秒
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-row">
-                <label>期望总时长（秒）</label>
-                <input
-                  type="number"
-                  value={storyboardTotalDurationSeconds}
-                  onChange={(e) => setStoryboardTotalDurationSeconds(e.target.value)}
-                  placeholder="可选"
-                  min={0}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="form-row">
-            <label>使用大纲</label>
             <select
-              value={selectedOutlineId}
-              onChange={(e) => setSelectedOutlineId(e.target.value)}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="writing-filter-select"
             >
-              <option value="">不使用大纲</option>
-              {outlineTasks.map((ot) => (
-                <option key={ot.id} value={ot.id}>
-                  {getTaskTitle(ot)}
+              <option value="">全部状态</option>
+              {Object.entries(STATUS_MAP).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
                 </option>
               ))}
             </select>
           </div>
-
-          <div className="form-row">
-            <label>提示词 *</label>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="请输入写作内容需求，或根据大纲生成时填「根据大纲进行生成」..."
-              rows={4}
-              required
-            />
-          </div>
-
-          <div className="form-row-group">
-            <div className="form-row">
-              <label>语言</label>
-              <select value={language} onChange={(e) => setLanguage(e.target.value as 'zh' | 'en')}>
-                <option value="zh">中文</option>
-                <option value="en">English</option>
-              </select>
-            </div>
-            <div className="form-row">
-              <label>任务名称</label>
-              <input
-                type="text"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="可选，用于列表展示"
-              />
-            </div>
-          </div>
-
-          <button type="submit" disabled={loading}>
-            {loading ? '提交中...' : '生成'}
+        </div>
+        <div className="writing-header-actions">
+          <button
+            type="button"
+            className="btn-secondary btn-small"
+            onClick={() => loadTasks()}
+            disabled={loadingTasks}
+          >
+            {loadingTasks ? '刷新中…' : '刷新列表'}
           </button>
-        </form>
-          </section>
-        }
-      />
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setFormOpen(true)}
+            disabled={!isLoggedIn}
+          >
+            新建写作任务
+          </button>
+        </div>
+      </div>
+
+      <div className="writing-list-scroll">
+        {!isLoggedIn ? (
+          <p className="muted">请先登录以查看任务列表。</p>
+        ) : loadingTasks ? (
+          <p className="muted">加载中...</p>
+        ) : filteredTasks.length === 0 ? (
+          <p className="muted">暂无写作任务，点击右上角「新建写作任务」开始。</p>
+        ) : (
+          <ul className="writing-task-list">
+            {filteredTasks.map((t) => {
+              const wt = extractWritingType(t);
+              const ot = extractOutlineType(t);
+              const subtypeLabel = getSubtypeLabel(wt, ot);
+              return (
+                <li
+                  key={t.id}
+                  className="writing-task-item writing-task-item-clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleTaskClick(t)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
+                >
+                  <div className="writing-task-main">
+                    <span className="writing-task-title" title={getTaskTitle(t)}>
+                      {getTaskTitle(t)}
+                    </span>
+                    <span className="writing-task-actions">
+                      <span className={`writing-task-status writing-task-status--${t.status}`}>
+                        {STATUS_MAP[t.status] ?? t.status}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn-danger btn-small"
+                        title="删除"
+                        onClick={(e) => handleDeleteTask(e, t)}
+                        disabled={deletingId === t.id}
+                      >
+                        {deletingId === t.id ? '…' : '删除'}
+                      </button>
+                    </span>
+                  </div>
+                  <div className="writing-task-meta">
+                    {subtypeLabel && (
+                      <span className="writing-task-subtype">{subtypeLabel}</span>
+                    )}
+                    <code className="writing-task-id">{t.id}</code>
+                    {t.progress?.progress != null && (
+                      <span className="writing-task-progress">{t.progress.progress}%</span>
+                    )}
+                    {t.progress?.error && (
+                      <span className="writing-task-error" title={t.progress.error}>
+                        {t.progress.error.slice(0, 60)}
+                        {t.progress.error.length > 60 ? '…' : ''}
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
 
       <WritingViewerModal
         visible={viewerVisible}
@@ -557,153 +567,16 @@ export default function Writing() {
         error={viewerError}
       />
 
-      <style>{`
-        .writing-page {
-          flex: 1;
-          min-height: 0;
-        }
-        .writing-list-pane {
-          display: flex;
-          flex-direction: column;
-          background: #1e1e1e;
-          border: 1px solid #333;
-          border-radius: 8px;
-          overflow: hidden;
-        }
-        .writing-list-title {
-          flex-shrink: 0;
-          margin: 0;
-          padding: 1rem 1.25rem;
-          font-size: 1rem;
-          color: #e0e0e0;
-          border-bottom: 1px solid #333;
-        }
-        .writing-filters {
-          flex-shrink: 0;
-          display: flex;
-          gap: 0.75rem;
-          padding: 0.5rem 1rem;
-          border-bottom: 1px solid #333;
-        }
-        .writing-filter-select {
-          padding: 0.4rem 0.6rem;
-          border-radius: 6px;
-          border: 1px solid #444;
-          background: #262626;
-          color: #e0e0e0;
-          font-size: 0.875rem;
-        }
-        .writing-list-scroll {
-          flex: 1;
-          min-height: 0;
-          overflow-y: auto;
-          padding: 1rem;
-        }
-        .writing-form-pane {
-          flex: 5;
-          min-width: 0;
-          min-height: 0;
-          overflow-y: auto;
-          background: #1e1e1e;
-          border: 1px solid #333;
-          border-radius: 8px;
-          padding: 1.5rem;
-        }
-        .writing-form-title {
-          margin: 0 0 1rem 0;
-          font-size: 1rem;
-          color: #e0e0e0;
-        }
-        .writing-list-scroll .muted {
-          font-size: 0.875rem;
-          color: #888;
-          margin: 0;
-        }
-        .writing-task-list { list-style: none; margin: 0; padding: 0; }
-        .writing-task-item {
-          padding: 0.75rem 1rem;
-          margin-bottom: 0.5rem;
-          background: #252525;
-          border: 1px solid #333;
-          border-radius: 6px;
-        }
-        .writing-task-item-clickable {
-          cursor: pointer;
-          transition: background 0.15s, border-color 0.15s;
-        }
-        .writing-task-item-clickable:hover {
-          background: #2d2d2d;
-          border-color: #444;
-        }
-        .writing-task-main {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 0.75rem;
-        }
-        .writing-task-title {
-          flex: 1;
-          font-size: 0.9rem;
-          color: #e0e0e0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .writing-task-actions { flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem; }
-        .writing-task-status { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
-        .writing-task-delete {
-          font-size: 0.7rem;
-          padding: 0.2rem 0.4rem;
-          border-radius: 4px;
-          border: 1px solid #7f1d1d;
-          background: transparent;
-          color: #fca5a5;
-          cursor: pointer;
-        }
-        .writing-task-delete:hover:not(:disabled) { background: #7f1d1d; }
-        .writing-task-delete:disabled { opacity: 0.5; cursor: not-allowed; }
-        .writing-task-status--completed { background: #166534; color: #86efac; }
-        .writing-task-status--failed,
-        .writing-task-status--cancelled { background: #7f1d1d; color: #fca5a5; }
-        .writing-task-status--processing,
-        .writing-task-status--pending,
-        .writing-task-status--queued { background: #1e3a5f; color: #93c5fd; }
-        .writing-task-meta {
-          margin-top: 0.5rem;
-          font-size: 0.75rem;
-          color: #888;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-          align-items: center;
-        }
-        .writing-task-subtype {
-          background: #1e3a5f40;
-          color: #93c5fd;
-          padding: 0.15rem 0.4rem;
-          border-radius: 4px;
-        }
-        .writing-task-id { font-family: ui-monospace, monospace; background: #1a1a1a; padding: 0.15rem 0.4rem; border-radius: 4px; }
-        .writing-task-progress { color: #93c5fd; }
-        .writing-task-error { color: #fca5a5; max-width: 100%; }
-        .writing-form .form-row { margin-bottom: 1rem; }
-        .writing-form .form-row label { display: block; margin-bottom: 0.35rem; font-size: 0.9rem; color: #aaa; }
-        .writing-form .form-row input,
-        .writing-form .form-row select,
-        .writing-form .form-row textarea {
-          width: 100%;
-          padding: 0.5rem 0.75rem;
-          border-radius: 6px;
-          border: 1px solid #444;
-          background: #262626;
-          color: #e0e0e0;
-          font-size: 0.875rem;
-          box-sizing: border-box;
-        }
-        .writing-form .form-row textarea { min-height: 80px; resize: vertical; }
-        .form-row-group { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-        .form-row-group .form-row { margin-bottom: 0; }
-      `}</style>
-    </div>
+      <Drawer
+        title="新建写作任务"
+        placement="right"
+        width={520}
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        destroyOnClose
+      >
+        {renderForm()}
+      </Drawer>
+    </section>
   );
 }

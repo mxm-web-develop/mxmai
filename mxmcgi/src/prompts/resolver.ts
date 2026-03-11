@@ -4,8 +4,8 @@
  */
 
 import { RepositoryFactory } from '@mxmai/mxmdata';
-import { getWritingTypeRules, getWritingTypeOutputFormat } from '../core/writing/wtconfigs';
-import { getGraphRulesForType } from '../core/graph/graphconfigs';
+import { getWritingTypeRules, getWritingTypeOutputFormat } from '../clientServer/writing';
+import { getGraphRulesForType } from '../clientServer/graph';
 
 const langFallback = (i18n: Record<string, string> | undefined, lang: string): string => {
   if (!i18n || typeof i18n !== 'object') return '';

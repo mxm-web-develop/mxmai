@@ -46,15 +46,19 @@ export function GraphViewerModal({
     };
   }, [mediaUrls]);
 
-  // 媒体切换或模式切换时重置视图状态
+  // 媒体切换或模式切换时重置视图状态（仅在当前状态已偏离默认值时才更新）
   useEffect(() => {
-    setActiveIndex(0);
-    setZoom(1);
-    setOffset({ x: 0, y: 0 });
-  }, [mediaUrls.join('|'), viewMode]);
+    if (activeIndex !== 0 || zoom !== 1 || offset.x !== 0 || offset.y !== 0) {
+      setActiveIndex(0);
+      setZoom(1);
+      setOffset({ x: 0, y: 0 });
+    }
+    // 仅当媒体列表或视图模式发生变化时触发检查
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaUrls.join('|'), viewMode, activeIndex, zoom, offset.x, offset.y]);
 
   const clampZoom = (value: number) => {
-    const MIN = 0.3;
+    const MIN = 1;
     const MAX = 4;
     if (value < MIN) return MIN;
     if (value > MAX) return MAX;
@@ -210,8 +214,8 @@ export function GraphViewerModal({
             padding: 0;
           }
           .graph-viewer-modal {
-            background: #1e1e1e;
-            border: 1px solid #333;
+            background: hsl(var(--background));
+            border: 1px solid hsl(var(--border));
             border-radius: 0;
             width: 100%;
             height: 100%;
@@ -224,31 +228,59 @@ export function GraphViewerModal({
             align-items: center;
             justify-content: space-between;
             padding: 1rem 1.25rem;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid hsl(var(--border));
           }
-          .graph-viewer-title { margin: 0; font-size: 1rem; color: #e0e0e0; }
-          .graph-viewer-actions { display: flex; align-items: center; gap: 0.5rem; }
+          .graph-viewer-title {
+            margin: 0;
+            font-size: 1rem;
+            color: hsl(var(--foreground));
+            max-width: 40%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .graph-viewer-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          }
           .graph-viewer-tab {
-            padding: 0.35rem 0.75rem;
-            font-size: 0.85rem;
-            border: 1px solid #444;
-            background: transparent;
-            color: #888;
-            border-radius: 6px;
+            padding: 0.32rem 0.85rem;
+            font-size: 0.82rem;
+            border-radius: 999px;
+            border: 1px solid hsl(var(--border));
+            background: rgba(15,23,42,0.02);
+            color: hsl(var(--muted-foreground));
             cursor: pointer;
+            transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
           }
-          .graph-viewer-tab.active { background: #333; color: #e0e0e0; border-color: #555; }
+          .graph-viewer-tab:hover {
+            background: rgba(148,163,184,0.12);
+            color: hsl(var(--foreground));
+            border-color: rgba(148,163,184,0.7);
+            transform: translateY(-1px);
+          }
+          .graph-viewer-tab.active {
+            background: linear-gradient(135deg, rgba(56,189,248,0.16), rgba(56,189,248,0.10));
+            color: hsl(var(--foreground));
+            border-color: rgba(56,189,248,0.7);
+          }
           .graph-viewer-close {
             background: none;
             border: none;
-            color: #888;
+            color: hsl(var(--muted-foreground));
             font-size: 1.5rem;
             cursor: pointer;
+            padding: 0 0.4rem;
+            line-height: 1;
+          }
+          .graph-viewer-close:hover {
+            color: hsl(var(--foreground));
           }
           .graph-viewer-body {
             flex: 1;
             overflow: hidden;
-            padding: 0.75rem 1.25rem 1rem;
+        
           }
           .graph-viewer-main {
             display: flex;
@@ -258,9 +290,9 @@ export function GraphViewerModal({
           }
           .graph-viewer-stage {
             flex: 1;
-            background: radial-gradient(circle at top, #1f2933, #050816);
+            background: radial-gradient(circle at top, #0f172a, #020617);
             border-radius: 12px;
-            border: 1px solid #333;
+            border: 1px solid hsl(var(--border));
             overflow: hidden;
             display: flex;
             align-items: center;
@@ -283,8 +315,8 @@ export function GraphViewerModal({
             padding-bottom: 0.25rem;
           }
           .graph-viewer-thumb-btn {
-            border: 1px solid #333;
-            background: #111;
+            border: 1px solid hsl(var(--border));
+            background: rgba(15,23,42,0.9);
             padding: 0;
             border-radius: 6px;
             overflow: hidden;
@@ -298,18 +330,18 @@ export function GraphViewerModal({
             object-fit: cover;
           }
           .graph-viewer-thumb-btn.active {
-            border-color: #4f46e5;
+            border-color: rgba(79,70,229,0.9);
             box-shadow: 0 0 0 1px rgba(79,70,229,0.5);
           }
           .graph-viewer-error { color: #fca5a5; }
           .graph-viewer-raw {
             margin: 0;
             padding: 1rem;
-            background: #1a1a1a;
-            border: 1px solid #333;
+            background: #0f172a;
+            border: 1px solid hsl(var(--border));
             border-radius: 8px;
             font-size: 0.8rem;
-            color: #c0c0c0;
+            color: #cbd5f5;
             overflow: auto;
             max-height: 70vh;
             white-space: pre-wrap;
@@ -322,23 +354,24 @@ export function GraphViewerModal({
             margin-right: 0.5rem;
           }
           .graph-viewer-zoom-group button {
-            padding: 0.1rem 0.4rem;
-            font-size: 0.8rem;
-            border-radius: 4px;
-            border: 1px solid #444;
-            background: #111;
-            color: #ccc;
+            padding: 0.18rem 0.5rem;
+            font-size: 0.78rem;
+            border-radius: 999px;
+            border: 1px solid hsl(var(--border));
+            background: rgba(15,23,42,0.85);
+            color: hsl(var(--muted-foreground));
             cursor: pointer;
           }
           .graph-viewer-zoom-group button:hover {
-            border-color: #666;
-            background: #222;
+            border-color: rgba(148,163,184,0.7);
+            background: rgba(30,64,175,0.4);
+            color: hsl(var(--foreground));
           }
           .graph-viewer-zoom-label {
             min-width: 3rem;
             text-align: center;
             font-size: 0.8rem;
-            color: #aaa;
+            color: hsl(var(--muted-foreground));
           }
         `}</style>
       </div>

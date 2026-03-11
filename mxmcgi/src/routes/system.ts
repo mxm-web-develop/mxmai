@@ -5,7 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import supportList, { ModelConfig, ChargeMode } from '../models/suport-list';
-import { PPIOClient } from '../core/utils/ppio-client';
+import { PPIOClient } from '../models/ppio/client';
 import promptConfigRouter from './prompt-config';
 import providersAdminRouter from './providers';
 import sensitiveWordsAdminRouter from './sensitive-words';

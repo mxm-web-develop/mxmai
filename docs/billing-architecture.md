@@ -107,12 +107,11 @@ Task 完成
 
 **定位**：图片提示词生成、写作内段落压缩等「内部 LLM 调用」，不创建独立任务、不出现在任务列表，但需要记录 Provider 用量并对用户计费。
 
-**逻辑模型**（在「模型路由管理」中配置）：
+**逻辑模型**（在「模型路由管理」中配置）：仅一个逻辑模型，生图提示词与写作内轻量调用统一计费与路由。
 
 | 逻辑模型 | 用途 | 默认路由 |
 |----------|------|----------|
-| `writing-graph-prompt` | 生图前的提示词生成 | deer / gemini-3-pro |
-| `writing-basic-text` | 写作内轻量文本（压缩、摘要等） | deer / gemini-3-pro |
+| `writing-basic-text` | 生图前的提示词生成、写作内压缩/摘要等内部文本调用 | deer / gemini-3-pro |
 
 **计费与用量**：
 
@@ -124,7 +123,7 @@ Task 完成
 
 **Admin 配置**：
 
-- **模型路由管理**：与其它业务一致，可对 `writing-basic-text`、`writing-graph-prompt` 覆盖「Provider + 物理模型」；未覆盖时使用代码内默认路由。
+- **模型路由管理**：与其它业务一致，可对 `writing-basic-text` 覆盖「Provider + 物理模型」；未覆盖时使用代码内默认路由。
 - **Provider 定价**：按**物理模型**配置。例如路由到 `deer/gemini-3-pro` 时，需在 `provider_pricing` 中存在 `provider='deer', scope='writing', model_key='gemini-3-pro'`，并设置 `charge_mode='token_based'` 及 `platform_input_unit_price` / `platform_output_unit_price`（每千 token 售价）。这样 BasicText 与其它写作业务一样，可随路由切换物理模型并自动套用对应价格。
 - **约定**：`provider_usage_records` 中 BasicText 产生的记录 `scope='writing'`，`model_key` 为物理模型名，便于与写作主任务区分（主任务同样 scope=writing，通过 task_id 与业务类型区分）。
 

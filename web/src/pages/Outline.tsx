@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { notification } from 'antd';
+import { Drawer, notification } from 'antd';
 import {
   createOutline,
   listWritingTasks,
@@ -10,7 +10,6 @@ import {
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { OutlineViewerModal } from '../components/OutlineViewerModal';
-import { TwoPaneLayout } from '../components/TwoPaneLayout';
 import type { OutlineNode, CharacterProfile } from '../components/OutlineViewerModal';
 
 // 大纲应用类型选项（与 mobile 一致）
@@ -109,6 +108,8 @@ export default function Outline() {
   const { isLoggedIn } = useAuth();
   const [tasks, setTasks] = useState<WritingTaskItem[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [search, setSearch] = useState('');
 
   const [prompt, setPrompt] = useState('');
   const [applyTo, setApplyTo] = useState('');
@@ -138,10 +139,16 @@ export default function Outline() {
       const res = await listWritingTasks({ limit: 100, offset: 0 });
       const body = res.data as WritingTaskListResponse | undefined;
       const list = body?.data?.tasks ?? [];
-      const outlineTasks = list.filter((t) => {
-        const rp = t.requestParams as Record<string, unknown> | undefined;
-        return rp?.taskType === 'outline';
-      });
+      const outlineTasks = list
+        .filter((t) => {
+          const rp = t.requestParams as Record<string, unknown> | undefined;
+          return rp?.taskType === 'outline';
+        })
+        .sort((a, b) => {
+          const aTime = new Date(a.createdAt ?? 0).getTime();
+          const bTime = new Date(b.createdAt ?? 0).getTime();
+          return bTime - aTime;
+        });
       setTasks(outlineTasks);
     } catch (e) {
       console.error('加载大纲任务失败:', e);
@@ -206,9 +213,13 @@ export default function Outline() {
       const result = await createOutline(body);
       const bodyRes = (result.data as Record<string, unknown>) ?? {};
       if (result.error || bodyRes.error) {
+        const msg = (bodyRes.error as string) || result.error || '请稍后重试';
+        const isNetworkError = result.status === 0 || /fetch failed|Failed to fetch|NetworkError|ECONNREFUSED/i.test(msg);
         notification.error({
           message: '提交失败',
-          description: (bodyRes.error as string) || result.error || '请稍后重试',
+          description: isNetworkError
+            ? `${msg}。请确认 Gateway 与 mxmcgi 已启动（如 pnpm run dev:all）。`
+            : msg,
           placement: 'top',
         });
         return;
@@ -223,6 +234,7 @@ export default function Outline() {
         });
         setPrompt('');
         loadOutlineTasks();
+        setFormOpen(false);
       } else {
         notification.info({
           message: '响应异常',
@@ -303,76 +315,8 @@ export default function Outline() {
     );
   };
 
-  return (
-    <div className="outline-page">
-      <TwoPaneLayout
-        leftClassName="outline-list-pane"
-        rightClassName="outline-form-pane"
-        left={
-          // 左侧：任务列表
-          <section className="outline-list-pane">
-        <h3 className="outline-list-title">我的大纲任务</h3>
-        <div className="outline-list-scroll">
-          {!isLoggedIn ? (
-            <p className="muted">请先登录以查看任务列表。</p>
-          ) : loadingTasks ? (
-            <p className="muted">加载中...</p>
-          ) : tasks.length === 0 ? (
-            <p className="muted">暂无大纲任务，提交右侧表单创建新任务。</p>
-          ) : (
-            <ul className="outline-task-list">
-              {tasks.map((t) => (
-                <li
-                  key={t.id}
-                  className="outline-task-item outline-task-item-clickable"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleTaskClick(t)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
-                >
-                  <div className="outline-task-main">
-                    <span className="outline-task-title" title={getTaskTitle(t)}>
-                      {getTaskTitle(t)}
-                    </span>
-                    <span className="outline-task-actions">
-                      <span className={`outline-task-status outline-task-status--${t.status}`}>
-                        {STATUS_MAP[t.status] ?? t.status}
-                      </span>
-                      <button
-                        type="button"
-                        className="outline-task-delete"
-                        title="删除"
-                        onClick={(e) => handleDeleteTask(e, t)}
-                        disabled={deletingId === t.id}
-                      >
-                        {deletingId === t.id ? '…' : '删除'}
-                      </button>
-                    </span>
-                  </div>
-                  <div className="outline-task-meta">
-                    <code className="outline-task-id">{t.id}</code>
-                    {t.progress?.progress != null && (
-                      <span className="outline-task-progress">{t.progress.progress}%</span>
-                    )}
-                    {t.progress?.error && (
-                      <span className="outline-task-error" title={t.progress.error}>
-                        {t.progress.error.slice(0, 80)}
-                        {t.progress.error.length > 80 ? '…' : ''}
-                      </span>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-          </section>
-        }
-        right={
-          // 右侧：提交表单
-          <section className="outline-form-pane">
-        <h3 className="outline-form-title">新建大纲任务</h3>
-        <form onSubmit={handleSubmit} className="form-group outline-form">
+  const renderForm = () => (
+    <form onSubmit={handleSubmit} className="form-group outline-form">
           <div className="form-row">
             <label>提示词 *</label>
             <textarea
@@ -511,13 +455,105 @@ export default function Outline() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading}>
-            {loading ? '提交中...' : '生成大纲'}
+        <button type="submit" disabled={loading}>
+          {loading ? '提交中...' : '生成大纲'}
+        </button>
+      </form>
+  );
+
+  const visibleTasks = tasks.filter((t) => {
+    if (!search.trim()) return true;
+    const q = search.trim().toLowerCase();
+    const title = getTaskTitle(t).toLowerCase();
+    return title.includes(q) || t.id.toLowerCase().includes(q);
+  });
+
+  return (
+    <section className="page-card outline-page">
+      <div className="outline-header">
+        <div className="outline-header-main">
+          <div className="outline-search">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="搜索任务名称或 ID..."
+            />
+          </div>
+        </div>
+        <div className="outline-header-actions">
+          <button
+            type="button"
+            className="btn-secondary btn-small"
+            onClick={() => loadOutlineTasks()}
+            disabled={loadingTasks}
+          >
+            {loadingTasks ? '刷新中…' : '刷新列表'}
           </button>
-        </form>
-          </section>
-        }
-      />
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setFormOpen(true)}
+            disabled={!isLoggedIn}
+          >
+            新建大纲
+          </button>
+        </div>
+      </div>
+
+      <div className="outline-list-scroll">
+        {!isLoggedIn ? (
+          <p className="muted">请先登录以查看大纲任务。</p>
+        ) : loadingTasks ? (
+          <p className="muted">加载中...</p>
+        ) : visibleTasks.length === 0 ? (
+          <p className="muted">暂无大纲任务，点击右上角「新建大纲」开始。</p>
+        ) : (
+          <ul className="outline-task-list">
+            {visibleTasks.map((t) => (
+              <li
+                key={t.id}
+                className="outline-task-item outline-task-item-clickable"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleTaskClick(t)}
+                onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
+              >
+                <div className="outline-task-main">
+                  <span className="outline-task-title" title={getTaskTitle(t)}>
+                    {getTaskTitle(t)}
+                  </span>
+                  <span className="outline-task-actions">
+                    <span className={`outline-task-status outline-task-status--${t.status}`}>
+                      {STATUS_MAP[t.status] ?? t.status}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-danger btn-small"
+                      title="删除"
+                      onClick={(e) => handleDeleteTask(e, t)}
+                      disabled={deletingId === t.id}
+                    >
+                      {deletingId === t.id ? '…' : '删除'}
+                    </button>
+                  </span>
+                </div>
+                <div className="outline-task-meta">
+                  <code className="outline-task-id">{t.id}</code>
+                  {t.progress?.progress != null && (
+                    <span className="outline-task-progress">{t.progress.progress}%</span>
+                  )}
+                  {t.progress?.error && (
+                    <span className="outline-task-error" title={t.progress.error}>
+                      {t.progress.error.slice(0, 80)}
+                      {t.progress.error.length > 80 ? '…' : ''}
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <OutlineViewerModal
         visible={viewerVisible}
@@ -529,155 +565,16 @@ export default function Outline() {
         error={viewerError}
       />
 
-      <style>{`
-        .outline-page {
-          flex: 1;
-          min-height: 0;
-        }
-        .outline-list-pane {
-          display: flex;
-          flex-direction: column;
-          background: #1e1e1e;
-          border: 1px solid #333;
-          border-radius: 8px;
-          overflow: hidden;
-        }
-        .outline-list-title {
-          flex-shrink: 0;
-          margin: 0;
-          padding: 1rem 1.25rem;
-          font-size: 1rem;
-          color: #e0e0e0;
-          border-bottom: 1px solid #333;
-        }
-        .outline-list-scroll {
-          flex: 1;
-          min-height: 0;
-          overflow-y: auto;
-          padding: 1rem;
-        }
-        .outline-form-pane {
-          flex: 5;
-          min-width: 0;
-          min-height: 0;
-          overflow-y: auto;
-          background: #1e1e1e;
-          border: 1px solid #333;
-          border-radius: 8px;
-          padding: 1.5rem;
-        }
-        .outline-form-title {
-          margin: 0 0 1rem 0;
-          font-size: 1rem;
-          color: #e0e0e0;
-        }
-        .outline-list-scroll .muted {
-          font-size: 0.875rem;
-          color: #888;
-          margin: 0;
-        }
-        .outline-task-list {
-          list-style: none;
-          margin: 0;
-          padding: 0;
-        }
-        .outline-task-item {
-          padding: 0.75rem 1rem;
-          margin-bottom: 0.5rem;
-          background: #252525;
-          border: 1px solid #333;
-          border-radius: 6px;
-        }
-        .outline-task-item-clickable {
-          cursor: pointer;
-          transition: background 0.15s, border-color 0.15s;
-        }
-        .outline-task-item-clickable:hover {
-          background: #2d2d2d;
-          border-color: #444;
-        }
-        .outline-task-main {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 0.75rem;
-        }
-        .outline-task-title {
-          flex: 1;
-          font-size: 0.9rem;
-          color: #e0e0e0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .outline-task-actions {
-          flex-shrink: 0;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .outline-task-status {
-          font-size: 0.75rem;
-          padding: 0.2rem 0.5rem;
-          border-radius: 4px;
-        }
-        .outline-task-delete {
-          font-size: 0.7rem;
-          padding: 0.2rem 0.4rem;
-          border-radius: 4px;
-          border: 1px solid #7f1d1d;
-          background: transparent;
-          color: #fca5a5;
-          cursor: pointer;
-        }
-        .outline-task-delete:hover:not(:disabled) {
-          background: #7f1d1d;
-        }
-        .outline-task-delete:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        .outline-task-status--completed { background: #166534; color: #86efac; }
-        .outline-task-status--failed,
-        .outline-task-status--cancelled { background: #7f1d1d; color: #fca5a5; }
-        .outline-task-status--processing,
-        .outline-task-status--pending,
-        .outline-task-status--queued { background: #1e3a5f; color: #93c5fd; }
-        .outline-task-meta {
-          margin-top: 0.5rem;
-          font-size: 0.75rem;
-          color: #888;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-          align-items: center;
-        }
-        .outline-task-id {
-          font-family: ui-monospace, monospace;
-          background: #1a1a1a;
-          padding: 0.15rem 0.4rem;
-          border-radius: 4px;
-        }
-        .outline-task-progress { color: #93c5fd; }
-        .outline-task-error { color: #fca5a5; max-width: 100%; }
-        .outline-form .form-row { margin-bottom: 1rem; }
-        .outline-form .form-row label { display: block; margin-bottom: 0.35rem; font-size: 0.9rem; color: #aaa; }
-        .outline-form .form-row input,
-        .outline-form .form-row select,
-        .outline-form .form-row textarea {
-          width: 100%;
-          padding: 0.5rem 0.75rem;
-          border-radius: 6px;
-          border: 1px solid #444;
-          background: #262626;
-          color: #e0e0e0;
-          font-size: 0.875rem;
-          box-sizing: border-box;
-        }
-        .outline-form .form-row textarea { min-height: 80px; resize: vertical; }
-        .form-row-group { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-        .form-row-group .form-row { margin-bottom: 0; }
-      `}</style>
-    </div>
+      <Drawer
+        title="新建大纲任务"
+        placement="right"
+        width={520}
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        destroyOnClose
+      >
+        {renderForm()}
+      </Drawer>
+    </section>
   );
 }

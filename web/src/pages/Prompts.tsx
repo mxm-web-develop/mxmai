@@ -10,7 +10,18 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Code({ children }: { children: string }) {
-  return <code style={{ background: '#2a2a2a', padding: '2px 6px', borderRadius: 4, fontSize: '0.9em' }}>{children}</code>;
+  return (
+    <code
+      style={{
+        background: 'rgba(148, 163, 184, 0.18)',
+        padding: '2px 6px',
+        borderRadius: 4,
+        fontSize: '0.9em',
+      }}
+    >
+      {children}
+    </code>
+  );
 }
 
 export default function Prompts() {

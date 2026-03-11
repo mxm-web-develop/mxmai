@@ -19,6 +19,15 @@ import { getComicFormOptions } from './painting/comic';
 import { getConceptArtFormOptions } from './painting/conceptArt';
 import { getCartoonFormOptions } from './painting/cartoon';
 
+// Graph 的规则与类型配置仍由 core/graph/graphconfigs 提供，这里统一复导出，后续迁移 core 时可只改这一层
+export {
+  getGraphTypeConfig,
+  getGraphRulesForType,
+  getGraphParamsForType,
+  getGraphTypeLabel,
+  getGraphTypeOptions,
+} from '../../core/graph/graphconfigs';
+
 export function getFormOptionsForType(
   graphType: 'photograph' | 'design' | 'painting',
   type: string,

@@ -86,14 +86,16 @@ function StoryboardChunksView({ chunks }: { chunks: StoryboardChunk[] }) {
     const roleSet = new Set<string>();
     for (const c of chunks) {
       totalSeconds += Number(c.chunk_seconds || 0) || 0;
-      if (Array.isArray(c.characters_in_shot)) {
-        for (const r of c.characters_in_shot) if (r) roleSet.add(String(r).trim());
+      const cAny = c as any;
+      if (Array.isArray(cAny.characters_in_shot)) {
+        for (const r of cAny.characters_in_shot) if (r) roleSet.add(String(r).trim());
       }
       if (Array.isArray(c.shots) && c.shots.length > 0) {
         shotCount += c.shots.length;
         for (const s of c.shots) {
-          if (Array.isArray(s.characters_in_shot)) {
-            for (const r of s.characters_in_shot) if (r) roleSet.add(String(r).trim());
+          const sAny = s as any;
+          if (Array.isArray(sAny.characters_in_shot)) {
+            for (const r of sAny.characters_in_shot) if (r) roleSet.add(String(r).trim());
           }
         }
       } else {
@@ -128,7 +130,7 @@ function StoryboardChunksView({ chunks }: { chunks: StoryboardChunk[] }) {
             {chunk.shot_timeline?.length && !hasShots && (
               <div className="wv-chunk-meta">
                 <span className="wv-meta-label">时间线</span>
-                {chunk.shot_timeline.map((seg, j) => `[${seg}]`).join(' ')}
+                {chunk.shot_timeline.map((seg) => `[${seg}]`).join(' ')}
               </div>
             )}
             {hasShots ? (
@@ -171,8 +173,8 @@ function StoryboardChunksView({ chunks }: { chunks: StoryboardChunk[] }) {
         .wv-storyboard-summary {
           padding: 12px;
           margin-bottom: 16px;
-          background: #252525;
-          border: 1px solid #333;
+          background: hsl(var(--card));
+          border: 1px solid hsl(var(--border));
           border-radius: 8px;
         }
         .wv-summary-title { font-weight: 600; font-size: 1rem; color: #e0e0e0; margin-bottom: 6px; }
@@ -180,8 +182,8 @@ function StoryboardChunksView({ chunks }: { chunks: StoryboardChunk[] }) {
         .wv-chunk-card {
           padding: 12px;
           margin-bottom: 12px;
-          background: #252525;
-          border: 1px solid #333;
+          background: hsl(var(--card));
+          border: 1px solid hsl(var(--border));
           border-radius: 8px;
         }
         .wv-chunk-title { font-weight: 600; font-size: 0.95rem; color: #e0e0e0; margin-bottom: 8px; }
@@ -191,7 +193,7 @@ function StoryboardChunksView({ chunks }: { chunks: StoryboardChunk[] }) {
         .wv-shot {
           padding-left: 12px;
           margin-bottom: 10px;
-          border-left: 2px solid #444;
+          border-left: 2px solid hsl(var(--border));
         }
         .wv-shot-desc { font-size: 0.9rem; color: #e0e0e0; margin-bottom: 4px; }
         .wv-shot-dialogue { font-size: 0.85rem; color: #93c5fd; margin-top: 4px; }
@@ -237,12 +239,12 @@ function SunoJsonView({ data }: { data: SunoData }) {
         .wv-suno-value { font-size: 0.9rem; color: #e0e0e0; }
         .wv-suno-content {
           padding: 12px;
-          background: #252525;
-          border: 1px solid #333;
+          background: hsl(var(--card));
+          border: 1px solid hsl(var(--border));
           border-radius: 8px;
           font-size: 0.9rem;
           line-height: 1.6;
-          color: #e0e0e0;
+          color: hsl(var(--foreground));
           white-space: pre-wrap;
         }
         .wv-suno-meta { margin-top: 12px; }
@@ -401,20 +403,21 @@ export function WritingViewerModal({
           .writing-viewer-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.6);
-            z-index: 999;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
           }
           .writing-viewer-modal {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: min(90vw, 800px);
-            max-height: 85vh;
-            background: #1e1e1e;
-            border: 1px solid #333;
-            border-radius: 8px;
-            z-index: 1000;
+            inset: 0;
+            z-index: 1001;
+            background: hsl(var(--background));
+            border: 1px solid hsl(var(--border));
+            border-radius: 0;
+            width: 100%;
+            height: 100%;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -475,7 +478,7 @@ export function WritingViewerModal({
             flex: 1;
             min-height: 0;
             overflow-y: auto;
-            padding: 1rem 1.25rem;
+            padding: 1rem 1.5rem;
           }
           .writing-viewer-loading,
           .writing-viewer-error,
@@ -491,12 +494,12 @@ export function WritingViewerModal({
           .writing-viewer-pre {
             margin: 0;
             padding: 1rem;
-            background: #262626;
+            background: #0f172a;
             border-radius: 8px;
             font-size: 0.85rem;
             color: #e0e0e0;
             overflow: auto;
-            max-height: 60vh;
+            max-height: 70vh;
             white-space: pre-wrap;
             word-break: break-word;
             line-height: 1.5;

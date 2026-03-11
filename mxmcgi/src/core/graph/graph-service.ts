@@ -1039,9 +1039,9 @@ export async function generateGraphPrompt(
 ): Promise<{
   prompt: string;
   knowledgeRecallMetadata?: KnowledgeRecallMetadata;
-  /** BasicText: writing-graph-prompt 的用量记录（已完成 Provider 扣费） */
+  /** BasicText: writing-basic-text 的用量记录（已完成 Provider 扣费） */
   promptGenerationUsage?: { mediaUrls: string[]; metadata?: Record<string, any> };
-  /** BasicText: writing-graph-prompt 的 Provider 成本（USD），供用户侧 Billing 使用 */
+  /** BasicText: writing-basic-text 的 Provider 成本（USD），供用户侧 Billing 使用 */
   promptGenerationCostUsd?: number;
 }> {
   const { type, prompt: userPrompt } = params;
@@ -1244,15 +1244,13 @@ export async function generateGraphPrompt(
   console.log(`[GraphService] 业务参数:`, businessParams);
   console.log(`[GraphService] 提示词生成请求前缀: ${promptGenerationRequest.substring(0, 500)}${promptGenerationRequest.length > 500 ? '...' : ''}`);
 
-  // 4. 调用 BasicText 生成提示词
-  // 默认逻辑模型：writing-graph-prompt，可通过 Admin 路由到不同物理模型
-  // 如果未指定 provider，使用工厂默认（DEFAULT_PROVIDER 或路由）
+  // 4. 调用 BasicText 生成提示词（与写作内压缩等统一用 writing-basic-text）
   const finalProvider = provider ?? providerFactory.getDefaultProvider();
   console.log(
-    `[GraphService] 使用 BasicText 生成提示词: logicalModel=writing-graph-prompt, providerOverride=${finalProvider}`
+    `[GraphService] 使用 BasicText 生成提示词: logicalModel=writing-basic-text, providerOverride=${finalProvider}`
   );
 
-  const basicTextResult = await runBasicText('writing-graph-prompt', promptGenerationRequest, {
+  const basicTextResult = await runBasicText('writing-basic-text', promptGenerationRequest, {
     userId,
     parentTaskId,
     providerOverride: finalProvider,

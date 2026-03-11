@@ -102,7 +102,7 @@ export default function AdminTasks() {
       render: (_: unknown, r: AdminTaskItem) => {
         const req = r.requestParams as { graphType?: string; params?: { writing_type?: string } } | undefined;
         if (r.type === 'graph') {
-          const raw = r.metadata?.graphBusinessType ?? req?.graphType;
+          const raw = (r.metadata as any)?.graphBusinessType ?? req?.graphType;
           if (!raw) return '-';
           const labels: Record<string, string> = {
             photograph: '摄影',
@@ -112,7 +112,7 @@ export default function AdminTasks() {
           return labels[raw] ?? raw;
         }
         if (r.type === 'writing') {
-          const raw = r.metadata?.writingBusinessType ?? req?.params?.writing_type;
+          const raw = (r.metadata as any)?.writingBusinessType ?? req?.params?.writing_type;
           if (!raw) return '-';
           const labels: Record<string, string> = {
             outlines: '大纲',

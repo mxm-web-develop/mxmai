@@ -33,60 +33,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// src/core/providers/provider-keys.ts
-function parseEnvKeys(singleVar, multiVar) {
-  const multi = process.env[multiVar];
-  if (multi != null && String(multi).trim() !== "") {
-    return multi.split(",").map((k) => k.trim()).filter(Boolean);
-  }
-  const single = process.env[singleVar];
-  if (single != null && String(single).trim() !== "") {
-    return [single.trim()];
-  }
-  return [];
-}
-function getEnvKeysFallback(provider13, _service) {
-  const key = provider13;
-  const singleVar = ENV_MAP[key]?.single;
-  const multiVar = ENV_MAP[key]?.multi;
-  if (!singleVar || !multiVar) return [];
-  return parseEnvKeys(singleVar, multiVar);
-}
-async function getProviderKeys(provider13, service) {
-  try {
-    const { RepositoryFactory: RepositoryFactory19 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory19.createProviderApiKeyRepository();
-    const serviceNorm = service ? String(service).toLowerCase() : null;
-    const dbKeys = await repo.listKeysForProvider(provider13, serviceNorm ?? void 0);
-    if (dbKeys && dbKeys.length > 0) {
-      return dbKeys.map((r) => r.key_value);
-    }
-  } catch (_e) {
-  }
-  return getEnvKeysFallback(provider13, service);
-}
-async function getFirstProviderKey(provider13, service) {
-  const keys = await getProviderKeys(provider13, service);
-  return keys.length > 0 ? keys[0] : null;
-}
-var ENV_MAP;
-var init_provider_keys = __esm({
-  "src/core/providers/provider-keys.ts"() {
-    "use strict";
-    ENV_MAP = {
-      deer: { single: "DEERAPI_API_KEY", multi: "DEERAPI_API_KEYS" },
-      replicate: { single: "REPLICATE_API_TOKEN", multi: "REPLICATE_API_TOKENS" },
-      ppio: { single: "PPIO_API_KEY", multi: "PPIO_API_KEYS" },
-      openai: { single: "OPENAI_API_KEY", multi: "OPENAI_API_KEYS" },
-      google: { single: "GOOGLE_API_KEY", multi: "GOOGLE_API_KEYS" },
-      anthropic: { single: "ANTHROPIC_API_KEY", multi: "ANTHROPIC_API_KEYS" },
-      minimax: { single: "MINIMAX_API_KEY", multi: "MINIMAX_API_KEYS" },
-      qwen: { single: "QWEN_API_KEY", multi: "QWEN_API_KEYS" },
-      volc: { single: "VOLC_API_KEY", multi: "VOLC_API_KEYS" }
-    };
-  }
-});
-
 // src/models/suport-list.ts
 var suport_list_exports = {};
 __export(suport_list_exports, {
@@ -275,6 +221,22 @@ var init_suport_list = __esm({
             currency: "USD",
             service: "google"
           },
+          // DeerAPI nano-banana-2：基于 Gemini 3.1 Flash Image（preview 版本），在 2.5 代基础上画质和文字渲染都有明显提升
+          "nano-banana-2": {
+            modelname: "gemini-3.1-flash-image-preview",
+            price: 0.06,
+            charge_mode: "per_change_mode" /* per_change_mode */,
+            currency: "USD",
+            service: "google"
+          },
+          // DeerAPI nano-banana-2-pro：基于 Gemini 3.1 Flash Image 正式版，主打最高画质与稳定性
+          "nano-banana-2-pro": {
+            modelname: "gemini-3.1-flash-image",
+            price: 0.12,
+            charge_mode: "per_change_mode" /* per_change_mode */,
+            currency: "USD",
+            service: "google"
+          },
           "flux-2-pro": {
             modelname: "flux-2-pro",
             price: 0.05,
@@ -284,6 +246,12 @@ var init_suport_list = __esm({
           "seedream-4": {
             modelname: "doubao-seedream-4-5-251128",
             price: 0.02,
+            charge_mode: "per_change_mode" /* per_change_mode */,
+            currency: "USD"
+          },
+          "seedream-5": {
+            modelname: "doubao-seedream-5-0-260128",
+            price: 0.035,
             charge_mode: "per_change_mode" /* per_change_mode */,
             currency: "USD"
           }
@@ -395,14 +363,16 @@ var init_suport_list = __esm({
       openai: {
         text: {
           "gpt-5-nano": {
-            modelname: "gpt-4o-mini",
-            price: 15e-5,
+            modelname: "gpt-5-nano",
+            // $0.05 / 1M input tokens → $0.00005 / 1K（仅作参考，真实价格以 OpenAI 最新定价为准）
+            price: 5e-5,
             charge_mode: "token_based" /* token_based */,
             currency: "USD"
           },
           "gpt-5-2": {
-            modelname: "gpt-4o",
-            price: 25e-4,
+            modelname: "gpt-5.2",
+            // $1.75 / 1M input tokens → $0.00175 / 1K（仅作参考）
+            price: 175e-5,
             charge_mode: "token_based" /* token_based */,
             currency: "USD"
           }
@@ -503,7 +473,7 @@ var init_provider = __esm({
   "src/models/replicate/provider.ts"() {
     "use strict";
     import_replicate = __toESM(require("replicate"));
-    init_provider_keys();
+    init_providers2();
     init_suport_list();
     ReplicateProvider = class {
       constructor(injectToken) {
@@ -1167,22 +1137,22 @@ var init_provider = __esm({
                     }
                     mediaUrls2 = outputAny.items.map((item, index) => {
                       if (typeof item === "string" && item.length > 0) {
-                        const isBase642 = item.startsWith("data:");
-                        console.log(`[DEBUG] seedream-4 item[${index}] is string (${isBase642 ? "Base64" : "URL"})`);
+                        const isBase643 = item.startsWith("data:");
+                        console.log(`[DEBUG] seedream-4 item[${index}] is string (${isBase643 ? "Base64" : "URL"})`);
                         return item;
                       } else if (item && typeof item === "object") {
                         console.log(`[DEBUG] seedream-4 item[${index}] is object, keys:`, Object.keys(item));
                         if (item.url && typeof item.url === "string") {
-                          const isBase642 = item.url.startsWith("data:");
-                          console.log(`[DEBUG] seedream-4 item[${index}] has url (${isBase642 ? "Base64" : "URL"})`);
+                          const isBase643 = item.url.startsWith("data:");
+                          console.log(`[DEBUG] seedream-4 item[${index}] has url (${isBase643 ? "Base64" : "URL"})`);
                           return item.url;
                         } else if (item.image_url && typeof item.image_url === "string") {
-                          const isBase642 = item.image_url.startsWith("data:");
-                          console.log(`[DEBUG] seedream-4 item[${index}] has image_url (${isBase642 ? "Base64" : "URL"})`);
+                          const isBase643 = item.image_url.startsWith("data:");
+                          console.log(`[DEBUG] seedream-4 item[${index}] has image_url (${isBase643 ? "Base64" : "URL"})`);
                           return item.image_url;
                         } else if (item.image && typeof item.image === "string") {
-                          const isBase642 = item.image.startsWith("data:");
-                          console.log(`[DEBUG] seedream-4 item[${index}] has image (${isBase642 ? "Base64" : "URL"})`);
+                          const isBase643 = item.image.startsWith("data:");
+                          console.log(`[DEBUG] seedream-4 item[${index}] has image (${isBase643 ? "Base64" : "URL"})`);
                           return item.image;
                         }
                         for (const key in item) {
@@ -1286,8 +1256,8 @@ var init_provider = __esm({
               }
               console.log(`[DEBUG] Extracted mediaUrls count:`, mediaUrls2.length);
               if (mediaUrls2.length > 0) {
-                const isBase642 = mediaUrls2[0].startsWith("data:");
-                console.log(`[DEBUG] First media: ${isBase642 ? "Base64\u6570\u636E" : "URL"}`);
+                const isBase643 = mediaUrls2[0].startsWith("data:");
+                console.log(`[DEBUG] First media: ${isBase643 ? "Base64\u6570\u636E" : "URL"}`);
               } else {
                 console.warn(`[WARN] No mediaUrls extracted from output. Output was:`, outputAny);
               }
@@ -1495,22 +1465,22 @@ var init_provider = __esm({
                   }
                   mediaUrls = outputAnyFinal.items.map((item, index) => {
                     if (typeof item === "string" && item.length > 0) {
-                      const isBase642 = item.startsWith("data:");
-                      console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] is string (${isBase642 ? "Base64" : "URL"})`);
+                      const isBase643 = item.startsWith("data:");
+                      console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] is string (${isBase643 ? "Base64" : "URL"})`);
                       return item;
                     } else if (item && typeof item === "object") {
                       console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] is object, keys:`, Object.keys(item));
                       if (item.url && typeof item.url === "string") {
-                        const isBase642 = item.url.startsWith("data:");
-                        console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has url (${isBase642 ? "Base64" : "URL"})`);
+                        const isBase643 = item.url.startsWith("data:");
+                        console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has url (${isBase643 ? "Base64" : "URL"})`);
                         return item.url;
                       } else if (item.image_url && typeof item.image_url === "string") {
-                        const isBase642 = item.image_url.startsWith("data:");
-                        console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has image_url (${isBase642 ? "Base64" : "URL"})`);
+                        const isBase643 = item.image_url.startsWith("data:");
+                        console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has image_url (${isBase643 ? "Base64" : "URL"})`);
                         return item.image_url;
                       } else if (item.image && typeof item.image === "string") {
-                        const isBase642 = item.image.startsWith("data:");
-                        console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has image (${isBase642 ? "Base64" : "URL"})`);
+                        const isBase643 = item.image.startsWith("data:");
+                        console.log(`[DEBUG] seedream-4 (non-progress) item[${index}] has image (${isBase643 ? "Base64" : "URL"})`);
                         return item.image;
                       }
                       for (const key in item) {
@@ -1668,10 +1638,10 @@ var init_provider = __esm({
   }
 });
 
-// src/core/utils/ppio-client.ts
+// src/models/ppio/client.ts
 var PPIOClient;
-var init_ppio_client = __esm({
-  "src/core/utils/ppio-client.ts"() {
+var init_client = __esm({
+  "src/models/ppio/client.ts"() {
     "use strict";
     PPIOClient = class _PPIOClient {
       config;
@@ -1741,8 +1711,8 @@ var init_ppio_client = __esm({
         console.log(`   \u751F\u6210\u56FE\u7247\u6570\u91CF: ${result.image_urls.length}`);
         if (result.image_urls.length > 0) {
           const firstUrl = result.image_urls[0];
-          const isBase642 = firstUrl.startsWith("data:");
-          console.log(`   \u7B2C\u4E00\u5F20\u56FE\u7247: ${isBase642 ? "Base64\u6570\u636E" : "URL"}`);
+          const isBase643 = firstUrl.startsWith("data:");
+          console.log(`   \u7B2C\u4E00\u5F20\u56FE\u7247: ${isBase643 ? "Base64\u6570\u636E" : "URL"}`);
         }
         return result;
       }
@@ -2452,7 +2422,7 @@ var PPIOProvider;
 var init_provider2 = __esm({
   "src/models/ppio/provider.ts"() {
     "use strict";
-    init_ppio_client();
+    init_client();
     init_suport_list();
     PPIOProvider = class {
       provider = "ppio";
@@ -2942,76 +2912,10 @@ var init_provider2 = __esm({
   }
 });
 
-// src/core/providers/provider-stats.ts
-function prune() {
-  if (RECORDS.length <= MAX_RECORDS) return;
-  RECORDS.sort((a, b) => a.ts - b.ts);
-  const toRemove = RECORDS.length - MAX_RECORDS;
-  RECORDS.splice(0, toRemove);
-}
-function recordStats(entry) {
-  RECORDS.push({ ...entry, ts: Date.now() });
-  if (RECORDS.length > MAX_RECORDS) prune();
-}
-function parseWindow(window) {
-  const m = window.match(/^(\d+)(m|h|d)$/i);
-  if (!m) return 60 * 60 * 1e3;
-  const n = parseInt(m[1], 10);
-  const unit = m[2].toLowerCase();
-  if (unit === "m") return n * 60 * 1e3;
-  if (unit === "h") return n * 60 * 60 * 1e3;
-  if (unit === "d") return n * 24 * 60 * 60 * 1e3;
-  return 60 * 60 * 1e3;
-}
-function getProviderStats(options = {}) {
-  const windowMs = parseWindow(options.window || "1h");
-  const since = Date.now() - windowMs;
-  const filtered = RECORDS.filter((r) => r.ts >= since && (options.provider == null || r.provider === options.provider));
-  const byKey = /* @__PURE__ */ new Map();
-  for (const r of filtered) {
-    const key = r.provider;
-    if (!byKey.has(key)) byKey.set(key, []);
-    byKey.get(key).push(r);
-  }
-  const result = [];
-  for (const [provider13, list] of byKey.entries()) {
-    const successCount = list.filter((r) => r.success).length;
-    const latencies = list.map((r) => r.latencyMs).sort((a, b) => a - b);
-    const p50 = latencies[Math.floor(latencies.length * 0.5)];
-    const p95 = latencies[Math.floor(latencies.length * 0.95)];
-    const errDist = {};
-    for (const r of list) {
-      if (!r.success && r.errorCode) {
-        errDist[r.errorCode] = (errDist[r.errorCode] || 0) + 1;
-      }
-    }
-    result.push({
-      provider: provider13,
-      requestCount: list.length,
-      successCount,
-      errorRate: list.length ? 1 - successCount / list.length : 0,
-      avgLatencyMs: list.length ? list.reduce((s, r) => s + r.latencyMs, 0) / list.length : 0,
-      p50LatencyMs: p50,
-      p95LatencyMs: p95,
-      window: options.window || "1h",
-      errorDistribution: Object.keys(errDist).length ? errDist : void 0
-    });
-  }
-  return result;
-}
-var MAX_RECORDS, RECORDS;
-var init_provider_stats = __esm({
-  "src/core/providers/provider-stats.ts"() {
-    "use strict";
-    MAX_RECORDS = 5e4;
-    RECORDS = [];
-  }
-});
-
-// src/core/utils/deerapi-client.ts
+// src/models/deerapi/client.ts
 var DeerAPIClient;
-var init_deerapi_client = __esm({
-  "src/core/utils/deerapi-client.ts"() {
+var init_client2 = __esm({
+  "src/models/deerapi/client.ts"() {
     "use strict";
     DeerAPIClient = class _DeerAPIClient {
       config;
@@ -3660,16 +3564,31 @@ var init_deerapi_client = __esm({
           headers["x-group"] = this.config.group;
         }
         this.debugLogRequest("gemini.generateContent", url, body);
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(body)
-        });
-        if (!response.ok) {
+        const maxRetries = 3;
+        let lastError = null;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          const response = await fetch(url, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(body)
+          });
           const errorText = await response.text();
-          throw new Error(`DeerAPI generateContent \u5931\u8D25: ${response.status} ${response.statusText} - ${errorText}`);
+          if (response.ok) {
+            return JSON.parse(errorText || "{}");
+          }
+          const is429 = response.status === 429 || response.status === 500 && (errorText.includes('"code":429') || errorText.includes("Resource exhausted"));
+          lastError = new Error(`DeerAPI generateContent \u5931\u8D25: ${response.status} ${response.statusText} - ${errorText}`);
+          if (is429 && attempt < maxRetries) {
+            const waitMs = Math.min(2e3 * Math.pow(2, attempt), 15e3);
+            console.warn(
+              `[DeerAPIClient] generateContent \u9650\u6D41/\u8D44\u6E90\u8017\u5C3D (429)\uFF0C${waitMs}ms \u540E\u91CD\u8BD5 (${attempt + 1}/${maxRetries})`
+            );
+            await new Promise((r) => setTimeout(r, waitMs));
+            continue;
+          }
+          throw lastError;
         }
-        return await response.json();
+        throw lastError ?? new Error("DeerAPI generateContent \u5931\u8D25: \u91CD\u8BD5\u6B21\u6570\u5DF2\u7528\u5C3D");
       }
       /**
        * Replicate 兼容的图像生成接口（异步预测）
@@ -4373,15 +4292,167 @@ var init_deerapi_client = __esm({
   }
 });
 
+// src/statistics/provider-balance-service.ts
+var import_mxmdata, PRICING_ERROR_MSG, PRICING_ERROR_NO_RECORD, PRICING_ERROR_INSUFFICIENT, ProviderBalanceService;
+var init_provider_balance_service = __esm({
+  "src/statistics/provider-balance-service.ts"() {
+    "use strict";
+    import_mxmdata = require("@mxmai/mxmdata");
+    PRICING_ERROR_MSG = "\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458";
+    PRICING_ERROR_NO_RECORD = "\u65E0\u5B9A\u4EF7\u8BB0\u5F55";
+    PRICING_ERROR_INSUFFICIENT = "Provider \u4F59\u989D\u4E0D\u8DB3";
+    ProviderBalanceService = class {
+      /**
+       * 仅检查 provider_pricing 是否存在（用于“调用 provider 之前”早失败，避免消耗上游余额）。
+       * 不会扣减余额，也不会计算真实成本（usage 为 0 仅用于复用查询逻辑）。
+       */
+      static async assertPricingConfigured(params) {
+        const { provider: provider13, model_key, scope } = params;
+        const { hasPricing } = await this.calculateCostWithCheck({
+          provider: provider13,
+          model_key,
+          scope,
+          input_tokens: 0,
+          output_tokens: 0,
+          total_tokens: 0,
+          image_count: 0,
+          audio_seconds: 0,
+          video_seconds: 0,
+          request_count: 1
+        });
+        if (!hasPricing) {
+          const detail = `provider=${provider13} model_key=${model_key} scope=${scope ?? "default"}`;
+          console.warn("[ProviderBalanceService] \u65E0\u5B9A\u4EF7\u8BB0\u5F55(\u9884\u68C0):", detail);
+          throw new Error(`${PRICING_ERROR_NO_RECORD}: ${detail}\uFF0C\u8BF7\u5728\u300CProvider \u7BA1\u7406 - \u6A21\u578B\u4EF7\u683C\u300D\u4E2D\u914D\u7F6E`);
+        }
+      }
+      /**
+       * 根据 usage 和 provider_pricing 计算成本，并从 provider_balances 扣减
+       * 无定价或余额不足时抛出 PRICING_ERROR_MSG，截断请求
+       */
+      static async deductFromUsage(usage) {
+        const { cost, hasPricing } = await this.calculateCostWithCheck(usage);
+        if (!hasPricing) {
+          const detail = `provider=${usage.provider} model_key=${usage.model_key} scope=${usage.scope ?? "default"}`;
+          console.warn("[ProviderBalanceService] \u65E0\u5B9A\u4EF7\u8BB0\u5F55:", detail);
+          throw new Error(`${PRICING_ERROR_NO_RECORD}: ${detail}\uFF0C\u8BF7\u5728\u300CProvider \u7BA1\u7406 - \u6A21\u578B\u4EF7\u683C\u300D\u4E2D\u914D\u7F6E`);
+        }
+        if (cost <= 0) return 0;
+        const supabase = (0, import_mxmdata.getSupabaseClient)();
+        const { data: existing, error: fetchErr } = await supabase.from("provider_balances").select("id, balance").eq("provider", usage.provider).maybeSingle();
+        if (fetchErr) {
+          console.warn("[ProviderBalanceService] \u67E5\u8BE2 provider_balances \u5931\u8D25:", {
+            provider: usage.provider,
+            error: fetchErr.message,
+            code: fetchErr.code
+          });
+          throw new Error(`${PRICING_ERROR_MSG}\uFF08\u67E5\u8BE2 provider_balances \u5931\u8D25\uFF09`);
+        }
+        const currentBalance = existing ? Number(existing.balance || 0) : 0;
+        if (currentBalance < cost) {
+          console.warn("[ProviderBalanceService] \u4F59\u989D\u4E0D\u8DB3:", {
+            provider: usage.provider,
+            currentBalance,
+            cost
+          });
+          throw new Error(`${PRICING_ERROR_INSUFFICIENT}: ${usage.provider} \u5F53\u524D ${currentBalance.toFixed(4)} USD\uFF0C\u672C\u6B21\u9700 ${cost.toFixed(4)} USD\uFF0C\u8BF7\u5728\u300CProvider \u7BA1\u7406\u300D\u4E2D\u5145\u503C`);
+        }
+        const nextBalance = currentBalance - cost;
+        if (existing) {
+          const { error: updateErr } = await supabase.from("provider_balances").update({ balance: nextBalance, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", existing.id);
+          if (updateErr) {
+            throw new Error(PRICING_ERROR_MSG);
+          }
+        } else {
+          const { error: insertErr } = await supabase.from("provider_balances").insert({
+            provider: usage.provider,
+            balance: nextBalance,
+            currency: "USD"
+          });
+          if (insertErr) {
+            throw new Error(PRICING_ERROR_MSG);
+          }
+        }
+        if (true) {
+          console.log("[ProviderBalanceService] \u2705 \u5DF2\u6263\u51CF Provider \u4F59\u989D:", {
+            provider: usage.provider,
+            model_key: usage.model_key,
+            cost,
+            nextBalance
+          });
+        }
+        return cost;
+      }
+      /**
+       * 根据 usage + provider_pricing 计算本次成本（USD），并检查定价是否存在
+       */
+      static async calculateCostWithCheck(usage) {
+        const supabase = (0, import_mxmdata.getSupabaseClient)();
+        let query = supabase.from("provider_pricing").select("*").eq("provider", usage.provider).eq("model_key", usage.model_key);
+        if (usage.scope) {
+          query = query.eq("scope", usage.scope);
+        }
+        const { data: pricingRows } = await query;
+        const pricing = Array.isArray(pricingRows) && pricingRows.length > 0 ? pricingRows[0] : null;
+        if (!pricing) {
+          if (usage.scope && usage.scope !== "default") {
+            const { data: defaultRows } = await supabase.from("provider_pricing").select("*").eq("provider", usage.provider).eq("model_key", usage.model_key).eq("scope", "default");
+            const defaultPricing = Array.isArray(defaultRows) && defaultRows.length > 0 ? defaultRows[0] : null;
+            if (defaultPricing) {
+              return { cost: this.computeCost(defaultPricing, usage), hasPricing: true };
+            }
+          }
+          return { cost: 0, hasPricing: false };
+        }
+        return { cost: this.computeCost(pricing, usage), hasPricing: true };
+      }
+      static computeCost(pricing, usage) {
+        const chargeMode = pricing.charge_mode;
+        const unitPrice = Number(pricing.unit_price || 0);
+        const inputUnitPrice = pricing.input_unit_price != null ? Number(pricing.input_unit_price) : null;
+        const outputUnitPrice = pricing.output_unit_price != null ? Number(pricing.output_unit_price) : null;
+        let cost = 0;
+        switch (chargeMode) {
+          case "token_based": {
+            const hasInputOutput = inputUnitPrice != null && outputUnitPrice != null && (usage.input_tokens > 0 || usage.output_tokens > 0);
+            if (hasInputOutput) {
+              cost = usage.input_tokens / 1e3 * inputUnitPrice + usage.output_tokens / 1e3 * outputUnitPrice;
+            } else {
+              const units = usage.total_tokens > 0 ? usage.total_tokens / 1e3 : 0;
+              cost = units * unitPrice;
+            }
+            break;
+          }
+          case "per_image":
+            cost = usage.image_count * unitPrice;
+            break;
+          case "per_second_audio":
+            cost = usage.audio_seconds * unitPrice;
+            break;
+          case "per_second_video":
+            cost = usage.video_seconds * unitPrice;
+            break;
+          case "per_request":
+            cost = usage.request_count * unitPrice;
+            break;
+          default:
+            break;
+        }
+        return Math.max(0, cost);
+      }
+    };
+  }
+});
+
 // src/models/deerapi/provider.ts
 var DeerProvider;
 var init_provider3 = __esm({
   "src/models/deerapi/provider.ts"() {
     "use strict";
-    init_provider_stats();
-    init_provider_keys();
-    init_deerapi_client();
+    init_providers2();
+    init_client2();
     init_suport_list();
+    init_provider_balance_service();
     DeerProvider = class {
       constructor(injectApiKey, injectBaseUrl, injectGroup) {
         this.injectApiKey = injectApiKey;
@@ -4472,6 +4543,12 @@ var init_provider3 = __esm({
           const isAudioModel = this.audioModels.includes(modelName);
           const isRunwayVideoModel = this.runwayVideoModels.includes(modelName);
           const outputFormat = params.outputFormat || "json";
+          const scopeForPricing = isImageModel ? "graph" : isRunwayVideoModel ? "video" : isVideoModel ? "video" : isAudioModel ? "audio" : isTextModel ? "text" : "default";
+          await ProviderBalanceService.assertPricingConfigured({
+            provider: this.provider,
+            model_key: modelName,
+            scope: scopeForPricing
+          });
           if (isImageModel) {
             return await this.generateImage(modelName, deerModel, params);
           }
@@ -4819,9 +4896,9 @@ var init_provider3 = __esm({
        */
       async generateImage(modelName, deerModel, params) {
         try {
-          const isGeminiModel = modelName === "nano-banana" || modelName === "nano-banana-pro";
+          const isGeminiModel = modelName === "nano-banana" || modelName === "nano-banana-pro" || modelName === "nano-banana-2" || modelName === "nano-banana-2-pro";
           const isFluxModel = modelName.startsWith("flux-");
-          const isSeedreamModel = modelName === "seedream-4";
+          const isSeedreamModel = modelName === "seedream-4" || modelName === "seedream-5";
           if (isGeminiModel) {
             return await this.generateImageWithGemini(modelName, deerModel, params);
           } else if (isFluxModel) {
@@ -5208,7 +5285,8 @@ var init_provider3 = __esm({
         }
       }
       /**
-       * 使用 DeerAPI Seedream 专用接口生成图像（seedream-4）
+       * 使用 DeerAPI Seedream 专用接口生成图像（seedream-4 / seedream-5）
+       * 端点：POST /v1/images/generations
        * 参考文档：https://apidoc.deerapi.com/seededit-image-generation-331149260e0
        */
       async generateImageWithSeedream(modelName, deerModel, params) {
@@ -5650,13 +5728,13 @@ var init_provider3 = __esm({
 });
 
 // src/models/openai/provider.ts
-var OpenAIProvider;
+var import_undici, OpenAIProvider;
 var init_provider4 = __esm({
   "src/models/openai/provider.ts"() {
     "use strict";
-    init_provider_keys();
-    init_provider_stats();
+    init_providers_inner();
     init_suport_list();
+    import_undici = require("undici");
     OpenAIProvider = class {
       constructor(injectApiKey, injectBaseUrl) {
         this.injectApiKey = injectApiKey;
@@ -5682,10 +5760,27 @@ var init_provider4 = __esm({
         const base = this.injectBaseUrl || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
         return base.replace(/\/+$/, "");
       }
-      resolveModelName(modelKey38) {
-        const mapping = this.modelMap[modelKey38];
+      /**
+       * 获取用于 OpenAI 请求的 dispatcher（Clash 代理开关）
+       * - 若存在 CLASHPROXY，则优先使用（例如 http://127.0.0.1:7890）
+       * - 否则回退到 HTTPS_PROXY / HTTP_PROXY
+       * - 都不存在时返回 undefined（直连）
+       */
+      getDispatcher() {
+        const clashProxy = process.env.CLASHPROXY;
+        const envProxy = clashProxy || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+        if (!envProxy) return void 0;
+        try {
+          return new import_undici.ProxyAgent(envProxy);
+        } catch (e) {
+          console.warn("[OpenAIProvider] \u521B\u5EFA ProxyAgent \u5931\u8D25\uFF0C\u5C06\u5C1D\u8BD5\u76F4\u8FDE:", e);
+          return void 0;
+        }
+      }
+      resolveModelName(modelKey43) {
+        const mapping = this.modelMap[modelKey43];
         if (!mapping) {
-          throw new Error(`OpenAI provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey38}`);
+          throw new Error(`OpenAI provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
         }
         return getModelName(mapping);
       }
@@ -5703,6 +5798,7 @@ var init_provider4 = __esm({
           const apiKey = await this.getApiKey();
           const upstreamModel = this.resolveModelName(modelName);
           const baseUrl = this.getBaseUrl();
+          const dispatcher = this.getDispatcher();
           const body = {
             model: upstreamModel,
             messages: [
@@ -5713,36 +5809,81 @@ var init_provider4 = __esm({
             ],
             ...params.parameters || {}
           };
-          const resp = await fetch(`${baseUrl}/chat/completions`, {
+          const promptPreview = typeof params.prompt === "string" ? params.prompt.slice(0, 80) : "[\u975E\u5B57\u7B26\u4E32 prompt]";
+          console.log("[OpenAIProvider] \u51C6\u5907\u8BF7\u6C42 OpenAI Chat Completions:", {
+            logicalModel: modelName,
+            upstreamModel,
+            baseUrl,
+            hasDispatcher: !!dispatcher,
+            promptPreview
+          });
+          const resp = await (0, import_undici.fetch)(`${baseUrl}/chat/completions`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${apiKey}`
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            ...dispatcher ? { dispatcher } : {}
           });
           if (!resp.ok) {
             const text = await resp.text().catch(() => "");
+            console.error("[OpenAIProvider] OpenAI \u8BF7\u6C42\u5931\u8D25", {
+              status: resp.status,
+              statusText: resp.statusText,
+              body: text?.slice(0, 500)
+            });
             errorCode = `${resp.status} ${resp.statusText}`;
             throw new Error(`OpenAI \u8BF7\u6C42\u5931\u8D25: ${resp.status} ${resp.statusText} ${text}`);
           }
           const json = await resp.json();
           const content = json?.choices?.[0]?.message?.content ?? (typeof json?.choices?.[0]?.message?.content === "string" ? json.choices[0].message.content : "");
+          const usage = {
+            prompt_tokens: json?.usage?.prompt_tokens || 0,
+            completion_tokens: json?.usage?.completion_tokens || 0,
+            total_tokens: json?.usage?.total_tokens || 0
+          };
+          console.log("[OpenAIProvider] OpenAI \u8BF7\u6C42\u6210\u529F\uFF0C\u8FD4\u56DE\u7ED3\u6784\u6982\u8981:", {
+            logicalModel: modelName,
+            upstreamModel,
+            hasChoices: Array.isArray(json?.choices),
+            firstChoiceType: json?.choices?.[0]?.message?.role,
+            firstContentPreview: typeof content === "string" ? content.slice(0, 80) : "[\u975E\u5B57\u7B26\u4E32\u5185\u5BB9]"
+          });
           return {
-            mediaUrls: [],
+            mediaUrls: content ? [content] : [],
             metadata: {
               provider: this.provider,
               model: modelName,
               upstreamModel,
               text: content,
+              usage,
               raw: json
-            }
+            },
+            ...content ? { text: content } : {},
+            ...usage ? { usage } : {}
           };
         } catch (e) {
           success = false;
           if (!errorCode && e instanceof Error) {
             errorCode = e.message;
           }
+          console.error("[OpenAIProvider] \u8C03\u7528 OpenAI \u51FA\u9519", {
+            logicalModel: modelName,
+            upstreamModel: (() => {
+              try {
+                return this.resolveModelName(modelName);
+              } catch {
+                return "unknown";
+              }
+            })(),
+            baseUrl: this.getBaseUrl(),
+            message: e instanceof Error ? e.message : String(e),
+            name: e instanceof Error ? e.name : void 0,
+            stack: e instanceof Error ? e.stack : void 0,
+            // Node fetch 通常会把底层错误挂在 cause 上（包含 ECONNREFUSED / ETIMEDOUT 等信息）
+            cause: e && typeof e === "object" && "cause" in e ? e.cause : void 0
+          });
           throw e;
         } finally {
           recordStats({
@@ -5785,9 +5926,8 @@ var GoogleProvider;
 var init_provider5 = __esm({
   "src/models/google/provider.ts"() {
     "use strict";
-    init_provider_keys();
+    init_providers2();
     init_suport_list();
-    init_provider_stats();
     GoogleProvider = class {
       constructor(injectApiKey, injectBaseUrl) {
         this.injectApiKey = injectApiKey;
@@ -5817,10 +5957,10 @@ var init_provider5 = __esm({
         const base = this.injectBaseUrl || process.env.GOOGLE_BASE_URL || "https://generativelanguage.googleapis.com/v1beta";
         return base.replace(/\/+$/, "");
       }
-      resolveModelName(modelKey38) {
-        const mapping = this.modelMap[modelKey38];
+      resolveModelName(modelKey43) {
+        const mapping = this.modelMap[modelKey43];
         if (!mapping) {
-          throw new Error(`Google provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey38}`);
+          throw new Error(`Google provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
         }
         return getModelName(mapping);
       }
@@ -5933,9 +6073,8 @@ var AnthropicProvider;
 var init_provider6 = __esm({
   "src/models/anthropic/provider.ts"() {
     "use strict";
-    init_provider_keys();
+    init_providers_inner();
     init_suport_list();
-    init_provider_stats();
     AnthropicProvider = class {
       constructor(injectApiKey, injectBaseUrl) {
         this.injectApiKey = injectApiKey;
@@ -5960,10 +6099,10 @@ var init_provider6 = __esm({
         const base = this.injectBaseUrl || process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com/v1";
         return base.replace(/\/+$/, "");
       }
-      resolveModelName(modelKey38) {
-        const mapping = this.modelMap[modelKey38];
+      resolveModelName(modelKey43) {
+        const mapping = this.modelMap[modelKey43];
         if (!mapping) {
-          throw new Error(`Anthropic provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey38}`);
+          throw new Error(`Anthropic provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
         }
         return getModelName(mapping);
       }
@@ -6082,9 +6221,8 @@ var QwenProvider;
 var init_provider7 = __esm({
   "src/models/qwen/provider.ts"() {
     "use strict";
-    init_provider_keys();
+    init_providers_inner();
     init_suport_list();
-    init_provider_stats();
     QwenProvider = class {
       constructor(injectApiKey, injectBaseUrl) {
         this.injectApiKey = injectApiKey;
@@ -6113,10 +6251,10 @@ var init_provider7 = __esm({
         const base = this.injectBaseUrl || process.env.QWEN_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1";
         return base.replace(/\/+$/, "");
       }
-      resolveModelName(modelKey38) {
-        const mapping = this.modelMap[modelKey38];
+      resolveModelName(modelKey43) {
+        const mapping = this.modelMap[modelKey43];
         if (!mapping) {
-          throw new Error(`Qwen provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey38}`);
+          throw new Error(`Qwen provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
         }
         return getModelName(mapping);
       }
@@ -6219,6 +6357,193 @@ var init_provider7 = __esm({
   }
 });
 
+// src/core/providers/provider-keys.ts
+function parseEnvKeys(singleVar, multiVar) {
+  const multi = process.env[multiVar];
+  if (multi != null && String(multi).trim() !== "") {
+    return multi.split(",").map((k) => k.trim()).filter(Boolean);
+  }
+  const single = process.env[singleVar];
+  if (single != null && String(single).trim() !== "") {
+    return [single.trim()];
+  }
+  return [];
+}
+function getEnvKeysFallback(provider13, _service) {
+  const key = provider13;
+  const singleVar = ENV_MAP[key]?.single;
+  const multiVar = ENV_MAP[key]?.multi;
+  if (!singleVar || !multiVar) return [];
+  return parseEnvKeys(singleVar, multiVar);
+}
+async function getProviderKeys(provider13, service) {
+  try {
+    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory22.createProviderApiKeyRepository();
+    const serviceNorm = service ? String(service).toLowerCase() : null;
+    const dbKeys = await repo.listKeysForProvider(provider13, serviceNorm ?? void 0);
+    if (dbKeys && dbKeys.length > 0) {
+      return dbKeys.map((r) => r.key_value);
+    }
+  } catch (_e) {
+  }
+  return getEnvKeysFallback(provider13, service);
+}
+async function getFirstProviderKey(provider13, service) {
+  const keys = await getProviderKeys(provider13, service);
+  return keys.length > 0 ? keys[0] : null;
+}
+var ENV_MAP;
+var init_provider_keys = __esm({
+  "src/core/providers/provider-keys.ts"() {
+    "use strict";
+    ENV_MAP = {
+      deer: { single: "DEERAPI_API_KEY", multi: "DEERAPI_API_KEYS" },
+      replicate: { single: "REPLICATE_API_TOKEN", multi: "REPLICATE_API_TOKENS" },
+      ppio: { single: "PPIO_API_KEY", multi: "PPIO_API_KEYS" },
+      openai: { single: "OPENAI_API_KEY", multi: "OPENAI_API_KEYS" },
+      google: { single: "GOOGLE_API_KEY", multi: "GOOGLE_API_KEYS" },
+      anthropic: { single: "ANTHROPIC_API_KEY", multi: "ANTHROPIC_API_KEYS" },
+      minimax: { single: "MINIMAX_API_KEY", multi: "MINIMAX_API_KEYS" },
+      qwen: { single: "QWEN_API_KEY", multi: "QWEN_API_KEYS" },
+      volc: { single: "VOLC_API_KEY", multi: "VOLC_API_KEYS" }
+    };
+  }
+});
+
+// src/core/providers/provider-stats.ts
+function prune() {
+  if (RECORDS.length <= MAX_RECORDS) return;
+  RECORDS.sort((a, b) => a.ts - b.ts);
+  const toRemove = RECORDS.length - MAX_RECORDS;
+  RECORDS.splice(0, toRemove);
+}
+function recordStats(entry) {
+  RECORDS.push({ ...entry, ts: Date.now() });
+  if (RECORDS.length > MAX_RECORDS) prune();
+  void (async () => {
+    try {
+      const supabase = (0, import_mxmdata2.getSupabaseClient)();
+      const payload = {
+        provider: entry.provider,
+        logical_model: entry.logicalModel,
+        success: entry.success,
+        latency_ms: entry.latencyMs,
+        error_code: entry.errorCode ?? null
+      };
+      const { error } = await supabase.from("provider_call_stats").insert(payload);
+      if (error) {
+        console.warn("[ProviderStats] \u5199\u5165 provider_call_stats \u5931\u8D25\uFF08\u4EC5\u5F71\u54CD\u76D1\u63A7\uFF0C\u4E0D\u5F71\u54CD\u4E1A\u52A1\uFF09:", {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          provider: entry.provider,
+          logicalModel: entry.logicalModel
+        });
+      }
+    } catch (e) {
+      console.warn("[ProviderStats] \u6301\u4E45\u5316 Provider \u8C03\u7528\u7EDF\u8BA1\u5931\u8D25\uFF08\u4EC5\u5F71\u54CD\u76D1\u63A7\uFF0C\u4E0D\u5F71\u54CD\u4E1A\u52A1\uFF09:", e instanceof Error ? e.message : String(e));
+    }
+  })();
+}
+function parseWindow(window) {
+  const m = window.match(/^(\d+)(m|h|d)$/i);
+  if (!m) return 60 * 60 * 1e3;
+  const n = parseInt(m[1], 10);
+  const unit = m[2].toLowerCase();
+  if (unit === "m") return n * 60 * 1e3;
+  if (unit === "h") return n * 60 * 60 * 1e3;
+  if (unit === "d") return n * 24 * 60 * 60 * 1e3;
+  return 60 * 60 * 1e3;
+}
+function aggregate(records, windowLabel, providerFilter) {
+  const filtered = records.filter(
+    (r) => providerFilter == null || r.provider === providerFilter
+  );
+  const byKey = /* @__PURE__ */ new Map();
+  for (const r of filtered) {
+    const key = r.provider;
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(r);
+  }
+  const result = [];
+  for (const [provider13, list] of byKey.entries()) {
+    const successCount = list.filter((r) => r.success).length;
+    const latencies = list.map((r) => r.latencyMs).sort((a, b) => a - b);
+    const p50 = latencies.length ? latencies[Math.floor(latencies.length * 0.5)] : void 0;
+    const p95 = latencies.length ? latencies[Math.floor(latencies.length * 0.95)] : void 0;
+    const errDist = {};
+    for (const r of list) {
+      if (!r.success && r.errorCode) {
+        errDist[r.errorCode] = (errDist[r.errorCode] || 0) + 1;
+      }
+    }
+    result.push({
+      provider: provider13,
+      requestCount: list.length,
+      successCount,
+      errorRate: list.length ? 1 - successCount / list.length : 0,
+      avgLatencyMs: list.length ? list.reduce((s, r) => s + r.latencyMs, 0) / list.length : 0,
+      p50LatencyMs: p50,
+      p95LatencyMs: p95,
+      window: windowLabel,
+      errorDistribution: Object.keys(errDist).length ? errDist : void 0
+    });
+  }
+  return result;
+}
+async function getProviderStats(options = {}) {
+  const windowLabel = options.window || "1h";
+  const windowMs = parseWindow(windowLabel);
+  const since = new Date(Date.now() - windowMs).toISOString();
+  try {
+    const supabase = (0, import_mxmdata2.getSupabaseClient)();
+    let query = supabase.from("provider_call_stats").select("provider, logical_model, success, latency_ms, error_code, created_at").gte("created_at", since);
+    if (options.provider) {
+      query = query.eq("provider", options.provider);
+    }
+    const { data, error } = await query;
+    if (error) {
+      console.warn("[ProviderStats] \u67E5\u8BE2 provider_call_stats \u5931\u8D25\uFF0C\u56DE\u9000\u5230\u5185\u5B58\u7F13\u5B58:", {
+        code: error.code,
+        message: error.message,
+        details: error.details
+      });
+      const sinceTs = Date.now() - windowMs;
+      const recent = RECORDS.filter((r) => r.ts >= sinceTs);
+      return aggregate(recent, windowLabel, options.provider);
+    }
+    const rows = data || [];
+    if (!rows.length) {
+      return [];
+    }
+    const records = rows.map((r) => ({
+      provider: r.provider,
+      logicalModel: r.logical_model,
+      success: r.success,
+      latencyMs: Number(r.latency_ms) || 0,
+      errorCode: r.error_code ?? void 0,
+      ts: r.created_at ? new Date(r.created_at).getTime() : Date.now()
+    }));
+    return aggregate(records, windowLabel, options.provider);
+  } catch (e) {
+    console.warn("[ProviderStats] \u67E5\u8BE2 Provider \u8C03\u7528\u7EDF\u8BA1\u5F02\u5E38\uFF0C\u56DE\u9000\u5230\u5185\u5B58\u7F13\u5B58:", e instanceof Error ? e.message : String(e));
+    const windowMsFallback = parseWindow(windowLabel);
+    const sinceTs = Date.now() - windowMsFallback;
+    const recent = RECORDS.filter((r) => r.ts >= sinceTs);
+    return aggregate(recent, windowLabel, options.provider);
+  }
+}
+var import_mxmdata2, MAX_RECORDS, RECORDS;
+var init_provider_stats = __esm({
+  "src/core/providers/provider-stats.ts"() {
+    "use strict";
+    import_mxmdata2 = require("@mxmai/mxmdata");
+    MAX_RECORDS = 5e4;
+    RECORDS = [];
+  }
+});
+
 // src/models/volc/provider.ts
 var VolcProvider;
 var init_provider8 = __esm({
@@ -6255,10 +6580,10 @@ var init_provider8 = __esm({
         const base = this.injectBaseUrl || process.env.VOLC_BASE_URL || "https://ark.cn-beijing.volces.com/api/v3";
         return base.replace(/\/+$/, "");
       }
-      resolveModelName(modelKey38) {
-        const mapping = this.modelMap[modelKey38];
+      resolveModelName(modelKey43) {
+        const mapping = this.modelMap[modelKey43];
         if (!mapping) {
-          throw new Error(`Volc provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey38}`);
+          throw new Error(`Volc provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
         }
         return getModelName(mapping);
       }
@@ -6367,9 +6692,8 @@ var MinimaxProvider;
 var init_provider9 = __esm({
   "src/models/minimax/provider.ts"() {
     "use strict";
-    init_provider_keys();
+    init_providers_inner();
     init_suport_list();
-    init_provider_stats();
     MinimaxProvider = class {
       constructor(injectApiKey, injectGroupId, injectBaseUrl) {
         this.injectApiKey = injectApiKey;
@@ -6398,10 +6722,10 @@ var init_provider9 = __esm({
         const base = this.injectBaseUrl || process.env.MINIMAX_BASE_URL || "https://api.minimax.chat";
         return base.replace(/\/+$/, "");
       }
-      resolveModelName(modelKey38) {
-        const mapping = this.modelMap[modelKey38];
+      resolveModelName(modelKey43) {
+        const mapping = this.modelMap[modelKey43];
         if (!mapping) {
-          throw new Error(`Minimax provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey38}`);
+          throw new Error(`Minimax provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
         }
         return getModelName(mapping);
       }
@@ -6514,15 +6838,6 @@ var init_provider9 = __esm({
 });
 
 // src/core/providers/model-routing.ts
-var model_routing_exports = {};
-__export(model_routing_exports, {
-  clearAllOverrides: () => clearAllOverrides,
-  clearRoutingOverride: () => clearRoutingOverride,
-  defaultRouting: () => defaultRouting,
-  getFullRoutingTable: () => getFullRoutingTable,
-  getResolvedRouting: () => getResolvedRouting,
-  setRoutingOverride: () => setRoutingOverride
-});
 function getResolvedRouting(logicalOrPhysicalName, preferredProvider) {
   const lookupKey = OUTLINE_ROUTING_ALIAS[logicalOrPhysicalName] ?? logicalOrPhysicalName;
   const entry = overrides[logicalOrPhysicalName] ?? overrides[lookupKey] ?? defaultRouting[logicalOrPhysicalName] ?? defaultRouting[lookupKey];
@@ -6586,6 +6901,8 @@ var init_model_routing = __esm({
       "writing-resumes": { provider: "deer", model: "gemini-2-5-flash" },
       // 兼容旧 task 中的 model 字段（可选）
       "writing-article": { provider: "deer", model: "gemini-2-5-flash" },
+      // 基础文本能力（内部调用）：生图提示词、写作内压缩/摘要等，统一用此逻辑模型
+      "writing-basic-text": { provider: "deer", model: "gemini-3-pro" },
       // 音频
       "audio-speak": { provider: "deer", model: "minimax-speech-2.5-hd" },
       "audio-music": { provider: "deer", model: "suno-music" },
@@ -6609,7 +6926,7 @@ var init_model_routing = __esm({
 
 // src/models/registry.ts
 function registerModel(def) {
-  const { provider: provider13, scope, modelKey: modelKey38 } = def;
+  const { provider: provider13, scope, modelKey: modelKey43 } = def;
   let scopeMap = byProvider.get(provider13);
   if (!scopeMap) {
     scopeMap = /* @__PURE__ */ new Map();
@@ -6620,21 +6937,21 @@ function registerModel(def) {
     modelMap = /* @__PURE__ */ new Map();
     scopeMap.set(scope, modelMap);
   }
-  const existingForProvider = modelMap.get(modelKey38) ?? [];
+  const existingForProvider = modelMap.get(modelKey43) ?? [];
   existingForProvider.push(def);
-  modelMap.set(modelKey38, existingForProvider);
+  modelMap.set(modelKey43, existingForProvider);
   let scopeKeyMap = byScopeAndKey.get(scope);
   if (!scopeKeyMap) {
     scopeKeyMap = /* @__PURE__ */ new Map();
     byScopeAndKey.set(scope, scopeKeyMap);
   }
-  const existingGlobal = scopeKeyMap.get(modelKey38) ?? [];
+  const existingGlobal = scopeKeyMap.get(modelKey43) ?? [];
   existingGlobal.push(def);
-  scopeKeyMap.set(modelKey38, existingGlobal);
+  scopeKeyMap.set(modelKey43, existingGlobal);
 }
-function getModelsByKey(scope, modelKey38) {
+function getModelsByKey(scope, modelKey43) {
   const scopeMap = byScopeAndKey.get(scope);
-  return scopeMap?.get(modelKey38) ?? [];
+  return scopeMap?.get(modelKey43) ?? [];
 }
 function listModels(filter) {
   const results = [];
@@ -6688,13 +7005,13 @@ function buildModelProviderMap(providerTypes) {
   const allModels = listModels();
   for (const def of allModels) {
     const provider13 = def.provider;
-    const modelKey38 = def.modelKey;
+    const modelKey43 = def.modelKey;
     if (!providerTypes.includes(provider13)) continue;
-    if (!map[modelKey38]) {
-      map[modelKey38] = [];
+    if (!map[modelKey43]) {
+      map[modelKey43] = [];
     }
-    if (!map[modelKey38].includes(provider13)) {
-      map[modelKey38].push(provider13);
+    if (!map[modelKey43].includes(provider13)) {
+      map[modelKey43].push(provider13);
     }
   }
   return map;
@@ -7024,6 +7341,36 @@ var init_providers = __esm({
   }
 });
 
+// src/models/providers-inner.ts
+var init_providers_inner = __esm({
+  "src/models/providers-inner.ts"() {
+    "use strict";
+    init_providers();
+  }
+});
+
+// src/models/providers.ts
+var providers_exports = {};
+__export(providers_exports, {
+  clearAllOverrides: () => clearAllOverrides,
+  clearRoutingOverride: () => clearRoutingOverride,
+  defaultRouting: () => defaultRouting,
+  getFirstProviderKey: () => getFirstProviderKey,
+  getFullRoutingTable: () => getFullRoutingTable,
+  getProviderKeys: () => getProviderKeys,
+  getProviderStats: () => getProviderStats,
+  getResolvedRouting: () => getResolvedRouting,
+  providerFactory: () => providerFactory,
+  recordStats: () => recordStats,
+  setRoutingOverride: () => setRoutingOverride
+});
+var init_providers2 = __esm({
+  "src/models/providers.ts"() {
+    "use strict";
+    init_providers_inner();
+  }
+});
+
 // src/models/deerapi/video/sora-utils.ts
 function normalizeSize(size) {
   if (!size || typeof size !== "string") return void 0;
@@ -7066,7 +7413,7 @@ var modelKey, logicalProvider, definition;
 var init_sora_2 = __esm({
   "src/models/deerapi/video/sora-2.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_sora_utils();
     modelKey = "sora-2";
@@ -7108,7 +7455,7 @@ var modelKey2, logicalProvider2, definition2;
 var init_sora_2_pro = __esm({
   "src/models/deerapi/video/sora-2-pro.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_sora_utils();
     modelKey2 = "sora-2-pro";
@@ -7155,7 +7502,7 @@ var modelKey3, logicalProvider3, definition3;
 var init_sora_2_deer = __esm({
   "src/models/deerapi/video/sora-2-deer.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     modelKey3 = "sora-2-deer";
     logicalProvider3 = "deer";
@@ -7192,7 +7539,7 @@ var modelKey4, logicalProvider4, definition4;
 var init_sora_2_deer_pro = __esm({
   "src/models/deerapi/video/sora-2-deer-pro.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     modelKey4 = "sora-2-deer-pro";
     logicalProvider4 = "deer";
@@ -7261,7 +7608,7 @@ var modelKey5, logicalProvider5, definition5;
 var init_runway = __esm({
   "src/models/deerapi/video/runway.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     modelKey5 = "runway";
     logicalProvider5 = "deer";
@@ -7316,7 +7663,7 @@ var modelKey6, logicalProvider6, definition6;
 var init_suno_music = __esm({
   "src/models/deerapi/audio/suno-music.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     modelKey6 = "suno-music";
     logicalProvider6 = "deer";
@@ -7369,7 +7716,7 @@ var modelKey7, provider, definition7;
 var init_deepseek_r1 = __esm({
   "src/models/deerapi/writing/deepseek-r1.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common();
     modelKey7 = "deepseek-r1";
@@ -7394,7 +7741,7 @@ var modelKey8, provider2, definition8;
 var init_deepseek_v3_2 = __esm({
   "src/models/deerapi/writing/deepseek-v3.2.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common();
     modelKey8 = "deepseek-v3.2";
@@ -7419,7 +7766,7 @@ var modelKey9, provider3, definition9;
 var init_gemini_3_pro = __esm({
   "src/models/deerapi/writing/gemini-3-pro.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common();
     modelKey9 = "gemini-3-pro";
@@ -7444,7 +7791,7 @@ var modelKey10, provider4, definition10;
 var init_gemini_2_5_flash = __esm({
   "src/models/deerapi/writing/gemini-2-5-flash.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common();
     modelKey10 = "gemini-2-5-flash";
@@ -7469,7 +7816,7 @@ var modelKey11, provider5, definition11;
 var init_gpt_5_2 = __esm({
   "src/models/deerapi/writing/gpt-5-2.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common();
     modelKey11 = "gpt-5-2";
@@ -7494,7 +7841,7 @@ var modelKey12, provider6, definition12;
 var init_qwen3_30b = __esm({
   "src/models/deerapi/writing/qwen3-30b.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common();
     modelKey12 = "qwen3-30b";
@@ -7519,7 +7866,7 @@ var modelKey13, provider7, definition13;
 var init_qwen3_235b = __esm({
   "src/models/deerapi/writing/qwen3-235b.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common();
     modelKey13 = "qwen3-235b";
@@ -7544,7 +7891,7 @@ var modelKey14, provider8, definition14;
 var init_claude_4_5_sonnet = __esm({
   "src/models/deerapi/writing/claude-4-5-sonnet.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common();
     modelKey14 = "claude-4.5-sonnet";
@@ -7605,7 +7952,7 @@ var modelKey15, provider9, definition15;
 var init_gemini_3_pro2 = __esm({
   "src/models/replicate/writing/gemini-3-pro.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common2();
     modelKey15 = "gemini-3-pro";
@@ -7630,7 +7977,7 @@ var modelKey16, provider10, definition16;
 var init_gemini_2_5_flash2 = __esm({
   "src/models/replicate/writing/gemini-2-5-flash.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common2();
     modelKey16 = "gemini-2-5-flash";
@@ -7655,7 +8002,7 @@ var modelKey17, provider11, definition17;
 var init_claude_4_5_sonnet2 = __esm({
   "src/models/replicate/writing/claude-4-5-sonnet.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common2();
     modelKey17 = "claude-4.5-sonnet";
@@ -7680,7 +8027,7 @@ var modelKey18, provider12, definition18;
 var init_gpt_5_nano = __esm({
   "src/models/replicate/writing/gpt-5-nano.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     init_common2();
     modelKey18 = "gpt-5-nano";
@@ -7725,8 +8072,8 @@ async function generateImpl19(params, _ctx) {
       ...generateParams.parameters,
       image: params.image
     };
-    const isBase642 = typeof params.image === "string" && params.image.startsWith("data:");
-    console.log(`[models/deerapi/graph/nano-banana] \u4F7F\u7528\u5355\u5F20\u56FE\u7247\u53C2\u6570 (image): ${isBase642 ? "Base64\u6570\u636E" : "URL"}`);
+    const isBase643 = typeof params.image === "string" && params.image.startsWith("data:");
+    console.log(`[models/deerapi/graph/nano-banana] \u4F7F\u7528\u5355\u5F20\u56FE\u7247\u53C2\u6570 (image): ${isBase643 ? "Base64\u6570\u636E" : "URL"}`);
   } else if (params.image_urls && params.image_urls.length > 0) {
     generateParams.parameters = {
       ...generateParams.parameters,
@@ -7755,7 +8102,7 @@ var modelKey19, logicalProvider7, definition19;
 var init_nano_banana = __esm({
   "src/models/deerapi/graph/nano-banana.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     modelKey19 = "nano-banana";
     logicalProvider7 = "deer";
@@ -7788,8 +8135,8 @@ async function generateImpl20(params, _ctx) {
       ...generateParams.parameters,
       image: params.image
     };
-    const isBase642 = typeof params.image === "string" && params.image.startsWith("data:");
-    console.log(`[models/deerapi/graph/nano-banana-pro] \u4F7F\u7528\u5355\u5F20\u56FE\u7247\u53C2\u6570 (image): ${isBase642 ? "Base64\u6570\u636E" : "URL"}`);
+    const isBase643 = typeof params.image === "string" && params.image.startsWith("data:");
+    console.log(`[models/deerapi/graph/nano-banana-pro] \u4F7F\u7528\u5355\u5F20\u56FE\u7247\u53C2\u6570 (image): ${isBase643 ? "Base64\u6570\u636E" : "URL"}`);
   } else if (params.image_urls && params.image_urls.length > 0) {
     generateParams.parameters = {
       ...generateParams.parameters,
@@ -7818,7 +8165,7 @@ var modelKey20, logicalProvider8, definition20;
 var init_nano_banana_pro = __esm({
   "src/models/deerapi/graph/nano-banana-pro.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
     modelKey20 = "nano-banana-pro";
     logicalProvider8 = "deer";
@@ -7832,7 +8179,7 @@ var init_nano_banana_pro = __esm({
   }
 });
 
-// src/models/deerapi/graph/seedream-4.ts
+// src/models/deerapi/graph/nano-banana-2.ts
 async function generateImpl21(params, _ctx) {
   const preferred = _ctx?.providerOverride;
   const modelProvider = providerFactory.getProviderForModel(modelKey21, preferred);
@@ -7841,16 +8188,37 @@ async function generateImpl21(params, _ctx) {
     negativePrompt: params.negativePrompt,
     enableProgress: params.enableProgress,
     parameters: {
-      size: params.size,
       aspect_ratio: params.aspect_ratio,
-      width: params.width,
-      height: params.height,
-      image_input: params.image_input,
-      sequential_image_generation: params.sequential_image_generation,
-      max_images: params.max_images,
+      image_size: params.image_size,
       ...params.parameters
     }
   };
+  if (params.image) {
+    generateParams.parameters = {
+      ...generateParams.parameters,
+      image: params.image
+    };
+    const isBase643 = typeof params.image === "string" && params.image.startsWith("data:");
+    console.log(
+      `[models/deerapi/graph/nano-banana-2] \u4F7F\u7528\u5355\u5F20\u56FE\u7247\u53C2\u6570 (image): ${isBase643 ? "Base64\u6570\u636E" : "URL"}`
+    );
+  } else if (params.image_urls && params.image_urls.length > 0) {
+    generateParams.parameters = {
+      ...generateParams.parameters,
+      image_urls: params.image_urls
+    };
+    console.log(
+      `[models/deerapi/graph/nano-banana-2] \u4F7F\u7528\u591A\u56FEURL\u53C2\u6570 (image_urls): ${params.image_urls.length} \u5F20\u56FE\u7247`
+    );
+  } else if (params.image_base64s && params.image_base64s.length > 0) {
+    generateParams.parameters = {
+      ...generateParams.parameters,
+      image_base64s: params.image_base64s
+    };
+    console.log(
+      `[models/deerapi/graph/nano-banana-2] \u4F7F\u7528\u591A\u56FEBase64\u53C2\u6570 (image_base64s): ${params.image_base64s.length} \u5F20\u56FE\u7247`
+    );
+  }
   const result = await modelProvider.generate(modelKey21, generateParams);
   return {
     ...result,
@@ -7859,12 +8227,12 @@ async function generateImpl21(params, _ctx) {
   };
 }
 var modelKey21, logicalProvider9, definition21;
-var init_seedream_4 = __esm({
-  "src/models/deerapi/graph/seedream-4.ts"() {
+var init_nano_banana_2 = __esm({
+  "src/models/deerapi/graph/nano-banana-2.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey21 = "seedream-4";
+    modelKey21 = "nano-banana-2";
     logicalProvider9 = "deer";
     definition21 = {
       provider: logicalProvider9,
@@ -7876,7 +8244,7 @@ var init_seedream_4 = __esm({
   }
 });
 
-// src/models/deerapi/graph/flux-2-pro.ts
+// src/models/deerapi/graph/nano-banana-2-pro.ts
 async function generateImpl22(params, _ctx) {
   const preferred = _ctx?.providerOverride;
   const modelProvider = providerFactory.getProviderForModel(modelKey22, preferred);
@@ -7887,12 +8255,35 @@ async function generateImpl22(params, _ctx) {
     parameters: {
       aspect_ratio: params.aspect_ratio,
       image_size: params.image_size,
-      num_outputs: params.num_outputs,
-      output_format: params.output_format,
-      safety_tolerance: params.safety_tolerance,
       ...params.parameters
     }
   };
+  if (params.image) {
+    generateParams.parameters = {
+      ...generateParams.parameters,
+      image: params.image
+    };
+    const isBase643 = typeof params.image === "string" && params.image.startsWith("data:");
+    console.log(
+      `[models/deerapi/graph/nano-banana-2-pro] \u4F7F\u7528\u5355\u5F20\u56FE\u7247\u53C2\u6570 (image): ${isBase643 ? "Base64\u6570\u636E" : "URL"}`
+    );
+  } else if (params.image_urls && params.image_urls.length > 0) {
+    generateParams.parameters = {
+      ...generateParams.parameters,
+      image_urls: params.image_urls
+    };
+    console.log(
+      `[models/deerapi/graph/nano-banana-2-pro] \u4F7F\u7528\u591A\u56FEURL\u53C2\u6570 (image_urls): ${params.image_urls.length} \u5F20\u56FE\u7247`
+    );
+  } else if (params.image_base64s && params.image_base64s.length > 0) {
+    generateParams.parameters = {
+      ...generateParams.parameters,
+      image_base64s: params.image_base64s
+    };
+    console.log(
+      `[models/deerapi/graph/nano-banana-2-pro] \u4F7F\u7528\u591A\u56FEBase64\u53C2\u6570 (image_base64s): ${params.image_base64s.length} \u5F20\u56FE\u7247`
+    );
+  }
   const result = await modelProvider.generate(modelKey22, generateParams);
   return {
     ...result,
@@ -7901,12 +8292,12 @@ async function generateImpl22(params, _ctx) {
   };
 }
 var modelKey22, logicalProvider10, definition22;
-var init_flux_2_pro = __esm({
-  "src/models/deerapi/graph/flux-2-pro.ts"() {
+var init_nano_banana_2_pro = __esm({
+  "src/models/deerapi/graph/nano-banana-2-pro.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey22 = "flux-2-pro";
+    modelKey22 = "nano-banana-2-pro";
     logicalProvider10 = "deer";
     definition22 = {
       provider: logicalProvider10,
@@ -7918,20 +8309,10 @@ var init_flux_2_pro = __esm({
   }
 });
 
-// src/models/deerapi/graph/index.ts
-var require_graph = __commonJS({
-  "src/models/deerapi/graph/index.ts"() {
-    "use strict";
-    init_nano_banana();
-    init_nano_banana_pro();
-    init_seedream_4();
-    init_flux_2_pro();
-  }
-});
-
-// src/models/volc/graph/seedream-4-volc.ts
+// src/models/deerapi/graph/seedream-4.ts
 async function generateImpl23(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey23, _ctx?.providerOverride);
+  const preferred = _ctx?.providerOverride;
+  const modelProvider = providerFactory.getProviderForModel(modelKey23, preferred);
   const generateParams = {
     prompt: params.prompt,
     negativePrompt: params.negativePrompt,
@@ -7955,13 +8336,13 @@ async function generateImpl23(params, _ctx) {
   };
 }
 var modelKey23, logicalProvider11, definition23;
-var init_seedream_4_volc = __esm({
-  "src/models/volc/graph/seedream-4-volc.ts"() {
+var init_seedream_4 = __esm({
+  "src/models/deerapi/graph/seedream-4.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey23 = "seedream-4-volc";
-    logicalProvider11 = "volc";
+    modelKey23 = "seedream-4";
+    logicalProvider11 = "deer";
     definition23 = {
       provider: logicalProvider11,
       scope: "graph",
@@ -7969,6 +8350,149 @@ var init_seedream_4_volc = __esm({
       generate: generateImpl23
     };
     registerModel(definition23);
+  }
+});
+
+// src/models/deerapi/graph/seedream-5.ts
+async function generateImpl24(params, _ctx) {
+  const preferred = _ctx?.providerOverride;
+  const modelProvider = providerFactory.getProviderForModel(modelKey24, preferred);
+  const generateParams = {
+    prompt: params.prompt,
+    negativePrompt: params.negativePrompt,
+    enableProgress: params.enableProgress,
+    parameters: {
+      size: params.size,
+      aspect_ratio: params.aspect_ratio,
+      width: params.width,
+      height: params.height,
+      image_input: params.image_input,
+      sequential_image_generation: params.sequential_image_generation,
+      max_images: params.max_images,
+      ...params.parameters
+    }
+  };
+  const result = await modelProvider.generate(modelKey24, generateParams);
+  return {
+    ...result,
+    image_urls: result.mediaUrls,
+    progress: result.progress
+  };
+}
+var modelKey24, logicalProvider12, definition24;
+var init_seedream_5 = __esm({
+  "src/models/deerapi/graph/seedream-5.ts"() {
+    "use strict";
+    init_providers2();
+    init_registry();
+    modelKey24 = "seedream-5";
+    logicalProvider12 = "deer";
+    definition24 = {
+      provider: logicalProvider12,
+      scope: "graph",
+      modelKey: modelKey24,
+      generate: generateImpl24
+    };
+    registerModel(definition24);
+  }
+});
+
+// src/models/deerapi/graph/flux-2-pro.ts
+async function generateImpl25(params, _ctx) {
+  const preferred = _ctx?.providerOverride;
+  const modelProvider = providerFactory.getProviderForModel(modelKey25, preferred);
+  const generateParams = {
+    prompt: params.prompt,
+    negativePrompt: params.negativePrompt,
+    enableProgress: params.enableProgress,
+    parameters: {
+      aspect_ratio: params.aspect_ratio,
+      image_size: params.image_size,
+      num_outputs: params.num_outputs,
+      output_format: params.output_format,
+      safety_tolerance: params.safety_tolerance,
+      ...params.parameters
+    }
+  };
+  const result = await modelProvider.generate(modelKey25, generateParams);
+  return {
+    ...result,
+    image_urls: result.mediaUrls,
+    progress: result.progress
+  };
+}
+var modelKey25, logicalProvider13, definition25;
+var init_flux_2_pro = __esm({
+  "src/models/deerapi/graph/flux-2-pro.ts"() {
+    "use strict";
+    init_providers2();
+    init_registry();
+    modelKey25 = "flux-2-pro";
+    logicalProvider13 = "deer";
+    definition25 = {
+      provider: logicalProvider13,
+      scope: "graph",
+      modelKey: modelKey25,
+      generate: generateImpl25
+    };
+    registerModel(definition25);
+  }
+});
+
+// src/models/deerapi/graph/index.ts
+var require_graph = __commonJS({
+  "src/models/deerapi/graph/index.ts"() {
+    "use strict";
+    init_nano_banana();
+    init_nano_banana_pro();
+    init_nano_banana_2();
+    init_nano_banana_2_pro();
+    init_seedream_4();
+    init_seedream_5();
+    init_flux_2_pro();
+  }
+});
+
+// src/models/volc/graph/seedream-4-volc.ts
+async function generateImpl26(params, _ctx) {
+  const modelProvider = providerFactory.getProviderForModel(modelKey26, _ctx?.providerOverride);
+  const generateParams = {
+    prompt: params.prompt,
+    negativePrompt: params.negativePrompt,
+    enableProgress: params.enableProgress,
+    parameters: {
+      size: params.size,
+      aspect_ratio: params.aspect_ratio,
+      width: params.width,
+      height: params.height,
+      image_input: params.image_input,
+      sequential_image_generation: params.sequential_image_generation,
+      max_images: params.max_images,
+      ...params.parameters
+    }
+  };
+  const result = await modelProvider.generate(modelKey26, generateParams);
+  return {
+    ...result,
+    image_urls: result.mediaUrls,
+    progress: result.progress
+  };
+}
+var modelKey26, logicalProvider14, definition26;
+var init_seedream_4_volc = __esm({
+  "src/models/volc/graph/seedream-4-volc.ts"() {
+    "use strict";
+    init_providers2();
+    init_registry();
+    modelKey26 = "seedream-4-volc";
+    logicalProvider14 = "volc";
+    definition26 = {
+      provider: logicalProvider14,
+      scope: "graph",
+      modelKey: modelKey26,
+      generate: generateImpl26
+    };
+    registerModel(definition26);
   }
 });
 
@@ -7981,9 +8505,9 @@ var require_graph2 = __commonJS({
 });
 
 // src/models/replicate/graph/flux-fast.ts
-async function generateImpl24(params, _ctx) {
+async function generateImpl27(params, _ctx) {
   const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey24, preferred);
+  const modelProvider = providerFactory.getProviderForModel(modelKey27, preferred);
   const generateParams = {
     prompt: params.prompt,
     negativePrompt: params.negativePrompt,
@@ -7995,31 +8519,31 @@ async function generateImpl24(params, _ctx) {
       ...params.parameters
     }
   };
-  const result = await modelProvider.generate(modelKey24, generateParams);
+  const result = await modelProvider.generate(modelKey27, generateParams);
   return { ...result, image_urls: result.mediaUrls };
 }
-var modelKey24, logicalProvider12, definition24;
+var modelKey27, logicalProvider15, definition27;
 var init_flux_fast = __esm({
   "src/models/replicate/graph/flux-fast.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey24 = "flux-fast";
-    logicalProvider12 = "replicate";
-    definition24 = {
-      provider: logicalProvider12,
+    modelKey27 = "flux-fast";
+    logicalProvider15 = "replicate";
+    definition27 = {
+      provider: logicalProvider15,
       scope: "graph",
-      modelKey: modelKey24,
-      generate: generateImpl24
+      modelKey: modelKey27,
+      generate: generateImpl27
     };
-    registerModel(definition24);
+    registerModel(definition27);
   }
 });
 
 // src/models/replicate/graph/flux-2-flex.ts
-async function generateImpl25(params, _ctx) {
+async function generateImpl28(params, _ctx) {
   const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey25, preferred);
+  const modelProvider = providerFactory.getProviderForModel(modelKey28, preferred);
   const generateParams = {
     prompt: params.prompt,
     negativePrompt: params.negativePrompt,
@@ -8032,31 +8556,31 @@ async function generateImpl25(params, _ctx) {
       ...params.parameters
     }
   };
-  const result = await modelProvider.generate(modelKey25, generateParams);
+  const result = await modelProvider.generate(modelKey28, generateParams);
   return { ...result, image_urls: result.mediaUrls, progress: result.progress };
 }
-var modelKey25, logicalProvider13, definition25;
+var modelKey28, logicalProvider16, definition28;
 var init_flux_2_flex = __esm({
   "src/models/replicate/graph/flux-2-flex.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey25 = "flux-2-flex";
-    logicalProvider13 = "replicate";
-    definition25 = {
-      provider: logicalProvider13,
+    modelKey28 = "flux-2-flex";
+    logicalProvider16 = "replicate";
+    definition28 = {
+      provider: logicalProvider16,
       scope: "graph",
-      modelKey: modelKey25,
-      generate: generateImpl25
+      modelKey: modelKey28,
+      generate: generateImpl28
     };
-    registerModel(definition25);
+    registerModel(definition28);
   }
 });
 
 // src/models/replicate/graph/ideogram-v2a.ts
-async function generateImpl26(params, _ctx) {
+async function generateImpl29(params, _ctx) {
   const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey26, preferred);
+  const modelProvider = providerFactory.getProviderForModel(modelKey29, preferred);
   const generateParams = {
     prompt: params.prompt,
     negativePrompt: params.negativePrompt,
@@ -8071,31 +8595,31 @@ async function generateImpl26(params, _ctx) {
       ...params.parameters
     }
   };
-  const result = await modelProvider.generate(modelKey26, generateParams);
+  const result = await modelProvider.generate(modelKey29, generateParams);
   return { ...result, image_urls: result.mediaUrls };
 }
-var modelKey26, logicalProvider14, definition26;
+var modelKey29, logicalProvider17, definition29;
 var init_ideogram_v2a = __esm({
   "src/models/replicate/graph/ideogram-v2a.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey26 = "ideogram-v2a";
-    logicalProvider14 = "replicate";
-    definition26 = {
-      provider: logicalProvider14,
+    modelKey29 = "ideogram-v2a";
+    logicalProvider17 = "replicate";
+    definition29 = {
+      provider: logicalProvider17,
       scope: "graph",
-      modelKey: modelKey26,
-      generate: generateImpl26
+      modelKey: modelKey29,
+      generate: generateImpl29
     };
-    registerModel(definition26);
+    registerModel(definition29);
   }
 });
 
 // src/models/replicate/graph/recraft-crisp-upscale.ts
-async function generateImpl27(params, _ctx) {
+async function generateImpl30(params, _ctx) {
   const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey27, preferred);
+  const modelProvider = providerFactory.getProviderForModel(modelKey30, preferred);
   const generateParams = {
     prompt: params.prompt || "",
     negativePrompt: params.negativePrompt,
@@ -8109,24 +8633,24 @@ async function generateImpl27(params, _ctx) {
     }
   };
   if (generateParams.parameters?.input_image) delete generateParams.parameters.input_image;
-  const result = await modelProvider.generate(modelKey27, generateParams);
+  const result = await modelProvider.generate(modelKey30, generateParams);
   return { ...result, image_urls: result.mediaUrls };
 }
-var modelKey27, logicalProvider15, definition27;
+var modelKey30, logicalProvider18, definition30;
 var init_recraft_crisp_upscale = __esm({
   "src/models/replicate/graph/recraft-crisp-upscale.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey27 = "recraft-crisp-upscale";
-    logicalProvider15 = "replicate";
-    definition27 = {
-      provider: logicalProvider15,
+    modelKey30 = "recraft-crisp-upscale";
+    logicalProvider18 = "replicate";
+    definition30 = {
+      provider: logicalProvider18,
       scope: "graph",
-      modelKey: modelKey27,
-      generate: generateImpl27
+      modelKey: modelKey30,
+      generate: generateImpl30
     };
-    registerModel(definition27);
+    registerModel(definition30);
   }
 });
 
@@ -8142,9 +8666,9 @@ var require_graph3 = __commonJS({
 });
 
 // src/models/ppio/audio/minimax-voice-cloning.ts
-async function generateImpl28(params, _ctx) {
+async function generateImpl31(params, _ctx) {
   const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey28, preferred);
+  const modelProvider = providerFactory.getProviderForModel(modelKey31, preferred);
   const generateParams = {
     prompt: params.audio_url,
     parameters: {
@@ -8158,220 +8682,220 @@ async function generateImpl28(params, _ctx) {
       ...params.parameters
     }
   };
-  const result = await modelProvider.generate(modelKey28, generateParams);
+  const result = await modelProvider.generate(modelKey31, generateParams);
   return {
     ...result,
     voice_id: result.metadata?.voice_id || "",
     demo_audio_url: result.mediaUrls?.[0]
   };
 }
-var modelKey28, logicalProvider16, definition28;
+var modelKey31, logicalProvider19, definition31;
 var init_minimax_voice_cloning = __esm({
   "src/models/ppio/audio/minimax-voice-cloning.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey28 = "minimax-voice-cloning";
-    logicalProvider16 = "ppio";
-    definition28 = {
-      provider: logicalProvider16,
+    modelKey31 = "minimax-voice-cloning";
+    logicalProvider19 = "ppio";
+    definition31 = {
+      provider: logicalProvider19,
       scope: "audio",
-      modelKey: modelKey28,
-      generate: generateImpl28
+      modelKey: modelKey31,
+      generate: generateImpl31
     };
-    registerModel(definition28);
+    registerModel(definition31);
   }
 });
 
 // src/models/ppio/audio/minimax-speech-02-turbo.ts
-async function generateImpl29(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey29, _ctx?.providerOverride);
+async function generateImpl32(params, _ctx) {
+  const modelProvider = providerFactory.getProviderForModel(modelKey32, _ctx?.providerOverride);
   const generateParams = {
     prompt: params.prompt,
     parameters: { voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, timbre_weights: params.timbre_weights, stream: params.stream, stream_options: params.stream_options, language_boost: params.language_boost, output_format: params.output_format, voice_modify: params.voice_modify, ...params.parameters },
     enableProgress: params.enableProgress
   };
-  const result = await modelProvider.generate(modelKey29, generateParams);
+  const result = await modelProvider.generate(modelKey32, generateParams);
   return { ...result, status: result.metadata?.status };
 }
-var modelKey29, logicalProvider17, definition29;
+var modelKey32, logicalProvider20, definition32;
 var init_minimax_speech_02_turbo = __esm({
   "src/models/ppio/audio/minimax-speech-02-turbo.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey29 = "minimax-speech-02-turbo";
-    logicalProvider17 = "ppio";
-    definition29 = { provider: logicalProvider17, scope: "audio", modelKey: modelKey29, generate: generateImpl29 };
-    registerModel(definition29);
-  }
-});
-
-// src/models/ppio/audio/minimax-speech-02-hd-async.ts
-async function generateImpl30(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey30, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, language_boost: params.language_boost, voice_modify: params.voice_modify },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey30, generateParams);
-  return { ...result, task_id: result.metadata?.task_id, progress: result.progress };
-}
-var modelKey30, logicalProvider18, definition30;
-var init_minimax_speech_02_hd_async = __esm({
-  "src/models/ppio/audio/minimax-speech-02-hd-async.ts"() {
-    "use strict";
-    init_providers();
-    init_registry();
-    modelKey30 = "minimax-speech-02-hd-async";
-    logicalProvider18 = "ppio";
-    definition30 = { provider: logicalProvider18, scope: "audio", modelKey: modelKey30, generate: generateImpl30 };
-    registerModel(definition30);
-  }
-});
-
-// src/models/ppio/audio/minimax-speech-2.6-hd.ts
-async function generateImpl31(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey31, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, timbre_weights: params.timbre_weights, stream: params.stream, stream_options: params.stream_options, language_boost: params.language_boost, output_format: params.output_format, voice_modify: params.voice_modify },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey31, generateParams);
-  return { ...result, status: result.metadata?.status };
-}
-var modelKey31, logicalProvider19, definition31;
-var init_minimax_speech_2_6_hd = __esm({
-  "src/models/ppio/audio/minimax-speech-2.6-hd.ts"() {
-    "use strict";
-    init_providers();
-    init_registry();
-    modelKey31 = "minimax-speech-2.6-hd";
-    logicalProvider19 = "ppio";
-    definition31 = { provider: logicalProvider19, scope: "audio", modelKey: modelKey31, generate: generateImpl31 };
-    registerModel(definition31);
-  }
-});
-
-// src/models/ppio/audio/minimax-speech-2.6-hd-async.ts
-async function generateImpl32(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey32, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, language_boost: params.language_boost, voice_modify: params.voice_modify },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey32, generateParams);
-  return { ...result, task_id: result.metadata?.task_id, progress: result.progress };
-}
-var modelKey32, logicalProvider20, definition32;
-var init_minimax_speech_2_6_hd_async = __esm({
-  "src/models/ppio/audio/minimax-speech-2.6-hd-async.ts"() {
-    "use strict";
-    init_providers();
-    init_registry();
-    modelKey32 = "minimax-speech-2.6-hd-async";
+    modelKey32 = "minimax-speech-02-turbo";
     logicalProvider20 = "ppio";
     definition32 = { provider: logicalProvider20, scope: "audio", modelKey: modelKey32, generate: generateImpl32 };
     registerModel(definition32);
   }
 });
 
-// src/models/ppio/audio/minimax-speech-2.5-hd.ts
+// src/models/ppio/audio/minimax-speech-02-hd-async.ts
 async function generateImpl33(params, _ctx) {
   const modelProvider = providerFactory.getProviderForModel(modelKey33, _ctx?.providerOverride);
   const generateParams = {
     prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, timbre_weights: params.timbre_weights, stream: params.stream, stream_options: params.stream_options, language_boost: params.language_boost, output_format: params.output_format, voice_modify: params.voice_modify },
+    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, language_boost: params.language_boost, voice_modify: params.voice_modify },
     enableProgress: params.enableProgress
   };
   const result = await modelProvider.generate(modelKey33, generateParams);
-  return { ...result, status: result.metadata?.status };
+  return { ...result, task_id: result.metadata?.task_id, progress: result.progress };
 }
 var modelKey33, logicalProvider21, definition33;
-var init_minimax_speech_2_5_hd = __esm({
-  "src/models/ppio/audio/minimax-speech-2.5-hd.ts"() {
+var init_minimax_speech_02_hd_async = __esm({
+  "src/models/ppio/audio/minimax-speech-02-hd-async.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey33 = "minimax-speech-2.5-hd";
+    modelKey33 = "minimax-speech-02-hd-async";
     logicalProvider21 = "ppio";
     definition33 = { provider: logicalProvider21, scope: "audio", modelKey: modelKey33, generate: generateImpl33 };
     registerModel(definition33);
   }
 });
 
-// src/models/ppio/audio/minimax-speech-2.5-hd-async.ts
+// src/models/ppio/audio/minimax-speech-2.6-hd.ts
 async function generateImpl34(params, _ctx) {
   const modelProvider = providerFactory.getProviderForModel(modelKey34, _ctx?.providerOverride);
   const generateParams = {
     prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, language_boost: params.language_boost, voice_modify: params.voice_modify },
+    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, timbre_weights: params.timbre_weights, stream: params.stream, stream_options: params.stream_options, language_boost: params.language_boost, output_format: params.output_format, voice_modify: params.voice_modify },
     enableProgress: params.enableProgress
   };
   const result = await modelProvider.generate(modelKey34, generateParams);
-  return { ...result, task_id: result.metadata?.task_id, progress: result.progress };
+  return { ...result, status: result.metadata?.status };
 }
 var modelKey34, logicalProvider22, definition34;
-var init_minimax_speech_2_5_hd_async = __esm({
-  "src/models/ppio/audio/minimax-speech-2.5-hd-async.ts"() {
+var init_minimax_speech_2_6_hd = __esm({
+  "src/models/ppio/audio/minimax-speech-2.6-hd.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey34 = "minimax-speech-2.5-hd-async";
+    modelKey34 = "minimax-speech-2.6-hd";
     logicalProvider22 = "ppio";
     definition34 = { provider: logicalProvider22, scope: "audio", modelKey: modelKey34, generate: generateImpl34 };
     registerModel(definition34);
   }
 });
 
-// src/models/ppio/audio/minimax-speech-2.5-turbo.ts
+// src/models/ppio/audio/minimax-speech-2.6-hd-async.ts
 async function generateImpl35(params, _ctx) {
   const modelProvider = providerFactory.getProviderForModel(modelKey35, _ctx?.providerOverride);
   const generateParams = {
     prompt: params.prompt,
-    parameters: { voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, timbre_weights: params.timbre_weights, stream: params.stream, stream_options: params.stream_options, language_boost: params.language_boost, output_format: params.output_format, voice_modify: params.voice_modify, ...params.parameters },
+    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, language_boost: params.language_boost, voice_modify: params.voice_modify },
     enableProgress: params.enableProgress
   };
   const result = await modelProvider.generate(modelKey35, generateParams);
-  return { ...result, status: result.metadata?.status };
+  return { ...result, task_id: result.metadata?.task_id, progress: result.progress };
 }
 var modelKey35, logicalProvider23, definition35;
-var init_minimax_speech_2_5_turbo = __esm({
-  "src/models/ppio/audio/minimax-speech-2.5-turbo.ts"() {
+var init_minimax_speech_2_6_hd_async = __esm({
+  "src/models/ppio/audio/minimax-speech-2.6-hd-async.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey35 = "minimax-speech-2.5-turbo";
+    modelKey35 = "minimax-speech-2.6-hd-async";
     logicalProvider23 = "ppio";
     definition35 = { provider: logicalProvider23, scope: "audio", modelKey: modelKey35, generate: generateImpl35 };
     registerModel(definition35);
   }
 });
 
-// src/models/ppio/audio/minimax-speech-2.5-turbo-async.ts
+// src/models/ppio/audio/minimax-speech-2.5-hd.ts
 async function generateImpl36(params, _ctx) {
   const modelProvider = providerFactory.getProviderForModel(modelKey36, _ctx?.providerOverride);
+  const generateParams = {
+    prompt: params.prompt,
+    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, timbre_weights: params.timbre_weights, stream: params.stream, stream_options: params.stream_options, language_boost: params.language_boost, output_format: params.output_format, voice_modify: params.voice_modify },
+    enableProgress: params.enableProgress
+  };
+  const result = await modelProvider.generate(modelKey36, generateParams);
+  return { ...result, status: result.metadata?.status };
+}
+var modelKey36, logicalProvider24, definition36;
+var init_minimax_speech_2_5_hd = __esm({
+  "src/models/ppio/audio/minimax-speech-2.5-hd.ts"() {
+    "use strict";
+    init_providers2();
+    init_registry();
+    modelKey36 = "minimax-speech-2.5-hd";
+    logicalProvider24 = "ppio";
+    definition36 = { provider: logicalProvider24, scope: "audio", modelKey: modelKey36, generate: generateImpl36 };
+    registerModel(definition36);
+  }
+});
+
+// src/models/ppio/audio/minimax-speech-2.5-hd-async.ts
+async function generateImpl37(params, _ctx) {
+  const modelProvider = providerFactory.getProviderForModel(modelKey37, _ctx?.providerOverride);
   const generateParams = {
     prompt: params.prompt,
     parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, language_boost: params.language_boost, voice_modify: params.voice_modify },
     enableProgress: params.enableProgress
   };
-  const result = await modelProvider.generate(modelKey36, generateParams);
+  const result = await modelProvider.generate(modelKey37, generateParams);
   return { ...result, task_id: result.metadata?.task_id, progress: result.progress };
 }
-var modelKey36, logicalProvider24, definition36;
+var modelKey37, logicalProvider25, definition37;
+var init_minimax_speech_2_5_hd_async = __esm({
+  "src/models/ppio/audio/minimax-speech-2.5-hd-async.ts"() {
+    "use strict";
+    init_providers2();
+    init_registry();
+    modelKey37 = "minimax-speech-2.5-hd-async";
+    logicalProvider25 = "ppio";
+    definition37 = { provider: logicalProvider25, scope: "audio", modelKey: modelKey37, generate: generateImpl37 };
+    registerModel(definition37);
+  }
+});
+
+// src/models/ppio/audio/minimax-speech-2.5-turbo.ts
+async function generateImpl38(params, _ctx) {
+  const modelProvider = providerFactory.getProviderForModel(modelKey38, _ctx?.providerOverride);
+  const generateParams = {
+    prompt: params.prompt,
+    parameters: { voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, timbre_weights: params.timbre_weights, stream: params.stream, stream_options: params.stream_options, language_boost: params.language_boost, output_format: params.output_format, voice_modify: params.voice_modify, ...params.parameters },
+    enableProgress: params.enableProgress
+  };
+  const result = await modelProvider.generate(modelKey38, generateParams);
+  return { ...result, status: result.metadata?.status };
+}
+var modelKey38, logicalProvider26, definition38;
+var init_minimax_speech_2_5_turbo = __esm({
+  "src/models/ppio/audio/minimax-speech-2.5-turbo.ts"() {
+    "use strict";
+    init_providers2();
+    init_registry();
+    modelKey38 = "minimax-speech-2.5-turbo";
+    logicalProvider26 = "ppio";
+    definition38 = { provider: logicalProvider26, scope: "audio", modelKey: modelKey38, generate: generateImpl38 };
+    registerModel(definition38);
+  }
+});
+
+// src/models/ppio/audio/minimax-speech-2.5-turbo-async.ts
+async function generateImpl39(params, _ctx) {
+  const modelProvider = providerFactory.getProviderForModel(modelKey39, _ctx?.providerOverride);
+  const generateParams = {
+    prompt: params.prompt,
+    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, language_boost: params.language_boost, voice_modify: params.voice_modify },
+    enableProgress: params.enableProgress
+  };
+  const result = await modelProvider.generate(modelKey39, generateParams);
+  return { ...result, task_id: result.metadata?.task_id, progress: result.progress };
+}
+var modelKey39, logicalProvider27, definition39;
 var init_minimax_speech_2_5_turbo_async = __esm({
   "src/models/ppio/audio/minimax-speech-2.5-turbo-async.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey36 = "minimax-speech-2.5-turbo-async";
-    logicalProvider24 = "ppio";
-    definition36 = { provider: logicalProvider24, scope: "audio", modelKey: modelKey36, generate: generateImpl36 };
-    registerModel(definition36);
+    modelKey39 = "minimax-speech-2.5-turbo-async";
+    logicalProvider27 = "ppio";
+    definition39 = { provider: logicalProvider27, scope: "audio", modelKey: modelKey39, generate: generateImpl39 };
+    registerModel(definition39);
   }
 });
 
@@ -8392,26 +8916,26 @@ var require_audio2 = __commonJS({
 });
 
 // src/models/minimax/audio/minimax-speech-2.8-hd.ts
-async function generateImpl37(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey37, _ctx?.providerOverride);
+async function generateImpl40(params, _ctx) {
+  const modelProvider = providerFactory.getProviderForModel(modelKey40, _ctx?.providerOverride);
   const generateParams = {
     prompt: params.prompt,
     parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, stream: params.stream, output_format: params.output_format },
     enableProgress: params.enableProgress
   };
-  const result = await modelProvider.generate(modelKey37, generateParams);
+  const result = await modelProvider.generate(modelKey40, generateParams);
   return { ...result, status: result.metadata?.status };
 }
-var modelKey37, logicalProvider25, definition37;
+var modelKey40, logicalProvider28, definition40;
 var init_minimax_speech_2_8_hd = __esm({
   "src/models/minimax/audio/minimax-speech-2.8-hd.ts"() {
     "use strict";
-    init_providers();
+    init_providers2();
     init_registry();
-    modelKey37 = "minimax-speech-2.8-hd";
-    logicalProvider25 = "minimax";
-    definition37 = { provider: logicalProvider25, scope: "audio", modelKey: modelKey37, generate: generateImpl37 };
-    registerModel(definition37);
+    modelKey40 = "minimax-speech-2.8-hd";
+    logicalProvider28 = "minimax";
+    definition40 = { provider: logicalProvider28, scope: "audio", modelKey: modelKey40, generate: generateImpl40 };
+    registerModel(definition40);
   }
 });
 
@@ -8423,130 +8947,74 @@ var require_audio3 = __commonJS({
   }
 });
 
-// src/core/graph/reference-image.ts
-async function compressImage(imageData, maxSizeMB = 2, maxWidth = 2048, maxHeight = 2048, quality = 85) {
-  if (!isBase64(imageData)) {
-    return {
-      compressed: imageData,
-      originalSizeKB: 0,
-      compressedSizeKB: 0,
-      wasCompressed: false
-    };
-  }
-  const base64Data = extractBase64FromDataUri(imageData);
-  const imageBuffer = Buffer.from(base64Data, "base64");
-  const originalSizeKB = imageBuffer.length / 1024;
-  const originalSizeMB = originalSizeKB / 1024;
-  if (originalSizeMB <= maxSizeMB) {
-    return {
-      compressed: imageData,
-      originalSizeKB,
-      compressedSizeKB: originalSizeKB,
-      wasCompressed: false
-    };
-  }
-  let sharp2;
-  try {
-    sharp2 = require("sharp");
-  } catch (error) {
-    console.warn("[ReferenceImage] sharp \u672A\u5B89\u88C5\uFF0C\u65E0\u6CD5\u538B\u7F29\u56FE\u7247");
-    console.warn("   \u5EFA\u8BAE\u5B89\u88C5: npm install sharp \u6216 pnpm add sharp");
-    return {
-      compressed: imageData,
-      originalSizeKB,
-      compressedSizeKB: originalSizeKB,
-      wasCompressed: false,
-      error: "sharp \u672A\u5B89\u88C5"
-    };
-  }
-  try {
-    const metadata = await sharp2(imageBuffer).metadata();
-    const { width, height, format } = metadata;
-    let targetWidth = width;
-    let targetHeight = height;
-    if (width > maxWidth || height > maxHeight) {
-      const ratio = Math.min(maxWidth / width, maxHeight / height);
-      targetWidth = Math.round(width * ratio);
-      targetHeight = Math.round(height * ratio);
-    }
-    let sharpInstance = sharp2(imageBuffer);
-    if (targetWidth !== width || targetHeight !== height) {
-      sharpInstance = sharpInstance.resize(targetWidth, targetHeight, {
-        fit: "inside",
-        // 保持宽高比，不裁剪
-        withoutEnlargement: true
-        // 不放大
-      });
-      console.log(`[ReferenceImage] \u8C03\u6574\u56FE\u7247\u5C3A\u5BF8: ${width}x${height} \u2192 ${targetWidth}x${targetHeight}`);
-    }
-    const isPng = format === "png";
-    const isJpeg = format === "jpeg" || format === "jpg";
-    if (isPng) {
-      sharpInstance = sharpInstance.png({
-        quality,
-        compressionLevel: 9
-        // 最高压缩级别
-      });
-    } else if (isJpeg) {
-      sharpInstance = sharpInstance.jpeg({
-        quality,
-        mozjpeg: true
-        // 使用 mozjpeg 编码器（更好的压缩率）
-      });
-    } else {
-      sharpInstance = sharpInstance.jpeg({
-        quality,
-        mozjpeg: true
-      });
-    }
-    const compressedBuffer = await sharpInstance.toBuffer();
-    const compressedSizeKB = compressedBuffer.length / 1024;
-    const compressedSizeMB = compressedSizeKB / 1024;
-    const compressedBase64 = compressedBuffer.toString("base64");
-    const finalMimeType = isPng ? "png" : "jpeg";
-    const compressedDataUri = `data:image/${finalMimeType};base64,${compressedBase64}`;
-    console.log(
-      `[ReferenceImage] \u56FE\u7247\u538B\u7F29\u5B8C\u6210: ${originalSizeMB.toFixed(2)} MB \u2192 ${compressedSizeMB.toFixed(2)} MB (${((1 - compressedSizeMB / originalSizeMB) * 100).toFixed(1)}% \u51CF\u5C11)`
-    );
-    return {
-      compressed: compressedDataUri,
-      originalSizeKB,
-      compressedSizeKB,
-      wasCompressed: true
-    };
-  } catch (error) {
-    console.error("[ReferenceImage] \u56FE\u7247\u538B\u7F29\u5931\u8D25:", error);
-    return {
-      compressed: imageData,
-      originalSizeKB,
-      compressedSizeKB: originalSizeKB,
-      wasCompressed: false,
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-function buildReferenceImagePrompt(referenceImages, language = "en") {
-  if (!referenceImages || referenceImages.length === 0) {
-    return "";
-  }
-  const descriptions = language === "zh" ? REFERENCE_TYPE_DESCRIPTIONS_ZH : REFERENCE_TYPE_DESCRIPTIONS_EN;
-  const lines = [];
-  if (language === "en") {
-    lines.push("Use the uploaded reference images as follows:");
-  } else {
-    lines.push("\u4F7F\u7528\u4E0A\u4F20\u7684\u53C2\u8003\u56FE\u5982\u4E0B\uFF1A");
-  }
-  referenceImages.forEach((ref, index) => {
-    const imageNum = index + 1;
-    const description = descriptions[ref.type];
-    if (language === "en") {
-      lines.push(`- Image ${imageNum}: ${description}`);
-    } else {
-      lines.push(`- \u56FE\u7247 ${imageNum}\uFF1A${description}`);
-    }
+// src/models/openai/gpt-5-nano.ts
+async function generateImpl41(params, _ctx) {
+  const preferred = _ctx?.providerOverride;
+  const modelProvider = providerFactory.getProviderForModel(modelKey41, preferred);
+  const result = await modelProvider.generate(modelKey41, {
+    ...params
   });
-  return lines.join("\n");
+  return {
+    ...result
+  };
 }
+var modelKey41, logicalProvider29, definition41;
+var init_gpt_5_nano2 = __esm({
+  "src/models/openai/gpt-5-nano.ts"() {
+    "use strict";
+    init_providers2();
+    init_registry();
+    modelKey41 = "gpt-5-nano";
+    logicalProvider29 = "openai";
+    definition41 = {
+      provider: logicalProvider29,
+      scope: "writing",
+      modelKey: modelKey41,
+      generate: generateImpl41
+    };
+    registerModel(definition41);
+  }
+});
+
+// src/models/openai/gpt-5-2.ts
+async function generateImpl42(params, _ctx) {
+  const preferred = _ctx?.providerOverride;
+  const modelProvider = providerFactory.getProviderForModel(modelKey42, preferred);
+  const result = await modelProvider.generate(modelKey42, {
+    ...params
+  });
+  return {
+    ...result
+  };
+}
+var modelKey42, logicalProvider30, definition42;
+var init_gpt_5_22 = __esm({
+  "src/models/openai/gpt-5-2.ts"() {
+    "use strict";
+    init_providers2();
+    init_registry();
+    modelKey42 = "gpt-5-2";
+    logicalProvider30 = "openai";
+    definition42 = {
+      provider: logicalProvider30,
+      scope: "writing",
+      modelKey: modelKey42,
+      generate: generateImpl42
+    };
+    registerModel(definition42);
+  }
+});
+
+// src/models/openai/index.ts
+var require_openai = __commonJS({
+  "src/models/openai/index.ts"() {
+    "use strict";
+    init_gpt_5_nano2();
+    init_gpt_5_22();
+  }
+});
+
+// src/task/reference-image.ts
 function isBase64(content) {
   if (content.startsWith("data:image/")) {
     return true;
@@ -8561,40 +9029,6 @@ function isUrl(content) {
   } catch {
     return false;
   }
-}
-function extractBase64FromDataUri(dataUri) {
-  if (dataUri.startsWith("data:image/")) {
-    const base64Index = dataUri.indexOf("base64,");
-    if (base64Index !== -1) {
-      return dataUri.substring(base64Index + 7);
-    }
-  }
-  return dataUri;
-}
-function processReferenceImages(referenceImages, modelName) {
-  const urls = [];
-  const base64s = [];
-  for (const ref of referenceImages) {
-    if (isUrl(ref.content)) {
-      urls.push(ref.content);
-    } else if (isBase64(ref.content)) {
-      const base64Data = extractBase64FromDataUri(ref.content);
-      base64s.push(base64Data);
-    } else {
-      console.warn(`[ReferenceImage] \u65E0\u6CD5\u8BC6\u522B\u7684\u56FE\u7247\u683C\u5F0F: ${ref.content.substring(0, 50)}...`);
-    }
-  }
-  return { urls, base64s };
-}
-function convertLegacyReferenceImage(oldFormat, defaultType = "main-subject") {
-  if (!oldFormat) {
-    return [];
-  }
-  const images = Array.isArray(oldFormat) ? oldFormat : [oldFormat];
-  return images.map((content) => ({
-    content,
-    type: defaultType
-  }));
 }
 function sanitizeReferenceImagesForStorage(referenceImages) {
   return referenceImages.map((ref) => {
@@ -8645,46 +9079,9 @@ function sanitizeBase64InObject(obj) {
   }
   return obj;
 }
-var REFERENCE_TYPE_DESCRIPTIONS_EN, REFERENCE_TYPE_DESCRIPTIONS_ZH;
 var init_reference_image = __esm({
-  "src/core/graph/reference-image.ts"() {
+  "src/task/reference-image.ts"() {
     "use strict";
-    REFERENCE_TYPE_DESCRIPTIONS_EN = {
-      "main-subject": "Main character (face, details, hairstyle, body \u2013 keep exact identity)",
-      "background": "Background scene and lighting",
-      "outfits": "Additional props or secondary character",
-      "color-reference": "Style and color grading reference",
-      "style-reference": "UI style reference (layout, colors, typography, components and overall design language)"
-    };
-    REFERENCE_TYPE_DESCRIPTIONS_ZH = {
-      "main-subject": "\u4E3B\u4F53\u4EBA\u7269\uFF08\u8138\u90E8\u3001\u4E94\u5B98\u7EC6\u8282\u3001\u53D1\u578B\u3001\u8EAB\u6750 \u2013 \u4FDD\u6301\u5B8C\u5168\u4E00\u81F4\uFF09",
-      "background": "\u80CC\u666F\u573A\u666F\u548C\u5149\u7EBF",
-      "outfits": "\u670D\u88C5\u3001\u9053\u5177\u6216\u6B21\u8981\u89D2\u8272",
-      "color-reference": "\u98CE\u683C\u548C\u8272\u5F69\u53C2\u8003",
-      "style-reference": "UI \u98CE\u683C\u53C2\u8003\uFF08\u5E03\u5C40\u3001\u914D\u8272\u3001\u5B57\u4F53\u3001\u7EC4\u4EF6\u4E0E\u6574\u4F53\u8BBE\u8BA1\u8BED\u8A00\uFF09"
-    };
-  }
-});
-
-// src/models/providers.ts
-var providers_exports = {};
-__export(providers_exports, {
-  clearAllOverrides: () => clearAllOverrides,
-  clearRoutingOverride: () => clearRoutingOverride,
-  defaultRouting: () => defaultRouting,
-  getFirstProviderKey: () => getFirstProviderKey,
-  getFullRoutingTable: () => getFullRoutingTable,
-  getProviderKeys: () => getProviderKeys,
-  getProviderStats: () => getProviderStats,
-  getResolvedRouting: () => getResolvedRouting,
-  providerFactory: () => providerFactory,
-  recordStats: () => recordStats,
-  setRoutingOverride: () => setRoutingOverride
-});
-var init_providers2 = __esm({
-  "src/models/providers.ts"() {
-    "use strict";
-    init_providers();
   }
 });
 
@@ -8699,18 +9096,18 @@ function parseUtcFromDb(value) {
   }
   return new Date(s);
 }
-var import_uid, import_mxmdata, DatabaseTaskStorage;
+var import_uid, import_mxmdata3, DatabaseTaskStorage;
 var init_database_storage = __esm({
   "src/task/database-storage.ts"() {
     "use strict";
     import_uid = require("uid");
-    import_mxmdata = require("@mxmai/mxmdata");
+    import_mxmdata3 = require("@mxmai/mxmdata");
     init_reference_image();
     DatabaseTaskStorage = class {
       repo;
       constructor() {
         try {
-          this.repo = import_mxmdata.RepositoryFactory.createCGITaskRepository();
+          this.repo = import_mxmdata3.RepositoryFactory.createCGITaskRepository();
         } catch (error) {
           throw new Error(`DatabaseTaskStorage \u521D\u59CB\u5316\u5931\u8D25: ${error instanceof Error ? error.message : String(error)}`);
         }
@@ -8720,7 +9117,7 @@ var init_database_storage = __esm({
        * - 用于避免重复创建（重复点击/网络重试）
        */
       async findByIdempotencyKey(input) {
-        const supabase = (0, import_mxmdata.getSupabaseClient)();
+        const supabase = (0, import_mxmdata3.getSupabaseClient)();
         const { data, error } = await supabase.from("cgi_tasks").select("*").eq("user_id", input.userId).eq("task_type", input.type).eq("model_name", input.model).eq("metadata->>idempotencyKey", input.idempotencyKey).is("deleted_at", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
         if (error) {
           throw new Error(`findByIdempotencyKey query failed: ${error.message}`);
@@ -9010,7 +9407,7 @@ function buildTaskStatusChangedEvent(input) {
   };
 }
 async function enqueueOutboxEvent(event) {
-  const supabase = (0, import_mxmdata2.getSupabaseClient)();
+  const supabase = (0, import_mxmdata4.getSupabaseClient)();
   const { error } = await supabase.from("task_event_outbox").insert({
     event_id: event.event_id,
     module_type: event.module_type,
@@ -9026,12 +9423,12 @@ async function enqueueOutboxEvent(event) {
   }
 }
 async function markOutboxSent(eventId) {
-  const supabase = (0, import_mxmdata2.getSupabaseClient)();
+  const supabase = (0, import_mxmdata4.getSupabaseClient)();
   const { error } = await supabase.from("task_event_outbox").update({ sent_at: nowIso() }).eq("event_id", eventId);
   if (error) throw new Error(`outbox update sent_at failed: ${error.message}`);
 }
 async function incrementOutboxAttempt(eventId, lastError) {
-  const supabase = (0, import_mxmdata2.getSupabaseClient)();
+  const supabase = (0, import_mxmdata4.getSupabaseClient)();
   const { data, error: getError } = await supabase.from("task_event_outbox").select("attempts").eq("event_id", eventId).maybeSingle();
   if (getError) throw new Error(`outbox get attempts failed: ${getError.message}`);
   const attempts = (data?.attempts ?? 0) + 1;
@@ -9049,11 +9446,11 @@ async function deliverToMxmnotify(event) {
     throw new Error(`mxmnotify responded ${resp.status}: ${text}`);
   }
 }
-var import_mxmdata2, MXMNOTIFY_URL, TaskEventOutboxProcessor;
+var import_mxmdata4, MXMNOTIFY_URL, TaskEventOutboxProcessor;
 var init_notification_outbox = __esm({
   "src/task/notification-outbox.ts"() {
     "use strict";
-    import_mxmdata2 = require("@mxmai/mxmdata");
+    import_mxmdata4 = require("@mxmai/mxmdata");
     MXMNOTIFY_URL = process.env.MXMNOTIFY_URL || "http://localhost:4005";
     TaskEventOutboxProcessor = class {
       timer = null;
@@ -9081,7 +9478,7 @@ var init_notification_outbox = __esm({
         if (this.running) return;
         this.running = true;
         try {
-          const supabase = (0, import_mxmdata2.getSupabaseClient)();
+          const supabase = (0, import_mxmdata4.getSupabaseClient)();
           const { data, error } = await supabase.from("task_event_outbox").select("event_id,payload,attempts,sent_at").is("sent_at", null).lt("attempts", this.maxAttempts).order("created_at", { ascending: true }).limit(this.batchSize);
           if (error) return;
           const rows = data || [];
@@ -9724,28 +10121,29 @@ function pickDefinition(defs, providerOverride) {
   if (providerOverride) {
     const match = defs.find((d) => d.provider === providerOverride);
     if (match) return match;
+    return null;
   }
   return defs[0];
 }
-async function runByModelKey(scope, modelKey38, params, context) {
-  const defs = getModelsByKey(scope, modelKey38);
+async function runByModelKey(scope, modelKey43, params, context) {
+  const defs = getModelsByKey(scope, modelKey43);
   const providerOverride = context?.providerOverride;
   const def = pickDefinition(defs, providerOverride);
   if (!def) {
-    throw new Error(`\u672A\u627E\u5230\u6A21\u578B: scope=${scope}, modelKey=${modelKey38}${providerOverride ? `, provider=${providerOverride}` : ""}`);
+    throw new Error(`\u672A\u627E\u5230\u6A21\u578B: scope=${scope}, modelKey=${modelKey43}${providerOverride ? `, provider=${providerOverride}` : ""}`);
   }
   return def.generate(params, context);
 }
-async function runByModelKeyAnyScope(modelKey38, params, context) {
+async function runByModelKeyAnyScope(modelKey43, params, context) {
   const providerOverride = context?.providerOverride;
   for (const scope of SCOPE_ORDER) {
-    const defs = getModelsByKey(scope, modelKey38);
+    const defs = getModelsByKey(scope, modelKey43);
     const def = pickDefinition(defs, providerOverride);
     if (def) {
       return def.generate(params, context);
     }
   }
-  throw new Error(`\u672A\u627E\u5230\u6A21\u578B: modelKey=${modelKey38}\uFF08\u5DF2\u5C1D\u8BD5 scope: ${SCOPE_ORDER.join(", ")}\uFF09`);
+  throw new Error(`\u672A\u627E\u5230\u6A21\u578B: modelKey=${modelKey43}\uFF08\u5DF2\u5C1D\u8BD5 scope: ${SCOPE_ORDER.join(", ")}\uFF09`);
 }
 var SCOPE_ORDER;
 var init_run = __esm({
@@ -9756,14 +10154,422 @@ var init_run = __esm({
   }
 });
 
+// src/statistics/usage-service.ts
+var import_mxmdata5, UsageService;
+var init_usage_service = __esm({
+  "src/statistics/usage-service.ts"() {
+    "use strict";
+    import_mxmdata5 = require("@mxmai/mxmdata");
+    init_provider_balance_service();
+    UsageService = class {
+      /**
+       * 将一次模型调用的 usage 写入 provider_usage_records 表
+       *
+       * - 文本类：从 metadata.usage / result 中解析 token 用量
+       * - 媒体类：从 mediaUrls 数量、metadata.duration 等推算
+       */
+      static async logProviderUsage(params) {
+        const { taskId, userId, logicalModel, result, providerOverride } = params;
+        try {
+          const metadata = result.metadata || {};
+          const provider13 = metadata.provider || providerOverride;
+          const modelKey43 = metadata.model || logicalModel || "unknown";
+          if (!provider13) {
+            throw new Error("\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
+          }
+          const scope = this.inferScope(logicalModel || modelKey43, metadata);
+          const usage = metadata.usage || // 向后兼容：部分 Provider 可能直接把 usage 挂在 result 上
+          result.usage;
+          let inputTokens = 0;
+          let outputTokens = 0;
+          let totalTokens = 0;
+          if (usage) {
+            const promptTokens = usage.prompt_tokens ?? usage.input_tokens ?? usage.prompt_tokens ?? usage.input_tokens ?? 0;
+            const completionTokens = usage.completion_tokens ?? usage.output_tokens ?? usage.completion_tokens ?? usage.output_tokens ?? 0;
+            const total = usage.total_tokens ?? usage.total_tokens ?? (promptTokens && completionTokens ? promptTokens + completionTokens : 0);
+            inputTokens = Number(promptTokens) || 0;
+            outputTokens = Number(completionTokens) || 0;
+            totalTokens = Number(total) || inputTokens + outputTokens;
+          }
+          const mediaUrls = Array.isArray(result.mediaUrls) ? result.mediaUrls : [];
+          const imageCount = scope === "graph" || scope === "image" ? mediaUrls.filter((u) => typeof u === "string" && u.length > 0).length : 0;
+          let audioSeconds = 0;
+          let videoSeconds = 0;
+          const durationRaw = metadata.duration ?? metadata.duration_sec ?? metadata.seconds ?? void 0;
+          const duration = typeof durationRaw === "number" ? durationRaw : Number(durationRaw) || 0;
+          if (duration > 0) {
+            if (scope === "audio") {
+              audioSeconds = duration;
+            } else if (scope === "video") {
+              videoSeconds = duration;
+            }
+          }
+          const supabase = (0, import_mxmdata5.getSupabaseClient)();
+          const payload = {
+            provider: provider13,
+            scope,
+            model_key: modelKey43,
+            input_tokens: inputTokens,
+            output_tokens: outputTokens,
+            total_tokens: totalTokens,
+            image_count: imageCount,
+            audio_seconds: audioSeconds,
+            video_seconds: videoSeconds,
+            request_count: 1,
+            raw_usage: usage || null
+          };
+          if (taskId) {
+            payload.task_id = taskId;
+          }
+          if (userId) {
+            payload.user_id = userId;
+          }
+          const { error } = await supabase.from("provider_usage_records").insert(payload);
+          if (error) {
+            console.warn("[UsageService] \u5199\u5165 provider_usage_records \u5931\u8D25:", {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+              provider: provider13,
+              scope,
+              modelKey: modelKey43,
+              taskId
+            });
+            throw new Error("\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
+          }
+          if (true) {
+            console.log("[UsageService] \u2705 \u5DF2\u8BB0\u5F55 Provider Usage:", {
+              provider: provider13,
+              scope,
+              modelKey: modelKey43,
+              taskId,
+              userId,
+              inputTokens,
+              outputTokens,
+              totalTokens,
+              imageCount,
+              audioSeconds,
+              videoSeconds
+            });
+          }
+          const costUsd = await ProviderBalanceService.deductFromUsage({
+            provider: provider13,
+            model_key: modelKey43,
+            scope,
+            input_tokens: inputTokens,
+            output_tokens: outputTokens,
+            total_tokens: totalTokens,
+            image_count: imageCount,
+            audio_seconds: audioSeconds,
+            video_seconds: videoSeconds,
+            request_count: 1
+          });
+          return { costUsd };
+        } catch (err) {
+          if (err instanceof Error && (err.message === PRICING_ERROR_MSG || err.message.startsWith("\u65E0\u5B9A\u4EF7\u8BB0\u5F55") || err.message.startsWith("Provider \u4F59\u989D\u4E0D\u8DB3"))) {
+            throw err;
+          }
+          const meta = result?.metadata || {};
+          console.warn("[UsageService] \u8BB0\u5F55 Provider Usage \u51FA\u9519:", {
+            err: err instanceof Error ? err.message : String(err),
+            provider: meta.provider || providerOverride,
+            modelKey: meta.model || logicalModel
+          });
+          throw new Error(err instanceof Error ? err.message : "\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
+        }
+      }
+      static inferScopePublic(modelKey43, metadata) {
+        return this.inferScope(modelKey43, metadata);
+      }
+      static inferScope(modelKey43, metadata) {
+        if (modelKey43.startsWith("writing-")) return "writing";
+        if (modelKey43.startsWith("graph-") || modelKey43.startsWith("image-")) return "graph";
+        if (modelKey43.startsWith("audio-")) return "audio";
+        if (modelKey43.startsWith("video-")) return "video";
+        const taskType = metadata.taskType || metadata.task_type;
+        if (typeof taskType === "string") {
+          if (taskType === "writing") return "writing";
+          if (taskType === "graph") return "graph";
+          if (taskType === "audio") return "audio";
+          if (taskType === "video") return "video";
+        }
+        return "text";
+      }
+    };
+  }
+});
+
+// src/statistics/billing-service.ts
+var import_mxmdata6, BillingService;
+var init_billing_service = __esm({
+  "src/statistics/billing-service.ts"() {
+    "use strict";
+    import_mxmdata6 = require("@mxmai/mxmdata");
+    BillingService = class {
+      /**
+       * 任务成功后扣减用户 MXM-TOKEN。
+       * 无定价配置时跳过（不阻断），余额不足时抛出错误。
+       */
+      static async consumeForTask(params) {
+        const {
+          taskId,
+          userId,
+          provider: provider13,
+          modelKey: modelKey43,
+          scope,
+          inputTokens = 0,
+          outputTokens = 0,
+          totalTokens = 0,
+          imageCount = 0,
+          audioSeconds = 0,
+          videoSeconds = 0,
+          requestCount = 1,
+          providerCostUsd
+        } = params;
+        try {
+          const pricing = await this.getPricing(provider13, modelKey43, scope);
+          if (!pricing) {
+            console.warn("[BillingService] \u672A\u627E\u5230\u5E73\u53F0\u5B9A\u4EF7\uFF0C\u8DF3\u8FC7\u7528\u6237\u6263\u8D39", { provider: provider13, modelKey: modelKey43, scope, taskId });
+            return;
+          }
+          const tokens = this.computePlatformTokens(pricing, {
+            inputTokens,
+            outputTokens,
+            totalTokens,
+            imageCount,
+            audioSeconds,
+            videoSeconds,
+            requestCount
+          });
+          if (tokens <= 0) {
+            console.warn("[BillingService] \u8BA1\u7B97\u5F97\u5230 0 token\uFF0C\u8DF3\u8FC7\u6263\u8D39", { provider: provider13, modelKey: modelKey43, taskId });
+            return;
+          }
+          const isAdmin = await this.isAdminUser(userId);
+          const assetCode = process.env.PLATFORM_TOKEN_ASSET_CODE || "MXM-TOKEN";
+          const walletRepo = import_mxmdata6.RepositoryFactory.createWalletRepository();
+          let asset = await walletRepo.findAssetByCode(assetCode);
+          if (!asset) {
+            asset = await walletRepo.createAsset({
+              code: assetCode,
+              name: "Platform Token",
+              symbol: assetCode,
+              type: "other",
+              decimals: 8,
+              enabled: true
+            });
+          }
+          let wallet = await walletRepo.findWalletByUserAndAsset(userId, assetCode);
+          if (!wallet) {
+            wallet = await walletRepo.createWallet({
+              user_id: userId,
+              asset_code: assetCode,
+              available_balance: "0",
+              frozen_balance: "0"
+            });
+          }
+          const currentBalance = Number(wallet.available_balance || "0");
+          const nextBalance = currentBalance - tokens;
+          if (!isAdmin && nextBalance < -1e-8) {
+            throw new Error(`\u4F59\u989D\u4E0D\u8DB3\uFF1A\u5F53\u524D ${currentBalance} ${assetCode}\uFF0C\u9700\u8981 ${tokens}`);
+          }
+          const dec = asset.decimals ?? 8;
+          await walletRepo.updateWalletBalance(wallet.id, {
+            available_balance: nextBalance.toFixed(dec)
+          });
+          await walletRepo.createTransaction({
+            wallet_id: wallet.id,
+            user_id: userId,
+            asset_code: assetCode,
+            type: "withdraw",
+            amount: tokens.toFixed(dec),
+            balance_before: currentBalance.toFixed(dec),
+            balance_after: nextBalance.toFixed(dec),
+            reference_id: taskId,
+            metadata: {
+              provider: provider13,
+              modelKey: modelKey43,
+              scope,
+              charge_mode: pricing.charge_mode,
+              pricing_id: pricing.id,
+              inputTokens,
+              outputTokens,
+              totalTokens,
+              imageCount,
+              audioSeconds,
+              videoSeconds,
+              requestCount,
+              tokensCharged: tokens,
+              providerCostUsd: providerCostUsd ?? null,
+              isAdmin
+            }
+          });
+          if (true) {
+            console.log("[BillingService] \u2705 \u5DF2\u6263\u51CF\u7528\u6237 Token", {
+              userId,
+              taskId,
+              provider: provider13,
+              modelKey: modelKey43,
+              scope,
+              tokens,
+              isAdmin,
+              ...providerCostUsd != null ? { providerCostUsd } : {}
+            });
+          }
+        } catch (err) {
+          if (err instanceof Error && err.message.startsWith("\u4F59\u989D\u4E0D\u8DB3")) {
+            throw err;
+          }
+          console.warn(
+            "[BillingService] \u6263\u8D39\u5931\u8D25\uFF08\u4E0D\u5F71\u54CD\u4E3B\u6D41\u7A0B\uFF09",
+            err instanceof Error ? err.message : String(err)
+          );
+        }
+      }
+      /**
+       * 任务创建前预检：用户余额是否足以支付本次预估费用。
+       * 无定价时返回 allowed=true（不拦截）。
+       */
+      static async checkBalance(params) {
+        const {
+          userId,
+          provider: provider13,
+          modelKey: modelKey43,
+          scope,
+          estimatedInputTokens = 0,
+          estimatedOutputTokens = 0,
+          estimatedTotalTokens = 0,
+          estimatedImageCount = 0,
+          estimatedAudioSeconds = 0,
+          estimatedVideoSeconds = 0,
+          estimatedRequestCount = 1
+        } = params;
+        const pricing = await this.getPricing(provider13, modelKey43, scope);
+        if (!pricing) {
+          return { allowed: true, estimatedTokens: 0, currentBalance: 0, hasPricing: false };
+        }
+        const estimatedTokens = this.computePlatformTokens(pricing, {
+          inputTokens: estimatedInputTokens,
+          outputTokens: estimatedOutputTokens,
+          totalTokens: estimatedTotalTokens,
+          imageCount: estimatedImageCount,
+          audioSeconds: estimatedAudioSeconds,
+          videoSeconds: estimatedVideoSeconds,
+          requestCount: estimatedRequestCount
+        });
+        const assetCode = process.env.PLATFORM_TOKEN_ASSET_CODE || "MXM-TOKEN";
+        const walletRepo = import_mxmdata6.RepositoryFactory.createWalletRepository();
+        const wallet = await walletRepo.findWalletByUserAndAsset(userId, assetCode);
+        const currentBalance = Number(wallet?.available_balance || "0");
+        const isAdmin = await this.isAdminUser(userId);
+        const allowed = isAdmin || currentBalance >= estimatedTokens;
+        return { allowed, estimatedTokens, currentBalance, hasPricing: true };
+      }
+      // ──────────────────────────────────────────────────────
+      // 私有工具方法
+      // ──────────────────────────────────────────────────────
+      /**
+       * 查询 provider_pricing 中的平台定价。
+       * 优先精确匹配 (provider, model_key, scope)，未命中则回落 scope='default'。
+       */
+      static async getPricing(provider13, modelKey43, scope) {
+        const supabase = (0, import_mxmdata6.getSupabaseClient)();
+        const cols = "id, charge_mode, platform_unit_price, platform_input_unit_price, platform_output_unit_price, platform_min_charge";
+        const { data } = await supabase.from("provider_pricing").select(cols).eq("provider", provider13).eq("model_key", modelKey43).eq("scope", scope).maybeSingle();
+        if (data) return data;
+        if (scope !== "default") {
+          const { data: fallback } = await supabase.from("provider_pricing").select(cols).eq("provider", provider13).eq("model_key", modelKey43).eq("scope", "default").maybeSingle();
+          if (fallback) return fallback;
+        }
+        return null;
+      }
+      static computePlatformTokens(pricing, usage) {
+        const minCharge = Number(pricing.platform_min_charge || 0);
+        const unitPrice = Number(pricing.platform_unit_price || 0);
+        const inputPrice = pricing.platform_input_unit_price != null ? Number(pricing.platform_input_unit_price) : null;
+        const outputPrice = pricing.platform_output_unit_price != null ? Number(pricing.platform_output_unit_price) : null;
+        if (unitPrice === 0 && inputPrice === null && outputPrice === null) {
+          return 0;
+        }
+        let tokens = 0;
+        switch (pricing.charge_mode) {
+          case "token_based": {
+            const hasIO = inputPrice != null && outputPrice != null && (usage.inputTokens > 0 || usage.outputTokens > 0);
+            if (hasIO) {
+              tokens = usage.inputTokens / 1e3 * inputPrice + usage.outputTokens / 1e3 * outputPrice;
+            } else {
+              const t = usage.totalTokens > 0 ? usage.totalTokens : usage.inputTokens + usage.outputTokens;
+              tokens = t / 1e3 * unitPrice;
+            }
+            break;
+          }
+          case "per_image":
+            tokens = usage.imageCount * unitPrice;
+            break;
+          case "per_second_audio":
+            tokens = usage.audioSeconds * unitPrice;
+            break;
+          case "per_second_video":
+            tokens = usage.videoSeconds * unitPrice;
+            break;
+          case "per_request":
+            tokens = usage.requestCount * unitPrice;
+            break;
+          default:
+            tokens = unitPrice;
+            break;
+        }
+        tokens = Math.max(0, tokens);
+        if (minCharge > 0 && tokens < minCharge) tokens = minCharge;
+        return tokens;
+      }
+      static async isAdminUser(userId) {
+        try {
+          const userRepo = import_mxmdata6.RepositoryFactory.createUserRepository();
+          const user = await userRepo.findById(userId);
+          return user?.role === "admin";
+        } catch {
+          return false;
+        }
+      }
+    };
+  }
+});
+
 // src/core/balance/provider-balance-service.ts
-var import_mxmdata3, PRICING_ERROR_MSG, ProviderBalanceService;
-var init_provider_balance_service = __esm({
+var import_mxmdata7, PRICING_ERROR_MSG2, PRICING_ERROR_NO_RECORD2, PRICING_ERROR_INSUFFICIENT2, ProviderBalanceService2;
+var init_provider_balance_service2 = __esm({
   "src/core/balance/provider-balance-service.ts"() {
     "use strict";
-    import_mxmdata3 = require("@mxmai/mxmdata");
-    PRICING_ERROR_MSG = "\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458";
-    ProviderBalanceService = class {
+    import_mxmdata7 = require("@mxmai/mxmdata");
+    PRICING_ERROR_MSG2 = "\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458";
+    PRICING_ERROR_NO_RECORD2 = "\u65E0\u5B9A\u4EF7\u8BB0\u5F55";
+    PRICING_ERROR_INSUFFICIENT2 = "Provider \u4F59\u989D\u4E0D\u8DB3";
+    ProviderBalanceService2 = class {
+      /**
+       * 仅检查 provider_pricing 是否存在（用于“调用 provider 之前”早失败，避免消耗上游余额）。
+       * 不会扣减余额，也不会计算真实成本（usage 为 0 仅用于复用查询逻辑）。
+       */
+      static async assertPricingConfigured(params) {
+        const { provider: provider13, model_key, scope } = params;
+        const { hasPricing } = await this.calculateCostWithCheck({
+          provider: provider13,
+          model_key,
+          scope,
+          input_tokens: 0,
+          output_tokens: 0,
+          total_tokens: 0,
+          image_count: 0,
+          audio_seconds: 0,
+          video_seconds: 0,
+          request_count: 1
+        });
+        if (!hasPricing) {
+          const detail = `provider=${provider13} model_key=${model_key} scope=${scope ?? "default"}`;
+          console.warn("[ProviderBalanceService] \u65E0\u5B9A\u4EF7\u8BB0\u5F55(\u9884\u68C0):", detail);
+          throw new Error(`${PRICING_ERROR_NO_RECORD2}: ${detail}\uFF0C\u8BF7\u5728\u300CProvider \u7BA1\u7406 - \u6A21\u578B\u4EF7\u683C\u300D\u4E2D\u914D\u7F6E`);
+        }
+      }
       /**
        * 根据 usage 和 provider_pricing 计算成本，并从 provider_balances 扣减
        * 无定价或余额不足时抛出 PRICING_ERROR_MSG，截断请求
@@ -9771,15 +10577,12 @@ var init_provider_balance_service = __esm({
       static async deductFromUsage(usage) {
         const { cost, hasPricing } = await this.calculateCostWithCheck(usage);
         if (!hasPricing) {
-          console.warn("[ProviderBalanceService] \u65E0\u5B9A\u4EF7\u8BB0\u5F55:", {
-            provider: usage.provider,
-            model_key: usage.model_key,
-            scope: usage.scope
-          });
-          throw new Error(PRICING_ERROR_MSG);
+          const detail = `provider=${usage.provider} model_key=${usage.model_key} scope=${usage.scope ?? "default"}`;
+          console.warn("[ProviderBalanceService] \u65E0\u5B9A\u4EF7\u8BB0\u5F55:", detail);
+          throw new Error(`${PRICING_ERROR_NO_RECORD2}: ${detail}\uFF0C\u8BF7\u5728\u300CProvider \u7BA1\u7406 - \u6A21\u578B\u4EF7\u683C\u300D\u4E2D\u914D\u7F6E`);
         }
         if (cost <= 0) return 0;
-        const supabase = (0, import_mxmdata3.getSupabaseClient)();
+        const supabase = (0, import_mxmdata7.getSupabaseClient)();
         const { data: existing, error: fetchErr } = await supabase.from("provider_balances").select("id, balance").eq("provider", usage.provider).maybeSingle();
         if (fetchErr) {
           console.warn("[ProviderBalanceService] \u67E5\u8BE2 provider_balances \u5931\u8D25:", {
@@ -9787,7 +10590,7 @@ var init_provider_balance_service = __esm({
             error: fetchErr.message,
             code: fetchErr.code
           });
-          throw new Error(PRICING_ERROR_MSG);
+          throw new Error(`${PRICING_ERROR_MSG2}\uFF08\u67E5\u8BE2 provider_balances \u5931\u8D25\uFF09`);
         }
         const currentBalance = existing ? Number(existing.balance || 0) : 0;
         if (currentBalance < cost) {
@@ -9796,13 +10599,13 @@ var init_provider_balance_service = __esm({
             currentBalance,
             cost
           });
-          throw new Error(PRICING_ERROR_MSG);
+          throw new Error(`${PRICING_ERROR_INSUFFICIENT2}: ${usage.provider} \u5F53\u524D ${currentBalance.toFixed(4)} USD\uFF0C\u672C\u6B21\u9700 ${cost.toFixed(4)} USD\uFF0C\u8BF7\u5728\u300CProvider \u7BA1\u7406\u300D\u4E2D\u5145\u503C`);
         }
         const nextBalance = currentBalance - cost;
         if (existing) {
           const { error: updateErr } = await supabase.from("provider_balances").update({ balance: nextBalance, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", existing.id);
           if (updateErr) {
-            throw new Error(PRICING_ERROR_MSG);
+            throw new Error(PRICING_ERROR_MSG2);
           }
         } else {
           const { error: insertErr } = await supabase.from("provider_balances").insert({
@@ -9811,7 +10614,7 @@ var init_provider_balance_service = __esm({
             currency: "USD"
           });
           if (insertErr) {
-            throw new Error(PRICING_ERROR_MSG);
+            throw new Error(PRICING_ERROR_MSG2);
           }
         }
         if (true) {
@@ -9828,7 +10631,7 @@ var init_provider_balance_service = __esm({
        * 根据 usage + provider_pricing 计算本次成本（USD），并检查定价是否存在
        */
       static async calculateCostWithCheck(usage) {
-        const supabase = (0, import_mxmdata3.getSupabaseClient)();
+        const supabase = (0, import_mxmdata7.getSupabaseClient)();
         let query = supabase.from("provider_pricing").select("*").eq("provider", usage.provider).eq("model_key", usage.model_key);
         if (usage.scope) {
           query = query.eq("scope", usage.scope);
@@ -9886,13 +10689,13 @@ var init_provider_balance_service = __esm({
 });
 
 // src/core/usage/usage-service.ts
-var import_mxmdata4, UsageService;
-var init_usage_service = __esm({
+var import_mxmdata8, UsageService2;
+var init_usage_service2 = __esm({
   "src/core/usage/usage-service.ts"() {
     "use strict";
-    import_mxmdata4 = require("@mxmai/mxmdata");
-    init_provider_balance_service();
-    UsageService = class {
+    import_mxmdata8 = require("@mxmai/mxmdata");
+    init_provider_balance_service2();
+    UsageService2 = class {
       /**
        * 将一次模型调用的 usage 写入 provider_usage_records 表
        *
@@ -9904,11 +10707,11 @@ var init_usage_service = __esm({
         try {
           const metadata = result.metadata || {};
           const provider13 = metadata.provider || providerOverride;
-          const modelKey38 = metadata.model || logicalModel || "unknown";
+          const modelKey43 = metadata.model || logicalModel || "unknown";
           if (!provider13) {
             throw new Error("\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
           }
-          const scope = this.inferScope(logicalModel || modelKey38, metadata);
+          const scope = this.inferScope(logicalModel || modelKey43, metadata);
           const usage = metadata.usage || // 向后兼容：部分 Provider 可能直接把 usage 挂在 result 上
           result.usage;
           let inputTokens = 0;
@@ -9935,11 +10738,11 @@ var init_usage_service = __esm({
               videoSeconds = duration;
             }
           }
-          const supabase = (0, import_mxmdata4.getSupabaseClient)();
+          const supabase = (0, import_mxmdata8.getSupabaseClient)();
           const payload = {
             provider: provider13,
             scope,
-            model_key: modelKey38,
+            model_key: modelKey43,
             input_tokens: inputTokens,
             output_tokens: outputTokens,
             total_tokens: totalTokens,
@@ -9963,7 +10766,7 @@ var init_usage_service = __esm({
               details: error.details,
               provider: provider13,
               scope,
-              modelKey: modelKey38,
+              modelKey: modelKey43,
               taskId
             });
             throw new Error("\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
@@ -9972,7 +10775,7 @@ var init_usage_service = __esm({
             console.log("[UsageService] \u2705 \u5DF2\u8BB0\u5F55 Provider Usage:", {
               provider: provider13,
               scope,
-              modelKey: modelKey38,
+              modelKey: modelKey43,
               taskId,
               userId,
               inputTokens,
@@ -9983,9 +10786,9 @@ var init_usage_service = __esm({
               videoSeconds
             });
           }
-          const costUsd = await ProviderBalanceService.deductFromUsage({
+          const costUsd = await ProviderBalanceService2.deductFromUsage({
             provider: provider13,
-            model_key: modelKey38,
+            model_key: modelKey43,
             scope,
             input_tokens: inputTokens,
             output_tokens: outputTokens,
@@ -9997,7 +10800,7 @@ var init_usage_service = __esm({
           });
           return { costUsd };
         } catch (err) {
-          if (err instanceof Error && err.message === "\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458") {
+          if (err instanceof Error && (err.message === PRICING_ERROR_MSG2 || err.message.startsWith("\u65E0\u5B9A\u4EF7\u8BB0\u5F55") || err.message.startsWith("Provider \u4F59\u989D\u4E0D\u8DB3"))) {
             throw err;
           }
           const meta = result?.metadata || {};
@@ -10006,17 +10809,17 @@ var init_usage_service = __esm({
             provider: meta.provider || providerOverride,
             modelKey: meta.model || logicalModel
           });
-          throw new Error("\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
+          throw new Error(err instanceof Error ? err.message : "\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
         }
       }
-      static inferScopePublic(modelKey38, metadata) {
-        return this.inferScope(modelKey38, metadata);
+      static inferScopePublic(modelKey43, metadata) {
+        return this.inferScope(modelKey43, metadata);
       }
-      static inferScope(modelKey38, metadata) {
-        if (modelKey38.startsWith("writing-")) return "writing";
-        if (modelKey38.startsWith("graph-") || modelKey38.startsWith("image-")) return "graph";
-        if (modelKey38.startsWith("audio-")) return "audio";
-        if (modelKey38.startsWith("video-")) return "video";
+      static inferScope(modelKey43, metadata) {
+        if (modelKey43.startsWith("writing-")) return "writing";
+        if (modelKey43.startsWith("graph-") || modelKey43.startsWith("image-")) return "graph";
+        if (modelKey43.startsWith("audio-")) return "audio";
+        if (modelKey43.startsWith("video-")) return "video";
         const taskType = metadata.taskType || metadata.task_type;
         if (typeof taskType === "string") {
           if (taskType === "writing") return "writing";
@@ -10031,12 +10834,12 @@ var init_usage_service = __esm({
 });
 
 // src/core/billing/billing-service.ts
-var import_mxmdata5, BillingService;
-var init_billing_service = __esm({
+var import_mxmdata9, BillingService2;
+var init_billing_service2 = __esm({
   "src/core/billing/billing-service.ts"() {
     "use strict";
-    import_mxmdata5 = require("@mxmai/mxmdata");
-    BillingService = class {
+    import_mxmdata9 = require("@mxmai/mxmdata");
+    BillingService2 = class {
       /**
        * 任务成功后扣减用户 MXM-TOKEN。
        * 无定价配置时跳过（不阻断），余额不足时抛出错误。
@@ -10046,7 +10849,7 @@ var init_billing_service = __esm({
           taskId,
           userId,
           provider: provider13,
-          modelKey: modelKey38,
+          modelKey: modelKey43,
           scope,
           inputTokens = 0,
           outputTokens = 0,
@@ -10058,9 +10861,9 @@ var init_billing_service = __esm({
           providerCostUsd
         } = params;
         try {
-          const pricing = await this.getPricing(provider13, modelKey38, scope);
+          const pricing = await this.getPricing(provider13, modelKey43, scope);
           if (!pricing) {
-            console.warn("[BillingService] \u672A\u627E\u5230\u5E73\u53F0\u5B9A\u4EF7\uFF0C\u8DF3\u8FC7\u7528\u6237\u6263\u8D39", { provider: provider13, modelKey: modelKey38, scope, taskId });
+            console.warn("[BillingService] \u672A\u627E\u5230\u5E73\u53F0\u5B9A\u4EF7\uFF0C\u8DF3\u8FC7\u7528\u6237\u6263\u8D39", { provider: provider13, modelKey: modelKey43, scope, taskId });
             return;
           }
           const tokens = this.computePlatformTokens(pricing, {
@@ -10073,12 +10876,12 @@ var init_billing_service = __esm({
             requestCount
           });
           if (tokens <= 0) {
-            console.warn("[BillingService] \u8BA1\u7B97\u5F97\u5230 0 token\uFF0C\u8DF3\u8FC7\u6263\u8D39", { provider: provider13, modelKey: modelKey38, taskId });
+            console.warn("[BillingService] \u8BA1\u7B97\u5F97\u5230 0 token\uFF0C\u8DF3\u8FC7\u6263\u8D39", { provider: provider13, modelKey: modelKey43, taskId });
             return;
           }
           const isAdmin = await this.isAdminUser(userId);
           const assetCode = process.env.PLATFORM_TOKEN_ASSET_CODE || "MXM-TOKEN";
-          const walletRepo = import_mxmdata5.RepositoryFactory.createWalletRepository();
+          const walletRepo = import_mxmdata9.RepositoryFactory.createWalletRepository();
           let asset = await walletRepo.findAssetByCode(assetCode);
           if (!asset) {
             asset = await walletRepo.createAsset({
@@ -10119,7 +10922,7 @@ var init_billing_service = __esm({
             reference_id: taskId,
             metadata: {
               provider: provider13,
-              modelKey: modelKey38,
+              modelKey: modelKey43,
               scope,
               charge_mode: pricing.charge_mode,
               pricing_id: pricing.id,
@@ -10140,7 +10943,7 @@ var init_billing_service = __esm({
               userId,
               taskId,
               provider: provider13,
-              modelKey: modelKey38,
+              modelKey: modelKey43,
               scope,
               tokens,
               isAdmin,
@@ -10165,7 +10968,7 @@ var init_billing_service = __esm({
         const {
           userId,
           provider: provider13,
-          modelKey: modelKey38,
+          modelKey: modelKey43,
           scope,
           estimatedInputTokens = 0,
           estimatedOutputTokens = 0,
@@ -10175,7 +10978,7 @@ var init_billing_service = __esm({
           estimatedVideoSeconds = 0,
           estimatedRequestCount = 1
         } = params;
-        const pricing = await this.getPricing(provider13, modelKey38, scope);
+        const pricing = await this.getPricing(provider13, modelKey43, scope);
         if (!pricing) {
           return { allowed: true, estimatedTokens: 0, currentBalance: 0, hasPricing: false };
         }
@@ -10189,7 +10992,7 @@ var init_billing_service = __esm({
           requestCount: estimatedRequestCount
         });
         const assetCode = process.env.PLATFORM_TOKEN_ASSET_CODE || "MXM-TOKEN";
-        const walletRepo = import_mxmdata5.RepositoryFactory.createWalletRepository();
+        const walletRepo = import_mxmdata9.RepositoryFactory.createWalletRepository();
         const wallet = await walletRepo.findWalletByUserAndAsset(userId, assetCode);
         const currentBalance = Number(wallet?.available_balance || "0");
         const isAdmin = await this.isAdminUser(userId);
@@ -10203,13 +11006,13 @@ var init_billing_service = __esm({
        * 查询 provider_pricing 中的平台定价。
        * 优先精确匹配 (provider, model_key, scope)，未命中则回落 scope='default'。
        */
-      static async getPricing(provider13, modelKey38, scope) {
-        const supabase = (0, import_mxmdata5.getSupabaseClient)();
+      static async getPricing(provider13, modelKey43, scope) {
+        const supabase = (0, import_mxmdata9.getSupabaseClient)();
         const cols = "id, charge_mode, platform_unit_price, platform_input_unit_price, platform_output_unit_price, platform_min_charge";
-        const { data } = await supabase.from("provider_pricing").select(cols).eq("provider", provider13).eq("model_key", modelKey38).eq("scope", scope).maybeSingle();
+        const { data } = await supabase.from("provider_pricing").select(cols).eq("provider", provider13).eq("model_key", modelKey43).eq("scope", scope).maybeSingle();
         if (data) return data;
         if (scope !== "default") {
-          const { data: fallback } = await supabase.from("provider_pricing").select(cols).eq("provider", provider13).eq("model_key", modelKey38).eq("scope", "default").maybeSingle();
+          const { data: fallback } = await supabase.from("provider_pricing").select(cols).eq("provider", provider13).eq("model_key", modelKey43).eq("scope", "default").maybeSingle();
           if (fallback) return fallback;
         }
         return null;
@@ -10256,7 +11059,7 @@ var init_billing_service = __esm({
       }
       static async isAdminUser(userId) {
         try {
-          const userRepo = import_mxmdata5.RepositoryFactory.createUserRepository();
+          const userRepo = import_mxmdata9.RepositoryFactory.createUserRepository();
           const user = await userRepo.findById(userId);
           return user?.role === "admin";
         } catch {
@@ -10385,7 +11188,7 @@ var DeerEmbeddingProvider;
 var init_deer_provider = __esm({
   "src/knowledge/embedding/providers/deer.provider.ts"() {
     "use strict";
-    init_deerapi_client();
+    init_client2();
     DeerEmbeddingProvider = class _DeerEmbeddingProvider {
       provider = "deer";
       name = "DeerAPI Embedding";
@@ -10790,12 +11593,12 @@ var init_file_parser = __esm({
 });
 
 // src/knowledge/knowledge-service.ts
-var import_uid4, import_mxmdata6, KnowledgeService;
+var import_uid4, import_mxmdata10, KnowledgeService;
 var init_knowledge_service = __esm({
   "src/knowledge/knowledge-service.ts"() {
     "use strict";
     import_uid4 = require("uid");
-    import_mxmdata6 = require("@mxmai/mxmdata");
+    import_mxmdata10 = require("@mxmai/mxmdata");
     init_service();
     init_file_parser();
     KnowledgeService = class {
@@ -10803,7 +11606,7 @@ var init_knowledge_service = __esm({
       embeddingService;
       fileParser;
       constructor(repository, embeddingService, fileParser) {
-        this.repository = repository || import_mxmdata6.RepositoryFactory.createKnowledgeBaseRepository();
+        this.repository = repository || import_mxmdata10.RepositoryFactory.createKnowledgeBaseRepository();
         this.embeddingService = embeddingService || EmbeddingService.fromEnv();
         this.fileParser = fileParser || new FileParser();
       }
@@ -13217,43 +14020,6 @@ var init_resumes = __esm({
   }
 });
 
-// src/clientServer/writing/index.ts
-function getWritingFormOptionsForType(writingType, language = "zh", outlineType) {
-  switch (writingType) {
-    case "outlines":
-      return getOutlinesFormOptions(language);
-    case "articles":
-      return getArticlesFormOptions(language, outlineType);
-    case "lyrics":
-      return getLyricsFormOptions(language);
-    case "voice-scripts":
-      return getVoiceScriptsFormOptions(language);
-    case "storyboard-scripts":
-      return getStoryboardScriptsFormOptions(language);
-    case "reviews":
-      return getReviewsFormOptions(language);
-    case "media-post":
-      return getMediaPostFormOptions(language);
-    case "resumes":
-      return getResumesFormOptions(language);
-    default:
-      return null;
-  }
-}
-var init_writing = __esm({
-  "src/clientServer/writing/index.ts"() {
-    "use strict";
-    init_outlines();
-    init_articles2();
-    init_lyrics();
-    init_voice_scripts();
-    init_storyboard_scripts3();
-    init_reviews();
-    init_media_post();
-    init_resumes();
-  }
-});
-
 // src/core/writing/wtconfigs/lyrics.ts
 var lyrics_exports = {};
 __export(lyrics_exports, {
@@ -13983,6 +14749,735 @@ var init_wtconfigs = __esm({
   }
 });
 
+// src/clientServer/writing/index.ts
+function getWritingFormOptionsForType(writingType, language = "zh", outlineType) {
+  switch (writingType) {
+    case "outlines":
+      return getOutlinesFormOptions(language);
+    case "articles":
+      return getArticlesFormOptions(
+        language,
+        outlineType
+      );
+    case "lyrics":
+      return getLyricsFormOptions(language);
+    case "voice-scripts":
+      return getVoiceScriptsFormOptions(language);
+    case "storyboard-scripts":
+      return getStoryboardScriptsFormOptions(language);
+    case "reviews":
+      return getReviewsFormOptions(language);
+    case "media-post":
+      return getMediaPostFormOptions(language);
+    case "resumes":
+      return getResumesFormOptions(language);
+    default:
+      return null;
+  }
+}
+var init_writing = __esm({
+  "src/clientServer/writing/index.ts"() {
+    "use strict";
+    init_outlines();
+    init_articles2();
+    init_lyrics();
+    init_voice_scripts();
+    init_storyboard_scripts3();
+    init_reviews();
+    init_media_post();
+    init_resumes();
+    init_wtconfigs();
+  }
+});
+
+// src/clientServer/graph/photograph/portrait.ts
+function getFormOptions(language = "zh") {
+  return language === "en" ? formOptionsEn : formOptionsZh;
+}
+var formOptionsZh, formOptionsEn;
+var init_portrait = __esm({
+  "src/clientServer/graph/photograph/portrait.ts"() {
+    "use strict";
+    formOptionsZh = {
+      style: [
+        { value: "modern", label: "\u73B0\u4EE3", labelEn: "Modern" },
+        { value: "vintage", label: "\u590D\u53E4", labelEn: "Vintage" },
+        { value: "fashion", label: "\u65F6\u5C1A", labelEn: "Fashion" },
+        { value: "minimalist", label: "\u6781\u7B80", labelEn: "Minimalist" },
+        { value: "classic", label: "\u7ECF\u5178", labelEn: "Classic" },
+        { value: "artistic", label: "\u827A\u672F", labelEn: "Artistic" },
+        { value: "editorial", label: "\u7F16\u8F91", labelEn: "Editorial" },
+        { value: "commercial", label: "\u5546\u4E1A", labelEn: "Commercial" }
+      ],
+      tone: [
+        { value: "warm", label: "\u6696\u8272\u8C03", labelEn: "Warm" },
+        { value: "cool", label: "\u51B7\u8272\u8C03", labelEn: "Cool" },
+        { value: "neutral", label: "\u4E2D\u6027", labelEn: "Neutral" },
+        { value: "high-contrast", label: "\u9AD8\u5BF9\u6BD4", labelEn: "High Contrast" },
+        { value: "low-contrast", label: "\u4F4E\u5BF9\u6BD4", labelEn: "Low Contrast" },
+        { value: "vibrant", label: "\u9C9C\u8273", labelEn: "Vibrant" },
+        { value: "muted", label: "\u67D4\u548C", labelEn: "Muted" },
+        { value: "monochrome", label: "\u5355\u8272", labelEn: "Monochrome" }
+      ],
+      environment: [
+        { value: "indoor", label: "\u5BA4\u5185", labelEn: "Indoor" },
+        { value: "outdoor", label: "\u5BA4\u5916", labelEn: "Outdoor" },
+        { value: "studio", label: "\u5F71\u68DA", labelEn: "Studio" },
+        { value: "natural", label: "\u81EA\u7136", labelEn: "Natural" },
+        { value: "urban", label: "\u57CE\u5E02", labelEn: "Urban" },
+        { value: "rural", label: "\u4E61\u6751", labelEn: "Rural" },
+        { value: "beach", label: "\u6D77\u6EE9", labelEn: "Beach" },
+        { value: "forest", label: "\u68EE\u6797", labelEn: "Forest" }
+      ],
+      makeup: [
+        { value: "natural", label: "\u81EA\u7136", labelEn: "Natural" },
+        { value: "light", label: "\u6DE1\u5986", labelEn: "Light" },
+        { value: "heavy", label: "\u6D53\u5986", labelEn: "Heavy" },
+        { value: "no-makeup", label: "\u65E0\u5986", labelEn: "No Makeup" },
+        { value: "editorial", label: "\u7F16\u8F91\u5986", labelEn: "Editorial" },
+        { value: "glamour", label: "\u9B45\u529B\u5986", labelEn: "Glamour" },
+        { value: "artistic", label: "\u827A\u672F\u5986", labelEn: "Artistic" },
+        { value: "minimal", label: "\u6781\u7B80\u5986", labelEn: "Minimal" }
+      ],
+      pose: [
+        { value: "standing", label: "\u7AD9\u7ACB", labelEn: "Standing" },
+        { value: "sitting", label: "\u5750\u59FF", labelEn: "Sitting" },
+        { value: "lying", label: "\u8EBA\u59FF", labelEn: "Lying" },
+        { value: "walking", label: "\u884C\u8D70", labelEn: "Walking" },
+        { value: "candid", label: "\u6293\u62CD", labelEn: "Candid" },
+        { value: "portrait", label: "\u8096\u50CF", labelEn: "Portrait" },
+        { value: "full-body", label: "\u5168\u8EAB", labelEn: "Full Body" },
+        { value: "close-up", label: "\u7279\u5199", labelEn: "Close Up" },
+        { value: "three-quarter", label: "\u56DB\u5206\u4E4B\u4E09", labelEn: "Three Quarter" },
+        { value: "profile", label: "\u4FA7\u9762", labelEn: "Profile" }
+      ],
+      lighting: [
+        { value: "natural", label: "\u81EA\u7136\u5149", labelEn: "Natural" },
+        { value: "soft", label: "\u67D4\u5149", labelEn: "Soft" },
+        { value: "hard", label: "\u786C\u5149", labelEn: "Hard" },
+        { value: "rim", label: "\u8F6E\u5ED3\u5149", labelEn: "Rim" },
+        { value: "backlight", label: "\u9006\u5149", labelEn: "Backlight" },
+        { value: "side", label: "\u4FA7\u5149", labelEn: "Side" },
+        { value: "studio", label: "\u5F71\u68DA\u5149", labelEn: "Studio" },
+        { value: "golden-hour", label: "\u9EC4\u91D1\u65F6\u523B", labelEn: "Golden Hour" },
+        { value: "blue-hour", label: "\u84DD\u8272\u65F6\u523B", labelEn: "Blue Hour" },
+        { value: "dramatic", label: "\u620F\u5267\u6027", labelEn: "Dramatic" }
+      ]
+    };
+    formOptionsEn = {
+      style: formOptionsZh.style.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      tone: formOptionsZh.tone.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      environment: formOptionsZh.environment.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      makeup: formOptionsZh.makeup.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      pose: formOptionsZh.pose.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      lighting: formOptionsZh.lighting.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/photograph/landscape.ts
+function getLandscapeFormOptions(language = "zh") {
+  return language === "en" ? landscapeFormOptionsEn : landscapeFormOptionsZh;
+}
+var landscapeFormOptionsZh, landscapeFormOptionsEn;
+var init_landscape = __esm({
+  "src/clientServer/graph/photograph/landscape.ts"() {
+    "use strict";
+    landscapeFormOptionsZh = {
+      timeOfDay: [
+        { value: "dawn", label: "\u6E05\u6668", labelEn: "Dawn" },
+        { value: "noon", label: "\u6B63\u5348", labelEn: "Noon" },
+        { value: "dusk", label: "\u9EC4\u660F", labelEn: "Dusk" },
+        { value: "night", label: "\u591C\u665A", labelEn: "Night" },
+        { value: "sunrise", label: "\u65E5\u51FA", labelEn: "Sunrise" },
+        { value: "sunset", label: "\u65E5\u843D", labelEn: "Sunset" }
+      ],
+      weather: [
+        { value: "sunny", label: "\u6674\u5929", labelEn: "Sunny" },
+        { value: "cloudy", label: "\u9634\u5929", labelEn: "Cloudy" },
+        { value: "rainy", label: "\u96E8\u5929", labelEn: "Rainy" },
+        { value: "snowy", label: "\u96EA\u5929", labelEn: "Snowy" },
+        { value: "foggy", label: "\u96FE\u5929", labelEn: "Foggy" },
+        { value: "stormy", label: "\u66B4\u98CE\u96E8", labelEn: "Stormy" }
+      ],
+      season: [
+        { value: "spring", label: "\u6625\u5B63", labelEn: "Spring" },
+        { value: "summer", label: "\u590F\u5B63", labelEn: "Summer" },
+        { value: "autumn", label: "\u79CB\u5B63", labelEn: "Autumn" },
+        { value: "winter", label: "\u51AC\u5B63", labelEn: "Winter" }
+      ],
+      composition: [
+        { value: "rule-of-thirds", label: "\u4E09\u5206\u6CD5", labelEn: "Rule of Thirds" },
+        { value: "leading-lines", label: "\u5F15\u5BFC\u7EBF", labelEn: "Leading Lines" },
+        { value: "symmetry", label: "\u5BF9\u79F0", labelEn: "Symmetry" },
+        { value: "framing", label: "\u6846\u67B6", labelEn: "Framing" },
+        { value: "center", label: "\u5C45\u4E2D", labelEn: "Center" }
+      ]
+    };
+    landscapeFormOptionsEn = {
+      timeOfDay: landscapeFormOptionsZh.timeOfDay.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      weather: landscapeFormOptionsZh.weather.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      season: landscapeFormOptionsZh.season.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      composition: landscapeFormOptionsZh.composition.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/photograph/cinematic.ts
+function getCinematicFormOptions(language = "zh") {
+  return language === "en" ? cinematicFormOptionsEn : cinematicFormOptionsZh;
+}
+var cinematicFormOptionsZh, cinematicFormOptionsEn;
+var init_cinematic = __esm({
+  "src/clientServer/graph/photograph/cinematic.ts"() {
+    "use strict";
+    cinematicFormOptionsZh = {
+      filmStyle: [
+        { value: "cyberpunk", label: "\u8D5B\u535A\u670B\u514B", labelEn: "Cyberpunk" },
+        { value: "noir", label: "\u9ED1\u8272\u7535\u5F71", labelEn: "Film Noir" },
+        { value: "sci-fi", label: "\u79D1\u5E7B", labelEn: "Sci-Fi" },
+        { value: "drama", label: "\u6587\u827A", labelEn: "Drama" },
+        { value: "action", label: "\u52A8\u4F5C", labelEn: "Action" },
+        { value: "horror", label: "\u6050\u6016", labelEn: "Horror" },
+        { value: "romance", label: "\u6D6A\u6F2B", labelEn: "Romance" }
+      ],
+      mood: [
+        { value: "mysterious", label: "\u795E\u79D8", labelEn: "Mysterious" },
+        { value: "tense", label: "\u7D27\u5F20", labelEn: "Tense" },
+        { value: "romantic", label: "\u6D6A\u6F2B", labelEn: "Romantic" },
+        { value: "sad", label: "\u60B2\u4F24", labelEn: "Sad" },
+        { value: "epic", label: "\u53F2\u8BD7", labelEn: "Epic" },
+        { value: "dramatic", label: "\u620F\u5267\u6027", labelEn: "Dramatic" },
+        { value: "melancholic", label: "\u5FE7\u90C1", labelEn: "Melancholic" }
+      ],
+      cameraAngle: [
+        { value: "high-angle", label: "\u4FEF\u89C6", labelEn: "High Angle" },
+        { value: "low-angle", label: "\u4EF0\u89C6", labelEn: "Low Angle" },
+        { value: "dutch-angle", label: "\u503E\u659C", labelEn: "Dutch Angle" },
+        { value: "eye-level", label: "\u5E73\u89C6", labelEn: "Eye Level" },
+        { value: "bird-eye", label: "\u9E1F\u77B0", labelEn: "Bird Eye" },
+        { value: "worm-eye", label: "\u866B\u773C", labelEn: "Worm Eye" }
+      ]
+    };
+    cinematicFormOptionsEn = {
+      filmStyle: cinematicFormOptionsZh.filmStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      mood: cinematicFormOptionsZh.mood.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      cameraAngle: cinematicFormOptionsZh.cameraAngle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/photograph/commercial.ts
+function getCommercialFormOptions(language = "zh") {
+  return language === "en" ? commercialFormOptionsEn : commercialFormOptionsZh;
+}
+var commercialFormOptionsZh, commercialFormOptionsEn;
+var init_commercial = __esm({
+  "src/clientServer/graph/photograph/commercial.ts"() {
+    "use strict";
+    commercialFormOptionsZh = {
+      productType: [
+        { value: "electronics", label: "\u7535\u5B50\u4EA7\u54C1", labelEn: "Electronics" },
+        { value: "food", label: "\u98DF\u54C1", labelEn: "Food" },
+        { value: "clothing", label: "\u670D\u88C5", labelEn: "Clothing" },
+        { value: "cosmetics", label: "\u5316\u5986\u54C1", labelEn: "Cosmetics" },
+        { value: "jewelry", label: "\u73E0\u5B9D", labelEn: "Jewelry" },
+        { value: "furniture", label: "\u5BB6\u5177", labelEn: "Furniture" },
+        { value: "automotive", label: "\u6C7D\u8F66", labelEn: "Automotive" },
+        { value: "beverage", label: "\u996E\u6599", labelEn: "Beverage" }
+      ],
+      background: [
+        { value: "simple", label: "\u7B80\u7EA6", labelEn: "Simple" },
+        { value: "complex", label: "\u590D\u6742", labelEn: "Complex" },
+        { value: "white", label: "\u767D\u8272", labelEn: "White" },
+        { value: "gradient", label: "\u6E10\u53D8", labelEn: "Gradient" },
+        { value: "textured", label: "\u7EB9\u7406", labelEn: "Textured" },
+        { value: "lifestyle", label: "\u751F\u6D3B\u573A\u666F", labelEn: "Lifestyle" }
+      ],
+      props: [
+        { value: "minimal", label: "\u6781\u7B80\u9053\u5177", labelEn: "Minimal Props" },
+        { value: "moderate", label: "\u9002\u91CF\u9053\u5177", labelEn: "Moderate Props" },
+        { value: "rich", label: "\u4E30\u5BCC\u9053\u5177", labelEn: "Rich Props" },
+        { value: "none", label: "\u65E0\u9053\u5177", labelEn: "No Props" }
+      ]
+    };
+    commercialFormOptionsEn = {
+      productType: commercialFormOptionsZh.productType.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      background: commercialFormOptionsZh.background.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      props: commercialFormOptionsZh.props.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/photograph/documentary.ts
+function getDocumentaryFormOptions(language = "zh") {
+  return language === "en" ? documentaryFormOptionsEn : documentaryFormOptionsZh;
+}
+var documentaryFormOptionsZh, documentaryFormOptionsEn;
+var init_documentary = __esm({
+  "src/clientServer/graph/photograph/documentary.ts"() {
+    "use strict";
+    documentaryFormOptionsZh = {
+      eventType: [
+        { value: "news", label: "\u65B0\u95FB", labelEn: "News" },
+        { value: "social", label: "\u793E\u4F1A", labelEn: "Social" },
+        { value: "culture", label: "\u6587\u5316", labelEn: "Culture" },
+        { value: "history", label: "\u5386\u53F2", labelEn: "History" },
+        { value: "sports", label: "\u4F53\u80B2", labelEn: "Sports" },
+        { value: "ceremony", label: "\u4EEA\u5F0F", labelEn: "Ceremony" }
+      ],
+      documentaryStyle: [
+        { value: "candid", label: "\u6293\u62CD", labelEn: "Candid" },
+        { value: "posed", label: "\u6446\u62CD", labelEn: "Posed" },
+        { value: "environmental", label: "\u73AF\u5883\u8096\u50CF", labelEn: "Environmental" },
+        { value: "street", label: "\u8857\u5934\u7EAA\u5B9E", labelEn: "Street" },
+        { value: "photojournalism", label: "\u65B0\u95FB\u6444\u5F71", labelEn: "Photojournalism" }
+      ]
+    };
+    documentaryFormOptionsEn = {
+      eventType: documentaryFormOptionsZh.eventType.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      documentaryStyle: documentaryFormOptionsZh.documentaryStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/design/3d.ts
+function get3dFormOptions(language = "zh") {
+  return language === "en" ? design3dFormOptionsEn : design3dFormOptionsZh;
+}
+var design3dFormOptionsZh, design3dFormOptionsEn;
+var init_d = __esm({
+  "src/clientServer/graph/design/3d.ts"() {
+    "use strict";
+    design3dFormOptionsZh = {
+      modelStyle: [
+        { value: "low-poly", label: "\u4F4E\u591A\u8FB9\u5F62", labelEn: "Low Poly" },
+        { value: "realistic", label: "\u5199\u5B9E", labelEn: "Realistic" },
+        { value: "cartoon", label: "\u5361\u901A", labelEn: "Cartoon" },
+        { value: "abstract", label: "\u62BD\u8C61", labelEn: "Abstract" },
+        { value: "stylized", label: "\u98CE\u683C\u5316", labelEn: "Stylized" }
+      ],
+      material: [
+        { value: "metal", label: "\u91D1\u5C5E", labelEn: "Metal" },
+        { value: "glass", label: "\u73BB\u7483", labelEn: "Glass" },
+        { value: "plastic", label: "\u5851\u6599", labelEn: "Plastic" },
+        { value: "wood", label: "\u6728\u6750", labelEn: "Wood" },
+        { value: "fabric", label: "\u5E03\u6599", labelEn: "Fabric" },
+        { value: "ceramic", label: "\u9676\u74F7", labelEn: "Ceramic" }
+      ],
+      lighting: [
+        { value: "three-point", label: "\u4E09\u70B9\u5149\u7167", labelEn: "Three Point" },
+        { value: "environment", label: "\u73AF\u5883\u5149\u7167", labelEn: "Environment" },
+        { value: "dramatic", label: "\u620F\u5267\u6027\u5149\u7167", labelEn: "Dramatic" },
+        { value: "soft", label: "\u67D4\u548C\u5149\u7167", labelEn: "Soft" }
+      ],
+      perspective: [
+        { value: "isometric", label: "\u7B49\u8F74\u6D4B", labelEn: "Isometric" },
+        { value: "perspective", label: "\u900F\u89C6", labelEn: "Perspective" },
+        { value: "orthographic", label: "\u6B63\u4EA4", labelEn: "Orthographic" }
+      ]
+    };
+    design3dFormOptionsEn = {
+      modelStyle: design3dFormOptionsZh.modelStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      material: design3dFormOptionsZh.material.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      lighting: design3dFormOptionsZh.lighting.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      perspective: design3dFormOptionsZh.perspective.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/design/manual.ts
+function getManualFormOptions(language = "zh") {
+  return language === "en" ? manualFormOptionsEn : manualFormOptionsZh;
+}
+var manualFormOptionsZh, manualFormOptionsEn;
+var init_manual = __esm({
+  "src/clientServer/graph/design/manual.ts"() {
+    "use strict";
+    manualFormOptionsZh = {
+      layout: [
+        { value: "grid", label: "\u7F51\u683C", labelEn: "Grid" },
+        { value: "free", label: "\u81EA\u7531", labelEn: "Free" },
+        { value: "symmetric", label: "\u5BF9\u79F0", labelEn: "Symmetric" },
+        { value: "asymmetric", label: "\u975E\u5BF9\u79F0", labelEn: "Asymmetric" }
+      ],
+      colorScheme: [
+        { value: "monochrome", label: "\u5355\u8272", labelEn: "Monochrome" },
+        { value: "complementary", label: "\u4E92\u8865\u8272", labelEn: "Complementary" },
+        { value: "analogous", label: "\u7C7B\u4F3C\u8272", labelEn: "Analogous" },
+        { value: "brand", label: "\u54C1\u724C\u8272", labelEn: "Brand" }
+      ],
+      typography: [
+        { value: "sans-serif", label: "\u65E0\u886C\u7EBF", labelEn: "Sans Serif" },
+        { value: "serif", label: "\u886C\u7EBF", labelEn: "Serif" },
+        { value: "handwriting", label: "\u624B\u5199", labelEn: "Handwriting" },
+        { value: "display", label: "\u5C55\u793A", labelEn: "Display" }
+      ]
+    };
+    manualFormOptionsEn = {
+      layout: manualFormOptionsZh.layout.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      colorScheme: manualFormOptionsZh.colorScheme.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      typography: manualFormOptionsZh.typography.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/design/poster.ts
+function getPosterFormOptions(language = "zh") {
+  return language === "en" ? posterFormOptionsEn : posterFormOptionsZh;
+}
+var posterFormOptionsZh, posterFormOptionsEn;
+var init_poster = __esm({
+  "src/clientServer/graph/design/poster.ts"() {
+    "use strict";
+    posterFormOptionsZh = {
+      artStyle: [
+        { value: "vintage", label: "\u590D\u53E4", labelEn: "Vintage" },
+        { value: "modern", label: "\u73B0\u4EE3", labelEn: "Modern" },
+        { value: "abstract", label: "\u62BD\u8C61", labelEn: "Abstract" },
+        { value: "minimalist", label: "\u6781\u7B80", labelEn: "Minimalist" },
+        { value: "art-deco", label: "\u88C5\u9970\u827A\u672F", labelEn: "Art Deco" }
+      ],
+      theme: [
+        { value: "music", label: "\u97F3\u4E50", labelEn: "Music" },
+        { value: "film", label: "\u7535\u5F71", labelEn: "Film" },
+        { value: "event", label: "\u6D3B\u52A8", labelEn: "Event" },
+        { value: "product", label: "\u4EA7\u54C1", labelEn: "Product" },
+        { value: "cultural", label: "\u6587\u5316", labelEn: "Cultural" }
+      ]
+    };
+    posterFormOptionsEn = {
+      artStyle: posterFormOptionsZh.artStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      theme: posterFormOptionsZh.theme.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/design/icon.ts
+function getIconFormOptions(language = "zh") {
+  return language === "en" ? iconFormOptionsEn : iconFormOptionsZh;
+}
+var iconFormOptionsZh, iconFormOptionsEn;
+var init_icon = __esm({
+  "src/clientServer/graph/design/icon.ts"() {
+    "use strict";
+    iconFormOptionsZh = {
+      iconStyle: [
+        { value: "flat", label: "\u6241\u5E73", labelEn: "Flat" },
+        { value: "skeuomorphic", label: "\u62DF\u7269", labelEn: "Skeuomorphic" },
+        { value: "linear", label: "\u7EBF\u6027", labelEn: "Linear" },
+        { value: "filled", label: "\u586B\u5145", labelEn: "Filled" },
+        { value: "outline", label: "\u8F6E\u5ED3", labelEn: "Outline" }
+      ],
+      size: [
+        { value: "small", label: "\u5C0F", labelEn: "Small" },
+        { value: "medium", label: "\u4E2D", labelEn: "Medium" },
+        { value: "large", label: "\u5927", labelEn: "Large" },
+        { value: "xlarge", label: "\u8D85\u5927", labelEn: "Extra Large" }
+      ]
+    };
+    iconFormOptionsEn = {
+      iconStyle: iconFormOptionsZh.iconStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      size: iconFormOptionsZh.size.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/design/coverImage.ts
+function getCoverImageFormOptions(language = "zh") {
+  const isZh = language === "zh";
+  const coverImageFormOptionsZh = {
+    textStyle: [
+      { value: "bold", label: "\u7C97\u4F53", labelEn: "Bold" },
+      { value: "shadow", label: "\u9634\u5F71", labelEn: "Shadow" },
+      { value: "outline", label: "\u63CF\u8FB9", labelEn: "Outline" },
+      { value: "gradient", label: "\u6E10\u53D8", labelEn: "Gradient" },
+      { value: "glow", label: "\u53D1\u5149", labelEn: "Glow" },
+      { value: "3d", label: "3D\u6548\u679C", labelEn: "3D Effect" }
+    ],
+    textColor: [
+      { value: "white", label: "\u767D\u8272", labelEn: "White" },
+      { value: "black", label: "\u9ED1\u8272", labelEn: "Black" },
+      { value: "red", label: "\u7EA2\u8272", labelEn: "Red" },
+      { value: "blue", label: "\u84DD\u8272", labelEn: "Blue" },
+      { value: "yellow", label: "\u9EC4\u8272", labelEn: "Yellow" },
+      { value: "green", label: "\u7EFF\u8272", labelEn: "Green" },
+      { value: "orange", label: "\u6A59\u8272", labelEn: "Orange" },
+      { value: "purple", label: "\u7D2B\u8272", labelEn: "Purple" },
+      { value: "gradient", label: "\u6E10\u53D8", labelEn: "Gradient" }
+    ],
+    textPosition: [
+      { value: "top-left", label: "\u5DE6\u4E0A", labelEn: "Top Left" },
+      { value: "top-center", label: "\u4E0A\u4E2D", labelEn: "Top Center" },
+      { value: "top-right", label: "\u53F3\u4E0A", labelEn: "Top Right" },
+      { value: "center-left", label: "\u5DE6\u4E2D", labelEn: "Center Left" },
+      { value: "center", label: "\u5C45\u4E2D", labelEn: "Center" },
+      { value: "center-right", label: "\u53F3\u4E2D", labelEn: "Center Right" },
+      { value: "bottom-left", label: "\u5DE6\u4E0B", labelEn: "Bottom Left" },
+      { value: "bottom-center", label: "\u4E0B\u4E2D", labelEn: "Bottom Center" },
+      { value: "bottom-right", label: "\u53F3\u4E0B", labelEn: "Bottom Right" }
+    ],
+    layoutStyle: [
+      { value: "left-right", label: "\u5DE6\u53F3\u5206\u680F", labelEn: "Left-Right Split" },
+      { value: "top-bottom", label: "\u4E0A\u4E0B\u5206\u680F", labelEn: "Top-Bottom Split" },
+      { value: "center-focus", label: "\u4E2D\u5FC3\u805A\u7126", labelEn: "Center Focus" },
+      { value: "diagonal", label: "\u5BF9\u89D2\u7EBF", labelEn: "Diagonal" },
+      { value: "grid", label: "\u7F51\u683C", labelEn: "Grid" },
+      { value: "overlay", label: "\u53E0\u52A0", labelEn: "Overlay" }
+    ],
+    visualEffects: [
+      { value: "blur", label: "\u6A21\u7CCA", labelEn: "Blur" },
+      { value: "gradient", label: "\u6E10\u53D8", labelEn: "Gradient" },
+      { value: "vignette", label: "\u6697\u89D2", labelEn: "Vignette" },
+      { value: "glow", label: "\u53D1\u5149", labelEn: "Glow" },
+      { value: "particle", label: "\u7C92\u5B50", labelEn: "Particle" },
+      { value: "light-ray", label: "\u5149\u6548", labelEn: "Light Ray" },
+      { value: "none", label: "\u65E0", labelEn: "None" }
+    ],
+    coverTheme: [
+      { value: "news", label: "\u65B0\u95FB", labelEn: "News" },
+      { value: "entertainment", label: "\u5A31\u4E50", labelEn: "Entertainment" },
+      { value: "education", label: "\u6559\u80B2", labelEn: "Education" },
+      { value: "technology", label: "\u79D1\u6280", labelEn: "Technology" },
+      { value: "lifestyle", label: "\u751F\u6D3B", labelEn: "Lifestyle" },
+      { value: "sports", label: "\u4F53\u80B2", labelEn: "Sports" },
+      { value: "business", label: "\u5546\u4E1A", labelEn: "Business" },
+      { value: "travel", label: "\u65C5\u884C", labelEn: "Travel" },
+      { value: "food", label: "\u7F8E\u98DF", labelEn: "Food" },
+      { value: "fashion", label: "\u65F6\u5C1A", labelEn: "Fashion" }
+    ],
+    _metadata: {
+      title: {
+        type: "text",
+        label: isZh ? "\u4E3B\u6807\u9898" : "Main Title",
+        placeholder: isZh ? "\u8F93\u5165\u5C01\u9762\u4E3B\u6807\u9898" : "Enter main title",
+        helpText: isZh ? "\u5C01\u9762\u7684\u4E3B\u8981\u6587\u5B57\u5185\u5BB9" : "Main text content of the cover"
+      },
+      subtitle: {
+        type: "text",
+        label: isZh ? "\u526F\u6807\u9898" : "Subtitle",
+        placeholder: isZh ? "\u8F93\u5165\u5C01\u9762\u526F\u6807\u9898\uFF08\u53EF\u9009\uFF09" : "Enter subtitle (optional)",
+        helpText: isZh ? "\u5C01\u9762\u7684\u6B21\u8981\u6587\u5B57\u5185\u5BB9" : "Secondary text content of the cover"
+      },
+      textStyle: {
+        type: "select",
+        label: isZh ? "\u6587\u5B57\u98CE\u683C" : "Text Style",
+        helpText: isZh ? "\u9009\u62E9\u6587\u5B57\u7684\u89C6\u89C9\u6548\u679C" : "Select visual effect for text"
+      },
+      textColor: {
+        type: "select",
+        label: isZh ? "\u6587\u5B57\u989C\u8272" : "Text Color",
+        helpText: isZh ? "\u9009\u62E9\u6587\u5B57\u7684\u989C\u8272" : "Select color for text"
+      },
+      textPosition: {
+        type: "select",
+        label: isZh ? "\u6587\u5B57\u4F4D\u7F6E" : "Text Position",
+        helpText: isZh ? "\u9009\u62E9\u6587\u5B57\u5728\u5C01\u9762\u4E2D\u7684\u4F4D\u7F6E" : "Select position of text on cover"
+      },
+      layoutStyle: {
+        type: "select",
+        label: isZh ? "\u5E03\u5C40\u98CE\u683C" : "Layout Style",
+        helpText: isZh ? "\u9009\u62E9\u5C01\u9762\u7684\u6574\u4F53\u5E03\u5C40\u65B9\u5F0F" : "Select overall layout style for cover"
+      },
+      visualEffects: {
+        type: "select",
+        label: isZh ? "\u89C6\u89C9\u6548\u679C" : "Visual Effects",
+        helpText: isZh ? "\u9009\u62E9\u989D\u5916\u7684\u89C6\u89C9\u6548\u679C" : "Select additional visual effects"
+      },
+      coverTheme: {
+        type: "select",
+        label: isZh ? "\u5C01\u9762\u4E3B\u9898" : "Cover Theme",
+        helpText: isZh ? "\u9009\u62E9\u5C01\u9762\u7684\u4E3B\u9898\u98CE\u683C" : "Select theme style for cover"
+      }
+    }
+  };
+  if (language === "en") {
+    const zh = coverImageFormOptionsZh;
+    const meta = zh._metadata;
+    return {
+      textStyle: zh.textStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
+      textColor: zh.textColor.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
+      textPosition: zh.textPosition.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
+      layoutStyle: zh.layoutStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
+      visualEffects: zh.visualEffects.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
+      coverTheme: zh.coverTheme.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
+      _metadata: {
+        title: meta.title,
+        subtitle: meta.subtitle,
+        textStyle: { ...meta.textStyle, label: meta.textStyle.labelEn ?? meta.textStyle.label, helpText: meta.textStyle.helpTextEn ?? meta.textStyle.helpText },
+        textColor: { ...meta.textColor, label: meta.textColor.labelEn ?? meta.textColor.label, helpText: meta.textColor.helpTextEn ?? meta.textColor.helpText },
+        textPosition: { ...meta.textPosition, label: meta.textPosition.labelEn ?? meta.textPosition.label, helpText: meta.textPosition.helpTextEn ?? meta.textPosition.helpText },
+        layoutStyle: { ...meta.layoutStyle, label: meta.layoutStyle.labelEn ?? meta.layoutStyle.label, helpText: meta.layoutStyle.helpTextEn ?? meta.layoutStyle.helpText },
+        visualEffects: { ...meta.visualEffects, label: meta.visualEffects.labelEn ?? meta.visualEffects.label, helpText: meta.visualEffects.helpTextEn ?? meta.visualEffects.helpText },
+        coverTheme: { ...meta.coverTheme, label: meta.coverTheme.labelEn ?? meta.coverTheme.label, helpText: meta.coverTheme.helpTextEn ?? meta.coverTheme.helpText }
+      }
+    };
+  }
+  return coverImageFormOptionsZh;
+}
+var init_coverImage = __esm({
+  "src/clientServer/graph/design/coverImage.ts"() {
+    "use strict";
+  }
+});
+
+// src/clientServer/graph/design/ui-design.ts
+function getUiDesignFormOptions(language = "zh") {
+  return language === "en" ? uiDesignFormOptionsEn : uiDesignFormOptionsZh;
+}
+var uiDesignFormOptionsZh, uiDesignFormOptionsEn;
+var init_ui_design = __esm({
+  "src/clientServer/graph/design/ui-design.ts"() {
+    "use strict";
+    uiDesignFormOptionsZh = {
+      uiResolution: [
+        { value: "mobile-app", label: "\u624B\u673A\u5E94\u7528", labelEn: "Mobile App" },
+        { value: "web", label: "\u7F51\u9875", labelEn: "Web" },
+        { value: "game", label: "\u6E38\u620F", labelEn: "Game" },
+        { value: "element", label: "\u5143\u7D20", labelEn: "Element" }
+      ],
+      uiStyleKeywords: [
+        { value: "glassmorphism", label: "\u73BB\u7483\u6001", labelEn: "Glassmorphism" },
+        { value: "neumorphism", label: "\u65B0\u62DF\u6001", labelEn: "Neumorphism" },
+        { value: "flat", label: "\u6241\u5E73\u5316", labelEn: "Flat Design" },
+        { value: "material", label: "Material Design", labelEn: "Material Design" },
+        { value: "minimal", label: "\u6781\u7B80\u4E3B\u4E49", labelEn: "Minimalist" },
+        { value: "brutalism", label: "\u7C97\u91CE\u4E3B\u4E49", labelEn: "Brutalism" },
+        { value: "skeuomorphic", label: "\u62DF\u7269\u5316", labelEn: "Skeuomorphic" },
+        { value: "dark-mode", label: "\u6DF1\u8272\u6A21\u5F0F", labelEn: "Dark Mode" },
+        { value: "gradient", label: "\u6E10\u53D8", labelEn: "Gradient" },
+        { value: "3d", label: "3D", labelEn: "3D" },
+        { value: "retro", label: "\u590D\u53E4", labelEn: "Retro" },
+        { value: "futuristic", label: "\u672A\u6765\u4E3B\u4E49", labelEn: "Futuristic" },
+        { value: "organic", label: "\u6709\u673A", labelEn: "Organic" },
+        { value: "geometric", label: "\u51E0\u4F55", labelEn: "Geometric" },
+        { value: "hand-drawn", label: "\u624B\u7ED8", labelEn: "Hand-drawn" }
+      ]
+    };
+    uiDesignFormOptionsEn = {
+      uiResolution: uiDesignFormOptionsZh.uiResolution.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      uiStyleKeywords: uiDesignFormOptionsZh.uiStyleKeywords.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/painting/illustration.ts
+function getIllustrationFormOptions(language = "zh") {
+  return language === "en" ? illustrationFormOptionsEn : illustrationFormOptionsZh;
+}
+var illustrationFormOptionsZh, illustrationFormOptionsEn;
+var init_illustration = __esm({
+  "src/clientServer/graph/painting/illustration.ts"() {
+    "use strict";
+    illustrationFormOptionsZh = {
+      illustrationStyle: [
+        { value: "flat", label: "\u6241\u5E73", labelEn: "Flat" },
+        { value: "realistic", label: "\u5199\u5B9E", labelEn: "Realistic" },
+        { value: "watercolor", label: "\u6C34\u5F69", labelEn: "Watercolor" },
+        { value: "digital", label: "\u6570\u5B57\u7ED8\u753B", labelEn: "Digital" },
+        { value: "sketch", label: "\u7D20\u63CF", labelEn: "Sketch" }
+      ],
+      colorPalette: [
+        { value: "warm", label: "\u6E29\u6696", labelEn: "Warm" },
+        { value: "cool", label: "\u51B7\u8C03", labelEn: "Cool" },
+        { value: "high-saturation", label: "\u9AD8\u9971\u548C", labelEn: "High Saturation" },
+        { value: "low-saturation", label: "\u4F4E\u9971\u548C", labelEn: "Low Saturation" },
+        { value: "monochrome", label: "\u5355\u8272", labelEn: "Monochrome" }
+      ]
+    };
+    illustrationFormOptionsEn = {
+      illustrationStyle: illustrationFormOptionsZh.illustrationStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      colorPalette: illustrationFormOptionsZh.colorPalette.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/painting/comic.ts
+function getComicFormOptions(language = "zh") {
+  return language === "en" ? comicFormOptionsEn : comicFormOptionsZh;
+}
+var comicFormOptionsZh, comicFormOptionsEn;
+var init_comic = __esm({
+  "src/clientServer/graph/painting/comic.ts"() {
+    "use strict";
+    comicFormOptionsZh = {
+      comicStyle: [
+        { value: "american", label: "\u7F8E\u5F0F", labelEn: "American" },
+        { value: "japanese", label: "\u65E5\u5F0F", labelEn: "Japanese" },
+        { value: "european", label: "\u6B27\u5F0F", labelEn: "European" },
+        { value: "webtoon", label: "\u7F51\u7EDC\u6F2B\u753B", labelEn: "Webtoon" }
+      ],
+      panelLayout: [
+        { value: "single", label: "\u5355\u683C", labelEn: "Single" },
+        { value: "multi", label: "\u591A\u683C", labelEn: "Multi" },
+        { value: "spread", label: "\u8DE8\u9875", labelEn: "Spread" },
+        { value: "strip", label: "\u6761\u72B6", labelEn: "Strip" }
+      ]
+    };
+    comicFormOptionsEn = {
+      comicStyle: comicFormOptionsZh.comicStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      panelLayout: comicFormOptionsZh.panelLayout.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/painting/conceptArt.ts
+function getConceptArtFormOptions(language = "zh") {
+  return language === "en" ? conceptArtFormOptionsEn : conceptArtFormOptionsZh;
+}
+var conceptArtFormOptionsZh, conceptArtFormOptionsEn;
+var init_conceptArt = __esm({
+  "src/clientServer/graph/painting/conceptArt.ts"() {
+    "use strict";
+    conceptArtFormOptionsZh = {
+      conceptArtStyle: [
+        { value: "realistic", label: "\u5199\u5B9E", labelEn: "Realistic" },
+        { value: "stylized", label: "\u98CE\u683C\u5316", labelEn: "Stylized" },
+        { value: "sci-fi", label: "\u79D1\u5E7B", labelEn: "Sci-Fi" },
+        { value: "fantasy", label: "\u5947\u5E7B", labelEn: "Fantasy" }
+      ],
+      detailLevel: [
+        { value: "high", label: "\u9AD8", labelEn: "High" },
+        { value: "medium", label: "\u4E2D", labelEn: "Medium" },
+        { value: "low", label: "\u4F4E", labelEn: "Low" }
+      ]
+    };
+    conceptArtFormOptionsEn = {
+      conceptArtStyle: conceptArtFormOptionsZh.conceptArtStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      detailLevel: conceptArtFormOptionsZh.detailLevel.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
+// src/clientServer/graph/painting/cartoon.ts
+function getCartoonFormOptions(language = "zh") {
+  return language === "en" ? cartoonFormOptionsEn : cartoonFormOptionsZh;
+}
+var cartoonFormOptionsZh, cartoonFormOptionsEn;
+var init_cartoon = __esm({
+  "src/clientServer/graph/painting/cartoon.ts"() {
+    "use strict";
+    cartoonFormOptionsZh = {
+      cartoonStyle: [
+        { value: "chibi", label: "Q\u7248", labelEn: "Chibi" },
+        { value: "american", label: "\u7F8E\u5F0F", labelEn: "American" },
+        { value: "japanese", label: "\u65E5\u5F0F", labelEn: "Japanese" },
+        { value: "european", label: "\u6B27\u5F0F", labelEn: "European" }
+      ],
+      characterDesign: [
+        { value: "cute", label: "\u53EF\u7231", labelEn: "Cute" },
+        { value: "cool", label: "\u5E05\u6C14", labelEn: "Cool" },
+        { value: "funny", label: "\u641E\u7B11", labelEn: "Funny" },
+        { value: "sweet", label: "\u751C\u7F8E", labelEn: "Sweet" }
+      ]
+    };
+    cartoonFormOptionsEn = {
+      cartoonStyle: cartoonFormOptionsZh.cartoonStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
+      characterDesign: cartoonFormOptionsZh.characterDesign.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
+    };
+  }
+});
+
 // src/core/graph/type.ts
 var PHOTOGRAPH_TYPE_MAP, DESIGN_TYPE_MAP, PAINTING_TYPE_MAP;
 var init_type2 = __esm({
@@ -14437,10 +15932,57 @@ var init_graphconfigs = __esm({
   }
 });
 
+// src/clientServer/graph/index.ts
+function getFormOptionsForType(graphType, type, language = "zh") {
+  if (graphType === "photograph") {
+    if (type === "portrait") return getFormOptions(language);
+    if (type === "landscape") return getLandscapeFormOptions(language);
+    if (type === "cinematic") return getCinematicFormOptions(language);
+    if (type === "commercial") return getCommercialFormOptions(language);
+    if (type === "documentary") return getDocumentaryFormOptions(language);
+  }
+  if (graphType === "design") {
+    if (type === "3d") return get3dFormOptions(language);
+    if (type === "manual") return getManualFormOptions(language);
+    if (type === "poster") return getPosterFormOptions(language);
+    if (type === "icon") return getIconFormOptions(language);
+    if (type === "coverImage") return getCoverImageFormOptions(language);
+    if (type === "ui-design") return getUiDesignFormOptions(language);
+  }
+  if (graphType === "painting") {
+    if (type === "illustration") return getIllustrationFormOptions(language);
+    if (type === "comic") return getComicFormOptions(language);
+    if (type === "conceptArt") return getConceptArtFormOptions(language);
+    if (type === "cartoon") return getCartoonFormOptions(language);
+  }
+  return null;
+}
+var init_graph = __esm({
+  "src/clientServer/graph/index.ts"() {
+    "use strict";
+    init_portrait();
+    init_landscape();
+    init_cinematic();
+    init_commercial();
+    init_documentary();
+    init_d();
+    init_manual();
+    init_poster();
+    init_icon();
+    init_coverImage();
+    init_ui_design();
+    init_illustration();
+    init_comic();
+    init_conceptArt();
+    init_cartoon();
+    init_graphconfigs();
+  }
+});
+
 // src/prompts/resolver.ts
 async function getWritingRulesAndFormatResolved(writingType, outlineType, lang = "zh") {
   try {
-    const repo = import_mxmdata7.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const repo = import_mxmdata11.RepositoryFactory.createPromptEngineeringConfigRepository();
     const row = await repo.findByKey("writing", writingType, outlineType ?? null);
     if (row?.is_active) {
       const rules2 = langFallback(row.rules_i18n, lang);
@@ -14457,7 +15999,7 @@ async function getWritingRulesAndFormatResolved(writingType, outlineType, lang =
 }
 async function getGraphRulesResolved(graphType, type, lang = "zh") {
   try {
-    const repo = import_mxmdata7.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const repo = import_mxmdata11.RepositoryFactory.createPromptEngineeringConfigRepository();
     const row = await repo.findByKey("graph", graphType, type || null);
     if (row?.is_active) {
       const rules = langFallback(row.rules_i18n, lang);
@@ -14469,7 +16011,7 @@ async function getGraphRulesResolved(graphType, type, lang = "zh") {
 }
 async function getPromptFullConfig(scope, type, subtype, lang = "zh") {
   try {
-    const repo = import_mxmdata7.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const repo = import_mxmdata11.RepositoryFactory.createPromptEngineeringConfigRepository();
     const row = await repo.findByKey(scope, type, subtype ?? null);
     if (!row?.is_active) return null;
     const rules = langFallback(row.rules_i18n, lang);
@@ -14488,13 +16030,13 @@ async function getPromptFullConfig(scope, type, subtype, lang = "zh") {
     return null;
   }
 }
-var import_mxmdata7, langFallback;
+var import_mxmdata11, langFallback;
 var init_resolver = __esm({
   "src/prompts/resolver.ts"() {
     "use strict";
-    import_mxmdata7 = require("@mxmai/mxmdata");
-    init_wtconfigs();
-    init_graphconfigs();
+    import_mxmdata11 = require("@mxmai/mxmdata");
+    init_writing();
+    init_graph();
     langFallback = (i18n, lang) => {
       if (!i18n || typeof i18n !== "object") return "";
       return i18n[lang] ?? i18n["zh"] ?? i18n["en"] ?? "";
@@ -14519,7 +16061,66 @@ var init_prompts = __esm({
   }
 });
 
-// src/core/utils/sensitive-check.ts
+// src/core/text/basic-text.ts
+async function runBasicText(logicalModel, prompt, options = {}) {
+  const { userId, parentTaskId, flowId, flowStepId, providerOverride, llmParams } = options;
+  const resolved = getResolvedRouting(logicalModel, providerOverride);
+  const provider13 = resolved.provider;
+  const physicalModelKey = resolved.model;
+  const params = {
+    prompt,
+    outputFormat: "json",
+    enableCollection: true,
+    ...llmParams || {}
+  };
+  const result = await runByModelKey(
+    "writing",
+    physicalModelKey,
+    params,
+    { providerOverride: provider13 }
+  );
+  const metadata = {
+    ...result.metadata || {},
+    provider: provider13,
+    model: physicalModelKey,
+    logicalModel
+  };
+  if (flowId) metadata.flowId = flowId;
+  if (flowStepId) metadata.flowStepId = flowStepId;
+  result.metadata = metadata;
+  const { costUsd } = await UsageService2.logProviderUsage({
+    taskId: parentTaskId,
+    userId,
+    logicalModel,
+    result,
+    providerOverride: provider13
+  });
+  let text = result.text;
+  if (!text && typeof metadata.text === "string") {
+    text = metadata.text;
+  }
+  if (!text && Array.isArray(result.mediaUrls) && result.mediaUrls.length > 0) {
+    text = result.mediaUrls.join("");
+  }
+  return {
+    text: text ?? "",
+    usage: result,
+    costUsd,
+    provider: provider13,
+    model: physicalModelKey,
+    logicalModel
+  };
+}
+var init_basic_text = __esm({
+  "src/core/text/basic-text.ts"() {
+    "use strict";
+    init_model_routing();
+    init_run();
+    init_usage_service2();
+  }
+});
+
+// src/sensitive/check.ts
 function containsSensitiveWords(text, sensitives) {
   if (!text || !sensitives || sensitives.length === 0) {
     return false;
@@ -14551,16 +16152,16 @@ function checkObjectForSensitiveWords(obj, sensitives) {
   }
   return checkValue(obj);
 }
-var init_sensitive_check = __esm({
-  "src/core/utils/sensitive-check.ts"() {
+var init_check = __esm({
+  "src/sensitive/check.ts"() {
     "use strict";
   }
 });
 
-// src/core/writing/sensitive-words.ts
+// src/sensitive/words.ts
 var sensitivesWords;
-var init_sensitive_words = __esm({
-  "src/core/writing/sensitive-words.ts"() {
+var init_words = __esm({
+  "src/sensitive/words.ts"() {
     "use strict";
     sensitivesWords = [
       "\u4E2D\u56FD\u5171\u4EA7\u515A"
@@ -14571,7 +16172,7 @@ var init_sensitive_words = __esm({
 // src/prompts/sensitive-resolver.ts
 async function getSensitiveWordsForSlot(scope, type, subtype) {
   try {
-    const repo = import_mxmdata8.RepositoryFactory.createSensitiveWordRepository();
+    const repo = import_mxmdata12.RepositoryFactory.createSensitiveWordRepository();
     const primary = await repo.getWordsForSlot(scope, type, subtype ?? null);
     if (primary.length > 0) return primary;
     if (subtype != null && subtype !== "") {
@@ -14584,12 +16185,12 @@ async function getSensitiveWordsForSlot(scope, type, subtype) {
   }
   return sensitivesWords;
 }
-var import_mxmdata8;
+var import_mxmdata12;
 var init_sensitive_resolver = __esm({
   "src/prompts/sensitive-resolver.ts"() {
     "use strict";
-    import_mxmdata8 = require("@mxmai/mxmdata");
-    init_sensitive_words();
+    import_mxmdata12 = require("@mxmai/mxmdata");
+    init_words();
   }
 });
 
@@ -14597,18 +16198,18 @@ var init_sensitive_resolver = __esm({
 function isWritingModelSupported(modelName) {
   return getModelsByKey("writing", modelName).length > 0;
 }
-var import_express2, import_mxmdata9, router2, WRITING_MODELS, WRITING_MODEL_KEYS, MODEL_MAP, writing_default;
+var import_express2, import_mxmdata13, router2, WRITING_MODELS, WRITING_MODEL_KEYS, MODEL_MAP, writing_default;
 var init_writing2 = __esm({
   "src/routes/writing.ts"() {
     "use strict";
     import_express2 = require("express");
     init_task_executor();
-    import_mxmdata9 = require("@mxmai/mxmdata");
-    init_sensitive_check();
+    import_mxmdata13 = require("@mxmai/mxmdata");
+    init_check();
     init_sensitive_resolver();
     init_providers2();
     init_billing_service();
-    init_deerapi_client();
+    init_client2();
     init_writing();
     init_business_key();
     init_registry();
@@ -14618,9 +16219,9 @@ var init_writing2 = __esm({
     WRITING_MODEL_KEYS = Array.from(new Set(WRITING_MODELS.map((d) => d.modelKey)));
     MODEL_MAP = (() => {
       const map = {};
-      for (const modelKey38 of WRITING_MODEL_KEYS) {
-        map[modelKey38] = {
-          generate: (params, provider13) => runByModelKey("writing", modelKey38, params, { providerOverride: provider13 })
+      for (const modelKey43 of WRITING_MODEL_KEYS) {
+        map[modelKey43] = {
+          generate: (params, provider13) => runByModelKey("writing", modelKey43, params, { providerOverride: provider13 })
         };
       }
       return map;
@@ -14703,11 +16304,16 @@ var init_writing2 = __esm({
             error: "Missing required fields: uid, prompt"
           });
         }
-        const outlineSensitiveWords = await getSensitiveWordsForSlot(
-          "writing",
-          params.writing_type || "outlines",
-          params.outline_type ?? null
-        );
+        let outlineSensitiveWords = [];
+        try {
+          outlineSensitiveWords = await getSensitiveWordsForSlot(
+            "writing",
+            params.writing_type || "outlines",
+            params.outline_type ?? null
+          );
+        } catch (e) {
+          console.warn("[Writing Route] getSensitiveWordsForSlot failed, skip check:", e instanceof Error ? e.message : e);
+        }
         if (outlineSensitiveWords.length > 0 && containsSensitiveWords(params.prompt, outlineSensitiveWords)) {
           return res.status(400).json({
             success: false,
@@ -14759,16 +16365,25 @@ var init_writing2 = __esm({
           { writing_type: writingType, applyto: params.applyto },
           "outline"
         );
-        const { provider: rwProvider, model: rwModel } = getResolvedRouting("writing-outlines");
-        const estTokens = Math.ceil(Number(params.total_textcount || 1e3) * 1.5);
-        const balanceCheckW = await BillingService.checkBalance({
-          userId,
-          provider: rwProvider,
-          modelKey: rwModel,
-          scope: "writing",
-          estimatedOutputTokens: estTokens,
-          estimatedInputTokens: 500
-        });
+        let balanceCheckW;
+        try {
+          const { provider: rwProvider, model: rwModel } = getResolvedRouting(businessKey);
+          const estTokens = Math.ceil(Number(params.total_textcount || 1e3) * 1.5);
+          balanceCheckW = await BillingService.checkBalance({
+            userId,
+            provider: rwProvider,
+            modelKey: rwModel,
+            scope: "writing",
+            estimatedOutputTokens: estTokens,
+            estimatedInputTokens: 500
+          });
+        } catch (e) {
+          console.error("[Writing Route] outline balance check failed:", e);
+          return res.status(503).json({
+            success: false,
+            error: "\u670D\u52A1\u6682\u65F6\u4E0D\u53EF\u7528\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5"
+          });
+        }
         if (!balanceCheckW.allowed) {
           return res.status(402).json({
             success: false,
@@ -15111,7 +16726,7 @@ var init_writing2 = __esm({
             error: "Missing required query parameters: bucket, key"
           });
         }
-        const storageRepo = import_mxmdata9.RepositoryFactory.createStorageRepository();
+        const storageRepo = import_mxmdata13.RepositoryFactory.createStorageRepository();
         const exists = await storageRepo.fileExists(bucket, key);
         if (!exists) {
           return res.status(404).json({
@@ -15205,11 +16820,11 @@ var character_service_exports = {};
 __export(character_service_exports, {
   CharacterService: () => CharacterService
 });
-var import_mxmdata10, import_crypto, CharacterService;
+var import_mxmdata14, import_crypto, CharacterService;
 var init_character_service = __esm({
   "src/characters/character-service.ts"() {
     "use strict";
-    import_mxmdata10 = require("@mxmai/mxmdata");
+    import_mxmdata14 = require("@mxmai/mxmdata");
     init_task_executor();
     init_writing2();
     init_model_selector();
@@ -15218,7 +16833,7 @@ var init_character_service = __esm({
       characterRepo;
       taskManager;
       constructor() {
-        this.characterRepo = import_mxmdata10.RepositoryFactory.createCharacterRepository();
+        this.characterRepo = import_mxmdata14.RepositoryFactory.createCharacterRepository();
         this.taskManager = taskExecutor.getTaskManager();
       }
       /**
@@ -16407,14 +18022,13 @@ function expandOutlinesToSections(outlines, depth = 0, startIndex = 0, globalPar
   }
   return sections;
 }
-async function compressText(text, maxLength = 500, provider13) {
+async function compressText(text, maxLength = 500, provider13, usageAccumulator) {
   if (text.length <= maxLength) {
     return text;
   }
   const keepLastChars = 200;
   const lastPart = text.slice(-keepLastChars);
   const firstPart = text.slice(0, text.length - keepLastChars);
-  const modelName = selectModel("paragraph");
   const compressPrompt = `\u8BF7\u5C06\u4EE5\u4E0B\u5185\u5BB9\u538B\u7F29\u603B\u7ED3\u5230${maxLength - keepLastChars}\u5B57\u4EE5\u5185\uFF0C\u4FDD\u7559\u5173\u952E\u4FE1\u606F\u548C\u903B\u8F91\u5173\u7CFB\uFF1A
 
 ${firstPart}
@@ -16425,7 +18039,20 @@ ${firstPart}
 - \u538B\u7F29\u540E\u7684\u5185\u5BB9\u5E94\u8BE5\u80FD\u591F\u4E0E\u540E\u7EED\u5185\u5BB9\u81EA\u7136\u8854\u63A5
 - \u53EA\u8FD4\u56DE\u538B\u7F29\u540E\u7684\u6587\u672C\uFF0C\u4E0D\u8981\u6DFB\u52A0\u4EFB\u4F55\u8BF4\u660E\u6216\u6807\u8BB0`;
   try {
-    const compressedFirstPart = await generateText(modelName, compressPrompt, provider13);
+    let compressedFirstPart;
+    if (usageAccumulator) {
+      const basicResult = await runBasicText("writing-basic-text", compressPrompt, {
+        providerOverride: provider13
+      });
+      const meta = basicResult.usage.metadata;
+      addUsage(usageAccumulator, meta);
+      compressedFirstPart = basicResult.text;
+    } else {
+      const basicResult = await runBasicText("writing-basic-text", compressPrompt, {
+        providerOverride: provider13
+      });
+      compressedFirstPart = basicResult.text;
+    }
     return compressedFirstPart.trim() + lastPart;
   } catch (error) {
     console.error("[WritingService] \u6587\u672C\u538B\u7F29\u5931\u8D25\uFF0C\u4F7F\u7528\u622A\u65AD\u65B9\u5F0F:", error);
@@ -16443,7 +18070,7 @@ async function getPreviousContentFromTask(taskId, userId) {
       return task.result.metadata.text;
     }
     if (task.result?.storageInfo) {
-      const storageRepo = import_mxmdata11.RepositoryFactory.createStorageRepository();
+      const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
       const { bucket, keys } = task.result.storageInfo;
       if (keys && keys.length > 0) {
         const fileBuffer = await storageRepo.downloadFile(bucket, keys[0]);
@@ -16466,6 +18093,34 @@ async function generateText(modelName, prompt, provider13, llmParams) {
   const text = result.text;
   if (text == null || text === "") throw new Error("LLM \u751F\u6210\u7ED3\u679C\u4E3A\u7A7A");
   return text;
+}
+function createUsageAccumulator() {
+  return { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+}
+function addUsage(acc, meta) {
+  if (!meta) return;
+  const u = meta.usage;
+  if (u) {
+    const pt = Number(u.prompt_tokens ?? u.input_tokens ?? 0) || 0;
+    const ct = Number(u.completion_tokens ?? u.output_tokens ?? 0) || 0;
+    acc.inputTokens += pt;
+    acc.outputTokens += ct;
+    acc.totalTokens = acc.inputTokens + acc.outputTokens;
+  }
+  if (meta.model) acc.model = meta.model;
+  if (meta.provider) acc.provider = meta.provider;
+}
+function toLlmMetadata(acc) {
+  if (acc.inputTokens === 0 && acc.outputTokens === 0) return void 0;
+  return {
+    usage: {
+      prompt_tokens: acc.inputTokens,
+      completion_tokens: acc.outputTokens,
+      total_tokens: acc.totalTokens || acc.inputTokens + acc.outputTokens
+    },
+    model: acc.model || "unknown",
+    provider: acc.provider || "unknown"
+  };
 }
 async function generateTextWithMetadata(modelName, prompt, provider13, llmParams) {
   const result = await runByModelKey(
@@ -17633,6 +19288,7 @@ async function generateWriting(params, userId, provider13, onProgress) {
       generationMode = sections.length < 5 ? "sequential" : "parallel";
     }
     const sectionContents = [];
+    const usageAccumulator = createUsageAccumulator();
     const progressStart = 30;
     const progressEnd = 80;
     const progressPerSection = (progressEnd - progressStart) / sections.length;
@@ -17652,7 +19308,9 @@ ${sections.map((s) => `- ${s.content}`).join("\n")}
         if (onProgress) {
           await onProgress(30, "\u5F00\u59CB\u751F\u6210\u516C\u7528\u603B\u7ED3...");
         }
-        sharedSummary = await generateText(modelName2, summaryPrompt, provider13);
+        const { text, metadata } = await generateTextWithMetadata(modelName2, summaryPrompt, provider13);
+        addUsage(usageAccumulator, metadata);
+        sharedSummary = text;
         if (onProgress) {
           await onProgress(35, "\u516C\u7528\u603B\u7ED3\u751F\u6210\u5B8C\u6210");
         }
@@ -17796,7 +19454,8 @@ ${typeOutputFormat2}` : ""}
 6. \u5982\u679C\u8BE5\u6BB5\u843D\u6CA1\u6709\u914D\u7F6E\uFF08\u65E0 motivation\u3001stance\u3001tone\u3001length\u3001key_elements\uFF09\uFF0C\u5219\u53EA\u751F\u6210\u6807\u9898\uFF0C\u65E0\u5B9E\u9645\u5185\u5BB9
 
 \u8BF7\u5F00\u59CB\u751F\u6210${isStoryboardChunkMode ? "\u5206\u955C JSON\uFF08\u4EC5\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u53C2\u6570\u8BF4\u660E\uFF09" : "\u6BB5\u843D\u6B63\u6587\uFF08\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u53C2\u6570\u8BF4\u660E\uFF09"}\uFF1A`;
-          const sectionText = await generateText(modelName2, sectionPrompt, provider13);
+          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName2, sectionPrompt, provider13);
+          addUsage(usageAccumulator, sectionMeta);
           const sectionMatch = !isStoryboardChunkMode ? sectionText.match(/<section[^>]*>([\s\S]*?)<\/section>/) : null;
           let content = isStoryboardChunkMode ? sectionText.trim() : sectionMatch ? sectionMatch[1].trim() : sectionText.trim();
           if (processStyle === "explain" && !hasKnowledge2) {
@@ -17854,7 +19513,7 @@ ${typeOutputFormat2}` : ""}
             );
           }
           if (previousMemory.length > 500) {
-            previousMemory = await compressText(previousMemory, 500, provider13);
+            previousMemory = await compressText(previousMemory, 500, provider13, usageAccumulator);
           }
           const currentWritingType2 = params.writing_type || "articles";
           const globalGuidance = section.globalParams ? buildWritingGuidance(section.globalParams, currentWritingType2, params.outline_type) : [];
@@ -17978,7 +19637,8 @@ ${typeOutputFormat2}` : ""}
 7. \u4E0E\u524D\u6587\u4FDD\u6301\u903B\u8F91\u8FDE\u8D2F\uFF0C\u81EA\u7136\u8FC7\u6E21
 
 \u8BF7\u5F00\u59CB\u751F\u6210${isStoryboardChunkMode ? "\u5206\u955C JSON\uFF08\u4EC5\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u53C2\u6570\u8BF4\u660E\uFF09" : "\u6BB5\u843D\u6B63\u6587\uFF08\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u53C2\u6570\u8BF4\u660E\uFF09"}\uFF1A`;
-          const sectionText = await generateText(modelName2, sectionPrompt, provider13);
+          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName2, sectionPrompt, provider13);
+          addUsage(usageAccumulator, sectionMeta);
           const sectionMatch = !isStoryboardChunkMode ? sectionText.match(/<section[^>]*>([\s\S]*?)<\/section>/) : null;
           let content = isStoryboardChunkMode ? sectionText.trim() : sectionMatch ? sectionMatch[1].trim() : sectionText.trim();
           if (!isStoryboardChunkMode && processStyle === "explain" && !hasKnowledge2) {
@@ -18047,7 +19707,7 @@ ${typeOutputFormat2}` : ""}
         let storageInfo3 = void 0;
         if (params.storeToMinio !== false) {
           if (onProgress) await onProgress(90, "\u6B63\u5728\u4FDD\u5B58\u5230 MinIO...");
-          const storageRepo = import_mxmdata11.RepositoryFactory.createStorageRepository();
+          const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
           const timestamp = Date.now();
           const randomStr = Math.random().toString(36).substring(2, 8);
           const key = `${userId || "anonymous"}/writing/${timestamp}-${randomStr}.json`;
@@ -18060,12 +19720,14 @@ ${typeOutputFormat2}` : ""}
           storageInfo3 = { key, bucket, url };
           if (onProgress) await onProgress(95, "\u6587\u4EF6\u5DF2\u4FDD\u5B58\u5230 MinIO");
         }
+        const llmMeta2 = toLlmMetadata(usageAccumulator);
         return {
           text: formattedContent3,
           formattedContent: formattedContent3,
           format: format3,
           storageInfo: storageInfo3,
-          metadata: { wordCount: wordCount3, fileSize: fileSize3, ...params.metadata }
+          metadata: { wordCount: wordCount3, fileSize: fileSize3, ...params.metadata },
+          ...llmMeta2 ? { _llmMetadata: llmMeta2 } : {}
         };
       }
     }
@@ -18087,7 +19749,7 @@ ${typeOutputFormat2}` : ""}
       if (onProgress) {
         await onProgress(90, "\u6B63\u5728\u4FDD\u5B58\u5230 MinIO...");
       }
-      const storageRepo = import_mxmdata11.RepositoryFactory.createStorageRepository();
+      const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 8);
       const extension = getFileExtension(format2);
@@ -18116,6 +19778,7 @@ ${typeOutputFormat2}` : ""}
         await onProgress(95, "\u6587\u4EF6\u5DF2\u4FDD\u5B58\u5230 MinIO");
       }
     }
+    const llmMeta = toLlmMetadata(usageAccumulator);
     return {
       text: generatedText2,
       formattedContent: formattedContent2,
@@ -18125,7 +19788,8 @@ ${typeOutputFormat2}` : ""}
         wordCount: wordCount2,
         fileSize: fileSize2,
         ...params.metadata
-      }
+      },
+      ...llmMeta ? { _llmMetadata: llmMeta } : {}
     };
   }
   if (!params.outlines || params.outlines.length === 0) {
@@ -18171,7 +19835,9 @@ ${enhancedPrompt}`;
     if (onProgress) {
       await onProgress(50, "\u6B63\u5728\u751F\u6210\u5206\u955C JSON...");
     }
-    const rawText = await generateText(modelName2, storyboardPrompt, provider13);
+    const noOutlineUsageAccumulator = createUsageAccumulator();
+    const { text: rawText, metadata: storyboardMeta } = await generateTextWithMetadata(modelName2, storyboardPrompt, provider13);
+    addUsage(noOutlineUsageAccumulator, storyboardMeta);
     const parsed = parseStoryboardChunksJson(rawText, chunkSeconds, params.rhythm);
     if (!parsed.chunks?.length) {
       throw new Error("\u5206\u955C\u811A\u672C\u751F\u6210\u5931\u8D25\uFF1A\u65E0\u6CD5\u89E3\u6790 JSON \u6216 chunks \u4E3A\u7A7A\u3002\u8BF7\u68C0\u67E5 LLM \u8FD4\u56DE\u5185\u5BB9\u3002");
@@ -18202,7 +19868,7 @@ ${enhancedPrompt}`;
       if (onProgress) {
         await onProgress(90, "\u6B63\u5728\u4FDD\u5B58\u5230 MinIO...");
       }
-      const storageRepo = import_mxmdata11.RepositoryFactory.createStorageRepository();
+      const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 8);
       const key = `${userId || "anonymous"}/writing/${timestamp}-${randomStr}.json`;
@@ -18226,6 +19892,7 @@ ${enhancedPrompt}`;
         await onProgress(95, "\u6587\u4EF6\u5DF2\u4FDD\u5B58\u5230 MinIO");
       }
     }
+    const storyboardLlmMeta = toLlmMetadata(noOutlineUsageAccumulator);
     return {
       text: formattedContent2,
       formattedContent: formattedContent2,
@@ -18235,7 +19902,8 @@ ${enhancedPrompt}`;
         wordCount: wordCount2,
         fileSize: fileSize2,
         ...params.metadata
-      }
+      },
+      ...storyboardLlmMeta ? { _llmMetadata: storyboardLlmMeta } : {}
     };
   }
   const taskType = "full";
@@ -18356,7 +20024,10 @@ ${previousContent}
 ---
 ${generatePrompt}`;
   }
-  let generatedText = await generateText(modelName, generatePrompt, effectiveProvider);
+  const fullModeUsageAccumulator = createUsageAccumulator();
+  const { text: generatedTextRaw, metadata: fullModeMeta } = await generateTextWithMetadata(modelName, generatePrompt, effectiveProvider);
+  addUsage(fullModeUsageAccumulator, fullModeMeta);
+  let generatedText = generatedTextRaw;
   let sunoJsonData = null;
   if (params.writing_type === "lyrics" && params.format === "suno") {
     sunoJsonData = parseSunoLyricsJson(generatedText);
@@ -18381,7 +20052,7 @@ ${generatePrompt}`;
   const fileSize = Buffer.isBuffer(formattedContent) ? formattedContent.length : Buffer.byteLength(formattedContent, "utf-8");
   let storageInfo;
   if (params.storeToMinio !== false) {
-    const storageRepo = import_mxmdata11.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
     const bucket = process.env.CGI_STORAGE_BUCKET || "user-media";
     const ext = getFileExtension(format);
     const timestamp = Date.now();
@@ -18411,6 +20082,7 @@ ${generatePrompt}`;
       url
     };
   }
+  const fullLlmMeta = toLlmMetadata(fullModeUsageAccumulator);
   return {
     text: generatedText,
     formattedContent,
@@ -18420,7 +20092,8 @@ ${generatePrompt}`;
       wordCount,
       fileSize,
       ...params.metadata
-    }
+    },
+    ...fullLlmMeta ? { _llmMetadata: fullLlmMeta } : {}
   };
 }
 async function syncToTask(params, userId) {
@@ -18438,7 +20111,7 @@ async function syncToTask(params, userId) {
   const fileSize = Buffer.isBuffer(formattedContent) ? formattedContent.length : Buffer.byteLength(formattedContent, "utf-8");
   let storageInfo;
   if (params.storeToMinio !== false) {
-    const storageRepo = import_mxmdata11.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
     const bucket = process.env.CGI_STORAGE_BUCKET || "user-media";
     const ext = getFileExtension(format);
     const timestamp = Date.now();
@@ -18540,7 +20213,7 @@ async function syncToTask(params, userId) {
     }
   };
 }
-var import_mxmdata11, import_crypto2;
+var import_mxmdata15, import_crypto2;
 var init_writing_service = __esm({
   "src/core/writing/writing-service.ts"() {
     "use strict";
@@ -18549,7 +20222,7 @@ var init_writing_service = __esm({
     init_business_key();
     init_knowledge_enhancer();
     init_document_formatter();
-    import_mxmdata11 = require("@mxmai/mxmdata");
+    import_mxmdata15 = require("@mxmai/mxmdata");
     import_crypto2 = __toESM(require("crypto"));
     init_task_executor();
     init_type();
@@ -18558,6 +20231,7 @@ var init_writing_service = __esm({
     init_subtype_rules();
     init_outline_structure_types();
     init_prompts();
+    init_basic_text();
     init_wtconfigs();
   }
 });
@@ -18650,7 +20324,8 @@ async function startWritingTask(taskId) {
             // 将大纲内容存储在 metadata 中，方便直接返回
             ...outlineParams.total_duration_seconds != null ? { total_duration_seconds: outlineParams.total_duration_seconds } : {},
             ...outlineResult.characters && outlineResult.characters.length > 0 ? { characters: outlineResult.characters } : {}
-          }
+          },
+          _llmMetadata: outlineResult._llmMetadata
         };
         break;
       }
@@ -18716,7 +20391,8 @@ async function startWritingTask(taskId) {
               // 将大纲内容存储在 metadata 中，方便直接返回
               ...outlineParams.total_duration_seconds != null ? { total_duration_seconds: outlineParams.total_duration_seconds } : {},
               ...outlineResult.characters && outlineResult.characters.length > 0 ? { characters: outlineResult.characters } : {}
-            }
+            },
+            _llmMetadata: outlineResult._llmMetadata
           };
           break;
         }
@@ -18749,7 +20425,8 @@ async function startWritingTask(taskId) {
             ...writingResult.metadata,
             type: writingType
             // 确保 metadata.type 设置为 writing_type
-          }
+          },
+          _llmMetadata: writingResult._llmMetadata
         };
         break;
       }
@@ -18780,10 +20457,10 @@ async function startWritingTask(taskId) {
       }
     }
     await taskManager2.setTaskResult(taskId, taskResult);
-    const needsUsageLog = (params.taskType === "outline" || params.taskType === "generate" && params.params?.writing_type === "outlines") && result._llmMetadata;
-    if (needsUsageLog) {
-      const llmMeta = result._llmMetadata;
-      const { costUsd } = await UsageService.logProviderUsage({
+    const llmMeta = result._llmMetadata;
+    const needsUsageLog = !!llmMeta;
+    if (needsUsageLog && llmMeta) {
+      const { costUsd } = await UsageService2.logProviderUsage({
         taskId,
         userId: params.userId,
         logicalModel: llmMeta.model,
@@ -18799,7 +20476,7 @@ async function startWritingTask(taskId) {
       if (params.userId) {
         const usageAny = llmMeta.usage;
         try {
-          await BillingService.consumeForTask({
+          await BillingService2.consumeForTask({
             taskId,
             userId: params.userId,
             provider: llmMeta.provider || "unknown",
@@ -18827,8 +20504,8 @@ var init_writing_task = __esm({
   "src/core/writing/writing-task.ts"() {
     "use strict";
     init_task_executor();
-    init_usage_service();
-    init_billing_service();
+    init_usage_service2();
+    init_billing_service2();
     init_writing_service();
     init_type();
   }
@@ -19019,7 +20696,7 @@ ${makeupTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var portraitConfig;
-var init_portrait = __esm({
+var init_portrait2 = __esm({
   "src/core/graph/graphconfigs/photograph/portrait.ts"() {
     "use strict";
     portraitConfig = {
@@ -19238,7 +20915,7 @@ ${compositionTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var landscapeConfig;
-var init_landscape = __esm({
+var init_landscape2 = __esm({
   "src/core/graph/graphconfigs/photograph/landscape.ts"() {
     "use strict";
     landscapeConfig = {
@@ -19436,7 +21113,7 @@ ${angleTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var cinematicConfig;
-var init_cinematic = __esm({
+var init_cinematic2 = __esm({
   "src/core/graph/graphconfigs/photograph/cinematic.ts"() {
     "use strict";
     cinematicConfig = {
@@ -19622,7 +21299,7 @@ ${propsTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var commercialConfig;
-var init_commercial = __esm({
+var init_commercial2 = __esm({
   "src/core/graph/graphconfigs/photograph/commercial.ts"() {
     "use strict";
     commercialConfig = {
@@ -19790,7 +21467,7 @@ ${styleTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var documentaryConfig;
-var init_documentary = __esm({
+var init_documentary2 = __esm({
   "src/core/graph/graphconfigs/photograph/documentary.ts"() {
     "use strict";
     documentaryConfig = {
@@ -19999,7 +21676,7 @@ ${perspectiveTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var design3dConfig;
-var init_d = __esm({
+var init_d2 = __esm({
   "src/core/graph/graphconfigs/design/3d.ts"() {
     "use strict";
     design3dConfig = {
@@ -20206,7 +21883,7 @@ ${typographyTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var manualConfig;
-var init_manual = __esm({
+var init_manual2 = __esm({
   "src/core/graph/graphconfigs/design/manual.ts"() {
     "use strict";
     manualConfig = {
@@ -20362,7 +22039,7 @@ ${themeTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var posterConfig;
-var init_poster = __esm({
+var init_poster2 = __esm({
   "src/core/graph/graphconfigs/design/poster.ts"() {
     "use strict";
     posterConfig = {
@@ -20524,7 +22201,7 @@ ${sizeTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var iconConfig;
-var init_icon = __esm({
+var init_icon2 = __esm({
   "src/core/graph/graphconfigs/design/icon.ts"() {
     "use strict";
     iconConfig = {
@@ -20697,7 +22374,7 @@ ${colorTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var illustrationConfig;
-var init_illustration = __esm({
+var init_illustration2 = __esm({
   "src/core/graph/graphconfigs/painting/illustration.ts"() {
     "use strict";
     illustrationConfig = {
@@ -20874,7 +22551,7 @@ ${layoutTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var comicConfig;
-var init_comic = __esm({
+var init_comic2 = __esm({
   "src/core/graph/graphconfigs/painting/comic.ts"() {
     "use strict";
     comicConfig = {
@@ -21042,7 +22719,7 @@ ${detailTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var conceptArtConfig;
-var init_conceptArt = __esm({
+var init_conceptArt2 = __esm({
   "src/core/graph/graphconfigs/painting/conceptArt.ts"() {
     "use strict";
     conceptArtConfig = {
@@ -21219,7 +22896,7 @@ ${characterTips.join("\uFF0C")}\u3002`);
   return parts.join("\n\n");
 }
 var cartoonConfig;
-var init_cartoon = __esm({
+var init_cartoon2 = __esm({
   "src/core/graph/graphconfigs/painting/cartoon.ts"() {
     "use strict";
     cartoonConfig = {
@@ -21254,6 +22931,256 @@ var init_cartoon = __esm({
        * 输出结构要求（让 LLM 知道 prompt 内部大概要包含哪些要素）
        */
       outputformat: `800\u5B57\u4EE5\u5185,\u8981\u5305\u542B\u89D2\u8272\u63CF\u8FF0\uFF0C\u5361\u901A\u98CE\u683C\uFF0C\u89D2\u8272\u8BBE\u8BA1\uFF0C\u8272\u5F69\u8FD0\u7528\uFF0C\u8868\u60C5\u52A8\u4F5C\uFF0C\u8DA3\u5473\u6027\u8981\u6C42\u7B49\u91CD\u8981\u4FE1\u606F`
+    };
+  }
+});
+
+// src/core/graph/graph-model-routing.ts
+async function resolveGraphModel(graphType, subType, preferredProvider) {
+  const key = `graph-${graphType}-${subType}`;
+  try {
+    const repo = import_mxmdata16.RepositoryFactory.createGraphModelConfigRepository();
+    const cfg = await repo.findConfig("graph", graphType, subType);
+    if (cfg && cfg.enabled) {
+      return {
+        modelName: cfg.logical_model,
+        provider: (preferredProvider ?? cfg.provider) || "deer",
+        fromDb: true
+      };
+    }
+  } catch (e) {
+    console.warn("[GraphModelRouting] \u8BFB\u53D6 graph_model_config \u5931\u8D25\uFF0C\u4F7F\u7528\u9ED8\u8BA4\u914D\u7F6E:", e);
+  }
+  const def = DEFAULT_GRAPH_MODEL_ROUTING[key];
+  if (def) {
+    return {
+      modelName: def.model,
+      provider: preferredProvider ?? def.provider,
+      fromDb: false
+    };
+  }
+  throw new Error(
+    `\u672A\u914D\u7F6E\u56FE\u50CF\u4E1A\u52A1\u6A21\u578B: ${key}\uFF08graphType=${graphType}, subType=${subType}\uFF09\u3002\u8BF7\u5728 graph_model_config \u8868\u4E2D\u914D\u7F6E\u8BE5\u4E1A\u52A1\uFF0C\u6216\u6269\u5C55 DEFAULT_GRAPH_MODEL_ROUTING\uFF0C\u4E0D\u5141\u8BB8\u4F7F\u7528\u515C\u5E95\u6A21\u578B\u3002`
+  );
+}
+var import_mxmdata16, DEFAULT_GRAPH_MODEL_ROUTING;
+var init_graph_model_routing = __esm({
+  "src/core/graph/graph-model-routing.ts"() {
+    "use strict";
+    import_mxmdata16 = require("@mxmai/mxmdata");
+    DEFAULT_GRAPH_MODEL_ROUTING = {
+      // 摄影（统一 nano-banana-2，需在 provider_pricing 配置对应定价）
+      "graph-photograph-portrait": { provider: "deer", model: "nano-banana-2" },
+      "graph-photograph-landscape": { provider: "deer", model: "nano-banana-2" },
+      "graph-photograph-cinematic": { provider: "deer", model: "nano-banana-2" },
+      "graph-photograph-commercial": { provider: "deer", model: "nano-banana-2" },
+      "graph-photograph-documentary": { provider: "deer", model: "nano-banana-2" },
+      // 设计
+      "graph-design-3d": { provider: "deer", model: "nano-banana-2" },
+      "graph-design-manual": { provider: "deer", model: "nano-banana-2" },
+      "graph-design-poster": { provider: "deer", model: "nano-banana-2-pro" },
+      "graph-design-icon": { provider: "deer", model: "nano-banana" },
+      "graph-design-coverImage": { provider: "deer", model: "nano-banana-2-pro" },
+      "graph-design-ui-design": { provider: "deer", model: "nano-banana-2" },
+      // 绘画
+      "graph-painting-illustration": { provider: "deer", model: "nano-banana-2" },
+      "graph-painting-comic": { provider: "deer", model: "nano-banana-2" },
+      "graph-painting-conceptArt": { provider: "deer", model: "nano-banana-2-pro" },
+      "graph-painting-cartoon": { provider: "deer", model: "nano-banana-2" }
+    };
+  }
+});
+
+// src/core/graph/reference-image.ts
+async function compressImage(imageData, maxSizeMB = 2, maxWidth = 2048, maxHeight = 2048, quality = 85) {
+  if (!isBase642(imageData)) {
+    return {
+      compressed: imageData,
+      originalSizeKB: 0,
+      compressedSizeKB: 0,
+      wasCompressed: false
+    };
+  }
+  const base64Data = extractBase64FromDataUri(imageData);
+  const imageBuffer = Buffer.from(base64Data, "base64");
+  const originalSizeKB = imageBuffer.length / 1024;
+  const originalSizeMB = originalSizeKB / 1024;
+  if (originalSizeMB <= maxSizeMB) {
+    return {
+      compressed: imageData,
+      originalSizeKB,
+      compressedSizeKB: originalSizeKB,
+      wasCompressed: false
+    };
+  }
+  let sharp2;
+  try {
+    sharp2 = require("sharp");
+  } catch (error) {
+    console.warn("[ReferenceImage] sharp \u672A\u5B89\u88C5\uFF0C\u65E0\u6CD5\u538B\u7F29\u56FE\u7247");
+    console.warn("   \u5EFA\u8BAE\u5B89\u88C5: npm install sharp \u6216 pnpm add sharp");
+    return {
+      compressed: imageData,
+      originalSizeKB,
+      compressedSizeKB: originalSizeKB,
+      wasCompressed: false,
+      error: "sharp \u672A\u5B89\u88C5"
+    };
+  }
+  try {
+    const metadata = await sharp2(imageBuffer).metadata();
+    const { width, height, format } = metadata;
+    let targetWidth = width;
+    let targetHeight = height;
+    if (width > maxWidth || height > maxHeight) {
+      const ratio = Math.min(maxWidth / width, maxHeight / height);
+      targetWidth = Math.round(width * ratio);
+      targetHeight = Math.round(height * ratio);
+    }
+    let sharpInstance = sharp2(imageBuffer);
+    if (targetWidth !== width || targetHeight !== height) {
+      sharpInstance = sharpInstance.resize(targetWidth, targetHeight, {
+        fit: "inside",
+        // 保持宽高比，不裁剪
+        withoutEnlargement: true
+        // 不放大
+      });
+      console.log(`[ReferenceImage] \u8C03\u6574\u56FE\u7247\u5C3A\u5BF8: ${width}x${height} \u2192 ${targetWidth}x${targetHeight}`);
+    }
+    const isPng = format === "png";
+    const isJpeg = format === "jpeg" || format === "jpg";
+    if (isPng) {
+      sharpInstance = sharpInstance.png({
+        quality,
+        compressionLevel: 9
+        // 最高压缩级别
+      });
+    } else if (isJpeg) {
+      sharpInstance = sharpInstance.jpeg({
+        quality,
+        mozjpeg: true
+        // 使用 mozjpeg 编码器（更好的压缩率）
+      });
+    } else {
+      sharpInstance = sharpInstance.jpeg({
+        quality,
+        mozjpeg: true
+      });
+    }
+    const compressedBuffer = await sharpInstance.toBuffer();
+    const compressedSizeKB = compressedBuffer.length / 1024;
+    const compressedSizeMB = compressedSizeKB / 1024;
+    const compressedBase64 = compressedBuffer.toString("base64");
+    const finalMimeType = isPng ? "png" : "jpeg";
+    const compressedDataUri = `data:image/${finalMimeType};base64,${compressedBase64}`;
+    console.log(
+      `[ReferenceImage] \u56FE\u7247\u538B\u7F29\u5B8C\u6210: ${originalSizeMB.toFixed(2)} MB \u2192 ${compressedSizeMB.toFixed(2)} MB (${((1 - compressedSizeMB / originalSizeMB) * 100).toFixed(1)}% \u51CF\u5C11)`
+    );
+    return {
+      compressed: compressedDataUri,
+      originalSizeKB,
+      compressedSizeKB,
+      wasCompressed: true
+    };
+  } catch (error) {
+    console.error("[ReferenceImage] \u56FE\u7247\u538B\u7F29\u5931\u8D25:", error);
+    return {
+      compressed: imageData,
+      originalSizeKB,
+      compressedSizeKB: originalSizeKB,
+      wasCompressed: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+function buildReferenceImagePrompt(referenceImages, language = "en") {
+  if (!referenceImages || referenceImages.length === 0) {
+    return "";
+  }
+  const descriptions = language === "zh" ? REFERENCE_TYPE_DESCRIPTIONS_ZH : REFERENCE_TYPE_DESCRIPTIONS_EN;
+  const lines = [];
+  if (language === "en") {
+    lines.push("Use the uploaded reference images as follows:");
+  } else {
+    lines.push("\u4F7F\u7528\u4E0A\u4F20\u7684\u53C2\u8003\u56FE\u5982\u4E0B\uFF1A");
+  }
+  referenceImages.forEach((ref, index) => {
+    const imageNum = index + 1;
+    const description = descriptions[ref.type];
+    if (language === "en") {
+      lines.push(`- Image ${imageNum}: ${description}`);
+    } else {
+      lines.push(`- \u56FE\u7247 ${imageNum}\uFF1A${description}`);
+    }
+  });
+  return lines.join("\n");
+}
+function isBase642(content) {
+  if (content.startsWith("data:image/")) {
+    return true;
+  }
+  const base64Pattern = /^[A-Za-z0-9+/=]+$/;
+  return content.length > 100 && base64Pattern.test(content);
+}
+function isUrl2(content) {
+  try {
+    const url = new URL(content);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+function extractBase64FromDataUri(dataUri) {
+  if (dataUri.startsWith("data:image/")) {
+    const base64Index = dataUri.indexOf("base64,");
+    if (base64Index !== -1) {
+      return dataUri.substring(base64Index + 7);
+    }
+  }
+  return dataUri;
+}
+function processReferenceImages(referenceImages, modelName) {
+  const urls = [];
+  const base64s = [];
+  for (const ref of referenceImages) {
+    if (isUrl2(ref.content)) {
+      urls.push(ref.content);
+    } else if (isBase642(ref.content)) {
+      const base64Data = extractBase64FromDataUri(ref.content);
+      base64s.push(base64Data);
+    } else {
+      console.warn(`[ReferenceImage] \u65E0\u6CD5\u8BC6\u522B\u7684\u56FE\u7247\u683C\u5F0F: ${ref.content.substring(0, 50)}...`);
+    }
+  }
+  return { urls, base64s };
+}
+function convertLegacyReferenceImage(oldFormat, defaultType = "main-subject") {
+  if (!oldFormat) {
+    return [];
+  }
+  const images = Array.isArray(oldFormat) ? oldFormat : [oldFormat];
+  return images.map((content) => ({
+    content,
+    type: defaultType
+  }));
+}
+var REFERENCE_TYPE_DESCRIPTIONS_EN, REFERENCE_TYPE_DESCRIPTIONS_ZH;
+var init_reference_image2 = __esm({
+  "src/core/graph/reference-image.ts"() {
+    "use strict";
+    REFERENCE_TYPE_DESCRIPTIONS_EN = {
+      "main-subject": "Main character (face, details, hairstyle, body \u2013 keep exact identity)",
+      "background": "Background scene and lighting",
+      "outfits": "Additional props or secondary character",
+      "color-reference": "Style and color grading reference",
+      "style-reference": "UI style reference (layout, colors, typography, components and overall design language)"
+    };
+    REFERENCE_TYPE_DESCRIPTIONS_ZH = {
+      "main-subject": "\u4E3B\u4F53\u4EBA\u7269\uFF08\u8138\u90E8\u3001\u4E94\u5B98\u7EC6\u8282\u3001\u53D1\u578B\u3001\u8EAB\u6750 \u2013 \u4FDD\u6301\u5B8C\u5168\u4E00\u81F4\uFF09",
+      "background": "\u80CC\u666F\u573A\u666F\u548C\u5149\u7EBF",
+      "outfits": "\u670D\u88C5\u3001\u9053\u5177\u6216\u6B21\u8981\u89D2\u8272",
+      "color-reference": "\u98CE\u683C\u548C\u8272\u5F69\u53C2\u8003",
+      "style-reference": "UI \u98CE\u683C\u53C2\u8003\uFF08\u5E03\u5C40\u3001\u914D\u8272\u3001\u5B57\u4F53\u3001\u7EC4\u4EF6\u4E0E\u6574\u4F53\u8BBE\u8BA1\u8BED\u8A00\uFF09"
     };
   }
 });
@@ -21413,7 +23340,7 @@ function buildCoverImageUserPrompt(params, outputLanguage = "zh") {
   }
   return userPrompt.trim();
 }
-var init_coverImage = __esm({
+var init_coverImage2 = __esm({
   "src/core/graph/graphconfigs/design/coverImage.ts"() {
     "use strict";
   }
@@ -21913,20 +23840,6 @@ var init_grid9_prompt = __esm({
 function detectOutputLanguage(userPrompt) {
   return /[\u4e00-\u9fff]/.test(userPrompt) ? "zh" : "en";
 }
-async function generateText2(modelName, prompt, provider13) {
-  const model = MODEL_MAP[modelName];
-  if (!model) {
-    throw new Error(`\u6A21\u578B "${modelName}" \u4E0D\u5B58\u5728`);
-  }
-  const result = await model.generate({
-    prompt,
-    outputFormat: "json"
-  }, provider13);
-  if (!result.text) {
-    throw new Error("LLM \u751F\u6210\u7ED3\u679C\u4E3A\u7A7A");
-  }
-  return result.text;
-}
 function extractBusinessParams(params, graphType, type) {
   const businessParams = {};
   const paramList = getGraphParamsForType(graphType, type);
@@ -21972,7 +23885,7 @@ ${userPrompt}
 }
 async function getAdminUserId() {
   try {
-    const userRepo = import_mxmdata12.RepositoryFactory.createUserRepository();
+    const userRepo = import_mxmdata17.RepositoryFactory.createUserRepository();
     try {
       const adminUser = await userRepo.findByUsername("admin");
       if (adminUser && adminUser.role === "admin") {
@@ -22012,10 +23925,10 @@ function normalizeSubTypeForStorage(graphType, type) {
 async function resolveSystemKnowledgeBaseName(graphType, type) {
   const subType = normalizeSubTypeForStorage(graphType, type);
   try {
-    const defaultsRepo = import_mxmdata12.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    const defaultsRepo = import_mxmdata17.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
     const kbId = await defaultsRepo.getDefault("graph", graphType, subType);
     if (kbId) {
-      const kbRepo = import_mxmdata12.RepositoryFactory.createKnowledgeBaseRepository();
+      const kbRepo = import_mxmdata17.RepositoryFactory.createKnowledgeBaseRepository();
       const kb = await kbRepo.findKnowledgeBaseById(kbId);
       if (kb) {
         return kb.name;
@@ -22037,7 +23950,7 @@ async function retrieveSystemKnowledgeForPortrait(params, userId) {
   const maxTotalChunks = parseInt(process.env.GRAPH_KB_MAX_TOTAL_CHUNKS || "10", 10);
   let adminUserId = userId;
   try {
-    const userRepo = import_mxmdata12.RepositoryFactory.createUserRepository();
+    const userRepo = import_mxmdata17.RepositoryFactory.createUserRepository();
     if (userId) {
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
@@ -22223,7 +24136,7 @@ async function retrieveSystemKnowledgeCommon(graphType, type, queries, generateD
   const maxTotalChunks = parseInt(process.env.GRAPH_KB_MAX_TOTAL_CHUNKS || "10", 10);
   let adminUserId = userId;
   try {
-    const userRepo = import_mxmdata12.RepositoryFactory.createUserRepository();
+    const userRepo = import_mxmdata17.RepositoryFactory.createUserRepository();
     if (userId) {
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
@@ -22619,7 +24532,7 @@ async function retrieveSystemKnowledgeByType(graphType, type, params, userId) {
   }
   return null;
 }
-async function generateGraphPrompt(graphType, params, userId, provider13) {
+async function generateGraphPrompt(graphType, params, userId, provider13, parentTaskId) {
   const { type, prompt: userPrompt } = params;
   const businessParams = extractBusinessParams(params, graphType, type);
   const outputLanguage = detectOutputLanguage(userPrompt || "");
@@ -22708,50 +24621,50 @@ async function generateGraphPrompt(graphType, params, userId, provider13) {
   let effectiveUserPrompt = userPrompt;
   if (graphType === "photograph") {
     if (type === "portrait") {
-      const { buildPortraitUserPrompt: buildPortraitUserPrompt2 } = (init_portrait(), __toCommonJS(portrait_exports));
+      const { buildPortraitUserPrompt: buildPortraitUserPrompt2 } = (init_portrait2(), __toCommonJS(portrait_exports));
       effectiveUserPrompt = buildPortraitUserPrompt2(params, outputLanguage);
     } else if (type === "landscape") {
-      const { buildLandscapeUserPrompt: buildLandscapeUserPrompt2 } = (init_landscape(), __toCommonJS(landscape_exports));
+      const { buildLandscapeUserPrompt: buildLandscapeUserPrompt2 } = (init_landscape2(), __toCommonJS(landscape_exports));
       effectiveUserPrompt = buildLandscapeUserPrompt2(params, outputLanguage);
     } else if (type === "cinematic") {
-      const { buildCinematicUserPrompt: buildCinematicUserPrompt2 } = (init_cinematic(), __toCommonJS(cinematic_exports));
+      const { buildCinematicUserPrompt: buildCinematicUserPrompt2 } = (init_cinematic2(), __toCommonJS(cinematic_exports));
       effectiveUserPrompt = buildCinematicUserPrompt2(params, outputLanguage);
     } else if (type === "commercial") {
-      const { buildCommercialUserPrompt: buildCommercialUserPrompt2 } = (init_commercial(), __toCommonJS(commercial_exports));
+      const { buildCommercialUserPrompt: buildCommercialUserPrompt2 } = (init_commercial2(), __toCommonJS(commercial_exports));
       effectiveUserPrompt = buildCommercialUserPrompt2(params, outputLanguage);
     } else if (type === "documentary") {
-      const { buildDocumentaryUserPrompt: buildDocumentaryUserPrompt2 } = (init_documentary(), __toCommonJS(documentary_exports));
+      const { buildDocumentaryUserPrompt: buildDocumentaryUserPrompt2 } = (init_documentary2(), __toCommonJS(documentary_exports));
       effectiveUserPrompt = buildDocumentaryUserPrompt2(params, outputLanguage);
     }
   } else if (graphType === "design") {
     if (type === "3d") {
-      const { build3dUserPrompt: build3dUserPrompt2 } = (init_d(), __toCommonJS(d_exports));
+      const { build3dUserPrompt: build3dUserPrompt2 } = (init_d2(), __toCommonJS(d_exports));
       effectiveUserPrompt = build3dUserPrompt2(params, outputLanguage);
     } else if (type === "manual") {
-      const { buildManualUserPrompt: buildManualUserPrompt2 } = (init_manual(), __toCommonJS(manual_exports));
+      const { buildManualUserPrompt: buildManualUserPrompt2 } = (init_manual2(), __toCommonJS(manual_exports));
       effectiveUserPrompt = buildManualUserPrompt2(params, outputLanguage);
     } else if (type === "poster") {
-      const { buildPosterUserPrompt: buildPosterUserPrompt2 } = (init_poster(), __toCommonJS(poster_exports));
+      const { buildPosterUserPrompt: buildPosterUserPrompt2 } = (init_poster2(), __toCommonJS(poster_exports));
       effectiveUserPrompt = buildPosterUserPrompt2(params, outputLanguage);
     } else if (type === "icon") {
-      const { buildIconUserPrompt: buildIconUserPrompt2 } = (init_icon(), __toCommonJS(icon_exports));
+      const { buildIconUserPrompt: buildIconUserPrompt2 } = (init_icon2(), __toCommonJS(icon_exports));
       effectiveUserPrompt = buildIconUserPrompt2(params, outputLanguage);
     } else if (type === "coverImage") {
-      const { buildCoverImageUserPrompt: buildCoverImageUserPrompt2 } = (init_coverImage(), __toCommonJS(coverImage_exports));
+      const { buildCoverImageUserPrompt: buildCoverImageUserPrompt2 } = (init_coverImage2(), __toCommonJS(coverImage_exports));
       effectiveUserPrompt = buildCoverImageUserPrompt2(params, outputLanguage);
     }
   } else if (graphType === "painting") {
     if (type === "illustration") {
-      const { buildIllustrationUserPrompt: buildIllustrationUserPrompt2 } = (init_illustration(), __toCommonJS(illustration_exports));
+      const { buildIllustrationUserPrompt: buildIllustrationUserPrompt2 } = (init_illustration2(), __toCommonJS(illustration_exports));
       effectiveUserPrompt = buildIllustrationUserPrompt2(params, outputLanguage);
     } else if (type === "comic") {
-      const { buildComicUserPrompt: buildComicUserPrompt2 } = (init_comic(), __toCommonJS(comic_exports));
+      const { buildComicUserPrompt: buildComicUserPrompt2 } = (init_comic2(), __toCommonJS(comic_exports));
       effectiveUserPrompt = buildComicUserPrompt2(params, outputLanguage);
     } else if (type === "conceptArt") {
-      const { buildConceptArtUserPrompt: buildConceptArtUserPrompt2 } = (init_conceptArt(), __toCommonJS(conceptArt_exports));
+      const { buildConceptArtUserPrompt: buildConceptArtUserPrompt2 } = (init_conceptArt2(), __toCommonJS(conceptArt_exports));
       effectiveUserPrompt = buildConceptArtUserPrompt2(params, outputLanguage);
     } else if (type === "cartoon") {
-      const { buildCartoonUserPrompt: buildCartoonUserPrompt2 } = (init_cartoon(), __toCommonJS(cartoon_exports));
+      const { buildCartoonUserPrompt: buildCartoonUserPrompt2 } = (init_cartoon2(), __toCommonJS(cartoon_exports));
       effectiveUserPrompt = buildCartoonUserPrompt2(params, outputLanguage);
     }
   }
@@ -22771,10 +24684,18 @@ async function generateGraphPrompt(graphType, params, userId, provider13) {
   console.log(`[GraphService] \u4F7F\u7528\u89C4\u5219\u524D\u7F00: ${rules.substring(0, 180)}${rules.length > 180 ? "..." : ""}`);
   console.log(`[GraphService] \u4E1A\u52A1\u53C2\u6570:`, businessParams);
   console.log(`[GraphService] \u63D0\u793A\u8BCD\u751F\u6210\u8BF7\u6C42\u524D\u7F00: ${promptGenerationRequest.substring(0, 500)}${promptGenerationRequest.length > 500 ? "..." : ""}`);
-  const textModelName = process.env.GRAPH_PROMPT_MODEL || "gemini-3-pro";
   const finalProvider = provider13 ?? providerFactory.getDefaultProvider();
-  console.log(`[GraphService] \u4F7F\u7528\u6A21\u578B: ${textModelName}, Provider: ${finalProvider}`);
-  const generatedPrompt = await generateText2(textModelName, promptGenerationRequest, finalProvider);
+  console.log(
+    `[GraphService] \u4F7F\u7528 BasicText \u751F\u6210\u63D0\u793A\u8BCD: logicalModel=writing-basic-text, providerOverride=${finalProvider}`
+  );
+  const basicTextResult = await runBasicText("writing-basic-text", promptGenerationRequest, {
+    userId,
+    parentTaskId,
+    providerOverride: finalProvider
+  });
+  const generatedPrompt = basicTextResult.text;
+  const promptGenerationUsage = basicTextResult.usage;
+  const promptGenerationCostUsd = basicTextResult.costUsd;
   console.log(`[GraphService] \u751F\u6210\u7684\u63D0\u793A\u8BCD\u524D\u7F00: ${generatedPrompt.substring(0, 220)}${generatedPrompt.length > 220 ? "..." : ""}`);
   const cleanedPrompt = generatedPrompt.trim().replace(/^["']|["']$/g, "");
   let finalPrompt = cleanedPrompt;
@@ -22815,18 +24736,22 @@ Generate: ${cleanedPrompt}`;
     console.log(`[GraphService] \u4E5D\u5BAB\u683C prompt \u751F\u6210\u5B8C\u6210\uFF0C\u957F\u5EA6: ${grid9Prompt.length} \u5B57\u7B26`);
     return {
       prompt: grid9Prompt,
-      knowledgeRecallMetadata: knowledgeRecallMetadata || void 0
+      knowledgeRecallMetadata: knowledgeRecallMetadata || void 0,
+      promptGenerationUsage,
+      promptGenerationCostUsd
     };
   }
   return {
     prompt: finalPrompt,
-    knowledgeRecallMetadata: knowledgeRecallMetadata || void 0
+    knowledgeRecallMetadata: knowledgeRecallMetadata || void 0,
+    promptGenerationUsage,
+    promptGenerationCostUsd
   };
 }
 async function generateGraphImage(graphType, params, generatedPrompt, provider13) {
-  const { quality = "high", referenceImage, aspect_ratio } = params;
+  const { referenceImage, aspect_ratio } = params;
+  const subType = params.type;
   const isGrid9 = params.grid9 === true;
-  const effectiveQuality = quality;
   let effectiveAspectRatio = aspect_ratio;
   if (isGrid9) {
     const supportedAspectRatios = ["1:1", "16:9", "9:16"];
@@ -22835,18 +24760,22 @@ async function generateGraphImage(graphType, params, generatedPrompt, provider13
       effectiveAspectRatio = "1:1";
     }
   }
-  const modelName = effectiveQuality === "high" ? "nano-banana-pro" : "seedream-4";
+  const { modelName, provider: resolvedProvider } = await resolveGraphModel(
+    graphType,
+    subType,
+    provider13
+  );
   if (isGrid9) {
     console.log(
-      `[GraphService] \u4E5D\u5BAB\u683C\u6A21\u5F0F\uFF1A\u4F7F\u7528 ${modelName} \u6A21\u578B\uFF08quality=${effectiveQuality}\uFF09\uFF0Caspect_ratio: ${effectiveAspectRatio}, image_size: 4K`
+      `[GraphService] \u4E5D\u5BAB\u683C\u6A21\u5F0F\uFF1A\u4F7F\u7528 ${modelName} \u6A21\u578B\uFF08graphType=${graphType}, type=${subType}\uFF09\uFF0Caspect_ratio: ${effectiveAspectRatio}, image_size: 4K`
     );
   }
   let imageParams = {
     prompt: generatedPrompt
   };
-  if (modelName === "seedream-4") {
+  if (modelName === "seedream-4" || modelName === "seedream-5") {
     if (!params.size) {
-      imageParams.size = "2k";
+      imageParams.size = "4k";
     } else {
       const sizeValue = typeof params.size === "string" ? params.size.toLowerCase() : params.size;
       imageParams.size = sizeValue;
@@ -22866,7 +24795,7 @@ async function generateGraphImage(graphType, params, generatedPrompt, provider13
         imageParams.prompt = `${generatedPrompt}
 
 \u5BBD\u9AD8\u6BD4\u8981\u6C42: ${aspectRatioText}`;
-        console.log(`[GraphService] seedream-4 \u4E0D\u652F\u6301 aspect_ratio \u53C2\u6570\uFF0C\u5DF2\u5728 prompt \u4E2D\u6DFB\u52A0\u5BBD\u9AD8\u6BD4\u8BF4\u660E: ${aspectRatioText}`);
+        console.log(`[GraphService] ${modelName} \u4E0D\u652F\u6301 aspect_ratio \u53C2\u6570\uFF0C\u5DF2\u5728 prompt \u4E2D\u6DFB\u52A0\u5BBD\u9AD8\u6BD4\u8BF4\u660E: ${aspectRatioText}`);
       } else {
         imageParams.prompt = generatedPrompt;
         console.log(`[GraphService] prompt \u4E2D\u5DF2\u5305\u542B\u5BBD\u9AD8\u6BD4\u4FE1\u606F\uFF0C\u65E0\u9700\u91CD\u590D\u6DFB\u52A0`);
@@ -22933,10 +24862,13 @@ async function generateGraphImage(graphType, params, generatedPrompt, provider13
   if (allReferenceImages.length > 0) {
     const processedReferenceImages = allReferenceImages;
     if (processedReferenceImages.length > 0) {
-      const { urls, base64s } = processReferenceImages(processedReferenceImages, modelName);
+      const { urls, base64s } = processReferenceImages(
+        processedReferenceImages,
+        modelName
+      );
       console.log(`[GraphService] \u5904\u7406\u53C2\u8003\u56FE: ${processedReferenceImages.length} \u5F20, URLs: ${urls.length}, Base64s: ${base64s.length}`);
-      if (modelName === "nano-banana" || modelName === "nano-banana-pro") {
-        const storageRepo = import_mxmdata12.RepositoryFactory.createStorageRepository();
+      if (modelName === "nano-banana-pro") {
+        const storageRepo = import_mxmdata17.RepositoryFactory.createStorageRepository();
         const toDataUriFromUrl = async (u) => {
           try {
             const parsed = new URL(u);
@@ -22963,11 +24895,11 @@ async function generateGraphImage(graphType, params, generatedPrompt, provider13
         const imageInputs = [];
         for (const ref of processedReferenceImages) {
           const c = ref.content;
-          if (isBase64(c)) {
+          if (isBase642(c)) {
             imageInputs.push(c);
             continue;
           }
-          if (isUrl(c)) {
+          if (isUrl2(c)) {
             const dataUri = await toDataUriFromUrl(c);
             const base64Data = extractBase64FromDataUri(dataUri);
             const sizeMB = base64Data.length / 1024 / 1024;
@@ -22987,11 +24919,11 @@ async function generateGraphImage(graphType, params, generatedPrompt, provider13
       } else {
         const imageInput = [];
         imageInput.push(...urls);
-        console.log(`[GraphService] \u5904\u7406 seedream-4 \u53C2\u8003\u56FE\uFF0C\u5F00\u59CB\u538B\u7F29\u5927\u56FE\u7247...`);
+        console.log(`[GraphService] \u5904\u7406 ${modelName} \u53C2\u8003\u56FE\uFF0C\u5F00\u59CB\u538B\u7F29\u5927\u56FE\u7247...`);
         for (const ref of processedReferenceImages) {
-          if (isUrl(ref.content)) {
+          if (isUrl2(ref.content)) {
             continue;
-          } else if (isBase64(ref.content)) {
+          } else if (isBase642(ref.content)) {
             let finalContent = ref.content;
             const base64Data = extractBase64FromDataUri(ref.content);
             const sizeMB = base64Data.length / 1024 / 1024;
@@ -23027,7 +24959,7 @@ async function generateGraphImage(graphType, params, generatedPrompt, provider13
         imageParams.image_input = imageInput;
         const totalSize = imageInput.reduce((sum, img) => sum + img.length, 0);
         const totalSizeMB = totalSize / 1024 / 1024;
-        console.log(`[GraphService] seedream-4 image_input \u51C6\u5907\u5B8C\u6210: ${imageInput.length} \u5F20\u56FE\u7247\uFF0C\u603B\u5927\u5C0F: ${totalSizeMB.toFixed(2)} MB`);
+        console.log(`[GraphService] ${modelName} image_input \u51C6\u5907\u5B8C\u6210: ${imageInput.length} \u5F20\u56FE\u7247\uFF0C\u603B\u5927\u5C0F: ${totalSizeMB.toFixed(2)} MB`);
         if (totalSizeMB > 5) {
           console.warn(`[GraphService] \u8B66\u544A\uFF1A\u53C2\u8003\u56FE\u603B\u5927\u5C0F\u4ECD\u7136\u8F83\u5927 (${totalSizeMB.toFixed(2)} MB)\uFF0C\u53EF\u80FD\u5BFC\u81F4 API \u8BF7\u6C42\u5931\u8D25\u3002\u5EFA\u8BAE\u4F7F\u7528 URL \u800C\u4E0D\u662F Base64\uFF0C\u6216\u5148\u4E0A\u4F20\u5230 MinIO\u3002`);
         }
@@ -23040,25 +24972,19 @@ async function generateGraphImage(graphType, params, generatedPrompt, provider13
     console.log(`[GraphService] image_input \u6570\u91CF: ${imageParams.image_input.length}\uFF0C\u603B\u5927\u5C0F: ${(inputSize / 1024 / 1024).toFixed(2)} MB`);
   }
   try {
-    if (modelName === "nano-banana" || modelName === "nano-banana-pro") {
-      console.log(`[GraphService] \u8C03\u7528 ${modelName} \u751F\u6210\u56FE\u7247...`);
-      const result = await runByModelKey("graph", modelName, imageParams, { providerOverride: provider13 });
-      const urls = result.image_urls ?? result.mediaUrls ?? [];
-      console.log(`[GraphService] ${modelName} \u751F\u6210\u5B8C\u6210\uFF0C\u56FE\u7247\u6570\u91CF: ${urls.length}`);
-      return { image_urls: urls, modelName };
-    } else {
-      console.log(`[GraphService] \u8C03\u7528 seedream-4 \u751F\u6210\u56FE\u7247...`);
-      const result = await runByModelKey("graph", "seedream-4", imageParams, { providerOverride: provider13 });
-      const urls = result.image_urls ?? result.mediaUrls ?? [];
-      console.log(`[GraphService] seedream-4 \u751F\u6210\u5B8C\u6210\uFF0C\u56FE\u7247\u6570\u91CF: ${urls.length}`);
-      return { image_urls: urls, modelName };
-    }
+    console.log(`[GraphService] \u8C03\u7528\u6A21\u578B ${modelName} (provider=${resolvedProvider}) \u751F\u6210\u56FE\u7247...`);
+    const result = await runByModelKey("graph", modelName, imageParams, {
+      providerOverride: resolvedProvider
+    });
+    const urls = result.image_urls ?? result.mediaUrls ?? [];
+    console.log(`[GraphService] ${modelName} \u751F\u6210\u5B8C\u6210\uFF0C\u56FE\u7247\u6570\u91CF: ${urls.length}`);
+    return { image_urls: urls, modelName };
   } catch (error) {
     console.error(`[GraphService] \u6A21\u578B ${modelName} \u751F\u6210\u5931\u8D25:`, error);
     throw error;
   }
 }
-async function generateGraph(graphType, params, userId, provider13) {
+async function generateGraph(graphType, params, userId, provider13, parentTaskId) {
   console.log(`
 ========== [GraphService] \u5F00\u59CB\u751F\u6210\u56FE\u7247 (graphType: ${graphType}) ==========`);
   console.log(`[GraphService] \u7528\u6237\u53C2\u6570:`, {
@@ -23071,40 +24997,43 @@ async function generateGraph(graphType, params, userId, provider13) {
     lighting: params.lighting,
     quality: params.quality
   });
-  const promptResult = await generateGraphPrompt(graphType, params, userId, provider13);
+  const promptResult = await generateGraphPrompt(graphType, params, userId, provider13, parentTaskId);
   const imageResult = await generateGraphImage(graphType, params, promptResult.prompt, provider13);
   return {
     prompt: promptResult.prompt,
     image_urls: imageResult.image_urls,
     modelName: imageResult.modelName,
-    knowledgeRecallMetadata: promptResult.knowledgeRecallMetadata
+    knowledgeRecallMetadata: promptResult.knowledgeRecallMetadata,
+    promptGenerationUsage: promptResult.promptGenerationUsage,
+    promptGenerationCostUsd: promptResult.promptGenerationCostUsd
   };
 }
-var import_mxmdata12;
+var import_mxmdata17;
 var init_graph_service = __esm({
   "src/core/graph/graph-service.ts"() {
     "use strict";
     init_providers2();
-    init_writing2();
     init_prompts();
     init_graphconfigs();
     init_run();
     init_knowledge_service();
-    init_portrait();
-    init_landscape();
-    init_cinematic();
-    init_commercial();
-    init_documentary();
-    init_d();
-    init_manual();
-    init_poster();
-    init_icon();
-    init_illustration();
-    init_comic();
-    init_conceptArt();
-    init_cartoon();
-    import_mxmdata12 = require("@mxmai/mxmdata");
-    init_reference_image();
+    init_portrait2();
+    init_landscape2();
+    init_cinematic2();
+    init_commercial2();
+    init_documentary2();
+    init_d2();
+    init_manual2();
+    init_poster2();
+    init_icon2();
+    init_illustration2();
+    init_comic2();
+    init_conceptArt2();
+    init_cartoon2();
+    import_mxmdata17 = require("@mxmai/mxmdata");
+    init_graph_model_routing();
+    init_reference_image2();
+    init_basic_text();
   }
 });
 
@@ -23211,7 +25140,7 @@ function replacePathTemplate(template, variables) {
   return path2;
 }
 async function storeMedia(mediaData, config, userId, modelName) {
-  const storageRepo = import_mxmdata13.RepositoryFactory.createStorageRepository();
+  const storageRepo = import_mxmdata18.RepositoryFactory.createStorageRepository();
   const { buffer, contentType, ext: detectedExt } = await downloadOrConvertToBuffer(mediaData.url);
   const fileExt = mediaData.ext || detectedExt || config.defaultExt || "bin";
   const now = /* @__PURE__ */ new Date();
@@ -23270,11 +25199,11 @@ async function storeFromGenerateResult(generateResult, config, userId, modelName
   }));
   return storeMediaBatch(mediaDataList, config, userId, finalModelName);
 }
-var import_mxmdata13;
+var import_mxmdata18;
 var init_data_store = __esm({
   "src/core/utils/data-store.ts"() {
     "use strict";
-    import_mxmdata13 = require("@mxmai/mxmdata");
+    import_mxmdata18 = require("@mxmai/mxmdata");
   }
 });
 
@@ -23442,7 +25371,8 @@ async function startGraphTask(taskId, originalParams) {
       graphType,
       graphParams,
       finalUserId,
-      provider13
+      provider13,
+      taskId
     );
     console.log(`[GraphTask] generateGraph \u5B8C\u6210\uFF0C\u6A21\u578B: ${result.modelName}, \u56FE\u7247\u6570\u91CF: ${result.image_urls.length}`);
     await taskManager2.updateTaskProgress(taskId, {
@@ -23487,6 +25417,26 @@ async function startGraphTask(taskId, originalParams) {
         metadata: updatedMetadata
       });
     }
+    const effProvider = task.metadata?.provider || provider13 || "deer";
+    let providerCostUsd = 0;
+    let promptCostUsd = result.promptGenerationCostUsd ?? 0;
+    try {
+      const usageResult = await UsageService2.logProviderUsage({
+        taskId,
+        userId: finalUserId,
+        logicalModel: graphTypeModel,
+        result: {
+          mediaUrls: result.image_urls,
+          metadata: { provider: effProvider, model: result.modelName }
+        },
+        providerOverride: effProvider
+      });
+      providerCostUsd = usageResult.costUsd;
+      console.log(`[GraphTask] Provider \u6263\u8D39\u5B8C\u6210 (provider=${effProvider}, image costUsd=${providerCostUsd})`);
+    } catch (usageErr) {
+      console.error("[GraphTask] Provider \u6263\u8D39\u5931\u8D25\uFF08provider \u5DF2\u6D88\u8017\uFF0C\u4F46\u672C\u5730\u672A\u6263\u51CF\uFF09:", usageErr);
+      throw usageErr;
+    }
     const storeToMinio = task.metadata.storeToMinio !== false;
     const storageConfig = task.metadata.storageConfig;
     let finalMediaUrls = result.image_urls;
@@ -23499,7 +25449,7 @@ async function startGraphTask(taskId, originalParams) {
           logs: ["\u56FE\u7247\u751F\u6210\u5B8C\u6210\uFF0C\u6B63\u5728\u4E0A\u4F20\u5230\u5B58\u50A8..."]
         });
         try {
-          const { storeFromGenerateResult: storeFromGenerateResult2 } = await Promise.resolve().then(() => (init_data_store(), data_store_exports));
+          const { storeFromGenerateResult: storeFromGenerateResult3 } = await Promise.resolve().then(() => (init_data_store(), data_store_exports));
           const generateResult = {
             mediaUrls: result.image_urls,
             metadata: {
@@ -23509,7 +25459,7 @@ async function startGraphTask(taskId, originalParams) {
               model: result.modelName
             }
           };
-          const storageResults = await storeFromGenerateResult2(
+          const storageResults = await storeFromGenerateResult3(
             generateResult,
             storageConfig,
             finalUserId,
@@ -23542,7 +25492,6 @@ async function startGraphTask(taskId, originalParams) {
       console.warn("[GraphTask] storeToMinio=true \u4F46 storageConfig \u4E3A\u7A7A\uFF0C\u8DF3\u8FC7 MinIO \u4E0A\u4F20\uFF0C\u5C06\u4F7F\u7528 base64 \u7ED3\u679C");
     }
     const taskResultMetadata = {
-      generated_prompt: result.prompt,
       graphType,
       type: graphParams.type
     };
@@ -23582,28 +25531,31 @@ async function startGraphTask(taskId, originalParams) {
           ...taskResult,
           metadata: taskResultMetadata
         });
-        const effProvider2 = task.metadata?.provider || provider13 || "deer";
-        const { costUsd: costUsd1 } = await UsageService.logProviderUsage({
-          taskId,
-          userId: finalUserId,
-          logicalModel: graphTypeModel,
-          result: {
-            mediaUrls: result.image_urls,
-            metadata: { provider: effProvider2, model: result.modelName }
-          },
-          providerOverride: effProvider2
-        });
         if (finalUserId) {
           try {
-            await BillingService.consumeForTask({
+            if (result.promptGenerationUsage?.metadata && promptCostUsd >= 0) {
+              const u = result.promptGenerationUsage.metadata.usage;
+              await BillingService2.consumeForTask({
+                taskId,
+                userId: finalUserId,
+                provider: result.promptGenerationUsage.metadata.provider || effProvider,
+                modelKey: String(result.promptGenerationUsage.metadata.model || "writing-basic-text"),
+                scope: "writing",
+                inputTokens: Number(u?.prompt_tokens ?? u?.input_tokens ?? 0),
+                outputTokens: Number(u?.completion_tokens ?? u?.output_tokens ?? 0),
+                requestCount: 1,
+                providerCostUsd: promptCostUsd
+              });
+            }
+            await BillingService2.consumeForTask({
               taskId,
               userId: finalUserId,
-              provider: effProvider2,
+              provider: effProvider,
               modelKey: result.modelName || graphTypeModel,
               scope: "graph",
               imageCount: result.image_urls?.length || 1,
               requestCount: 1,
-              providerCostUsd: costUsd1
+              providerCostUsd
             });
           } catch (billingErr) {
             console.warn("[GraphTask] \u7528\u6237\u6263\u8D39\u5931\u8D25:", billingErr instanceof Error ? billingErr.message : String(billingErr));
@@ -23630,6 +25582,36 @@ async function startGraphTask(taskId, originalParams) {
         console.warn(`[GraphTask] \u66F4\u65B0\u4EFB\u52A1 metadata \u5931\u8D25\uFF08\u4E0D\u5F71\u54CD\u540E\u7EED\u5904\u7406\uFF09:`, updateError);
       }
       try {
+        if (finalUserId) {
+          try {
+            if (result.promptGenerationUsage?.metadata && promptCostUsd >= 0) {
+              const u = result.promptGenerationUsage.metadata.usage;
+              await BillingService2.consumeForTask({
+                taskId,
+                userId: finalUserId,
+                provider: result.promptGenerationUsage.metadata.provider || effProvider,
+                modelKey: String(result.promptGenerationUsage.metadata.model || "writing-basic-text"),
+                scope: "writing",
+                inputTokens: Number(u?.prompt_tokens ?? u?.input_tokens ?? 0),
+                outputTokens: Number(u?.completion_tokens ?? u?.output_tokens ?? 0),
+                requestCount: 1,
+                providerCostUsd: promptCostUsd
+              });
+            }
+            await BillingService2.consumeForTask({
+              taskId,
+              userId: finalUserId,
+              provider: effProvider,
+              modelKey: result.modelName || graphTypeModel,
+              scope: "graph",
+              imageCount: result.image_urls?.length || 1,
+              requestCount: 1,
+              providerCostUsd
+            });
+          } catch (billingErr) {
+            console.warn("[GraphTask] \u7528\u6237\u6263\u8D39\u5931\u8D25:", billingErr instanceof Error ? billingErr.message : String(billingErr));
+          }
+        }
         const folderId = graphParams.folderId;
         await handleGrid9Task(
           taskId,
@@ -23640,8 +25622,9 @@ async function startGraphTask(taskId, originalParams) {
           storageConfig,
           taskManager2,
           task,
-          folderId
+          folderId,
           // 传递 folderId 给 handleGrid9Task
+          providerCostUsd
         );
         console.log(`[GraphTask] \u4E5D\u5BAB\u683C\u4EFB\u52A1\u5904\u7406\u5B8C\u6210`);
         console.log(`========== [GraphTask] \u4EFB\u52A1\u5904\u7406\u5B8C\u6210 ==========
@@ -23651,28 +25634,32 @@ async function startGraphTask(taskId, originalParams) {
         console.error(`[GraphTask] \u4E5D\u5BAB\u683C\u4EFB\u52A1\u5904\u7406\u5931\u8D25:`, error);
         await taskManager2.setTaskResult(taskId, taskResult);
         hasSavedFallbackResultForGrid9 = true;
-        const effProvider2 = task.metadata?.provider || provider13 || "deer";
-        const { costUsd: costUsd2 } = await UsageService.logProviderUsage({
-          taskId,
-          userId: finalUserId,
-          logicalModel: graphTypeModel,
-          result: {
-            mediaUrls: result.image_urls,
-            metadata: { provider: effProvider2, model: result.modelName }
-          },
-          providerOverride: effProvider2
-        });
+        const effProviderGrid9 = task.metadata?.provider || provider13 || "deer";
         if (finalUserId) {
           try {
-            await BillingService.consumeForTask({
+            if (result.promptGenerationUsage?.metadata && promptCostUsd >= 0) {
+              const u = result.promptGenerationUsage.metadata.usage;
+              await BillingService2.consumeForTask({
+                taskId,
+                userId: finalUserId,
+                provider: result.promptGenerationUsage.metadata.provider || effProviderGrid9,
+                modelKey: String(result.promptGenerationUsage.metadata.model || "writing-basic-text"),
+                scope: "writing",
+                inputTokens: Number(u?.prompt_tokens ?? u?.input_tokens ?? 0),
+                outputTokens: Number(u?.completion_tokens ?? u?.output_tokens ?? 0),
+                requestCount: 1,
+                providerCostUsd: promptCostUsd
+              });
+            }
+            await BillingService2.consumeForTask({
               taskId,
               userId: finalUserId,
-              provider: effProvider2,
+              provider: effProviderGrid9,
               modelKey: result.modelName || graphTypeModel,
               scope: "graph",
               imageCount: result.image_urls?.length || 1,
               requestCount: 1,
-              providerCostUsd: costUsd2
+              providerCostUsd
             });
           } catch (billingErr) {
             console.warn("[GraphTask] \u7528\u6237\u6263\u8D39\u5931\u8D25:", billingErr instanceof Error ? billingErr.message : String(billingErr));
@@ -23682,20 +25669,23 @@ async function startGraphTask(taskId, originalParams) {
       }
     }
     await taskManager2.setTaskResult(taskId, taskResult);
-    const effProvider = task.metadata?.provider || provider13 || "deer";
-    const { costUsd: costUsd3 } = await UsageService.logProviderUsage({
-      taskId,
-      userId: finalUserId,
-      logicalModel: graphTypeModel,
-      result: {
-        mediaUrls: finalMediaUrls,
-        metadata: { provider: effProvider, model: result.modelName }
-      },
-      providerOverride: effProvider
-    });
     if (finalUserId) {
       try {
-        await BillingService.consumeForTask({
+        if (result.promptGenerationUsage?.metadata && promptCostUsd >= 0) {
+          const u = result.promptGenerationUsage.metadata.usage;
+          await BillingService2.consumeForTask({
+            taskId,
+            userId: finalUserId,
+            provider: result.promptGenerationUsage.metadata.provider || effProvider,
+            modelKey: String(result.promptGenerationUsage.metadata.model || "writing-basic-text"),
+            scope: "writing",
+            inputTokens: Number(u?.prompt_tokens ?? u?.input_tokens ?? 0),
+            outputTokens: Number(u?.completion_tokens ?? u?.output_tokens ?? 0),
+            requestCount: 1,
+            providerCostUsd: promptCostUsd
+          });
+        }
+        await BillingService2.consumeForTask({
           taskId,
           userId: finalUserId,
           provider: effProvider,
@@ -23703,7 +25693,7 @@ async function startGraphTask(taskId, originalParams) {
           scope: "graph",
           imageCount: finalMediaUrls?.length || 1,
           requestCount: 1,
-          providerCostUsd: costUsd3
+          providerCostUsd
         });
       } catch (billingErr) {
         console.warn("[GraphTask] \u7528\u6237\u6263\u8D39\u5931\u8D25:", billingErr instanceof Error ? billingErr.message : String(billingErr));
@@ -23727,7 +25717,7 @@ async function startGraphTask(taskId, originalParams) {
     throw error;
   }
 }
-async function handleGrid9Task(originalTaskId, result, graphParams, graphType, userId, storageConfig, taskManager2, originalTask, folderId) {
+async function handleGrid9Task(originalTaskId, result, graphParams, graphType, userId, storageConfig, taskManager2, originalTask, folderId, providerCostUsd = 0) {
   console.log(`[GraphTask] \u5F00\u59CB\u5904\u7406\u4E5D\u5BAB\u683C\u4EFB\u52A1 (taskId: ${originalTaskId})`);
   try {
     const grid9ImageUrl = result.image_urls[0];
@@ -23737,8 +25727,8 @@ async function handleGrid9Task(originalTaskId, result, graphParams, graphType, u
     const { splitGrid9Image: splitGrid9Image2 } = await Promise.resolve().then(() => (init_grid9_splitter(), grid9_splitter_exports));
     const splitResult = await splitGrid9Image2(grid9ImageUrl);
     console.log(`[GraphTask] \u4E5D\u5BAB\u683C\u56FE\u7247\u5DF2\u5207\u5272\u4E3A 9 \u5F20`);
-    const { storeFromGenerateResult: storeFromGenerateResult2 } = await Promise.resolve().then(() => (init_data_store(), data_store_exports));
-    const parentStorageResult = await storeFromGenerateResult2(
+    const { storeFromGenerateResult: storeFromGenerateResult3 } = await Promise.resolve().then(() => (init_data_store(), data_store_exports));
+    const parentStorageResult = await storeFromGenerateResult3(
       {
         mediaUrls: [grid9ImageUrl],
         metadata: {
@@ -23755,7 +25745,7 @@ async function handleGrid9Task(originalTaskId, result, graphParams, graphType, u
     );
     const parentImageUrl = parentStorageResult[0].url;
     console.log(`[GraphTask] \u5B8C\u6574\u5927\u56FE\u5DF2\u4E0A\u4F20\u5230 MinIO: ${parentImageUrl}`);
-    const childStorageResults = await storeFromGenerateResult2(
+    const childStorageResults = await storeFromGenerateResult3(
       {
         mediaUrls: splitResult.images,
         metadata: {
@@ -23897,19 +25887,9 @@ async function handleGrid9Task(originalTaskId, result, graphParams, graphType, u
         console.log(`[GraphTask] \u5B50\u4EFB\u52A1ID\u5217\u8868: ${childTaskIds.join(", ")}`);
         const graphTypeModel = `graph-${graphType}`;
         const effProvider = originalTask.metadata?.provider || graphParams.provider || "deer";
-        const { costUsd: costUsd4 } = await UsageService.logProviderUsage({
-          taskId: originalTaskId,
-          userId,
-          logicalModel: graphTypeModel,
-          result: {
-            mediaUrls: result.image_urls,
-            metadata: { provider: effProvider, model: result.modelName }
-          },
-          providerOverride: effProvider
-        });
         if (userId) {
           try {
-            await BillingService.consumeForTask({
+            await BillingService2.consumeForTask({
               taskId: originalTaskId,
               userId,
               provider: effProvider,
@@ -23917,7 +25897,7 @@ async function handleGrid9Task(originalTaskId, result, graphParams, graphType, u
               scope: "graph",
               imageCount: result.image_urls?.length || 1,
               requestCount: 1,
-              providerCostUsd: costUsd4
+              providerCostUsd
             });
           } catch (billingErr) {
             console.warn("[GraphTask] \u4E5D\u5BAB\u683C\u7236\u4EFB\u52A1\u7528\u6237\u6263\u8D39\u5931\u8D25:", billingErr instanceof Error ? billingErr.message : String(billingErr));
@@ -23942,8 +25922,182 @@ var init_graph_task = __esm({
     "use strict";
     init_task_executor();
     init_graph_service();
-    init_usage_service();
-    init_billing_service();
+    init_usage_service2();
+    init_billing_service2();
+  }
+});
+
+// src/task/data-store.ts
+var data_store_exports2 = {};
+__export(data_store_exports2, {
+  storeFromGenerateResult: () => storeFromGenerateResult2,
+  storeMedia: () => storeMedia2,
+  storeMediaBatch: () => storeMediaBatch2
+});
+async function downloadOrConvertToBuffer2(data) {
+  if (data.startsWith("data:")) {
+    const matches = data.match(/^data:([^;]+)(?:;base64)?,(.+)$/);
+    if (!matches) {
+      throw new Error("Invalid data URI format");
+    }
+    const contentType2 = matches[1];
+    const base64Data = matches[2];
+    const buffer2 = Buffer.from(base64Data, "base64");
+    const ext2 = getExtensionFromContentType2(contentType2) || "bin";
+    return { buffer: buffer2, contentType: contentType2, ext: ext2 };
+  } else if (data.match(/^[A-Za-z0-9+/=]+$/)) {
+    const buffer2 = Buffer.from(data, "base64");
+    const contentType2 = detectContentTypeFromBuffer2(buffer2);
+    const ext2 = getExtensionFromContentType2(contentType2) || "png";
+    return { buffer: buffer2, contentType: contentType2, ext: ext2 };
+  }
+  const response = await fetch(data);
+  if (!response.ok) {
+    throw new Error(`Failed to download file from URL: ${response.status} ${response.statusText}`);
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const contentType = response.headers.get("content-type") || detectContentTypeFromBuffer2(buffer) || "application/octet-stream";
+  const ext = getExtensionFromContentType2(contentType) || getExtensionFromUrl2(data) || "bin";
+  return { buffer, contentType, ext };
+}
+function getExtensionFromContentType2(contentType) {
+  const mimeMap = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "image/svg+xml": "svg",
+    "video/mp4": "mp4",
+    "video/webm": "webm",
+    "video/ogg": "ogg",
+    "video/quicktime": "mov",
+    "video/x-msvideo": "avi",
+    // audio
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/wave": "wav",
+    "audio/flac": "flac",
+    "audio/ogg": "ogg",
+    "audio/webm": "webm",
+    "audio/aac": "aac",
+    "audio/mp4": "m4a",
+    "audio/x-m4a": "m4a",
+    "audio/pcm": "pcm",
+    "audio/l16": "pcm"
+  };
+  return mimeMap[contentType.toLowerCase()] || null;
+}
+function getExtensionFromUrl2(url) {
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    const match = pathname.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+    return match ? match[1].toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+function detectContentTypeFromBuffer2(buffer) {
+  if (buffer[0] === 255 && buffer[1] === 216 && buffer[2] === 255) {
+    return "image/jpeg";
+  }
+  if (buffer[0] === 137 && buffer[1] === 80 && buffer[2] === 78 && buffer[3] === 71) {
+    return "image/png";
+  }
+  if (buffer[0] === 71 && buffer[1] === 73 && buffer[2] === 70) {
+    return "image/gif";
+  }
+  if (buffer[0] === 82 && buffer[1] === 73 && buffer[2] === 70 && buffer[3] === 70 && buffer[8] === 87 && buffer[9] === 69 && buffer[10] === 66 && buffer[11] === 80) {
+    return "image/webp";
+  }
+  if (buffer[4] === 102 && buffer[5] === 116 && buffer[6] === 121 && buffer[7] === 112) {
+    return "video/mp4";
+  }
+  if (buffer[0] === 26 && buffer[1] === 69 && buffer[2] === 223 && buffer[3] === 163) {
+    return "video/webm";
+  }
+  return "application/octet-stream";
+}
+function replacePathTemplate2(template, variables) {
+  let path2 = template;
+  for (const [key, value] of Object.entries(variables)) {
+    path2 = path2.replace(new RegExp(`\\{${key}\\}`, "g"), String(value));
+  }
+  return path2;
+}
+async function storeMedia2(mediaData, config, userId, modelName) {
+  const storageRepo = import_mxmdata19.RepositoryFactory.createStorageRepository();
+  const { buffer, contentType, ext: detectedExt } = await downloadOrConvertToBuffer2(
+    mediaData.url
+  );
+  const fileExt = mediaData.ext || detectedExt || config.defaultExt || "bin";
+  const now = /* @__PURE__ */ new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}${String(now.getDate()).padStart(2, "0")}`;
+  const timestamp = Date.now();
+  const randomId = Math.random().toString(36).slice(2, 8);
+  const pathVariables = {
+    userId: userId || "anonymous",
+    modelName: modelName || "unknown",
+    date: dateStr,
+    timestamp,
+    randomId,
+    ext: fileExt
+  };
+  const key = replacePathTemplate2(config.pathTemplate, pathVariables);
+  const uploadOptions = {
+    contentType,
+    metadata: {
+      userId: userId || "anonymous",
+      originalUrl: mediaData.url.substring(0, 200),
+      // 限制长度
+      mediaType: mediaData.mediaType || (contentType.startsWith("image/") ? "image" : contentType.startsWith("video/") ? "video" : "unknown")
+    }
+  };
+  if (config.generatePresignedUrl) {
+    uploadOptions.expiresIn = config.presignedUrlExpiresIn || 7 * 24 * 3600;
+  }
+  const uploadResult = await storageRepo.uploadFile(config.bucket, key, buffer, uploadOptions);
+  return {
+    originalUrl: mediaData.url,
+    key: uploadResult.key,
+    bucket: uploadResult.bucket,
+    url: uploadResult.url,
+    presignedUrl: uploadResult.presignedUrl,
+    size: buffer.length,
+    contentType
+  };
+}
+async function storeMediaBatch2(mediaDataList, config, userId, modelName) {
+  const results = [];
+  for (let i = 0; i < mediaDataList.length; i++) {
+    const mediaData = mediaDataList[i];
+    const configWithIndex = {
+      ...config,
+      pathTemplate: config.pathTemplate.replace(/\{index\}/g, String(i))
+    };
+    const result = await storeMedia2(mediaData, configWithIndex, userId, modelName);
+    results.push(result);
+  }
+  return results;
+}
+async function storeFromGenerateResult2(generateResult, config, userId, modelName) {
+  const finalModelName = modelName || generateResult.metadata?.model;
+  const mediaDataList = generateResult.mediaUrls.map((url) => ({
+    url
+  }));
+  return storeMediaBatch2(mediaDataList, config, userId, finalModelName);
+}
+var import_mxmdata19;
+var init_data_store2 = __esm({
+  "src/task/data-store.ts"() {
+    "use strict";
+    import_mxmdata19 = require("@mxmai/mxmdata");
   }
 });
 
@@ -23959,7 +26113,7 @@ function getTaskExecutor() {
   }
   return _taskExecutor;
 }
-var import_mxmdata14, TaskExecutor, _taskExecutor, taskExecutor;
+var import_mxmdata20, TaskExecutor, _taskExecutor, taskExecutor;
 var init_task_executor = __esm({
   "src/task/task-executor.ts"() {
     "use strict";
@@ -23967,7 +26121,7 @@ var init_task_executor = __esm({
     init_database_storage();
     init_providers2();
     init_run();
-    import_mxmdata14 = require("@mxmai/mxmdata");
+    import_mxmdata20 = require("@mxmai/mxmdata");
     init_usage_service();
     init_billing_service();
     TaskExecutor = class {
@@ -24112,6 +26266,16 @@ var init_task_executor = __esm({
             await this.processResult(taskId, result, storeToMinio, storageConfig, userId, modelName, provider13);
           }
         } catch (error) {
+          console.error("[TaskExecutor] \u274C \u4EFB\u52A1\u6267\u884C\u5931\u8D25", {
+            taskId,
+            modelName,
+            provider: provider13 || "auto",
+            error: error instanceof Error ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack
+            } : String(error)
+          });
           await this.taskManager.setTaskError(
             taskId,
             error instanceof Error ? error.message : String(error)
@@ -24424,9 +26588,9 @@ var init_task_executor = __esm({
             );
           }
           if ((storeToMinio || shouldForceMinIO) && finalStorageConfig && mediaUrls.length > 0) {
-            const { storeFromGenerateResult: storeFromGenerateResult2 } = await Promise.resolve().then(() => (init_data_store(), data_store_exports));
+            const { storeFromGenerateResult: storeFromGenerateResult3 } = await Promise.resolve().then(() => (init_data_store2(), data_store_exports2));
             const finalModelName = modelName || result.metadata && result.metadata.model || "unknown";
-            const storageResults = await storeFromGenerateResult2(result, finalStorageConfig, userId, finalModelName);
+            const storageResults = await storeFromGenerateResult3(result, finalStorageConfig, userId, finalModelName);
             mediaUrls = storageResults.map((r) => {
               let url = r.url;
               url = url.replace(/http:+\/\//g, "http://");
@@ -24533,6 +26697,16 @@ var init_task_executor = __esm({
             }
           }
         } catch (error) {
+          console.error("[TaskExecutor] \u274C \u5904\u7406\u7ED3\u679C\u5931\u8D25", {
+            taskId,
+            modelName,
+            provider: provider13 || "auto",
+            error: error instanceof Error ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack
+            } : String(error)
+          });
           await this.taskManager.setTaskError(
             taskId,
             `\u5904\u7406\u7ED3\u679C\u5931\u8D25: ${error instanceof Error ? error.message : String(error)}`
@@ -24581,7 +26755,7 @@ var init_task_executor = __esm({
         for (const [k, v] of Object.entries(pathVariables)) {
           key = key.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
         }
-        const storageRepo = import_mxmdata14.RepositoryFactory.createStorageRepository();
+        const storageRepo = import_mxmdata20.RepositoryFactory.createStorageRepository();
         const uploadOptions = {
           contentType,
           metadata: {
@@ -25380,8 +27554,8 @@ var init_task_recovery = __esm({
           let storageInfo;
           if (storeToMinio && storageConfig) {
             try {
-              const { storeFromGenerateResult: storeFromGenerateResult2 } = await import("../utils/data-store");
-              const storageResults = await storeFromGenerateResult2(
+              const { storeFromGenerateResult: storeFromGenerateResult3 } = await import("../utils/data-store");
+              const storageResults = await storeFromGenerateResult3(
                 { mediaUrls: [videoUrl] },
                 storageConfig,
                 task.metadata?.userId,
@@ -25584,16 +27758,17 @@ var import_express15 = __toESM(require("express"));
 var import_dotenv = __toESM(require("dotenv"));
 var path = __toESM(require("path"));
 var fs = __toESM(require("fs"));
-var import_mxmdata23 = require("@mxmai/mxmdata");
+var import_mxmdata29 = require("@mxmai/mxmdata");
 var import_video = __toESM(require_video());
 var import_audio = __toESM(require_audio());
 var import_writing6 = __toESM(require_writing());
 var import_writing7 = __toESM(require_writing2());
-var import_graph2 = __toESM(require_graph());
-var import_graph3 = __toESM(require_graph2());
-var import_graph4 = __toESM(require_graph3());
+var import_graph3 = __toESM(require_graph());
+var import_graph4 = __toESM(require_graph2());
+var import_graph5 = __toESM(require_graph3());
 var import_audio2 = __toESM(require_audio2());
 var import_audio3 = __toESM(require_audio3());
+var import_openai = __toESM(require_openai());
 
 // src/routes/health.ts
 var import_express = require("express");
@@ -25606,636 +27781,9 @@ var health_default = router;
 // src/routes/graph.ts
 var import_express3 = require("express");
 init_task_executor();
-init_graphconfigs();
-
-// src/clientServer/graph/photograph/portrait.ts
-var formOptionsZh = {
-  style: [
-    { value: "modern", label: "\u73B0\u4EE3", labelEn: "Modern" },
-    { value: "vintage", label: "\u590D\u53E4", labelEn: "Vintage" },
-    { value: "fashion", label: "\u65F6\u5C1A", labelEn: "Fashion" },
-    { value: "minimalist", label: "\u6781\u7B80", labelEn: "Minimalist" },
-    { value: "classic", label: "\u7ECF\u5178", labelEn: "Classic" },
-    { value: "artistic", label: "\u827A\u672F", labelEn: "Artistic" },
-    { value: "editorial", label: "\u7F16\u8F91", labelEn: "Editorial" },
-    { value: "commercial", label: "\u5546\u4E1A", labelEn: "Commercial" }
-  ],
-  tone: [
-    { value: "warm", label: "\u6696\u8272\u8C03", labelEn: "Warm" },
-    { value: "cool", label: "\u51B7\u8272\u8C03", labelEn: "Cool" },
-    { value: "neutral", label: "\u4E2D\u6027", labelEn: "Neutral" },
-    { value: "high-contrast", label: "\u9AD8\u5BF9\u6BD4", labelEn: "High Contrast" },
-    { value: "low-contrast", label: "\u4F4E\u5BF9\u6BD4", labelEn: "Low Contrast" },
-    { value: "vibrant", label: "\u9C9C\u8273", labelEn: "Vibrant" },
-    { value: "muted", label: "\u67D4\u548C", labelEn: "Muted" },
-    { value: "monochrome", label: "\u5355\u8272", labelEn: "Monochrome" }
-  ],
-  environment: [
-    { value: "indoor", label: "\u5BA4\u5185", labelEn: "Indoor" },
-    { value: "outdoor", label: "\u5BA4\u5916", labelEn: "Outdoor" },
-    { value: "studio", label: "\u5F71\u68DA", labelEn: "Studio" },
-    { value: "natural", label: "\u81EA\u7136", labelEn: "Natural" },
-    { value: "urban", label: "\u57CE\u5E02", labelEn: "Urban" },
-    { value: "rural", label: "\u4E61\u6751", labelEn: "Rural" },
-    { value: "beach", label: "\u6D77\u6EE9", labelEn: "Beach" },
-    { value: "forest", label: "\u68EE\u6797", labelEn: "Forest" }
-  ],
-  makeup: [
-    { value: "natural", label: "\u81EA\u7136", labelEn: "Natural" },
-    { value: "light", label: "\u6DE1\u5986", labelEn: "Light" },
-    { value: "heavy", label: "\u6D53\u5986", labelEn: "Heavy" },
-    { value: "no-makeup", label: "\u65E0\u5986", labelEn: "No Makeup" },
-    { value: "editorial", label: "\u7F16\u8F91\u5986", labelEn: "Editorial" },
-    { value: "glamour", label: "\u9B45\u529B\u5986", labelEn: "Glamour" },
-    { value: "artistic", label: "\u827A\u672F\u5986", labelEn: "Artistic" },
-    { value: "minimal", label: "\u6781\u7B80\u5986", labelEn: "Minimal" }
-  ],
-  pose: [
-    { value: "standing", label: "\u7AD9\u7ACB", labelEn: "Standing" },
-    { value: "sitting", label: "\u5750\u59FF", labelEn: "Sitting" },
-    { value: "lying", label: "\u8EBA\u59FF", labelEn: "Lying" },
-    { value: "walking", label: "\u884C\u8D70", labelEn: "Walking" },
-    { value: "candid", label: "\u6293\u62CD", labelEn: "Candid" },
-    { value: "portrait", label: "\u8096\u50CF", labelEn: "Portrait" },
-    { value: "full-body", label: "\u5168\u8EAB", labelEn: "Full Body" },
-    { value: "close-up", label: "\u7279\u5199", labelEn: "Close Up" },
-    { value: "three-quarter", label: "\u56DB\u5206\u4E4B\u4E09", labelEn: "Three Quarter" },
-    { value: "profile", label: "\u4FA7\u9762", labelEn: "Profile" }
-  ],
-  lighting: [
-    { value: "natural", label: "\u81EA\u7136\u5149", labelEn: "Natural" },
-    { value: "soft", label: "\u67D4\u5149", labelEn: "Soft" },
-    { value: "hard", label: "\u786C\u5149", labelEn: "Hard" },
-    { value: "rim", label: "\u8F6E\u5ED3\u5149", labelEn: "Rim" },
-    { value: "backlight", label: "\u9006\u5149", labelEn: "Backlight" },
-    { value: "side", label: "\u4FA7\u5149", labelEn: "Side" },
-    { value: "studio", label: "\u5F71\u68DA\u5149", labelEn: "Studio" },
-    { value: "golden-hour", label: "\u9EC4\u91D1\u65F6\u523B", labelEn: "Golden Hour" },
-    { value: "blue-hour", label: "\u84DD\u8272\u65F6\u523B", labelEn: "Blue Hour" },
-    { value: "dramatic", label: "\u620F\u5267\u6027", labelEn: "Dramatic" }
-  ]
-};
-var formOptionsEn = {
-  style: formOptionsZh.style.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  tone: formOptionsZh.tone.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  environment: formOptionsZh.environment.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  makeup: formOptionsZh.makeup.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  pose: formOptionsZh.pose.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  lighting: formOptionsZh.lighting.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getFormOptions(language = "zh") {
-  return language === "en" ? formOptionsEn : formOptionsZh;
-}
-
-// src/clientServer/graph/photograph/landscape.ts
-var landscapeFormOptionsZh = {
-  timeOfDay: [
-    { value: "dawn", label: "\u6E05\u6668", labelEn: "Dawn" },
-    { value: "noon", label: "\u6B63\u5348", labelEn: "Noon" },
-    { value: "dusk", label: "\u9EC4\u660F", labelEn: "Dusk" },
-    { value: "night", label: "\u591C\u665A", labelEn: "Night" },
-    { value: "sunrise", label: "\u65E5\u51FA", labelEn: "Sunrise" },
-    { value: "sunset", label: "\u65E5\u843D", labelEn: "Sunset" }
-  ],
-  weather: [
-    { value: "sunny", label: "\u6674\u5929", labelEn: "Sunny" },
-    { value: "cloudy", label: "\u9634\u5929", labelEn: "Cloudy" },
-    { value: "rainy", label: "\u96E8\u5929", labelEn: "Rainy" },
-    { value: "snowy", label: "\u96EA\u5929", labelEn: "Snowy" },
-    { value: "foggy", label: "\u96FE\u5929", labelEn: "Foggy" },
-    { value: "stormy", label: "\u66B4\u98CE\u96E8", labelEn: "Stormy" }
-  ],
-  season: [
-    { value: "spring", label: "\u6625\u5B63", labelEn: "Spring" },
-    { value: "summer", label: "\u590F\u5B63", labelEn: "Summer" },
-    { value: "autumn", label: "\u79CB\u5B63", labelEn: "Autumn" },
-    { value: "winter", label: "\u51AC\u5B63", labelEn: "Winter" }
-  ],
-  composition: [
-    { value: "rule-of-thirds", label: "\u4E09\u5206\u6CD5", labelEn: "Rule of Thirds" },
-    { value: "leading-lines", label: "\u5F15\u5BFC\u7EBF", labelEn: "Leading Lines" },
-    { value: "symmetry", label: "\u5BF9\u79F0", labelEn: "Symmetry" },
-    { value: "framing", label: "\u6846\u67B6", labelEn: "Framing" },
-    { value: "center", label: "\u5C45\u4E2D", labelEn: "Center" }
-  ]
-};
-var landscapeFormOptionsEn = {
-  timeOfDay: landscapeFormOptionsZh.timeOfDay.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  weather: landscapeFormOptionsZh.weather.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  season: landscapeFormOptionsZh.season.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  composition: landscapeFormOptionsZh.composition.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getLandscapeFormOptions(language = "zh") {
-  return language === "en" ? landscapeFormOptionsEn : landscapeFormOptionsZh;
-}
-
-// src/clientServer/graph/photograph/cinematic.ts
-var cinematicFormOptionsZh = {
-  filmStyle: [
-    { value: "cyberpunk", label: "\u8D5B\u535A\u670B\u514B", labelEn: "Cyberpunk" },
-    { value: "noir", label: "\u9ED1\u8272\u7535\u5F71", labelEn: "Film Noir" },
-    { value: "sci-fi", label: "\u79D1\u5E7B", labelEn: "Sci-Fi" },
-    { value: "drama", label: "\u6587\u827A", labelEn: "Drama" },
-    { value: "action", label: "\u52A8\u4F5C", labelEn: "Action" },
-    { value: "horror", label: "\u6050\u6016", labelEn: "Horror" },
-    { value: "romance", label: "\u6D6A\u6F2B", labelEn: "Romance" }
-  ],
-  mood: [
-    { value: "mysterious", label: "\u795E\u79D8", labelEn: "Mysterious" },
-    { value: "tense", label: "\u7D27\u5F20", labelEn: "Tense" },
-    { value: "romantic", label: "\u6D6A\u6F2B", labelEn: "Romantic" },
-    { value: "sad", label: "\u60B2\u4F24", labelEn: "Sad" },
-    { value: "epic", label: "\u53F2\u8BD7", labelEn: "Epic" },
-    { value: "dramatic", label: "\u620F\u5267\u6027", labelEn: "Dramatic" },
-    { value: "melancholic", label: "\u5FE7\u90C1", labelEn: "Melancholic" }
-  ],
-  cameraAngle: [
-    { value: "high-angle", label: "\u4FEF\u89C6", labelEn: "High Angle" },
-    { value: "low-angle", label: "\u4EF0\u89C6", labelEn: "Low Angle" },
-    { value: "dutch-angle", label: "\u503E\u659C", labelEn: "Dutch Angle" },
-    { value: "eye-level", label: "\u5E73\u89C6", labelEn: "Eye Level" },
-    { value: "bird-eye", label: "\u9E1F\u77B0", labelEn: "Bird Eye" },
-    { value: "worm-eye", label: "\u866B\u773C", labelEn: "Worm Eye" }
-  ]
-};
-var cinematicFormOptionsEn = {
-  filmStyle: cinematicFormOptionsZh.filmStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  mood: cinematicFormOptionsZh.mood.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  cameraAngle: cinematicFormOptionsZh.cameraAngle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getCinematicFormOptions(language = "zh") {
-  return language === "en" ? cinematicFormOptionsEn : cinematicFormOptionsZh;
-}
-
-// src/clientServer/graph/photograph/commercial.ts
-var commercialFormOptionsZh = {
-  productType: [
-    { value: "electronics", label: "\u7535\u5B50\u4EA7\u54C1", labelEn: "Electronics" },
-    { value: "food", label: "\u98DF\u54C1", labelEn: "Food" },
-    { value: "clothing", label: "\u670D\u88C5", labelEn: "Clothing" },
-    { value: "cosmetics", label: "\u5316\u5986\u54C1", labelEn: "Cosmetics" },
-    { value: "jewelry", label: "\u73E0\u5B9D", labelEn: "Jewelry" },
-    { value: "furniture", label: "\u5BB6\u5177", labelEn: "Furniture" },
-    { value: "automotive", label: "\u6C7D\u8F66", labelEn: "Automotive" },
-    { value: "beverage", label: "\u996E\u6599", labelEn: "Beverage" }
-  ],
-  background: [
-    { value: "simple", label: "\u7B80\u7EA6", labelEn: "Simple" },
-    { value: "complex", label: "\u590D\u6742", labelEn: "Complex" },
-    { value: "white", label: "\u767D\u8272", labelEn: "White" },
-    { value: "gradient", label: "\u6E10\u53D8", labelEn: "Gradient" },
-    { value: "textured", label: "\u7EB9\u7406", labelEn: "Textured" },
-    { value: "lifestyle", label: "\u751F\u6D3B\u573A\u666F", labelEn: "Lifestyle" }
-  ],
-  props: [
-    { value: "minimal", label: "\u6781\u7B80\u9053\u5177", labelEn: "Minimal Props" },
-    { value: "moderate", label: "\u9002\u91CF\u9053\u5177", labelEn: "Moderate Props" },
-    { value: "rich", label: "\u4E30\u5BCC\u9053\u5177", labelEn: "Rich Props" },
-    { value: "none", label: "\u65E0\u9053\u5177", labelEn: "No Props" }
-  ]
-};
-var commercialFormOptionsEn = {
-  productType: commercialFormOptionsZh.productType.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  background: commercialFormOptionsZh.background.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  props: commercialFormOptionsZh.props.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getCommercialFormOptions(language = "zh") {
-  return language === "en" ? commercialFormOptionsEn : commercialFormOptionsZh;
-}
-
-// src/clientServer/graph/photograph/documentary.ts
-var documentaryFormOptionsZh = {
-  eventType: [
-    { value: "news", label: "\u65B0\u95FB", labelEn: "News" },
-    { value: "social", label: "\u793E\u4F1A", labelEn: "Social" },
-    { value: "culture", label: "\u6587\u5316", labelEn: "Culture" },
-    { value: "history", label: "\u5386\u53F2", labelEn: "History" },
-    { value: "sports", label: "\u4F53\u80B2", labelEn: "Sports" },
-    { value: "ceremony", label: "\u4EEA\u5F0F", labelEn: "Ceremony" }
-  ],
-  documentaryStyle: [
-    { value: "candid", label: "\u6293\u62CD", labelEn: "Candid" },
-    { value: "posed", label: "\u6446\u62CD", labelEn: "Posed" },
-    { value: "environmental", label: "\u73AF\u5883\u8096\u50CF", labelEn: "Environmental" },
-    { value: "street", label: "\u8857\u5934\u7EAA\u5B9E", labelEn: "Street" },
-    { value: "photojournalism", label: "\u65B0\u95FB\u6444\u5F71", labelEn: "Photojournalism" }
-  ]
-};
-var documentaryFormOptionsEn = {
-  eventType: documentaryFormOptionsZh.eventType.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  documentaryStyle: documentaryFormOptionsZh.documentaryStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getDocumentaryFormOptions(language = "zh") {
-  return language === "en" ? documentaryFormOptionsEn : documentaryFormOptionsZh;
-}
-
-// src/clientServer/graph/design/3d.ts
-var design3dFormOptionsZh = {
-  modelStyle: [
-    { value: "low-poly", label: "\u4F4E\u591A\u8FB9\u5F62", labelEn: "Low Poly" },
-    { value: "realistic", label: "\u5199\u5B9E", labelEn: "Realistic" },
-    { value: "cartoon", label: "\u5361\u901A", labelEn: "Cartoon" },
-    { value: "abstract", label: "\u62BD\u8C61", labelEn: "Abstract" },
-    { value: "stylized", label: "\u98CE\u683C\u5316", labelEn: "Stylized" }
-  ],
-  material: [
-    { value: "metal", label: "\u91D1\u5C5E", labelEn: "Metal" },
-    { value: "glass", label: "\u73BB\u7483", labelEn: "Glass" },
-    { value: "plastic", label: "\u5851\u6599", labelEn: "Plastic" },
-    { value: "wood", label: "\u6728\u6750", labelEn: "Wood" },
-    { value: "fabric", label: "\u5E03\u6599", labelEn: "Fabric" },
-    { value: "ceramic", label: "\u9676\u74F7", labelEn: "Ceramic" }
-  ],
-  lighting: [
-    { value: "three-point", label: "\u4E09\u70B9\u5149\u7167", labelEn: "Three Point" },
-    { value: "environment", label: "\u73AF\u5883\u5149\u7167", labelEn: "Environment" },
-    { value: "dramatic", label: "\u620F\u5267\u6027\u5149\u7167", labelEn: "Dramatic" },
-    { value: "soft", label: "\u67D4\u548C\u5149\u7167", labelEn: "Soft" }
-  ],
-  perspective: [
-    { value: "isometric", label: "\u7B49\u8F74\u6D4B", labelEn: "Isometric" },
-    { value: "perspective", label: "\u900F\u89C6", labelEn: "Perspective" },
-    { value: "orthographic", label: "\u6B63\u4EA4", labelEn: "Orthographic" }
-  ]
-};
-var design3dFormOptionsEn = {
-  modelStyle: design3dFormOptionsZh.modelStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  material: design3dFormOptionsZh.material.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  lighting: design3dFormOptionsZh.lighting.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  perspective: design3dFormOptionsZh.perspective.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function get3dFormOptions(language = "zh") {
-  return language === "en" ? design3dFormOptionsEn : design3dFormOptionsZh;
-}
-
-// src/clientServer/graph/design/manual.ts
-var manualFormOptionsZh = {
-  layout: [
-    { value: "grid", label: "\u7F51\u683C", labelEn: "Grid" },
-    { value: "free", label: "\u81EA\u7531", labelEn: "Free" },
-    { value: "symmetric", label: "\u5BF9\u79F0", labelEn: "Symmetric" },
-    { value: "asymmetric", label: "\u975E\u5BF9\u79F0", labelEn: "Asymmetric" }
-  ],
-  colorScheme: [
-    { value: "monochrome", label: "\u5355\u8272", labelEn: "Monochrome" },
-    { value: "complementary", label: "\u4E92\u8865\u8272", labelEn: "Complementary" },
-    { value: "analogous", label: "\u7C7B\u4F3C\u8272", labelEn: "Analogous" },
-    { value: "brand", label: "\u54C1\u724C\u8272", labelEn: "Brand" }
-  ],
-  typography: [
-    { value: "sans-serif", label: "\u65E0\u886C\u7EBF", labelEn: "Sans Serif" },
-    { value: "serif", label: "\u886C\u7EBF", labelEn: "Serif" },
-    { value: "handwriting", label: "\u624B\u5199", labelEn: "Handwriting" },
-    { value: "display", label: "\u5C55\u793A", labelEn: "Display" }
-  ]
-};
-var manualFormOptionsEn = {
-  layout: manualFormOptionsZh.layout.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  colorScheme: manualFormOptionsZh.colorScheme.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  typography: manualFormOptionsZh.typography.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getManualFormOptions(language = "zh") {
-  return language === "en" ? manualFormOptionsEn : manualFormOptionsZh;
-}
-
-// src/clientServer/graph/design/poster.ts
-var posterFormOptionsZh = {
-  artStyle: [
-    { value: "vintage", label: "\u590D\u53E4", labelEn: "Vintage" },
-    { value: "modern", label: "\u73B0\u4EE3", labelEn: "Modern" },
-    { value: "abstract", label: "\u62BD\u8C61", labelEn: "Abstract" },
-    { value: "minimalist", label: "\u6781\u7B80", labelEn: "Minimalist" },
-    { value: "art-deco", label: "\u88C5\u9970\u827A\u672F", labelEn: "Art Deco" }
-  ],
-  theme: [
-    { value: "music", label: "\u97F3\u4E50", labelEn: "Music" },
-    { value: "film", label: "\u7535\u5F71", labelEn: "Film" },
-    { value: "event", label: "\u6D3B\u52A8", labelEn: "Event" },
-    { value: "product", label: "\u4EA7\u54C1", labelEn: "Product" },
-    { value: "cultural", label: "\u6587\u5316", labelEn: "Cultural" }
-  ]
-};
-var posterFormOptionsEn = {
-  artStyle: posterFormOptionsZh.artStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  theme: posterFormOptionsZh.theme.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getPosterFormOptions(language = "zh") {
-  return language === "en" ? posterFormOptionsEn : posterFormOptionsZh;
-}
-
-// src/clientServer/graph/design/icon.ts
-var iconFormOptionsZh = {
-  iconStyle: [
-    { value: "flat", label: "\u6241\u5E73", labelEn: "Flat" },
-    { value: "skeuomorphic", label: "\u62DF\u7269", labelEn: "Skeuomorphic" },
-    { value: "linear", label: "\u7EBF\u6027", labelEn: "Linear" },
-    { value: "filled", label: "\u586B\u5145", labelEn: "Filled" },
-    { value: "outline", label: "\u8F6E\u5ED3", labelEn: "Outline" }
-  ],
-  size: [
-    { value: "small", label: "\u5C0F", labelEn: "Small" },
-    { value: "medium", label: "\u4E2D", labelEn: "Medium" },
-    { value: "large", label: "\u5927", labelEn: "Large" },
-    { value: "xlarge", label: "\u8D85\u5927", labelEn: "Extra Large" }
-  ]
-};
-var iconFormOptionsEn = {
-  iconStyle: iconFormOptionsZh.iconStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  size: iconFormOptionsZh.size.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getIconFormOptions(language = "zh") {
-  return language === "en" ? iconFormOptionsEn : iconFormOptionsZh;
-}
-
-// src/clientServer/graph/design/coverImage.ts
-function getCoverImageFormOptions(language = "zh") {
-  const isZh = language === "zh";
-  const coverImageFormOptionsZh = {
-    textStyle: [
-      { value: "bold", label: "\u7C97\u4F53", labelEn: "Bold" },
-      { value: "shadow", label: "\u9634\u5F71", labelEn: "Shadow" },
-      { value: "outline", label: "\u63CF\u8FB9", labelEn: "Outline" },
-      { value: "gradient", label: "\u6E10\u53D8", labelEn: "Gradient" },
-      { value: "glow", label: "\u53D1\u5149", labelEn: "Glow" },
-      { value: "3d", label: "3D\u6548\u679C", labelEn: "3D Effect" }
-    ],
-    textColor: [
-      { value: "white", label: "\u767D\u8272", labelEn: "White" },
-      { value: "black", label: "\u9ED1\u8272", labelEn: "Black" },
-      { value: "red", label: "\u7EA2\u8272", labelEn: "Red" },
-      { value: "blue", label: "\u84DD\u8272", labelEn: "Blue" },
-      { value: "yellow", label: "\u9EC4\u8272", labelEn: "Yellow" },
-      { value: "green", label: "\u7EFF\u8272", labelEn: "Green" },
-      { value: "orange", label: "\u6A59\u8272", labelEn: "Orange" },
-      { value: "purple", label: "\u7D2B\u8272", labelEn: "Purple" },
-      { value: "gradient", label: "\u6E10\u53D8", labelEn: "Gradient" }
-    ],
-    textPosition: [
-      { value: "top-left", label: "\u5DE6\u4E0A", labelEn: "Top Left" },
-      { value: "top-center", label: "\u4E0A\u4E2D", labelEn: "Top Center" },
-      { value: "top-right", label: "\u53F3\u4E0A", labelEn: "Top Right" },
-      { value: "center-left", label: "\u5DE6\u4E2D", labelEn: "Center Left" },
-      { value: "center", label: "\u5C45\u4E2D", labelEn: "Center" },
-      { value: "center-right", label: "\u53F3\u4E2D", labelEn: "Center Right" },
-      { value: "bottom-left", label: "\u5DE6\u4E0B", labelEn: "Bottom Left" },
-      { value: "bottom-center", label: "\u4E0B\u4E2D", labelEn: "Bottom Center" },
-      { value: "bottom-right", label: "\u53F3\u4E0B", labelEn: "Bottom Right" }
-    ],
-    layoutStyle: [
-      { value: "left-right", label: "\u5DE6\u53F3\u5206\u680F", labelEn: "Left-Right Split" },
-      { value: "top-bottom", label: "\u4E0A\u4E0B\u5206\u680F", labelEn: "Top-Bottom Split" },
-      { value: "center-focus", label: "\u4E2D\u5FC3\u805A\u7126", labelEn: "Center Focus" },
-      { value: "diagonal", label: "\u5BF9\u89D2\u7EBF", labelEn: "Diagonal" },
-      { value: "grid", label: "\u7F51\u683C", labelEn: "Grid" },
-      { value: "overlay", label: "\u53E0\u52A0", labelEn: "Overlay" }
-    ],
-    visualEffects: [
-      { value: "blur", label: "\u6A21\u7CCA", labelEn: "Blur" },
-      { value: "gradient", label: "\u6E10\u53D8", labelEn: "Gradient" },
-      { value: "vignette", label: "\u6697\u89D2", labelEn: "Vignette" },
-      { value: "glow", label: "\u53D1\u5149", labelEn: "Glow" },
-      { value: "particle", label: "\u7C92\u5B50", labelEn: "Particle" },
-      { value: "light-ray", label: "\u5149\u6548", labelEn: "Light Ray" },
-      { value: "none", label: "\u65E0", labelEn: "None" }
-    ],
-    coverTheme: [
-      { value: "news", label: "\u65B0\u95FB", labelEn: "News" },
-      { value: "entertainment", label: "\u5A31\u4E50", labelEn: "Entertainment" },
-      { value: "education", label: "\u6559\u80B2", labelEn: "Education" },
-      { value: "technology", label: "\u79D1\u6280", labelEn: "Technology" },
-      { value: "lifestyle", label: "\u751F\u6D3B", labelEn: "Lifestyle" },
-      { value: "sports", label: "\u4F53\u80B2", labelEn: "Sports" },
-      { value: "business", label: "\u5546\u4E1A", labelEn: "Business" },
-      { value: "travel", label: "\u65C5\u884C", labelEn: "Travel" },
-      { value: "food", label: "\u7F8E\u98DF", labelEn: "Food" },
-      { value: "fashion", label: "\u65F6\u5C1A", labelEn: "Fashion" }
-    ],
-    _metadata: {
-      title: {
-        type: "text",
-        label: isZh ? "\u4E3B\u6807\u9898" : "Main Title",
-        placeholder: isZh ? "\u8F93\u5165\u5C01\u9762\u4E3B\u6807\u9898" : "Enter main title",
-        helpText: isZh ? "\u5C01\u9762\u7684\u4E3B\u8981\u6587\u5B57\u5185\u5BB9" : "Main text content of the cover"
-      },
-      subtitle: {
-        type: "text",
-        label: isZh ? "\u526F\u6807\u9898" : "Subtitle",
-        placeholder: isZh ? "\u8F93\u5165\u5C01\u9762\u526F\u6807\u9898\uFF08\u53EF\u9009\uFF09" : "Enter subtitle (optional)",
-        helpText: isZh ? "\u5C01\u9762\u7684\u6B21\u8981\u6587\u5B57\u5185\u5BB9" : "Secondary text content of the cover"
-      },
-      textStyle: {
-        type: "select",
-        label: isZh ? "\u6587\u5B57\u98CE\u683C" : "Text Style",
-        helpText: isZh ? "\u9009\u62E9\u6587\u5B57\u7684\u89C6\u89C9\u6548\u679C" : "Select visual effect for text"
-      },
-      textColor: {
-        type: "select",
-        label: isZh ? "\u6587\u5B57\u989C\u8272" : "Text Color",
-        helpText: isZh ? "\u9009\u62E9\u6587\u5B57\u7684\u989C\u8272" : "Select color for text"
-      },
-      textPosition: {
-        type: "select",
-        label: isZh ? "\u6587\u5B57\u4F4D\u7F6E" : "Text Position",
-        helpText: isZh ? "\u9009\u62E9\u6587\u5B57\u5728\u5C01\u9762\u4E2D\u7684\u4F4D\u7F6E" : "Select position of text on cover"
-      },
-      layoutStyle: {
-        type: "select",
-        label: isZh ? "\u5E03\u5C40\u98CE\u683C" : "Layout Style",
-        helpText: isZh ? "\u9009\u62E9\u5C01\u9762\u7684\u6574\u4F53\u5E03\u5C40\u65B9\u5F0F" : "Select overall layout style for cover"
-      },
-      visualEffects: {
-        type: "select",
-        label: isZh ? "\u89C6\u89C9\u6548\u679C" : "Visual Effects",
-        helpText: isZh ? "\u9009\u62E9\u989D\u5916\u7684\u89C6\u89C9\u6548\u679C" : "Select additional visual effects"
-      },
-      coverTheme: {
-        type: "select",
-        label: isZh ? "\u5C01\u9762\u4E3B\u9898" : "Cover Theme",
-        helpText: isZh ? "\u9009\u62E9\u5C01\u9762\u7684\u4E3B\u9898\u98CE\u683C" : "Select theme style for cover"
-      }
-    }
-  };
-  if (language === "en") {
-    const zh = coverImageFormOptionsZh;
-    const meta = zh._metadata;
-    return {
-      textStyle: zh.textStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
-      textColor: zh.textColor.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
-      textPosition: zh.textPosition.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
-      layoutStyle: zh.layoutStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
-      visualEffects: zh.visualEffects.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
-      coverTheme: zh.coverTheme.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.label })),
-      _metadata: {
-        title: meta.title,
-        subtitle: meta.subtitle,
-        textStyle: { ...meta.textStyle, label: meta.textStyle.labelEn ?? meta.textStyle.label, helpText: meta.textStyle.helpTextEn ?? meta.textStyle.helpText },
-        textColor: { ...meta.textColor, label: meta.textColor.labelEn ?? meta.textColor.label, helpText: meta.textColor.helpTextEn ?? meta.textColor.helpText },
-        textPosition: { ...meta.textPosition, label: meta.textPosition.labelEn ?? meta.textPosition.label, helpText: meta.textPosition.helpTextEn ?? meta.textPosition.helpText },
-        layoutStyle: { ...meta.layoutStyle, label: meta.layoutStyle.labelEn ?? meta.layoutStyle.label, helpText: meta.layoutStyle.helpTextEn ?? meta.layoutStyle.helpText },
-        visualEffects: { ...meta.visualEffects, label: meta.visualEffects.labelEn ?? meta.visualEffects.label, helpText: meta.visualEffects.helpTextEn ?? meta.visualEffects.helpText },
-        coverTheme: { ...meta.coverTheme, label: meta.coverTheme.labelEn ?? meta.coverTheme.label, helpText: meta.coverTheme.helpTextEn ?? meta.coverTheme.helpText }
-      }
-    };
-  }
-  return coverImageFormOptionsZh;
-}
-
-// src/clientServer/graph/design/ui-design.ts
-var uiDesignFormOptionsZh = {
-  uiResolution: [
-    { value: "mobile-app", label: "\u624B\u673A\u5E94\u7528", labelEn: "Mobile App" },
-    { value: "web", label: "\u7F51\u9875", labelEn: "Web" },
-    { value: "game", label: "\u6E38\u620F", labelEn: "Game" },
-    { value: "element", label: "\u5143\u7D20", labelEn: "Element" }
-  ],
-  uiStyleKeywords: [
-    { value: "glassmorphism", label: "\u73BB\u7483\u6001", labelEn: "Glassmorphism" },
-    { value: "neumorphism", label: "\u65B0\u62DF\u6001", labelEn: "Neumorphism" },
-    { value: "flat", label: "\u6241\u5E73\u5316", labelEn: "Flat Design" },
-    { value: "material", label: "Material Design", labelEn: "Material Design" },
-    { value: "minimal", label: "\u6781\u7B80\u4E3B\u4E49", labelEn: "Minimalist" },
-    { value: "brutalism", label: "\u7C97\u91CE\u4E3B\u4E49", labelEn: "Brutalism" },
-    { value: "skeuomorphic", label: "\u62DF\u7269\u5316", labelEn: "Skeuomorphic" },
-    { value: "dark-mode", label: "\u6DF1\u8272\u6A21\u5F0F", labelEn: "Dark Mode" },
-    { value: "gradient", label: "\u6E10\u53D8", labelEn: "Gradient" },
-    { value: "3d", label: "3D", labelEn: "3D" },
-    { value: "retro", label: "\u590D\u53E4", labelEn: "Retro" },
-    { value: "futuristic", label: "\u672A\u6765\u4E3B\u4E49", labelEn: "Futuristic" },
-    { value: "organic", label: "\u6709\u673A", labelEn: "Organic" },
-    { value: "geometric", label: "\u51E0\u4F55", labelEn: "Geometric" },
-    { value: "hand-drawn", label: "\u624B\u7ED8", labelEn: "Hand-drawn" }
-  ]
-};
-var uiDesignFormOptionsEn = {
-  uiResolution: uiDesignFormOptionsZh.uiResolution.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  uiStyleKeywords: uiDesignFormOptionsZh.uiStyleKeywords.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getUiDesignFormOptions(language = "zh") {
-  return language === "en" ? uiDesignFormOptionsEn : uiDesignFormOptionsZh;
-}
-
-// src/clientServer/graph/painting/illustration.ts
-var illustrationFormOptionsZh = {
-  illustrationStyle: [
-    { value: "flat", label: "\u6241\u5E73", labelEn: "Flat" },
-    { value: "realistic", label: "\u5199\u5B9E", labelEn: "Realistic" },
-    { value: "watercolor", label: "\u6C34\u5F69", labelEn: "Watercolor" },
-    { value: "digital", label: "\u6570\u5B57\u7ED8\u753B", labelEn: "Digital" },
-    { value: "sketch", label: "\u7D20\u63CF", labelEn: "Sketch" }
-  ],
-  colorPalette: [
-    { value: "warm", label: "\u6E29\u6696", labelEn: "Warm" },
-    { value: "cool", label: "\u51B7\u8C03", labelEn: "Cool" },
-    { value: "high-saturation", label: "\u9AD8\u9971\u548C", labelEn: "High Saturation" },
-    { value: "low-saturation", label: "\u4F4E\u9971\u548C", labelEn: "Low Saturation" },
-    { value: "monochrome", label: "\u5355\u8272", labelEn: "Monochrome" }
-  ]
-};
-var illustrationFormOptionsEn = {
-  illustrationStyle: illustrationFormOptionsZh.illustrationStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  colorPalette: illustrationFormOptionsZh.colorPalette.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getIllustrationFormOptions(language = "zh") {
-  return language === "en" ? illustrationFormOptionsEn : illustrationFormOptionsZh;
-}
-
-// src/clientServer/graph/painting/comic.ts
-var comicFormOptionsZh = {
-  comicStyle: [
-    { value: "american", label: "\u7F8E\u5F0F", labelEn: "American" },
-    { value: "japanese", label: "\u65E5\u5F0F", labelEn: "Japanese" },
-    { value: "european", label: "\u6B27\u5F0F", labelEn: "European" },
-    { value: "webtoon", label: "\u7F51\u7EDC\u6F2B\u753B", labelEn: "Webtoon" }
-  ],
-  panelLayout: [
-    { value: "single", label: "\u5355\u683C", labelEn: "Single" },
-    { value: "multi", label: "\u591A\u683C", labelEn: "Multi" },
-    { value: "spread", label: "\u8DE8\u9875", labelEn: "Spread" },
-    { value: "strip", label: "\u6761\u72B6", labelEn: "Strip" }
-  ]
-};
-var comicFormOptionsEn = {
-  comicStyle: comicFormOptionsZh.comicStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  panelLayout: comicFormOptionsZh.panelLayout.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getComicFormOptions(language = "zh") {
-  return language === "en" ? comicFormOptionsEn : comicFormOptionsZh;
-}
-
-// src/clientServer/graph/painting/conceptArt.ts
-var conceptArtFormOptionsZh = {
-  conceptArtStyle: [
-    { value: "realistic", label: "\u5199\u5B9E", labelEn: "Realistic" },
-    { value: "stylized", label: "\u98CE\u683C\u5316", labelEn: "Stylized" },
-    { value: "sci-fi", label: "\u79D1\u5E7B", labelEn: "Sci-Fi" },
-    { value: "fantasy", label: "\u5947\u5E7B", labelEn: "Fantasy" }
-  ],
-  detailLevel: [
-    { value: "high", label: "\u9AD8", labelEn: "High" },
-    { value: "medium", label: "\u4E2D", labelEn: "Medium" },
-    { value: "low", label: "\u4F4E", labelEn: "Low" }
-  ]
-};
-var conceptArtFormOptionsEn = {
-  conceptArtStyle: conceptArtFormOptionsZh.conceptArtStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  detailLevel: conceptArtFormOptionsZh.detailLevel.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getConceptArtFormOptions(language = "zh") {
-  return language === "en" ? conceptArtFormOptionsEn : conceptArtFormOptionsZh;
-}
-
-// src/clientServer/graph/painting/cartoon.ts
-var cartoonFormOptionsZh = {
-  cartoonStyle: [
-    { value: "chibi", label: "Q\u7248", labelEn: "Chibi" },
-    { value: "american", label: "\u7F8E\u5F0F", labelEn: "American" },
-    { value: "japanese", label: "\u65E5\u5F0F", labelEn: "Japanese" },
-    { value: "european", label: "\u6B27\u5F0F", labelEn: "European" }
-  ],
-  characterDesign: [
-    { value: "cute", label: "\u53EF\u7231", labelEn: "Cute" },
-    { value: "cool", label: "\u5E05\u6C14", labelEn: "Cool" },
-    { value: "funny", label: "\u641E\u7B11", labelEn: "Funny" },
-    { value: "sweet", label: "\u751C\u7F8E", labelEn: "Sweet" }
-  ]
-};
-var cartoonFormOptionsEn = {
-  cartoonStyle: cartoonFormOptionsZh.cartoonStyle.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value })),
-  characterDesign: cartoonFormOptionsZh.characterDesign.map((opt) => ({ value: opt.value, label: opt.labelEn || opt.value }))
-};
-function getCartoonFormOptions(language = "zh") {
-  return language === "en" ? cartoonFormOptionsEn : cartoonFormOptionsZh;
-}
-
-// src/clientServer/graph/index.ts
-function getFormOptionsForType(graphType, type, language = "zh") {
-  if (graphType === "photograph") {
-    if (type === "portrait") return getFormOptions(language);
-    if (type === "landscape") return getLandscapeFormOptions(language);
-    if (type === "cinematic") return getCinematicFormOptions(language);
-    if (type === "commercial") return getCommercialFormOptions(language);
-    if (type === "documentary") return getDocumentaryFormOptions(language);
-  }
-  if (graphType === "design") {
-    if (type === "3d") return get3dFormOptions(language);
-    if (type === "manual") return getManualFormOptions(language);
-    if (type === "poster") return getPosterFormOptions(language);
-    if (type === "icon") return getIconFormOptions(language);
-    if (type === "coverImage") return getCoverImageFormOptions(language);
-    if (type === "ui-design") return getUiDesignFormOptions(language);
-  }
-  if (graphType === "painting") {
-    if (type === "illustration") return getIllustrationFormOptions(language);
-    if (type === "comic") return getComicFormOptions(language);
-    if (type === "conceptArt") return getConceptArtFormOptions(language);
-    if (type === "cartoon") return getCartoonFormOptions(language);
-  }
-  return null;
-}
-
-// src/routes/graph.ts
+init_graph();
 init_registry();
-init_providers2();
+init_graph_model_routing();
 init_billing_service();
 var GRAPH_MODELS = listModels({ scope: "graph" });
 var SUPPORTED_MODELS = Array.from(new Set(GRAPH_MODELS.map((d) => d.modelKey)));
@@ -26342,7 +27890,9 @@ router3.post("/photograph", async (req, res) => {
         message: `Type "${params.type}" is not supported. Valid types: ${validTypes.join(", ")}`
       });
     }
-    const { provider: rProvider, model: rModel } = getResolvedRouting("graph-photograph", req.query.provider);
+    const resolvedPhotograph = await resolveGraphModel("photograph", params.type, req.query.provider);
+    const rProvider = resolvedPhotograph.provider;
+    const rModel = resolvedPhotograph.modelName;
     const balanceCheck = await BillingService.checkBalance({
       userId,
       provider: rProvider,
@@ -26438,7 +27988,9 @@ router3.post("/design", async (req, res) => {
         message: `Type "${params.type}" is not supported. Valid types: ${validTypes.join(", ")}`
       });
     }
-    const { provider: rProviderD, model: rModelD } = getResolvedRouting("graph-design", req.query.provider);
+    const resolvedDesign = await resolveGraphModel("design", params.type, req.query.provider);
+    const rProviderD = resolvedDesign.provider;
+    const rModelD = resolvedDesign.modelName;
     const balanceCheckD = await BillingService.checkBalance({
       userId,
       provider: rProviderD,
@@ -26534,7 +28086,9 @@ router3.post("/painting", async (req, res) => {
         message: `Type "${params.type}" is not supported. Valid types: ${validTypes.join(", ")}`
       });
     }
-    const { provider: rProviderP, model: rModelP } = getResolvedRouting("graph-painting", req.query.provider);
+    const resolvedPainting = await resolveGraphModel("painting", params.type, req.query.provider);
+    const rProviderP = resolvedPainting.provider;
+    const rModelP = resolvedPainting.modelName;
     const balanceCheckP = await BillingService.checkBalance({
       userId,
       provider: rProviderP,
@@ -26872,14 +28426,16 @@ var audio_default = router4;
 var import_express5 = require("express");
 init_task_executor();
 
-// src/core/utils/image-processor.ts
+// src/clientServer/graph/utils/image-processor.ts
 async function processReferenceImage(inputReference, targetSize) {
   if (!inputReference || typeof inputReference !== "string") {
     throw new Error("input_reference \u5FC5\u987B\u662F base64 \u5B57\u7B26\u4E32");
   }
   const base64Match = inputReference.match(/^data:image\/(\w+);base64,(.+)$/);
   if (!base64Match) {
-    throw new Error("input_reference \u683C\u5F0F\u9519\u8BEF\uFF0C\u5FC5\u987B\u662F data:image/xxx;base64,... \u683C\u5F0F");
+    throw new Error(
+      "input_reference \u683C\u5F0F\u9519\u8BEF\uFF0C\u5FC5\u987B\u662F data:image/xxx;base64,... \u683C\u5F0F"
+    );
   }
   const mimeType = base64Match[1];
   const base64Data = base64Match[2];
@@ -26887,7 +28443,9 @@ async function processReferenceImage(inputReference, targetSize) {
   const originalSizeKB = imageBuffer.length / 1024;
   const [targetWidth, targetHeight] = targetSize.split("x").map(Number);
   if (!targetWidth || !targetHeight) {
-    throw new Error(`targetSize \u683C\u5F0F\u9519\u8BEF\uFF0C\u5E94\u4E3A "WIDTHxHEIGHT"\uFF0C\u5982 "720x1280"`);
+    throw new Error(
+      `targetSize \u683C\u5F0F\u9519\u8BEF\uFF0C\u5E94\u4E3A "WIDTHxHEIGHT"\uFF0C\u5982 "720x1280"`
+    );
   }
   let sharp2;
   try {
@@ -26924,7 +28482,9 @@ async function processReferenceImage(inputReference, targetSize) {
       const finalMimeType2 = isPng ? "png" : "jpeg";
       const finalBase642 = `data:image/${finalMimeType2};base64,${compressedBase64}`;
       console.log(
-        `[ImageProcessor] \u56FE\u7247\u5C3A\u5BF8\u5DF2\u5339\u914D (${originalSize})\uFF0C\u4EC5\u538B\u7F29: ${originalSizeKB.toFixed(2)} KB \u2192 ${finalSizeKB2.toFixed(2)} KB`
+        `[ImageProcessor] \u56FE\u7247\u5C3A\u5BF8\u5DF2\u5339\u914D (${originalSize})\uFF0C\u4EC5\u538B\u7F29: ${originalSizeKB.toFixed(
+          2
+        )} KB \u2192 ${finalSizeKB2.toFixed(2)} KB`
       );
       return {
         base64: finalBase642,
@@ -26958,7 +28518,9 @@ async function processReferenceImage(inputReference, targetSize) {
     const finalMimeType = isPng ? "png" : "jpeg";
     const finalBase64 = `data:image/${finalMimeType};base64,${resizedBase64}`;
     console.log(
-      `[ImageProcessor] \u56FE\u7247\u5DF2\u8C03\u6574\u5E76\u538B\u7F29: ${originalSize} \u2192 ${targetSize}, ${originalSizeKB.toFixed(2)} KB \u2192 ${finalSizeKB.toFixed(2)} KB`
+      `[ImageProcessor] \u56FE\u7247\u5DF2\u8C03\u6574\u5E76\u538B\u7F29: ${originalSize} \u2192 ${targetSize}, ${originalSizeKB.toFixed(
+        2
+      )} KB \u2192 ${finalSizeKB.toFixed(2)} KB`
     );
     return {
       base64: finalBase64,
@@ -26971,7 +28533,9 @@ async function processReferenceImage(inputReference, targetSize) {
     };
   } catch (error) {
     console.error(`[ImageProcessor] \u5904\u7406\u56FE\u7247\u5931\u8D25:`, error);
-    console.warn("[ImageProcessor] \u5C06\u4F7F\u7528\u539F\u56FE\uFF0C\u4F46\u53C2\u8003\u56FE\u53EF\u80FD\u4E0D\u4F1A\u751F\u6548\uFF08\u5C3A\u5BF8\u4E0D\u5339\u914D\uFF09");
+    console.warn(
+      "[ImageProcessor] \u5C06\u4F7F\u7528\u539F\u56FE\uFF0C\u4F46\u53C2\u8003\u56FE\u53EF\u80FD\u4E0D\u4F1A\u751F\u6548\uFF08\u5C3A\u5BF8\u4E0D\u5339\u914D\uFF09"
+    );
     return {
       base64: inputReference,
       targetSize,
@@ -27428,7 +28992,7 @@ var video_default = router5;
 // src/routes/upload.ts
 var import_express6 = require("express");
 var import_multer = __toESM(require("multer"));
-var import_mxmdata15 = require("@mxmai/mxmdata");
+var import_mxmdata21 = require("@mxmai/mxmdata");
 var router6 = (0, import_express6.Router)();
 var upload = (0, import_multer.default)({ storage: import_multer.default.memoryStorage() });
 router6.post("/temp", upload.single("file"), async (req, res) => {
@@ -27442,7 +29006,7 @@ router6.post("/temp", upload.single("file"), async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing file field "file"' });
     }
     const file = multerReq.file;
-    const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata21.RepositoryFactory.createStorageRepository();
     const now = /* @__PURE__ */ new Date();
     const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(
       now.getDate()
@@ -27486,7 +29050,7 @@ router6.post("/assets", upload.single("file"), async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing file field "file"' });
     }
     const file = multerReq.file;
-    const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata21.RepositoryFactory.createStorageRepository();
     const ext = (file.originalname.match(/\.(\w+)$/)?.[1] || "jpg").toLowerCase();
     const allowExt = ["jpg", "jpeg", "png", "webp", "gif"];
     const finalExt = allowExt.includes(ext) ? ext : "jpg";
@@ -27638,8 +29202,8 @@ router7.get("/admin", async (req, res) => {
     const userIds = [...new Set(response.tasks.map((t) => t.metadata?.userId).filter(Boolean))];
     const userIdToName = /* @__PURE__ */ new Map();
     try {
-      const { RepositoryFactory: RepositoryFactory19 } = await import("@mxmai/mxmdata");
-      const userRepo = RepositoryFactory19.createUserRepository();
+      const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
+      const userRepo = RepositoryFactory22.createUserRepository();
       for (const uid6 of userIds) {
         const user = await userRepo.findById(uid6);
         userIdToName.set(uid6, user?.username ?? uid6);
@@ -27870,7 +29434,7 @@ var handleRecover = async (req, res) => {
         error: `Cannot recover task in status: ${taskResponse.task.status}. Only processing tasks can be recovered.`
       });
     }
-    const { taskRecoveryService: taskRecoveryService2 } = await import("../core/task/task-recovery");
+    const { taskRecoveryService: taskRecoveryService2 } = await Promise.resolve().then(() => (init_task_recovery(), task_recovery_exports));
     await taskRecoveryService2.recoverTask(taskId);
     return res.json({
       success: true,
@@ -27916,7 +29480,7 @@ var handleRetry = async (req, res) => {
         error: `Cannot retry task in status: ${status}. Only failed or processing tasks can be retried.`
       });
     }
-    const { taskRecoveryService: taskRecoveryService2 } = await import("../core/task/task-recovery");
+    const { taskRecoveryService: taskRecoveryService2 } = await Promise.resolve().then(() => (init_task_recovery(), task_recovery_exports));
     await taskRecoveryService2.retryTaskById(taskId);
     return res.json({
       success: true,
@@ -27949,8 +29513,8 @@ async function isAdminUser(req) {
       return false;
     }
     try {
-      const { RepositoryFactory: RepositoryFactory19 } = await import("@mxmai/mxmdata");
-      const userRepo = RepositoryFactory19.createUserRepository();
+      const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
+      const userRepo = RepositoryFactory22.createUserRepository();
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
         return true;
@@ -28023,11 +29587,11 @@ var cgi_tasks_default = router7;
 // src/routes/system.ts
 var import_express11 = require("express");
 init_suport_list();
-init_ppio_client();
+init_client();
 
 // src/routes/prompt-config.ts
 var import_express8 = require("express");
-var import_mxmdata16 = require("@mxmai/mxmdata");
+var import_mxmdata22 = require("@mxmai/mxmdata");
 var router8 = (0, import_express8.Router)();
 async function isAdminUser2(req) {
   try {
@@ -28036,7 +29600,7 @@ async function isAdminUser2(req) {
     const userId = req.headers["x-user-id"];
     if (!userId) return false;
     try {
-      const userRepo = import_mxmdata16.RepositoryFactory.createUserRepository();
+      const userRepo = import_mxmdata22.RepositoryFactory.createUserRepository();
       const user = await userRepo.findById(userId);
       return !!(user && user.role === "admin");
     } catch {
@@ -28051,7 +29615,7 @@ router8.get("/", async (req, res) => {
     return res.status(403).json({ success: false, error: "Admin only" });
   }
   try {
-    const repo = import_mxmdata16.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const repo = import_mxmdata22.RepositoryFactory.createPromptEngineeringConfigRepository();
     const scope = req.query.scope;
     const type = req.query.type;
     const subtype = req.query.subtype;
@@ -28080,7 +29644,7 @@ router8.get("/by-key", async (req, res) => {
     if (!scope || !type) {
       return res.status(400).json({ success: false, error: "scope and type are required" });
     }
-    const repo = import_mxmdata16.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const repo = import_mxmdata22.RepositoryFactory.createPromptEngineeringConfigRepository();
     const row = await repo.findByKey(scope, type, subtype === "" ? null : subtype);
     if (!row) {
       return res.status(404).json({ success: false, error: "Not found" });
@@ -28124,7 +29688,7 @@ router8.put("/", async (req, res) => {
       return res.status(400).json({ success: false, error: "scope and type are required" });
     }
     const userId = req.headers["x-user-id"];
-    const repo = import_mxmdata16.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const repo = import_mxmdata22.RepositoryFactory.createPromptEngineeringConfigRepository();
     const row = await repo.upsert({
       scope,
       type,
@@ -28149,7 +29713,7 @@ router8.delete("/:id", async (req, res) => {
   try {
     const id = req.params.id;
     if (!id) return res.status(400).json({ success: false, error: "id required" });
-    const repo = import_mxmdata16.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const repo = import_mxmdata22.RepositoryFactory.createPromptEngineeringConfigRepository();
     await repo.delete(id);
     return res.status(204).send();
   } catch (e) {
@@ -28161,9 +29725,9 @@ var prompt_config_default = router8;
 
 // src/routes/providers.ts
 var import_express9 = require("express");
-init_providers();
+init_providers2();
 init_registry();
-var import_mxmdata17 = require("@mxmai/mxmdata");
+var import_mxmdata23 = require("@mxmai/mxmdata");
 var router9 = (0, import_express9.Router)();
 async function requireAdmin(req, res, next) {
   try {
@@ -28177,8 +29741,8 @@ async function requireAdmin(req, res, next) {
       res.status(403).json({ success: false, error: "Admin access required" });
       return;
     }
-    const { RepositoryFactory: RepositoryFactory19 } = await import("@mxmai/mxmdata");
-    const userRepo = RepositoryFactory19.createUserRepository();
+    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
+    const userRepo = RepositoryFactory22.createUserRepository();
     const user = await userRepo.findById(userId);
     if (user && user.role === "admin") {
       next();
@@ -28257,7 +29821,7 @@ router9.post("/routing", async (req, res) => {
       return;
     }
     const canonical = canonicalLogicalModel(logicalModel);
-    const supabase = (0, import_mxmdata17.getSupabaseClient)();
+    const supabase = (0, import_mxmdata23.getSupabaseClient)();
     const { error } = await supabase.from("model_routing_overrides").upsert(
       { logical_model: canonical, provider: provider13, model, updated_at: (/* @__PURE__ */ new Date()).toISOString() },
       { onConflict: "logical_model" }
@@ -28286,7 +29850,7 @@ router9.delete("/routing", async (req, res) => {
       return;
     }
     const canonical = canonicalLogicalModel(logicalModel);
-    const supabase = (0, import_mxmdata17.getSupabaseClient)();
+    const supabase = (0, import_mxmdata23.getSupabaseClient)();
     await supabase.from("model_routing_overrides").delete().eq("logical_model", canonical);
     clearRoutingOverride(logicalModel);
     res.json({ success: true });
@@ -28297,11 +29861,11 @@ router9.delete("/routing", async (req, res) => {
     });
   }
 });
-router9.get("/stats", (req, res) => {
+router9.get("/stats", async (req, res) => {
   try {
     const provider13 = req.query.provider;
     const window = req.query.window || "1h";
-    const list = getProviderStats({ provider: provider13, window });
+    const list = await getProviderStats({ provider: provider13, window });
     res.json({ success: true, data: list });
   } catch (e) {
     res.status(500).json({
@@ -28323,7 +29887,7 @@ var BILLING_PROVIDERS = [
 ];
 router9.get("/billing", async (_req, res) => {
   try {
-    const supabase = (0, import_mxmdata17.getSupabaseClient)();
+    const supabase = (0, import_mxmdata23.getSupabaseClient)();
     const { data: balanceRows } = await supabase.from("provider_balances").select("provider, balance, currency");
     const balanceMap = /* @__PURE__ */ new Map();
     (balanceRows || []).forEach((r) => {
@@ -28377,7 +29941,7 @@ router9.get("/billing", async (_req, res) => {
 });
 router9.get("/balances", async (_req, res) => {
   try {
-    const supabase = (0, import_mxmdata17.getSupabaseClient)();
+    const supabase = (0, import_mxmdata23.getSupabaseClient)();
     const { data, error } = await supabase.from("provider_balances").select("provider, balance, currency, updated_at").order("provider");
     if (error) {
       return res.status(500).json({ success: false, error: error.message });
@@ -28396,7 +29960,7 @@ router9.put("/balances", async (req, res) => {
     if (!provider13 || typeof balance !== "number") {
       return res.status(400).json({ success: false, error: "Missing provider or balance" });
     }
-    const supabase = (0, import_mxmdata17.getSupabaseClient)();
+    const supabase = (0, import_mxmdata23.getSupabaseClient)();
     const { data: existing } = await supabase.from("provider_balances").select("id").eq("provider", provider13).maybeSingle();
     if (existing) {
       const { data: data2, error: error2 } = await supabase.from("provider_balances").update({ balance: Number(balance), updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("provider", provider13).select().maybeSingle();
@@ -28415,7 +29979,7 @@ router9.put("/balances", async (req, res) => {
 });
 router9.get("/costs", async (req, res) => {
   try {
-    const supabase = (0, import_mxmdata17.getSupabaseClient)();
+    const supabase = (0, import_mxmdata23.getSupabaseClient)();
     const windowParam = req.query.window || "7d";
     const groupBy = req.query.groupBy || "provider";
     const windowMap = {
@@ -28588,8 +30152,8 @@ router9.get("/costs", async (req, res) => {
 });
 router9.get("/keys", async (req, res) => {
   try {
-    const { RepositoryFactory: RepositoryFactory19 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory19.createProviderApiKeyRepository();
+    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory22.createProviderApiKeyRepository();
     const provider13 = req.query.provider;
     const service = req.query.service;
     const list = await repo.listMasked({ provider: provider13, service: service ?? null });
@@ -28609,8 +30173,8 @@ router9.post("/keys", async (req, res) => {
       res.status(400).json({ success: false, error: "Missing provider or key_value" });
       return;
     }
-    const { RepositoryFactory: RepositoryFactory19 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory19.createProviderApiKeyRepository();
+    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory22.createProviderApiKeyRepository();
     const created = await repo.create({
       provider: provider13,
       service: service ?? null,
@@ -28640,8 +30204,8 @@ router9.put("/keys/:id", async (req, res) => {
   try {
     const userId = req.headers["x-user-id"];
     const { priority, is_active } = req.body;
-    const { RepositoryFactory: RepositoryFactory19 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory19.createProviderApiKeyRepository();
+    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory22.createProviderApiKeyRepository();
     const updated = await repo.update(req.params.id, { priority, is_active, updated_by: userId ?? null });
     res.json({
       success: true,
@@ -28663,8 +30227,8 @@ router9.put("/keys/:id", async (req, res) => {
 });
 router9.delete("/keys/:id", async (req, res) => {
   try {
-    const { RepositoryFactory: RepositoryFactory19 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory19.createProviderApiKeyRepository();
+    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory22.createProviderApiKeyRepository();
     await repo.delete(req.params.id);
     res.json({ success: true });
   } catch (e) {
@@ -28678,7 +30242,7 @@ var providers_default = router9;
 
 // src/routes/sensitive-words.ts
 var import_express10 = require("express");
-var import_mxmdata18 = require("@mxmai/mxmdata");
+var import_mxmdata24 = require("@mxmai/mxmdata");
 var router10 = (0, import_express10.Router)();
 async function isAdminUser3(req) {
   try {
@@ -28686,7 +30250,7 @@ async function isAdminUser3(req) {
     if (userRole === "admin") return true;
     const userId = req.headers["x-user-id"];
     if (!userId) return false;
-    const userRepo = import_mxmdata18.RepositoryFactory.createUserRepository();
+    const userRepo = import_mxmdata24.RepositoryFactory.createUserRepository();
     const user = await userRepo.findById(userId);
     return !!(user && user.role === "admin");
   } catch {
@@ -28732,7 +30296,7 @@ router10.get("/lists", async (req, res) => {
     return res.status(403).json({ success: false, error: "Admin only" });
   }
   try {
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     const items = await repo.listLists();
     return res.json({ success: true, data: { items } });
   } catch (e) {
@@ -28749,7 +30313,7 @@ router10.get("/lists/:listId", async (req, res) => {
   try {
     const listId = req.params.listId;
     if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     const list = await repo.findListById(listId);
     if (!list) return res.status(404).json({ success: false, error: "Not found" });
     return res.json({ success: true, data: list });
@@ -28767,7 +30331,7 @@ router10.post("/lists", async (req, res) => {
     if (!body.name || typeof body.name !== "string") {
       return res.status(400).json({ success: false, error: "name is required" });
     }
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     const list = await repo.createList({
       name: body.name,
       description: body.description ?? null,
@@ -28786,7 +30350,7 @@ router10.put("/lists/:listId", async (req, res) => {
     const listId = req.params.listId;
     const body = req.body;
     if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     const list = await repo.updateList(listId, {
       name: body.name,
       description: body.description,
@@ -28805,7 +30369,7 @@ router10.delete("/lists/:listId", async (req, res) => {
   try {
     const listId = req.params.listId;
     if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     await repo.deleteList(listId);
     return res.status(204).send();
   } catch (e) {
@@ -28820,7 +30384,7 @@ router10.get("/lists/:listId/words", async (req, res) => {
   try {
     const listId = req.params.listId;
     if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     const words = await repo.listWordsByListId(listId);
     return res.json({ success: true, data: { items: words } });
   } catch (e) {
@@ -28839,7 +30403,7 @@ router10.post("/lists/:listId/words", async (req, res) => {
     if (!body.word || typeof body.word !== "string") {
       return res.status(400).json({ success: false, error: "word is required" });
     }
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     const word = await repo.addWord({ list_id: listId, word: body.word.trim() });
     return res.status(201).json({ success: true, data: word });
   } catch (e) {
@@ -28859,7 +30423,7 @@ router10.post("/lists/:listId/words/batch", async (req, res) => {
     if (words.length === 0) {
       return res.status(400).json({ success: false, error: "words array is required and non-empty" });
     }
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     const count = await repo.addWordsBatch(listId, words);
     return res.status(201).json({ success: true, data: { added: count } });
   } catch (e) {
@@ -28874,7 +30438,7 @@ router10.delete("/words/:wordId", async (req, res) => {
   try {
     const wordId = req.params.wordId;
     if (!wordId) return res.status(400).json({ success: false, error: "wordId required" });
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     await repo.deleteWord(wordId);
     return res.status(204).send();
   } catch (e) {
@@ -28890,7 +30454,7 @@ router10.get("/bindings", async (req, res) => {
     const scope = req.query.scope;
     const type = req.query.type;
     const subtype = req.query.subtype;
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     const items = await repo.listBindings(
       scope,
       type,
@@ -28914,7 +30478,7 @@ router10.put("/bindings/slot", async (req, res) => {
       return res.status(400).json({ success: false, error: "scope and type are required" });
     }
     const listIds = Array.isArray(body.list_ids) ? body.list_ids : [];
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     await repo.setBindingsForSlot(body.scope, body.type, body.subtype ?? null, listIds);
     return res.json({ success: true, data: { scope: body.scope, type: body.type, subtype: body.subtype ?? null, list_ids: listIds } });
   } catch (e) {
@@ -28929,7 +30493,7 @@ router10.delete("/bindings/:bindingId", async (req, res) => {
   try {
     const bindingId = req.params.bindingId;
     if (!bindingId) return res.status(400).json({ success: false, error: "bindingId required" });
-    const repo = (0, import_mxmdata18.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
     await repo.removeBinding(bindingId);
     return res.status(204).send();
   } catch (e) {
@@ -28940,7 +30504,7 @@ router10.delete("/bindings/:bindingId", async (req, res) => {
 var sensitive_words_default = router10;
 
 // src/routes/system.ts
-var import_mxmdata19 = require("@mxmai/mxmdata");
+var import_mxmdata25 = require("@mxmai/mxmdata");
 var router11 = (0, import_express11.Router)();
 router11.use("/prompt-config", prompt_config_default);
 router11.use("/admin/providers", providers_default);
@@ -28954,7 +30518,7 @@ router11.get("/admin/stats", async (req, res) => {
         error: "Admin access required"
       });
     }
-    const supabase = (0, import_mxmdata19.getSupabaseClient)();
+    const supabase = (0, import_mxmdata25.getSupabaseClient)();
     const days = Math.min(Math.max(parseInt(req.query.days) || 30, 7), 90);
     const topLimit = Math.min(Math.max(parseInt(req.query.topLimit) || 10, 5), 50);
     const [
@@ -29042,8 +30606,8 @@ async function isAdminUser4(req) {
       return false;
     }
     try {
-      const { RepositoryFactory: RepositoryFactory19 } = await import("@mxmai/mxmdata");
-      const userRepo = RepositoryFactory19.createUserRepository();
+      const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
+      const userRepo = RepositoryFactory22.createUserRepository();
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
         return true;
@@ -29370,7 +30934,7 @@ router11.get("/admin/pricing/provider", async (req, res) => {
     if (!isAdmin) {
       return res.status(403).json({ success: false, error: "Admin access required" });
     }
-    const supabase = (0, import_mxmdata19.getSupabaseClient)();
+    const supabase = (0, import_mxmdata25.getSupabaseClient)();
     const { provider: provider13, scope } = req.query;
     let query = supabase.from("provider_pricing").select("*");
     if (provider13) {
@@ -29442,7 +31006,7 @@ router11.put("/admin/pricing/provider", async (req, res) => {
       platform_min_charge: platform_min_charge ?? null,
       metadata: metadata ?? null
     };
-    const supabase = (0, import_mxmdata19.getSupabaseClient)();
+    const supabase = (0, import_mxmdata25.getSupabaseClient)();
     if (id) {
       const { data: data2, error: error2 } = await supabase.from("provider_pricing").update(pricingPayload).eq("id", id).select("*").maybeSingle();
       if (error2) {
@@ -29481,7 +31045,7 @@ router11.delete("/admin/pricing/provider/:id", async (req, res) => {
     if (!id) {
       return res.status(400).json({ success: false, error: "Missing id" });
     }
-    const supabase = (0, import_mxmdata19.getSupabaseClient)();
+    const supabase = (0, import_mxmdata25.getSupabaseClient)();
     const { error } = await supabase.from("provider_pricing").delete().eq("id", id);
     if (error) {
       return res.status(500).json({
@@ -29505,7 +31069,7 @@ router11.get("/admin/pricing/business", async (req, res) => {
     if (!isAdmin) {
       return res.status(403).json({ success: false, error: "Admin access required" });
     }
-    const supabase = (0, import_mxmdata19.getSupabaseClient)();
+    const supabase = (0, import_mxmdata25.getSupabaseClient)();
     const { business_type } = req.query;
     let query = supabase.from("business_pricing").select("*");
     if (business_type) {
@@ -29552,7 +31116,7 @@ router11.put("/admin/pricing/business", async (req, res) => {
         error: "Missing required fields: business_type, charge_metric, price_in_tokens"
       });
     }
-    const supabase = (0, import_mxmdata19.getSupabaseClient)();
+    const supabase = (0, import_mxmdata25.getSupabaseClient)();
     if (id) {
       const { data: data2, error: error2 } = await supabase.from("business_pricing").update({
         business_type,
@@ -29609,7 +31173,7 @@ router11.delete("/admin/pricing/business/:id", async (req, res) => {
     if (!id) {
       return res.status(400).json({ success: false, error: "Missing id" });
     }
-    const supabase = (0, import_mxmdata19.getSupabaseClient)();
+    const supabase = (0, import_mxmdata25.getSupabaseClient)();
     const { error } = await supabase.from("business_pricing").delete().eq("id", id);
     if (error) {
       return res.status(500).json({
@@ -29632,7 +31196,7 @@ var system_default = router11;
 // src/routes/media.ts
 var import_express12 = require("express");
 init_task_manager();
-var import_mxmdata20 = require("@mxmai/mxmdata");
+var import_mxmdata26 = require("@mxmai/mxmdata");
 var router12 = (0, import_express12.Router)();
 router12.get("/graph/:taskId", async (req, res) => {
   try {
@@ -29666,7 +31230,7 @@ router12.get("/graph/:taskId", async (req, res) => {
     }
     const bucket = storageInfo.bucket;
     const key = storageInfo.keys[0];
-    const storageRepo = import_mxmdata20.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(bucket, key);
     const metadata = await storageRepo.getFileMetadata(bucket, key);
     const contentType = metadata?.contentType || (key.endsWith(".png") ? "image/png" : key.endsWith(".jpg") || key.endsWith(".jpeg") ? "image/jpeg" : key.endsWith(".webp") ? "image/webp" : "application/octet-stream");
@@ -29719,7 +31283,7 @@ router12.get("/asset", async (req, res) => {
         error: "Forbidden: You can only access your own uploads"
       });
     }
-    const storageRepo = import_mxmdata20.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(bucket, key);
     const metadata = await storageRepo.getFileMetadata(bucket, key);
     const contentType = metadata?.contentType || (key.endsWith(".png") ? "image/png" : key.endsWith(".jpg") || key.endsWith(".jpeg") ? "image/jpeg" : key.endsWith(".webp") ? "image/webp" : key.endsWith(".gif") ? "image/gif" : "application/octet-stream");
@@ -29780,7 +31344,7 @@ router12.get("/video/:taskId", async (req, res) => {
     }
     const bucket = storageInfo.bucket;
     const key = storageInfo.keys[0];
-    const storageRepo = import_mxmdata20.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(bucket, key);
     const metadata = await storageRepo.getFileMetadata(bucket, key);
     const contentType = metadata?.contentType || (key.endsWith(".mp4") ? "video/mp4" : key.endsWith(".webm") ? "video/webm" : key.endsWith(".mov") ? "video/quicktime" : key.endsWith(".avi") ? "video/x-msvideo" : "application/octet-stream");
@@ -29848,7 +31412,7 @@ router12.get("/writing/:taskId", async (req, res) => {
       if (key) {
         const bucket = storageInfo.bucket;
         filename = key.split("/").pop() || "content";
-        const storageRepo = import_mxmdata20.RepositoryFactory.createStorageRepository();
+        const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
         try {
           const fileBuffer = await storageRepo.downloadFile(bucket, key);
           const fileMetadata = await storageRepo.getFileMetadata(bucket, key);
@@ -29866,12 +31430,12 @@ router12.get("/writing/:taskId", async (req, res) => {
     if (!content && taskMetadata.formattedContent) {
       const formattedContent = taskMetadata.formattedContent;
       const cleanedContent = typeof formattedContent === "string" ? formattedContent.replace(/\s/g, "") : "";
-      const isBase642 = typeof formattedContent === "string" && formattedContent.length > 100 && cleanedContent.length > 0 && /^[A-Za-z0-9+/=]+$/.test(cleanedContent) && cleanedContent.length % 4 === 0 && !formattedContent.includes("#") && // markdown 标题
+      const isBase643 = typeof formattedContent === "string" && formattedContent.length > 100 && cleanedContent.length > 0 && /^[A-Za-z0-9+/=]+$/.test(cleanedContent) && cleanedContent.length % 4 === 0 && !formattedContent.includes("#") && // markdown 标题
       !formattedContent.includes("*") && // markdown 强调
       !formattedContent.includes("`") && // markdown 代码
       !formattedContent.includes("[") && // markdown 链接
       !formattedContent.includes("---");
-      if (isBase642) {
+      if (isBase643) {
         try {
           const decoded = Buffer.from(formattedContent, "base64");
           const decodedStr = decoded.toString("utf-8");
@@ -30013,7 +31577,7 @@ router12.put("/writing/:taskId", async (req, res) => {
         });
       }
       const bucket = storageInfo.bucket;
-      const storageRepo = import_mxmdata20.RepositoryFactory.createStorageRepository();
+      const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
       const contentType = normalizedFormat === "markdown" ? "text/markdown; charset=utf-8" : normalizedFormat === "txt" ? "text/plain; charset=utf-8" : "application/pdf";
       const buffer = Buffer.from(content, "utf-8");
       await storageRepo.uploadFile(bucket, key, buffer, {
@@ -30101,7 +31665,7 @@ router12.get("/audio/:taskId", async (req, res) => {
     }
     const bucket = storageInfo.bucket;
     const key = storageInfo.keys[0];
-    const storageRepo = import_mxmdata20.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(bucket, key);
     const metadata = await storageRepo.getFileMetadata(bucket, key);
     const contentType = metadata?.contentType || (key.endsWith(".mp3") ? "audio/mpeg" : key.endsWith(".wav") ? "audio/wav" : key.endsWith(".flac") ? "audio/flac" : key.endsWith(".pcm") ? "audio/pcm" : "application/octet-stream");
@@ -30138,12 +31702,12 @@ var import_express13 = require("express");
 var import_uid5 = require("uid");
 var import_multer2 = __toESM(require("multer"));
 init_knowledge_service();
-var import_mxmdata22 = require("@mxmai/mxmdata");
+var import_mxmdata28 = require("@mxmai/mxmdata");
 init_task_executor();
 
 // src/knowledge/knowledge-task.ts
 init_task_executor();
-var import_mxmdata21 = require("@mxmai/mxmdata");
+var import_mxmdata27 = require("@mxmai/mxmdata");
 init_knowledge_service();
 async function startKnowledgeImportTask(taskId) {
   const taskManager2 = taskExecutor.getTaskManager();
@@ -30173,7 +31737,7 @@ async function startKnowledgeImportTask(taskId) {
       logs: ["\u5F00\u59CB\u4ECE\u5B58\u50A8\u4E0B\u8F7D\u6587\u4EF6"],
       startedAt: /* @__PURE__ */ new Date()
     });
-    const storageRepo = import_mxmdata21.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(params.fileBucket, params.fileKey);
     await taskManager2.updateTaskProgress(taskId, {
       progress: 20,
@@ -30241,7 +31805,7 @@ async function isAdminUser5(req) {
       return true;
     }
     try {
-      const userRepo = import_mxmdata22.RepositoryFactory.createUserRepository();
+      const userRepo = import_mxmdata28.RepositoryFactory.createUserRepository();
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
         return true;
@@ -30442,7 +32006,7 @@ router13.get("/admin/defaults", async (req, res) => {
       return res.status(403).json({ success: false, error: "Admin only" });
     }
     const { scope } = req.query;
-    const repo = import_mxmdata22.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    const repo = import_mxmdata28.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
     const list = await repo.listDefaults(scope);
     return res.json({ success: true, data: { defaults: list } });
   } catch (error) {
@@ -30465,7 +32029,7 @@ router13.put("/admin/defaults", async (req, res) => {
         error: "Missing required fields: scope, category, sub_type, knowledge_base_id"
       });
     }
-    const kbRepo = import_mxmdata22.RepositoryFactory.createKnowledgeBaseRepository();
+    const kbRepo = import_mxmdata28.RepositoryFactory.createKnowledgeBaseRepository();
     const kb = await kbRepo.findKnowledgeBaseById(knowledge_base_id);
     if (!kb) {
       return res.status(404).json({
@@ -30473,7 +32037,7 @@ router13.put("/admin/defaults", async (req, res) => {
         error: `Knowledge base "${knowledge_base_id}" not found`
       });
     }
-    const repo = import_mxmdata22.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    const repo = import_mxmdata28.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
     const def = await repo.setDefault({
       scope,
       category,
@@ -30495,7 +32059,7 @@ router13.delete("/admin/defaults/:scope/:category/:subType", async (req, res) =>
       return res.status(403).json({ success: false, error: "Admin only" });
     }
     const { scope, category, subType } = req.params;
-    const repo = import_mxmdata22.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    const repo = import_mxmdata28.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
     await repo.removeDefault(scope, category, subType);
     return res.json({ success: true, message: "Default removed" });
   } catch (error) {
@@ -30785,7 +32349,7 @@ router13.post(
       const chunkSize = chunk_size ? Number(chunk_size) : void 0;
       const chunkOverlap = chunk_overlap ? Number(chunk_overlap) : void 0;
       const maxChunkSize = max_chunk_size ? Number(max_chunk_size) : void 0;
-      const storageRepo = import_mxmdata22.RepositoryFactory.createStorageRepository();
+      const storageRepo = import_mxmdata28.RepositoryFactory.createStorageRepository();
       const bucket = process.env.KNOWLEDGE_STORAGE_BUCKET || process.env.CGI_STORAGE_BUCKET || "user-media";
       const originalName = multerReq.file.originalname;
       const ext = (originalName.split(".").pop() || "txt").toLowerCase();
@@ -31031,8 +32595,8 @@ router13.delete("/documents/:id", async (req, res) => {
       return res.status(401).json({ success: false, error: "Missing x-user-id header" });
     }
     const { id } = req.params;
-    const { RepositoryFactory: RepositoryFactory19 } = await import("@mxmai/mxmdata");
-    const kbRepo = RepositoryFactory19.createKnowledgeBaseRepository();
+    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
+    const kbRepo = RepositoryFactory22.createKnowledgeBaseRepository();
     const doc = await kbRepo.findDocumentById(id);
     if (!doc) {
       return res.status(404).json({
@@ -31529,7 +33093,7 @@ if (process.env.DEFAULT_PROVIDER) {
 } else {
   console.warn(`[mxmcgi] \u26A0\uFE0F  DEFAULT_PROVIDER \u672A\u8BBE\u7F6E\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4\u503C: replicate`);
 }
-import_mxmdata23.RepositoryFactory.init();
+import_mxmdata29.RepositoryFactory.init();
 var app = (0, import_express15.default)();
 var port = process.env.PORT ? Number(process.env.PORT) : 4003;
 app.use((req, res, next) => {
@@ -31576,9 +33140,9 @@ app.use((err, _req, res, _next) => {
 app.listen(port, async () => {
   console.log("mxmcgi service listening on port " + port);
   try {
-    const { getSupabaseClient: getSupabaseClient8 } = await import("@mxmai/mxmdata");
-    const { setRoutingOverride: setRoutingOverride2 } = await Promise.resolve().then(() => (init_model_routing(), model_routing_exports));
-    const supabase = getSupabaseClient8();
+    const { getSupabaseClient: getSupabaseClient12 } = await import("@mxmai/mxmdata");
+    const { setRoutingOverride: setRoutingOverride2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports));
+    const supabase = getSupabaseClient12();
     const { data: rows, error } = await supabase.from("model_routing_overrides").select("logical_model, provider, model");
     if (!error && rows && rows.length > 0) {
       for (const r of rows) {

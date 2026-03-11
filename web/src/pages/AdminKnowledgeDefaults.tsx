@@ -32,7 +32,11 @@ export default function AdminKnowledgeDefaults() {
 
   const loadDefaults = useCallback(async (scopeFilter?: string) => {
     const res = await getKnowledgeAdminDefaults(scopeFilter);
-    if (!res.error && res.data?.defaults) setDefaults(res.data.defaults as DefaultRow[]);
+    if (!res.error && res.data) {
+      const raw = res.data as any;
+      const list = raw?.data?.defaults ?? raw?.defaults ?? [];
+      if (Array.isArray(list)) setDefaults(list as DefaultRow[]);
+    }
   }, []);
 
   const loadBases = useCallback(async () => {

@@ -6,17 +6,16 @@
  * - qwen3-30b
  */
 
-import {
-  type ModelProvider,
-  type ProviderType,
-  type GenerateParams,
-  type GenerateResult,
-  type ProviderUsageSummary,
-  type ProviderBillingInfo,
-} from '../../core/providers/types';
-import { getFirstProviderKey } from '../../core/providers/provider-keys';
+import type {
+  ModelProvider,
+  ProviderType,
+  GenerateParams,
+  GenerateResult,
+  ProviderUsageSummary,
+  ProviderBillingInfo,
+} from '../providers-inner';
+import { getFirstProviderKey, recordStats, getProviderStats } from '../providers-inner';
 import { type ModelMapping, getModelName } from '../suport-list';
-import { recordStats, getProviderStats } from '../../core/providers/provider-stats';
 
 export class QwenProvider implements ModelProvider {
   readonly provider: ProviderType = 'qwen';

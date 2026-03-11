@@ -100,10 +100,10 @@ export function VideoViewerModal({
             padding: 1rem;
           }
           .video-viewer-modal {
-            background: #1e1e1e;
-            border: 1px solid #333;
-            border-radius: 12px;
-            max-width: 90vw;
+            background: hsl(var(--background));
+            border: 1px solid hsl(var(--border));
+            border-radius: 16px;
+            max-width: 960px;
             max-height: 90vh;
             display: flex;
             flex-direction: column;
@@ -114,26 +114,50 @@ export function VideoViewerModal({
             align-items: center;
             justify-content: space-between;
             padding: 1rem 1.25rem;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid hsl(var(--border));
           }
-          .video-viewer-title { margin: 0; font-size: 1rem; color: #e0e0e0; }
-          .video-viewer-actions { display: flex; align-items: center; gap: 0.5rem; }
+          .video-viewer-title {
+            margin: 0;
+            font-size: 1rem;
+            color: hsl(var(--foreground));
+            max-width: 40%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .video-viewer-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          }
           .video-viewer-tab {
-            padding: 0.35rem 0.75rem;
-            font-size: 0.85rem;
-            border: 1px solid #444;
-            background: transparent;
-            color: #888;
-            border-radius: 6px;
+            padding: 0.32rem 0.85rem;
+            font-size: 0.82rem;
+            border-radius: 999px;
+            border: 1px solid hsl(var(--border));
+            background: rgba(15,23,42,0.02);
+            color: hsl(var(--muted-foreground));
             cursor: pointer;
           }
-          .video-viewer-tab.active { background: #333; color: #e0e0e0; border-color: #555; }
+          .video-viewer-tab:hover {
+            background: rgba(148,163,184,0.12);
+            color: hsl(var(--foreground));
+            border-color: rgba(148,163,184,0.7);
+          }
+          .video-viewer-tab.active {
+            background: linear-gradient(135deg, rgba(56,189,248,0.16), rgba(56,189,248,0.10));
+            color: hsl(var(--foreground));
+            border-color: rgba(56,189,248,0.7);
+          }
           .video-viewer-close {
             background: none;
             border: none;
-            color: #888;
+            color: hsl(var(--muted-foreground));
             font-size: 1.5rem;
             cursor: pointer;
+          }
+          .video-viewer-close:hover {
+            color: hsl(var(--foreground));
           }
           .video-viewer-body {
             flex: 1;
@@ -145,11 +169,11 @@ export function VideoViewerModal({
           .video-viewer-raw {
             margin: 0;
             padding: 1rem;
-            background: #1a1a1a;
-            border: 1px solid #333;
+            background: #0f172a;
+            border: 1px solid hsl(var(--border));
             border-radius: 8px;
             font-size: 0.8rem;
-            color: #c0c0c0;
+            color: #cbd5f5;
             overflow: auto;
             max-height: 60vh;
             white-space: pre-wrap;

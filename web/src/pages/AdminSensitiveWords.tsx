@@ -5,7 +5,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   listSensitiveWordLists,
-  getSensitiveWordList,
   createSensitiveWordList,
   updateSensitiveWordList,
   deleteSensitiveWordList,

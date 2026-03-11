@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { notification, Switch } from 'antd';
+import { notification, Switch, Drawer } from 'antd';
 import {
   postGraph,
   listCgiTasks,
@@ -13,7 +13,6 @@ import {
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { GraphViewerModal } from '../components/GraphViewerModal';
-import { TwoPaneLayout } from '../components/TwoPaneLayout';
 
 // 业务类型与子类型（与 mobile 对齐）
 const GRAPH_TYPE_OPTIONS = [
@@ -234,6 +233,7 @@ export default function Graph() {
   const [filterGraphType, setFilterGraphType] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerTask, setViewerTask] = useState<WritingTaskItem | null>(null);
@@ -512,118 +512,8 @@ export default function Graph() {
 
   const typeOptions = TYPE_MAP[graphType] ?? PHOTOGRAPH_TYPES;
 
-  return (
-    <div className="graph-page">
-      <TwoPaneLayout
-        leftClassName="graph-list-pane"
-        rightClassName="graph-form-pane"
-        left={
-          <section className="graph-list-pane">
-        <h3 className="graph-list-title">我的图片任务</h3>
-        <div className="graph-filters">
-          <select
-            value={filterGraphType}
-            onChange={(e) => setFilterGraphType(e.target.value)}
-            className="graph-filter-select"
-          >
-            <option value="">全部类型</option>
-            {GRAPH_TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="graph-filter-select"
-          >
-            <option value="">全部状态</option>
-            {Object.entries(STATUS_MAP).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="graph-list-scroll">
-          {!isLoggedIn ? (
-            <p className="muted">请先登录以查看任务列表。</p>
-          ) : loadingTasks ? (
-            <p className="muted">加载中...</p>
-          ) : filteredTasks.length === 0 ? (
-            <p className="muted">暂无图片任务，提交右侧表单创建新任务。</p>
-          ) : (
-            <ul className="graph-task-list">
-              {filteredTasks.map((t) => (
-                <li
-                  key={t.id}
-                  className="graph-task-item graph-task-item-clickable"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleTaskClick(t)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
-                >
-                  <div className="graph-task-thumb">
-                    {t.status === 'completed' ? (
-                      thumbnailCache[t.id] ? (
-                        <img src={thumbnailCache[t.id]} alt="" className="graph-task-thumb-img" />
-                      ) : (
-                        <span className="graph-task-thumb-placeholder">加载中</span>
-                      )
-                    ) : (
-                      <span className="graph-task-thumb-placeholder">—</span>
-                    )}
-                  </div>
-                  <div className="graph-task-content">
-                    <span className="graph-task-title" title={getTaskTitle(t)}>
-                      {getTaskTitle(t)}
-                    </span>
-                    <div className="graph-task-meta">
-                      {getGraphType(t) && (
-                        <span className="graph-task-subtype">
-                          {GRAPH_TYPE_OPTIONS.find((o) => o.value === getGraphType(t))?.label ??
-                            getGraphType(t)}
-                        </span>
-                      )}
-                      <code className="graph-task-id" title={t.id}>
-                        {t.id.length > 12 ? `${t.id.slice(0, 12)}…` : t.id}
-                      </code>
-                      {t.progress?.progress != null && (
-                        <span className="graph-task-progress">{t.progress.progress}%</span>
-                      )}
-                      {t.progress?.error && (
-                        <span className="graph-task-error" title={t.progress.error}>
-                          {t.progress.error.slice(0, 40)}…
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="graph-task-actions">
-                    <span className={`graph-task-status graph-task-status--${t.status}`}>
-                      {STATUS_MAP[t.status] ?? t.status}
-                    </span>
-                    <button
-                      type="button"
-                      className="graph-task-delete"
-                      title="删除"
-                      onClick={(e) => handleDeleteTask(e, t)}
-                      disabled={deletingId === t.id}
-                    >
-                      {deletingId === t.id ? '…' : '删除'}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-          </section>
-        }
-        right={
-          <section className="graph-form-pane">
-        <h3 className="graph-form-title">新建图片任务</h3>
-        <form onSubmit={handleSubmit} className="form-group graph-form">
+  const renderForm = () => (
+    <form onSubmit={handleSubmit} className="form-group graph-form">
           <div className="form-row">
             <label>业务类型</label>
             <select
@@ -875,13 +765,135 @@ export default function Graph() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading}>
+          <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? '提交中...' : '生成图片'}
           </button>
         </form>
-          </section>
-        }
-      />
+  );
+
+  return (
+    <section className="page-card graph-page">
+      <div className="graph-header">
+        <div className="graph-header-main">
+          <div className="graph-filters">
+            <select
+              value={filterGraphType}
+              onChange={(e) => setFilterGraphType(e.target.value)}
+              className="graph-filter-select"
+            >
+              <option value="">全部类型</option>
+              {GRAPH_TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="graph-filter-select"
+            >
+              <option value="">全部状态</option>
+              {Object.entries(STATUS_MAP).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="graph-header-actions">
+          <button
+            type="button"
+            className="btn-secondary btn-small"
+            onClick={() => loadTasks()}
+            disabled={loadingTasks}
+          >
+            {loadingTasks ? '刷新中…' : '刷新列表'}
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setFormOpen(true)}
+            disabled={!isLoggedIn}
+          >
+            新建图片任务
+          </button>
+        </div>
+      </div>
+
+      <div className="graph-list-scroll">
+        {!isLoggedIn ? (
+          <p className="muted">请先登录以查看任务列表。</p>
+        ) : loadingTasks ? (
+          <p className="muted">加载中...</p>
+        ) : filteredTasks.length === 0 ? (
+          <p className="muted">暂无图片任务，点击右上角「新建图片任务」开始。</p>
+        ) : (
+          <ul className="graph-task-list">
+            {filteredTasks.map((t) => (
+              <li
+                key={t.id}
+                className="graph-task-item graph-task-item-clickable"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleTaskClick(t)}
+                onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
+              >
+                <div className="graph-task-thumb">
+                  {t.status === 'completed' ? (
+                    thumbnailCache[t.id] ? (
+                      <img src={thumbnailCache[t.id]} alt="" className="graph-task-thumb-img" />
+                    ) : (
+                      <span className="graph-task-thumb-placeholder">加载中</span>
+                    )
+                  ) : (
+                    <span className="graph-task-thumb-placeholder">—</span>
+                  )}
+                </div>
+                <div className="graph-task-content">
+                  <span className="graph-task-title" title={getTaskTitle(t)}>
+                    {getTaskTitle(t)}
+                  </span>
+                  <div className="graph-task-meta">
+                    {getGraphType(t) && (
+                      <span className="graph-task-subtype">
+                        {GRAPH_TYPE_OPTIONS.find((o) => o.value === getGraphType(t))?.label ??
+                          getGraphType(t)}
+                      </span>
+                    )}
+                    <code className="graph-task-id" title={t.id}>
+                      {t.id.length > 12 ? `${t.id.slice(0, 12)}…` : t.id}
+                    </code>
+                    {t.progress?.progress != null && (
+                      <span className="graph-task-progress">{t.progress.progress}%</span>
+                    )}
+                    {t.progress?.error && (
+                      <span className="graph-task-error" title={t.progress.error}>
+                        {t.progress.error.slice(0, 40)}…
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="graph-task-actions">
+                  <span className={`graph-task-status graph-task-status--${t.status}`}>
+                    {STATUS_MAP[t.status] ?? t.status}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-danger btn-small"
+                    title="删除"
+                    onClick={(e) => handleDeleteTask(e, t)}
+                    disabled={deletingId === t.id}
+                  >
+                    {deletingId === t.id ? '…' : '删除'}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <GraphViewerModal
         visible={viewerVisible}
@@ -893,275 +905,16 @@ export default function Graph() {
         error={viewerError}
       />
 
-      <style>{`
-        .graph-page {
-          flex: 1;
-          min-height: 0;
-        }
-        .graph-list-pane {
-          display: flex;
-          flex-direction: column;
-          background: #1e1e1e;
-          border: 1px solid #333;
-          border-radius: 8px;
-          overflow: hidden;
-        }
-        .graph-list-title {
-          flex-shrink: 0;
-          margin: 0;
-          padding: 1rem 1.25rem;
-          font-size: 1rem;
-          color: #e0e0e0;
-          border-bottom: 1px solid #333;
-        }
-        .graph-filters {
-          flex-shrink: 0;
-          display: flex;
-          gap: 0.75rem;
-          padding: 0.5rem 1rem;
-          border-bottom: 1px solid #333;
-        }
-        .graph-filter-select {
-          padding: 0.4rem 0.6rem;
-          border-radius: 6px;
-          border: 1px solid #444;
-          background: #262626;
-          color: #e0e0e0;
-          font-size: 0.875rem;
-        }
-        .graph-list-scroll {
-          flex: 1;
-          min-height: 0;
-          overflow-y: auto;
-          padding: 1rem;
-        }
-        .graph-form-pane {
-          flex: 5;
-          min-width: 0;
-          min-height: 0;
-          overflow-y: auto;
-          background: #1e1e1e;
-          border: 1px solid #333;
-          border-radius: 8px;
-          padding: 1.5rem;
-        }
-        .graph-form-title {
-          margin: 0 0 1rem 0;
-          font-size: 1rem;
-          color: #e0e0e0;
-        }
-        .graph-list-scroll .muted { font-size: 0.875rem; color: #888; margin: 0; }
-        .graph-task-list { list-style: none; margin: 0; padding: 0; }
-        .graph-task-item {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.5rem 0.875rem;
-          margin-bottom: 0.5rem;
-          background: #252525;
-          border: 1px solid #333;
-          border-radius: 8px;
-        }
-        .graph-task-item-clickable { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
-        .graph-task-item-clickable:hover { background: #2d2d2d; border-color: #444; }
-        .graph-task-thumb {
-          flex-shrink: 0;
-          width: 48px;
-          height: 48px;
-          border-radius: 6px;
-          overflow: hidden;
-          background: #1a1a1a;
-          border: 1px solid #333;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .graph-task-thumb-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        .graph-task-thumb-placeholder {
-          font-size: 0.65rem;
-          color: #555;
-        }
-        .graph-task-content {
-          flex: 1;
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 0.2rem;
-          justify-content: center;
-        }
-        .graph-task-title {
-          font-size: 0.875rem;
-          color: #e0e0e0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .graph-task-meta {
-          font-size: 0.7rem;
-          color: #888;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          overflow: hidden;
-        }
-        .graph-task-meta .graph-task-subtype { flex-shrink: 0; }
-        .graph-task-meta .graph-task-id {
-          flex-shrink: 0;
-          max-width: 10em;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          font-family: ui-monospace, monospace;
-          background: #1a1a1a;
-          padding: 0.1rem 0.35rem;
-          border-radius: 4px;
-        }
-        .graph-task-meta .graph-task-progress { flex-shrink: 0; }
-        .graph-task-meta .graph-task-error {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          max-width: 8em;
-        }
-        .graph-task-actions {
-          flex-shrink: 0;
-          display: flex;
-          align-items: center;
-          gap: 0.35rem;
-        }
-        .graph-task-status {
-          font-size: 0.7rem;
-          padding: 0.2rem 0.45rem;
-          border-radius: 4px;
-        }
-        .graph-task-delete {
-          font-size: 0.7rem;
-          padding: 0.2rem 0.45rem;
-          border-radius: 4px;
-          border: 1px solid #7f1d1d;
-          background: transparent;
-          color: #fca5a5;
-          cursor: pointer;
-        }
-        .graph-task-delete:hover:not(:disabled) { background: #7f1d1d; }
-        .graph-task-delete:disabled { opacity: 0.5; cursor: not-allowed; }
-        .graph-task-status--completed { background: #166534; color: #86efac; }
-        .graph-task-status--failed,
-        .graph-task-status--cancelled { background: #7f1d1d; color: #fca5a5; }
-        .graph-task-status--processing,
-        .graph-task-status--pending,
-        .graph-task-status--queued { background: #1e3a5f; color: #93c5fd; }
-        .graph-task-subtype {
-          background: #1e3a5f40;
-          color: #93c5fd;
-          padding: 0.1rem 0.35rem;
-          border-radius: 4px;
-        }
-        .graph-task-progress { color: #93c5fd; }
-        .graph-task-error { color: #fca5a5; }
-        .graph-form .form-row { margin-bottom: 1rem; }
-        .graph-form .form-row label { display: block; margin-bottom: 0.35rem; font-size: 0.9rem; color: #aaa; }
-        .graph-form .form-row input,
-        .graph-form .form-row select,
-        .graph-form .form-row textarea {
-          width: 100%;
-          padding: 0.5rem 0.75rem;
-          border-radius: 6px;
-          border: 1px solid #444;
-          background: #262626;
-          color: #e0e0e0;
-          font-size: 0.875rem;
-          box-sizing: border-box;
-        }
-        .graph-form .form-row textarea { min-height: 80px; resize: vertical; }
-        .graph-form .form-row.form-row--switch .graph-form-grid9-wrap {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          flex-wrap: wrap;
-        }
-        .graph-form-grid9-hint { font-size: 0.8rem; color: #888; }
-        .graph-advanced {
-          border: 1px solid #333;
-          border-radius: 8px;
-          padding: 0.75rem;
-          background: #1a1a1a;
-          margin-bottom: 1rem;
-        }
-        .graph-advanced > summary {
-          cursor: pointer;
-          color: #cfcfcf;
-          font-size: 0.9rem;
-          user-select: none;
-        }
-        .graph-advanced-grid {
-          margin-top: 0.75rem;
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 0.75rem 1rem;
-        }
-        .graph-ref-controls {
-          margin-top: 0.5rem;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .graph-ref-controls select { width: auto; }
-        .graph-ref-upload {
-          width: auto;
-          padding: 0.4rem 0.75rem;
-          border-radius: 6px;
-          border: 1px solid #444;
-          background: #262626;
-          color: #e0e0e0;
-          cursor: pointer;
-        }
-        .graph-ref-upload:disabled { opacity: 0.6; cursor: not-allowed; }
-        .graph-ref-grid {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-        }
-        .graph-ref-item {
-          position: relative;
-          width: 72px;
-          height: 72px;
-          border-radius: 8px;
-          overflow: hidden;
-          border: 1px solid #333;
-          background: #111;
-        }
-        .graph-ref-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .graph-ref-remove {
-          position: absolute;
-          top: 4px;
-          right: 4px;
-          width: 20px;
-          height: 20px;
-          border-radius: 999px;
-          border: none;
-          background: rgba(0,0,0,0.6);
-          color: #fff;
-          cursor: pointer;
-          line-height: 20px;
-          padding: 0;
-        }
-        .graph-ref-badge {
-          position: absolute;
-          left: 4px;
-          bottom: 4px;
-          font-size: 0.65rem;
-          padding: 0.1rem 0.3rem;
-          border-radius: 6px;
-          background: rgba(0,0,0,0.65);
-          color: #e0e0e0;
-        }
-        .form-row-group { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-        .form-row-group .form-row { margin-bottom: 0; }
-      `}</style>
-    </div>
+      <Drawer
+        title="新建图片任务"
+        placement="right"
+        width={520}
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        destroyOnClose
+      >
+        {renderForm()}
+      </Drawer>
+    </section>
   );
 }

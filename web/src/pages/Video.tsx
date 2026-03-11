@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { notification } from 'antd';
+import { Drawer, notification } from 'antd';
 import {
   createVideo,
   listCgiTasks,
@@ -12,7 +12,6 @@ import {
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { VideoViewerModal } from '../components/VideoViewerModal';
-import { TwoPaneLayout } from '../components/TwoPaneLayout';
 
 const VIDEO_MODEL_OPTIONS = [
   { value: 'sora-2', label: 'sora-2（4/8/12 秒）' },
@@ -91,6 +90,7 @@ export default function Video() {
   const [viewerVideoUrl, setViewerVideoUrl] = useState<string | null>(null);
   const [viewerLoading, setViewerLoading] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const loadTasks = useCallback(async () => {
     if (!isLoggedIn) return;
@@ -118,11 +118,11 @@ export default function Video() {
     const isDeer = videoModel === 'sora-2-deer' || videoModel === 'sora-2-deer-pro' || videoModel === 'sora-2-all';
     const mode = isDeer ? 'sora-2-deer' : 'sora-2';
     getVideoFormOptions({ lang: 'zh', mode }).then((res) => {
-      const raw = res.data as { data?: { seconds?: Array<{ value?: string | number }> } } | undefined;
+      const raw = res.data as any;
       const opts = raw?.data?.seconds ?? raw?.seconds ?? [];
       const numbers = opts
-        .map((o) => parseInt(String(o?.value ?? ''), 10))
-        .filter((n) => Number.isFinite(n));
+        .map((o: any) => parseInt(String(o?.value ?? ''), 10))
+        .filter((n: number) => Number.isFinite(n));
       if (numbers.length > 0) setSecondsOptions(numbers);
     }).catch(() => {});
   }, [videoModel]);
@@ -134,6 +134,75 @@ export default function Video() {
       const bTime = new Date(b.createdAt ?? 0).getTime();
       return bTime - aTime;
     });
+
+  const renderForm = () => (
+    <form onSubmit={handleSubmit} className="form-group video-form">
+      <p className="video-form-hint">
+        chunks 可从写作任务 result.metadata 取得，按 characters 填 reference_image_url。可选时长：{secondsOptions.length ? secondsOptions.join(' / ') : '10'} 秒。
+      </p>
+      <div className="form-row-group">
+        <div className="form-row">
+          <label>脚本类型</label>
+          <select value={scriptType} onChange={(e) => setScriptType(e.target.value)}>
+            {SCRIPT_TYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="form-row">
+          <label>画幅</label>
+          <select
+            value={orientation}
+            onChange={(e) => setOrientation(e.target.value as 'landscape' | 'portrait')}
+          >
+            {ORIENTATION_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="form-row">
+          <label>视频模型</label>
+          <select value={videoModel} onChange={(e) => setVideoModel(e.target.value)}>
+            {VIDEO_MODEL_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="form-row">
+        <label>任务名称</label>
+        <input
+          type="text"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="可选，用于列表展示"
+        />
+      </div>
+
+      <div className="form-row">
+        <label>分镜 chunks（JSON 数组）*</label>
+        <textarea
+          value={chunksJson}
+          onChange={(e) => setChunksJson(e.target.value)}
+          placeholder='[{"index":1,"chunk_seconds":10,"prompt":"...","video_description":"...","characters_in_shot":[],"reference_image_url":""}]'
+          rows={14}
+          spellCheck={false}
+          required
+        />
+      </div>
+
+      <button type="submit" className="btn-primary" disabled={loading}>
+        {loading ? '提交中...' : '生成视频'}
+      </button>
+    </form>
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,155 +329,104 @@ export default function Video() {
   };
 
   return (
-    <div className="video-page">
-      <TwoPaneLayout
-        leftClassName="video-list-pane"
-        rightClassName="video-form-pane"
-        left={
-          <section className="video-list-pane">
-        <h3 className="video-list-title">我的视频任务</h3>
-        <div className="video-filters">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="video-filter-select"
-          >
-            <option value="">全部状态</option>
-            {Object.entries(STATUS_MAP).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="video-list-scroll">
-          {!isLoggedIn ? (
-            <p className="muted">请先登录以查看任务列表。</p>
-          ) : loadingTasks ? (
-            <p className="muted">加载中...</p>
-          ) : filteredTasks.length === 0 ? (
-            <p className="muted">暂无视频任务，提交右侧表单创建新任务。</p>
-          ) : (
-            <ul className="video-task-list">
-              {filteredTasks.map((t) => (
-                <li
-                  key={t.id}
-                  className="video-task-item video-task-item-clickable"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleTaskClick(t)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
-                >
-                  <div className="video-task-main">
-                    <span className="video-task-title" title={getTaskTitle(t)}>
-                      {getTaskTitle(t)}
-                    </span>
-                    <span className="video-task-actions">
-                      <span className={`video-task-status video-task-status--${t.status}`}>
-                        {STATUS_MAP[t.status] ?? t.status}
-                      </span>
-                      <button
-                        type="button"
-                        className="video-task-delete"
-                        title="删除"
-                        onClick={(e) => handleDeleteTask(e, t)}
-                        disabled={deletingId === t.id}
-                      >
-                        {deletingId === t.id ? '…' : '删除'}
-                      </button>
-                    </span>
-                  </div>
-                  <div className="video-task-meta">
-                    <code className="video-task-id">{t.id}</code>
-                    {t.progress?.progress != null && (
-                      <span className="video-task-progress">{t.progress.progress}%</span>
-                    )}
-                    {t.progress?.error && (
-                      <span className="video-task-error" title={t.progress.error}>
-                        {t.progress.error.slice(0, 60)}
-                        {t.progress.error.length > 60 ? '…' : ''}
-                      </span>
-                    )}
-                  </div>
-                </li>
+    <section className="page-card video-page">
+      <div className="video-header">
+        <div className="video-header-main">
+          <div className="video-filters">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="video-filter-select"
+            >
+              <option value="">全部状态</option>
+              {Object.entries(STATUS_MAP).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
               ))}
-            </ul>
-          )}
+            </select>
+          </div>
         </div>
-          </section>
-        }
-        right={
-          <section className="video-form-pane">
-        <h3 className="video-form-title">新建视频任务</h3>
-        <p className="video-form-hint">
-          chunks 可从写作任务 result.metadata 取得，按 characters 填 reference_image_url。可选时长：{secondsOptions.length ? secondsOptions.join(' / ') : '10'} 秒。
-        </p>
-        <form onSubmit={handleSubmit} className="form-group video-form">
-          <div className="form-row-group">
-            <div className="form-row">
-              <label>脚本类型</label>
-              <select value={scriptType} onChange={(e) => setScriptType(e.target.value)}>
-                {SCRIPT_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-row">
-              <label>画幅</label>
-              <select
-                value={orientation}
-                onChange={(e) => setOrientation(e.target.value as 'landscape' | 'portrait')}
-              >
-                {ORIENTATION_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-row">
-              <label>视频模型</label>
-              <select value={videoModel} onChange={(e) => setVideoModel(e.target.value)}>
-                {VIDEO_MODEL_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="form-row">
-            <label>任务名称</label>
-            <input
-              type="text"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="可选，用于列表展示"
-            />
-          </div>
-
-          <div className="form-row">
-            <label>分镜 chunks（JSON 数组）*</label>
-            <textarea
-              value={chunksJson}
-              onChange={(e) => setChunksJson(e.target.value)}
-              placeholder='[{"index":1,"chunk_seconds":10,"prompt":"...","video_description":"...","characters_in_shot":[],"reference_image_url":""}]'
-              rows={14}
-              spellCheck={false}
-              required
-            />
-          </div>
-
-          <button type="submit" disabled={loading}>
-            {loading ? '提交中...' : '生成视频'}
+        <div className="video-header-actions">
+          <button
+            type="button"
+            className="btn-secondary btn-small"
+            onClick={() => loadTasks()}
+            disabled={loadingTasks}
+          >
+            {loadingTasks ? '刷新中…' : '刷新列表'}
           </button>
-        </form>
-          </section>
-        }
-      />
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setFormOpen(true)}
+            disabled={!isLoggedIn}
+          >
+            新建视频任务
+          </button>
+        </div>
+      </div>
+
+      <div className="video-list-scroll">
+        {!isLoggedIn ? (
+          <p className="muted">请先登录以查看任务列表。</p>
+        ) : loadingTasks ? (
+          <p className="muted">加载中...</p>
+        ) : filteredTasks.length === 0 ? (
+          <p className="muted">暂无视频任务，点击右上角「新建视频任务」开始。</p>
+        ) : (
+          <ul className="video-task-list">
+            {filteredTasks.map((t) => (
+              <li
+                key={t.id}
+                className="video-task-item video-task-item-clickable"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleTaskClick(t)}
+                onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
+              >
+                <div className="video-thumb">
+                  <div className="video-thumb-play" />
+                  <span className="video-thumb-orientation">
+                    {orientation === 'portrait' ? '9:16' : '16:9'}
+                  </span>
+                </div>
+                <div className="video-task-main">
+                  <span className="video-task-title" title={getTaskTitle(t)}>
+                    {getTaskTitle(t)}
+                  </span>
+                  <span className="video-task-actions">
+                    <span className={`video-task-status video-task-status--${t.status}`}>
+                      {STATUS_MAP[t.status] ?? t.status}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-danger btn-small"
+                      title="删除"
+                      onClick={(e) => handleDeleteTask(e, t)}
+                      disabled={deletingId === t.id}
+                    >
+                      {deletingId === t.id ? '…' : '删除'}
+                    </button>
+                  </span>
+                </div>
+                <div className="video-task-meta">
+                  <code className="video-task-id">{t.id}</code>
+                  {t.progress?.progress != null && (
+                    <span className="video-task-progress">{t.progress.progress}%</span>
+                  )}
+                  {t.progress?.error && (
+                    <span className="video-task-error" title={t.progress.error}>
+                      {t.progress.error.slice(0, 60)}
+                      {t.progress.error.length > 60 ? '…' : ''}
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <VideoViewerModal
         visible={viewerVisible}
@@ -420,142 +438,16 @@ export default function Video() {
         error={viewerError}
       />
 
-      <style>{`
-        .video-page {
-          flex: 1;
-          min-height: 0;
-        }
-        .video-list-pane {
-          display: flex;
-          flex-direction: column;
-          background: #1e1e1e;
-          border: 1px solid #333;
-          border-radius: 8px;
-          overflow: hidden;
-        }
-        .video-list-title {
-          flex-shrink: 0;
-          margin: 0;
-          padding: 1rem 1.25rem;
-          font-size: 1rem;
-          color: #e0e0e0;
-          border-bottom: 1px solid #333;
-        }
-        .video-filters {
-          flex-shrink: 0;
-          display: flex;
-          gap: 0.75rem;
-          padding: 0.5rem 1rem;
-          border-bottom: 1px solid #333;
-        }
-        .video-filter-select {
-          padding: 0.4rem 0.6rem;
-          border-radius: 6px;
-          border: 1px solid #444;
-          background: #262626;
-          color: #e0e0e0;
-          font-size: 0.875rem;
-        }
-        .video-list-scroll {
-          flex: 1;
-          min-height: 0;
-          overflow-y: auto;
-          padding: 1rem;
-        }
-        .video-form-pane {
-          flex: 5;
-          min-width: 0;
-          min-height: 0;
-          overflow-y: auto;
-          background: #1e1e1e;
-          border: 1px solid #333;
-          border-radius: 8px;
-          padding: 1.5rem;
-        }
-        .video-form-title {
-          margin: 0 0 0.5rem 0;
-          font-size: 1rem;
-          color: #e0e0e0;
-        }
-        .video-form-hint {
-          font-size: 0.8rem;
-          color: #888;
-          margin: 0 0 1rem 0;
-        }
-        .video-list-scroll .muted { font-size: 0.875rem; color: #888; margin: 0; }
-        .video-task-list { list-style: none; margin: 0; padding: 0; }
-        .video-task-item {
-          padding: 0.75rem 1rem;
-          margin-bottom: 0.5rem;
-          background: #252525;
-          border: 1px solid #333;
-          border-radius: 6px;
-        }
-        .video-task-item-clickable { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
-        .video-task-item-clickable:hover { background: #2d2d2d; border-color: #444; }
-        .video-task-main {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 0.75rem;
-        }
-        .video-task-title {
-          flex: 1;
-          font-size: 0.9rem;
-          color: #e0e0e0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .video-task-actions { flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem; }
-        .video-task-status { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
-        .video-task-delete {
-          font-size: 0.7rem;
-          padding: 0.2rem 0.4rem;
-          border-radius: 4px;
-          border: 1px solid #7f1d1d;
-          background: transparent;
-          color: #fca5a5;
-          cursor: pointer;
-        }
-        .video-task-delete:hover:not(:disabled) { background: #7f1d1d; }
-        .video-task-delete:disabled { opacity: 0.5; cursor: not-allowed; }
-        .video-task-status--completed { background: #166534; color: #86efac; }
-        .video-task-status--failed,
-        .video-task-status--cancelled { background: #7f1d1d; color: #fca5a5; }
-        .video-task-status--processing,
-        .video-task-status--pending,
-        .video-task-status--queued { background: #1e3a5f; color: #93c5fd; }
-        .video-task-meta {
-          margin-top: 0.5rem;
-          font-size: 0.75rem;
-          color: #888;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-          align-items: center;
-        }
-        .video-task-id { font-family: ui-monospace, monospace; background: #1a1a1a; padding: 0.15rem 0.4rem; border-radius: 4px; }
-        .video-task-progress { color: #93c5fd; }
-        .video-task-error { color: #fca5a5; max-width: 100%; }
-        .video-form .form-row { margin-bottom: 1rem; }
-        .video-form .form-row label { display: block; margin-bottom: 0.35rem; font-size: 0.9rem; color: #aaa; }
-        .video-form .form-row input,
-        .video-form .form-row select,
-        .video-form .form-row textarea {
-          width: 100%;
-          padding: 0.5rem 0.75rem;
-          border-radius: 6px;
-          border: 1px solid #444;
-          background: #262626;
-          color: #e0e0e0;
-          font-size: 0.875rem;
-          box-sizing: border-box;
-        }
-        .video-form .form-row textarea { min-height: 80px; resize: vertical; font-family: ui-monospace, monospace; }
-        .form-row-group { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-        .form-row-group .form-row { margin-bottom: 0; }
-      `}</style>
-    </div>
+      <Drawer
+        title="新建视频任务"
+        placement="right"
+        width={520}
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        destroyOnClose
+      >
+        {renderForm()}
+      </Drawer>
+    </section>
   );
 }

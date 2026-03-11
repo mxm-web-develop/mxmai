@@ -1,7 +1,7 @@
 import type { GenerateResult } from '../providers/types';
 import type { ProviderType } from '../providers/types';
 import { getSupabaseClient } from '@mxmai/mxmdata';
-import { ProviderBalanceService } from '../balance/provider-balance-service';
+import { ProviderBalanceService, PRICING_ERROR_MSG } from '../balance/provider-balance-service';
 
 export interface LogProviderUsageParams {
   taskId?: string;
@@ -169,7 +169,7 @@ export class UsageService {
       });
       return { costUsd };
     } catch (err) {
-      if (err instanceof Error && err.message === '服务价格报错，请联系管理人员') {
+      if (err instanceof Error && (err.message === PRICING_ERROR_MSG || err.message.startsWith('无定价记录') || err.message.startsWith('Provider 余额不足'))) {
         throw err;
       }
       const meta = result?.metadata || {};
@@ -178,7 +178,7 @@ export class UsageService {
         provider: meta.provider || providerOverride,
         modelKey: meta.model || logicalModel,
       });
-      throw new Error('服务价格报错，请联系管理人员');
+      throw new Error(err instanceof Error ? err.message : '服务价格报错，请联系管理人员');
     }
   }
 

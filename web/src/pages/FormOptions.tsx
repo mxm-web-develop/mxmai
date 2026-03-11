@@ -7,7 +7,7 @@ export default function FormOptions() {
   const [module, setModule] = useState<'writing' | 'video' | 'graph'>('writing');
   const [writingType, setWritingType] = useState('storyboard-scripts');
   const [outlineType, setOutlineType] = useState('short-video-storyboard');
-  const [graphType, setGraphType] = useState('photograph');
+  const [graphType, setGraphType] = useState<'photograph' | 'design' | 'painting'>('photograph');
   const [graphSubType, setGraphSubType] = useState('portrait');
   const [res, setRes] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -52,7 +52,11 @@ export default function FormOptions() {
         {module === 'graph' && (
           <>
             <label>graphType</label>
-            <input value={graphType} onChange={(e) => setGraphType(e.target.value)} placeholder="photograph" />
+            <select value={graphType} onChange={(e) => setGraphType(e.target.value as typeof graphType)}>
+              <option value="photograph">photograph</option>
+              <option value="design">design</option>
+              <option value="painting">painting</option>
+            </select>
             <label>type</label>
             <input value={graphSubType} onChange={(e) => setGraphSubType(e.target.value)} placeholder="portrait" />
           </>

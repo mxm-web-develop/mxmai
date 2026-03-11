@@ -289,7 +289,7 @@ export async function startGraphTask(taskId: string, originalParams?: Record<str
               await BillingService.consumeForTask({
                 taskId, userId: finalUserId,
                 provider: (result.promptGenerationUsage.metadata.provider as ProviderType) || effProvider,
-                modelKey: String(result.promptGenerationUsage.metadata.model || 'writing-graph-prompt'),
+                modelKey: String(result.promptGenerationUsage.metadata.model || 'writing-basic-text'),
                 scope: 'writing',
                 inputTokens: Number(u?.prompt_tokens ?? u?.input_tokens ?? 0),
                 outputTokens: Number(u?.completion_tokens ?? u?.output_tokens ?? 0),
@@ -342,7 +342,7 @@ export async function startGraphTask(taskId: string, originalParams?: Record<str
               await BillingService.consumeForTask({
                 taskId, userId: finalUserId,
                 provider: (result.promptGenerationUsage.metadata.provider as ProviderType) || effProvider,
-                modelKey: String(result.promptGenerationUsage.metadata.model || 'writing-graph-prompt'),
+                modelKey: String(result.promptGenerationUsage.metadata.model || 'writing-basic-text'),
                 scope: 'writing',
                 inputTokens: Number(u?.prompt_tokens ?? u?.input_tokens ?? 0),
                 outputTokens: Number(u?.completion_tokens ?? u?.output_tokens ?? 0),
@@ -396,7 +396,7 @@ export async function startGraphTask(taskId: string, originalParams?: Record<str
               await BillingService.consumeForTask({
                 taskId, userId: finalUserId,
                 provider: (result.promptGenerationUsage.metadata.provider as ProviderType) || effProviderGrid9,
-                modelKey: String(result.promptGenerationUsage.metadata.model || 'writing-graph-prompt'),
+                modelKey: String(result.promptGenerationUsage.metadata.model || 'writing-basic-text'),
                 scope: 'writing',
                 inputTokens: Number(u?.prompt_tokens ?? u?.input_tokens ?? 0),
                 outputTokens: Number(u?.completion_tokens ?? u?.output_tokens ?? 0),
@@ -432,7 +432,7 @@ export async function startGraphTask(taskId: string, originalParams?: Record<str
           await BillingService.consumeForTask({
             taskId, userId: finalUserId,
             provider: (result.promptGenerationUsage.metadata.provider as ProviderType) || effProvider,
-            modelKey: String(result.promptGenerationUsage.metadata.model || 'writing-graph-prompt'),
+            modelKey: String(result.promptGenerationUsage.metadata.model || 'writing-basic-text'),
             scope: 'writing',
             inputTokens: Number(u?.prompt_tokens ?? u?.input_tokens ?? 0),
             outputTokens: Number(u?.completion_tokens ?? u?.output_tokens ?? 0),

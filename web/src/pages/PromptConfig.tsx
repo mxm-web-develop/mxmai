@@ -36,37 +36,6 @@ const GRAPH_TYPES = [
   { value: 'design', label: '设计 design' },
 ];
 
-const GRAPH_SUBTYPES: Record<string, Array<{ value: string; label: string }>> = {
-  photograph: [
-    { value: 'portrait', label: '人像 portrait' },
-    { value: 'landscape', label: '风景 landscape' },
-    { value: 'cinematic', label: '电影画面 cinematic' },
-    { value: 'commercial', label: '产品商业 commercial' },
-    { value: 'documentary', label: '纪事 documentary' },
-  ],
-  painting: [
-    { value: 'illustration', label: '插图 illustration' },
-    { value: 'comic', label: '漫画 comic' },
-    { value: 'conceptArt', label: '原画 conceptArt' },
-    { value: 'cartoon', label: '卡通 cartoon' },
-  ],
-  design: [
-    { value: '3d', label: '3D' },
-    { value: 'manual', label: '使用手册 manual' },
-    { value: 'poster', label: '画报 poster' },
-    { value: 'icon', label: '图标 icon' },
-    { value: 'coverImage', label: '封面 coverImage' },
-    { value: 'ui-design', label: 'UI 设计 ui-design' },
-  ],
-};
-
-const WRITING_SUBTYPES_ARTICLES = [
-  { value: '', label: '无' },
-  { value: 'tech-article', label: '科技文章 tech-article' },
-  { value: 'story-novel', label: '故事小说 story-novel' },
-  { value: 'academic-paper', label: '学术论文 academic-paper' },
-];
-
 /** 无 DB 配置时占位文案（表格与弹窗统一） */
 const OUTPUT_FORMAT_PLACEHOLDER = '见编辑弹窗配置';
 
@@ -114,26 +83,24 @@ export default function PromptConfig() {
   const [saving, setSaving] = useState(false);
 
   const typeOptions = scopeFilter === 'writing' ? WRITING_TYPES : scopeFilter === 'graph' ? GRAPH_TYPES : [];
-  const subtypeOptions =
-    scopeFilter === 'writing' && typeFilter === 'articles'
-      ? WRITING_SUBTYPES_ARTICLES
-      : scopeFilter === 'graph' && typeFilter && GRAPH_SUBTYPES[typeFilter]
-        ? [{ value: '', label: '无' }, ...GRAPH_SUBTYPES[typeFilter]]
-        : [{ value: '', label: '无' }];
 
   const loadLists = useCallback(async () => {
     const res = await listPromptConfig({
       scope: scopeFilter || undefined,
       type: typeFilter || undefined,
     });
-    const raw = res.data as { data?: { items?: PromptConfigRow[]; total?: number } };
+    const raw = res.data as { data?: { items?: PromptConfigRow[]; total?: number }; items?: PromptConfigRow[] } | undefined;
     const items = raw?.data?.items ?? raw?.items;
     if (!res.error && Array.isArray(items)) setLists(items);
     else setLists([]);
   }, [scopeFilter, typeFilter]);
 
   useEffect(() => {
-    if (isLoggedIn && isAdmin) loadLists();
+    if (!isLoggedIn || !isAdmin) return;
+    const t = window.setTimeout(() => {
+      void loadLists();
+    }, 0);
+    return () => window.clearTimeout(t);
   }, [isLoggedIn, isAdmin, loadLists]);
 
   const openDetail = async (row: PromptConfigRow, mode: 'view' | 'edit') => {

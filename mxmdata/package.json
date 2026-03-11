@@ -42,6 +42,7 @@
     "migrate:provider-call-stats": "tsx src/scripts/run-provider-call-stats-migration.ts",
     "migrate:model-routing-overrides": "tsx src/scripts/run-model-routing-overrides-migration.ts",
     "migrate:graph-model-config": "tsx src/scripts/run-graph-model-config-migration.ts",
+    "migrate:user-api-keys": "tsx src/scripts/run-user-api-keys-migration.ts",
     "reload-schema": "tsx src/scripts/reload-postgrest-schema.ts",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",

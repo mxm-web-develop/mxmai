@@ -30,6 +30,7 @@
     "start:mxmdata": "pnpm --filter @mxmai/mxmdata start",
     "clear:ports": "bash scripts/clear-ports.sh",
     "dev:all": "(test -f mxmdata/dist/index.js || pnpm --filter @mxmai/mxmdata run build:dist) && pnpm clear:ports && concurrently \"pnpm dev:mxmauth\" \"pnpm dev:mxmpay\" \"pnpm dev:mxmcgi\" \"pnpm dev:mxmagent\" \"pnpm dev:mxmnotify\" \"pnpm dev:gateway\" --names \"mxmauth,mxmpay,mxmcgi,mxmagent,mxmnotify,gateway\" --prefix-colors \"blue,yellow,cyan,white,magenta,green\"",
+    "dev:all-with-web": "concurrently \"pnpm run dev:all\" \"bash scripts/wait-for-gateway.sh && pnpm run dev:web\" --names \"backend,web\" --prefix-colors \"blue,green\"",
     "start:all": "concurrently \"pnpm start:mxmauth\" \"pnpm start:mxmcgi\" \"pnpm start:mxmagent\" \"pnpm start:mxmnotify\" \"pnpm start:gateway\" --names \"mxmauth,mxmcgi,mxmagent,mxmnotify,gateway\" --prefix-colors \"blue,cyan,white,magenta,green\"",
     "init:project": "tsx ./init-project.ts",
     "embedding:systemkb": "tsx embedding-systemkb.ts",

@@ -9,7 +9,7 @@ import type {
   EmbeddingResponse,
   EmbeddingProviderType,
 } from '../types';
-import { DeerAPIClient } from '../../../core/utils/deerapi-client';
+import { DeerAPIClient } from '../../../models/deerapi/client';
 
 export class DeerEmbeddingProvider implements EmbeddingProvider {
   readonly provider: EmbeddingProviderType = 'deer';

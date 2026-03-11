@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import type { ProviderType } from '../core/providers/types';
+import type { ProviderType } from '../models/providers';
 import { taskExecutor } from '../task/task-executor';
 import { listModels, getModelsByKey } from '../models/registry';
 import { runByModelKey } from '../models/run';

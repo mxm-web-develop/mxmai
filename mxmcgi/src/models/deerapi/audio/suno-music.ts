@@ -2,7 +2,7 @@
  * Suno 音乐生成（DeerAPI）
  */
 
-import { providerFactory, type GenerateParams, type GenerateResult, type ProviderType } from '../../../core/providers';
+import { providerFactory, type GenerateParams, type GenerateResult, type ProviderType } from '../../providers';
 import type { ModelDefinition, ModelContext } from '../../types';
 import { registerModel } from '../../registry';
 

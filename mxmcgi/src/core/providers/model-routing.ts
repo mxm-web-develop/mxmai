@@ -27,10 +27,8 @@ const defaultRouting: Record<string, RoutingEntry> = {
   'writing-resumes': { provider: 'deer', model: 'gemini-2-5-flash' },
   // 兼容旧 task 中的 model 字段（可选）
   'writing-article': { provider: 'deer', model: 'gemini-2-5-flash' },
-  // 基础文本能力（内部调用）：可用于 prompt 生成、摘要等
+  // 基础文本能力（内部调用）：生图提示词、写作内压缩/摘要等，统一用此逻辑模型
   'writing-basic-text': { provider: 'deer', model: 'gemini-3-pro' },
-  // 图像提示词专用逻辑模型：graph-service 生成 prompt 时使用
-  'writing-graph-prompt': { provider: 'deer', model: 'gemini-3-pro' },
   // 音频
   'audio-speak': { provider: 'deer', model: 'minimax-speech-2.5-hd' },
   'audio-music': { provider: 'deer', model: 'suno-music' },

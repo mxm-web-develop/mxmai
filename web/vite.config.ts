@@ -13,5 +13,8 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    hmr: {
+      overlay: false, // 禁用错误覆盖层
+    },
   },
 })

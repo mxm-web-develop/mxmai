@@ -29,7 +29,7 @@ import type {
   TaskProgress,
   TaskResult,
 } from './types';
-import { sanitizeBase64InObject } from '../core/graph/reference-image';
+import { sanitizeBase64InObject } from './reference-image';
 
 /**
  * 从数据库读出的时间统一按 UTC 解析。

@@ -167,20 +167,21 @@ export function OutlineViewerModal({
           .outline-viewer-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.6);
-            z-index: 999;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
           }
           .outline-viewer-modal {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: min(90vw, 640px);
-            max-height: 85vh;
-            background: #1e1e1e;
-            border: 1px solid #333;
-            border-radius: 8px;
-            z-index: 1000;
+            inset: 0;
+            z-index: 1001;
+            background: hsl(var(--background));
+            border: 1px solid hsl(var(--border));
+            border-radius: 0;
+            width: 100%;
+            height: 100%;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -244,16 +245,16 @@ export function OutlineViewerModal({
             color: #94a3b8;
             background: #0f172a;
             border: 1px solid #334155;
-            border-radius: 6px;
+            border-radius: 8px;
             overflow: auto;
-            max-height: 60vh;
+            max-height: 70vh;
             white-space: pre-wrap;
             word-break: break-all;
           }
           .outline-viewer-body {
             flex: 1;
             overflow-y: auto;
-            padding: 1rem 1.25rem;
+            padding: 1rem 1.5rem;
           }
           .outline-viewer-loading,
           .outline-viewer-error,

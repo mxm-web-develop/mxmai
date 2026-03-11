@@ -67,6 +67,22 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 }
 
 /**
+ * Gateway 或 JWT 认证：优先信任 Gateway 转发的 x-user-id（API Key 或 JWT 已在 Gateway 校验）
+ * 无 x-user-id 时走 JWT 校验（直连 mxmauth 场景）
+ */
+export function gatewayOrJwtAuth(req: Request, res: Response, next: NextFunction): void {
+  const userId = req.headers['x-user-id'] as string | undefined;
+  if (userId && userId.trim()) {
+    req.user = {
+      userId: userId.trim(),
+      username: (req.headers['x-username'] as string) || userId.trim(),
+    };
+    return next();
+  }
+  return authMiddleware(req, res, next);
+}
+
+/**
  * 可选的认证中间件
  * 如果提供了 Token 则验证，否则继续（不要求认证）
  */

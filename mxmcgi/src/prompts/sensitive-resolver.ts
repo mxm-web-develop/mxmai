@@ -3,7 +3,7 @@
  */
 
 import { RepositoryFactory } from '@mxmai/mxmdata';
-import { sensitivesWords } from '../core/writing/sensitive-words';
+import { sensitivesWords } from '../sensitive/words';
 
 /**
  * 获取指定细分业务应使用的敏感词数组

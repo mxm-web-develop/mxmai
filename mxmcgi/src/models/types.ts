@@ -7,7 +7,7 @@
  * - 具体到上游 API 的映射仍由各 Provider 客户端负责
  */
 
-import type { GenerateResult, GenerateParams } from '../core/providers/types';
+import type { GenerateResult, GenerateParams } from './providers';
 
 export type ModelScope = 'graph' | 'writing' | 'audio' | 'video';
 

@@ -1,13 +1,12 @@
 import { Router, Request, Response } from 'express';
-import type { ProviderType } from '../core/providers/types';
+import type { ProviderType } from '../models/providers';
 import { taskExecutor } from '../task/task-executor';
 import type { PhotographParams, DesignParams, PaintingParams } from '../core/graph/type';
-import { getGraphTypeOptions } from '../core/graph/graphconfigs';
-import { getFormOptionsForType } from '../clientServer/graph';
+import { getGraphTypeOptions, getFormOptionsForType } from '../clientServer/graph';
 import { listModels, getModelsByKey } from '../models/registry';
 import { getResolvedRouting } from '../models/providers';
 import { resolveGraphModel } from '../core/graph/graph-model-routing';
-import { BillingService } from '../core/billing/billing-service';
+import { BillingService } from '../statistics/billing-service';
 
 // 模型列表与存在性检查：仅通过 registry（单轨）
 const GRAPH_MODELS = listModels({ scope: 'graph' });

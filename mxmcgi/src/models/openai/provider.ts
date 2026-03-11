@@ -8,16 +8,15 @@
  * 统一入口：openai Chat Completions API（或兼容的 /v1/chat/completions）。
  */
 
-import {
-  type ModelProvider,
-  type ProviderType,
-  type GenerateParams,
-  type GenerateResult,
-  type ProviderUsageSummary,
-  type ProviderBillingInfo,
-} from '../../core/providers/types';
-import { getFirstProviderKey } from '../../core/providers/provider-keys';
-import { recordStats, getProviderStats } from '../../core/providers/provider-stats';
+import type {
+  ModelProvider,
+  ProviderType,
+  GenerateParams,
+  GenerateResult,
+  ProviderUsageSummary,
+  ProviderBillingInfo,
+} from '../providers-inner';
+import { getFirstProviderKey, recordStats, getProviderStats } from '../providers-inner';
 import { type ModelMapping, getModelName } from '../suport-list';
 import { fetch as undiciFetch, ProxyAgent } from 'undici';
 

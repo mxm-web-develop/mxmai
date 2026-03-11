@@ -21,9 +21,10 @@ import type { IFolderRepository } from '../interfaces/IFolderRepository';
 import type { ICharacterRepository } from '../interfaces/ICharacterRepository';
 import type { IPromptEngineeringConfigRepository } from '../interfaces/IPromptEngineeringConfigRepository';
 import type { IProviderApiKeyRepository } from '../interfaces/IProviderApiKeyRepository';
+import type { IUserApiKeyRepository } from '../interfaces/IUserApiKeyRepository';
 import type { IGraphModelConfigRepository } from '../interfaces/IGraphModelConfigRepository';
 import type { ISensitiveWordRepository } from '../interfaces/ISensitiveWordRepository';
-import { SupabaseUserRepository, SupabasePaymentRepository, SupabaseWalletRepository, SupabasePromptOptimizerRepository, SupabaseConversationRepository, SupabaseSmartflowRepository, SupabaseSmartflowExecutionRepository, SupabasePromptTemplateRepository, SupabaseCGITaskRepository, SupabaseKnowledgeBaseRepository, SupabaseKnowledgeBaseDefaultsRepository, SupabaseFolderRepository, SupabaseCharacterRepository, SupabasePromptEngineeringConfigRepository, SupabaseProviderApiKeyRepository, SupabaseSensitiveWordRepository, SupabaseGraphModelConfigRepository, initSupabaseClient } from '../adapters/supabase';
+import { SupabaseUserRepository, SupabasePaymentRepository, SupabaseWalletRepository, SupabasePromptOptimizerRepository, SupabaseConversationRepository, SupabaseSmartflowRepository, SupabaseSmartflowExecutionRepository, SupabasePromptTemplateRepository, SupabaseCGITaskRepository, SupabaseKnowledgeBaseRepository, SupabaseKnowledgeBaseDefaultsRepository, SupabaseFolderRepository, SupabaseCharacterRepository, SupabasePromptEngineeringConfigRepository, SupabaseProviderApiKeyRepository, SupabaseUserApiKeyRepository, SupabaseSensitiveWordRepository, SupabaseGraphModelConfigRepository, initSupabaseClient } from '../adapters/supabase';
 import { MinIOStorageRepository, initMinIOClient } from '../adapters/minio';
 import { loadDataConfig, type DataLayerConfig } from '../config/dataConfig';
 
@@ -252,6 +253,10 @@ export class RepositoryFactory {
     return createProviderApiKeyRepository();
   }
 
+  static createUserApiKeyRepository(): IUserApiKeyRepository {
+    return createUserApiKeyRepository();
+  }
+
   static createSensitiveWordRepository(): ISensitiveWordRepository {
     return createSensitiveWordRepository();
   }
@@ -426,6 +431,16 @@ export function createProviderApiKeyRepository(): IProviderApiKeyRepository {
   }
 
   return new SupabaseProviderApiKeyRepository();
+}
+
+export function createUserApiKeyRepository(): IUserApiKeyRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+
+  return new SupabaseUserApiKeyRepository();
 }
 
 export function createSensitiveWordRepository(): ISensitiveWordRepository {

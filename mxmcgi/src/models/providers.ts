@@ -1,6 +1,9 @@
 /**
- * 统一从 src/models 暴露 provider 能力，供 task、routes、writing、graph 等使用。
- * 实现仍在 core/providers，此处仅做 re-export。
+ * Provider 能力与类型的统一出口。
+ *
+ * 约定：
+ * - 其他模块一律从 `models/providers` 引用 Provider 相关类型与函数
+ * - 内部目前仍复用 `core/providers` 实现，后续如果物理位置迁移，只需要改这一层
  */
 export {
   providerFactory,
@@ -14,7 +17,7 @@ export {
   getProviderStats,
   getProviderKeys,
   getFirstProviderKey,
-} from '../core/providers';
+} from './providers-inner';
 export type {
   ProviderType,
   GenerateParams,
@@ -25,4 +28,4 @@ export type {
   ProviderStatsAggregate,
   ProviderKeyKind,
   OfficialService,
-} from '../core/providers';
+} from './providers-inner';

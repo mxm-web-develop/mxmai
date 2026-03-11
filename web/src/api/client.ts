@@ -31,27 +31,30 @@ export function getStoredToken(): string {
 
 export async function request<T = unknown>(
   path: string,
-  options: RequestInit & { method?: string; body?: object } = {}
+  options: Omit<RequestInit, 'body' | 'headers' | 'method'> & {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: object | FormData | string | null;
+  } = {}
 ): Promise<{ data?: T; error?: string; status: number }> {
   const base = getBaseUrl().replace(/\/$/, '');
   const url = path.startsWith('http') ? path : base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
   const token = getToken();
 
-  const isFormData = options.body instanceof FormData;
+  const { body, headers: customHeaders, method, ...rest } = options;
+  const isFormData = body instanceof FormData;
   const headers: Record<string, string> = {
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-    ...(options.headers as Record<string, string>),
+    ...(customHeaders ?? {}),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const init: RequestInit = {
-    ...options,
-    headers: { ...headers, ...options.headers },
-  };
-  if (options.body && typeof options.body === 'object' && !isFormData) {
-    init.body = JSON.stringify(options.body);
-  } else if (isFormData) {
-    init.body = options.body;
+  const init: RequestInit = { ...rest, method, headers };
+  if (body !== undefined) {
+    if (isFormData) init.body = body;
+    else if (typeof body === 'string') init.body = body;
+    else if (body === null) init.body = null;
+    else init.body = JSON.stringify(body);
   }
 
   try {
@@ -126,6 +129,50 @@ export function getStoredUser(): LoginUser | null {
 // 获取当前用户信息（需已登录）
 export async function getProfile() {
   return request<{ data?: LoginUser }>('/api/v1/account/profile');
+}
+
+// 修改密码（需已登录）
+export async function changeMyPassword(params: { currentPassword: string; newPassword: string }) {
+  return request<{ code?: number; message?: string }>('/api/v1/account/password', {
+    method: 'PUT',
+    body: {
+      current_password: params.currentPassword,
+      new_password: params.newPassword,
+    },
+  });
+}
+
+// ---------- API 密钥（需已登录）----------
+export interface AccountApiKeyItem {
+  id: string;
+  key_prefix: string;
+  name: string | null;
+  created_at: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+}
+
+export async function getAccountApiKeys() {
+  return request<{ code?: number; data?: AccountApiKeyItem[] }>('/api/v1/account/api-keys');
+}
+
+export interface CreateAccountApiKeyResult {
+  id: string;
+  name: string | null;
+  key_prefix: string;
+  created_at: string;
+  key: string;
+}
+
+export async function createAccountApiKey(name?: string) {
+  return request<{ code?: number; message?: string; data?: CreateAccountApiKeyResult }>('/api/v1/account/api-keys', {
+    method: 'POST',
+    body: name != null ? { name: String(name).trim() || undefined } : {},
+  });
+}
+
+export async function deleteAccountApiKey(id: string) {
+  return request(`/api/v1/account/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 // 角色列表
@@ -1004,11 +1051,11 @@ export async function adminDepositToWallet(params: {
     `/api/v1/wallets/admin/${encodeURIComponent(params.userId)}/${encodeURIComponent(params.assetCode)}/deposit`,
     {
       method: 'POST',
-      body: JSON.stringify({
+      body: {
         amount: params.amount,
         referenceId: params.referenceId,
         metadata: params.metadata,
-      }),
+      },
     }
   );
 }

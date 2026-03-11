@@ -12,6 +12,13 @@ import { getReviewsFormOptions } from './reviews';
 import { getMediaPostFormOptions } from './media-post';
 import { getResumesFormOptions } from './resumes';
 
+// 回退配置（rules/outputformat）仍由 core/writing/wtconfigs 提供，这里做统一出口，便于后续平滑迁移 core 目录
+export {
+  getWritingTypeConfig,
+  getWritingTypeRules,
+  getWritingTypeOutputFormat,
+} from '../../core/writing/wtconfigs';
+
 export type WritingType = string;
 export type OutlineType = string | undefined;
 
@@ -24,7 +31,10 @@ export function getWritingFormOptionsForType(
     case 'outlines':
       return getOutlinesFormOptions(language);
     case 'articles':
-      return getArticlesFormOptions(language, outlineType as 'tech-article' | 'story-novel' | 'academic-paper' | undefined);
+      return getArticlesFormOptions(
+        language,
+        outlineType as 'tech-article' | 'story-novel' | 'academic-paper' | undefined,
+      );
     case 'lyrics':
       return getLyricsFormOptions(language);
     case 'voice-scripts':

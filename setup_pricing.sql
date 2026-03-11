@@ -155,7 +155,7 @@ ON CONFLICT (provider, scope, model_key) DO UPDATE SET
 
 -- 4. 插入写作基础文本模型定价（token_based）
 -- 说明：
--- - 逻辑模型：writing-basic-text / writing-graph-prompt
+-- - 逻辑模型：writing-basic-text（生图提示词、写作内压缩等内部调用统一用此）
 -- - 物理模型：gemini-3-pro（通过 model-routing 路由）
 -- - 价格示例：$2/M input, $12/M output → 每千 input 0.002, 每千 output 0.012
 INSERT INTO provider_pricing (provider, scope, model_key, charge_mode, unit_price, input_unit_price, output_unit_price, currency, platform_input_unit_price, platform_output_unit_price, platform_min_charge)

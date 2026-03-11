@@ -1,11 +1,10 @@
 /**
  * DeepSeek R1（DeerAPI）- 写作用 LLM
  */
-import type { GenerateParams } from '../../../core/providers/types';
-import { providerFactory } from '../../../core/providers';
+import type { GenerateParams, ProviderType } from '../../providers';
+import { providerFactory } from '../../providers';
 import type { ModelDefinition, ModelContext } from '../../types';
 import { registerModel } from '../../registry';
-import type { ProviderType } from '../../../core/providers/types';
 import { mapProviderResultToWritingResult, type WritingResult } from './common';
 
 const modelKey = 'deepseek-r1';

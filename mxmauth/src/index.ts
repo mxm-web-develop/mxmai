@@ -21,11 +21,11 @@ try {
 const app = express();
 const port = process.env.PORT ? Number(process.env.PORT) : 4001;
 
-// CORS 配置
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+// CORS 配置（开发时前端可能为 5173，Gateway 为 3000）
+const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173';
 app.use(
   cors({
-    origin: corsOrigin.split(','),
+    origin: corsOrigin.split(',').map((s) => s.trim()).filter(Boolean),
     credentials: true,
   })
 );

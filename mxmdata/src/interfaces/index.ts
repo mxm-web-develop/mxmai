@@ -18,5 +18,6 @@ export * from './IKnowledgeBaseDefaultsRepository';
 export * from './ICharacterRepository';
 export * from './IPromptEngineeringConfigRepository';
 export * from './IProviderApiKeyRepository';
+export * from './IUserApiKeyRepository';
 export * from './ISensitiveWordRepository';
 export * from './errors';

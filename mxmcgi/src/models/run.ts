@@ -3,8 +3,7 @@
  * 供 routes 与 task-executor 使用，不再从 core/graph、core/audio、core/video、core/text 加载模型文件。
  */
 
-import type { GenerateParams, GenerateResult } from '../core/providers/types';
-import type { ProviderType } from '../core/providers/types';
+import type { GenerateParams, GenerateResult, ProviderType } from './providers';
 import { getModelsByKey } from './registry';
 import type { ModelScope, ModelContext, ModelDefinition } from './types';
 

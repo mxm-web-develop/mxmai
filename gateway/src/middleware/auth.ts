@@ -1,9 +1,11 @@
 /**
  * JWT 认证中间件
+ * 支持：JWT、API Key（Bearer 中为 API Key 时按 hash 查表）、ADMIN_TOKEN
  */
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { createHash } from 'crypto';
 import { logger } from '../utils/logger';
 
 export interface AuthRequest extends Request {
@@ -21,7 +23,7 @@ export interface AuthRequest extends Request {
  * 1. ADMIN_TOKEN（用于测试，生产环境应移除）
  * 2. JWT Token（正常用户认证）
  */
-export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
+export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const authHeader = req.headers.authorization;
 
@@ -143,6 +145,44 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
       logger.debug(`[Auth] JWT token authenticated for user ${decoded.username} (${req.method} ${req.path})`);
       next();
     } catch (error: any) {
+      // JWT 校验失败时，尝试作为用户 API Key 校验（懒加载 mxmdata，避免启动时依赖导致 Gateway 起不来）
+      try {
+        const { RepositoryFactory } = require('@mxmai/mxmdata');
+        const keyHash = createHash('sha256').update(token).digest('hex');
+        const userApiKeyRepo = RepositoryFactory.createUserApiKeyRepository();
+        const keyRecord = await userApiKeyRepo.findByKeyHash(keyHash);
+        if (keyRecord) {
+          const expiresAt = keyRecord.expires_at ? new Date(keyRecord.expires_at).getTime() : null;
+          if (expiresAt != null && Date.now() > expiresAt) {
+            res.status(401).json({
+              success: false,
+              error: { code: 'API_KEY_EXPIRED', message: 'API key has expired' },
+            });
+            return;
+          }
+          const userRepo = RepositoryFactory.createUserRepository();
+          const user = await userRepo.findById(keyRecord.user_id);
+          if (!user) {
+            res.status(401).json({
+              success: false,
+              error: { code: 'USER_NOT_FOUND', message: 'User not found' },
+            });
+            return;
+          }
+          req.user = {
+            userId: user.id,
+            username: user.username ?? user.id,
+            type: 'access',
+            role: user.role === 'admin' ? 'admin' : 'user',
+          };
+          await userApiKeyRepo.updateLastUsedAt(keyRecord.id).catch(() => {});
+          logger.debug(`[Auth] API Key authenticated for user ${req.user.username} (${req.method} ${req.path})`);
+          return next();
+        }
+      } catch (apiKeyErr) {
+        logger.debug(`[Auth] API Key lookup failed:`, apiKeyErr instanceof Error ? apiKeyErr.message : apiKeyErr);
+      }
+
       if (error.name === 'TokenExpiredError') {
         logger.warn(`[Auth] Token expired for ${req.method} ${req.path}`);
         res.status(401).json({
@@ -168,7 +208,7 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
             code: 'INVALID_TOKEN',
             message: 'Invalid token',
             details: error.message,
-            hint: error.message === 'invalid signature' 
+            hint: error.message === 'invalid signature'
               ? 'JWT_SECRET mismatch. Please ensure gateway and mxmauth use the same JWT_SECRET.'
               : error.message,
           },

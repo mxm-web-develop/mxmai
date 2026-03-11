@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { notification } from 'antd';
+import { notification, Drawer } from 'antd';
 import {
   postAudioModel,
   listCgiTasks,
@@ -10,7 +10,6 @@ import {
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { AudioViewerModal } from '../components/AudioViewerModal';
-import { TwoPaneLayout } from '../components/TwoPaneLayout';
 
 const AUDIO_TYPE_OPTIONS = [
   { value: 'voice', label: '配音' },
@@ -82,6 +81,7 @@ export default function Audio() {
   const [filterAudioType, setFilterAudioType] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerTask, setViewerTask] = useState<WritingTaskItem | null>(null);
@@ -248,205 +248,217 @@ export default function Audio() {
     }
   };
 
-  return (
-    <div className="audio-page">
-      <TwoPaneLayout
-        leftClassName="audio-list-pane"
-        rightClassName="audio-form-pane"
-        left={
-          <section className="audio-list-pane">
-        <h3 className="audio-list-title">我的音频任务</h3>
-        <div className="audio-filters">
-          <select
-            value={filterAudioType}
-            onChange={(e) => setFilterAudioType(e.target.value)}
-            className="audio-filter-select"
-          >
-            <option value="">全部类型</option>
-            {AUDIO_TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="audio-filter-select"
-          >
-            <option value="">全部状态</option>
-            {Object.entries(STATUS_MAP).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="audio-list-scroll">
-          {!isLoggedIn ? (
-            <p className="muted">请先登录以查看任务列表。</p>
-          ) : loadingTasks ? (
-            <p className="muted">加载中...</p>
-          ) : filteredTasks.length === 0 ? (
-            <p className="muted">暂无音频任务，提交右侧表单创建新任务。</p>
-          ) : (
-            <ul className="audio-task-list">
-              {filteredTasks.map((t) => (
-                <li
-                  key={t.id}
-                  className="audio-task-item audio-task-item-clickable"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleTaskClick(t)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
-                >
-                  <div className="audio-task-main">
-                    <span className="audio-task-title" title={getTaskTitle(t)}>
-                      {getTaskTitle(t)}
-                    </span>
-                    <span className="audio-task-actions">
-                      <span className={`audio-task-status audio-task-status--${t.status}`}>
-                        {STATUS_MAP[t.status] ?? t.status}
-                      </span>
-                      <button
-                        type="button"
-                        className="audio-task-delete"
-                        title="删除"
-                        onClick={(e) => handleDeleteTask(e, t)}
-                        disabled={deletingId === t.id}
-                      >
-                        {deletingId === t.id ? '…' : '删除'}
-                      </button>
-                    </span>
-                  </div>
-                  <div className="audio-task-meta">
-                    <span className="audio-task-subtype">
-                      {AUDIO_TYPE_OPTIONS.find((o) => o.value === getAudioTypeFromTask(t))?.label ??
-                        getAudioTypeFromTask(t)}
-                    </span>
-                    <code className="audio-task-id">{t.id}</code>
-                    {t.progress?.progress != null && (
-                      <span className="audio-task-progress">{t.progress.progress}%</span>
-                    )}
-                    {t.progress?.error && (
-                      <span className="audio-task-error" title={t.progress.error}>
-                        {t.progress.error.slice(0, 60)}
-                        {t.progress.error.length > 60 ? '…' : ''}
-                      </span>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-          </section>
-        }
-        right={
-          <section className="audio-form-pane">
-        <h3 className="audio-form-title">新建音频任务</h3>
-        <form onSubmit={handleSubmit} className="form-group audio-form">
+  const renderForm = () => (
+    <form onSubmit={handleSubmit} className="form-group audio-form">
+      <div className="form-row">
+        <label>类型</label>
+        <select
+          value={audioType}
+          onChange={(e) => setAudioType(e.target.value as 'voice' | 'music')}
+        >
+          {AUDIO_TYPE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {audioType === 'voice' ? (
+        <>
           <div className="form-row">
-            <label>类型</label>
+            <label>文本内容 *</label>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="请输入要合成的文本..."
+              rows={5}
+              required
+            />
+          </div>
+          <div className="form-row-group">
+            <div className="form-row">
+              <label>音色</label>
+              <select value={voiceId} onChange={(e) => setVoiceId(e.target.value)}>
+                {VOICE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-row">
+              <label>情感</label>
+              <select value={emotion} onChange={(e) => setEmotion(e.target.value)}>
+                {EMOTION_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="form-row">
+            <label>歌词内容 *</label>
+            <textarea
+              value={musicPrompt}
+              onChange={(e) => setMusicPrompt(e.target.value)}
+              placeholder="输入歌词或描述..."
+              rows={5}
+              required
+            />
+          </div>
+          <div className="form-row-group">
+            <div className="form-row">
+              <label>标题</label>
+              <input
+                type="text"
+                value={musicTitle}
+                onChange={(e) => setMusicTitle(e.target.value)}
+                placeholder="可选"
+              />
+            </div>
+            <div className="form-row">
+              <label>标签</label>
+              <input
+                type="text"
+                value={musicTags}
+                onChange={(e) => setMusicTags(e.target.value)}
+                placeholder="可选，逗号分隔"
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="form-row">
+        <label>任务名称</label>
+        <input
+          type="text"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="可选，用于列表展示"
+        />
+      </div>
+
+      <button type="submit" className="btn-primary" disabled={loading}>
+        {loading ? '提交中...' : audioType === 'voice' ? '生成配音' : '生成音乐'}
+      </button>
+    </form>
+  );
+
+  return (
+    <section className="page-card audio-page">
+      <div className="audio-header">
+        <div className="audio-header-main">
+          <div className="audio-filters">
             <select
-              value={audioType}
-              onChange={(e) => setAudioType(e.target.value as 'voice' | 'music')}
+              value={filterAudioType}
+              onChange={(e) => setFilterAudioType(e.target.value)}
+              className="audio-filter-select"
             >
+              <option value="">全部类型</option>
               {AUDIO_TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
             </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="audio-filter-select"
+            >
+              <option value="">全部状态</option>
+              {Object.entries(STATUS_MAP).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
           </div>
-
-          {audioType === 'voice' ? (
-            <>
-              <div className="form-row">
-                <label>文本内容 *</label>
-                <textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="请输入要合成的文本..."
-                  rows={5}
-                  required
-                />
-              </div>
-              <div className="form-row-group">
-                <div className="form-row">
-                  <label>音色</label>
-                  <select value={voiceId} onChange={(e) => setVoiceId(e.target.value)}>
-                    {VOICE_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-row">
-                  <label>情感</label>
-                  <select value={emotion} onChange={(e) => setEmotion(e.target.value)}>
-                    {EMOTION_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="form-row">
-                <label>歌词内容 *</label>
-                <textarea
-                  value={musicPrompt}
-                  onChange={(e) => setMusicPrompt(e.target.value)}
-                  placeholder="输入歌词或描述..."
-                  rows={5}
-                  required
-                />
-              </div>
-              <div className="form-row-group">
-                <div className="form-row">
-                  <label>标题</label>
-                  <input
-                    type="text"
-                    value={musicTitle}
-                    onChange={(e) => setMusicTitle(e.target.value)}
-                    placeholder="可选"
-                  />
-                </div>
-                <div className="form-row">
-                  <label>标签</label>
-                  <input
-                    type="text"
-                    value={musicTags}
-                    onChange={(e) => setMusicTags(e.target.value)}
-                    placeholder="可选，逗号分隔"
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="form-row">
-            <label>任务名称</label>
-            <input
-              type="text"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="可选，用于列表展示"
-            />
-          </div>
-
-          <button type="submit" disabled={loading}>
-            {loading ? '提交中...' : audioType === 'voice' ? '生成配音' : '生成音乐'}
+        </div>
+        <div className="audio-header-actions">
+          <button
+            type="button"
+            className="btn-secondary btn-small"
+            onClick={() => loadTasks()}
+            disabled={loadingTasks}
+          >
+            {loadingTasks ? '刷新中…' : '刷新列表'}
           </button>
-        </form>
-          </section>
-        }
-      />
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setFormOpen(true)}
+            disabled={!isLoggedIn}
+          >
+            新建音频任务
+          </button>
+        </div>
+      </div>
+
+      <div className="audio-list-scroll">
+        {!isLoggedIn ? (
+          <p className="muted">请先登录以查看任务列表。</p>
+        ) : loadingTasks ? (
+          <p className="muted">加载中...</p>
+        ) : filteredTasks.length === 0 ? (
+          <p className="muted">暂无音频任务，点击右上角「新建音频任务」开始。</p>
+        ) : (
+          <ul className="audio-task-list">
+            {filteredTasks.map((t) => (
+              <li
+                key={t.id}
+                className="audio-task-item audio-task-item-clickable"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleTaskClick(t)}
+                onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
+              >
+                <div className="audio-task-main">
+                  <span className="audio-task-title" title={getTaskTitle(t)}>
+                    {getTaskTitle(t)}
+                  </span>
+                  <span className="audio-task-actions">
+                    <span className={`audio-task-status audio-task-status--${t.status}`}>
+                      {STATUS_MAP[t.status] ?? t.status}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-danger btn-small"
+                      title="删除"
+                      onClick={(e) => handleDeleteTask(e, t)}
+                      disabled={deletingId === t.id}
+                    >
+                      {deletingId === t.id ? '…' : '删除'}
+                    </button>
+                  </span>
+                </div>
+                <div className="audio-task-meta">
+                  <span className="audio-task-subtype">
+                    {AUDIO_TYPE_OPTIONS.find((o) => o.value === getAudioTypeFromTask(t))?.label ??
+                      getAudioTypeFromTask(t)}
+                  </span>
+                  <code className="audio-task-id">{t.id}</code>
+                  {t.progress?.progress != null && (
+                    <span className="audio-task-progress">{t.progress.progress}%</span>
+                  )}
+                  {t.progress?.error && (
+                    <span className="audio-task-error" title={t.progress.error}>
+                      {t.progress.error.slice(0, 60)}
+                      {t.progress.error.length > 60 ? '…' : ''}
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <AudioViewerModal
         visible={viewerVisible}
@@ -458,143 +470,16 @@ export default function Audio() {
         error={viewerError}
       />
 
-      <style>{`
-        .audio-page {
-          flex: 1;
-          min-height: 0;
-        }
-        .audio-list-pane {
-          display: flex;
-          flex-direction: column;
-          background: #1e1e1e;
-          border: 1px solid #333;
-          border-radius: 8px;
-          overflow: hidden;
-        }
-        .audio-list-title {
-          flex-shrink: 0;
-          margin: 0;
-          padding: 1rem 1.25rem;
-          font-size: 1rem;
-          color: #e0e0e0;
-          border-bottom: 1px solid #333;
-        }
-        .audio-filters {
-          flex-shrink: 0;
-          display: flex;
-          gap: 0.75rem;
-          padding: 0.5rem 1rem;
-          border-bottom: 1px solid #333;
-        }
-        .audio-filter-select {
-          padding: 0.4rem 0.6rem;
-          border-radius: 6px;
-          border: 1px solid #444;
-          background: #262626;
-          color: #e0e0e0;
-          font-size: 0.875rem;
-        }
-        .audio-list-scroll {
-          flex: 1;
-          min-height: 0;
-          overflow-y: auto;
-          padding: 1rem;
-        }
-        .audio-form-pane {
-          flex: 5;
-          min-width: 0;
-          min-height: 0;
-          overflow-y: auto;
-          background: #1e1e1e;
-          border: 1px solid #333;
-          border-radius: 8px;
-          padding: 1.5rem;
-        }
-        .audio-form-title {
-          margin: 0 0 1rem 0;
-          font-size: 1rem;
-          color: #e0e0e0;
-        }
-        .audio-list-scroll .muted { font-size: 0.875rem; color: #888; margin: 0; }
-        .audio-task-list { list-style: none; margin: 0; padding: 0; }
-        .audio-task-item {
-          padding: 0.75rem 1rem;
-          margin-bottom: 0.5rem;
-          background: #252525;
-          border: 1px solid #333;
-          border-radius: 6px;
-        }
-        .audio-task-item-clickable { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
-        .audio-task-item-clickable:hover { background: #2d2d2d; border-color: #444; }
-        .audio-task-main {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 0.75rem;
-        }
-        .audio-task-title {
-          flex: 1;
-          font-size: 0.9rem;
-          color: #e0e0e0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .audio-task-actions { flex-shrink: 0; display: flex; align-items: center; gap: 0.5rem; }
-        .audio-task-status { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
-        .audio-task-delete {
-          font-size: 0.7rem;
-          padding: 0.2rem 0.4rem;
-          border-radius: 4px;
-          border: 1px solid #7f1d1d;
-          background: transparent;
-          color: #fca5a5;
-          cursor: pointer;
-        }
-        .audio-task-delete:hover:not(:disabled) { background: #7f1d1d; }
-        .audio-task-delete:disabled { opacity: 0.5; cursor: not-allowed; }
-        .audio-task-status--completed { background: #166534; color: #86efac; }
-        .audio-task-status--failed,
-        .audio-task-status--cancelled { background: #7f1d1d; color: #fca5a5; }
-        .audio-task-status--processing,
-        .audio-task-status--pending,
-        .audio-task-status--queued { background: #1e3a5f; color: #93c5fd; }
-        .audio-task-meta {
-          margin-top: 0.5rem;
-          font-size: 0.75rem;
-          color: #888;
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-          align-items: center;
-        }
-        .audio-task-subtype {
-          background: #1e3a5f40;
-          color: #93c5fd;
-          padding: 0.15rem 0.4rem;
-          border-radius: 4px;
-        }
-        .audio-task-id { font-family: ui-monospace, monospace; background: #1a1a1a; padding: 0.15rem 0.4rem; border-radius: 4px; }
-        .audio-task-progress { color: #93c5fd; }
-        .audio-task-error { color: #fca5a5; max-width: 100%; }
-        .audio-form .form-row { margin-bottom: 1rem; }
-        .audio-form .form-row label { display: block; margin-bottom: 0.35rem; font-size: 0.9rem; color: #aaa; }
-        .audio-form .form-row input,
-        .audio-form .form-row select,
-        .audio-form .form-row textarea {
-          width: 100%;
-          padding: 0.5rem 0.75rem;
-          border-radius: 6px;
-          border: 1px solid #444;
-          background: #262626;
-          color: #e0e0e0;
-          font-size: 0.875rem;
-          box-sizing: border-box;
-        }
-        .audio-form .form-row textarea { min-height: 80px; resize: vertical; }
-        .form-row-group { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-        .form-row-group .form-row { margin-bottom: 0; }
-      `}</style>
-    </div>
+      <Drawer
+        title="新建音频任务"
+        placement="right"
+        width={520}
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        destroyOnClose
+      >
+        {renderForm()}
+      </Drawer>
+    </section>
   );
 }

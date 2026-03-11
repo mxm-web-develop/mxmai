@@ -6,8 +6,8 @@
 import { Router, Request, Response } from 'express';
 import { taskExecutor } from '../task/task-executor';
 import type { TaskType } from '../task/types';
-import type { ProviderType } from '../core/providers/types';
-import { sanitizeBase64InObject } from '../core/graph/reference-image';
+import type { ProviderType } from '../models/providers';
+import { sanitizeBase64InObject } from '../task/reference-image';
 import { CharacterService } from '../characters/character-service';
 
 const router = Router();
@@ -437,7 +437,7 @@ const handleRecover = async (req: Request, res: Response) => {
       });
     }
 
-    const { taskRecoveryService } = await import('../core/task/task-recovery');
+    const { taskRecoveryService } = await import('../task/task-recovery');
     await taskRecoveryService.recoverTask(taskId);
 
     return res.json({
@@ -508,7 +508,7 @@ const handleRetry = async (req: Request, res: Response) => {
       });
     }
 
-    const { taskRecoveryService } = await import('../core/task/task-recovery');
+    const { taskRecoveryService } = await import('../task/task-recovery');
     await taskRecoveryService.retryTaskById(taskId);
 
     return res.json({

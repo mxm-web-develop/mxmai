@@ -10,7 +10,7 @@ export default function Users() {
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [search, setSearch] = useState('');
-  const [role, setRole] = useState<string>('');
+  const [role, setRole] = useState<'' | 'user' | 'admin'>('');
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);

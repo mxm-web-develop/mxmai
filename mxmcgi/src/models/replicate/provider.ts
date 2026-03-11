@@ -15,8 +15,8 @@ import {
   StreamStatus,
   ProgressEvent,
   ProgressStatus,
-} from '../../core/providers/types';
-import { getFirstProviderKey } from '../../core/providers/provider-keys';
+  getFirstProviderKey,
+} from '../providers';
 import { ModelMapping, getModelName } from '../suport-list';
 
 export class ReplicateProvider implements ModelProvider {

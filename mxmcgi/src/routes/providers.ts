@@ -14,7 +14,7 @@ import {
   getProviderStats,
   type ProviderType,
   type RoutingEntry,
-} from '../core/providers';
+} from '../models/providers';
 import { listModels } from '../models/registry';
 import { getSupabaseClient } from '@mxmai/mxmdata';
 

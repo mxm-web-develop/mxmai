@@ -15,10 +15,11 @@ import {
   type GenerateResult,
   type ProviderUsageSummary,
   type ProviderBillingInfo,
-} from '../../core/providers/types';
-import { getFirstProviderKey } from '../../core/providers/provider-keys';
+  getFirstProviderKey,
+  recordStats,
+  getProviderStats,
+} from '../providers';
 import { type ModelMapping, getModelName } from '../suport-list';
-import { recordStats, getProviderStats } from '../../core/providers/provider-stats';
 
 export class GoogleProvider implements ModelProvider {
   readonly provider: ProviderType = 'google';

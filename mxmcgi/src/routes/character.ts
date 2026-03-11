@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { CharacterService } from '../characters/character-service';
 import type { CreateCharacterDto, UpdateCharacterDto, CharacterFilters } from '@mxmai/mxmdata';
-import type { ProviderType } from '../core/providers/types';
+import type { ProviderType } from '../models/providers';
 
 const router = Router();
 

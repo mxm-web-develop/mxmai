@@ -20,11 +20,13 @@ import {
   ProgressStatus,
   ProviderBillingInfo,
   ProviderUsageSummary,
-} from '../../core/providers/types';
-import { recordStats, getProviderStats } from '../../core/providers/provider-stats';
-import { getFirstProviderKey } from '../../core/providers/provider-keys';
-import { DeerAPIClient, DeerAPIChatMessage } from '../../core/utils/deerapi-client';
+  recordStats,
+  getProviderStats,
+  getFirstProviderKey,
+} from '../providers';
+import { DeerAPIClient, DeerAPIChatMessage } from '../deerapi/client';
 import { ModelMapping, getModelName } from '../suport-list';
+import { ProviderBalanceService } from '../../statistics/provider-balance-service';
 
 export class DeerProvider implements ModelProvider {
   readonly provider: ProviderType = 'deer';
@@ -131,6 +133,21 @@ export class DeerProvider implements ModelProvider {
       const isAudioModel = this.audioModels.includes(modelName);
       const isRunwayVideoModel = this.runwayVideoModels.includes(modelName);
       const outputFormat = params.outputFormat || 'json';
+
+      // 关键：调用上游前先检查是否配置了 provider_pricing（无则早失败，避免消耗上游余额）
+      // scope 与 provider_pricing.scope 对齐：text/graph/audio/video（未命中将自动回落 scope='default'）
+      const scopeForPricing =
+        isImageModel ? 'graph' :
+        isRunwayVideoModel ? 'video' :
+        isVideoModel ? 'video' :
+        isAudioModel ? 'audio' :
+        isTextModel ? 'text' :
+        'default';
+      await ProviderBalanceService.assertPricingConfigured({
+        provider: this.provider,
+        model_key: modelName,
+        scope: scopeForPricing,
+      });
 
       if (isImageModel) {
         return await this.generateImage(modelName, deerModel, params);

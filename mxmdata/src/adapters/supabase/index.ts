@@ -19,5 +19,6 @@ export * from './SupabaseGraphModelConfigRepository';
 export * from './SupabaseCharacterRepository';
 export * from './SupabasePromptEngineeringConfigRepository';
 export * from './SupabaseProviderApiKeyRepository';
+export * from './SupabaseUserApiKeyRepository';
 export * from './SupabaseSensitiveWordRepository';
 

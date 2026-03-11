@@ -25,7 +25,6 @@ export function AudioViewerModal({
   error,
 }: AudioViewerModalProps) {
   const [viewMode, setViewMode] = useState<'content' | 'raw'>('content');
-  const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // 关闭时释放 blob URL
@@ -38,7 +37,9 @@ export function AudioViewerModal({
   }, [mediaUrls]);
 
   useEffect(() => {
-    if (!visible) setPlaying(false);
+    if (!visible) {
+      // no-op: modal hidden
+    }
   }, [visible]);
 
   const primaryUrl = mediaUrls[0];
@@ -86,10 +87,6 @@ export function AudioViewerModal({
               <audio
                 ref={(el) => {
                   audioRef.current = el;
-                  if (el) {
-                    el.onplay = () => setPlaying(true);
-                    el.onpause = el.onended = () => setPlaying(false);
-                  }
                 }}
                 src={primaryUrl}
                 controls
@@ -120,8 +117,8 @@ export function AudioViewerModal({
             padding: 1rem;
           }
           .audio-viewer-modal {
-            background: #1e1e1e;
-            border: 1px solid #333;
+            background: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
             border-radius: 12px;
             max-width: 480px;
             width: 100%;
@@ -132,24 +129,24 @@ export function AudioViewerModal({
             align-items: center;
             justify-content: space-between;
             padding: 1rem 1.25rem;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid hsl(var(--border));
           }
-          .audio-viewer-title { margin: 0; font-size: 1rem; color: #e0e0e0; }
+          .audio-viewer-title { margin: 0; font-size: 1rem; color: hsl(var(--foreground)); }
           .audio-viewer-actions { display: flex; align-items: center; gap: 0.5rem; }
           .audio-viewer-tab {
             padding: 0.35rem 0.75rem;
             font-size: 0.85rem;
-            border: 1px solid #444;
+            border: 1px solid hsl(var(--border));
             background: transparent;
-            color: #888;
+            color: hsl(var(--muted-foreground));
             border-radius: 6px;
             cursor: pointer;
           }
-          .audio-viewer-tab.active { background: #333; color: #e0e0e0; border-color: #555; }
+          .audio-viewer-tab.active { background: rgba(148, 163, 184, 0.18); color: hsl(var(--foreground)); border-color: hsl(var(--border)); }
           .audio-viewer-close {
             background: none;
             border: none;
-            color: #888;
+            color: hsl(var(--muted-foreground));
             font-size: 1.5rem;
             cursor: pointer;
           }
@@ -158,11 +155,11 @@ export function AudioViewerModal({
           .audio-viewer-raw {
             margin: 0;
             padding: 1rem;
-            background: #1a1a1a;
-            border: 1px solid #333;
+            background: hsl(var(--background));
+            border: 1px solid hsl(var(--border));
             border-radius: 8px;
             font-size: 0.8rem;
-            color: #c0c0c0;
+            color: hsl(var(--foreground));
             overflow: auto;
             max-height: 60vh;
             white-space: pre-wrap;

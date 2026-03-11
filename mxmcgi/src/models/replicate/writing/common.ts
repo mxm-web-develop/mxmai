@@ -1,7 +1,7 @@
 /**
  * Replicate writing 模型共用：将 provider 返回的 GenerateResult 映射为带 text/stream 的写作结果
  */
-import type { GenerateResult } from '../../../core/providers/types';
+import type { GenerateResult } from '../../providers';
 
 export interface WritingResult extends GenerateResult {
   text?: string;

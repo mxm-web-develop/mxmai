@@ -15,7 +15,7 @@ import type { CharacterProfile } from '../core/writing/type';
 import { TaskManager } from '../task/task-manager';
 import { taskExecutor } from '../task/task-executor';
 import { MODEL_MAP } from '../routes/writing';
-import type { ProviderType } from '../core/providers/types';
+import type { ProviderType } from '../models/providers';
 import { selectModel } from '../core/writing/model-selector';
 import crypto from 'crypto';
 
