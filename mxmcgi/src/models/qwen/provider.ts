@@ -15,19 +15,12 @@ import type {
   ProviderBillingInfo,
 } from '../providers-inner';
 import { getFirstProviderKey, recordStats, getProviderStats } from '../providers-inner';
-import { type ModelMapping, getModelName } from '../suport-list';
+import { isModelEnabled } from '../provider-model-catalog';
+import { requireUpstreamPhysicalId } from '../physical-model-id';
 
 export class QwenProvider implements ModelProvider {
   readonly provider: ProviderType = 'qwen';
   readonly name = 'Qwen';
-
-  private readonly modelMap: Record<string, ModelMapping> = (() => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const supportList = require('../suport-list').default;
-    return {
-      ...(supportList.qwen?.text || {}),
-    };
-  })();
 
   constructor(private readonly injectApiKey?: string, private readonly injectBaseUrl?: string) {}
 
@@ -50,15 +43,11 @@ export class QwenProvider implements ModelProvider {
   }
 
   private resolveModelName(modelKey: string): string {
-    const mapping = this.modelMap[modelKey];
-    if (!mapping) {
-      throw new Error(`Qwen provider 不支持模型: ${modelKey}`);
-    }
-    return getModelName(mapping);
+    return requireUpstreamPhysicalId('qwen', modelKey);
   }
 
   supportsModel(modelName: string): boolean {
-    return modelName in this.modelMap;
+    return isModelEnabled('qwen', modelName);
   }
 
   async generate(modelName: string, params: GenerateParams): Promise<GenerateResult> {
@@ -139,6 +128,7 @@ export class QwenProvider implements ModelProvider {
       recordStats({
         provider: 'qwen',
         logicalModel: modelName,
+        model_key: modelName,
         success,
         latencyMs: Date.now() - start,
         errorCode,

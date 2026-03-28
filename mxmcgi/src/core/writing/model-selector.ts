@@ -58,14 +58,22 @@ export interface ResolvedModel {
 /**
  * 按业务 key 解析 provider + 模型，未命中路由时回退到按任务类型选模型
  * 用于四步流程：业务接口 → 解析 Admin 配置的 provider/model → 提示词 → 调用模型
- * 大纲任务统一用 writing-outlines 做路由 key，使 Admin 的「大纲模型」配置生效（与 applyto 无关）
+ * 大纲任务：
+ * - 当 businessKey 显式为 `outline-*` 时使用 Admin 的 outline-* 路由
+ * - 否则回退到 writing-outlines（兼容旧逻辑）
  */
 export function selectModelWithRouting(
   businessKey: string,
   taskType: TaskType,
   preferredProvider?: ProviderType
 ): ResolvedModel {
-  const routingKey = taskType === 'outline' ? 'writing-outlines' : businessKey;
+  // outline 任务默认仍走 writing-outlines，但当 businessKey 明确为 outline-* 时，使用显式路由key。
+  const routingKey =
+    taskType === 'outline'
+      ? businessKey.startsWith('outline-')
+        ? businessKey
+        : 'writing-outlines'
+      : businessKey;
   const resolved = getResolvedRouting(routingKey, preferredProvider);
   if (resolved.fromRouting) {
     console.log(`[ModelSelector] 业务 key "${businessKey}" 使用路由: provider=${resolved.provider}, model=${resolved.model}`);

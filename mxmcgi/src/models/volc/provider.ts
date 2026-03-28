@@ -16,20 +16,13 @@ import {
   type ProviderBillingInfo,
 } from '../../core/providers/types';
 import { getFirstProviderKey } from '../../core/providers/provider-keys';
-import { type ModelMapping, getModelName } from '../suport-list';
+import { isModelEnabled } from '../provider-model-catalog';
+import { requireUpstreamPhysicalId } from '../physical-model-id';
 import { recordStats, getProviderStats } from '../../core/providers/provider-stats';
 
 export class VolcProvider implements ModelProvider {
   readonly provider: ProviderType = 'volc';
   readonly name = 'Volcengine';
-
-  private readonly modelMap: Record<string, ModelMapping> = (() => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const supportList = require('../suport-list').default;
-    return {
-      ...(supportList.volc?.graph || {}),
-    };
-  })();
 
   constructor(private readonly injectApiKey?: string, private readonly injectBaseUrl?: string) {}
 
@@ -54,15 +47,11 @@ export class VolcProvider implements ModelProvider {
   }
 
   private resolveModelName(modelKey: string): string {
-    const mapping = this.modelMap[modelKey];
-    if (!mapping) {
-      throw new Error(`Volc provider 不支持模型: ${modelKey}`);
-    }
-    return getModelName(mapping);
+    return requireUpstreamPhysicalId('volc', modelKey);
   }
 
   supportsModel(modelName: string): boolean {
-    return modelName in this.modelMap;
+    return isModelEnabled('volc', modelName);
   }
 
   async generate(modelName: string, params: GenerateParams): Promise<GenerateResult> {
@@ -141,6 +130,7 @@ export class VolcProvider implements ModelProvider {
       recordStats({
         provider: 'volc',
         logicalModel: modelName,
+        model_key: modelName,
         success,
         latencyMs: Date.now() - start,
         errorCode,

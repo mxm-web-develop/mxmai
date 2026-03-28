@@ -1,0 +1,92 @@
+{
+  "taskTemplate": {
+    "formSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "title": "写作需求",
+          "minLength": 1
+        },
+        "applyto": {
+          "type": "string",
+          "title": "应用于",
+          "enum": ["articles", "voice-scripts", "storyboard-scripts"],
+          "x-enum-labels": ["文章", "口播稿", "分镜脚本"]
+        },
+        "outline_type": {
+          "type": "string",
+          "title": "细分类型"
+        },
+        "outline_structure_type": {
+          "type": "string",
+          "title": "大纲结构类型"
+        },
+        "maxDepth": {
+          "type": "integer",
+          "title": "大纲深度",
+          "minimum": 1,
+          "maximum": 6,
+          "default": 3
+        },
+        "expectedNodes": {
+          "type": "integer",
+          "title": "期望节点数",
+          "minimum": 0
+        },
+        "total_textcount": {
+          "type": "integer",
+          "title": "总字数（仅 articles 生效）",
+          "minimum": 0
+        },
+        "total_duration_seconds": {
+          "type": "integer",
+          "title": "总时长（秒，仅口播/分镜脚本生效）",
+          "minimum": 0
+        },
+        "stance": { "type": "string", "title": "整体立场", "description": "可选。整个大纲的叙述立场。" },
+        "tone": { "type": "string", "title": "整体语调", "description": "可选。整个大纲的语气风格。" },
+        "speech_rate": { "type": "string", "title": "语速（口播稿）", "description": "可选。口播稿时使用，字/分钟（CPM）。" },
+        "rhythm": { "type": "string", "title": "节奏（分镜脚本）", "description": "可选。分镜脚本时使用，镜头/分钟（SPM）。" },
+        "language": {
+          "type": "string",
+          "title": "语言",
+          "enum": ["zh", "en"],
+          "x-enum-labels": ["中文", "English"],
+          "default": "zh"
+        },
+        "label": {
+          "type": "string",
+          "title": "任务名称",
+          "description": "可选，用于任务列表展示"
+        },
+        "uid": {
+          "type": "string",
+          "title": "任务 UID",
+          "description": "前端生成的唯一 ID，用于调试/追踪"
+        }
+      },
+      "required": ["prompt", "uid"]
+    },
+    "prompt": {
+      "systemTemplate": "你是一位专业的大纲写作助手，擅长为科技类主题创作层次清晰、逻辑严密的大纲。\n\n【大纲设计原则】\n1. 层次清晰：主标题、子标题、细节标题层级分明。\n2. 逻辑严密：章节之间前后呼应、衔接自然。\n3. 重点突出：核心内容与关键观点一目了然。\n4. 结构完整：包含引言、正文与结论。\n5. 可执行：具体到能直接指导后续写作。\n\n【本次任务参数】\n请根据以下参数生成大纲（未填写的项可使用合理默认）：\n- 语言：${language}\n- 应用类型：${applyto}，细分类型：${outline_type}\n- 大纲结构类型：${outline_structure_type}\n- 期望层级深度：${maxDepth} 级；期望节点数：${expectedNodes}\n- 目标总字数（仅文章类）：${total_textcount}\n- 目标总时长（秒，仅口播/分镜）：${total_duration_seconds}\n- 整体立场：${stance}；整体语调：${tone}\n- 语速（口播稿，字/分钟）：${speech_rate}；节奏（分镜，镜头/分钟）：${rhythm}\n\n【大纲结构类型说明】本次采用的结构类型为：${outline_structure_type}。请严格按照下方该类型的结构说明生成大纲。\n",
+      "userTemplate": "【用户需求】\\n${prompt}",
+      "outputFormatTemplate": "【输出格式要求】\n\n【重要】你的回复必须是且仅是一个合法的 JSON 对象：以 { 开头、以 } 结尾，中间不要出现 Markdown 标题（#、##）、章节说明或其它非 JSON 文字，否则系统无法解析。\n\n具体要求：\n1. 只输出大纲的 JSON，不要用 ```json 包裹，不要截断，不要加任何解释。不要包含 characters 字段。\n2. 大纲深度为 ${maxDepth} 级，节点数约 ${expectedNodes}。若为文章且指定了总字数，则总字数 ${total_textcount} 字；若为口播/分镜且指定了总时长，则总时长 ${total_duration_seconds} 秒。\n3. 每个节点必含：uid、content、children。建议同时输出 motivation、stance、tone、length、key_elements（无内容可填空字符串或空数组）。口播/分镜可增加 cast（角色，string 数组）、speech_rate、rhythm。若用户指定了整体立场/语调，则每个节点都需输出 stance 和 tone，并继承整体值：stance=\"${stance}\", tone=\"${tone}\"。\n4. 口播稿：若指定了语速与总时长，则每个节点需输出 speech_rate，length 以秒为单位并附字数估算；总时长 ${total_duration_seconds} 秒，语速 ${speech_rate} 字/分钟；各节点时长之和约等于总时长（允许 2–5% 浮动）。\n5. 分镜脚本：若指定了节奏与总时长，则每个节点需输出 rhythm，length 以秒为单位；总时长 ${total_duration_seconds} 秒，节奏 ${rhythm} 镜头/分钟；各节点时长之和约等于总时长（允许 2–5% 浮动）。\n6. 同一层级的节点保持相同字段集合；若某节点有 tone、stance、motivation、key_elements，同级其他节点也需输出这些字段。\n7. 根节点 uid 使用：${uid}。\n\n示例子节点：\n{\"uid\":\"sub_1\",\"content\":\"引言：xxx 的背景与问题\",\"tone\":\"学术性、引入性\",\"stance\":\"客观陈述\",\"length\":80,\"motivation\":\"引出…概述…提出…\",\"key_elements\":[\"要点1\",\"要点2\",\"要点3\"],\"children\":[]}\n",
+      "systemTemplateMarkup": "你是一位专业的大纲写作助手，擅长为科技类主题创作清晰、逻辑严密的大纲结构。\n\n【大纲设计原则】\n1. 层次清晰：主标题、子标题、细节标题层次分明\n2. 逻辑严密：章节之间逻辑关系清晰，前后呼应\n3. 重点突出：核心内容和关键观点明确体现\n4. 结构完整：包含引言/正文/结论\n5. 可执行性：具体到可指导实际写作\n\n【生成参数约束（由表单 Schema 提供）】\n- 语言：<template name=\"language\" type=\"string\" label=\"语言\" required=\"true\">language</template>\n- 应用类型：<template name=\"applyto\" type=\"string\" label=\"应用于\" required=\"true\">applyto</template> / 细分类型：<template name=\"outline_type\" type=\"string\" label=\"细分类型\" required=\"true\">outline_type</template>\n- 大纲结构类型：<template name=\"outline_structure_type\" type=\"string\" label=\"大纲结构类型\" required=\"false\">outline_structure_type</template>\n- 期望大纲深度：<template name=\"maxDepth\" type=\"integer\" label=\"大纲深度\" defaultValue=\"3\" required=\"false\">maxDepth</template>\n- 期望节点数：<template name=\"expectedNodes\" type=\"integer\" label=\"期望节点数\" required=\"false\">expectedNodes</template>\n- 目标总字数（仅 articles 生效）：<template name=\"total_textcount\" type=\"integer\" label=\"总字数（仅 articles 生效）\" required=\"false\">total_textcount</template>\n- 目标总时长（秒，仅口播/分镜脚本生效）：<template name=\"total_duration_seconds\" type=\"integer\" label=\"总时长（秒，仅口播/分镜脚本生效）\" required=\"false\">total_duration_seconds</template>\n\n在撰写大纲时，必须严格遵守以上参数约束：对于未填写的可选参数，可采用系统默认策略；对于已填写的参数，需在大纲结构与节点数量上做出明确体现。\n",
+      "userTemplateMarkup": "【用户需求】\\n<template name=\"prompt\" type=\"string\" label=\"写作需求\" required=\"true\">prompt</template>",
+      "outputFormatTemplateMarkup": "【输出格式要求】\n【重要】你的回复有且仅能是一个 JSON 对象：回复的第一个非空字符必须是 {，最后一个非空字符必须是 }。禁止输出任何 Markdown 标题（#、##）、章节说明、列表或其它文字，否则系统无法解析。\n\n- 只输出最终大纲 JSON，不要使用 markdown 代码块。必须返回完整、有效的 JSON 对象，不要截断，不包含 characters 字段。\n\n- 大纲层级深度：${maxDepth} 级；期望节点数：约 ${expectedNodes}。若应用类型为文章且已填总字数，总字数 ${total_textcount} 字；若为口播稿或分镜脚本且已填总时长，总时长 ${total_duration_seconds} 秒。\n\n- 每个节点需要包含：content、motivation、length、key_elements；cast（可选）。stance、tone：若已指定整体立场/语调，则每个节点都必须输出并继承：stance=\"${stance}\", tone=\"${tone}\"；未指定则为可选。\n- 口播稿：若已指定语速与总时长，则每个节点必须输出 speech_rate，length 以秒为单位并给出字数估算；总时长 ${total_duration_seconds} 秒，语速 ${speech_rate} 字/分钟。\n- 分镜脚本：若已指定节奏与总时长，则每个节点必须输出 rhythm，length 以秒为单位；总时长 ${total_duration_seconds} 秒，节奏 ${rhythm} 镜头/分钟。\n\n- 示例子节点格式：\n{\"uid\":\"sub_1\",\"content\":\"引言：xxx 的背景与问题\",\"tone\":\"学术性、引入性\",\"stance\":\"客观陈述\",\"length\":80,\"motivation\":\"引出…概述…提出…\",\"key_elements\":[\"要点1\",\"要点2\",\"要点3\"],\"children\":[]}\n\n- 同一层级的所有节点应保持相同字段集合。返回 JSON 时根节点 uid 使用：${uid}。\n"
+    },
+    "inputPipeline": [{ "step": "noop" }],
+    "outputPipeline": [{ "step": "noop" }],
+    "storage": {
+      "scope": "writing",
+      "extension": "json",
+      "mime": "application/json; charset=utf-8",
+      "bucket": "writing-outlines",
+      "pathTemplate": "outlines/${userId}/${date}/",
+      "filenameTemplate": "outline_${taskId}_${uuid}.json"
+    }
+  }
+}
+

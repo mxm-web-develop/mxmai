@@ -28,7 +28,7 @@ import { OUTLINE_APPLY_TO_VALUES } from './type';
 import { fillChunkPrompts } from './storyboard-chunk-utils';
 import { CHUNK_MAX_CHARS, getStoryboardChunkOutputFormat, fillStoryboardOutputFormatTemplate } from './wtconfigs/storyboard-scripts';
 import { SUBTYPE_RULES_MAP } from './wtconfigs/subtype-rules';
-import { isStructureTypeAvailable, getStructurePromptTemplate } from './outline-structure-types';
+import { getStructurePromptTemplate } from './outline-structure-types';
 import { getWritingRulesAndFormatResolved, getPromptFullConfig } from '../../prompts';
 import { runBasicText } from '../text/basic-text';
 import { 
@@ -1297,6 +1297,8 @@ export async function* generateOutlineStream(
   params: {
     uid: string;
     prompt: string;
+    /** 由 Task v2 / Admin 配置写入：用于大纲的显式模型路由（logicalModel） */
+    logicalModel?: string;
     maxDepth?: number;
     expectedNodes?: number;
     total_textcount?: number;
@@ -1332,23 +1334,15 @@ export async function* generateOutlineStream(
     }
 
     // total_duration_seconds 为选填：不填则可在写作分镜/口播时再补充
-
-    if (params.outline_structure_type) {
-      const isValid = isStructureTypeAvailable(
-        params.applyto,
-        params.outline_type,
-        params.outline_structure_type
-      );
-      if (!isValid) {
-        throw new Error(`结构类型 ${params.outline_structure_type} 不适用于 applyto=${params.applyto}, outline_type=${params.outline_type || '未指定'}`);
-      }
-    }
   }
 
   // 1. 按业务 key 解析 provider + 模型（四步流程：业务 → Admin 配置）
   const outlineParamsForKey = { writing_type: 'outlines' as const, applyto: params.applyto };
   const businessKey = getWritingBusinessKeyFromParams(outlineParamsForKey, 'outline');
-  const resolved = selectModelWithRouting(businessKey, 'outline', provider);
+  const routingKeyOverride = typeof params.logicalModel === 'string' && params.logicalModel.trim()
+    ? params.logicalModel.trim()
+    : undefined;
+  const resolved = selectModelWithRouting(routingKeyOverride ?? businessKey, 'outline', provider);
   const modelName = resolved.modelName;
   const effectiveProvider = resolved.provider;
 
@@ -1532,6 +1526,8 @@ export async function generateOutline(
   params: {
     uid: string;
     prompt: string;
+    /** 由 Task v2 / Admin 配置写入：用于大纲的显式模型路由（logicalModel） */
+    logicalModel?: string;
     maxDepth?: number;
     expectedNodes?: number;
     total_textcount?: number;
@@ -1567,23 +1563,16 @@ export async function generateOutline(
 
     // total_duration_seconds 为选填：不填则可在写作分镜/口播时再补充
 
-    // 验证结构类型匹配
-    if (params.outline_structure_type) {
-      const isValid = isStructureTypeAvailable(
-        params.applyto,
-        params.outline_type,
-        params.outline_structure_type
-      );
-      if (!isValid) {
-        throw new Error(`结构类型 ${params.outline_structure_type} 不适用于 applyto=${params.applyto}, outline_type=${params.outline_type || '未指定'}`);
-      }
-    }
   }
 
   // 1. 按业务 key 解析 provider + 模型（四步流程：业务 → Admin 配置）
   const outlineParamsForKey = { writing_type: 'outlines' as const, applyto: params.applyto };
   const businessKey = getWritingBusinessKeyFromParams(outlineParamsForKey, 'outline');
-  const resolved = selectModelWithRouting(businessKey, 'outline', provider);
+  const routingKeyOverride =
+    typeof params.logicalModel === 'string' && params.logicalModel.trim()
+      ? params.logicalModel.trim()
+      : undefined;
+  const resolved = selectModelWithRouting(routingKeyOverride ?? businessKey, 'outline', provider);
   const modelName = resolved.modelName;
   const effectiveProvider = resolved.provider;
 
@@ -1639,6 +1628,12 @@ export async function generateOutline(
     }
   }
 
+  let promptToSend: string;
+  // v2 仅用 TaskTemplate 拼好的 prompt，不兼容、不拼接任何老逻辑；只有老接口（未传 useConfiguredPrompt）才走下方拼接
+  if (params.useConfiguredPrompt === true) {
+    promptToSend = (params.prompt || '').trim();
+  } else {
+  // 老接口：检索知识库 + 拼接结构类型 / 节点格式 / 时长节奏等（v2 不进入此分支）
   // 3. 检索知识库内容（如果有）
   let enhancedPrompt = params.prompt;
   if (params.knowledgeBase && params.knowledgeBase.length > 0) {
@@ -1788,16 +1783,19 @@ ${requireStoryboardRhythmPerNode && totalDurationSecForNode != null ? `- **强�
 3. 不要在大纲内容中添加任何解释性文字
 4. 直接返回 JSON 对象，不需要 markdown 代码块包装`;
 
+  promptToSend = outlinePrompt;
+  }
+
   // 4. 调用 LLM 生成（带回 metadata 用于 usage 记录与 provider 余额扣减）
   const { text: resultText, metadata: llmMetadata } = await generateTextWithMetadata(
     modelName,
-    outlinePrompt,
+    promptToSend,
     effectiveProvider
   );
 
   // 5. 解析 JSON 结果
   try {
-    // 尝试提取 JSON（可能包含 markdown 代码块）
+    // 尝试提取 JSON（可能包含 markdown 代码块或前置说明文字）
     let jsonText = resultText.trim();
     
     // 方法1：尝试匹配 markdown 代码块（```json 或 ```）
@@ -1810,6 +1808,12 @@ ${requireStoryboardRhythmPerNode && totalDurationSecForNode != null ? `- **强�
       const lastBrace = jsonText.lastIndexOf('}');
       if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
         jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+      } else if (firstBrace === -1 && (jsonText.startsWith('#') || jsonText.startsWith('*') || /^[#*\d、.-]/.test(jsonText))) {
+        // 模型返回了 Markdown/说明文字而非 JSON，给出明确提示
+        throw new Error(
+          '模型返回了 Markdown 或说明文字而非 JSON。请在业务管理中将该任务的 outputFormatTemplate 置顶加入：' +
+          '「你的回复有且仅能是一个 JSON 对象，第一个非空字符必须是 {，禁止输出 # 标题、章节说明等」。'
+        );
       }
     }
 

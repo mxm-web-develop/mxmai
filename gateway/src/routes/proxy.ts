@@ -187,7 +187,8 @@ export function createProxyRouter(): Router {
         }
       },
       proxyRes: (proxyRes, req: Request) => {
-        logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+        // 关闭详细 Proxy response 日志，避免刷屏
+        // logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
       },
         error: (err: Error, req: Request, res: any) => {
           logger.error(`Proxy error: ${req.method} ${req.path}`, err);
@@ -787,7 +788,7 @@ export function createProxyRouter(): Router {
           }
         },
         proxyRes: (proxyRes, req: Request, res: Response) => {
-          logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+          // logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
         },
         error: (err: Error, req: Request, res: any) => {
           logger.error(`Proxy error: ${req.method} ${req.path}`, err);

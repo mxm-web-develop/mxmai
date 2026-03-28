@@ -20,4 +20,5 @@ export * from './IPromptEngineeringConfigRepository';
 export * from './IProviderApiKeyRepository';
 export * from './IUserApiKeyRepository';
 export * from './ISensitiveWordRepository';
+export * from './IProviderModelRepository';
 export * from './errors';

@@ -17,7 +17,17 @@ export type TaskStatus =
    */
   | 'network_error';
 
-export type TaskType = 'text' | 'image' | 'video' | 'audio' | 'writing' | 'graph' | 'graph-grid9-parent' | 'video-batch-parent' | 'other';
+export type TaskType =
+  | 'text'
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'writing'
+  | 'outline'
+  | 'graph'
+  | 'graph-grid9-parent'
+  | 'video-batch-parent'
+  | 'other';
 
 export interface TaskMetadata {
   model: string;

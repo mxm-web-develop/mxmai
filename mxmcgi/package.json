@@ -16,7 +16,9 @@
     "init:system-kb": "tsx src/scripts/init-system-kb.ts",
     "test:kb-recall": "tsx src/scripts/test-kb-recall.ts",
     "fix:kb-count": "tsx src/scripts/fix-kb-document-count.ts",
-    "seed:prompt-config": "tsx src/scripts/seed-prompt-engineering-config.ts"
+    "seed:prompt-config": "tsx src/scripts/seed-prompt-engineering-config.ts",
+    "update:outlines-form-schema": "tsx src/scripts/update-outlines-form-schema.ts",
+    "migrate:static-models-to-provider-models": "tsx src/scripts/migrate-static-models-to-provider-models.ts"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.1.3",
@@ -24,6 +26,8 @@
     "@langchain/langgraph": "^1.0.2",
     "@langchain/openai": "^1.1.3",
     "@mxmai/mxmdata": "workspace:*",
+    "ajv": "^8.18.0",
+    "ajv-formats": "^3.0.1",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "langchain": "^1.1.1",
@@ -31,8 +35,8 @@
     "replicate": "^1.4.0",
     "sharp": "^0.33.0",
     "tsx": "^4.20.6",
-    "undici": "^7.0.0",
     "uid": "^2.0.2",
+    "undici": "^7.0.0",
     "ws": "^8.18.0",
     "zod": "^4.1.13"
   }

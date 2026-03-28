@@ -19,20 +19,12 @@ import {
   recordStats,
   getProviderStats,
 } from '../providers';
-import { type ModelMapping, getModelName } from '../suport-list';
+import { isModelEnabled } from '../provider-model-catalog';
+import { requireUpstreamPhysicalId } from '../physical-model-id';
 
 export class GoogleProvider implements ModelProvider {
   readonly provider: ProviderType = 'google';
   readonly name = 'Google Gemini';
-
-  // 仅收录 suport-list.google.text 下的文本模型
-  private readonly modelMap: Record<string, ModelMapping> = (() => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const supportList = require('../suport-list').default;
-    return {
-      ...(supportList.google?.text || {}),
-    };
-  })();
 
   constructor(private readonly injectApiKey?: string, private readonly injectBaseUrl?: string) {}
 
@@ -54,15 +46,11 @@ export class GoogleProvider implements ModelProvider {
   }
 
   private resolveModelName(modelKey: string): string {
-    const mapping = this.modelMap[modelKey];
-    if (!mapping) {
-      throw new Error(`Google provider 不支持模型: ${modelKey}`);
-    }
-    return getModelName(mapping);
+    return requireUpstreamPhysicalId('google', modelKey);
   }
 
   supportsModel(modelName: string): boolean {
-    return modelName in this.modelMap;
+    return isModelEnabled('google', modelName);
   }
 
   async generate(modelName: string, params: GenerateParams): Promise<GenerateResult> {
@@ -148,6 +136,7 @@ export class GoogleProvider implements ModelProvider {
       recordStats({
         provider: 'google',
         logicalModel: modelName,
+        model_key: modelName,
         success,
         latencyMs: Date.now() - start,
         errorCode,

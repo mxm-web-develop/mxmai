@@ -82,7 +82,8 @@ export class TaskExecutor {
       });
 
       // 2.1 解析实际使用的 provider + model 并写入任务 metadata，便于任务监控展示
-      // 大纲任务统一用 writing-outlines 解析，使 Admin 的「大纲模型」配置生效（与 applyto 无关）
+      // - outline 任务优先使用 modelName/routingKey（outline-*）走 Admin 路由配置
+      // - 兼容历史 writing + taskType=outline：仍回退到 writing-outlines
       try {
         const taskResponse = await this.taskManager.getTask(taskId);
         const currentTask = taskResponse?.task;
@@ -92,8 +93,8 @@ export class TaskExecutor {
             params?: { writing_type?: string };
             graphType?: string;
           } | undefined;
-          const isOutlineTask = currentTask.type === 'writing' && requestParams?.taskType === 'outline';
-          const routingKey = isOutlineTask ? 'writing-outlines' : modelName;
+          const isOutlineTask = currentTask.type === 'outline' || (currentTask.type === 'writing' && requestParams?.taskType === 'outline');
+          const routingKey = isOutlineTask ? (currentTask.type === 'outline' ? modelName : 'writing-outlines') : modelName;
           const resolved = getResolvedRouting(routingKey, provider);
           const merged: Record<string, unknown> = {
             ...currentTask.metadata,
@@ -117,6 +118,11 @@ export class TaskExecutor {
       }
 
       // 3. 检查是否是 writing 任务
+      if (modelName.startsWith('outline-')) {
+        const { startOutlineTask } = await import('../core/writing/writing-task');
+        await startOutlineTask(taskId);
+        return; // outline 任务在 startOutlineTask 内部处理完成
+      }
       if (modelName.startsWith('writing-')) {
         // Writing 任务使用特殊的处理逻辑
         const { startWritingTask } = await import('../core/writing/writing-task');
@@ -719,7 +725,7 @@ export class TaskExecutor {
       const taskMetadata = taskResponse?.task?.metadata || {};
       const resultMetadata = result.metadata || {};
       
-      const finalMetadata = {
+      const finalMetadataBase = {
         userId: taskMetadata.userId || userId,
         storeToMinio: taskMetadata.storeToMinio !== undefined ? taskMetadata.storeToMinio : storeToMinio,
         storageConfig: taskMetadata.storageConfig || storageConfig,
@@ -748,6 +754,15 @@ export class TaskExecutor {
           return 'unknown';
         })(),
       };
+
+      // 若生成结果包含纯文本（如 writing / outlines 的 JSON 文本），也一并挂到 metadata.text，方便前端回显/解析
+      const finalMetadata =
+        typeof (result as any)?.text === 'string' && (result as any).text.trim()
+          ? {
+              ...finalMetadataBase,
+              text: (result as any).text as string,
+            }
+          : finalMetadataBase;
       
       await this.taskManager.setTaskResult(taskId, {
         mediaUrls,

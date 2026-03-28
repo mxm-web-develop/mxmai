@@ -19,7 +19,7 @@ interface DefaultRow {
   knowledge_base_id: string;
 }
 
-export default function AdminKnowledgeDefaults() {
+export default function AdminKnowledgeDefaults({ embedded }: { embedded?: boolean } = {}) {
   const { isLoggedIn, isAdmin } = useAuth();
   const [defaults, setDefaults] = useState<DefaultRow[]>([]);
   const [bases, setBases] = useState<{ id: string; name?: string }[]>([]);
@@ -57,10 +57,16 @@ export default function AdminKnowledgeDefaults() {
 
   if (!isLoggedIn || !isAdmin) {
     return (
-      <div className="page-card">
-        <h2>系统知识库管理</h2>
-        <p>请先使用 Admin 账号登录。</p>
-      </div>
+      embedded ? (
+        <div>
+          <p>请先使用 Admin 账号登录。</p>
+        </div>
+      ) : (
+        <div className="page-card">
+          <h2>系统知识库管理</h2>
+          <p>请先使用 Admin 账号登录。</p>
+        </div>
+      )
     );
   }
 
@@ -109,12 +115,16 @@ export default function AdminKnowledgeDefaults() {
     });
   };
 
-  return (
-    <div className="page-card admin-knowledge-defaults-page">
-      <h2>系统知识库管理（Admin）</h2>
-      <p className="hint">
-        配置各业务 (scope, category, sub_type) 默认使用的知识库。写作/图文等业务在「提示词工程」中开启知识库后，会按此处绑定召回对应知识库内容。
-      </p>
+  const content = (
+    <div className="admin-knowledge-defaults-page">
+      {!embedded && (
+        <>
+          <h2>系统知识库管理（Admin）</h2>
+          <p className="hint">
+            配置各业务 (scope, category, sub_type) 默认使用的知识库。写作/图文等业务在业务配置中开启知识库后，会按此处绑定召回对应知识库内容。
+          </p>
+        </>
+      )}
 
       <div style={{ marginBottom: 16 }}>
         <Button type="primary" onClick={handleAdd}>新增默认绑定</Button>
@@ -183,4 +193,6 @@ export default function AdminKnowledgeDefaults() {
       </Modal>
     </div>
   );
+
+  return embedded ? content : <div className="page-card">{content}</div>;
 }

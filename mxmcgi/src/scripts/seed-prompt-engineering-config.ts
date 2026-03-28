@@ -9,6 +9,7 @@
 
 import dotenv from 'dotenv';
 import { join } from 'path';
+import * as fs from 'fs';
 import { RepositoryFactory } from '@mxmai/mxmdata';
 import { getWritingTypeConfig, getWritingTypeOutputFormat } from '../clientServer/writing';
 import { SUBTYPE_RULES_MAP } from '../clientServer/writing/subtype-rules';
@@ -40,6 +41,24 @@ const WRITING_TYPES = [
 const GRAPH_OUTPUT_FORMAT_ZH = `图文：规则与风格说明，输出为生成参数。只输出最终图片生成提示词本身，不要包含其他说明文字。输出语言根据用户需求为中文或英文。`;
 const GRAPH_OUTPUT_FORMAT_EN = `Image/Text: rules and style; output as generation params. Output only the final image prompt, no extra text. Output language: Chinese or English per user.`;
 
+// 可选：从 Task v2 示例中加载 outlines 的 TaskTemplate（若存在）
+let OUTLINES_TASK_TEMPLATE: any | null = null;
+try {
+  const outlinesTplPath = join(MXMCGI_ROOT, 'src', 'tasks', 'examples', 'writing-outlines-tech-article.taskTemplate.json');
+  if (fs.existsSync(outlinesTplPath)) {
+    const raw = fs.readFileSync(outlinesTplPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && parsed.taskTemplate) {
+      OUTLINES_TASK_TEMPLATE = parsed.taskTemplate;
+      // eslint-disable-next-line no-console
+      console.log('  [seed] 已从 tasks/examples 载入 outlines TaskTemplate 示例');
+    }
+  }
+} catch (e) {
+  // eslint-disable-next-line no-console
+  console.warn('[seed] 读取 outlines TaskTemplate 示例失败，将跳过 TaskTemplate seeding:', e);
+}
+
 async function main() {
   RepositoryFactory.init();
   const repo = RepositoryFactory.createPromptEngineeringConfigRepository();
@@ -55,9 +74,17 @@ async function main() {
       ? storyboardOutputformat
       : (getWritingTypeConfig(type as any)?.outputformat ?? '');
     if (!rules && !outputFormat) continue;
-    const extra = type === 'storyboard-scripts'
-      ? { storyboard_output_format_template_zh }
-      : undefined;
+    let extra: Record<string, unknown> | undefined;
+    if (type === 'storyboard-scripts') {
+      extra = { storyboard_output_format_template_zh };
+    }
+    // 为 v2 Task 预填 outlines 的 TaskTemplate（仅当示例存在时）
+    if (type === 'outlines' && OUTLINES_TASK_TEMPLATE) {
+      extra = {
+        ...(extra ?? {}),
+        taskTemplate: OUTLINES_TASK_TEMPLATE,
+      };
+    }
     await repo.upsert({
       scope: 'writing',
       type,
@@ -69,6 +96,31 @@ async function main() {
     });
     count++;
     console.log(`  [writing] ${type} (subtype=null)`);
+  }
+
+  // ---------- Outline（独立 scope）：最小可用默认配置 ----------
+  // 目标：让 Admin/前端可以先跑通 scope=outline 的链路
+  // 迁移策略：复用 writing/outlines 的规则/输出格式 + v2 的 extra.taskTemplate（若存在）
+  {
+    const outlineRules = getWritingTypeConfig('outlines' as any)?.rules ?? '';
+    const outlineOutputFormat = getWritingTypeOutputFormat('outlines' as any);
+    const hasAny = !!(outlineRules || outlineOutputFormat || OUTLINES_TASK_TEMPLATE);
+    if (hasAny) {
+      const extra: Record<string, unknown> | undefined = OUTLINES_TASK_TEMPLATE
+        ? { taskTemplate: OUTLINES_TASK_TEMPLATE }
+        : undefined;
+      await repo.upsert({
+        scope: 'outline',
+        type: 'default',
+        subtype: null,
+        rules_i18n: { zh: outlineRules, en: outlineRules },
+        output_format_i18n: { zh: outlineOutputFormat, en: outlineOutputFormat },
+        extra,
+        is_active: true,
+      });
+      count++;
+      console.log('  [outline] default (subtype=null)');
+    }
   }
 
   // ---------- Writing 细分类型（subtype）：规则 = type 级 rules + subtype 规则，output_format 继承 type 级 --------

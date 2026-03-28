@@ -1,7 +1,7 @@
 # mxmai Provider 文档与价格参考链接
 
 > 说明：本文件只用于 **开发阶段查阅与对接参考**，真实计费逻辑以各平台最新官网价格为准。  
-> Provider 名称与代码中的 `ProviderType` / `suport-list.ts` 中的 key 对应关系如下。
+> Provider 名称与代码中的 `ProviderType`、Admin「物理模型」中的 `provider` 字段一致。
 
 ---
 
@@ -116,5 +116,5 @@
   - 物理模型 ID（model name）；  
   - 支持的模态和参数；  
   - 计费单位与价格。  
-- 然后再回到 `SKILL.md` 中的步骤，按“suport-list → models → provider → provider_pricing → routing”的顺序完成对接。  
+- 然后再回到 `SKILL.md` 中的步骤，按「provider_models（Admin）→ registerModel / Provider 代码 → provider_pricing → 可选 routing」的顺序完成对接。  
 

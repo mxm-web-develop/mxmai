@@ -5,8 +5,15 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -24,6 +31,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // ../node_modules/.pnpm/depd@2.0.0/node_modules/depd/index.js
 var require_depd = __commonJS({
@@ -5603,10 +5611,10 @@ var require_raw_body = __commonJS({
       if (done) {
         return readStream(stream, encoding, length, limit, wrap(done));
       }
-      return new Promise(function executor(resolve, reject) {
+      return new Promise(function executor(resolve2, reject) {
         readStream(stream, encoding, length, limit, function onRead(err, buf) {
           if (err) return reject(err);
-          resolve(buf);
+          resolve2(buf);
         });
       });
     }
@@ -22323,7 +22331,7 @@ var require_view = __commonJS({
     var basename = path.basename;
     var extname = path.extname;
     var join = path.join;
-    var resolve = path.resolve;
+    var resolve2 = path.resolve;
     module2.exports = View;
     function View(name, options) {
       var opts = options || {};
@@ -22357,7 +22365,7 @@ var require_view = __commonJS({
       debug('lookup "%s"', name);
       for (var i = 0; i < roots.length && !path2; i++) {
         var root = roots[i];
-        var loc = resolve(root, name);
+        var loc = resolve2(root, name);
         var dir = dirname(loc);
         var file = basename(loc);
         path2 = this.resolve(dir, file);
@@ -22382,7 +22390,7 @@ var require_view = __commonJS({
       });
       sync = false;
     };
-    View.prototype.resolve = function resolve2(dir, file) {
+    View.prototype.resolve = function resolve3(dir, file) {
       var ext = this.ext;
       var path2 = join(dir, file);
       var stat = tryStat(path2);
@@ -24526,7 +24534,7 @@ var require_application = __commonJS({
     var compileETag = require_utils3().compileETag;
     var compileQueryParser = require_utils3().compileQueryParser;
     var compileTrust = require_utils3().compileTrust;
-    var resolve = require("path").resolve;
+    var resolve2 = require("path").resolve;
     var once = require_once();
     var Router3 = require_router();
     var slice = Array.prototype.slice;
@@ -24580,7 +24588,7 @@ var require_application = __commonJS({
       this.mountpath = "/";
       this.locals.settings = this.settings;
       this.set("view", View);
-      this.set("views", resolve("views"));
+      this.set("views", resolve2("views"));
       this.set("jsonp callback name", "callback");
       if (env === "production") {
         this.enable("view cache");
@@ -24754,13 +24762,13 @@ var require_application = __commonJS({
       tryRender(view, renderOptions, done);
     };
     app2.listen = function listen() {
-      var server = http.createServer(this);
+      var server2 = http.createServer(this);
       var args = Array.prototype.slice.call(arguments);
       if (typeof args[args.length - 1] === "function") {
         var done = args[args.length - 1] = once(args[args.length - 1]);
-        server.once("error", done);
+        server2.once("error", done);
       }
-      return server.listen.apply(server, args);
+      return server2.listen.apply(server2, args);
     };
     function logerror(err) {
       if (this.get("env") !== "test") console.error(err.stack || err.toString());
@@ -26041,7 +26049,7 @@ var require_send = __commonJS({
     var extname = path.extname;
     var join = path.join;
     var normalize = path.normalize;
-    var resolve = path.resolve;
+    var resolve2 = path.resolve;
     var sep = path.sep;
     var BYTES_RANGE_REGEXP = /^ *bytes=/;
     var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1e3;
@@ -26070,7 +26078,7 @@ var require_send = __commonJS({
       this._maxage = opts.maxAge || opts.maxage;
       this._maxage = typeof this._maxage === "string" ? ms(this._maxage) : Number(this._maxage);
       this._maxage = !isNaN(this._maxage) ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE) : 0;
-      this._root = opts.root ? resolve(opts.root) : null;
+      this._root = opts.root ? resolve2(opts.root) : null;
     }
     util.inherits(SendStream, Stream);
     SendStream.prototype.error = function error(status, err) {
@@ -26219,7 +26227,7 @@ var require_send = __commonJS({
           return res;
         }
         parts = normalize(path2).split(sep);
-        path2 = resolve(path2);
+        path2 = resolve2(path2);
       }
       if (containsDotFile(parts)) {
         debug('%s dotfile "%s"', this._dotfiles, path2);
@@ -26596,7 +26604,7 @@ var require_response = __commonJS({
     var cookie = require_cookie();
     var send = require_send();
     var extname = path.extname;
-    var resolve = path.resolve;
+    var resolve2 = path.resolve;
     var vary = require_vary();
     var res = Object.create(http.ServerResponse.prototype);
     module2.exports = res;
@@ -26801,7 +26809,7 @@ var require_response = __commonJS({
       }
       opts = Object.create(opts);
       opts.headers = headers;
-      var fullPath = !opts.root ? resolve(path2) : path2;
+      var fullPath = !opts.root ? resolve2(path2) : path2;
       return this.sendFile(fullPath, opts, done);
     };
     res.contentType = res.type = function contentType(type) {
@@ -27041,7 +27049,7 @@ var require_serve_static = __commonJS({
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
     var parseUrl = require_parseurl();
-    var resolve = require("path").resolve;
+    var resolve2 = require("path").resolve;
     var send = require_send();
     var url = require("url");
     module2.exports = serveStatic;
@@ -27060,7 +27068,7 @@ var require_serve_static = __commonJS({
         throw new TypeError("option setHeaders must be function");
       }
       opts.maxage = opts.maxage || opts.maxAge || 0;
-      opts.root = resolve(root);
+      opts.root = resolve2(root);
       var onDirectory = redirect ? createRedirectDirectoryListener() : createNotFoundDirectoryListener();
       return function serveStatic2(req, res, next) {
         if (req.method !== "GET" && req.method !== "HEAD") {
@@ -28630,9 +28638,9 @@ var require_decode = __commonJS({
   "../node_modules/.pnpm/jsonwebtoken@9.0.2/node_modules/jsonwebtoken/decode.js"(exports2, module2) {
     "use strict";
     var jws = require_jws();
-    module2.exports = function(jwt2, options) {
+    module2.exports = function(jwt3, options) {
       options = options || {};
-      var decoded = jws.decode(jwt2, options);
+      var decoded = jws.decode(jwt3, options);
       if (!decoded) {
         return null;
       }
@@ -31628,10 +31636,559 @@ var require_jsonwebtoken = __commonJS({
   }
 });
 
+// src/utils/logger.ts
+var isDevelopment, logger;
+var init_logger = __esm({
+  "src/utils/logger.ts"() {
+    "use strict";
+    isDevelopment = true;
+    logger = {
+      info: (message, meta) => {
+        const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+        console.log(`[${timestamp}] [INFO] ${message}`, meta ? JSON.stringify(meta, null, 2) : "");
+      },
+      error: (message, error) => {
+        const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+        console.error(`[${timestamp}] [ERROR] ${message}`, error || "");
+      },
+      warn: (message, meta) => {
+        const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+        console.warn(`[${timestamp}] [WARN] ${message}`, meta ? JSON.stringify(meta, null, 2) : "");
+      },
+      debug: (message, meta) => {
+        if (isDevelopment) {
+          const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+          console.debug(`[${timestamp}] [DEBUG] ${message}`, meta ? JSON.stringify(meta, null, 2) : "");
+        }
+      }
+    };
+  }
+});
+
+// src/middleware/cgiStorage.ts
+var cgiStorage_exports = {};
+__export(cgiStorage_exports, {
+  createCgiStorageHandler: () => createCgiStorageHandler
+});
+async function downloadFile(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    throw new Error(`Failed to download file from ${url}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+async function saveMediaToStorage(userId, imageUrl, options) {
+  try {
+    const storageRepo = import_mxmdata.RepositoryFactory.createStorageRepository();
+    const supabase = (0, import_mxmdata2.getSupabaseClient)();
+    const fileBuffer = await downloadFile(imageUrl);
+    const urlMatch = imageUrl.match(/\.(jpg|jpeg|png|gif|webp|mp4|mp3|wav|txt|md)$/i);
+    const ext = urlMatch ? urlMatch[1].toLowerCase() : options.mediaType === "graph" ? "jpg" : "txt";
+    const contentType = options.mediaType === "graph" ? `image/${ext === "jpg" ? "jpeg" : ext}` : options.mediaType === "text" ? "text/plain" : "application/octet-stream";
+    const storagePathPrefix = options.storagePath || process.env.CGI_STORAGE_PATH || "media";
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 9);
+    const key = `${storagePathPrefix}/${userId}/${options.mediaType}/${timestamp}-${random}.${ext}`;
+    const bucket = options.bucket || process.env.CGI_STORAGE_BUCKET || "user-media";
+    const uploadResult = await storageRepo.uploadFile(bucket, key, fileBuffer, {
+      contentType,
+      metadata: {
+        userId,
+        mediaType: options.mediaType,
+        modelName: options.modelName
+      }
+    });
+    const { error: dbError } = await supabase.from("user_media").insert({
+      user_id: userId,
+      type: options.mediaType === "graph" ? "photo" : "text",
+      assets_type: contentType,
+      label: options.prompt.substring(0, 255) || "Generated content",
+      url: uploadResult.url,
+      task_id: `${options.modelName}-${timestamp}`,
+      description: `Generated using ${options.modelName}`,
+      prompts_meta: JSON.stringify({
+        model: options.modelName,
+        prompt: options.prompt,
+        params: options.params
+      })
+    });
+    if (dbError) {
+      logger.error("Failed to save media metadata:", dbError);
+      throw new Error(`Failed to save media metadata: ${dbError.message}`);
+    }
+    return uploadResult.url;
+  } catch (error) {
+    logger.error("Failed to save media to storage:", error);
+    throw error;
+  }
+}
+async function saveMetadataOnly(userId, imageUrl, options) {
+  try {
+    const supabase = (0, import_mxmdata2.getSupabaseClient)();
+    const { error: dbError } = await supabase.from("user_media").insert({
+      user_id: userId,
+      type: options.mediaType === "graph" ? "photo" : "text",
+      assets_type: "external-url",
+      label: options.prompt.substring(0, 255) || "Generated content",
+      url: imageUrl,
+      task_id: `${options.modelName}-${Date.now()}`,
+      description: `Generated using ${options.modelName} (external URL)`,
+      prompts_meta: JSON.stringify({
+        model: options.modelName,
+        prompt: options.prompt,
+        params: options.params
+      })
+    });
+    if (dbError) {
+      logger.error("Failed to save media metadata:", dbError);
+      throw new Error(`Failed to save media metadata: ${dbError.message}`);
+    }
+  } catch (error) {
+    logger.error("Failed to save metadata:", error);
+    throw error;
+  }
+}
+function createCgiStorageHandler(req) {
+  return {
+    onProxyRes: (proxyRes, req2, res) => {
+      if (proxyRes.statusCode !== 200) {
+        return;
+      }
+      const saveToClaude = req2.body?.save_to_claude === true;
+      const hasSaveParam = req2.body?.hasOwnProperty("save_to_claude");
+      if (!hasSaveParam) {
+        return;
+      }
+      const mediaType = req2.path.includes("/graph") ? "graph" : "text";
+      const modelName = req2.params.modelName || "unknown";
+      const prompt = req2.body?.prompt || "";
+      const params = req2.body;
+      const storageConfig = {
+        bucket: req2.body?.storage_bucket,
+        storagePath: req2.body?.storage_path
+      };
+      const chunks = [];
+      const originalWrite = res.write.bind(res);
+      const originalEnd = res.end.bind(res);
+      res.write = function(chunk, encoding) {
+        if (chunk) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding));
+        }
+        return originalWrite(chunk, encoding);
+      };
+      res.end = function(chunk, encoding) {
+        if (chunk) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding));
+        }
+        setImmediate(() => {
+          try {
+            const responseBody = Buffer.concat(chunks).toString("utf-8");
+            const body = JSON.parse(responseBody);
+            if (body && body.success && body.result) {
+              const result = body.result;
+              const imageUrls = result.image_urls || (result.mediaUrls || []);
+              if (imageUrls.length > 0 && req2.user) {
+                const userId = req2.user.userId;
+                const options = {
+                  saveToClaude,
+                  mediaType,
+                  modelName,
+                  prompt,
+                  params,
+                  // 配置参数（从请求参数传入，如果未提供则使用环境变量或默认值）
+                  bucket: storageConfig.bucket,
+                  storagePath: storageConfig.storagePath
+                };
+                Promise.all(
+                  imageUrls.map((url) => {
+                    if (saveToClaude) {
+                      return saveMediaToStorage(userId, url, options);
+                    } else {
+                      return saveMetadataOnly(userId, url, options);
+                    }
+                  })
+                ).then((savedUrls) => {
+                  if (saveToClaude && savedUrls.length > 0) {
+                    logger.info(`Saved ${savedUrls.length} media files to storage for user ${userId}`);
+                  } else {
+                    logger.info(`Saved metadata for ${imageUrls.length} media items for user ${userId}`);
+                  }
+                }).catch((error) => {
+                  logger.error("Failed to save media:", error);
+                });
+              }
+            }
+          } catch (error) {
+            logger.debug("Response is not JSON, skipping storage handling");
+          }
+        });
+        return originalEnd(chunk, encoding);
+      };
+    }
+  };
+}
+var import_mxmdata, import_mxmdata2;
+var init_cgiStorage = __esm({
+  "src/middleware/cgiStorage.ts"() {
+    "use strict";
+    import_mxmdata = require("@mxmai/mxmdata");
+    import_mxmdata2 = require("@mxmai/mxmdata");
+    init_logger();
+  }
+});
+
+// src/middleware/taskNotification.ts
+var taskNotification_exports = {};
+__export(taskNotification_exports, {
+  createTaskNotificationHandler: () => createTaskNotificationHandler
+});
+async function createTask(userId, taskType, modelName, prompt, params) {
+  try {
+    const response = await fetch(`${MXMNOTIFY_URL2}/tasks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        task_type: taskType,
+        model_name: modelName,
+        prompt,
+        params
+      })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to create task: ${error.error?.message || response.statusText}`);
+    }
+    const result = await response.json();
+    return result.task?.id || null;
+  } catch (error) {
+    logger.error("Failed to create task:", error);
+    return null;
+  }
+}
+async function updateTask(taskId, status, result, errorMessage) {
+  try {
+    const response = await fetch(`${MXMNOTIFY_URL2}/tasks/${taskId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        status,
+        result,
+        error_message: errorMessage
+      })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to update task: ${error.error?.message || response.statusText}`);
+    }
+  } catch (error) {
+    logger.error("Failed to update task:", error);
+  }
+}
+async function sendTaskCompletedNotification(taskId) {
+  try {
+    const response = await fetch(`${MXMNOTIFY_URL2}/notifications/task-completed`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        task_id: taskId
+      })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to send notification: ${error.error?.message || response.statusText}`);
+    }
+  } catch (error) {
+    logger.error("Failed to send task completed notification:", error);
+  }
+}
+async function sendTaskFailedNotification(taskId) {
+  try {
+    const response = await fetch(`${MXMNOTIFY_URL2}/notifications/task-failed`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        task_id: taskId
+      })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to send notification: ${error.error?.message || response.statusText}`);
+    }
+  } catch (error) {
+    logger.error("Failed to send task failed notification:", error);
+  }
+}
+function createTaskNotificationHandler(req) {
+  let taskId = null;
+  return {
+    // 在请求发送前创建任务
+    onProxyReq: async (proxyReq, req2) => {
+      const authReq = req2;
+      if (!req2.path.includes("/cgi/graph") && !req2.path.includes("/cgi/text") && !req2.path.includes("/cgi/audio") && !req2.path.includes("/cgi/video")) {
+        return;
+      }
+      if (!authReq.user) {
+        return;
+      }
+      const enableNotification = authReq.body?.enable_notification !== false;
+      if (!enableNotification) {
+        return;
+      }
+      const mediaType = req2.path.includes("/graph") ? "graph" : req2.path.includes("/audio") ? "audio" : req2.path.includes("/video") ? "video" : "text";
+      const modelName = req2.params.modelName || "unknown";
+      const prompt = authReq.body?.prompt || "";
+      const params = authReq.body;
+      taskId = await createTask(
+        authReq.user.userId,
+        mediaType,
+        modelName,
+        prompt,
+        params
+      );
+      if (taskId) {
+        logger.info(`Task created: ${taskId} for user ${authReq.user.userId}`);
+        await updateTask(taskId, "processing");
+      }
+    },
+    // 在响应返回后更新任务并发送通知
+    onProxyRes: async (proxyRes, req2, res) => {
+      if (!taskId) {
+        return;
+      }
+      if (proxyRes.statusCode === 200) {
+        const contentType = proxyRes.headers["content-type"] || "";
+        const isStream = contentType.includes("text/event-stream");
+        if (isStream) {
+          const originalEnd = res.end.bind(res);
+          res.end = function(chunk, encoding) {
+            setImmediate(async () => {
+              logger.info(`Stream task completed: ${taskId}`);
+            });
+            return originalEnd(chunk, encoding);
+          };
+        } else {
+          const chunks = [];
+          const originalWrite = res.write.bind(res);
+          const originalEnd = res.end.bind(res);
+          res.write = function(chunk, encoding) {
+            if (chunk) {
+              chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding));
+            }
+            return originalWrite(chunk, encoding);
+          };
+          res.end = function(chunk, encoding) {
+            if (chunk) {
+              chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding));
+            }
+            setImmediate(async () => {
+              try {
+                const responseBody = Buffer.concat(chunks).toString("utf-8");
+                const body = JSON.parse(responseBody);
+                if (body && body.success && body.result) {
+                  await updateTask(taskId, "completed", body.result);
+                  await sendTaskCompletedNotification(taskId);
+                  logger.info(`Task completed: ${taskId}`);
+                }
+              } catch (error) {
+                logger.error("Failed to process task completion:", error);
+              }
+            });
+            return originalEnd(chunk, encoding);
+          };
+        }
+      }
+    },
+    // 处理错误
+    onError: async (err, req2, res) => {
+      if (taskId) {
+        await updateTask(taskId, "failed", void 0, err.message);
+        await sendTaskFailedNotification(taskId);
+        logger.info(`Task failed: ${taskId}`);
+      }
+    }
+  };
+}
+var MXMNOTIFY_URL2;
+var init_taskNotification = __esm({
+  "src/middleware/taskNotification.ts"() {
+    "use strict";
+    init_logger();
+    MXMNOTIFY_URL2 = process.env.MXMNOTIFY_URL || "http://localhost:4005";
+  }
+});
+
 // src/index.ts
 var import_express3 = __toESM(require_express2());
 var import_dotenv = __toESM(require_main());
+var import_path = require("path");
 var import_cors = __toESM(require_lib4());
+var import_http_proxy_middleware2 = require("http-proxy-middleware");
+var import_http = require("http");
+
+// src/routes/websocket-proxy.ts
+var import_ws = require("ws");
+var import_jsonwebtoken = __toESM(require_jsonwebtoken());
+init_logger();
+var MXMNOTIFY_URL = process.env.MXMNOTIFY_URL || "http://localhost:4005";
+var MXMNOTIFY_WS_URL = MXMNOTIFY_URL.replace("http://", "ws://").replace("https://", "wss://");
+function getTokenFromRequest(url, headers) {
+  try {
+    const urlObj = new URL(url, "http://localhost");
+    const tokenFromQuery = urlObj.searchParams.get("token");
+    if (tokenFromQuery) {
+      return tokenFromQuery;
+    }
+  } catch (error) {
+  }
+  const authHeader = headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.substring(7);
+  }
+  return null;
+}
+function authenticateToken(token) {
+  try {
+    const secret = process.env.JWT_SECRET || "your-secret-key-change-in-production";
+    const adminToken = process.env.ADMIN_TOKEN;
+    if (adminToken && token === adminToken) {
+      return {
+        userId: "admin-test-user",
+        username: "admin-test"
+      };
+    }
+    const decoded = import_jsonwebtoken.default.verify(token, secret);
+    if (decoded.type !== "access") {
+      logger.warn(`[WebSocketProxy] Invalid token type: expected 'access', got '${decoded.type}'`);
+      return null;
+    }
+    return {
+      userId: decoded.userId,
+      username: decoded.username
+    };
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      logger.warn("[WebSocketProxy] Token expired");
+      return null;
+    }
+    if (error.name === "JsonWebTokenError") {
+      logger.warn(`[WebSocketProxy] Invalid JWT token: ${error.message}`);
+      return null;
+    }
+    logger.error("[WebSocketProxy] Failed to authenticate token:", error);
+    return null;
+  }
+}
+function setupWebSocketProxy(server2) {
+  const wss = new import_ws.WebSocketServer({
+    server: server2,
+    path: "/api/v1/ws/notifications"
+  });
+  wss.on("connection", async (socket, req) => {
+    logger.info("[WebSocketProxy] New WebSocket connection attempt");
+    try {
+      const url = req.url || "";
+      const token = getTokenFromRequest(url, req.headers);
+      if (!token) {
+        logger.warn("[WebSocketProxy] No token provided, closing connection");
+        socket.close(1008, "Unauthorized: No token provided");
+        return;
+      }
+      const user = authenticateToken(token);
+      if (!user) {
+        logger.warn("[WebSocketProxy] Token validation failed, closing connection");
+        socket.close(1008, "Unauthorized: Invalid token");
+        return;
+      }
+      logger.info(`[WebSocketProxy] Client authenticated: user ${user.userId}`);
+      const notifyUrl = `${MXMNOTIFY_WS_URL}/ws/notifications?token=${token}`;
+      logger.info(`[WebSocketProxy] Connecting to mxmnotify: ${notifyUrl.replace(/token=[^&]+/, "token=***")}`);
+      const notifySocket = new import_ws.WebSocket(notifyUrl);
+      notifySocket.on("error", (error) => {
+        logger.error(`[WebSocketProxy] mxmnotify socket error for user ${user.userId}:`, error);
+        logger.error(`[WebSocketProxy] Error details:`, {
+          message: error.message,
+          code: error.code,
+          url: notifyUrl.replace(/token=[^&]+/, "token=***")
+        });
+        if (socket.readyState === import_ws.WebSocket.OPEN || socket.readyState === import_ws.WebSocket.CONNECTING) {
+          socket.close(1011, "Failed to connect to notification service");
+        }
+      });
+      notifySocket.on("open", () => {
+        logger.info(`[WebSocketProxy] \u2705 Connected to mxmnotify for user ${user.userId}`);
+      });
+      socket.on("message", (data) => {
+        if (notifySocket.readyState === import_ws.WebSocket.OPEN) {
+          notifySocket.send(data);
+        } else {
+          logger.warn(`[WebSocketProxy] Cannot forward message: mxmnotify socket not open (state: ${notifySocket.readyState})`);
+        }
+      });
+      notifySocket.on("message", (data) => {
+        if (socket.readyState === import_ws.WebSocket.OPEN) {
+          socket.send(data);
+        } else {
+          logger.warn(`[WebSocketProxy] Cannot forward message: client socket not open (state: ${socket.readyState})`);
+        }
+      });
+      socket.on("close", (code, reason) => {
+        logger.info(`[WebSocketProxy] Client disconnected: user ${user.userId}, code: ${code}, reason: ${reason.toString()}`);
+        if (notifySocket.readyState === import_ws.WebSocket.OPEN || notifySocket.readyState === import_ws.WebSocket.CONNECTING) {
+          notifySocket.close();
+        }
+      });
+      notifySocket.on("close", (code, reason) => {
+        logger.info(
+          `[WebSocketProxy] mxmnotify connection closed for user ${user.userId}, code: ${code}, reason: ${reason.toString()}`
+        );
+        if (socket.readyState === import_ws.WebSocket.OPEN || socket.readyState === import_ws.WebSocket.CONNECTING) {
+          const isValidCloseCode = typeof code === "number" && code >= 1e3 && code <= 4999 && code !== 1005 && code !== 1006 && code !== 1015;
+          const safeCode = isValidCloseCode ? code : 1e3;
+          const safeReason = reason && typeof reason.toString === "function" ? reason.toString() : "Connection closed by upstream";
+          try {
+            socket.close(safeCode, safeReason);
+          } catch (closeError) {
+            logger.error(
+              `[WebSocketProxy] Failed to close client socket safely for user ${user.userId}:`,
+              closeError
+            );
+            try {
+              socket.terminate?.();
+            } catch {
+            }
+          }
+        }
+      });
+      socket.on("error", (error) => {
+        logger.error(`[WebSocketProxy] Client socket error for user ${user.userId}:`, error);
+        if (notifySocket.readyState === import_ws.WebSocket.OPEN || notifySocket.readyState === import_ws.WebSocket.CONNECTING) {
+          notifySocket.close();
+        }
+      });
+    } catch (error) {
+      logger.error("[WebSocketProxy] Connection error:", error);
+      socket.close(1011, "Internal server error");
+    }
+  });
+  wss.on("error", (error) => {
+    logger.error("[WebSocketProxy] WebSocket server error:", error);
+  });
+  logger.info("[WebSocketProxy] WebSocket proxy server initialized on path /api/v1/ws/notifications");
+}
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2());
@@ -31652,30 +32209,184 @@ router.get("/", (req, res) => {
 });
 var health_default = router;
 
-// src/utils/logger.ts
-var isDevelopment = true;
-var logger = {
-  info: (message, meta) => {
-    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
-    console.log(`[${timestamp}] [INFO] ${message}`, meta ? JSON.stringify(meta, null, 2) : "");
-  },
-  error: (message, error) => {
-    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
-    console.error(`[${timestamp}] [ERROR] ${message}`, error || "");
-  },
-  warn: (message, meta) => {
-    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
-    console.warn(`[${timestamp}] [WARN] ${message}`, meta ? JSON.stringify(meta, null, 2) : "");
-  },
-  debug: (message, meta) => {
-    if (isDevelopment) {
-      const timestamp = (/* @__PURE__ */ new Date()).toISOString();
-      console.debug(`[${timestamp}] [DEBUG] ${message}`, meta ? JSON.stringify(meta, null, 2) : "");
+// src/middleware/auth.ts
+var import_jsonwebtoken2 = __toESM(require_jsonwebtoken());
+var import_crypto = require("crypto");
+init_logger();
+async function authMiddleware(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      logger.warn(`[Auth] Missing authorization header for ${req.method} ${req.path}`);
+      res.status(401).json({
+        success: false,
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Missing or invalid authorization header"
+        }
+      });
+      return;
     }
+    if (!authHeader.startsWith("Bearer ")) {
+      const lowerHeader = authHeader.toLowerCase();
+      if (lowerHeader.startsWith("bearer") || lowerHeader.startsWith("beaerer")) {
+        logger.warn(`[Auth] Authorization header format error: expected "Bearer <token>", got "${authHeader.substring(0, 20)}..."`);
+        res.status(401).json({
+          success: false,
+          error: {
+            code: "UNAUTHORIZED",
+            message: 'Invalid authorization header format. Expected: "Bearer <token>"',
+            hint: 'Make sure there is a space after "Bearer" and the spelling is correct.'
+          }
+        });
+        return;
+      }
+      logger.warn(`[Auth] Invalid authorization header format for ${req.method} ${req.path}: "${authHeader.substring(0, 20)}..."`);
+      res.status(401).json({
+        success: false,
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Missing or invalid authorization header"
+        }
+      });
+      return;
+    }
+    const token = authHeader.substring(7);
+    if (!token || token.trim().length === 0) {
+      logger.warn(`[Auth] Empty token provided for ${req.method} ${req.path}`);
+      res.status(401).json({
+        success: false,
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Token is empty"
+        }
+      });
+      return;
+    }
+    const adminToken = process.env.ADMIN_TOKEN;
+    if (adminToken && token === adminToken) {
+      logger.debug(`[Auth] Admin token authenticated for ${req.method} ${req.path}`);
+      req.user = {
+        userId: "admin-test-user",
+        username: "admin-test",
+        type: "access",
+        role: "admin"
+      };
+      return next();
+    }
+    const secret = process.env.JWT_SECRET || "your-secret-key-change-in-production";
+    if (!process.env.JWT_SECRET) {
+      logger.warn(`[Auth] JWT_SECRET not set in environment, using default value`);
+      logger.warn(`[Auth] \u26A0\uFE0F  \u8B66\u544A: \u4F7F\u7528\u9ED8\u8BA4 JWT_SECRET \u53EF\u80FD\u5BFC\u81F4\u8BA4\u8BC1\u5931\u8D25`);
+      logger.warn(`[Auth] \u{1F4A1} \u63D0\u793A: \u8BF7\u786E\u4FDD gateway \u548C mxmauth \u4F7F\u7528\u76F8\u540C\u7684 JWT_SECRET`);
+      logger.warn(`[Auth] \u{1F4A1} \u5EFA\u8BAE: \u5728 mxmdata/.env \u4E2D\u914D\u7F6E JWT_SECRET`);
+    } else {
+    }
+    try {
+      const clockTolerance = Number(process.env.JWT_CLOCK_TOLERANCE_SECONDS) || 120;
+      const decoded = import_jsonwebtoken2.default.verify(token, secret, { clockTolerance });
+      if (decoded.type !== "access") {
+        logger.warn(`[Auth] Invalid token type: expected 'access', got '${decoded.type}'`);
+        res.status(401).json({
+          success: false,
+          error: {
+            code: "INVALID_TOKEN_TYPE",
+            message: "Access token required"
+          }
+        });
+        return;
+      }
+      req.user = {
+        userId: decoded.userId,
+        username: decoded.username,
+        type: decoded.type,
+        role: decoded.role
+      };
+      next();
+    } catch (error) {
+      try {
+        const { RepositoryFactory: RepositoryFactory2 } = require("@mxmai/mxmdata");
+        const keyHash = (0, import_crypto.createHash)("sha256").update(token).digest("hex");
+        const userApiKeyRepo = RepositoryFactory2.createUserApiKeyRepository();
+        const keyRecord = await userApiKeyRepo.findByKeyHash(keyHash);
+        if (keyRecord) {
+          const expiresAt = keyRecord.expires_at ? new Date(keyRecord.expires_at).getTime() : null;
+          if (expiresAt != null && Date.now() > expiresAt) {
+            res.status(401).json({
+              success: false,
+              error: { code: "API_KEY_EXPIRED", message: "API key has expired" }
+            });
+            return;
+          }
+          const userRepo = RepositoryFactory2.createUserRepository();
+          const user = await userRepo.findById(keyRecord.user_id);
+          if (!user) {
+            res.status(401).json({
+              success: false,
+              error: { code: "USER_NOT_FOUND", message: "User not found" }
+            });
+            return;
+          }
+          req.user = {
+            userId: user.id,
+            username: user.username ?? user.id,
+            type: "access",
+            role: user.role === "admin" ? "admin" : "user"
+          };
+          await userApiKeyRepo.updateLastUsedAt(keyRecord.id).catch(() => {
+          });
+          logger.debug(`[Auth] API Key authenticated for user ${req.user.username} (${req.method} ${req.path})`);
+          return next();
+        }
+      } catch (apiKeyErr) {
+        logger.debug(`[Auth] API Key lookup failed:`, apiKeyErr instanceof Error ? apiKeyErr.message : apiKeyErr);
+      }
+      if (error.name === "TokenExpiredError") {
+        logger.warn(`[Auth] Token expired for ${req.method} ${req.path}`);
+        res.status(401).json({
+          success: false,
+          error: {
+            code: "TOKEN_EXPIRED",
+            message: "Token has expired"
+          }
+        });
+        return;
+      }
+      if (error.name === "JsonWebTokenError") {
+        logger.warn(`[Auth] Invalid JWT token for ${req.method} ${req.path}: ${error.message}`);
+        logger.warn(`[Auth] Token verification failed. Possible causes:`);
+        logger.warn(`[Auth] 1. JWT_SECRET mismatch between gateway and mxmauth`);
+        logger.warn(`[Auth] 2. Token was signed with a different secret`);
+        logger.warn(`[Auth] 3. Token format is invalid`);
+        logger.warn(`[Auth] Current JWT_SECRET configured: ${process.env.JWT_SECRET ? "YES (length: " + process.env.JWT_SECRET.length + ")" : "NO (using default)"}`);
+        res.status(401).json({
+          success: false,
+          error: {
+            code: "INVALID_TOKEN",
+            message: "Invalid token",
+            details: error.message,
+            hint: error.message === "invalid signature" ? "JWT_SECRET mismatch. Please ensure gateway and mxmauth use the same JWT_SECRET." : error.message
+          }
+        });
+        return;
+      }
+      logger.error(`[Auth] Unexpected error during token verification:`, error);
+      throw error;
+    }
+  } catch (error) {
+    logger.error("Auth middleware error:", error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "Authentication error"
+      }
+    });
   }
-};
+}
 
 // src/middleware/errorHandler.ts
+init_logger();
 function notFoundHandler(req, res, next) {
   res.status(404).json({
     success: false,
@@ -31719,78 +32430,13 @@ function responseMiddleware(req, res, next) {
 // src/routes/proxy.ts
 var import_express2 = __toESM(require_express2());
 var import_http_proxy_middleware = require("http-proxy-middleware");
-
-// src/middleware/auth.ts
-var import_jsonwebtoken = __toESM(require_jsonwebtoken());
-function authMiddleware(req, res, next) {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: "UNAUTHORIZED",
-          message: "Missing or invalid authorization header"
-        }
-      });
-      return;
-    }
-    const token = authHeader.substring(7);
-    const secret = process.env.JWT_SECRET || "your-secret-key-change-in-production";
-    try {
-      const decoded = import_jsonwebtoken.default.verify(token, secret);
-      if (decoded.type !== "access") {
-        res.status(401).json({
-          success: false,
-          error: {
-            code: "INVALID_TOKEN_TYPE",
-            message: "Access token required"
-          }
-        });
-        return;
-      }
-      req.user = {
-        userId: decoded.userId,
-        username: decoded.username,
-        type: decoded.type
-      };
-      next();
-    } catch (error) {
-      if (error.name === "TokenExpiredError") {
-        res.status(401).json({
-          success: false,
-          error: {
-            code: "TOKEN_EXPIRED",
-            message: "Token has expired"
-          }
-        });
-        return;
-      }
-      if (error.name === "JsonWebTokenError") {
-        res.status(401).json({
-          success: false,
-          error: {
-            code: "INVALID_TOKEN",
-            message: "Invalid token"
-          }
-        });
-        return;
-      }
-      throw error;
-    }
-  } catch (error) {
-    logger.error("Auth middleware error:", error);
-    res.status(500).json({
-      success: false,
-      error: {
-        code: "INTERNAL_ERROR",
-        message: "Authentication error"
-      }
-    });
-  }
+init_logger();
+function isLegacyGatewayTaskNotificationEnabled() {
+  return String(process.env.ENABLE_LEGACY_GATEWAY_TASK_NOTIFICATION || "").toLowerCase() === "true";
 }
-
-// src/routes/proxy.ts
+function isLegacyGatewayCgiStorageEnabled() {
+  return String(process.env.ENABLE_LEGACY_GATEWAY_CGI_STORAGE || "").toLowerCase() === "true";
+}
 function createProxyRouter() {
   const router2 = (0, import_express2.Router)();
   const services = {
@@ -31800,12 +32446,103 @@ function createProxyRouter() {
     agents: process.env.MXMAGENT_URL || "http://localhost:4004",
     notifications: process.env.MXMNOTIFY_URL || "http://localhost:4005"
   };
-  const createProxyConfig = (target) => ({
+  router2.use(
+    "/notifications",
+    authMiddleware,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.notifications,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace("/api/v1/notifications", "/notifications");
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          const authReq = req;
+          if (authReq.user) {
+            proxyReq.setHeader("x-user-id", authReq.user.userId);
+            proxyReq.setHeader("x-username", authReq.user.username);
+          }
+          (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
+        },
+        proxyRes: (proxyRes, req, res) => {
+          logger.debug(`[Notifications Proxy] Response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+        },
+        error: (err, req, res) => {
+          logger.error(`[Notifications Proxy] Error: ${req.method} ${req.path}`, {
+            message: err.message,
+            stack: err.stack,
+            code: err.code,
+            target: services.notifications
+          });
+          if (res && typeof res.status === "function" && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: {
+                code: "PROXY_ERROR",
+                message: `\u65E0\u6CD5\u8FDE\u63A5\u5230\u901A\u77E5\u670D\u52A1: ${err.message}`
+              }
+            });
+          }
+        }
+      }
+    })
+  );
+  router2.use(
+    "/tasks",
+    authMiddleware,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.notifications,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace("/api/v1/tasks", "/tasks");
+      }
+    })
+  );
+  router2.use(
+    "/sse",
+    authMiddleware,
+    (req, res, next) => {
+      const authReq = req;
+      const userId = req.params.userId || req.path.split("/").pop();
+      if (authReq.user && userId !== authReq.user.userId) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "You can only connect to your own SSE stream"
+          }
+        });
+      }
+      (0, import_http_proxy_middleware.createProxyMiddleware)({
+        target: services.notifications,
+        changeOrigin: true,
+        pathRewrite: (path, req2) => {
+          const originalPath = req2.originalUrl || path;
+          return originalPath.replace("/api/v1/sse", "/sse");
+        },
+        on: {
+          proxyReq: (proxyReq, req2) => {
+            const expressReq = req2;
+            if (expressReq.user) {
+              proxyReq.setHeader("x-user-id", expressReq.user.userId);
+              proxyReq.setHeader("x-username", expressReq.user.username);
+            }
+          }
+        }
+      })(req, res, next);
+    }
+  );
+  const createProxyConfig = (target, removeApiPrefix = false) => ({
     target,
     changeOrigin: true,
-    pathRewrite: (_path, req) => {
-      const originalReq = req;
-      return originalReq.originalUrl || _path;
+    pathRewrite: (path, req) => {
+      const originalPath = req.originalUrl || path;
+      if (removeApiPrefix && originalPath.startsWith("/api/v1")) {
+        return originalPath.replace("/api/v1", "");
+      }
+      return originalPath;
     },
     on: {
       proxyReq: (proxyReq, req) => {
@@ -31827,7 +32564,6 @@ function createProxyRouter() {
         }
       },
       proxyRes: (proxyRes, req) => {
-        logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
       },
       error: (err, req, res) => {
         logger.error(`Proxy error: ${req.method} ${req.path}`, err);
@@ -31843,7 +32579,7 @@ function createProxyRouter() {
             })
           );
         };
-        if ("status" in res) {
+        if (res && typeof res.status === "function") {
           const expressRes = res;
           if (!expressRes.headersSent) {
             expressRes.status(502).json({
@@ -31854,7 +32590,7 @@ function createProxyRouter() {
               }
             });
           }
-        } else {
+        } else if (res && typeof res.writeHead === "function") {
           const nodeRes = res;
           if (!nodeRes.headersSent) {
             nodeRes.writeHead(502);
@@ -31875,19 +32611,447 @@ function createProxyRouter() {
     (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.account))
   );
   router2.use(
-    "/payment",
+    "/assets",
     authMiddleware,
-    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.payment))
+    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.account))
+  );
+  router2.use(
+    "/payment",
+    (req, res, next) => {
+      if (req.path.startsWith("/webhook/")) {
+        return next();
+      }
+      return authMiddleware(req, res, next);
+    },
+    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.payment, true))
   );
   router2.use(
     "/wallets",
     authMiddleware,
-    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.payment))
+    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.payment, true))
   );
   router2.use(
     "/generation",
     authMiddleware,
     (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.generation))
+  );
+  router2.use(
+    "/cgi/graph",
+    authMiddleware,
+    (req, res, next) => {
+      const authReq = req;
+      const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
+      const enableLegacyStorage = isLegacyGatewayCgiStorageEnabled();
+      const storageHandler = enableLegacyStorage ? (init_cgiStorage(), __toCommonJS(cgiStorage_exports)).createCgiStorageHandler(authReq) : null;
+      const taskNotificationHandler = enableLegacyTaskNotify ? (init_taskNotification(), __toCommonJS(taskNotification_exports)).createTaskNotificationHandler(authReq) : null;
+      const proxyMiddleware = (0, import_http_proxy_middleware.createProxyMiddleware)({
+        target: services.generation,
+        changeOrigin: true,
+        pathRewrite: (path, req2) => {
+          const originalPath = req2.originalUrl || path;
+          return originalPath.replace("/api/v1/cgi/graph", "/graph");
+        },
+        on: {
+          proxyReq: (proxyReq, req2) => {
+            if (req2.headers["x-forwarded-for"]) {
+              proxyReq.setHeader("x-forwarded-for", req2.headers["x-forwarded-for"]);
+            }
+            if (req2.headers["x-real-ip"]) {
+              proxyReq.setHeader("x-real-ip", req2.headers["x-real-ip"]);
+            }
+            const authReq2 = req2;
+            if (authReq2.user) {
+              proxyReq.setHeader("x-user-id", authReq2.user.userId);
+              proxyReq.setHeader("x-username", authReq2.user.username);
+            }
+            (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req2);
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyReq(proxyReq, req2);
+            }
+          },
+          proxyRes: (proxyRes, req2, res2) => {
+            logger.debug(`Proxy response: ${req2.method} ${req2.path} -> ${proxyRes.statusCode}`);
+            if (storageHandler) {
+              storageHandler.onProxyRes(proxyRes, req2, res2);
+            }
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyRes(proxyRes, req2, res2);
+            }
+          },
+          error: (err, req2, res2) => {
+            logger.error(`Proxy error: ${req2.method} ${req2.path}`, err);
+            if (res2 && typeof res2.status === "function") {
+              if (taskNotificationHandler) {
+                taskNotificationHandler.onError(err, req2, res2);
+              }
+            }
+            if (res2 && typeof res2.status === "function" && !res2.headersSent) {
+              res2.status(502).json({
+                success: false,
+                error: {
+                  code: "PROXY_ERROR",
+                  message: "Service unavailable"
+                }
+              });
+            }
+          }
+        }
+      });
+      proxyMiddleware(req, res, next);
+    }
+  );
+  router2.use(
+    "/cgi/upload",
+    authMiddleware,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace("/api/v1/cgi/upload", "/upload");
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          const authReq = req;
+          if (authReq.user) {
+            proxyReq.setHeader("x-user-id", authReq.user.userId);
+            proxyReq.setHeader("x-username", authReq.user.username);
+          }
+        },
+        proxyRes: (proxyRes, req, res) => {
+          logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+        }
+      }
+    })
+  );
+  router2.use(
+    "/cgi/text",
+    authMiddleware,
+    (req, res, next) => {
+      const authReq = req;
+      const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
+      const enableLegacyStorage = isLegacyGatewayCgiStorageEnabled();
+      const storageHandler = enableLegacyStorage ? (init_cgiStorage(), __toCommonJS(cgiStorage_exports)).createCgiStorageHandler(authReq) : null;
+      const taskNotificationHandler = enableLegacyTaskNotify ? (init_taskNotification(), __toCommonJS(taskNotification_exports)).createTaskNotificationHandler(authReq) : null;
+      const proxyMiddleware = (0, import_http_proxy_middleware.createProxyMiddleware)({
+        target: services.generation,
+        changeOrigin: true,
+        pathRewrite: (path, req2) => {
+          const originalPath = req2.originalUrl || path;
+          return originalPath.replace("/api/v1/cgi/text", "/text");
+        },
+        on: {
+          proxyReq: (proxyReq, req2) => {
+            if (req2.headers["x-forwarded-for"]) {
+              proxyReq.setHeader("x-forwarded-for", req2.headers["x-forwarded-for"]);
+            }
+            if (req2.headers["x-real-ip"]) {
+              proxyReq.setHeader("x-real-ip", req2.headers["x-real-ip"]);
+            }
+            const authReq2 = req2;
+            if (authReq2.user) {
+              proxyReq.setHeader("x-user-id", authReq2.user.userId);
+              proxyReq.setHeader("x-username", authReq2.user.username);
+            }
+            if (req2.body && Object.keys(req2.body).length > 0 && req2.headers["content-type"] && req2.headers["content-type"].includes("application/json")) {
+              const bodyData = JSON.stringify(req2.body);
+              proxyReq.setHeader("Content-Length", Buffer.byteLength(bodyData));
+              proxyReq.write(bodyData);
+            }
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyReq(proxyReq, req2);
+            }
+          },
+          proxyRes: (proxyRes, req2, res2) => {
+            logger.debug(`Proxy response: ${req2.method} ${req2.path} -> ${proxyRes.statusCode}`);
+            if (storageHandler) {
+              storageHandler.onProxyRes(proxyRes, req2, res2);
+            }
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyRes(proxyRes, req2, res2);
+            }
+          },
+          error: (err, req2, res2) => {
+            logger.error(`Proxy error: ${req2.method} ${req2.path}`, err);
+            if (res2 && typeof res2.status === "function") {
+              if (taskNotificationHandler) {
+                taskNotificationHandler.onError(err, req2, res2);
+              }
+            }
+            if (res2 && typeof res2.status === "function" && !res2.headersSent) {
+              res2.status(502).json({
+                success: false,
+                error: {
+                  code: "PROXY_ERROR",
+                  message: "Service unavailable"
+                }
+              });
+            }
+          }
+        }
+      });
+      proxyMiddleware(req, res, next);
+    }
+  );
+  router2.use(
+    "/cgi/audio",
+    authMiddleware,
+    (req, res, next) => {
+      const authReq = req;
+      const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
+      const enableLegacyStorage = isLegacyGatewayCgiStorageEnabled();
+      const storageHandler = enableLegacyStorage ? (init_cgiStorage(), __toCommonJS(cgiStorage_exports)).createCgiStorageHandler(authReq) : null;
+      const taskNotificationHandler = enableLegacyTaskNotify ? (init_taskNotification(), __toCommonJS(taskNotification_exports)).createTaskNotificationHandler(authReq) : null;
+      const proxyMiddleware = (0, import_http_proxy_middleware.createProxyMiddleware)({
+        target: services.generation,
+        changeOrigin: true,
+        pathRewrite: (path, req2) => {
+          const originalPath = req2.originalUrl || path;
+          return originalPath.replace("/api/v1/cgi/audio", "/audio");
+        },
+        on: {
+          proxyReq: (proxyReq, req2) => {
+            if (req2.headers["x-forwarded-for"]) {
+              proxyReq.setHeader("x-forwarded-for", req2.headers["x-forwarded-for"]);
+            }
+            if (req2.headers["x-real-ip"]) {
+              proxyReq.setHeader("x-real-ip", req2.headers["x-real-ip"]);
+            }
+            const authReq2 = req2;
+            if (authReq2.user) {
+              proxyReq.setHeader("x-user-id", authReq2.user.userId);
+              proxyReq.setHeader("x-username", authReq2.user.username);
+            }
+            logger.debug(`[Audio Proxy] Before fixRequestBody:`, {
+              hasBody: !!req2.body,
+              bodyKeys: req2.body ? Object.keys(req2.body) : [],
+              bodyText: req2.body?.text,
+              contentType: req2.headers["content-type"]
+            });
+            (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req2);
+            logger.debug(`[Audio Proxy] After fixRequestBody, proxyReq headers:`, {
+              contentType: proxyReq.getHeader("content-type"),
+              contentLength: proxyReq.getHeader("content-length")
+            });
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyReq(proxyReq, req2);
+            }
+          },
+          proxyRes: (proxyRes, req2, res2) => {
+            logger.debug(`Proxy response: ${req2.method} ${req2.path} -> ${proxyRes.statusCode}`);
+            if (storageHandler) {
+              storageHandler.onProxyRes(proxyRes, req2, res2);
+            }
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyRes(proxyRes, req2, res2);
+            }
+          },
+          error: (err, req2, res2) => {
+            logger.error(`Proxy error: ${req2.method} ${req2.path}`, err);
+            if (res2 && typeof res2.status === "function") {
+              if (taskNotificationHandler) {
+                taskNotificationHandler.onError(err, req2, res2);
+              }
+            }
+            if (res2 && typeof res2.status === "function" && !res2.headersSent) {
+              res2.status(502).json({
+                success: false,
+                error: {
+                  code: "PROXY_ERROR",
+                  message: "Service unavailable"
+                }
+              });
+            }
+          }
+        }
+      });
+      proxyMiddleware(req, res, next);
+    }
+  );
+  router2.use(
+    "/cgi/video",
+    authMiddleware,
+    (req, res, next) => {
+      const authReq = req;
+      const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
+      const enableLegacyStorage = isLegacyGatewayCgiStorageEnabled();
+      const storageHandler = enableLegacyStorage ? (init_cgiStorage(), __toCommonJS(cgiStorage_exports)).createCgiStorageHandler(authReq) : null;
+      const taskNotificationHandler = enableLegacyTaskNotify ? (init_taskNotification(), __toCommonJS(taskNotification_exports)).createTaskNotificationHandler(authReq) : null;
+      const proxyMiddleware = (0, import_http_proxy_middleware.createProxyMiddleware)({
+        target: services.generation,
+        changeOrigin: true,
+        timeout: 6e4,
+        // 60秒超时（视频生成可能需要更长时间）
+        proxyTimeout: 6e4,
+        pathRewrite: (path, req2) => {
+          const originalPath = req2.originalUrl || path;
+          return originalPath.replace("/api/v1/cgi/video", "/video");
+        },
+        on: {
+          proxyReq: (proxyReq, req2) => {
+            if (req2.headers["x-forwarded-for"]) {
+              proxyReq.setHeader("x-forwarded-for", req2.headers["x-forwarded-for"]);
+            }
+            if (req2.headers["x-real-ip"]) {
+              proxyReq.setHeader("x-real-ip", req2.headers["x-real-ip"]);
+            }
+            const authReq2 = req2;
+            if (authReq2.user) {
+              proxyReq.setHeader("x-user-id", authReq2.user.userId);
+              proxyReq.setHeader("x-username", authReq2.user.username);
+            }
+            (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req2);
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyReq(proxyReq, req2);
+            }
+          },
+          proxyRes: (proxyRes, req2, res2) => {
+            logger.debug(`Proxy response: ${req2.method} ${req2.path} -> ${proxyRes.statusCode}`);
+            if (storageHandler) {
+              storageHandler.onProxyRes(proxyRes, req2, res2);
+            }
+            if (taskNotificationHandler) {
+              taskNotificationHandler.onProxyRes(proxyRes, req2, res2);
+            }
+          },
+          error: (err, req2, res2) => {
+            logger.error(`Proxy error: ${req2.method} ${req2.path}`, err);
+            if (res2 && typeof res2.status === "function") {
+              if (taskNotificationHandler) {
+                taskNotificationHandler.onError(err, req2, res2);
+              }
+            }
+            if (res2 && typeof res2.status === "function" && !res2.headersSent) {
+              res2.status(502).json({
+                success: false,
+                error: {
+                  code: "PROXY_ERROR",
+                  message: "Service unavailable"
+                }
+              });
+            }
+          }
+        }
+      });
+      proxyMiddleware(req, res, next);
+    }
+  );
+  router2.use(
+    "/system",
+    authMiddleware,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      timeout: 6e4,
+      // 60 秒（敏感词等 admin 操作）
+      proxyTimeout: 6e4,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace(/^\/api\/v1\/system/, "/system");
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          const authReq = req;
+          if (authReq.user) {
+            proxyReq.setHeader("x-user-id", authReq.user.userId);
+            proxyReq.setHeader("x-username", authReq.user.username);
+            if (authReq.user.role) {
+              proxyReq.setHeader("x-user-role", authReq.user.role);
+            }
+          }
+          (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
+        },
+        proxyRes: (proxyRes, req, res) => {
+          logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+        },
+        error: (err, req, res) => {
+          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
+          if (res && typeof res.status === "function" && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: {
+                code: "PROXY_ERROR",
+                message: "Service unavailable"
+              }
+            });
+          }
+        }
+      }
+    })
+  );
+  router2.use(
+    "/media",
+    authMiddleware,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace("/api/v1/media", "/media");
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          const authReq = req;
+          if (authReq.user) {
+            proxyReq.setHeader("x-user-id", authReq.user.userId);
+            proxyReq.setHeader("x-username", authReq.user.username);
+          }
+          if (req.body && Object.keys(req.body).length > 0 && req.headers["content-type"] && req.headers["content-type"].includes("application/json")) {
+            (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
+          }
+        },
+        proxyRes: (proxyRes, req, res) => {
+          logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+        },
+        error: (err, req, res) => {
+          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
+          if (res && typeof res.status === "function" && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: {
+                code: "PROXY_ERROR",
+                message: "Service unavailable"
+              }
+            });
+          }
+        }
+      }
+    })
+  );
+  router2.use(
+    "/cgi-tasks",
+    authMiddleware,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath;
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          const authReq = req;
+          if (authReq.user) {
+            proxyReq.setHeader("x-user-id", authReq.user.userId);
+            proxyReq.setHeader("x-username", authReq.user.username);
+          }
+        },
+        proxyRes: (proxyRes, req, res) => {
+        },
+        error: (err, req, res) => {
+          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
+          if (res && typeof res.status === "function" && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: {
+                code: "PROXY_ERROR",
+                message: "Service unavailable"
+              }
+            });
+          }
+        }
+      }
+    })
   );
   router2.use(
     "/agents",
@@ -31900,29 +33064,349 @@ function createProxyRouter() {
     (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.agents))
   );
   router2.use(
-    "/notifications",
+    "/models",
+    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.agents))
+  );
+  router2.use(
+    "/smartflows",
+    (req, res, next) => {
+      if (req.method === "GET" && (req.path === "/" || /^\/[^/]+$/.test(req.path))) {
+        return next();
+      }
+      if (req.method === "GET" && (/^\/[^/]+\/status$/.test(req.path) || /^\/[^/]+\/execute$/.test(req.path))) {
+        return authMiddleware(req, res, next);
+      }
+      if (req.method === "POST" && /^\/[^/]+\/execute$/.test(req.path)) {
+        return authMiddleware(req, res, next);
+      }
+      return authMiddleware(req, res, next);
+    },
+    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.agents))
+  );
+  router2.use(
+    "/writing",
     authMiddleware,
-    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.notifications))
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      timeout: 6e4,
+      // 60秒超时（写作操作可能需要较长时间）
+      proxyTimeout: 6e4,
+      // http-proxy-middleware 默认支持流式响应，无需特殊配置
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace("/api/v1/writing", "/writing");
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          if (req.headers["x-forwarded-for"]) {
+            proxyReq.setHeader("x-forwarded-for", req.headers["x-forwarded-for"]);
+          }
+          if (req.headers["x-real-ip"]) {
+            proxyReq.setHeader("x-real-ip", req.headers["x-real-ip"]);
+          }
+          const authReq = req;
+          if (authReq.user) {
+            proxyReq.setHeader("x-user-id", authReq.user.userId);
+            proxyReq.setHeader("x-username", authReq.user.username);
+          }
+          (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
+        },
+        proxyRes: (proxyRes, req, res) => {
+          logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+          const contentType = proxyRes.headers["content-type"] || "";
+          if (contentType.includes("text/event-stream")) {
+            res.setHeader("Content-Type", "text/event-stream");
+            res.setHeader("Cache-Control", "no-cache");
+            res.setHeader("Connection", "keep-alive");
+            res.setHeader("X-Accel-Buffering", "no");
+            res.setHeader("Transfer-Encoding", "chunked");
+            logger.info(`[Writing Proxy] SSE stream detected, headers set for ${req.path}`);
+          }
+        },
+        error: (err, req, res) => {
+          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
+          if (res && typeof res.status === "function" && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: {
+                code: "PROXY_ERROR",
+                message: "Service unavailable"
+              }
+            });
+          }
+        }
+      }
+    })
+  );
+  router2.use(
+    "/characters",
+    authMiddleware,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      timeout: 3e4,
+      // 30秒超时
+      proxyTimeout: 3e4,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        logger.debug(`[Character Proxy] Path rewrite: ${originalPath} -> ${originalPath}`);
+        return originalPath;
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          if (req.headers["x-forwarded-for"]) {
+            proxyReq.setHeader("x-forwarded-for", req.headers["x-forwarded-for"]);
+          }
+          if (req.headers["x-real-ip"]) {
+            proxyReq.setHeader("x-real-ip", req.headers["x-real-ip"]);
+          }
+          const authReq = req;
+          if (authReq.user) {
+            proxyReq.setHeader("x-user-id", authReq.user.userId);
+            proxyReq.setHeader("x-username", authReq.user.username);
+            logger.debug(`[Character Proxy] Forwarding user: ${authReq.user.userId}`);
+          }
+          (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
+        },
+        proxyRes: (proxyRes, req, res) => {
+          logger.debug(`[Character Proxy] Response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+          if (proxyRes.headers["transfer-encoding"]) {
+            delete proxyRes.headers["transfer-encoding"];
+          }
+          if (!proxyRes.headers["connection"]) {
+            proxyRes.headers["connection"] = "close";
+          }
+        },
+        error: (err, req, res) => {
+          logger.error(`[Character Proxy] Error: ${req.method} ${req.path}`, err);
+          if (res && typeof res.status === "function" && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: {
+                code: "PROXY_ERROR",
+                message: "Character service unavailable",
+                details: err.message
+              }
+            });
+          }
+        }
+      }
+    })
+  );
+  router2.use(
+    "/knowledge",
+    (req, res, next) => {
+      logger.info(`[Knowledge Proxy] Incoming request: ${req.method} ${req.originalUrl || req.path}`);
+      next();
+    },
+    authMiddleware,
+    (req, res, next) => {
+      logger.info(`[Knowledge Proxy] After auth, proceeding to proxy: ${req.method} ${req.originalUrl || req.path}`);
+      next();
+    },
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      timeout: 6e4,
+      // 60秒超时（知识库操作可能需要较长时间）
+      proxyTimeout: 6e4,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        const rewritten = originalPath.replace(/^\/api\/v1\/knowledge/, "/knowledge");
+        logger.info(`[Knowledge Proxy] Path rewrite: ${originalPath} -> ${rewritten}`);
+        logger.info(`[Knowledge Proxy] Target URL: ${services.generation}${rewritten}`);
+        return rewritten;
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          const expressReq = req;
+          logger.info(`[Knowledge Proxy] Proxying ${req.method} ${req.originalUrl || req.path}`);
+          if (expressReq.user) {
+            proxyReq.setHeader("x-user-id", expressReq.user.userId);
+            proxyReq.setHeader("x-username", expressReq.user.username);
+            logger.info(`[Knowledge Proxy] User: ${expressReq.user.userId} (${expressReq.user.username})`);
+          } else {
+            logger.warn(`[Knowledge Proxy] No user info in request`);
+          }
+          (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
+          logger.info(`[Knowledge Proxy] Target: ${services.generation}${req.path}`);
+        },
+        proxyRes: (proxyRes, req, res) => {
+          logger.info(`[Knowledge Proxy] Response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+        },
+        error: (err, req, res) => {
+          logger.error(`[Knowledge Proxy] Proxy error: ${req.method} ${req.path}`, err);
+          logger.error(`[Knowledge Proxy] Error details:`, {
+            message: err.message,
+            stack: err.stack,
+            code: err.code
+          });
+          if (res && typeof res.status === "function" && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: {
+                code: "PROXY_ERROR",
+                message: `\u65E0\u6CD5\u8FDE\u63A5\u5230\u77E5\u8BC6\u5E93\u670D\u52A1: ${err.message}`
+              }
+            });
+          } else {
+            logger.error(`[Knowledge Proxy] Cannot send error response: headers already sent or res is invalid`);
+          }
+        }
+      }
+    })
+  );
+  router2.use(
+    "/prompt-templates",
+    (req, res, next) => {
+      if (req.method === "GET") {
+        return next();
+      }
+      return authMiddleware(req, res, next);
+    },
+    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.agents))
+  );
+  router2.use(
+    "/smartflow-tasks",
+    authMiddleware,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.agents,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace("/api/v1/smartflow-tasks", "/api/v1/tasks");
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          if (req.headers["x-forwarded-for"]) {
+            proxyReq.setHeader("x-forwarded-for", req.headers["x-forwarded-for"]);
+          }
+          if (req.headers["x-real-ip"]) {
+            proxyReq.setHeader("x-real-ip", req.headers["x-real-ip"]);
+          }
+          const authReq = req;
+          if (authReq.user) {
+            proxyReq.setHeader("x-user-id", authReq.user.userId);
+            proxyReq.setHeader("x-username", authReq.user.username);
+          }
+          if (req.body && Object.keys(req.body).length > 0 && req.headers["content-type"] && req.headers["content-type"].includes("application/json")) {
+            const bodyData = JSON.stringify(req.body);
+            proxyReq.setHeader("Content-Length", Buffer.byteLength(bodyData));
+            proxyReq.write(bodyData);
+          }
+        },
+        proxyRes: (proxyRes, req, res) => {
+          logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
+        },
+        error: (err, req, res) => {
+          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
+          if (res && typeof res.status === "function" && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: {
+                code: "PROXY_ERROR",
+                message: "Service unavailable"
+              }
+            });
+          }
+        }
+      }
+    })
+  );
+  router2.use(
+    "/task-events",
+    authMiddleware,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.notifications,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace("/api/v1/task-events", "/task-events");
+      }
+    })
   );
   return router2;
 }
 
 // src/index.ts
+init_logger();
+process.env.DOTENV_CONFIG_DEBUG = "false";
+var workspaceEnvPath = (0, import_path.resolve)(__dirname, "../../../mxmdata/.env");
+logger.info(`[Gateway] \u5C1D\u8BD5\u4ECE\u4EE5\u4E0B\u8DEF\u5F84\u52A0\u8F7D\u73AF\u5883\u53D8\u91CF: ${workspaceEnvPath}`);
+logger.info(`[Gateway] __dirname: ${__dirname}`);
+var envResult1 = import_dotenv.default.config({ path: workspaceEnvPath });
+if (envResult1.error) {
+  logger.warn(`[Gateway] \u672A\u80FD\u4ECE mxmdata/.env \u52A0\u8F7D\u73AF\u5883\u53D8\u91CF: ${envResult1.error.message}`);
+  logger.warn(`[Gateway] \u5C1D\u8BD5\u7684\u8DEF\u5F84: ${workspaceEnvPath}`);
+  logger.warn(`[Gateway] \u6587\u4EF6\u662F\u5426\u5B58\u5728: ${require("fs").existsSync(workspaceEnvPath) ? "\u662F" : "\u5426"}`);
+} else if (envResult1.parsed) {
+  logger.info(`[Gateway] \u2705 \u5DF2\u4ECE mxmdata/.env \u52A0\u8F7D\u73AF\u5883\u53D8\u91CF`);
+  logger.info(`[Gateway] \u52A0\u8F7D\u7684\u8DEF\u5F84: ${workspaceEnvPath}`);
+  logger.info(`[Gateway] \u52A0\u8F7D\u7684\u53D8\u91CF\u6570\u91CF: ${Object.keys(envResult1.parsed).length}`);
+}
+var gatewayEnvPath = (0, import_path.resolve)(__dirname, "../.env");
+var envResult2 = import_dotenv.default.config({ path: gatewayEnvPath });
+if (envResult2.parsed) {
+  logger.info(`[Gateway] \u2705 \u5DF2\u4ECE gateway/.env \u52A0\u8F7D\u73AF\u5883\u53D8\u91CF\uFF08\u8986\u76D6 mxmdata/.env\uFF09`);
+  logger.info(`[Gateway] gateway/.env \u8DEF\u5F84: ${gatewayEnvPath}`);
+}
 import_dotenv.default.config();
+try {
+  const { RepositoryFactory: RepositoryFactory2 } = require("@mxmai/mxmdata");
+  RepositoryFactory2.init();
+  logger.info("[Gateway] \u2705 mxmdata RepositoryFactory \u5DF2\u521D\u59CB\u5316");
+} catch (e) {
+  logger.warn("[Gateway] mxmdata \u521D\u59CB\u5316\u5931\u8D25\uFF08API Key \u8BA4\u8BC1\u5C06\u4E0D\u53EF\u7528\uFF09:", e instanceof Error ? e.message : String(e));
+}
+if (process.env.JWT_SECRET) {
+  const secretLength = process.env.JWT_SECRET.length;
+  logger.info(`[Gateway] \u2705 JWT_SECRET \u5DF2\u914D\u7F6E (length: ${secretLength})`);
+  if (process.env.JWT_SECRET === "your-secret-key-change-in-production") {
+    logger.warn(`[Gateway] \u26A0\uFE0F  \u8B66\u544A: \u6B63\u5728\u4F7F\u7528\u9ED8\u8BA4 JWT_SECRET\uFF0C\u8FD9\u4F1A\u5BFC\u81F4\u8BA4\u8BC1\u5931\u8D25\uFF01`);
+    logger.warn(`[Gateway] \u{1F4A1} \u8BF7\u7ACB\u5373\u5728 mxmdata/.env \u4E2D\u914D\u7F6E JWT_SECRET`);
+  }
+} else {
+  logger.warn(`[Gateway] \u26A0\uFE0F  JWT_SECRET \u672A\u914D\u7F6E\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4\u503C\uFF08\u4F1A\u5BFC\u81F4\u8BA4\u8BC1\u5931\u8D25\uFF09`);
+  logger.warn(`[Gateway] \u{1F4A1} \u5EFA\u8BAE: \u5728 mxmdata/.env \u4E2D\u914D\u7F6E JWT_SECRET`);
+  logger.warn(`[Gateway] \u{1F4A1} \u68C0\u67E5\u8DEF\u5F84: ${workspaceEnvPath}`);
+  logger.warn(`[Gateway] \u{1F4A1} \u8FD0\u884C\u8BCA\u65AD\u811A\u672C: ./check_jwt_secret.sh`);
+}
 var app = (0, import_express3.default)();
+var server = (0, import_http.createServer)(app);
 var port = process.env.PORT ? Number(process.env.PORT) : 3e3;
-var corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
+var corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000,http://localhost:5173";
 app.use(
   (0, import_cors.default)({
-    origin: corsOrigin.split(","),
+    origin: corsOrigin.split(",").map((s) => s.trim()).filter(Boolean),
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
-app.use(import_express3.default.json({ limit: "10mb" }));
+app.use((req, res, next) => {
+  if (req.headers["content-type"] === "text/plain" && req.method === "POST") {
+    req.headers["content-type"] = "application/json";
+  }
+  next();
+});
+app.use(import_express3.default.json({
+  limit: "10mb",
+  strict: false,
+  // 允许非数组/对象的 JSON
+  type: ["application/json", "text/plain"],
+  // 同时支持两种 Content-Type
+  verify: (req, res, buf) => {
+    if (buf.length === 0) {
+      req.body = {};
+    }
+  }
+}));
 app.use(import_express3.default.urlencoded({ extended: true, limit: "10mb" }));
 app.use((req, res, next) => {
+  if (req.path.startsWith("/api/v1/cgi-tasks")) {
+    return next();
+  }
   logger.info(`${req.method} ${req.path}`, {
     ip: req.ip,
     userAgent: req.get("user-agent")
@@ -31933,16 +33417,51 @@ app.use(responseMiddleware);
 app.use("/", health_default);
 var proxyRouter = createProxyRouter();
 app.use("/api/v1", proxyRouter);
+var mxmcgiUrl = process.env.MXMCGI_URL || "http://localhost:4003";
+app.use(
+  "/api/v2/tasks",
+  authMiddleware,
+  (0, import_http_proxy_middleware2.createProxyMiddleware)({
+    target: mxmcgiUrl,
+    changeOrigin: true,
+    pathRewrite: (path, req) => {
+      return req.originalUrl || path;
+    },
+    onProxyReq: (proxyReq, req) => {
+      const user = req.user;
+      if (user) {
+        proxyReq.setHeader("x-user-id", user.userId);
+        proxyReq.setHeader("x-username", user.username);
+      }
+    }
+  })
+);
 app.use(notFoundHandler);
 app.use(errorHandler);
-app.listen(port, () => {
+setupWebSocketProxy(server);
+server.listen(port, () => {
   logger.info(`\u{1F680} Gateway service listening on port ${port}`);
   logger.info(`\u{1F4E1} Routes configured:`);
   logger.info(`   - /api/v1/account -> mxmauth (${process.env.MXMAUTH_URL || "http://localhost:4001"})`);
+  logger.info(`   - /api/v1/assets -> mxmauth (${process.env.MXMAUTH_URL || "http://localhost:4001"})`);
   logger.info(`   - /api/v1/payment -> mxmpay (${process.env.MXMPAY_URL || "http://localhost:4002"})`);
+  logger.info(`   - /api/v1/wallets -> mxmpay (${process.env.MXMPAY_URL || "http://localhost:4002"})`);
   logger.info(`   - /api/v1/generation -> mxmcgi (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
+  logger.info(`   - /api/v1/cgi/graph -> mxmcgi/graph (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
+  logger.info(`   - /api/v1/cgi/text -> mxmcgi/text (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
+  logger.info(`   - /api/v1/cgi/audio -> mxmcgi/audio (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
+  logger.info(`   - /api/v1/cgi/video -> mxmcgi/video (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
+  logger.info(`   - /api/v1/system -> mxmcgi/system (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
+  logger.info(`   - /api/v1/knowledge -> mxmcgi/knowledge (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
+  logger.info(`   - /api/v1/characters -> mxmcgi/characters (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
   logger.info(`   - /api/v1/agents -> mxmagent (${process.env.MXMAGENT_URL || "http://localhost:4004"})`);
+  logger.info(`   - /api/v1/smartflows -> mxmagent (${process.env.MXMAGENT_URL || "http://localhost:4004"})`);
+  logger.info(`   - /api/v1/smartflow-tasks -> mxmagent/tasks (${process.env.MXMAGENT_URL || "http://localhost:4004"})`);
   logger.info(`   - /api/v1/notifications -> mxmnotify (${process.env.MXMNOTIFY_URL || "http://localhost:4005"})`);
+  logger.info(`   - /api/v1/tasks -> mxmnotify (${process.env.MXMNOTIFY_URL || "http://localhost:4005"})`);
+  logger.info(`   - /api/v1/sse -> mxmnotify SSE (${process.env.MXMNOTIFY_URL || "http://localhost:4005"})`);
+  logger.info(`   - /api/v1/task-events -> mxmnotify (${process.env.MXMNOTIFY_URL || "http://localhost:4005"})`);
+  logger.info(`   - WS /api/v1/ws/notifications -> mxmnotify WebSocket (${process.env.MXMNOTIFY_URL || "http://localhost:4005"})`);
 });
 /*! Bundled license information:
 

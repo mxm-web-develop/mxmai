@@ -11,21 +11,19 @@
    - 这样 `listModels()` 才能枚举到该模型，Admin 后台下拉框才能出现对应的物理模型名。
 
 2. **Provider 适配层（调用逻辑）**  
-   - 在对应 Provider 实现中，确保 `supportsModel()` 返回 `true`，并在 `generate()` 中正确分发到对应的上游 API。  
-   - 对于 DeerAPI，这部分逻辑在 `mxmcgi/src/models/deerapi/provider.ts`。
+   - 在对应 Provider 实现中，确保 `supportsModel()` 在 **`provider_models` 中存在已启用记录** 时返回 `true`，并在 `generate()` 中正确分发到对应的上游 API。  
+   - 对于 DeerAPI，这部分逻辑在 `mxmcgi/src/models/deerapi/provider.ts`。上游物理模型 ID 来自 **`provider_models.upstream_model`**（或 `model_key` 本身即上游 ID）。
 
-3. **支持列表 / 上游模型映射层（可选但推荐）**  
-   - 在 `mxmcgi/src/models/suport-list.ts` 中补充该模型的映射：  
-     - 本地模型 key（例如 `nano-banana-2`）  
-     - 上游真实模型名（例如 `gemini-3.1-flash-image-preview`）  
-     - 默认价格、计费模式等（仅作参考，真实计费以数据库为准）。
+3. **物理模型目录层（数据库 `provider_models`）**  
+   - 在 Admin「物理模型」中新增一行：`provider`、`scope`、`model_key`、`upstream_model`、是否启用等。  
+   - 服务启动时会 `loadProviderModelCatalog()`，运行时 `supportsModel` / `requireUpstreamPhysicalId` 均依赖此表。**不再使用已删除的静态 `suport-list.ts`。**
 
-4. **计费配置层（数据库 provider_pricing）**  
+4. **计费配置层（数据库 `provider_pricing`）**  
    - 在 `mxmdata` 的 `provider_pricing` 表中为该模型增加或更新定价行，用于真实扣费。  
-   - 可通过 Admin 后台「模型价格管理」页面或直接执行 SQL 完成。
+   - 可通过 Admin「模型价格管理」页面或直接执行 SQL 完成。
 
 > 注意：**只有完成第 1 步（模型注册），新模型才能出现在 Admin 的物理模型下拉框中。**  
-> 第 3、4 步主要影响价格展示和实际扣费。
+> 第 3、4 步决定「是否允许调用」与「如何扣费」。
 
 ---
 
@@ -66,8 +64,9 @@
 
 对于 DeerAPI，Provider 实现在 `mxmcgi/src/models/deerapi/provider.ts`：
 
-1. **确保 `supportsModel()` 返回 true**
-   - DeerProvider 通过 `suport-list.ts` 自动构建支持列表，一般只要在 `suport-list.deer` 中添加了模型映射，`supportsModel(modelName)` 就会返回 `true`。
+1. **确保 `supportsModel()` 与 DB 一致**  
+   - `supportsModel(modelName)` 在 **`provider_models` 中存在已启用记录** 时返回 `true`（Runway 等极少数特例保留代码内硬编码）。  
+   - 上游名通过 **`requireUpstreamPhysicalId('deer', modelName)`** 或 **`getUpstreamModel`** 解析，**不再使用静态映射文件**。
 
 2. **在 `generateImage()` 中识别新模型类型（如有特殊分支）**
    - DeerAPI 的图像模型根据类型选择不同的调用方式，例如：
@@ -84,21 +83,17 @@
 
 ---
 
-### 四、步骤三：在 `suport-list.ts` 中声明映射（推荐）
+### 四、步骤三：在 Admin 配置物理模型（`provider_models`）
 
-`mxmcgi/src/models/suport-list.ts` 统一维护「本地模型 key → 上游物理模型名 + 默认价格」映射，例如 Deer 的图像部分：
+在 Admin「物理模型」中新增一行（或通过 API `POST /system/admin/providers/models`），至少包含：
 
-- 在 `deer.graph` 下为新模型添加配置，例如：
-  - `nano-banana-2` → `gemini-3.1-flash-image-preview`
-  - `nano-banana-2-pro` → `gemini-3.1-flash-image`
-- 字段含义：
-  - `modelname`: 上游真实模型 ID；
-  - `price`: 参考成本价（USD）；
-  - `charge_mode`: 计费模式，需与 `provider_pricing.charge_mode` 字符串保持一致；
-  - `currency`: 币种（通常 `USD`）；
-  - `service`（可选）: 子服务名称，例如 `google`。
+- `provider`：如 `deer`  
+- `scope`：如 `graph` / `text` / `audio` / `video`  
+- `model_key`：本地逻辑名，如 `nano-banana-2`  
+- `upstream_model`：上游真实模型 ID，如 `gemini-3.1-flash-image-preview`  
+- `is_enabled`：启用  
 
-> 提醒：**实际扣费已经全面迁移到数据库的 `provider_pricing` 表**，`suport-list.ts` 中的价格更多是默认/文档用途，方便前端和 Provider 代码使用，具体数值以 DB 为准。
+**实际扣费与成本**仍以 `provider_pricing` 为准；本表负责「是否允许调用」与「上游 ID」。
 
 ---
 
@@ -108,7 +103,7 @@
 
 新增模型后，需要：
 
-1. 在 Admin 后台「模型价格管理」页面新增一条 Provider 定价，或执行 SQL：
+1. 在 Admin「模型价格管理」页面新增一条 Provider 定价，或执行 SQL：
    - `provider`: 物理 Provider，例如 `deer`；
    - `scope`: 业务域，例如 `graph` / `writing` / `audio` / `video` / `text`；
    - `model_key`: 物理模型 key，例如 `nano-banana-2`；
@@ -130,7 +125,7 @@
 如果希望新模型成为某个业务逻辑的默认物理模型，可以：
 
 1. 在 `defaultRouting` 中，将对应逻辑 key 的 `model` 修改为新模型（如 `nano-banana-2-pro`）；  
-2. 或者在 Admin 后台「模型通道管理」中，通过路由编辑弹窗为某个逻辑模型设置覆盖路由（写入 `model_routing_overrides` 表）。
+2. 或者在 Admin「模型通道管理」中，通过路由编辑弹窗为某个逻辑模型设置覆盖路由（写入 `model_routing_overrides` 表）。
 
 ---
 
@@ -154,5 +149,4 @@ pnpm dev:mxmcgi
    - `provider_usage_records` 中有相应记录；
    - 如已配置 `provider_pricing`，任务完成后能产生正确的扣费。
 
-完成以上步骤，即完成了一个新模型从「能力注册 → Provider 适配 → 上游映射 → 定价配置 → 路由配置」的完整接入流程。新增其他 Provider 或模态的模型时，也可以参照同样的思路进行扩展。
-
+完成以上步骤，即完成了一个新模型从「能力注册 → Provider 适配 → 物理模型入库 → 定价配置 → 路由配置」的完整接入流程。新增其他 Provider 或模态的模型时，也可以参照同样的思路进行扩展。

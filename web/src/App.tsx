@@ -10,7 +10,6 @@ import {
   Gauge,
   Globe,
   ImageIcon,
-  ListChecks,
   LayoutDashboard,
   Menu,
   Moon,
@@ -36,22 +35,17 @@ import Audio from './pages/Audio';
 import Knowledge from './pages/Knowledge';
 import VirtualFolder from './pages/VirtualFolder';
 import Account from './pages/Account';
-import FormOptions from './pages/FormOptions';
-import PromptConfig from './pages/PromptConfig';
-import AdminSensitiveWords from './pages/AdminSensitiveWords';
-import AdminKnowledgeDefaults from './pages/AdminKnowledgeDefaults';
-import Users from './pages/Users';
-import AdminStats from './pages/AdminStats';
-import AdminTasks from './pages/AdminTasks';
+import AdminOps from './pages/AdminOps';
 import ProviderRoutes from './pages/ProviderRoutes';
+import AdminBusiness from './pages/AdminBusiness';
 import './App.css';
 
 type PageId =
   | 'dashboard'
-  | 'users'
-  | 'adminStats'
-  | 'adminTasks'
+  | 'adminOps'
   | 'adminProviders'
+  | 'adminBusiness'
+  | 'users'
   | 'characters'
   | 'outline'
   | 'writing'
@@ -61,8 +55,6 @@ type PageId =
   | 'knowledge'
   | 'virtualFolder'
   | 'account'
-  | 'formOptions'
-  | 'promptConfig'
   | 'adminSensitiveWords'
   | 'adminKnowledge';
 
@@ -94,13 +86,9 @@ const ADMIN_GROUP = {
   id: 'admin',
   items: [
     { id: 'adminProviders' as PageId, labelKey: 'nav.items.adminProviders' },
-    { id: 'users' as PageId, labelKey: 'nav.items.users' },
-    { id: 'adminStats' as PageId, labelKey: 'nav.items.adminStats' },
-    { id: 'adminTasks' as PageId, labelKey: 'nav.items.adminTasks' },
-    { id: 'formOptions' as PageId, labelKey: 'nav.items.formOptions' },
-    { id: 'promptConfig' as PageId, labelKey: 'nav.items.promptConfig' },
-    { id: 'adminSensitiveWords' as PageId, labelKey: 'nav.items.adminSensitiveWords' },
-    { id: 'adminKnowledge' as PageId, labelKey: 'nav.items.adminKnowledge' },
+    { id: 'adminBusiness' as PageId, labelKey: 'nav.items.adminBusiness' },
+    { id: 'adminOps' as PageId, labelKey: 'nav.items.adminOps' },
+    // v2：敏感词 / 系统知识库迁移到业务管理页
   ],
 };
 
@@ -189,11 +177,9 @@ function AppContent({ mode, isDark, setMode }: AppContentProps) {
       virtualFolder: <Network size={16} />,
       account: <ShieldCheck size={16} />,
       users: <Users2 size={16} />,
-      adminStats: <Gauge size={16} />,
-      adminTasks: <ListChecks size={16} />,
+      adminOps: <Gauge size={16} />,
       adminProviders: <Settings2 size={16} />,
-      formOptions: <Settings2 size={16} />,
-      promptConfig: <Settings2 size={16} />,
+      adminBusiness: <Settings2 size={16} />,
       adminSensitiveWords: <ShieldCheck size={16} />,
       adminKnowledge: <Database size={16} />,
     }),
@@ -222,11 +208,9 @@ function AppContent({ mode, isDark, setMode }: AppContentProps) {
 
   const adminOnlyPages: PageId[] = [
     'adminProviders',
+    'adminBusiness',
+    'adminOps',
     'users',
-    'adminStats',
-    'adminTasks',
-    'formOptions',
-    'promptConfig',
     'adminSensitiveWords',
     'adminKnowledge',
   ];
@@ -241,13 +225,13 @@ function AppContent({ mode, isDark, setMode }: AppContentProps) {
       case 'dashboard':
         return <Dashboard />;
       case 'users':
-        return <Users />;
-      case 'adminStats':
-        return <AdminStats />;
-      case 'adminTasks':
-        return <AdminTasks />;
+        return <AdminOps />;
+      case 'adminOps':
+        return <AdminOps />;
       case 'adminProviders':
         return <ProviderRoutes />;
+      case 'adminBusiness':
+        return <AdminBusiness />;
       case 'characters':
         return <Characters />;
       case 'outline':
@@ -266,14 +250,10 @@ function AppContent({ mode, isDark, setMode }: AppContentProps) {
         return <VirtualFolder />;
       case 'account':
         return <Account />;
-      case 'formOptions':
-        return <FormOptions />;
-      case 'promptConfig':
-        return <PromptConfig />;
       case 'adminSensitiveWords':
-        return <AdminSensitiveWords />;
+        return <AdminBusiness />;
       case 'adminKnowledge':
-        return <AdminKnowledgeDefaults />;
+        return <AdminBusiness />;
       default:
         return <Dashboard />;
     }
@@ -297,11 +277,9 @@ function AppContent({ mode, isDark, setMode }: AppContentProps) {
               case 'virtualFolder':
               case 'account':
               case 'users':
-              case 'adminStats':
-              case 'adminTasks':
+              case 'adminOps':
               case 'adminProviders':
-              case 'formOptions':
-              case 'promptConfig':
+              case 'adminBusiness':
               case 'adminSensitiveWords':
               case 'adminKnowledge':
                 return `nav.items.${page}`;

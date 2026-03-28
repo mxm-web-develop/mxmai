@@ -15,7 +15,7 @@ import { reviewsConfig } from './reviews';
 import { resumesConfig } from './resumes';
 import { voiceScriptsConfig } from './voice-scripts';
 import type { WritingType, OutlineType } from '../type';
-import type { FormOptionsConfig } from '../../shared/formOptions';
+import type { FormOptionsConfig } from '../../../clientServer/shared/formOptions';
 
 export interface WritingTypeConfig {
   rules: string;

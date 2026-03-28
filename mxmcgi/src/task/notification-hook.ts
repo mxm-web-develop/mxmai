@@ -129,11 +129,15 @@ function getNotificationConfig(
 function getTaskTypeName(taskType: TaskType): string {
   const typeNames: Record<TaskType, string> = {
     writing: '写作',
+    outline: '大纲',
     image: '图片',
     video: '视频',
     audio: '音频',
     text: '文本',
     other: '任务',
+    graph: '图片',
+    'graph-grid9-parent': '图片',
+    'video-batch-parent': '视频',
   };
   return typeNames[taskType] || '任务';
 }
@@ -145,6 +149,8 @@ function getActionUrl(taskType: TaskType): string {
   switch (taskType) {
     case 'writing':
       return '/writing';
+    case 'outline':
+      return '/outline';
     case 'image':
       return '/media/graph';
     case 'video':

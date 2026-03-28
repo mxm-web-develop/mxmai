@@ -4,7 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import supportList, { ModelConfig, ChargeMode } from '../models/suport-list';
+import { ModelConfig, ChargeMode } from '../models/model-catalog-types';
 import { PPIOClient } from '../models/ppio/client';
 import promptConfigRouter from './prompt-config';
 import providersAdminRouter from './providers';
@@ -206,134 +206,130 @@ function processModelConfig(
   return result;
 }
 
+function scopeToSystemCategory(scope: string): 'graph' | 'text' | 'audio' | 'video' {
+  const s = (scope || '').toLowerCase();
+  if (s === 'graph') return 'graph';
+  if (s === 'audio') return 'audio';
+  if (s === 'video') return 'video';
+  return 'text';
+}
+
+function normalizeChargeMode(raw: string | null | undefined): ChargeMode {
+  const s = (raw ?? 'token_based').toLowerCase();
+  if (s === 'token_based_per_thousand') return ChargeMode.token_based_per_thousand;
+  if (s === 'token_based') return ChargeMode.token_based;
+  return ChargeMode.per_change_mode;
+}
+
+/** 从 provider_models + provider_pricing 组装与旧版 /system/models 相近的结构 */
+async function loadModelsTreeFromDatabase(isAdmin: boolean): Promise<Record<string, Record<string, Record<string, any>>>> {
+  const { RepositoryFactory } = await import('@mxmai/mxmdata');
+  const repo = RepositoryFactory.createProviderModelRepository();
+  const models = await repo.list({ onlyEnabled: true });
+  const supabase = getSupabaseClient();
+  const { data: pricingRows, error } = await supabase.from('provider_pricing').select('*');
+  if (error) {
+    console.warn('[System Route] provider_pricing 查询失败:', error.message);
+  }
+  type PricingRow = {
+    provider: string;
+    scope: string;
+    model_key: string;
+    unit_price: number | string;
+    charge_mode: string;
+    currency?: string;
+  };
+  const pricingMap = new Map<string, PricingRow>();
+  for (const p of (pricingRows || []) as PricingRow[]) {
+    pricingMap.set(`${p.provider}:${p.scope}:${p.model_key}`, p);
+  }
+  const allowed = new Set(['replicate', 'ppio', 'deer']);
+  const result: Record<string, Record<string, Record<string, any>>> = {};
+  for (const m of models) {
+    if (!allowed.has(m.provider)) continue;
+    const cat = scopeToSystemCategory(m.scope);
+    const pr = pricingMap.get(`${m.provider}:${m.scope}:${m.model_key}`);
+    const cfg: ModelConfig = {
+      modelname: m.upstream_model ?? m.model_key,
+      price: pr != null ? Number(pr.unit_price) : 0,
+      charge_mode: normalizeChargeMode(pr?.charge_mode),
+      currency: pr?.currency || 'USD',
+    };
+    if (!result[m.provider]) result[m.provider] = {};
+    if (!result[m.provider][cat]) result[m.provider][cat] = {};
+    result[m.provider][cat][m.model_key] = processModelConfig(cfg, isAdmin);
+  }
+  return result;
+}
+
 /**
  * 获取模型配置信息
  * GET /system/models
- * 
+ *
+ * 数据来源：provider_models（启用）+ provider_pricing
+ *
  * 查询参数：
- * - category: 'graph' | 'text' | 'audio' (可选，不传则返回所有类别)
- * - provider: 'replicate' | 'ppio' | 'deer' (可选，不传则返回所有 provider)
- * 
- * 返回模型配置信息，admin 用户可以看到 provider_price
+ * - category: 'graph' | 'text' | 'audio' | 'video' (可选)
+ * - provider: 'replicate' | 'ppio' | 'deer' (可选)
+ *
+ * admin 用户可以看到 provider_price（若 ModelConfig 含该字段）
  */
 router.get('/models', async (req: Request, res: Response) => {
   try {
     const { category, provider } = req.query;
     const isAdmin = await isAdminUser(req);
+    const tree = await loadModelsTreeFromDatabase(isAdmin);
 
-    // 如果指定了 category 和 provider，只返回对应的配置
     if (category && provider) {
-      const categoryKey = category as 'graph' | 'text' | 'audio';
+      const categoryKey = category as 'graph' | 'text' | 'audio' | 'video';
       const providerKey = provider as 'replicate' | 'ppio' | 'deer';
-      
-      const providerModels = supportList[providerKey]?.[categoryKey];
-      if (!providerModels) {
+      const providerModels = tree[providerKey]?.[categoryKey];
+      if (!providerModels || Object.keys(providerModels).length === 0) {
         return res.status(404).json({
           success: false,
           error: 'Not found',
           message: `No models found for provider "${providerKey}" and category "${categoryKey}"`,
         });
       }
-
-      const result: Record<string, any> = {};
-      for (const [modelName, config] of Object.entries(providerModels)) {
-        result[modelName] = processModelConfig(config as ModelConfig | string, isAdmin);
-      }
-
       return res.json({
         success: true,
         data: {
           [providerKey]: {
-            [categoryKey]: result,
+            [categoryKey]: providerModels,
           },
         },
       });
     }
 
-    // 如果只指定了 category，返回所有 provider 的该类别配置
     if (category) {
-      const categoryKey = category as 'graph' | 'text' | 'audio';
+      const categoryKey = category as 'graph' | 'text' | 'audio' | 'video';
       const result: Record<string, any> = {};
-
       for (const providerKey of ['replicate', 'ppio', 'deer'] as const) {
-        const providerModels = supportList[providerKey]?.[categoryKey];
-        if (providerModels) {
-          result[providerKey] = {};
-          result[providerKey][categoryKey] = {};
-          for (const [modelName, config] of Object.entries(providerModels)) {
-            result[providerKey][categoryKey][modelName] = processModelConfig(
-              config as ModelConfig | string,
-              isAdmin
-            );
-          }
+        const block = tree[providerKey]?.[categoryKey];
+        if (block && Object.keys(block).length > 0) {
+          result[providerKey] = { [categoryKey]: block };
         }
       }
-
-      return res.json({
-        success: true,
-        data: result,
-      });
+      return res.json({ success: true, data: result });
     }
 
-    // 如果只指定了 provider，返回该 provider 的所有类别配置
     if (provider) {
       const providerKey = provider as 'replicate' | 'ppio' | 'deer';
-      const providerData = supportList[providerKey];
-      if (!providerData) {
+      const providerData = tree[providerKey];
+      if (!providerData || Object.keys(providerData).length === 0) {
         return res.status(404).json({
           success: false,
           error: 'Not found',
           message: `Provider "${providerKey}" not found`,
         });
       }
-
-      const result: Record<string, any> = {};
-      for (const categoryKey of ['graph', 'text', 'audio'] as const) {
-        const categoryModels = providerData[categoryKey];
-        if (categoryModels) {
-          result[categoryKey] = {};
-          for (const [modelName, config] of Object.entries(categoryModels)) {
-            result[categoryKey][modelName] = processModelConfig(
-              config as ModelConfig | string,
-              isAdmin
-            );
-          }
-        }
-      }
-
       return res.json({
         success: true,
-        data: {
-          [providerKey]: result,
-        },
+        data: { [providerKey]: providerData },
       });
     }
 
-    // 如果都没有指定，返回所有配置
-    const result: Record<string, any> = {};
-    for (const providerKey of ['replicate', 'ppio', 'deer'] as const) {
-      const providerData = supportList[providerKey];
-      if (providerData) {
-        result[providerKey] = {};
-        for (const categoryKey of ['graph', 'text', 'audio'] as const) {
-          const categoryModels = providerData[categoryKey];
-          if (categoryModels) {
-            result[providerKey][categoryKey] = {};
-            for (const [modelName, config] of Object.entries(categoryModels)) {
-              result[providerKey][categoryKey][modelName] = processModelConfig(
-                config as ModelConfig | string,
-                isAdmin
-              );
-            }
-          }
-        }
-      }
-    }
-
-    return res.json({
-      success: true,
-      data: result,
-    });
+    return res.json({ success: true, data: tree });
   } catch (error) {
     console.error('[System Route] 获取模型配置失败:', error);
     res.status(500).json({

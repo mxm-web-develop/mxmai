@@ -17,7 +17,8 @@ import {
   ProgressStatus,
   getFirstProviderKey,
 } from '../providers';
-import { ModelMapping, getModelName } from '../suport-list';
+import { getByProviderAndModelKey, isModelEnabled } from '../provider-model-catalog';
+import { requireUpstreamPhysicalId } from '../physical-model-id';
 
 export class ReplicateProvider implements ModelProvider {
   readonly provider: ProviderType = 'replicate';
@@ -26,29 +27,66 @@ export class ReplicateProvider implements ModelProvider {
   private replicate: Replicate | null = null;
   private replicatePromise: Promise<Replicate> | null = null;
   
-  // 支持的模型映射（从 suport-list.ts 导入）
-  private readonly modelMap: Record<string, ModelMapping> = (() => {
-    const supportList = require('../suport-list').default;
-    return {
-      ...(supportList.replicate?.graph || {}),
-      ...(supportList.replicate?.text || {}),
-    };
-  })();
-  
   /**
-   * 获取模型的实际名称（从 ModelMapping 中提取）
+   * Replicate 上游须为 owner/model（provider_models.upstream_model 或 model_key）
    */
-  private getModelName(modelName: string): `${string}/${string}` {
-    const mapping = this.modelMap[modelName];
-    if (!mapping) {
-      throw new Error(`Replicate provider 不支持模型: ${modelName}`);
+  private resolveReplicatePhysicalModel(modelKey: string): `${string}/${string}` {
+    const raw = requireUpstreamPhysicalId('replicate', modelKey);
+    if (!raw.includes('/')) {
+      throw new Error(
+        `Replicate 上游模型须为 owner/model 格式，当前为「${raw}」：请在 provider_models 配置 upstream_model`
+      );
     }
-    const name = getModelName(mapping);
-    // 确保返回格式为 `${string}/${string}`
-    if (!name.includes('/')) {
-      throw new Error(`Replicate 模型名称格式错误: ${name}，应为 "owner/model" 格式`);
+    return raw as `${string}/${string}`;
+  }
+
+  /** 异步 prediction + 进度轮询（图/视频/音频等）；文本走 run/stream 解析 */
+  private useAsyncPredictionPath(modelKey: string): boolean {
+    const row = getByProviderAndModelKey('replicate', modelKey);
+    if (row) {
+      const m = (row.modality ?? '').toLowerCase();
+      const s = (row.scope ?? '').toLowerCase();
+      if (m === 'image' || m === 'video' || m === 'audio') return true;
+      if (s === 'graph' || s === 'video' || s === 'audio') return true;
+      if (m === 'text') return false;
+      if (['writing', 'text', 'default', 'outline'].includes(s)) return false;
     }
-    return name as `${string}/${string}`;
+    return (
+      modelKey === 'nano-banana' ||
+      modelKey === 'nano-banana-pro' ||
+      modelKey === 'ideogram-v2a' ||
+      modelKey === 'recraft-crisp-upscale' ||
+      modelKey === 'flux-fast' ||
+      modelKey === 'flux-2-flex' ||
+      modelKey === 'seedream-4'
+    );
+  }
+
+  /** 输出按文本解析（token/choices）；否则按 URL/媒体解析 */
+  private isTextOutputModel(modelKey: string): boolean {
+    const row = getByProviderAndModelKey('replicate', modelKey);
+    if (row) {
+      const m = (row.modality ?? '').toLowerCase();
+      const s = (row.scope ?? '').toLowerCase();
+      if (m === 'text') return true;
+      if (['writing', 'text', 'default', 'outline'].includes(s)) return true;
+      if (m === 'image' || m === 'video' || m === 'audio') return false;
+      if (s === 'graph' || s === 'video' || s === 'audio') return false;
+    }
+    return (
+      modelKey.startsWith('deepseek') ||
+      modelKey.startsWith('gemini') ||
+      modelKey.startsWith('claude') ||
+      modelKey.startsWith('gpt') ||
+      modelKey.includes('gemini-3-pro')
+    );
+  }
+
+  private isNanoBananaStyleModel(modelKey: string): boolean {
+    if (modelKey === 'nano-banana' || modelKey === 'nano-banana-pro') return true;
+    const row = getByProviderAndModelKey('replicate', modelKey);
+    const u = (row?.upstream_model ?? '').toLowerCase();
+    return u.includes('nano-banana');
   }
 
   constructor(private readonly injectToken?: string) {}
@@ -68,7 +106,7 @@ export class ReplicateProvider implements ModelProvider {
   }
 
   supportsModel(modelName: string): boolean {
-    return modelName in this.modelMap;
+    return isModelEnabled('replicate', modelName);
   }
 
   /**
@@ -521,19 +559,15 @@ export class ReplicateProvider implements ModelProvider {
     }
     await this.ensureReplicate();
 
-    const replicateModel = this.getModelName(modelName);
+    const replicateModel = this.resolveReplicatePhysicalModel(modelName);
     const outputFormat = params.outputFormat || 'json';
-    
+
     if (process.env.DEBUG_REPLICATE) {
       console.log(`[DEBUG] Model mapping: ${modelName} -> ${replicateModel}`);
     }
-    
-    const isNanoBananaStyle = modelName === 'nano-banana' || modelName === 'nano-banana-pro';
-    const isImageModel = isNanoBananaStyle ||
-                        modelName === 'ideogram-v2a' || 
-                        modelName === 'recraft-crisp-upscale' || 
-                        modelName === 'flux-fast' ||
-                        modelName === 'seedream-4';
+
+    const isNanoBananaStyle = this.isNanoBananaStyleModel(modelName);
+    const useAsyncPrediction = this.useAsyncPredictionPath(modelName);
     
     try {
       const input: Record<string, any> = {
@@ -661,7 +695,7 @@ export class ReplicateProvider implements ModelProvider {
           };
         }
       } else {
-        if (isImageModel && params.enableProgress !== false) {
+        if (useAsyncPrediction && params.enableProgress !== false) {
           const { progressStream, outputPromise } = this.createProgressStreamWithOutput(replicateModel, input);
           output = await Promise.race([
             outputPromise,
@@ -957,11 +991,7 @@ export class ReplicateProvider implements ModelProvider {
         console.log(`[DEBUG] 非流式输出，直接使用`);
       }
 
-      const isTextModel = modelName.startsWith('deepseek') || 
-                         modelName.startsWith('gemini') || 
-                         modelName.startsWith('claude') || 
-                         modelName.startsWith('gpt') ||
-                         modelName.includes('gemini-3-pro');
+      const isTextModel = this.isTextOutputModel(modelName);
 
       let mediaUrls: string[] = [];
       let text: string | undefined;

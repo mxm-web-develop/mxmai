@@ -16,7 +16,7 @@ interface UserWithBalance extends AdminUserItem {
   balanceLoading?: boolean;
 }
 
-export default function AdminPayment() {
+export default function AdminPayment({ embedded }: { embedded?: boolean } = {}) {
   const { isLoggedIn, isAdmin } = useAuth();
   const [users, setUsers] = useState<UserWithBalance[]>([]);
   const [total, setTotal] = useState(0);
@@ -93,16 +93,22 @@ export default function AdminPayment() {
 
   if (!isLoggedIn || !isAdmin) {
     return (
-      <div className="page-card">
-        <h2>支付管理</h2>
-        <p>请先使用 Admin 账号登录后再查看。</p>
-      </div>
+      embedded ? (
+        <div>
+          <p>请先使用 Admin 账号登录后再查看。</p>
+        </div>
+      ) : (
+        <div className="page-card">
+          <h2>支付管理</h2>
+          <p>请先使用 Admin 账号登录后再查看。</p>
+        </div>
+      )
     );
   }
 
-  return (
-    <div className="page-card">
-      <h2>支付管理</h2>
+  const content = (
+    <div className="admin-payment-page">
+      {!embedded && <h2>支付管理</h2>}
       <Card size="small" title="用户 MXM-TOKEN 余额管理">
         <Space style={{ marginBottom: 12 }}>
           <Input.Search
@@ -232,4 +238,6 @@ export default function AdminPayment() {
       </Modal>
     </div>
   );
+
+  return embedded ? content : <div className="page-card">{content}</div>;
 }

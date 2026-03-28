@@ -7,7 +7,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { resolve } from 'path';
 import cors from 'cors';
-import httpProxy from 'http-proxy-middleware';
+import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 import { createServer } from 'http';
 import { setupWebSocketProxy } from './routes/websocket-proxy';
 import healthRouter from './routes/health';
@@ -64,10 +64,8 @@ try {
 // 验证 JWT_SECRET 是否已加载
 if (process.env.JWT_SECRET) {
   const secretLength = process.env.JWT_SECRET.length;
-  const secretPreview = process.env.JWT_SECRET.substring(0, 10);
   logger.info(`[Gateway] ✅ JWT_SECRET 已配置 (length: ${secretLength})`);
-  logger.info(`[Gateway] JWT_SECRET 前10个字符: ${secretPreview}...`);
-  
+
   // 检查是否使用默认值
   if (process.env.JWT_SECRET === 'your-secret-key-change-in-production') {
     logger.warn(`[Gateway] ⚠️  警告: 正在使用默认 JWT_SECRET，这会导致认证失败！`);
@@ -119,8 +117,11 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 请求日志
+// 请求日志（避免 cgi-tasks 轮询刷屏）
 app.use((req, res, next) => {
+  if (req.path.startsWith('/api/v1/cgi-tasks')) {
+    return next();
+  }
   logger.info(`${req.method} ${req.path}`, {
     ip: req.ip,
     userAgent: req.get('user-agent'),
@@ -137,6 +138,56 @@ app.use('/', healthRouter);
 // 代理路由配置
 const proxyRouter = createProxyRouter();
 app.use('/api/v1', proxyRouter);
+
+// Task v2 路由 (/api/v2/tasks) - 需要认证，直接代理到 mxmcgi
+const mxmcgiUrl = process.env.MXMCGI_URL || 'http://localhost:4003';
+app.use(
+  '/api/v2/tasks',
+  authMiddleware as any,
+  createProxyMiddleware({
+    target: mxmcgiUrl,
+    changeOrigin: true,
+    timeout: 60000,
+    proxyTimeout: 60000,
+    pathRewrite: (path, req) => {
+      // 直接透传 /api/v2/tasks 前缀给 mxmcgi
+      return (req as any).originalUrl || path;
+    },
+    on: {
+      proxyReq: (proxyReq, req: any) => {
+        const user = (req as any).user;
+        if (user) {
+          proxyReq.setHeader('x-user-id', user.userId);
+          proxyReq.setHeader('x-username', user.username);
+        }
+        // Gateway 顶层已经用 express.json() 解析过 body，必须用 fixRequestBody 重新写入代理请求
+        // 否则下游（mxmcgi）的 express.json() 可能读不到 body，出现挂起/UND_ERR_SOCKET
+        fixRequestBody(proxyReq as any, req);
+      },
+      proxyRes: (proxyRes, req: any) => {
+        logger.debug(`[TasksV2 Proxy] ${req.method} ${req.originalUrl || req.url} -> ${proxyRes.statusCode}`);
+      },
+      error: (err: any, req: any, res: any) => {
+        logger.error(`[TasksV2 Proxy] Error: ${req?.method} ${req?.originalUrl || req?.url}`, {
+          message: err?.message,
+          code: err?.code,
+          stack: err?.stack,
+          target: mxmcgiUrl,
+        });
+        try {
+          if (res && typeof res.status === 'function' && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: { code: 'PROXY_ERROR', message: `Task v2 service unavailable: ${err?.message || 'unknown error'}` },
+            });
+          }
+        } catch {
+          // ignore
+        }
+      },
+    },
+  })
+);
 
 // 404 处理
 app.use(notFoundHandler);

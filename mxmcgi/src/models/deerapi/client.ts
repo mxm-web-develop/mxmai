@@ -943,9 +943,11 @@ export interface DeerAPIConfig {
       // 如果有图片输入，添加到 parts 中
       if (request.imageInputs && request.imageInputs.length > 0) {
         for (const img of request.imageInputs) {
+          // DeerAPI 文档 curl 示例使用 inline_data/mime_type；Node SDK 使用 inlineData/mimeType。
+          // 为最大兼容性，这里按 Node.js / GoogleGenAI 的 camelCase 发送。
           parts.push({
-            inline_data: {
-              mime_type: img.mime_type,
+            inlineData: {
+              mimeType: img.mime_type,
               data: img.data,
             },
           });
@@ -1370,12 +1372,16 @@ export interface DeerAPIConfig {
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   
       try {
+        const headers: Record<string, string> = {
+          Authorization: authHeader,
+          'Content-Type': 'application/json',
+        };
+        if (this.config.group) {
+          headers['x-group'] = this.config.group;
+        }
         const response = await fetch(url, {
           method: 'POST',
-          headers: {
-            Authorization: authHeader,
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: bodyString,
           signal: controller.signal,
         });
@@ -1387,12 +1393,13 @@ export interface DeerAPIConfig {
           throw new Error(`DeerAPI Seedream 图像生成失败: ${response.status} ${response.statusText} - ${errorText}`);
         }
   
-        return (await response.json()) as {
+        const payload = (await response.json()) as {
           data: Array<{
             url?: string;
             b64_json?: string;
           }>;
           created: number;
+          error?: string | { message?: string; code?: string | number; type?: string };
           usage?: {
             prompt_tokens?: number;
             completion_tokens?: number;
@@ -1400,17 +1407,36 @@ export interface DeerAPIConfig {
             output_tokens?: number;
           };
         };
+        // DeerAPI 部分聚合模型会返回 HTTP 200 + { error: ... }，这里统一转为异常
+        if (payload && (payload as any).error) {
+          const err = (payload as any).error;
+          const msg =
+            typeof err === 'string'
+              ? err
+              : err?.message || JSON.stringify(err);
+          throw new Error(`DeerAPI Seedream 返回错误: ${msg}`);
+        }
+        return payload;
       } catch (error) {
         clearTimeout(timeoutId);
         
         if (error instanceof Error) {
+          const cause: any = (error as any).cause;
+          const causeText =
+            cause && typeof cause === 'object'
+              ? `${cause.code || ''} ${cause.errno || ''} ${cause.message || ''}`.trim()
+              : '';
           // 检查是否是超时错误
           if (error.name === 'AbortError' || error.message.includes('aborted')) {
             throw new Error(`DeerAPI Seedream 图像生成请求超时（${timeoutMs / 1000}秒）。请求体可能过大（${bodySizeMB.toFixed(2)} MB），请考虑使用 URL 而不是 Base64，或减小图片尺寸。`);
           }
           // 检查是否是网络错误
           if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
-            throw new Error(`DeerAPI Seedream 图像生成网络错误: ${error.message}。请检查网络连接、API 端点配置和防火墙设置。请求体大小: ${bodySizeMB.toFixed(2)} MB`);
+            throw new Error(
+              `DeerAPI Seedream 图像生成网络错误: ${error.message}` +
+              (causeText ? ` (cause: ${causeText})` : '') +
+              `。请检查网络连接、API 端点配置和防火墙设置。请求体大小: ${bodySizeMB.toFixed(2)} MB`
+            );
           }
           throw error;
         }

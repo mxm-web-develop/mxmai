@@ -1,99 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Drawer, notification } from 'antd';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import styled from 'styled-components';
+import { notification } from 'antd';
 import {
   createOutline,
   listWritingTasks,
+  listOutlineTasks,
   getTask,
   deleteTask,
+  getTaskFormConfig,
   type WritingTaskItem,
   type WritingTaskListResponse,
+  type TaskFormConfig,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { OutlineViewerModal } from '../components/OutlineViewerModal';
 import type { OutlineNode, CharacterProfile } from '../components/OutlineViewerModal';
-
-// 大纲应用类型选项（与 mobile 一致）
-const OUTLINE_APPLYTO_OPTIONS = [
-  { value: 'articles', label: '文章' },
-  { value: 'voice-scripts', label: '口播稿' },
-  { value: 'storyboard-scripts', label: '分镜脚本' },
-];
-
-// 大纲细分类型选项（与 mobile 一致）
-const OUTLINE_TYPE_OPTIONS: Record<string, Array<{ value: string; label: string }>> = {
-  articles: [
-    { value: 'tech-article', label: '科技文章' },
-    { value: 'story-novel', label: '故事小说' },
-    { value: 'academic-paper', label: '学术论文' },
-  ],
-  'voice-scripts': [
-    { value: 'sales-voice', label: '带货口播' },
-    { value: 'emotional-story-voice', label: '情感故事口播' },
-    { value: 'knowledge-sharing-voice', label: '知识分享口播' },
-  ],
-  'storyboard-scripts': [
-    { value: 'short-video-storyboard', label: '短视频分镜' },
-    { value: 'movie-storyboard', label: '电影分镜' },
-    { value: 'animation-storyboard', label: '动画分镜' },
-    { value: 'music-video-storyboard', label: '音乐视频分镜' },
-    { value: 'commercial-storyboard', label: '广告分镜' },
-    { value: 'documentary-storyboard', label: '纪录片分镜' },
-    { value: 'motion-graphics-storyboard', label: '概念动效分镜' },
-    { value: 'educational-storyboard', label: '教育片分镜' },
-    { value: 'game-cg-storyboard', label: '游戏CG分镜' },
-  ],
-};
-
-// 大纲结构类型选项
-const OUTLINE_STRUCTURE_TYPE_OPTIONS = [
-  { value: 'three-act', label: '三段式' },
-  { value: 'aida', label: 'AIDA' },
-  { value: 'pas', label: 'PAS' },
-  { value: 'bab', label: 'BAB' },
-  { value: 'hero-journey', label: '英雄之旅' },
-  { value: 'imrad', label: 'IMRaD' },
-  { value: 'hook-value-cta', label: '钩子-干货-CTA' },
-  { value: 'act-scene-storyboard', label: '幕式分镜' },
-];
-
-/**
- * 与后端 outline-structure-types.ts 的 isStructureTypeAvailable 规则保持一致
- */
-function getAvailableStructureTypes(
-  applyTo: string,
-  outlineType: string
-): Array<{ value: string; label: string }> {
-  const opts = OUTLINE_STRUCTURE_TYPE_OPTIONS;
-  // 三段式始终可用
-  const base = opts.filter((o) => o.value === 'three-act');
-  if (!outlineType) return base;
-
-  const allowed: string[] = ['three-act'];
-
-  if (applyTo === 'articles') {
-    if (outlineType === 'academic-paper') allowed.push('imrad');
-    else if (outlineType === 'story-novel') allowed.push('hero-journey');
-    // tech-article: 仅三段式
-  } else if (applyTo === 'voice-scripts') {
-    if (outlineType === 'sales-voice') {
-      allowed.push('aida', 'pas', 'bab');
-    } else if (outlineType === 'emotional-story-voice') {
-      allowed.push('bab', 'hero-journey');
-    } else if (outlineType === 'knowledge-sharing-voice') {
-      allowed.push('hook-value-cta');
-    }
-  } else if (applyTo === 'storyboard-scripts') {
-    const heroJourneyTypes = ['movie-storyboard', 'animation-storyboard', 'game-cg-storyboard'];
-    const hookValueCtaTypes = ['short-video-storyboard', 'commercial-storyboard'];
-    if (heroJourneyTypes.includes(outlineType)) {
-      allowed.push('hero-journey', 'act-scene-storyboard');
-    } else if (hookValueCtaTypes.includes(outlineType)) {
-      allowed.push('hook-value-cta');
-    }
-  }
-
-  return opts.filter((o) => allowed.includes(o.value));
-}
 
 const STATUS_MAP: Record<string, string> = {
   pending: '等待中',
@@ -104,10 +26,230 @@ const STATUS_MAP: Record<string, string> = {
   cancelled: '已取消',
 };
 
+const DrawerOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+  animation: outline-drawer-fade-in 0.2s ease-out;
+  @keyframes outline-drawer-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+`;
+
+const DrawerPanel = styled.div`
+  position: fixed;
+  inset: 0;
+  left: auto;
+  width: 100%;
+  max-width: 440px;
+  min-width: 300px;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, hsl(222 47% 11%) 0%, hsl(222 47% 9%) 100%);
+  border-left: 1px solid rgba(71, 85, 105, 0.4);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.35);
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  animation: outline-drawer-slide 0.25s ease-out;
+  @keyframes outline-drawer-slide {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+`;
+
+const DrawerHeader = styled.div`
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.35);
+  flex-shrink: 0;
+`;
+
+const DrawerTitle = styled.h3`
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(248, 250, 252, 0.95);
+`;
+
+const DrawerBody = styled.div`
+  flex: 1;
+  padding: 1.5rem 1.5rem 2rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  min-width: 0;
+`;
+
+/* 表单：成熟 UI，全部用 styled 保证样式生效 */
+const OutlineForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+`;
+
+const FormField = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+`;
+
+const FormFieldRow = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.875rem;
+  & > * {
+    min-width: 0;
+  }
+`;
+
+const FormLabel = styled.label`
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #e2e8f0;
+  letter-spacing: 0.01em;
+`;
+
+const FormLabelOptional = styled.label`
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0.01em;
+`;
+
+const formControlBase = `
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #f1f5f9;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  &::placeholder {
+    color: #64748b;
+  }
+  &:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const FormInput = styled.input`
+  ${formControlBase}
+`;
+
+const FormTextarea = styled.textarea`
+  ${formControlBase}
+  min-height: 108px;
+  resize: vertical;
+`;
+
+const FormSelect = styled.select`
+  ${formControlBase}
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M2 4 L6 8 L10 4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+`;
+
+const FormPrimaryButton = styled.button`
+  width: 100%;
+  height: 2.75rem;
+  margin-top: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: #10b981;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.1s ease;
+  &:hover:not(:disabled) {
+    background: #34d399;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+  }
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.99);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const FormRequiredMark = styled.span`
+  color: #f59e0b;
+  margin-left: 0.125rem;
+`;
+
+function tryParseOutlineFromText(text: string): OutlineNode | OutlineNode[] | null {
+  if (!text) return null;
+  let cleaned = text.trim();
+  // 去掉可能的 markdown 代码块包裹
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```[a-zA-Z0-9]*\s*/i, '').replace(/\s*```$/i, '');
+  }
+  // 尝试截取第一个 JSON 对象或数组
+  const firstBrace = cleaned.indexOf('{');
+  const firstBracket = cleaned.indexOf('[');
+  let start = -1;
+  if (firstBrace === -1 && firstBracket === -1) return null;
+  if (firstBrace === -1) start = firstBracket;
+  else if (firstBracket === -1) start = firstBrace;
+  else start = Math.min(firstBrace, firstBracket);
+  if (start < 0) return null;
+  const candidate = cleaned.slice(start);
+  try {
+    const parsed = JSON.parse(candidate) as unknown;
+    if (Array.isArray(parsed)) return parsed as OutlineNode[];
+    if (parsed && typeof parsed === 'object') return parsed as OutlineNode;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Outline() {
   const { isLoggedIn } = useAuth();
   const [tasks, setTasks] = useState<WritingTaskItem[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  // 创建大纲抽屉默认关闭，用户点击「新建大纲」才打开
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -132,13 +274,37 @@ export default function Outline() {
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Task v2 form schema 衍生的选项
+  const [applyOptions, setApplyOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [outlineTypeOptionsByApplyto, setOutlineTypeOptionsByApplyto] = useState<
+    Record<string, Array<{ value: string; label: string }>>
+  >({});
+  const [structureOptions, setStructureOptions] = useState<Array<{ value: string; label: string }>>(
+    []
+  );
+  const [structureDescription, setStructureDescription] = useState<string | null>(null);
+  /** 表单配置 schema，用于动态渲染 Schema 中除固定字段外的额外字段 */
+  const [formSchema, setFormSchema] = useState<TaskFormConfig['schema'] | null>(null);
+  /** 动态字段（Schema 中非固定字段）的值，会一并提交并参与 prompt 渲染 */
+  const [dynamicParams, setDynamicParams] = useState<Record<string, unknown>>({});
+
+  // 仅首次进入页面时展示整体 loading，后续轮询静默更新，避免列表反复“闪一下”
+  const hasInitialLoadedRef = useRef(false);
+
   const loadOutlineTasks = useCallback(async () => {
     if (!isLoggedIn) return;
-    setLoadingTasks(true);
+    if (!hasInitialLoadedRef.current) {
+      setLoadingTasks(true);
+    }
     try {
-      const res = await listWritingTasks({ limit: 100, offset: 0 });
-      const body = res.data as WritingTaskListResponse | undefined;
-      const list = body?.data?.tasks ?? [];
+      const [writingRes, outlineRes] = await Promise.all([
+        listWritingTasks({ limit: 100, offset: 0 }),
+        listOutlineTasks({ limit: 100, offset: 0 }),
+      ]);
+      const writingBody = writingRes.data as WritingTaskListResponse | undefined;
+      const outlineBody = outlineRes.data as WritingTaskListResponse | undefined;
+      const list = [...(writingBody?.data?.tasks ?? []), ...(outlineBody?.data?.tasks ?? [])];
+
       const outlineTasks = list
         .filter((t) => {
           const rp = t.requestParams as Record<string, unknown> | undefined;
@@ -154,8 +320,143 @@ export default function Outline() {
       console.error('加载大纲任务失败:', e);
       setTasks([]);
     } finally {
+      hasInitialLoadedRef.current = true;
       setLoadingTasks(false);
     }
+  }, [isLoggedIn]);
+
+  // 大纲结构类型不做过滤，用户可选任意结构类型
+
+  // 加载 Task v2 表单配置（仅 outlines），用于 styles 等动态选项
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    (async () => {
+      try {
+        const res = await getTaskFormConfig({ scope: 'outline', taskKey: 'default' });
+        const data =
+          (res.data as { data?: TaskFormConfig })?.data ?? (res.data as TaskFormConfig | undefined);
+        if (!res.error && data) {
+          const props = data.schema?.properties ?? {};
+
+          // applyto（应用于）：优先用配置的 x-enum-labels，无则用中文兜底，避免直接展示业务 key
+          const APPLYTO_LABELS_ZH: Record<string, string> = {
+            articles: '文章',
+            'voice-scripts': '口播稿',
+            'storyboard-scripts': '分镜脚本',
+          };
+          const applySchema = props.applyto as Record<string, unknown> | undefined;
+          if (applySchema && Array.isArray(applySchema.enum)) {
+            const enums = applySchema.enum as string[];
+            const labels = (applySchema['x-enum-labels'] as string[] | undefined) ?? [];
+            setApplyOptions(
+              enums.map((v, i) => ({
+                value: v,
+                label: (labels[i] && String(labels[i]).trim()) || APPLYTO_LABELS_ZH[v] || v,
+              }))
+            );
+            if (typeof applySchema.default === 'string') {
+              setApplyTo(applySchema.default);
+            }
+          }
+          // outline_type（细分类型）+ x-options-by-applyto
+          const outlineTypeSchema = props.outline_type as Record<string, unknown> | undefined;
+          if (outlineTypeSchema && Array.isArray(outlineTypeSchema.enum)) {
+            const enums = outlineTypeSchema.enum as string[];
+            const labels = (outlineTypeSchema['x-enum-labels'] as string[] | undefined) ?? [];
+            const byApply =
+              (outlineTypeSchema['x-options-by-applyto'] as Record<string, string[]> | undefined) ??
+              {};
+            const map: Record<string, Array<{ value: string; label: string }>> = {};
+            Object.entries(byApply).forEach(([applyKey, typeKeys]) => {
+              map[applyKey] = typeKeys.map((val) => {
+                const idx = enums.indexOf(val);
+                return {
+                  value: val,
+                  label: idx >= 0 ? labels[idx] || val : val,
+                };
+              });
+            });
+            setOutlineTypeOptionsByApplyto(map);
+            if (typeof outlineTypeSchema.default === 'string') {
+              setOutlineType(outlineTypeSchema.default);
+            }
+          }
+
+          // outline_structure_type（大纲结构类型）+ x-available-when
+          const structSchema = props.outline_structure_type as Record<string, unknown> | undefined;
+          if (structSchema && Array.isArray(structSchema.enum)) {
+            const enums = structSchema.enum as string[];
+            const labels = (structSchema['x-enum-labels'] as string[] | undefined) ?? [];
+            setStructureOptions(
+              enums.map((v, i) => ({
+                value: v,
+                label: labels[i] || v,
+              }))
+            );
+            if (typeof structSchema.description === 'string' && structSchema.description.trim()) {
+              setStructureDescription(structSchema.description.trim());
+            } else {
+              setStructureDescription(null);
+            }
+            if (typeof structSchema.default === 'string') {
+              setOutlineStructureType(structSchema.default);
+            }
+          }
+
+          const maxDepthSchema = props.maxDepth as Record<string, unknown> | undefined;
+          if (maxDepthSchema && typeof maxDepthSchema.default === 'number') {
+            setMaxDepth(String(maxDepthSchema.default));
+          }
+
+          const expectedNodesSchema = props.expectedNodes as Record<string, unknown> | undefined;
+          if (expectedNodesSchema && typeof expectedNodesSchema.default === 'number') {
+            setExpectedNodes(String(expectedNodesSchema.default));
+          }
+
+          const totalTextSchema = props.total_textcount as Record<string, unknown> | undefined;
+          if (totalTextSchema && typeof totalTextSchema.default === 'number') {
+            setTotalTextCount(String(totalTextSchema.default));
+          }
+
+          const totalDurationSchema = props.total_duration_seconds as
+            | Record<string, unknown>
+            | undefined;
+          if (totalDurationSchema && typeof totalDurationSchema.default === 'number') {
+            setTotalDurationSeconds(String(totalDurationSchema.default));
+          }
+
+          const languageSchema = props.language as Record<string, unknown> | undefined;
+          if (languageSchema && typeof languageSchema.default === 'string') {
+            setLanguage(languageSchema.default as 'zh' | 'en');
+          }
+
+          setFormSchema(data.schema);
+          const fixedKeys = new Set([
+            'prompt',
+            'applyto',
+            'outline_type',
+            'outline_structure_type',
+            'maxDepth',
+            'expectedNodes',
+            'total_textcount',
+            'total_duration_seconds',
+            'language',
+            'label',
+            'uid',
+          ]);
+          const next: Record<string, unknown> = {};
+          Object.entries(props).forEach(([k, def]) => {
+            if (fixedKeys.has(k)) return;
+            const d = def && typeof def === 'object' ? (def as Record<string, unknown>) : {};
+            next[k] = d.default ?? (Array.isArray(d.enum) ? '' : '');
+          });
+          setDynamicParams(next);
+        }
+      } catch (e) {
+        // schema 拉取失败不阻塞页面，只使用现有写死表单
+        console.warn('加载 Task 表单配置失败（outlines）:', e);
+      }
+    })();
   }, [isLoggedIn]);
 
   useEffect(() => {
@@ -173,19 +474,6 @@ export default function Outline() {
     if (!prompt.trim()) {
       notification.warning({ message: '请输入提示词', placement: 'top' });
       return;
-    }
-
-    if (applyTo && outlineStructureType) {
-      const availableTypes = getAvailableStructureTypes(applyTo, outlineType);
-      const isValid = availableTypes.some((opt) => opt.value === outlineStructureType);
-      if (!isValid) {
-        notification.warning({
-          message: '结构类型不适用',
-          description: `结构类型 ${outlineStructureType} 不适用于当前选择`,
-          placement: 'top',
-        });
-        return;
-      }
     }
 
     setLoading(true);
@@ -208,13 +496,16 @@ export default function Outline() {
         language,
         outputFormat: 'json',
         metadata: label.trim() ? { label: label.trim() } : undefined,
+        ...dynamicParams,
       };
 
       const result = await createOutline(body);
       const bodyRes = (result.data as Record<string, unknown>) ?? {};
       if (result.error || bodyRes.error) {
         const msg = (bodyRes.error as string) || result.error || '请稍后重试';
-        const isNetworkError = result.status === 0 || /fetch failed|Failed to fetch|NetworkError|ECONNREFUSED/i.test(msg);
+        const isNetworkError =
+          result.status === 0 ||
+          /fetch failed|Failed to fetch|NetworkError|ECONNREFUSED/i.test(msg);
         notification.error({
           message: '提交失败',
           description: isNetworkError
@@ -224,8 +515,7 @@ export default function Outline() {
         });
         return;
       }
-      const innerData = bodyRes.data as Record<string, unknown> | undefined;
-      const taskId = (innerData?.taskId ?? bodyRes.taskId) as string | undefined;
+      const taskId = (bodyRes.taskId as string | undefined) ?? undefined;
       if (taskId) {
         notification.success({
           message: '任务已创建',
@@ -286,8 +576,16 @@ export default function Outline() {
       const task = (body?.data ?? body) as Record<string, unknown>;
       const result = task?.result as Record<string, unknown> | undefined;
       const metadata = result?.metadata as Record<string, unknown> | undefined;
-      const outline = (metadata?.outline ?? null) as OutlineNode | OutlineNode[] | null;
+      let outline = (metadata?.outline ?? null) as OutlineNode | OutlineNode[] | null;
       const characters = (metadata?.characters as CharacterProfile[] | undefined) ?? [];
+
+      // v2 任务：若 metadata.outline 不存在，但 metadata.text 中包含 JSON，大纲从 text 解析
+      if (!outline && typeof metadata?.text === 'string' && metadata.text.trim()) {
+        const parsed = tryParseOutlineFromText(metadata.text);
+        if (parsed) {
+          outline = parsed;
+        }
+      }
       setViewerData({
         title: getTaskTitle(t),
         outline,
@@ -305,7 +603,7 @@ export default function Outline() {
     const params = rp?.params as Record<string, unknown> | undefined;
     const labelVal =
       (t.metadata?.label as string)?.trim() ||
-      (params?.metadata as Record<string, unknown> | undefined)?.label as string | undefined;
+      ((params?.metadata as Record<string, unknown> | undefined)?.label as string | undefined);
     const promptVal = (params?.prompt as string) || '';
     return (
       labelVal?.trim() ||
@@ -316,149 +614,262 @@ export default function Outline() {
   };
 
   const renderForm = () => (
-    <form onSubmit={handleSubmit} className="form-group outline-form">
-          <div className="form-row">
-            <label>提示词 *</label>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="请输入大纲是关于什么的..."
-              rows={4}
-              required
-            />
-          </div>
+    <OutlineForm onSubmit={handleSubmit}>
+      <FormField>
+        <FormLabel>
+          提示词 <FormRequiredMark>*</FormRequiredMark>
+        </FormLabel>
+        <FormTextarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="简述大纲主题或写作方向..."
+        />
+      </FormField>
 
-          <div className="form-row">
-            <label>应用于</label>
-            <select
-              value={applyTo}
-              onChange={(e) => {
-                setApplyTo(e.target.value);
-                setOutlineType('');
-                setOutlineStructureType('');
-              }}
-            >
-              <option value="">请选择</option>
-              {OUTLINE_APPLYTO_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
+      <FormField>
+        <FormLabelOptional>应用于</FormLabelOptional>
+        <FormSelect
+          value={applyTo || ''}
+          onChange={(e) => {
+            const v = e.target.value || '';
+            setApplyTo(v);
+            setOutlineType('');
+            setOutlineStructureType('');
+          }}
+        >
+          <option value="">请选择</option>
+          {applyOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </FormSelect>
+      </FormField>
 
-          {applyTo && OUTLINE_TYPE_OPTIONS[applyTo] && (
-            <div className="form-row">
-              <label>细分类型</label>
-              <select
-                value={outlineType}
-                onChange={(e) => {
-                  setOutlineType(e.target.value);
-                  setOutlineStructureType('');
+      {applyTo && outlineTypeOptionsByApplyto[applyTo] && (
+        <FormField>
+          <FormLabelOptional>细分类型</FormLabelOptional>
+          <FormSelect
+            value={outlineType || ''}
+            onChange={(e) => {
+              const v = e.target.value || '';
+              setOutlineType(v);
+              setOutlineStructureType('');
+            }}
+          >
+            <option value="">请选择</option>
+            {outlineTypeOptionsByApplyto[applyTo].map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </FormSelect>
+        </FormField>
+      )}
+
+      {applyTo && (
+        <FormField>
+          <FormLabelOptional>
+            大纲结构类型
+            {structureDescription && (
+              <span
+                title={structureDescription}
+                style={{
+                  marginLeft: 6,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 16,
+                  height: 16,
+                  borderRadius: '50%',
+                  border: '1px solid #475569',
+                  background: 'rgba(51, 65, 85, 0.5)',
+                  fontSize: 10,
+                  color: '#94a3b8',
+                  cursor: 'help',
                 }}
               >
-                <option value="">请选择</option>
-                {OUTLINE_TYPE_OPTIONS[applyTo].map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {applyTo && (
-            <div className="form-row">
-              <label>大纲结构类型</label>
-              <select
-                value={outlineStructureType}
-                onChange={(e) => setOutlineStructureType(e.target.value)}
-              >
-                <option value="">请选择</option>
-                {getAvailableStructureTypes(applyTo, outlineType).map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="form-row-group">
-            {applyTo !== 'storyboard-scripts' && (
-              <div className="form-row">
-                <label>大纲深度</label>
-                <input
-                  type="number"
-                  value={maxDepth}
-                  onChange={(e) => setMaxDepth(e.target.value)}
-                  placeholder="3"
-                  min={1}
-                  max={6}
-                />
-              </div>
+                ?
+              </span>
             )}
-            <div className="form-row">
-              <label>期望节点数</label>
-              <input
-                type="number"
-                value={expectedNodes}
-                onChange={(e) => setExpectedNodes(e.target.value)}
-                placeholder="可选"
-                min={0}
-              />
-            </div>
-          </div>
+          </FormLabelOptional>
+          <FormSelect
+            value={outlineStructureType || ''}
+            onChange={(e) => setOutlineStructureType(e.target.value || '')}
+          >
+            <option value="">请选择</option>
+            {structureOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </FormSelect>
+        </FormField>
+      )}
 
-          {applyTo === 'articles' && (
-            <div className="form-row">
-              <label>总字数</label>
-              <input
-                type="number"
-                value={totalTextCount}
-                onChange={(e) => setTotalTextCount(e.target.value)}
-                placeholder="可选，100-100000"
-                min={0}
-              />
-            </div>
-          )}
+      <FormFieldRow>
+        {applyTo !== 'storyboard-scripts' && (
+          <FormField>
+            <FormLabelOptional>大纲深度</FormLabelOptional>
+            <FormInput
+              type="number"
+              value={maxDepth}
+              onChange={(e) => setMaxDepth(e.target.value)}
+              placeholder="3"
+              min={1}
+              max={6}
+            />
+          </FormField>
+        )}
+        <FormField>
+          <FormLabelOptional>期望节点数</FormLabelOptional>
+          <FormInput
+            type="number"
+            value={expectedNodes}
+            onChange={(e) => setExpectedNodes(e.target.value)}
+            placeholder="可选"
+            min={0}
+          />
+        </FormField>
+      </FormFieldRow>
 
-          {(applyTo === 'voice-scripts' || applyTo === 'storyboard-scripts') && (
-            <div className="form-row">
-              <label>总时长（秒）</label>
-              <input
-                type="number"
-                value={totalDurationSeconds}
-                onChange={(e) => setTotalDurationSeconds(e.target.value)}
-                placeholder="可选，例如 300"
-                min={0}
-              />
-            </div>
-          )}
+      {applyTo === 'articles' && (
+        <FormField>
+          <FormLabelOptional>总字数</FormLabelOptional>
+          <FormInput
+            type="number"
+            value={totalTextCount}
+            onChange={(e) => setTotalTextCount(e.target.value)}
+            placeholder="可选，100–100000"
+            min={0}
+          />
+        </FormField>
+      )}
 
-          <div className="form-row-group">
-            <div className="form-row">
-              <label>语言</label>
-              <select value={language} onChange={(e) => setLanguage(e.target.value as 'zh' | 'en')}>
-                <option value="zh">中文</option>
-                <option value="en">English</option>
-              </select>
-            </div>
-            <div className="form-row">
-              <label>任务名称</label>
-              <input
-                type="text"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="可选，用于列表展示"
-              />
-            </div>
-          </div>
+      {(applyTo === 'voice-scripts' || applyTo === 'storyboard-scripts') && (
+        <FormField>
+          <FormLabelOptional>总时长（秒）</FormLabelOptional>
+          <FormInput
+            type="number"
+            value={totalDurationSeconds}
+            onChange={(e) => setTotalDurationSeconds(e.target.value)}
+            placeholder="可选，例如 300"
+            min={0}
+          />
+        </FormField>
+      )}
 
-        <button type="submit" disabled={loading}>
-          {loading ? '提交中...' : '生成大纲'}
-        </button>
-      </form>
+      <FormFieldRow>
+        <FormField>
+          <FormLabelOptional>语言</FormLabelOptional>
+          <FormSelect value={language} onChange={(e) => setLanguage(e.target.value as 'zh' | 'en')}>
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+          </FormSelect>
+        </FormField>
+        <FormField>
+          <FormLabelOptional>任务名称</FormLabelOptional>
+          <FormInput
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="用于列表展示"
+          />
+        </FormField>
+      </FormFieldRow>
+
+      {formSchema?.properties &&
+        Object.entries(formSchema.properties)
+          .filter(
+            ([k]) =>
+              ![
+                'prompt',
+                'applyto',
+                'outline_type',
+                'outline_structure_type',
+                'maxDepth',
+                'expectedNodes',
+                'total_textcount',
+                'total_duration_seconds',
+                'language',
+                'label',
+                'uid',
+              ].includes(k)
+          )
+          .map(([key, def]) => {
+            const d = def && typeof def === 'object' ? (def as Record<string, unknown>) : {};
+            const title = (d.title as string) || key;
+            const uiType =
+              (d['x-ui-type'] as string) ||
+              (Array.isArray(d.enum) && d.enum.length > 0
+                ? 'selection'
+                : d.type === 'number'
+                  ? 'number'
+                  : 'string');
+            const value = dynamicParams[key] ?? '';
+            const setValue = (v: unknown) => setDynamicParams((prev) => ({ ...prev, [key]: v }));
+
+            if (uiType === 'text') {
+              return (
+                <FormField key={key}>
+                  <FormLabelOptional>{title}</FormLabelOptional>
+                  <FormTextarea
+                    value={typeof value === 'string' ? value : ''}
+                    onChange={(e) => setValue(e.target.value)}
+                    placeholder={(d.description as string) || ''}
+                  />
+                </FormField>
+              );
+            }
+            if (uiType === 'number') {
+              return (
+                <FormField key={key}>
+                  <FormLabelOptional>{title}</FormLabelOptional>
+                  <FormInput
+                    type="number"
+                    value={
+                      typeof value === 'number' ? value : value === '' ? '' : Number(value) || ''
+                    }
+                    onChange={(e) => setValue(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder={(d.description as string) || ''}
+                  />
+                </FormField>
+              );
+            }
+            if (uiType === 'selection' && Array.isArray(d.enum)) {
+              const labels = (d['x-enum-labels'] as string[] | undefined) ?? [];
+              return (
+                <FormField key={key}>
+                  <FormLabelOptional>{title}</FormLabelOptional>
+                  <FormSelect
+                    value={typeof value === 'string' ? value : ''}
+                    onChange={(e) => setValue(e.target.value)}
+                  >
+                    <option value="">请选择</option>
+                    {d.enum.map((v: unknown, i: number) => (
+                      <option key={String(v)} value={String(v)}>
+                        {labels[i] && String(labels[i]).trim() ? labels[i] : String(v)}
+                      </option>
+                    ))}
+                  </FormSelect>
+                </FormField>
+              );
+            }
+            return (
+              <FormField key={key}>
+                <FormLabelOptional>{title}</FormLabelOptional>
+                <FormInput
+                  value={typeof value === 'string' ? value : value != null ? String(value) : ''}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder={(d.description as string) || ''}
+                />
+              </FormField>
+            );
+          })}
+
+      <FormPrimaryButton type="submit" disabled={loading}>
+        {loading ? '生成中…' : '生成大纲'}
+      </FormPrimaryButton>
+    </OutlineForm>
   );
 
   const visibleTasks = tasks.filter((t) => {
@@ -565,16 +976,27 @@ export default function Outline() {
         error={viewerError}
       />
 
-      <Drawer
-        title="新建大纲任务"
-        placement="right"
-        width={520}
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        destroyOnClose
-      >
-        {renderForm()}
-      </Drawer>
+      {formOpen &&
+        createPortal(
+          <>
+            <DrawerOverlay onClick={() => setFormOpen(false)} />
+            <DrawerPanel>
+              <DrawerHeader>
+                <DrawerTitle>新建大纲任务</DrawerTitle>
+                <button
+                  type="button"
+                  aria-label="关闭"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-700/50 focus:outline-none focus:ring-2 focus:ring-slate-500 transition-colors"
+                  onClick={() => setFormOpen(false)}
+                >
+                  ×
+                </button>
+              </DrawerHeader>
+              <DrawerBody>{renderForm()}</DrawerBody>
+            </DrawerPanel>
+          </>,
+          document.body
+        )}
     </section>
   );
 }

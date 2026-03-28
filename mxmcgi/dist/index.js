@@ -33,437 +33,107 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// src/models/suport-list.ts
-var suport_list_exports = {};
-__export(suport_list_exports, {
-  ChargeMode: () => ChargeMode,
-  default: () => suport_list_default,
-  getModelName: () => getModelName
+// src/models/provider-model-catalog.ts
+var provider_model_catalog_exports = {};
+__export(provider_model_catalog_exports, {
+  getByProviderAndModelKey: () => getByProviderAndModelKey,
+  getEnabledForMerge: () => getEnabledForMerge,
+  getUpstreamModel: () => getUpstreamModel,
+  isLoaded: () => isLoaded,
+  isModelEnabled: () => isModelEnabled,
+  listByProvider: () => listByProvider,
+  loadProviderModelCatalog: () => loadProviderModelCatalog
 });
-function getModelName(mapping) {
-  if (typeof mapping === "string") return mapping;
-  return mapping.modelname;
+function isProviderType(s) {
+  return VALID_PROVIDERS.includes(s);
 }
-var ChargeMode, suport_list_default;
-var init_suport_list = __esm({
-  "src/models/suport-list.ts"() {
-    "use strict";
-    ChargeMode = /* @__PURE__ */ ((ChargeMode2) => {
-      ChargeMode2["token_based"] = "token_based";
-      ChargeMode2["token_based_per_thousand"] = "token_based_per_thousand";
-      ChargeMode2["per_change_mode"] = "per_change_mode";
-      return ChargeMode2;
-    })(ChargeMode || {});
-    suport_list_default = {
-      replicate: {
-        graph: {
-          "seedream-4": {
-            modelname: "bytedance/seedream-4",
-            price: 0.03,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "nano-banana": {
-            modelname: "google/nano-banana",
-            price: 0.1,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "nano-banana-pro": {
-            modelname: "google/nano-banana-pro",
-            price: 0.3,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "flux-fast": {
-            modelname: "black-forest-labs/flux-1.1-pro",
-            price: 0.04,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "flux-2-flex": {
-            modelname: "black-forest-labs/flux-2",
-            price: 0.05,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "ideogram-v2a": {
-            modelname: "ideogram-ai/ideogram-v2",
-            price: 0.08,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "recraft-crisp-upscale": {
-            modelname: "recraft-ai/recraft-v3",
-            price: 0.05,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          }
-        },
-        text: {
-          "deepseek-r1": {
-            modelname: "deepseek-ai/deepseek-r1",
-            price: 1e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "gemini-3-pro": {
-            modelname: "google/gemini-3-pro",
-            price: 125e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "gemini-2-5-flash": {
-            modelname: "google/gemini-2.5-flash",
-            price: 0.075,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "claude-4.5-sonnet": {
-            modelname: "anthropic/claude-3.5-sonnet",
-            price: 3e-3,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "gpt-5-nano": {
-            modelname: "openai/gpt-5-nano",
-            price: 15e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          }
-        },
-        audio: {}
-      },
-      ppio: {
-        graph: {
-          "nano-banana": {
-            modelname: "nano-banana",
-            price: 0.1,
-            provider_price: 0.08,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "nano-banana-pro": {
-            modelname: "nano-banana-pro",
-            price: 0.25,
-            provider_price: 0.15,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          }
-        },
-        text: {},
-        audio: {
-          "minimax-voice-cloning": {
-            modelname: "minimax-voice-cloning",
-            price: 0.8,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "minimax-speech-02-turbo": {
-            modelname: "minimax-speech-02-turbo",
-            price: 5e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "minimax-speech-2.6-hd": {
-            modelname: "minimax-speech-2.6-hd",
-            price: 1e-4,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "minimax-speech-2.5-turbo": {
-            modelname: "minimax-speech-2.5-turbo-preview",
-            price: 5e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "minimax-speech-2.5-hd": {
-            modelname: "minimax-speech-2.5-hd-preview",
-            price: 1e-4,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "minimax-speech-02-hd-async": {
-            modelname: "minimax-speech-02-hd",
-            price: 1e-4,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "minimax-speech-2.6-hd-async": {
-            modelname: "minimax-speech-2.6-hd",
-            price: 1e-4,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "minimax-speech-2.5-turbo-async": {
-            modelname: "minimax-speech-2.5-turbo-preview",
-            price: 5e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          }
-        }
-      },
-      deer: {
-        graph: {
-          // DeerAPI nano-banana 普通版，Gemini 2.5 Flash 图像接口，速度最快、成本最低
-          "nano-banana": {
-            modelname: "gemini-2.5-flash-image",
-            price: 0.05,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD",
-            service: "google"
-          },
-          // DeerAPI nano-banana-pro 走 Gemini 3 Pro 图像接口，最高画质
-          "nano-banana-pro": {
-            modelname: "gemini-3-pro-image",
-            price: 0.25,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD",
-            service: "google"
-          },
-          // DeerAPI nano-banana-2：基于 Gemini 3.1 Flash Image（preview 版本），在 2.5 代基础上画质和文字渲染都有明显提升
-          "nano-banana-2": {
-            modelname: "gemini-3.1-flash-image-preview",
-            price: 0.06,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD",
-            service: "google"
-          },
-          // DeerAPI nano-banana-2-pro：基于 Gemini 3.1 Flash Image 正式版，主打最高画质与稳定性
-          "nano-banana-2-pro": {
-            modelname: "gemini-3.1-flash-image",
-            price: 0.12,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD",
-            service: "google"
-          },
-          "flux-2-pro": {
-            modelname: "flux-2-pro",
-            price: 0.05,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "seedream-4": {
-            modelname: "doubao-seedream-4-5-251128",
-            price: 0.02,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "seedream-5": {
-            modelname: "doubao-seedream-5-0-260128",
-            price: 0.035,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          }
-        },
-        text: {
-          "deepseek-r1": {
-            modelname: "deepseek-ai/deepseek-r1",
-            price: 55e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "deepseek-v3.2": {
-            modelname: "deepseek-v3.2",
-            price: 27e-5,
-            // $0.27 per million tokens (input), $0.432 per million tokens (output). This is input price per 1k tokens.
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "gemini-3-pro": {
-            modelname: "gemini-3-pro-preview",
-            price: 125e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "gemini-2-5-flash": {
-            modelname: "gemini-2.5-flash",
-            price: 0.075,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "gpt-5-2": {
-            modelname: "gpt-5.2",
-            price: 0.014,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "qwen3-235b": {
-            modelname: "qwen3-235b-a22b",
-            price: 8e-4,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "qwen3-30b": {
-            modelname: "qwen3-30b-a3b",
-            price: 3e-4,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "claude-4.5-sonnet": {
-            modelname: "claude-sonnet-4-5-20250929",
-            price: 3e-3,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          }
-        },
-        audio: {
-          "suno-music": {
-            modelname: "suno-music",
-            price: 0.1,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          }
-        },
-        video: {
-          "sora-2": {
-            modelname: "sora-2",
-            price: 0.05,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "sora-2-pro": {
-            modelname: "sora-2-pro",
-            price: 0.1,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "sora-2-all": {
-            modelname: "sora-2-all",
-            price: 0.1,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "sora-2-pro-all": {
-            modelname: "sora-2-pro-all",
-            price: 1,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "sora-2-deer": {
-            modelname: "sora-2-all",
-            price: 0.1,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "sora-2-deer-pro": {
-            modelname: "sora-2-pro-all",
-            price: 1,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          },
-          "runway": {
-            modelname: "runway",
-            price: 0.05,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          }
-        }
-      },
-      openai: {
-        text: {
-          "gpt-5-nano": {
-            modelname: "gpt-5-nano",
-            // $0.05 / 1M input tokens → $0.00005 / 1K（仅作参考，真实价格以 OpenAI 最新定价为准）
-            price: 5e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "gpt-5-2": {
-            modelname: "gpt-5.2",
-            // $1.75 / 1M input tokens → $0.00175 / 1K（仅作参考）
-            price: 175e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          }
-        },
-        graph: {},
-        audio: {},
-        video: {}
-      },
-      google: {
-        text: {
-          "gemini-2.5-flash": {
-            modelname: "gemini-2.0-flash",
-            price: 0.075,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "gemini-2-5-flash": {
-            modelname: "gemini-2.0-flash",
-            price: 0.075,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "gemini-2.5-pro": {
-            modelname: "gemini-2.5-pro-preview-05-06",
-            price: 125e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "gemini-3-pro": {
-            modelname: "gemini-2.5-pro-preview-05-06",
-            price: 125e-5,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          }
-        },
-        graph: {},
-        audio: {},
-        video: {}
-      },
-      anthropic: {
-        text: {
-          "claude-4.5-sonnet": {
-            modelname: "claude-sonnet-4-5-20250929",
-            price: 3e-3,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          },
-          "claude-3-5-sonnet": {
-            modelname: "claude-3-5-sonnet-20241022",
-            price: 3e-3,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          }
-        },
-        graph: {},
-        audio: {},
-        video: {}
-      },
-      qwen: {
-        text: {},
-        graph: {},
-        audio: {},
-        video: {}
-      },
-      volc: {
-        text: {},
-        graph: {
-          "seedream-4-volc": {
-            modelname: "seedream-4",
-            price: 0.02,
-            charge_mode: "per_change_mode" /* per_change_mode */,
-            currency: "USD"
-          }
-        },
-        audio: {},
-        video: {}
-      },
-      minimax: {
-        text: {},
-        graph: {},
-        audio: {
-          "minimax-speech-2.8-hd": {
-            modelname: "speech-2.8-hd",
-            price: 1e-4,
-            charge_mode: "token_based" /* token_based */,
-            currency: "USD"
-          }
-        },
-        video: {}
+async function loadProviderModelCatalog() {
+  try {
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderModelRepository();
+    const all = await repo.list({ onlyEnabled: true });
+    const byProvider2 = /* @__PURE__ */ new Map();
+    for (const m of all) {
+      if (!isProviderType(m.provider)) continue;
+      const list = byProvider2.get(m.provider) ?? [];
+      list.push(m);
+      byProvider2.set(m.provider, list);
+    }
+    cache = byProvider2;
+    loaded = true;
+    console.log(
+      `[ProviderModelCatalog] \u5DF2\u52A0\u8F7D ${all.length} \u4E2A\u542F\u7528\u6A21\u578B\uFF0C\u8986\u76D6 provider: ${Array.from(cache.keys()).join(", ")}`
+    );
+  } catch (e) {
+    console.warn("[ProviderModelCatalog] \u52A0\u8F7D\u5931\u8D25\uFF0C\u5C06\u4EC5\u4F7F\u7528\u9759\u6001\u6A21\u578B:", e instanceof Error ? e.message : String(e));
+    cache = /* @__PURE__ */ new Map();
+    loaded = true;
+  }
+}
+function isLoaded() {
+  return loaded;
+}
+function getByProviderAndModelKey(provider13, modelKey43) {
+  const list = cache.get(provider13) ?? [];
+  return list.find((m) => m.model_key === modelKey43 || m.upstream_model === modelKey43) ?? null;
+}
+function isModelEnabled(provider13, modelKey43) {
+  return getByProviderAndModelKey(provider13, modelKey43) !== null;
+}
+function getUpstreamModel(provider13, modelKey43) {
+  const m = getByProviderAndModelKey(provider13, modelKey43);
+  return m ? m.upstream_model ?? m.model_key : null;
+}
+function listByProvider(provider13) {
+  return cache.get(provider13) ?? [];
+}
+function getEnabledForMerge() {
+  const result = [];
+  for (const [provider13, list] of cache) {
+    if (!isProviderType(provider13)) continue;
+    for (const m of list) {
+      result.push({ provider: provider13, model_key: m.model_key });
+      if (m.upstream_model && m.upstream_model !== m.model_key) {
+        result.push({ provider: provider13, model_key: m.upstream_model });
       }
-    };
+    }
+  }
+  return result;
+}
+var VALID_PROVIDERS, cache, loaded;
+var init_provider_model_catalog = __esm({
+  "src/models/provider-model-catalog.ts"() {
+    "use strict";
+    VALID_PROVIDERS = [
+      "replicate",
+      "ppio",
+      "deer",
+      "openai",
+      "google",
+      "anthropic",
+      "qwen",
+      "volc",
+      "minimax"
+    ];
+    cache = /* @__PURE__ */ new Map();
+    loaded = false;
+  }
+});
+
+// src/models/physical-model-id.ts
+function requireUpstreamPhysicalId(provider13, modelKey43) {
+  const id = getUpstreamModel(provider13, modelKey43);
+  if (id != null && String(id).trim().length > 0) {
+    return String(id).trim();
+  }
+  throw new Error(
+    `\u672A\u5728 provider_models \u627E\u5230\u5DF2\u542F\u7528\u6A21\u578B\u6216\u7F3A\u5C11 upstream_model/model_key\uFF1Aprovider=${provider13}, model_key=${modelKey43}`
+  );
+}
+var init_physical_model_id = __esm({
+  "src/models/physical-model-id.ts"() {
+    "use strict";
+    init_provider_model_catalog();
   }
 });
 
@@ -474,7 +144,8 @@ var init_provider = __esm({
     "use strict";
     import_replicate = __toESM(require("replicate"));
     init_providers2();
-    init_suport_list();
+    init_provider_model_catalog();
+    init_physical_model_id();
     ReplicateProvider = class {
       constructor(injectToken) {
         this.injectToken = injectToken;
@@ -483,27 +154,49 @@ var init_provider = __esm({
       name = "Replicate";
       replicate = null;
       replicatePromise = null;
-      // 支持的模型映射（从 suport-list.ts 导入）
-      modelMap = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return {
-          ...supportList.replicate?.graph || {},
-          ...supportList.replicate?.text || {}
-        };
-      })();
       /**
-       * 获取模型的实际名称（从 ModelMapping 中提取）
+       * Replicate 上游须为 owner/model（provider_models.upstream_model 或 model_key）
        */
-      getModelName(modelName) {
-        const mapping = this.modelMap[modelName];
-        if (!mapping) {
-          throw new Error(`Replicate provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelName}`);
+      resolveReplicatePhysicalModel(modelKey43) {
+        const raw = requireUpstreamPhysicalId("replicate", modelKey43);
+        if (!raw.includes("/")) {
+          throw new Error(
+            `Replicate \u4E0A\u6E38\u6A21\u578B\u987B\u4E3A owner/model \u683C\u5F0F\uFF0C\u5F53\u524D\u4E3A\u300C${raw}\u300D\uFF1A\u8BF7\u5728 provider_models \u914D\u7F6E upstream_model`
+          );
         }
-        const name = getModelName(mapping);
-        if (!name.includes("/")) {
-          throw new Error(`Replicate \u6A21\u578B\u540D\u79F0\u683C\u5F0F\u9519\u8BEF: ${name}\uFF0C\u5E94\u4E3A "owner/model" \u683C\u5F0F`);
+        return raw;
+      }
+      /** 异步 prediction + 进度轮询（图/视频/音频等）；文本走 run/stream 解析 */
+      useAsyncPredictionPath(modelKey43) {
+        const row = getByProviderAndModelKey("replicate", modelKey43);
+        if (row) {
+          const m = (row.modality ?? "").toLowerCase();
+          const s = (row.scope ?? "").toLowerCase();
+          if (m === "image" || m === "video" || m === "audio") return true;
+          if (s === "graph" || s === "video" || s === "audio") return true;
+          if (m === "text") return false;
+          if (["writing", "text", "default", "outline"].includes(s)) return false;
         }
-        return name;
+        return modelKey43 === "nano-banana" || modelKey43 === "nano-banana-pro" || modelKey43 === "ideogram-v2a" || modelKey43 === "recraft-crisp-upscale" || modelKey43 === "flux-fast" || modelKey43 === "flux-2-flex" || modelKey43 === "seedream-4";
+      }
+      /** 输出按文本解析（token/choices）；否则按 URL/媒体解析 */
+      isTextOutputModel(modelKey43) {
+        const row = getByProviderAndModelKey("replicate", modelKey43);
+        if (row) {
+          const m = (row.modality ?? "").toLowerCase();
+          const s = (row.scope ?? "").toLowerCase();
+          if (m === "text") return true;
+          if (["writing", "text", "default", "outline"].includes(s)) return true;
+          if (m === "image" || m === "video" || m === "audio") return false;
+          if (s === "graph" || s === "video" || s === "audio") return false;
+        }
+        return modelKey43.startsWith("deepseek") || modelKey43.startsWith("gemini") || modelKey43.startsWith("claude") || modelKey43.startsWith("gpt") || modelKey43.includes("gemini-3-pro");
+      }
+      isNanoBananaStyleModel(modelKey43) {
+        if (modelKey43 === "nano-banana" || modelKey43 === "nano-banana-pro") return true;
+        const row = getByProviderAndModelKey("replicate", modelKey43);
+        const u = (row?.upstream_model ?? "").toLowerCase();
+        return u.includes("nano-banana");
       }
       async ensureReplicate() {
         if (this.replicate) return this.replicate;
@@ -519,7 +212,7 @@ var init_provider = __esm({
         return this.replicatePromise;
       }
       supportsModel(modelName) {
-        return modelName in this.modelMap;
+        return isModelEnabled("replicate", modelName);
       }
       /**
        * 从 StreamChunk 流创建字符串流（兼容旧版本）
@@ -922,13 +615,13 @@ var init_provider = __esm({
           throw new Error(`Replicate provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelName}`);
         }
         await this.ensureReplicate();
-        const replicateModel = this.getModelName(modelName);
+        const replicateModel = this.resolveReplicatePhysicalModel(modelName);
         const outputFormat = params.outputFormat || "json";
         if (process.env.DEBUG_REPLICATE) {
           console.log(`[DEBUG] Model mapping: ${modelName} -> ${replicateModel}`);
         }
-        const isNanoBananaStyle = modelName === "nano-banana" || modelName === "nano-banana-pro";
-        const isImageModel = isNanoBananaStyle || modelName === "ideogram-v2a" || modelName === "recraft-crisp-upscale" || modelName === "flux-fast" || modelName === "seedream-4";
+        const isNanoBananaStyle = this.isNanoBananaStyleModel(modelName);
+        const useAsyncPrediction = this.useAsyncPredictionPath(modelName);
         try {
           const input = {
             prompt: params.prompt
@@ -1042,7 +735,7 @@ var init_provider = __esm({
               };
             }
           } else {
-            if (isImageModel && params.enableProgress !== false) {
+            if (useAsyncPrediction && params.enableProgress !== false) {
               const { progressStream, outputPromise } = this.createProgressStreamWithOutput(replicateModel, input);
               output = await Promise.race([
                 outputPromise,
@@ -1322,7 +1015,7 @@ var init_provider = __esm({
           } else if (shouldDebug) {
             console.log(`[DEBUG] \u975E\u6D41\u5F0F\u8F93\u51FA\uFF0C\u76F4\u63A5\u4F7F\u7528`);
           }
-          const isTextModel = modelName.startsWith("deepseek") || modelName.startsWith("gemini") || modelName.startsWith("claude") || modelName.startsWith("gpt") || modelName.includes("gemini-3-pro");
+          const isTextModel = this.isTextOutputModel(modelName);
           let mediaUrls = [];
           let text;
           let usage;
@@ -2423,40 +2116,15 @@ var init_provider2 = __esm({
   "src/models/ppio/provider.ts"() {
     "use strict";
     init_client();
-    init_suport_list();
+    init_provider_model_catalog();
+    init_physical_model_id();
     PPIOProvider = class {
       provider = "ppio";
       name = "PPIO";
       client;
-      // PPIO 支持的模型映射（从 suport-list.ts 导入）
-      modelMap = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return {
-          ...supportList.ppio?.graph || {},
-          ...supportList.ppio?.text || {},
-          ...supportList.ppio?.audio || {}
-        };
-      })();
-      /**
-       * 获取模型的实际名称（从 ModelMapping 中提取）
-       */
       getModelName(modelName) {
-        const mapping = this.modelMap[modelName];
-        if (!mapping) {
-          return modelName;
-        }
-        return getModelName(mapping);
+        return requireUpstreamPhysicalId("ppio", modelName);
       }
-      // PPIO 支持的模型列表（从 modelMap 的键中提取）
-      supportedModels = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        const modelMap = {
-          ...supportList.ppio?.graph || {},
-          ...supportList.ppio?.text || {},
-          ...supportList.ppio?.audio || {}
-        };
-        return Object.keys(modelMap);
-      })();
       constructor(apiKey, baseUrl) {
         const key = apiKey || process.env.PPIO_API_KEY;
         if (!key) {
@@ -2476,7 +2144,7 @@ var init_provider2 = __esm({
         });
       }
       supportsModel(modelName) {
-        return this.supportedModels.includes(modelName);
+        return isModelEnabled("ppio", modelName);
       }
       async generate(modelName, params) {
         if (!this.supportsModel(modelName)) {
@@ -3529,8 +3197,8 @@ var init_client2 = __esm({
         if (request.imageInputs && request.imageInputs.length > 0) {
           for (const img of request.imageInputs) {
             parts.push({
-              inline_data: {
-                mime_type: img.mime_type,
+              inlineData: {
+                mimeType: img.mime_type,
                 data: img.data
               }
             });
@@ -3796,12 +3464,16 @@ var init_client2 = __esm({
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         try {
+          const headers = {
+            Authorization: authHeader,
+            "Content-Type": "application/json"
+          };
+          if (this.config.group) {
+            headers["x-group"] = this.config.group;
+          }
           const response = await fetch(url, {
             method: "POST",
-            headers: {
-              Authorization: authHeader,
-              "Content-Type": "application/json"
-            },
+            headers,
             body: bodyString,
             signal: controller.signal
           });
@@ -3810,15 +3482,25 @@ var init_client2 = __esm({
             const errorText = await response.text();
             throw new Error(`DeerAPI Seedream \u56FE\u50CF\u751F\u6210\u5931\u8D25: ${response.status} ${response.statusText} - ${errorText}`);
           }
-          return await response.json();
+          const payload = await response.json();
+          if (payload && payload.error) {
+            const err = payload.error;
+            const msg = typeof err === "string" ? err : err?.message || JSON.stringify(err);
+            throw new Error(`DeerAPI Seedream \u8FD4\u56DE\u9519\u8BEF: ${msg}`);
+          }
+          return payload;
         } catch (error) {
           clearTimeout(timeoutId);
           if (error instanceof Error) {
+            const cause = error.cause;
+            const causeText = cause && typeof cause === "object" ? `${cause.code || ""} ${cause.errno || ""} ${cause.message || ""}`.trim() : "";
             if (error.name === "AbortError" || error.message.includes("aborted")) {
               throw new Error(`DeerAPI Seedream \u56FE\u50CF\u751F\u6210\u8BF7\u6C42\u8D85\u65F6\uFF08${timeoutMs / 1e3}\u79D2\uFF09\u3002\u8BF7\u6C42\u4F53\u53EF\u80FD\u8FC7\u5927\uFF08${bodySizeMB.toFixed(2)} MB\uFF09\uFF0C\u8BF7\u8003\u8651\u4F7F\u7528 URL \u800C\u4E0D\u662F Base64\uFF0C\u6216\u51CF\u5C0F\u56FE\u7247\u5C3A\u5BF8\u3002`);
             }
             if (error.message.includes("fetch failed") || error.message.includes("ECONNREFUSED") || error.message.includes("ENOTFOUND")) {
-              throw new Error(`DeerAPI Seedream \u56FE\u50CF\u751F\u6210\u7F51\u7EDC\u9519\u8BEF: ${error.message}\u3002\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u3001API \u7AEF\u70B9\u914D\u7F6E\u548C\u9632\u706B\u5899\u8BBE\u7F6E\u3002\u8BF7\u6C42\u4F53\u5927\u5C0F: ${bodySizeMB.toFixed(2)} MB`);
+              throw new Error(
+                `DeerAPI Seedream \u56FE\u50CF\u751F\u6210\u7F51\u7EDC\u9519\u8BEF: ${error.message}` + (causeText ? ` (cause: ${causeText})` : "") + `\u3002\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u3001API \u7AEF\u70B9\u914D\u7F6E\u548C\u9632\u706B\u5899\u8BBE\u7F6E\u3002\u8BF7\u6C42\u4F53\u5927\u5C0F: ${bodySizeMB.toFixed(2)} MB`
+              );
             }
             throw error;
           }
@@ -4451,7 +4133,8 @@ var init_provider3 = __esm({
     "use strict";
     init_providers2();
     init_client2();
-    init_suport_list();
+    init_provider_model_catalog();
+    init_physical_model_id();
     init_provider_balance_service();
     DeerProvider = class {
       constructor(injectApiKey, injectBaseUrl, injectGroup) {
@@ -4461,110 +4144,102 @@ var init_provider3 = __esm({
       }
       provider = "deer";
       name = "DeerAPI";
-      client = null;
-      clientPromise = null;
-      // 模型映射与支持列表，从 suport-list.ts 统一导出
-      modelMap = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return {
-          ...supportList.deer?.graph || {},
-          ...supportList.deer?.text || {},
-          ...supportList.deer?.audio || {},
-          ...supportList.deer?.video || {}
-        };
-      })();
       /**
-       * 获取模型的实际名称（从 ModelMapping 中提取）
+       * Deer 上游物理模型 ID：以 provider_models 为准；Runway 特例可仅配 model_key。
        */
       getModelName(modelName) {
-        const mapping = this.modelMap[modelName];
-        if (!mapping) {
-          return modelName;
+        if (this.runwayVideoModels.includes(modelName)) {
+          return getUpstreamModel("deer", modelName) ?? modelName;
         }
-        return getModelName(mapping);
+        return requireUpstreamPhysicalId("deer", modelName);
       }
-      // Anthropic 模型（内部维护，不放在 suport-list.ts）
-      anthropicModels = ["claude-4.5-sonnet"];
-      imageModels = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return Object.keys(supportList.deer?.graph || {});
-      })();
-      textModels = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return Object.keys(supportList.deer?.text || {});
-      })();
-      videoModels = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return Object.keys(supportList.deer?.video || {});
-      })();
-      audioModels = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return Object.keys(supportList.deer?.audio || {});
-      })();
-      // Runway 视频模型列表
-      runwayVideoModels = [
-        "runway"
-      ];
-      /** 延迟初始化 client（Key 优先从 DB 读取，支持 Admin 随时切换） */
-      async ensureClient() {
-        if (this.client) return this.client;
-        if (this.clientPromise) return this.clientPromise;
-        this.clientPromise = (async () => {
-          const key = this.injectApiKey ?? await getFirstProviderKey("deer") ?? process.env.DEERAPI_API_KEY;
-          const url = this.injectBaseUrl || process.env.DEERAPI_BASE_URL;
-          const apiGroup = this.injectGroup || process.env.DEERAPI_GROUP;
-          if (!key) {
-            throw new Error("DEERAPI_API_KEY / DEERAPI_API_KEYS \u672A\u8BBE\u7F6E\uFF0C\u6216\u5728 Admin \u4E2D\u914D\u7F6E provider=deer \u7684 Key");
+      /** Runway 视频（可走独立 API，未入库时仍允许 model_key=runway） */
+      runwayVideoModels = ["runway"];
+      /** 判断是否为 DeerAPI 速率限制类错误（可尝试切换下一条 Key） */
+      isDeerRateLimitError(e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const lower = msg.toLowerCase();
+        return lower.includes("429") || lower.includes("too many requests") || msg.includes("1302") || msg.includes("\u901F\u7387\u9650\u5236") || msg.includes("rix_api_error");
+      }
+      /**
+       * 使用 Admin/数据库配置的 deer key 列表（priority 升序）依次尝试；
+       * 命中 429/限流时自动切换下一条 Key。无 DB key 时与 getProviderKeys 一致回退环境变量。
+       * 注入单 key（测试）时不轮换。
+       */
+      async withDeerKeyRotation(fn) {
+        const url = this.injectBaseUrl || process.env.DEERAPI_BASE_URL;
+        const apiGroup = this.injectGroup || process.env.DEERAPI_GROUP;
+        if (!url) {
+          throw new Error("DEERAPI_BASE_URL \u73AF\u5883\u53D8\u91CF\u5FC5\u987B\u8BBE\u7F6E\uFF0C\u6216\u901A\u8FC7 baseUrl \u53C2\u6570\u63D0\u4F9B");
+        }
+        const keys = this.injectApiKey ? [this.injectApiKey] : await getDeerProviderKeys();
+        if (!keys.length) {
+          throw new Error(
+            "\u672A\u914D\u7F6E Deer API Key\uFF1A\u8BF7\u5148\u5728 Admin\u300CAPI Key \u7BA1\u7406\u300D\u4E2D\u4E3A provider=deer \u6DFB\u52A0 Key\uFF08\u63A8\u8350\uFF09\uFF0C\u6216\u914D\u7F6E DEERAPI_API_KEY / DEERAPI_API_KEYS \u73AF\u5883\u53D8\u91CF"
+          );
+        }
+        let lastErr;
+        for (let i = 0; i < keys.length; i++) {
+          const client = new DeerAPIClient({ baseUrl: url, apiKey: keys[i], group: apiGroup });
+          try {
+            return await fn(client);
+          } catch (e) {
+            lastErr = e;
+            if (i < keys.length - 1 && this.isDeerRateLimitError(e)) {
+              console.warn(`[DeerProvider] DeerAPI \u9650\u6D41/429\uFF0C\u5207\u6362\u4E0B\u4E00\u6761 Key\uFF08${i + 2}/${keys.length}\uFF09`);
+              continue;
+            }
+            throw e;
           }
-          if (!url) {
-            throw new Error("DEERAPI_BASE_URL \u73AF\u5883\u53D8\u91CF\u5FC5\u987B\u8BBE\u7F6E\uFF0C\u6216\u901A\u8FC7 baseUrl \u53C2\u6570\u63D0\u4F9B");
-          }
-          this.client = new DeerAPIClient({ baseUrl: url, apiKey: key, group: apiGroup });
-          return this.client;
-        })();
-        return this.clientPromise;
+        }
+        throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
       }
       supportsModel(modelName) {
-        return modelName in this.modelMap || this.runwayVideoModels.includes(modelName);
+        if (isModelEnabled("deer", modelName)) return true;
+        return this.runwayVideoModels.includes(modelName);
       }
       async generate(modelName, params) {
         if (!this.supportsModel(modelName)) {
           throw new Error(`Deer provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelName}`);
         }
-        const start = Date.now();
+        const start2 = Date.now();
         let success = true;
         let errorCode;
-        const client = await this.ensureClient();
         try {
-          const deerModel = this.getModelName(modelName);
-          const isImageModel = this.imageModels.includes(modelName);
-          const isTextModel = this.textModels.includes(modelName);
-          const isVideoModel = this.videoModels.includes(modelName);
-          const isAudioModel = this.audioModels.includes(modelName);
-          const isRunwayVideoModel = this.runwayVideoModels.includes(modelName);
-          const outputFormat = params.outputFormat || "json";
-          const scopeForPricing = isImageModel ? "graph" : isRunwayVideoModel ? "video" : isVideoModel ? "video" : isAudioModel ? "audio" : isTextModel ? "text" : "default";
-          await ProviderBalanceService.assertPricingConfigured({
-            provider: this.provider,
-            model_key: modelName,
-            scope: scopeForPricing
+          return await this.withDeerKeyRotation(async (client) => {
+            const deerModel = this.getModelName(modelName);
+            const dbModel = getByProviderAndModelKey("deer", modelName);
+            const dbModality = dbModel?.modality?.toLowerCase() ?? null;
+            const dbScope = dbModel?.scope?.toLowerCase() ?? null;
+            const isImageModel = dbModality === "image" || dbScope === "graph";
+            const isTextModel = dbModality === "text" || dbScope === "text" || dbScope === "default" || dbScope === "writing" || dbScope === "outline";
+            const isVideoModel = dbModality === "video" || dbScope === "video";
+            const isAudioModel = dbModality === "audio" || dbScope === "audio";
+            const isRunwayVideoModel = this.runwayVideoModels.includes(modelName);
+            const outputFormat = params.outputFormat || "json";
+            const scopeForPricing = isImageModel ? "graph" : isRunwayVideoModel ? "video" : isVideoModel ? "video" : isAudioModel ? "audio" : isTextModel ? "text" : "default";
+            await ProviderBalanceService.assertPricingConfigured({
+              provider: this.provider,
+              model_key: modelName,
+              scope: scopeForPricing
+            });
+            if (isImageModel) {
+              return await this.generateImage(modelName, deerModel, params, client);
+            }
+            if (isRunwayVideoModel) {
+              return await this.generateRunwayVideo(modelName, params, client);
+            }
+            if (isVideoModel) {
+              return await this.generateVideo(modelName, deerModel, params, client);
+            }
+            if (isAudioModel) {
+              return await this.generateAudio(modelName, deerModel, params, client);
+            }
+            if (!isTextModel) {
+              throw new Error(`Deer provider \u65E0\u6CD5\u8BC6\u522B\u6A21\u578B\u7C7B\u578B: ${modelName}`);
+            }
+            return await this.generateText(modelName, deerModel, params, outputFormat, client);
           });
-          if (isImageModel) {
-            return await this.generateImage(modelName, deerModel, params);
-          }
-          if (isRunwayVideoModel) {
-            return await this.generateRunwayVideo(modelName, params);
-          }
-          if (isVideoModel) {
-            return await this.generateVideo(modelName, deerModel, params);
-          }
-          if (isAudioModel) {
-            return await this.generateAudio(modelName, deerModel, params);
-          }
-          if (!isTextModel) {
-            throw new Error(`Deer provider \u65E0\u6CD5\u8BC6\u522B\u6A21\u578B\u7C7B\u578B: ${modelName}`);
-          }
-          return await this.generateText(modelName, deerModel, params, outputFormat);
         } catch (e) {
           success = false;
           errorCode = e instanceof Error ? e.message : String(e);
@@ -4573,8 +4248,9 @@ var init_provider3 = __esm({
           recordStats({
             provider: "deer",
             logicalModel: modelName,
+            model_key: modelName,
             success,
-            latencyMs: Date.now() - start,
+            latencyMs: Date.now() - start2,
             errorCode
           });
         }
@@ -4607,7 +4283,7 @@ var init_provider3 = __esm({
        * - Suno 音乐生成是异步任务：submit -> fetch 轮询
        * - 这里通过 progress 流向 TaskExecutor 汇报进度，并在完成时返回 audio URL
        */
-      async generateAudio(modelName, _deerModel, params) {
+      async generateAudio(modelName, _deerModel, params, client) {
         if (modelName !== "suno-music") {
           throw new Error(`Deer provider \u6682\u4E0D\u652F\u6301\u8BE5\u97F3\u9891\u6A21\u578B: ${modelName}`);
         }
@@ -4617,9 +4293,9 @@ var init_provider3 = __esm({
         if (params.prompt && !body.prompt && !body.gpt_description_prompt) {
           body.prompt = params.prompt;
         }
-        const submit = await this.client.submitSunoMusic(body);
+        const submit = await client.submitSunoMusic(body);
         const taskId = submit.taskId;
-        const progressStream = this.createSunoMusicProgressStream(taskId);
+        const progressStream = this.createSunoMusicProgressStream(taskId, client);
         return {
           mediaUrls: [],
           metadata: {
@@ -4631,7 +4307,7 @@ var init_provider3 = __esm({
           progress: progressStream
         };
       }
-      async *createSunoMusicProgressStream(taskId) {
+      async *createSunoMusicProgressStream(taskId, client) {
         yield { status: "starting", progress: 10, logs: ["Suno \u97F3\u4E50\u4EFB\u52A1\u5DF2\u63D0\u4EA4\uFF0C\u7B49\u5F85\u751F\u6210..."] };
         const maxAttempts = 180;
         const pollInterval = 5e3;
@@ -4643,7 +4319,7 @@ var init_provider3 = __esm({
         const isRunning = (s) => ["pending", "queued", "running", "in_progress", "processing"].includes(normalize(s));
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
           await new Promise((r) => setTimeout(r, pollInterval));
-          const fetched = await this.client.fetchSunoTask(taskId);
+          const fetched = await client.fetchSunoTask(taskId);
           const status = fetched.status;
           if (isFail(status)) {
             yield {
@@ -4728,7 +4404,7 @@ var init_provider3 = __esm({
           error: "Suno \u97F3\u4E50\u751F\u6210\u8D85\u65F6"
         };
       }
-      async generateText(modelName, deerModel, params, outputFormat) {
+      async generateText(modelName, deerModel, params, outputFormat, client) {
         const messages = [];
         const systemPrompt = params.parameters?.system_prompt || params.parameters?.system_instruction;
         if (systemPrompt) {
@@ -4737,14 +4413,15 @@ var init_provider3 = __esm({
         messages.push({ role: "user", content: params.prompt });
         const temperature = params.parameters?.temperature ?? 0.7;
         const max_tokens = params.parameters?.max_tokens ?? params.parameters?.max_output_tokens;
-        const isAnthropic = this.anthropicModels.includes(modelName);
+        const isAnthropic = modelName.toLowerCase().includes("claude") || (getByProviderAndModelKey("deer", modelName)?.protocol ?? "").toLowerCase() === "anthropic";
         if (outputFormat === "stream") {
           if (isAnthropic) {
             const stream2 = this.createAnthropicTextStream(
               deerModel,
               messages.filter((m) => m.role !== "system"),
               systemPrompt,
-              params
+              params,
+              client
             );
             return {
               mediaUrls: [],
@@ -4757,7 +4434,7 @@ var init_provider3 = __esm({
               streamString: this.createStringStreamFromChunkStream(stream2)
             };
           }
-          const stream = this.createTextStream(deerModel, messages, params);
+          const stream = this.createTextStream(deerModel, messages, params, client);
           return {
             mediaUrls: [],
             metadata: {
@@ -4770,7 +4447,7 @@ var init_provider3 = __esm({
           };
         }
         if (isAnthropic) {
-          const response = await this.client.anthropicMessages({
+          const response = await client.anthropicMessages({
             model: deerModel,
             messages: messages.filter((m) => m.role !== "system"),
             system: systemPrompt,
@@ -4800,7 +4477,7 @@ var init_provider3 = __esm({
             ...usage2 ? { usage: usage2 } : {}
           };
         }
-        const chatResponse = await this.client.chat({
+        const chatResponse = await client.chat({
           model: deerModel,
           messages,
           temperature,
@@ -4826,10 +4503,10 @@ var init_provider3 = __esm({
           ...usage ? { usage } : {}
         };
       }
-      async *createTextStream(deerModel, messages, params) {
+      async *createTextStream(deerModel, messages, params, client) {
         const enableCollection = params.enableCollection !== false;
         let collection = "";
-        const stream = this.client.chatStream({
+        const stream = client.chatStream({
           model: deerModel,
           messages,
           temperature: params.parameters?.temperature,
@@ -4850,12 +4527,12 @@ var init_provider3 = __esm({
           collection
         };
       }
-      async *createAnthropicTextStream(deerModel, messages, system, params) {
+      async *createAnthropicTextStream(deerModel, messages, system, params, client) {
         const enableCollection = params.enableCollection !== false;
         let collection = "";
         const maxTokensParam = params.parameters?.max_tokens ?? params.parameters?.max_output_tokens;
         const max_tokens = maxTokensParam || 4096;
-        const stream = this.client.anthropicMessagesStream({
+        const stream = client.anthropicMessagesStream({
           model: deerModel,
           messages,
           system,
@@ -4894,17 +4571,17 @@ var init_provider3 = __esm({
        * - Gemini: https://apidoc.deerapi.com/guide-to-calling-gemini-image
        * - Flux: https://api.deerapi.com/doc
        */
-      async generateImage(modelName, deerModel, params) {
+      async generateImage(modelName, deerModel, params, client) {
         try {
           const isGeminiModel = modelName === "nano-banana" || modelName === "nano-banana-pro" || modelName === "nano-banana-2" || modelName === "nano-banana-2-pro";
           const isFluxModel = modelName.startsWith("flux-");
           const isSeedreamModel = modelName === "seedream-4" || modelName === "seedream-5";
           if (isGeminiModel) {
-            return await this.generateImageWithGemini(modelName, deerModel, params);
+            return await this.generateImageWithGemini(modelName, deerModel, params, client);
           } else if (isFluxModel) {
-            return await this.generateImageWithReplicate(modelName, deerModel, params);
+            return await this.generateImageWithReplicate(modelName, deerModel, params, client);
           } else if (isSeedreamModel) {
-            return await this.generateImageWithSeedream(modelName, deerModel, params);
+            return await this.generateImageWithSeedream(modelName, deerModel, params, client);
           } else {
             throw new Error(`DeerAPI \u6682\u4E0D\u652F\u6301\u6A21\u578B ${modelName} \u7684\u56FE\u50CF\u751F\u6210`);
           }
@@ -4914,9 +4591,9 @@ var init_provider3 = __esm({
       }
       /**
        * 使用 Gemini generateContent 接口生成图像（nano-banana / nano-banana-pro）
-       * 上游模型名从 suport-list.deer.graph 读取（nano-banana: gemini-2.5-flash-image, nano-banana-pro: gemini-3-pro-image）
+       * 上游模型名来自 provider_models.upstream_model（或 Runway 特例）
        */
-      async generateImageWithGemini(modelName, deerModel, params) {
+      async generateImageWithGemini(modelName, deerModel, params, client) {
         const geminiModel = deerModel || "gemini-3-pro-image";
         const imageInputs = [];
         if (params.parameters?.image) {
@@ -4957,7 +4634,7 @@ var init_provider3 = __esm({
         }
         const aspectRatio = params.parameters?.aspect_ratio || params.parameters?.aspectRatio;
         const imageSize = params.parameters?.image_size || params.parameters?.imageSize;
-        const response = await this.client.generateContent({
+        const response = await client.generateContent({
           model: geminiModel,
           prompt: params.prompt,
           imageInputs: imageInputs.length > 0 ? imageInputs : void 0,
@@ -5084,10 +4761,9 @@ var init_provider3 = __esm({
        * 使用 DeerAPI Flux 专用接口生成图像（flux 系列模型）
        * 参考文档：https://apidoc.deerapi.com/image/flux/create
        */
-      async generateImageWithReplicate(modelName, deerModel, params) {
+      async generateImageWithReplicate(modelName, deerModel, params, client) {
         const fluxRequest = {
           model: deerModel,
-          // 使用 suport-list.ts 中的模型 ID（如 'flux-2-pro'）
           prompt: params.prompt
         };
         if (params.parameters?.aspect_ratio) {
@@ -5148,27 +4824,28 @@ var init_provider3 = __esm({
         if (params.parameters?.input_image_4) {
           fluxRequest.input_image_4 = params.parameters.input_image_4;
         }
-        const prediction = await this.client.createFluxPrediction(fluxRequest);
+        const prediction = await client.createFluxPrediction(fluxRequest);
         if (params.enableProgress !== false) {
-          const progressStream = this.createFluxProgressStream(prediction.id);
+          const progressStream = this.createFluxProgressStream(prediction.id, client);
           return {
             mediaUrls: [],
             metadata: {
               model: modelName,
               provider: this.provider,
-              outputFormat: "json"
+              outputFormat: "json",
+              taskId: prediction.id
             },
             progress: progressStream
           };
         }
-        let finalResult = await this.client.getFluxResult(prediction.id);
+        let finalResult = await client.getFluxResult(prediction.id);
         if (!finalResult || !finalResult.status) {
           throw new Error(`DeerAPI Flux \u67E5\u8BE2\u7ED3\u679C\u683C\u5F0F\u5F02\u5E38\uFF0C\u7F3A\u5C11 status \u5B57\u6BB5\u3002\u54CD\u5E94: ${JSON.stringify(finalResult)}`);
         }
         const statusLower = finalResult.status.toLowerCase();
         while (statusLower === "processing" || statusLower === "starting") {
           await new Promise((resolve2) => setTimeout(resolve2, 1e3));
-          finalResult = await this.client.getFluxResult(prediction.id);
+          finalResult = await client.getFluxResult(prediction.id);
           if (!finalResult || !finalResult.status) {
             throw new Error(`DeerAPI Flux \u67E5\u8BE2\u7ED3\u679C\u683C\u5F0F\u5F02\u5E38\uFF0C\u7F3A\u5C11 status \u5B57\u6BB5\u3002\u54CD\u5E94: ${JSON.stringify(finalResult)}`);
           }
@@ -5201,7 +4878,7 @@ var init_provider3 = __esm({
        * 创建 Flux 任务的进度流
        * 使用 DeerAPI 的 /flux/v1/get_result 接口查询任务状态
        */
-      async *createFluxProgressStream(taskId) {
+      async *createFluxProgressStream(taskId, client) {
         yield {
           status: "starting",
           progress: 10
@@ -5211,7 +4888,7 @@ var init_provider3 = __esm({
         while (true) {
           try {
             await new Promise((resolve2) => setTimeout(resolve2, 1e3));
-            const result = await this.client.getFluxResult(taskId);
+            const result = await client.getFluxResult(taskId);
             if (!result || result.status === void 0 || result.status === null) {
               console.error("[DeerProvider] Flux \u67E5\u8BE2\u7ED3\u679C\u7F3A\u5C11 status \u5B57\u6BB5:", JSON.stringify(result));
               yield {
@@ -5289,10 +4966,9 @@ var init_provider3 = __esm({
        * 端点：POST /v1/images/generations
        * 参考文档：https://apidoc.deerapi.com/seededit-image-generation-331149260e0
        */
-      async generateImageWithSeedream(modelName, deerModel, params) {
+      async generateImageWithSeedream(modelName, deerModel, params, client) {
         const seedreamRequest = {
           model: deerModel,
-          // 使用 suport-list.ts 中的模型 ID（如 'doubao-seedream-4-5-251128'）
           prompt: params.prompt
         };
         if (params.parameters?.size) {
@@ -5337,19 +5013,41 @@ var init_provider3 = __esm({
           seedreamRequest.image = params.parameters.image_urls;
         }
         console.log(`[DeerProvider] \u51C6\u5907\u8C03\u7528 Seedream \u63A5\u53E3\uFF0C\u6A21\u578B: ${deerModel}, \u53C2\u8003\u56FE\u6570\u91CF: ${seedreamRequest.image ? Array.isArray(seedreamRequest.image) ? seedreamRequest.image.length : 1 : 0}`);
-        const response = await this.client.createSeedreamImageGeneration(seedreamRequest);
+        const response = await client.createSeedreamImageGeneration(seedreamRequest);
         const imageUrls = [];
-        if (response.data && Array.isArray(response.data)) {
-          for (const item of response.data) {
-            if (item.url) {
-              imageUrls.push(item.url);
-            } else if (item.b64_json) {
-              imageUrls.push(`data:image/png;base64,${item.b64_json}`);
-            }
+        const pushMaybe = (item) => {
+          if (!item) return;
+          if (typeof item === "string" && (item.startsWith("http://") || item.startsWith("https://"))) {
+            imageUrls.push(item);
+            return;
           }
+          const obj = item;
+          if (typeof obj.url === "string") imageUrls.push(obj.url);
+          else if (typeof obj.image_url === "string") imageUrls.push(obj.image_url);
+          else if (typeof obj.output_url === "string") imageUrls.push(obj.output_url);
+          else if (typeof obj?.image?.url === "string") imageUrls.push(obj.image.url);
+          else if (typeof obj?.result?.url === "string") imageUrls.push(obj.result.url);
+          else if (typeof obj.b64_json === "string") imageUrls.push(`data:image/png;base64,${obj.b64_json}`);
+          else if (typeof obj.base64 === "string") imageUrls.push(`data:image/png;base64,${obj.base64}`);
+          else if (typeof obj.b64 === "string") imageUrls.push(`data:image/png;base64,${obj.b64}`);
+          else if (typeof obj.image_base64 === "string") imageUrls.push(`data:image/png;base64,${obj.image_base64}`);
+        };
+        const candidates = [
+          response?.data,
+          response?.images,
+          response?.output,
+          response?.result,
+          response?.result?.data,
+          response?.result?.images,
+          response?.choices
+        ];
+        for (const c of candidates) {
+          if (Array.isArray(c)) c.forEach(pushMaybe);
+          else pushMaybe(c);
         }
         if (imageUrls.length === 0) {
-          throw new Error(`DeerAPI Seedream \u56FE\u50CF\u751F\u6210\u6210\u529F\u4F46\u672A\u8FD4\u56DE\u56FE\u50CF\u6570\u636E\u3002\u54CD\u5E94: ${JSON.stringify(response)}`);
+          const keys = Object.keys(response || {}).join(", ");
+          throw new Error(`DeerAPI Seedream \u56FE\u50CF\u751F\u6210\u6210\u529F\u4F46\u672A\u8FD4\u56DE\u56FE\u50CF\u6570\u636E\uFF08keys: ${keys || "none"}\uFF09\u3002\u54CD\u5E94: ${JSON.stringify(response)}`);
         }
         return {
           mediaUrls: imageUrls,
@@ -5364,7 +5062,7 @@ var init_provider3 = __esm({
       /**
        * 生成视频（异步任务）
        */
-      async generateVideo(modelName, deerModel, params) {
+      async generateVideo(modelName, deerModel, params, client) {
         const prompt = params.prompt;
         if (!prompt) {
           throw new Error("prompt \u53C2\u6570\u662F\u5FC5\u9700\u7684");
@@ -5403,7 +5101,7 @@ var init_provider3 = __esm({
         console.log(`   input_reference: ${input_reference ? `\u5DF2\u63D0\u4F9B (${(input_reference.length / 1024).toFixed(2)} KB)` : "\u672A\u63D0\u4F9B"}`);
         console.log(`   character_url: ${character_url || "\u672A\u63D0\u4F9B"}`);
         console.log(`   character_timestamps: ${character_timestamps || "\u672A\u63D0\u4F9B"}`);
-        const videoTask = await this.client.createVideo({
+        const videoTask = await client.createVideo({
           prompt,
           model,
           seconds,
@@ -5412,7 +5110,7 @@ var init_provider3 = __esm({
           character_url,
           character_timestamps
         });
-        const progressStream = this.createVideoProgressStream(videoTask.id);
+        const progressStream = this.createVideoProgressStream(videoTask.id, client);
         return {
           mediaUrls: [],
           // 初始为空，完成后会更新
@@ -5429,14 +5127,14 @@ var init_provider3 = __esm({
       /**
        * 创建视频生成进度流
        */
-      async *createVideoProgressStream(videoId) {
+      async *createVideoProgressStream(videoId, client) {
         const maxAttempts = 180;
         const pollInterval = 6e4;
         let attempt = 0;
         let lastProgress = 0;
         while (attempt < maxAttempts) {
           try {
-            const status = await this.client.getVideoStatusUnified(videoId);
+            const status = await client.getVideoStatusUnified(videoId);
             const currentProgress = status.progress || 0;
             if (currentProgress > lastProgress) {
               yield {
@@ -5507,7 +5205,7 @@ var init_provider3 = __esm({
        * 生成 Runway 视频（通过 DeerAPI 调用 Runway API）
        * 支持统一接口，根据参数自动选择调用方式
        */
-      async generateRunwayVideo(modelName, params) {
+      async generateRunwayVideo(modelName, params, client) {
         const videoParams = params.parameters || {};
         let taskId;
         let mode;
@@ -5527,7 +5225,7 @@ var init_provider3 = __esm({
           console.log(`[Deer Provider] \u63A5\u6536\u5230\u7684 duration \u53C2\u6570: ${durationParam} (\u7C7B\u578B: ${typeof durationParam})`);
           const validDuration = durationParam && [5, 6, 7, 8, 9, 10].includes(durationParam) ? durationParam : void 0;
           requestedDuration = validDuration ?? durationParam;
-          const runwayTask = await this.client.createRunwayImageToVideo({
+          const runwayTask = await client.createRunwayImageToVideo({
             model: videoParams.model || "gen3a_turbo",
             // 默认使用 gen3a_turbo（根据文档）
             promptImage,
@@ -5547,7 +5245,7 @@ var init_provider3 = __esm({
           if (!videoUri) {
             throw new Error("videoUri \u53C2\u6570\u662F\u5FC5\u9700\u7684\uFF08\u89C6\u9891\u8F6C\u89C6\u9891\uFF09");
           }
-          const runwayTask = await this.client.createRunwayVideoToVideo({
+          const runwayTask = await client.createRunwayVideoToVideo({
             videoUri,
             ratio: videoParams.ratio || "1280:720",
             promptText: params.prompt,
@@ -5560,7 +5258,7 @@ var init_provider3 = __esm({
         } else {
           throw new Error("Runway \u4E0D\u652F\u6301\u7EAF\u6587\u672C\u8F6C\u89C6\u9891\u3002\u5FC5\u987B\u63D0\u4F9B promptImage\uFF08\u56FE\u7247\u8F6C\u89C6\u9891\uFF09\u6216 videoUri\uFF08\u89C6\u9891\u8F6C\u89C6\u9891\uFF09");
         }
-        const progressStream = this.createRunwayVideoProgressStream(taskId);
+        const progressStream = this.createRunwayVideoProgressStream(taskId, client);
         return {
           mediaUrls: [],
           // 初始为空，完成后会更新
@@ -5579,7 +5277,7 @@ var init_provider3 = __esm({
       /**
        * 创建 Runway 视频生成进度流
        */
-      async *createRunwayVideoProgressStream(taskId) {
+      async *createRunwayVideoProgressStream(taskId, client) {
         const maxAttempts = 720;
         const pollInterval = 5e3;
         const initialDelay = 15e3;
@@ -5590,7 +5288,7 @@ var init_provider3 = __esm({
         while (attempt < maxAttempts) {
           try {
             console.log(`[Deer Provider] \u7B2C ${attempt + 1} \u6B21\u67E5\u8BE2\u4EFB\u52A1\u72B6\u6001 (TaskId: ${taskId})`);
-            const taskStatus = await this.client.getRunwayTaskStatus(taskId);
+            const taskStatus = await client.getRunwayTaskStatus(taskId);
             let status;
             let progress = lastProgress;
             if (taskStatus.status === "SUCCEEDED") {
@@ -5733,7 +5431,8 @@ var init_provider4 = __esm({
   "src/models/openai/provider.ts"() {
     "use strict";
     init_providers_inner();
-    init_suport_list();
+    init_provider_model_catalog();
+    init_physical_model_id();
     import_undici = require("undici");
     OpenAIProvider = class {
       constructor(injectApiKey, injectBaseUrl) {
@@ -5742,13 +5441,6 @@ var init_provider4 = __esm({
       }
       provider = "openai";
       name = "OpenAI";
-      // 仅收录 suport-list.openai 下的 text 模型
-      modelMap = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return {
-          ...supportList.openai?.text || {}
-        };
-      })();
       async getApiKey() {
         const key = this.injectApiKey ?? await getFirstProviderKey("openai") ?? process.env.OPENAI_API_KEY;
         if (!key) {
@@ -5761,16 +5453,30 @@ var init_provider4 = __esm({
         return base.replace(/\/+$/, "");
       }
       /**
-       * 获取用于 OpenAI 请求的 dispatcher（Clash 代理开关）
-       * - 若存在 CLASHPROXY，则优先使用（例如 http://127.0.0.1:7890）
-       * - 否则回退到 HTTPS_PROXY / HTTP_PROXY
-       * - 都不存在时返回 undefined（直连）
+       * 获取用于 OpenAI 请求的 dispatcher
+       *
+       * 需求：
+       * - 线上部署在国外机房，不需要翻墙，应该「直连」OpenAI
+       * - 本地开发在中国大陆，需要通过 Clash 等本地代理访问 OpenAI
+       *
+       * 方案：
+       * - 默认「不使用」 ProxyAgent（即不走本地 HTTP 代理，保持直连行为，适合线上环境）
+       * - 只有在显式设置 OPENAI_USE_PROXY_AGENT=1 时，才启用 ProxyAgent，
+       *   并优先使用 CLASHPROXY，其次 HTTPS_PROXY / HTTP_PROXY
+       *
+       * 这样：
+       * - 线上环境只要不配置 OPENAI_USE_PROXY_AGENT，就永远直连，不受本机代理配置影响
+       * - 本地开发只需在环境里加一行 OPENAI_USE_PROXY_AGENT=1，就可以复用 Clash 代理
        */
       getDispatcher() {
+        if (process.env.OPENAI_USE_PROXY_AGENT !== "1") {
+          return void 0;
+        }
         const clashProxy = process.env.CLASHPROXY;
         const envProxy = clashProxy || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
         if (!envProxy) return void 0;
         try {
+          console.log("[OpenAIProvider] \u4F7F\u7528 ProxyAgent \u4EE3\u7406 OpenAI \u8BF7\u6C42:", { envProxy });
           return new import_undici.ProxyAgent(envProxy);
         } catch (e) {
           console.warn("[OpenAIProvider] \u521B\u5EFA ProxyAgent \u5931\u8D25\uFF0C\u5C06\u5C1D\u8BD5\u76F4\u8FDE:", e);
@@ -5778,20 +5484,16 @@ var init_provider4 = __esm({
         }
       }
       resolveModelName(modelKey43) {
-        const mapping = this.modelMap[modelKey43];
-        if (!mapping) {
-          throw new Error(`OpenAI provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
-        }
-        return getModelName(mapping);
+        return requireUpstreamPhysicalId("openai", modelKey43);
       }
       supportsModel(modelName) {
-        return modelName in this.modelMap;
+        return isModelEnabled("openai", modelName);
       }
       async generate(modelName, params) {
         if (!this.supportsModel(modelName)) {
           throw new Error(`OpenAI provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelName}`);
         }
-        const start = Date.now();
+        const start2 = Date.now();
         let success = true;
         let errorCode;
         try {
@@ -5865,8 +5567,24 @@ var init_provider4 = __esm({
           };
         } catch (e) {
           success = false;
-          if (!errorCode && e instanceof Error) {
-            errorCode = e.message;
+          let detailedMessage = e instanceof Error ? e.message : String(e);
+          const baseUrl = this.getBaseUrl();
+          const proxy = process.env.CLASHPROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "direct";
+          const cause = e && typeof e === "object" && "cause" in e ? e.cause : void 0;
+          const causeParts = [];
+          if (cause && typeof cause === "object") {
+            if (cause.code) causeParts.push(`code=${cause.code}`);
+            if (cause.errno && cause.errno !== cause.code) causeParts.push(`errno=${cause.errno}`);
+            if (cause.address) {
+              const port2 = cause.port ? `:${cause.port}` : "";
+              causeParts.push(`addr=${cause.address}${port2}`);
+            }
+          }
+          if (e instanceof Error && e.message.includes("fetch failed")) {
+            detailedMessage = `fetch failed: ${causeParts.join(", ") || "unknown network error"}, baseUrl=${baseUrl}, proxy=${proxy}`;
+          }
+          if (!errorCode) {
+            errorCode = detailedMessage;
           }
           console.error("[OpenAIProvider] \u8C03\u7528 OpenAI \u51FA\u9519", {
             logicalModel: modelName,
@@ -5877,26 +5595,29 @@ var init_provider4 = __esm({
                 return "unknown";
               }
             })(),
-            baseUrl: this.getBaseUrl(),
+            baseUrl,
+            proxy,
             message: e instanceof Error ? e.message : String(e),
+            detailedMessage,
             name: e instanceof Error ? e.name : void 0,
             stack: e instanceof Error ? e.stack : void 0,
             // Node fetch 通常会把底层错误挂在 cause 上（包含 ECONNREFUSED / ETIMEDOUT 等信息）
-            cause: e && typeof e === "object" && "cause" in e ? e.cause : void 0
+            cause
           });
-          throw e;
+          throw new Error(detailedMessage);
         } finally {
           recordStats({
             provider: "openai",
             logicalModel: modelName,
+            model_key: modelName,
             success,
-            latencyMs: Date.now() - start,
+            latencyMs: Date.now() - start2,
             errorCode
           });
         }
       }
       async getUsageSummary(window) {
-        const list = getProviderStats({ provider: "openai", window });
+        const list = await getProviderStats({ provider: "openai", window });
         const agg = list.find((a) => a.provider === "openai") || {
           provider: "openai",
           requestCount: 0,
@@ -5927,7 +5648,8 @@ var init_provider5 = __esm({
   "src/models/google/provider.ts"() {
     "use strict";
     init_providers2();
-    init_suport_list();
+    init_provider_model_catalog();
+    init_physical_model_id();
     GoogleProvider = class {
       constructor(injectApiKey, injectBaseUrl) {
         this.injectApiKey = injectApiKey;
@@ -5935,13 +5657,6 @@ var init_provider5 = __esm({
       }
       provider = "google";
       name = "Google Gemini";
-      // 仅收录 suport-list.google.text 下的文本模型
-      modelMap = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return {
-          ...supportList.google?.text || {}
-        };
-      })();
       async getApiKey() {
         const key = this.injectApiKey ?? await getFirstProviderKey("google") ?? process.env.GOOGLE_API_KEY;
         if (!key) {
@@ -5958,20 +5673,16 @@ var init_provider5 = __esm({
         return base.replace(/\/+$/, "");
       }
       resolveModelName(modelKey43) {
-        const mapping = this.modelMap[modelKey43];
-        if (!mapping) {
-          throw new Error(`Google provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
-        }
-        return getModelName(mapping);
+        return requireUpstreamPhysicalId("google", modelKey43);
       }
       supportsModel(modelName) {
-        return modelName in this.modelMap;
+        return isModelEnabled("google", modelName);
       }
       async generate(modelName, params) {
         if (!this.supportsModel(modelName)) {
           throw new Error(`Google provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelName}`);
         }
-        const start = Date.now();
+        const start2 = Date.now();
         let success = true;
         let errorCode;
         try {
@@ -6036,8 +5747,9 @@ var init_provider5 = __esm({
           recordStats({
             provider: "google",
             logicalModel: modelName,
+            model_key: modelName,
             success,
-            latencyMs: Date.now() - start,
+            latencyMs: Date.now() - start2,
             errorCode
           });
         }
@@ -6074,7 +5786,8 @@ var init_provider6 = __esm({
   "src/models/anthropic/provider.ts"() {
     "use strict";
     init_providers_inner();
-    init_suport_list();
+    init_provider_model_catalog();
+    init_physical_model_id();
     AnthropicProvider = class {
       constructor(injectApiKey, injectBaseUrl) {
         this.injectApiKey = injectApiKey;
@@ -6082,12 +5795,6 @@ var init_provider6 = __esm({
       }
       provider = "anthropic";
       name = "Anthropic Claude";
-      modelMap = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return {
-          ...supportList.anthropic?.text || {}
-        };
-      })();
       async getApiKey() {
         const key = this.injectApiKey ?? await getFirstProviderKey("anthropic") ?? process.env.ANTHROPIC_API_KEY;
         if (!key) {
@@ -6100,20 +5807,16 @@ var init_provider6 = __esm({
         return base.replace(/\/+$/, "");
       }
       resolveModelName(modelKey43) {
-        const mapping = this.modelMap[modelKey43];
-        if (!mapping) {
-          throw new Error(`Anthropic provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
-        }
-        return getModelName(mapping);
+        return requireUpstreamPhysicalId("anthropic", modelKey43);
       }
       supportsModel(modelName) {
-        return modelName in this.modelMap;
+        return isModelEnabled("anthropic", modelName);
       }
       async generate(modelName, params) {
         if (!this.supportsModel(modelName)) {
           throw new Error(`Anthropic provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelName}`);
         }
-        const start = Date.now();
+        const start2 = Date.now();
         let success = true;
         let errorCode;
         try {
@@ -6184,8 +5887,9 @@ var init_provider6 = __esm({
           recordStats({
             provider: "anthropic",
             logicalModel: modelName,
+            model_key: modelName,
             success,
-            latencyMs: Date.now() - start,
+            latencyMs: Date.now() - start2,
             errorCode
           });
         }
@@ -6222,7 +5926,8 @@ var init_provider7 = __esm({
   "src/models/qwen/provider.ts"() {
     "use strict";
     init_providers_inner();
-    init_suport_list();
+    init_provider_model_catalog();
+    init_physical_model_id();
     QwenProvider = class {
       constructor(injectApiKey, injectBaseUrl) {
         this.injectApiKey = injectApiKey;
@@ -6230,12 +5935,6 @@ var init_provider7 = __esm({
       }
       provider = "qwen";
       name = "Qwen";
-      modelMap = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return {
-          ...supportList.qwen?.text || {}
-        };
-      })();
       async getApiKey() {
         const key = this.injectApiKey ?? await getFirstProviderKey("qwen") ?? process.env.QWEN_API_KEY;
         if (!key) {
@@ -6252,20 +5951,16 @@ var init_provider7 = __esm({
         return base.replace(/\/+$/, "");
       }
       resolveModelName(modelKey43) {
-        const mapping = this.modelMap[modelKey43];
-        if (!mapping) {
-          throw new Error(`Qwen provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
-        }
-        return getModelName(mapping);
+        return requireUpstreamPhysicalId("qwen", modelKey43);
       }
       supportsModel(modelName) {
-        return modelName in this.modelMap;
+        return isModelEnabled("qwen", modelName);
       }
       async generate(modelName, params) {
         if (!this.supportsModel(modelName)) {
           throw new Error(`Qwen provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelName}`);
         }
-        const start = Date.now();
+        const start2 = Date.now();
         let success = true;
         let errorCode;
         try {
@@ -6325,8 +6020,9 @@ var init_provider7 = __esm({
           recordStats({
             provider: "qwen",
             logicalModel: modelName,
+            model_key: modelName,
             success,
-            latencyMs: Date.now() - start,
+            latencyMs: Date.now() - start2,
             errorCode
           });
         }
@@ -6378,8 +6074,8 @@ function getEnvKeysFallback(provider13, _service) {
 }
 async function getProviderKeys(provider13, service) {
   try {
-    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory22.createProviderApiKeyRepository();
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderApiKeyRepository();
     const serviceNorm = service ? String(service).toLowerCase() : null;
     const dbKeys = await repo.listKeysForProvider(provider13, serviceNorm ?? void 0);
     if (dbKeys && dbKeys.length > 0) {
@@ -6388,6 +6084,9 @@ async function getProviderKeys(provider13, service) {
   } catch (_e) {
   }
   return getEnvKeysFallback(provider13, service);
+}
+async function getDeerProviderKeys(service) {
+  return getProviderKeys("deer", service);
 }
 async function getFirstProviderKey(provider13, service) {
   const keys = await getProviderKeys(provider13, service);
@@ -6429,7 +6128,10 @@ function recordStats(entry) {
         logical_model: entry.logicalModel,
         success: entry.success,
         latency_ms: entry.latencyMs,
-        error_code: entry.errorCode ?? null
+        error_code: entry.errorCode ?? null,
+        model_key: entry.model_key ?? null,
+        scope: entry.scope ?? null,
+        task_id: entry.task_id ?? null
       };
       const { error } = await supabase.from("provider_call_stats").insert(payload);
       if (error) {
@@ -6456,18 +6158,36 @@ function parseWindow(window) {
   if (unit === "d") return n * 24 * 60 * 60 * 1e3;
   return 60 * 60 * 1e3;
 }
-function aggregate(records, windowLabel, providerFilter) {
+function getGroupKey(r, groupBy) {
+  if (groupBy === "provider") return r.provider;
+  if (groupBy === "provider_model") {
+    const mk = r.model_key ?? r.logicalModel;
+    return `${r.provider}::${mk}`;
+  }
+  return r.logicalModel;
+}
+function getGroupMeta(r, groupBy) {
+  const provider13 = r.provider;
+  if (groupBy === "provider") return { provider: provider13 };
+  if (groupBy === "provider_model") {
+    return { provider: provider13, modelKey: r.model_key ?? r.logicalModel };
+  }
+  return { provider: provider13, logicalModel: r.logicalModel };
+}
+function aggregate(records, windowLabel, providerFilter, groupBy = "provider") {
   const filtered = records.filter(
     (r) => providerFilter == null || r.provider === providerFilter
   );
   const byKey = /* @__PURE__ */ new Map();
   for (const r of filtered) {
-    const key = r.provider;
+    const key = getGroupKey(r, groupBy);
     if (!byKey.has(key)) byKey.set(key, []);
     byKey.get(key).push(r);
   }
   const result = [];
-  for (const [provider13, list] of byKey.entries()) {
+  for (const [, list] of byKey.entries()) {
+    const first = list[0];
+    const meta = getGroupMeta(first, groupBy);
     const successCount = list.filter((r) => r.success).length;
     const latencies = list.map((r) => r.latencyMs).sort((a, b) => a - b);
     const p50 = latencies.length ? latencies[Math.floor(latencies.length * 0.5)] : void 0;
@@ -6479,7 +6199,7 @@ function aggregate(records, windowLabel, providerFilter) {
       }
     }
     result.push({
-      provider: provider13,
+      ...meta,
       requestCount: list.length,
       successCount,
       errorRate: list.length ? 1 - successCount / list.length : 0,
@@ -6494,11 +6214,12 @@ function aggregate(records, windowLabel, providerFilter) {
 }
 async function getProviderStats(options = {}) {
   const windowLabel = options.window || "1h";
+  const groupBy = options.groupBy || "provider";
   const windowMs = parseWindow(windowLabel);
   const since = new Date(Date.now() - windowMs).toISOString();
   try {
     const supabase = (0, import_mxmdata2.getSupabaseClient)();
-    let query = supabase.from("provider_call_stats").select("provider, logical_model, success, latency_ms, error_code, created_at").gte("created_at", since);
+    let query = supabase.from("provider_call_stats").select("provider, logical_model, success, latency_ms, error_code, model_key, scope, task_id, created_at").gte("created_at", since);
     if (options.provider) {
       query = query.eq("provider", options.provider);
     }
@@ -6511,7 +6232,7 @@ async function getProviderStats(options = {}) {
       });
       const sinceTs = Date.now() - windowMs;
       const recent = RECORDS.filter((r) => r.ts >= sinceTs);
-      return aggregate(recent, windowLabel, options.provider);
+      return aggregate(recent, windowLabel, options.provider, groupBy);
     }
     const rows = data || [];
     if (!rows.length) {
@@ -6523,15 +6244,18 @@ async function getProviderStats(options = {}) {
       success: r.success,
       latencyMs: Number(r.latency_ms) || 0,
       errorCode: r.error_code ?? void 0,
+      model_key: r.model_key ?? void 0,
+      scope: r.scope ?? void 0,
+      task_id: r.task_id ?? void 0,
       ts: r.created_at ? new Date(r.created_at).getTime() : Date.now()
     }));
-    return aggregate(records, windowLabel, options.provider);
+    return aggregate(records, windowLabel, options.provider, groupBy);
   } catch (e) {
     console.warn("[ProviderStats] \u67E5\u8BE2 Provider \u8C03\u7528\u7EDF\u8BA1\u5F02\u5E38\uFF0C\u56DE\u9000\u5230\u5185\u5B58\u7F13\u5B58:", e instanceof Error ? e.message : String(e));
     const windowMsFallback = parseWindow(windowLabel);
     const sinceTs = Date.now() - windowMsFallback;
     const recent = RECORDS.filter((r) => r.ts >= sinceTs);
-    return aggregate(recent, windowLabel, options.provider);
+    return aggregate(recent, windowLabel, options.provider, groupBy);
   }
 }
 var import_mxmdata2, MAX_RECORDS, RECORDS;
@@ -6550,7 +6274,8 @@ var init_provider8 = __esm({
   "src/models/volc/provider.ts"() {
     "use strict";
     init_provider_keys();
-    init_suport_list();
+    init_provider_model_catalog();
+    init_physical_model_id();
     init_provider_stats();
     VolcProvider = class {
       constructor(injectApiKey, injectBaseUrl) {
@@ -6559,12 +6284,6 @@ var init_provider8 = __esm({
       }
       provider = "volc";
       name = "Volcengine";
-      modelMap = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return {
-          ...supportList.volc?.graph || {}
-        };
-      })();
       async getApiKey() {
         const key = this.injectApiKey ?? await getFirstProviderKey("volc") ?? process.env.VOLC_API_KEY;
         if (!key) {
@@ -6581,20 +6300,16 @@ var init_provider8 = __esm({
         return base.replace(/\/+$/, "");
       }
       resolveModelName(modelKey43) {
-        const mapping = this.modelMap[modelKey43];
-        if (!mapping) {
-          throw new Error(`Volc provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
-        }
-        return getModelName(mapping);
+        return requireUpstreamPhysicalId("volc", modelKey43);
       }
       supportsModel(modelName) {
-        return modelName in this.modelMap;
+        return isModelEnabled("volc", modelName);
       }
       async generate(modelName, params) {
         if (!this.supportsModel(modelName)) {
           throw new Error(`Volc provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelName}`);
         }
-        const start = Date.now();
+        const start2 = Date.now();
         let success = true;
         let errorCode;
         try {
@@ -6655,8 +6370,9 @@ var init_provider8 = __esm({
           recordStats({
             provider: "volc",
             logicalModel: modelName,
+            model_key: modelName,
             success,
-            latencyMs: Date.now() - start,
+            latencyMs: Date.now() - start2,
             errorCode
           });
         }
@@ -6693,7 +6409,8 @@ var init_provider9 = __esm({
   "src/models/minimax/provider.ts"() {
     "use strict";
     init_providers_inner();
-    init_suport_list();
+    init_provider_model_catalog();
+    init_physical_model_id();
     MinimaxProvider = class {
       constructor(injectApiKey, injectGroupId, injectBaseUrl) {
         this.injectApiKey = injectApiKey;
@@ -6702,12 +6419,6 @@ var init_provider9 = __esm({
       }
       provider = "minimax";
       name = "Minimax";
-      modelMap = (() => {
-        const supportList = (init_suport_list(), __toCommonJS(suport_list_exports)).default;
-        return {
-          ...supportList.minimax?.audio || {}
-        };
-      })();
       async getApiKey() {
         const key = this.injectApiKey ?? await getFirstProviderKey("minimax") ?? process.env.MINIMAX_API_KEY;
         if (!key) {
@@ -6723,14 +6434,10 @@ var init_provider9 = __esm({
         return base.replace(/\/+$/, "");
       }
       resolveModelName(modelKey43) {
-        const mapping = this.modelMap[modelKey43];
-        if (!mapping) {
-          throw new Error(`Minimax provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelKey43}`);
-        }
-        return getModelName(mapping);
+        return requireUpstreamPhysicalId("minimax", modelKey43);
       }
       supportsModel(modelName) {
-        return modelName in this.modelMap;
+        return isModelEnabled("minimax", modelName);
       }
       /**
        * 目前仅实现 minimax-speech-2.8-hd 的文本转语音。
@@ -6740,7 +6447,7 @@ var init_provider9 = __esm({
         if (!this.supportsModel(modelName)) {
           throw new Error(`Minimax provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelName}`);
         }
-        const start = Date.now();
+        const start2 = Date.now();
         let success = true;
         let errorCode;
         try {
@@ -6805,8 +6512,9 @@ var init_provider9 = __esm({
           recordStats({
             provider: "minimax",
             logicalModel: modelName,
+            model_key: modelName,
             success,
-            latencyMs: Date.now() - start,
+            latencyMs: Date.now() - start2,
             errorCode
           });
         }
@@ -6949,6 +6657,12 @@ function registerModel(def) {
   existingGlobal.push(def);
   scopeKeyMap.set(modelKey43, existingGlobal);
 }
+function getModel(provider13, scope, modelKey43) {
+  const scopeMap = byProvider.get(provider13);
+  const modelMap = scopeMap?.get(scope);
+  const defs = modelMap?.get(modelKey43);
+  return defs && defs.length > 0 ? defs[0] : null;
+}
 function getModelsByKey(scope, modelKey43) {
   const scopeMap = byScopeAndKey.get(scope);
   return scopeMap?.get(modelKey43) ?? [];
@@ -7000,6 +6714,31 @@ var init_types = __esm({
 });
 
 // src/core/providers/index.ts
+var providers_exports = {};
+__export(providers_exports, {
+  AnthropicProvider: () => AnthropicProvider,
+  DeerProvider: () => DeerProvider,
+  GoogleProvider: () => GoogleProvider,
+  MinimaxProvider: () => MinimaxProvider,
+  OpenAIProvider: () => OpenAIProvider,
+  PPIOProvider: () => PPIOProvider,
+  ProviderFactory: () => ProviderFactory,
+  QwenProvider: () => QwenProvider,
+  ReplicateProvider: () => ReplicateProvider,
+  VolcProvider: () => VolcProvider,
+  clearAllOverrides: () => clearAllOverrides,
+  clearRoutingOverride: () => clearRoutingOverride,
+  defaultRouting: () => defaultRouting,
+  getDeerProviderKeys: () => getDeerProviderKeys,
+  getFirstProviderKey: () => getFirstProviderKey,
+  getFullRoutingTable: () => getFullRoutingTable,
+  getProviderKeys: () => getProviderKeys,
+  getProviderStats: () => getProviderStats,
+  getResolvedRouting: () => getResolvedRouting,
+  providerFactory: () => providerFactory,
+  recordStats: () => recordStats,
+  setRoutingOverride: () => setRoutingOverride
+});
 function buildModelProviderMap(providerTypes) {
   const map = {};
   const allModels = listModels();
@@ -7058,6 +6797,7 @@ var init_providers = __esm({
     init_provider9();
     init_model_routing();
     init_registry();
+    init_provider_model_catalog();
     init_types();
     init_model_routing();
     init_provider_stats();
@@ -7327,6 +7067,30 @@ var init_providers = __esm({
       getSupportedProviders(modelName) {
         return this.modelProviderMap[modelName] || [];
       }
+      /**
+       * 将 DB 中的 provider_models 合并到 modelProviderMap
+       */
+      mergeDbModels(entries) {
+        for (const { provider: provider13, model_key } of entries) {
+          if (!this.modelProviderMap[model_key]) {
+            this.modelProviderMap[model_key] = [];
+          }
+          if (!this.modelProviderMap[model_key].includes(provider13)) {
+            this.modelProviderMap[model_key].push(provider13);
+          }
+        }
+        console.log(
+          `[ProviderFactory] \u5DF2\u5408\u5E76 ${entries.length} \u4E2A DB \u6A21\u578B\u5230 modelProviderMap`
+        );
+      }
+      /**
+       * 从 provider_models 表加载启用模型并合并到 modelProviderMap
+       */
+      async loadProviderCatalog() {
+        await loadProviderModelCatalog();
+        const entries = getEnabledForMerge();
+        this.mergeDbModels(entries);
+      }
     };
     _providerFactoryInstance = null;
     providerFactory = new Proxy({}, {
@@ -7350,11 +7114,12 @@ var init_providers_inner = __esm({
 });
 
 // src/models/providers.ts
-var providers_exports = {};
-__export(providers_exports, {
+var providers_exports2 = {};
+__export(providers_exports2, {
   clearAllOverrides: () => clearAllOverrides,
   clearRoutingOverride: () => clearRoutingOverride,
   defaultRouting: () => defaultRouting,
+  getDeerProviderKeys: () => getDeerProviderKeys,
   getFirstProviderKey: () => getFirstProviderKey,
   getFullRoutingTable: () => getFullRoutingTable,
   getProviderKeys: () => getProviderKeys,
@@ -9131,7 +8896,7 @@ var init_database_storage = __esm({
         let modelProvider = request.provider;
         if (!modelProvider) {
           try {
-            const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports));
+            const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports2));
             modelProvider = providerFactory2.getDefaultProvider();
             console.log(`[DatabaseTaskStorage] Provider \u672A\u6307\u5B9A\uFF0C\u4F7F\u7528\u9ED8\u8BA4 provider: ${modelProvider}`);
           } catch (error) {
@@ -9583,11 +9348,15 @@ function getNotificationConfig(taskType, status) {
 function getTaskTypeName(taskType) {
   const typeNames = {
     writing: "\u5199\u4F5C",
+    outline: "\u5927\u7EB2",
     image: "\u56FE\u7247",
     video: "\u89C6\u9891",
     audio: "\u97F3\u9891",
     text: "\u6587\u672C",
-    other: "\u4EFB\u52A1"
+    other: "\u4EFB\u52A1",
+    graph: "\u56FE\u7247",
+    "graph-grid9-parent": "\u56FE\u7247",
+    "video-batch-parent": "\u89C6\u9891"
   };
   return typeNames[taskType] || "\u4EFB\u52A1";
 }
@@ -9595,6 +9364,8 @@ function getActionUrl(taskType) {
   switch (taskType) {
     case "writing":
       return "/writing";
+    case "outline":
+      return "/outline";
     case "image":
       return "/media/graph";
     case "video":
@@ -9763,7 +9534,7 @@ var init_task_manager = __esm({
         let provider13 = request.provider;
         if (!provider13 && request.model) {
           try {
-            const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports));
+            const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports2));
             const modelProvider = providerFactory2.getProviderForModel(request.model);
             if (modelProvider && typeof modelProvider.provider !== "undefined") {
               provider13 = modelProvider.provider;
@@ -9776,7 +9547,7 @@ var init_task_manager = __esm({
           } catch (error) {
             console.warn(`[TaskManager] \u65E0\u6CD5\u4E3A\u6A21\u578B "${request.model}" \u786E\u5B9A provider\uFF0C\u4F7F\u7528\u9ED8\u8BA4 provider:`, error instanceof Error ? error.message : String(error));
             try {
-              const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports));
+              const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports2));
               provider13 = providerFactory2.getDefaultProvider();
               console.log(`[TaskManager] \u4F7F\u7528\u9ED8\u8BA4 provider: ${provider13}`);
             } catch (defaultError) {
@@ -9786,7 +9557,7 @@ var init_task_manager = __esm({
         }
         if (!provider13) {
           try {
-            const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports));
+            const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports2));
             provider13 = providerFactory2.getDefaultProvider();
             console.log(`[TaskManager] Provider \u672A\u6307\u5B9A\uFF0C\u4F7F\u7528\u9ED8\u8BA4 provider: ${provider13}`);
           } catch (error) {
@@ -10283,12 +10054,14 @@ var init_usage_service = __esm({
       }
       static inferScope(modelKey43, metadata) {
         if (modelKey43.startsWith("writing-")) return "writing";
+        if (modelKey43.startsWith("outline-")) return "outline";
         if (modelKey43.startsWith("graph-") || modelKey43.startsWith("image-")) return "graph";
         if (modelKey43.startsWith("audio-")) return "audio";
         if (modelKey43.startsWith("video-")) return "video";
         const taskType = metadata.taskType || metadata.task_type;
         if (typeof taskType === "string") {
           if (taskType === "writing") return "writing";
+          if (taskType === "outline") return "outline";
           if (taskType === "graph") return "graph";
           if (taskType === "audio") return "audio";
           if (taskType === "video") return "video";
@@ -11120,7 +10893,7 @@ function selectModel(taskType) {
   return candidates[0];
 }
 function selectModelWithRouting(businessKey, taskType, preferredProvider) {
-  const routingKey = taskType === "outline" ? "writing-outlines" : businessKey;
+  const routingKey = taskType === "outline" ? businessKey.startsWith("outline-") ? businessKey : "writing-outlines" : businessKey;
   const resolved = getResolvedRouting(routingKey, preferredProvider);
   if (resolved.fromRouting) {
     console.log(`[ModelSelector] \u4E1A\u52A1 key "${businessKey}" \u4F7F\u7528\u8DEF\u7531: provider=${resolved.provider}, model=${resolved.model}`);
@@ -11571,20 +11344,20 @@ var init_file_parser = __esm({
        */
       splitLongText(text, maxSize) {
         const chunks = [];
-        let start = 0;
-        while (start < text.length) {
-          let end = start + maxSize;
+        let start2 = 0;
+        while (start2 < text.length) {
+          let end = start2 + maxSize;
           if (end < text.length) {
             const lastPeriod = text.lastIndexOf(".", end);
             const lastNewline = text.lastIndexOf("\n", end);
-            if (lastPeriod > start && lastPeriod > lastNewline) {
+            if (lastPeriod > start2 && lastPeriod > lastNewline) {
               end = lastPeriod + 1;
-            } else if (lastNewline > start) {
+            } else if (lastNewline > start2) {
               end = lastNewline + 1;
             }
           }
-          chunks.push(text.slice(start, end));
-          start = end;
+          chunks.push(text.slice(start2, end));
+          start2 = end;
         }
         return chunks;
       }
@@ -12165,9 +11938,9 @@ function getEqualShotTimeline(chunkSeconds, shotCount) {
   const step = chunkSeconds / shotCount;
   const segs = [];
   for (let i = 0; i < shotCount; i++) {
-    const start = i * step;
+    const start2 = i * step;
     const end = (i + 1) * step;
-    segs.push(`${secondsToMMSS(start)}-${secondsToMMSS(end)}`);
+    segs.push(`${secondsToMMSS(start2)}-${secondsToMMSS(end)}`);
   }
   return segs;
 }
@@ -12219,9 +11992,9 @@ function chunkToPromptString(chunk) {
     let accSec = 0;
     const parts2 = chunk.shots.map((s) => {
       const seg = Array.isArray(s.shot_timeline) && s.shot_timeline[0] ? s.shot_timeline[0] : (() => {
-        const start = accSec;
+        const start2 = accSec;
         accSec += s.chunk_seconds ?? 4;
-        return `${secondsToMMSS(start)}-${secondsToMMSS(accSec)}`;
+        return `${secondsToMMSS(start2)}-${secondsToMMSS(accSec)}`;
       })();
       if (Array.isArray(s.shot_timeline) && s.shot_timeline[0]) accSec += s.chunk_seconds ?? 4;
       const prompt = s.prompt?.trim() || shotToPromptString(s);
@@ -12525,65 +12298,6 @@ var init_subtype_rules = __esm({
 });
 
 // src/core/writing/outline-structure-types.ts
-function isStructureTypeAvailable(applyto, outlineType, structureType) {
-  if (structureType === "three-act") {
-    return true;
-  }
-  if (!outlineType) {
-    return structureType === "three-act";
-  }
-  if (structureType === "aida") {
-    return applyto === "voice-scripts" && outlineType === "sales-voice";
-  }
-  if (structureType === "pas") {
-    return applyto === "voice-scripts" && outlineType === "sales-voice";
-  }
-  if (structureType === "bab") {
-    return applyto === "voice-scripts" && (outlineType === "sales-voice" || outlineType === "emotional-story-voice");
-  }
-  if (structureType === "hero-journey") {
-    if (applyto === "articles" && outlineType === "story-novel") {
-      return true;
-    }
-    if (applyto === "voice-scripts" && outlineType === "emotional-story-voice") {
-      return true;
-    }
-    const heroJourneyStoryboard = [
-      "movie-storyboard",
-      "animation-storyboard",
-      "game-cg-storyboard"
-    ];
-    if (applyto === "storyboard-scripts" && outlineType && heroJourneyStoryboard.includes(outlineType)) {
-      return true;
-    }
-    return false;
-  }
-  if (structureType === "imrad") {
-    return applyto === "articles" && outlineType === "academic-paper";
-  }
-  if (structureType === "hook-value-cta") {
-    if (applyto === "voice-scripts" && outlineType === "knowledge-sharing-voice") {
-      return true;
-    }
-    const hookValueCtaStoryboard = [
-      "short-video-storyboard",
-      "commercial-storyboard"
-    ];
-    if (applyto === "storyboard-scripts" && outlineType && hookValueCtaStoryboard.includes(outlineType)) {
-      return true;
-    }
-    return false;
-  }
-  if (structureType === "act-scene-storyboard") {
-    const actSceneStoryboard = [
-      "movie-storyboard",
-      "animation-storyboard",
-      "game-cg-storyboard"
-    ];
-    return applyto === "storyboard-scripts" && !!outlineType && actSceneStoryboard.includes(outlineType);
-  }
-  return false;
-}
 function getStructurePromptTemplate(structureType, language = "zh") {
   const config = STRUCTURE_TYPE_CONFIGS[structureType];
   if (!config) {
@@ -16194,17 +15908,388 @@ var init_sensitive_resolver = __esm({
   }
 });
 
+// src/tasks/errors.ts
+var ConfigurationError, ValidationError;
+var init_errors = __esm({
+  "src/tasks/errors.ts"() {
+    "use strict";
+    ConfigurationError = class extends Error {
+      code = "TASK_CONFIG_ERROR";
+      constructor(message) {
+        super(message);
+        this.name = "ConfigurationError";
+      }
+    };
+    ValidationError = class extends Error {
+      code = "TASK_VALIDATION_ERROR";
+      details;
+      constructor(message, details) {
+        super(message);
+        this.name = "ValidationError";
+        this.details = details;
+      }
+    };
+  }
+});
+
+// src/tasks/task-definition.ts
+function langFallback2(i18n, lang) {
+  if (!i18n || typeof i18n !== "object") return "";
+  return i18n[lang] ?? i18n["zh"] ?? i18n["en"] ?? "";
+}
+async function loadTaskDefinition(params) {
+  const { scope, taskKey, subtype, lang = "zh" } = params;
+  const repo = import_mxmdata13.RepositoryFactory.createPromptEngineeringConfigRepository();
+  const row = await repo.findByKey(scope, taskKey, subtype ?? null);
+  if (!row) {
+    throw new ConfigurationError(`\u672A\u627E\u5230 Task \u914D\u7F6E\uFF1Ascope=${scope} taskKey=${taskKey} subtype=${subtype ?? "null"}`);
+  }
+  if (row.is_active === false) {
+    throw new ConfigurationError(`Task \u914D\u7F6E\u5DF2\u7981\u7528\uFF1Ascope=${scope} taskKey=${taskKey} subtype=${subtype ?? "null"}`);
+  }
+  const extra = row.extra ?? {};
+  const tpl = extra.taskTemplate;
+  if (!tpl || typeof tpl !== "object") {
+    throw new ConfigurationError(`Task \u914D\u7F6E\u7F3A\u5C11 extra.taskTemplate\uFF1Ascope=${scope} taskKey=${taskKey}`);
+  }
+  const template = tpl;
+  if (!template.formSchema || typeof template.formSchema !== "object") {
+    throw new ConfigurationError(`TaskTemplate.formSchema \u7F3A\u5931\u6216\u65E0\u6548\uFF1Ascope=${scope} taskKey=${taskKey}`);
+  }
+  if (!template.prompt || typeof template.prompt !== "object") {
+    throw new ConfigurationError(`TaskTemplate.prompt \u7F3A\u5931\u6216\u65E0\u6548\uFF1Ascope=${scope} taskKey=${taskKey}`);
+  }
+  const rules = langFallback2(row.rules_i18n, lang);
+  const outFmt = langFallback2(row.output_format_i18n, lang);
+  template.prompt.systemTemplate = (template.prompt.systemTemplate || rules || "").trim();
+  template.prompt.outputFormatTemplate = (template.prompt.outputFormatTemplate || outFmt || "").trim();
+  if (!template.prompt.systemTemplate) {
+    throw new ConfigurationError(`systemTemplate \u4E3A\u7A7A\uFF1Ascope=${scope} taskKey=${taskKey}`);
+  }
+  if (!template.prompt.outputFormatTemplate) {
+    throw new ConfigurationError(`outputFormatTemplate \u4E3A\u7A7A\uFF1Ascope=${scope} taskKey=${taskKey}`);
+  }
+  if (template.storage) {
+    if (template.storage.scope !== scope) {
+      throw new ConfigurationError(`storage.scope \u5FC5\u987B\u4E0E task scope \u4E00\u81F4\uFF1Ascope=${scope} taskKey=${taskKey}`);
+    }
+  }
+  return { row, template };
+}
+var import_mxmdata13;
+var init_task_definition = __esm({
+  "src/tasks/task-definition.ts"() {
+    "use strict";
+    import_mxmdata13 = require("@mxmai/mxmdata");
+    init_errors();
+  }
+});
+
+// src/tasks/schema-validator.ts
+function validateWithJsonSchema(schema, data) {
+  if (!schema || typeof schema !== "object") {
+    throw new ValidationError("formSchema \u65E0\u6548\uFF1A\u5FC5\u987B\u662F JSON Schema \u5BF9\u8C61");
+  }
+  let validate = compiled.get(schema);
+  if (!validate) {
+    validate = ajv.compile(schema);
+    compiled.set(schema, validate);
+  }
+  const ok = validate(data);
+  if (!ok) {
+    throw new ValidationError("\u53C2\u6570\u6821\u9A8C\u5931\u8D25\uFF08JSON Schema\uFF09", validate.errors ?? null);
+  }
+}
+var import_ajv, import_ajv_formats, ajv, compiled;
+var init_schema_validator = __esm({
+  "src/tasks/schema-validator.ts"() {
+    "use strict";
+    import_ajv = __toESM(require("ajv"));
+    import_ajv_formats = __toESM(require("ajv-formats"));
+    init_errors();
+    ajv = new import_ajv.default({
+      allErrors: true,
+      strict: false,
+      allowUnionTypes: true
+    });
+    (0, import_ajv_formats.default)(ajv);
+    compiled = /* @__PURE__ */ new WeakMap();
+  }
+});
+
+// src/tasks/prompt-template.ts
+function collectTemplateVars(s) {
+  const out = [];
+  let m;
+  while ((m = VAR_RE.exec(s)) !== null) {
+    out.push(m[1]);
+  }
+  return Array.from(new Set(out));
+}
+function interpolateTemplate(template, vars) {
+  return template.replace(VAR_RE, (_all, key) => {
+    const v = vars[key];
+    if (v == null) return "";
+    if (typeof v === "string") return v;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(v);
+    }
+  });
+}
+function assertTemplateVarsAllowed(paramsSchema, varsUsed, allowList = []) {
+  const props = paramsSchema?.properties;
+  const allowed = /* @__PURE__ */ new Set([...Object.keys(props || {}), ...allowList]);
+  const unknown = varsUsed.filter((v) => !allowed.has(v));
+  if (unknown.length > 0) {
+    throw new ConfigurationError(
+      `Prompt \u6A21\u677F\u5F15\u7528\u4E86\u672A\u5728 formSchema.properties \u4E2D\u58F0\u660E\u7684\u53D8\u91CF: ${unknown.join(", ")}`
+    );
+  }
+}
+function renderPromptFromTemplate(args) {
+  const { prompt, paramsSchema, params, contextVars } = args;
+  const vars = { ...contextVars || {}, ...params || {} };
+  const systemVars = collectTemplateVars(prompt.systemTemplate || "");
+  const userVars = collectTemplateVars(prompt.userTemplate || "");
+  const outVars = collectTemplateVars(prompt.outputFormatTemplate || "");
+  const varsUsed = Array.from(/* @__PURE__ */ new Set([...systemVars, ...userVars, ...outVars]));
+  assertTemplateVarsAllowed(paramsSchema, varsUsed, ["userId", "taskId", "date", "timestamp", "uuid"]);
+  const system = interpolateTemplate(prompt.systemTemplate || "", vars).trim();
+  const user = (prompt.userTemplate ? interpolateTemplate(prompt.userTemplate, vars) : String(params.prompt ?? "")).trim();
+  const output = interpolateTemplate(prompt.outputFormatTemplate || "", vars).trim();
+  const parts = [
+    system,
+    user ? `\u3010\u7528\u6237\u9700\u6C42\u3011
+${user}` : "",
+    output ? `\u3010\u8F93\u51FA\u8981\u6C42\u3011
+${output}` : ""
+  ].filter(Boolean);
+  return { finalPrompt: parts.join("\n\n").trim(), varsUsed };
+}
+var VAR_RE;
+var init_prompt_template = __esm({
+  "src/tasks/prompt-template.ts"() {
+    "use strict";
+    init_errors();
+    VAR_RE = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
+  }
+});
+
+// src/tasks/pipeline.ts
+function registerInputStep(name, runner) {
+  inputSteps.set(name, runner);
+}
+function registerOutputStep(name, runner) {
+  outputSteps.set(name, runner);
+}
+async function runInputPipeline(ctx, steps) {
+  let cur = ctx;
+  for (const s of steps ?? []) {
+    const r = inputSteps.get(s.step);
+    if (!r) throw new Error(`\u672A\u77E5 inputPipeline step: ${s.step}`);
+    cur = await r(cur, s);
+  }
+  return cur;
+}
+var inputSteps, outputSteps;
+var init_pipeline = __esm({
+  "src/tasks/pipeline.ts"() {
+    "use strict";
+    init_sensitive_resolver();
+    init_check();
+    init_knowledge_enhancer();
+    inputSteps = /* @__PURE__ */ new Map();
+    outputSteps = /* @__PURE__ */ new Map();
+    registerInputStep("noop", async (ctx) => ctx);
+    registerOutputStep("noop", async (ctx) => ctx);
+    registerInputStep("sensitiveCheck", async (ctx, step) => {
+      const { scope, taskKey, subtype } = ctx;
+      const sensitives = await getSensitiveWordsForSlot(scope, taskKey, subtype ?? null);
+      const paths = step.params?.paths ?? ["prompt"];
+      for (const p of paths) {
+        const v = ctx.params?.[p];
+        if (typeof v === "string" && v.trim()) {
+          if (containsSensitiveWords(v, sensitives)) {
+            throw new Error("\u4F60\u63D0\u4EA4\u7684\u5185\u5BB9\u6D89\u53CA\u654F\u611F\u5185\u5BB9\uFF0C\u8BF7\u68C0\u67E5");
+          }
+        }
+      }
+      return ctx;
+    });
+    registerInputStep("knowledgeRetrieve", async (ctx, step) => {
+      const userId = ctx.userId;
+      const query = (typeof ctx.params?.prompt === "string" ? String(ctx.params.prompt) : "").trim();
+      if (!query) return ctx;
+      const kbIds = step.params?.knowledgeBaseIds ?? step.params?.defaultKnowledgeBaseIds ?? [];
+      if (!Array.isArray(kbIds) || kbIds.length === 0) return ctx;
+      const limit = typeof step.params?.limit === "number" ? step.params.limit : 5;
+      const knowledgeBases = kbIds.map((id) => ({
+        knowledgeBaseId: String(id),
+        query,
+        limit
+      }));
+      const results = await retrieveKnowledge(knowledgeBases, userId);
+      const knowledgeContext = formatKnowledgeContext(results, knowledgeBases);
+      if (!knowledgeContext) return ctx;
+      const mergedState = {
+        ...ctx.state,
+        knowledgeContext
+      };
+      const stateFinalPrompt = typeof ctx.state?.finalPrompt === "string" ? String(ctx.state.finalPrompt) : "";
+      if (stateFinalPrompt) {
+        mergedState.finalPrompt = enhancePromptWithKnowledge(stateFinalPrompt, knowledgeContext);
+      } else {
+        mergedState.enhancedPrompt = enhancePromptWithKnowledge(query, knowledgeContext);
+      }
+      return { ...ctx, state: mergedState };
+    });
+  }
+});
+
+// src/tasks/task-engine.ts
+var task_engine_exports = {};
+__export(task_engine_exports, {
+  runTaskV2: () => runTaskV2
+});
+async function runTaskV2(req, userId) {
+  const { scope, taskKey, subtype } = req;
+  const { template } = await loadTaskDefinition({ scope, taskKey, subtype: subtype ?? null, lang: "zh" });
+  validateWithJsonSchema(template.formSchema, req.params);
+  let ctx = {
+    scope,
+    taskKey,
+    subtype: subtype ?? null,
+    userId,
+    taskId: "",
+    params: req.params,
+    state: {}
+  };
+  ctx = await runInputPipeline(ctx, template.inputPipeline);
+  const { finalPrompt } = renderPromptFromTemplate({
+    prompt: template.prompt,
+    paramsSchema: template.formSchema,
+    params: ctx.params,
+    contextVars: {
+      userId: userId ?? "",
+      taskId: "",
+      uuid: "",
+      timestamp: Date.now(),
+      date: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "")
+    }
+  });
+  const finalPromptEnhanced = typeof ctx.state?.finalPrompt === "string" && String(ctx.state.finalPrompt).trim() ? String(ctx.state.finalPrompt).trim() : finalPrompt;
+  if (!userId) {
+    throw new Error("Missing userId");
+  }
+  if (scope !== "writing" && scope !== "outline") {
+    throw new Error(`Task v2 \u6682\u672A\u5B9E\u73B0 scope=${scope} \u7684\u5B8C\u6574\u4EFB\u52A1\u94FE\u8DEF`);
+  }
+  const isOutlineScope = scope === "outline";
+  const computedRoutingKey = isOutlineScope ? taskKey.startsWith("outline-") ? taskKey : `outline-${taskKey}` : taskKey.startsWith("writing-") ? taskKey : `writing-${taskKey}`;
+  const extraLogicalModelRaw = template.extra?.logicalModel;
+  const extraLogicalModel = typeof extraLogicalModelRaw === "string" && extraLogicalModelRaw.trim() ? extraLogicalModelRaw.trim() : void 0;
+  const routingKey = isOutlineScope && extraLogicalModel && extraLogicalModel.startsWith("outline-") ? extraLogicalModel : computedRoutingKey;
+  const resolved = getResolvedRouting(routingKey, req.params.provider ?? void 0);
+  const paramsAny = ctx.params;
+  const estOutputTokens = Math.ceil(Number(paramsAny.total_textcount || 1500) * 1.5);
+  const balanceCheck = await BillingService.checkBalance({
+    userId,
+    provider: resolved.provider,
+    modelKey: resolved.model,
+    scope: isOutlineScope ? "outline" : "writing",
+    estimatedOutputTokens: estOutputTokens,
+    estimatedInputTokens: 1e3
+  });
+  if (!balanceCheck.allowed) {
+    const err = new Error(
+      `\u4F59\u989D\u4E0D\u8DB3\uFF0C\u672C\u6B21\u9884\u8BA1\u6D88\u8017\u7EA6 ${balanceCheck.estimatedTokens} MXM-TOKEN\uFF0C\u5F53\u524D\u4F59\u989D ${balanceCheck.currentBalance}`
+    );
+    err.code = "INSUFFICIENT_BALANCE";
+    throw err;
+  }
+  const taskManager2 = taskExecutor.getTaskManager();
+  const createRes = await taskManager2.createTask({
+    type: isOutlineScope ? "outline" : "writing",
+    model: routingKey,
+    // DB 中记录业务逻辑模型名，便于 Admin 配置与监控
+    provider: resolved.provider,
+    params: {
+      // 兼容现有 writing-task / task-executor：通过 taskType=outline 走大纲链路
+      taskType: "outline",
+      prompt: finalPromptEnhanced,
+      // 方便 DB prompt 字段展示（含 KB 增强）
+      params: {
+        ...paramsAny,
+        writing_type: paramsAny.writing_type || "outlines",
+        prompt: finalPromptEnhanced,
+        useConfiguredPrompt: true,
+        // v2：generateOutline 使用 params.prompt 作为唯一 prompt，不拼接硬编码
+        ...isOutlineScope ? { logicalModel: routingKey } : {}
+      },
+      userId,
+      provider: resolved.provider
+    },
+    userId,
+    storeToMinio: false
+  });
+  taskExecutor.executeTask({
+    taskId: createRes.taskId,
+    modelName: routingKey,
+    provider: resolved.provider,
+    params: {
+      taskType: "outline",
+      prompt: finalPromptEnhanced,
+      params: {
+        ...paramsAny,
+        writing_type: paramsAny.writing_type || "outlines",
+        prompt: finalPromptEnhanced,
+        useConfiguredPrompt: true,
+        ...isOutlineScope ? { logicalModel: routingKey } : {}
+      },
+      userId,
+      provider: resolved.provider
+    },
+    userId,
+    storeToMinio: false
+  }).catch((e) => {
+    console.error("[TaskV2] executeTask failed:", e);
+  });
+  return {
+    success: true,
+    taskId: createRes.taskId,
+    status: createRes.status,
+    scope,
+    taskKey,
+    subtype: subtype ?? null
+  };
+}
+var init_task_engine = __esm({
+  "src/tasks/task-engine.ts"() {
+    "use strict";
+    init_task_definition();
+    init_schema_validator();
+    init_prompt_template();
+    init_pipeline();
+    init_providers2();
+    init_billing_service();
+    init_task_executor();
+  }
+});
+
 // src/routes/writing.ts
 function isWritingModelSupported(modelName) {
   return getModelsByKey("writing", modelName).length > 0;
 }
-var import_express2, import_mxmdata13, router2, WRITING_MODELS, WRITING_MODEL_KEYS, MODEL_MAP, writing_default;
+var import_express2, import_mxmdata14, router2, WRITING_MODELS, WRITING_MODEL_KEYS, MODEL_MAP, writing_default;
 var init_writing2 = __esm({
   "src/routes/writing.ts"() {
     "use strict";
     import_express2 = require("express");
     init_task_executor();
-    import_mxmdata13 = require("@mxmai/mxmdata");
+    import_mxmdata14 = require("@mxmai/mxmdata");
     init_check();
     init_sensitive_resolver();
     init_providers2();
@@ -16358,6 +16443,30 @@ var init_writing2 = __esm({
             res.end();
           }
           return;
+        }
+        try {
+          const { runTaskV2: runTaskV22 } = await Promise.resolve().then(() => (init_task_engine(), task_engine_exports));
+          const v2Res = await runTaskV22(
+            {
+              scope: "outline",
+              taskKey: "default",
+              subtype: null,
+              params,
+              options: { stream: false }
+            },
+            userId
+          );
+          if (v2Res?.success) {
+            return res.json({
+              success: true,
+              data: {
+                taskId: v2Res.taskId,
+                status: v2Res.status
+              }
+            });
+          }
+        } catch (e) {
+          console.warn("[Writing Route] /writing/outline fallback to legacy due to v2 error:", e);
         }
         const taskManager2 = taskExecutor.getTaskManager();
         const writingType = params.writing_type || "outlines";
@@ -16726,7 +16835,7 @@ var init_writing2 = __esm({
             error: "Missing required query parameters: bucket, key"
           });
         }
-        const storageRepo = import_mxmdata13.RepositoryFactory.createStorageRepository();
+        const storageRepo = import_mxmdata14.RepositoryFactory.createStorageRepository();
         const exists = await storageRepo.fileExists(bucket, key);
         if (!exists) {
           return res.status(404).json({
@@ -16820,11 +16929,11 @@ var character_service_exports = {};
 __export(character_service_exports, {
   CharacterService: () => CharacterService
 });
-var import_mxmdata14, import_crypto, CharacterService;
+var import_mxmdata15, import_crypto, CharacterService;
 var init_character_service = __esm({
   "src/characters/character-service.ts"() {
     "use strict";
-    import_mxmdata14 = require("@mxmai/mxmdata");
+    import_mxmdata15 = require("@mxmai/mxmdata");
     init_task_executor();
     init_writing2();
     init_model_selector();
@@ -16833,7 +16942,7 @@ var init_character_service = __esm({
       characterRepo;
       taskManager;
       constructor() {
-        this.characterRepo = import_mxmdata14.RepositoryFactory.createCharacterRepository();
+        this.characterRepo = import_mxmdata15.RepositoryFactory.createCharacterRepository();
         this.taskManager = taskExecutor.getTaskManager();
       }
       /**
@@ -17605,9 +17714,9 @@ function getEqualShotTimeline2(chunkSeconds, shotCount) {
   const step = chunkSeconds / shotCount;
   const segs = [];
   for (let i = 0; i < shotCount; i++) {
-    const start = i * step;
+    const start2 = i * step;
     const end = (i + 1) * step;
-    segs.push(`${secondsToMMSS2(start)}-${secondsToMMSS2(end)}`);
+    segs.push(`${secondsToMMSS2(start2)}-${secondsToMMSS2(end)}`);
   }
   return segs;
 }
@@ -18070,7 +18179,7 @@ async function getPreviousContentFromTask(taskId, userId) {
       return task.result.metadata.text;
     }
     if (task.result?.storageInfo) {
-      const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
+      const storageRepo = import_mxmdata16.RepositoryFactory.createStorageRepository();
       const { bucket, keys } = task.result.storageInfo;
       if (keys && keys.length > 0) {
         const fileBuffer = await storageRepo.downloadFile(bucket, keys[0]);
@@ -18166,20 +18275,11 @@ async function* generateOutlineStream(params, userId, provider13) {
     if (!OUTLINE_APPLY_TO_VALUES.includes(params.applyto)) {
       throw new Error(`\u4E0D\u652F\u6301\u7684 applyto \u7C7B\u578B: ${params.applyto}\u3002\u4EC5\u652F\u6301: ${OUTLINE_APPLY_TO_VALUES.join(", ")}`);
     }
-    if (params.outline_structure_type) {
-      const isValid = isStructureTypeAvailable(
-        params.applyto,
-        params.outline_type,
-        params.outline_structure_type
-      );
-      if (!isValid) {
-        throw new Error(`\u7ED3\u6784\u7C7B\u578B ${params.outline_structure_type} \u4E0D\u9002\u7528\u4E8E applyto=${params.applyto}, outline_type=${params.outline_type || "\u672A\u6307\u5B9A"}`);
-      }
-    }
   }
   const outlineParamsForKey = { writing_type: "outlines", applyto: params.applyto };
   const businessKey = getWritingBusinessKeyFromParams(outlineParamsForKey, "outline");
-  const resolved = selectModelWithRouting(businessKey, "outline", provider13);
+  const routingKeyOverride = typeof params.logicalModel === "string" && params.logicalModel.trim() ? params.logicalModel.trim() : void 0;
+  const resolved = selectModelWithRouting(routingKeyOverride ?? businessKey, "outline", provider13);
   const modelName = resolved.modelName;
   const effectiveProvider = resolved.provider;
   let castCharacters;
@@ -18334,20 +18434,11 @@ async function generateOutline(params, userId, provider13) {
     if (!OUTLINE_APPLY_TO_VALUES.includes(params.applyto)) {
       throw new Error(`\u4E0D\u652F\u6301\u7684 applyto \u7C7B\u578B: ${params.applyto}\u3002\u4EC5\u652F\u6301: ${OUTLINE_APPLY_TO_VALUES.join(", ")}`);
     }
-    if (params.outline_structure_type) {
-      const isValid = isStructureTypeAvailable(
-        params.applyto,
-        params.outline_type,
-        params.outline_structure_type
-      );
-      if (!isValid) {
-        throw new Error(`\u7ED3\u6784\u7C7B\u578B ${params.outline_structure_type} \u4E0D\u9002\u7528\u4E8E applyto=${params.applyto}, outline_type=${params.outline_type || "\u672A\u6307\u5B9A"}`);
-      }
-    }
   }
   const outlineParamsForKey = { writing_type: "outlines", applyto: params.applyto };
   const businessKey = getWritingBusinessKeyFromParams(outlineParamsForKey, "outline");
-  const resolved = selectModelWithRouting(businessKey, "outline", provider13);
+  const routingKeyOverride = typeof params.logicalModel === "string" && params.logicalModel.trim() ? params.logicalModel.trim() : void 0;
+  const resolved = selectModelWithRouting(routingKeyOverride ?? businessKey, "outline", provider13);
   const modelName = resolved.modelName;
   const effectiveProvider = resolved.provider;
   let castCharacters;
@@ -18390,23 +18481,27 @@ async function generateOutline(params, userId, provider13) {
       }
     }
   }
-  let enhancedPrompt = params.prompt;
-  if (params.knowledgeBase && params.knowledgeBase.length > 0) {
-    const knowledgeResults = await retrieveKnowledge(params.knowledgeBase, userId);
-    const knowledgeContext = formatKnowledgeContext(knowledgeResults, params.knowledgeBase);
-    enhancedPrompt = enhancePromptWithKnowledge(params.prompt, knowledgeContext);
-  }
-  const effectiveMaxDepth = params.applyto === "storyboard-scripts" ? params.maxDepth ?? 2 : params.maxDepth || 3;
-  const langInstruction = lang === "en" ? "Respond entirely in English. Output all outline node content (content, motivation, length, key_elements, etc.) in English. Use the same JSON structure.\n\n" : "";
-  let outlinePrompt = `${langInstruction}${lang === "zh" ? "\u8BF7\u6839\u636E\u4EE5\u4E0B\u8981\u6C42\u751F\u6210\u4E00\u4E2A\u5199\u4F5C\u5927\u7EB2\uFF1A" : "Generate a writing outline according to the following requirements:"}
+  let promptToSend;
+  if (params.useConfiguredPrompt === true) {
+    promptToSend = (params.prompt || "").trim();
+  } else {
+    let enhancedPrompt = params.prompt;
+    if (params.knowledgeBase && params.knowledgeBase.length > 0) {
+      const knowledgeResults = await retrieveKnowledge(params.knowledgeBase, userId);
+      const knowledgeContext = formatKnowledgeContext(knowledgeResults, params.knowledgeBase);
+      enhancedPrompt = enhancePromptWithKnowledge(params.prompt, knowledgeContext);
+    }
+    const effectiveMaxDepth = params.applyto === "storyboard-scripts" ? params.maxDepth ?? 2 : params.maxDepth || 3;
+    const langInstruction = lang === "en" ? "Respond entirely in English. Output all outline node content (content, motivation, length, key_elements, etc.) in English. Use the same JSON structure.\n\n" : "";
+    let outlinePrompt = `${langInstruction}${lang === "zh" ? "\u8BF7\u6839\u636E\u4EE5\u4E0B\u8981\u6C42\u751F\u6210\u4E00\u4E2A\u5199\u4F5C\u5927\u7EB2\uFF1A" : "Generate a writing outline according to the following requirements:"}
 
 ${enhancedPrompt}
 
 ${lang === "zh" ? "\u8981\u6C42\uFF1A" : "Requirements:"}
 - ${lang === "zh" ? "\u5927\u7EB2\u5C42\u7EA7\u6DF1\u5EA6" : "Outline depth"}: ${effectiveMaxDepth} ${lang === "zh" ? "\u7EA7" : "levels"}
 ${params.expectedNodes ? `- ${lang === "zh" ? "\u671F\u671B\u8282\u70B9\u603B\u6570\uFF1A\u7EA6" : "Expected nodes: about"} ${params.expectedNodes} ${lang === "zh" ? "\u4E2A" : ""}` : ""}`;
-  if (params.applyto === "articles" && params.total_textcount) {
-    outlinePrompt += `
+    if (params.applyto === "articles" && params.total_textcount) {
+      outlinePrompt += `
 - \u603B\u5B57\u6570\u8981\u6C42\uFF1A${params.total_textcount} \u5B57
 - \u5927\u7EB2\u5C06\u7528\u4E8E\u751F\u6210\uFF1A\u6587\u7AE0\u7C7B\u578B\u5185\u5BB9
 - \u5B57\u6570\u5206\u914D\u539F\u5219\uFF1A
@@ -18415,11 +18510,11 @@ ${params.expectedNodes ? `- ${lang === "zh" ? "\u671F\u671B\u8282\u70B9\u603B\u6
   * \u6B21\u8981\u7AE0\u8282\uFF08\u5F15\u8A00\u3001\u7ED3\u5C3E\uFF09\u5206\u914D\u8F83\u5C11\u5B57\u6570\uFF08\u7EA6\u5360\u603B\u5B57\u6570\u7684 10-20%\uFF09
   * \u4E00\u7EA7\u6807\u9898\u8282\u70B9\u901A\u5E38\u6BD4\u4E8C\u7EA7\u3001\u4E09\u7EA7\u8282\u70B9\u5206\u914D\u66F4\u591A\u5B57\u6570
   * \u786E\u4FDD\u603B\u5B57\u6570\u7B26\u5408 ${params.total_textcount} \u5B57\u7684\u8981\u6C42`;
-  } else if ((params.applyto === "voice-scripts" || params.applyto === "storyboard-scripts") && (params.total_duration_seconds != null || params.total_duration_minutes != null)) {
-    const totalDurationSec = params.total_duration_seconds ?? (params.total_duration_minutes != null ? params.total_duration_minutes * 60 : void 0);
-    if (totalDurationSec != null) {
-      const typeName = params.applyto === "voice-scripts" ? "\u53E3\u64AD\u7A3F" : "\u5206\u955C\u811A\u672C";
-      outlinePrompt += `
+    } else if ((params.applyto === "voice-scripts" || params.applyto === "storyboard-scripts") && (params.total_duration_seconds != null || params.total_duration_minutes != null)) {
+      const totalDurationSec = params.total_duration_seconds ?? (params.total_duration_minutes != null ? params.total_duration_minutes * 60 : void 0);
+      if (totalDurationSec != null) {
+        const typeName = params.applyto === "voice-scripts" ? "\u53E3\u64AD\u7A3F" : "\u5206\u955C\u811A\u672C";
+        outlinePrompt += `
 - \u603B\u65F6\u957F\u8981\u6C42\uFF1A${totalDurationSec} \u79D2
 - \u5927\u7EB2\u5C06\u7528\u4E8E\u751F\u6210\uFF1A${typeName}\u7C7B\u578B\u5185\u5BB9
 - \u65F6\u957F\u5206\u914D\u539F\u5219\uFF1A
@@ -18427,49 +18522,49 @@ ${params.expectedNodes ? `- ${lang === "zh" ? "\u671F\u671B\u8282\u70B9\u603B\u6
   * \u6838\u5FC3\u90E8\u5206\u5E94\u5206\u914D\u66F4\u591A\u65F6\u957F\uFF08\u7EA6\u5360\u603B\u65F6\u957F\u7684 60-70%\uFF09
   * \u6B21\u8981\u90E8\u5206\u5206\u914D\u8F83\u5C11\u65F6\u957F\uFF08\u7EA6\u5360\u603B\u65F6\u957F\u7684 10-20%\uFF09
   * \u8BF7\u6839\u636E\u65F6\u957F\u5408\u7406\u5206\u914D\u5404\u90E8\u5206\u7684\u7BC7\u5E45\uFF0C\u786E\u4FDD\u603B\u65F6\u957F\u7B26\u5408 ${totalDurationSec} \u79D2\u7684\u8981\u6C42`;
+      }
     }
-  }
-  if (params.outline_structure_type) {
-    const structureTemplate = getStructurePromptTemplate(params.outline_structure_type, lang);
-    if (structureTemplate) {
-      outlinePrompt += `
+    if (params.outline_structure_type) {
+      const structureTemplate = getStructurePromptTemplate(params.outline_structure_type, lang);
+      if (structureTemplate) {
+        outlinePrompt += `
 
 ${structureTemplate}`;
-    }
-  }
-  if (!isAcademicPaper && castCharacters && castCharacters.length > 0) {
-    const charactersText = formatCharactersForPrompt(castCharacters);
-    let relationsText = "";
-    const allRelations = {};
-    castCharacters.forEach((char) => {
-      if (char.relations) {
-        Object.keys(char.relations).forEach((otherCharId) => {
-          if (!allRelations[char.id]) {
-            allRelations[char.id] = {};
-          }
-          const relationValue = char.relations[otherCharId];
-          if (typeof relationValue === "string") {
-            allRelations[char.id][otherCharId] = relationValue;
-          }
-        });
       }
-    });
-    if (Object.keys(allRelations).length > 0) {
-      relationsText = `
+    }
+    if (!isAcademicPaper && castCharacters && castCharacters.length > 0) {
+      const charactersText = formatCharactersForPrompt(castCharacters);
+      let relationsText = "";
+      const allRelations = {};
+      castCharacters.forEach((char) => {
+        if (char.relations) {
+          Object.keys(char.relations).forEach((otherCharId) => {
+            if (!allRelations[char.id]) {
+              allRelations[char.id] = {};
+            }
+            const relationValue = char.relations[otherCharId];
+            if (typeof relationValue === "string") {
+              allRelations[char.id][otherCharId] = relationValue;
+            }
+          });
+        }
+      });
+      if (Object.keys(allRelations).length > 0) {
+        relationsText = `
 
 \u3010\u89D2\u8272\u5173\u7CFB\u3011\uFF1A
 ${Object.keys(allRelations).map((charId) => {
-        const char = castCharacters.find((c) => c.id === charId);
-        const charName = char?.name || charId;
-        const relations = allRelations[charId];
-        return `- ${charName}(${charId}): ${Object.keys(relations).map((otherCharId) => {
-          const otherChar = castCharacters.find((c) => c.id === otherCharId);
-          const otherCharName = otherChar?.name || otherCharId;
-          return `${otherCharName}(${otherCharId}) - ${relations[otherCharId]}`;
-        }).join(", ")}`;
-      }).join("\n")}`;
-    }
-    outlinePrompt += `
+          const char = castCharacters.find((c) => c.id === charId);
+          const charName = char?.name || charId;
+          const relations = allRelations[charId];
+          return `- ${charName}(${charId}): ${Object.keys(relations).map((otherCharId) => {
+            const otherChar = castCharacters.find((c) => c.id === otherCharId);
+            const otherCharName = otherChar?.name || otherCharId;
+            return `${otherCharName}(${otherCharId}) - ${relations[otherCharId]}`;
+          }).join(", ")}`;
+        }).join("\n")}`;
+      }
+      outlinePrompt += `
 
 \u3010\u53C2\u6F14\u89D2\u8272\u3011\uFF08\u4EE5\u4E0B\u89D2\u8272\u5C06\u53C2\u4E0E\u5927\u7EB2\u5185\u5BB9\uFF0C\u8BF7\u5728\u5408\u9002\u7684\u8282\u70B9\u4E2D\u6DFB\u52A0 cast \u5B57\u6BB5\uFF09\uFF1A
 ${charactersText}${relationsText}
@@ -18480,12 +18575,12 @@ ${charactersText}${relationsText}
 - \u5982\u679C\u67D0\u4E2A\u8282\u70B9\u4E0D\u9700\u8981\u89D2\u8272\u51FA\u573A\uFF08\u7EAF\u65C1\u767D/\u955C\u5934/\u6C1B\u56F4\uFF09\uFF0C\u53EF\u4EE5\u4E0D\u6DFB\u52A0 cast \u5B57\u6BB5\u6216\u8BBE\u7F6E\u4E3A\u7A7A\u6570\u7EC4
 - \u8BF7\u786E\u4FDD\u89D2\u8272\u51FA\u573A\u7B26\u5408\u5185\u5BB9\u903B\u8F91\uFF0C\u5408\u7406\u5206\u914D\u89D2\u8272\u5230\u5404\u4E2A\u8282\u70B9
 - \u6CE8\u610F\u89D2\u8272\u4E4B\u95F4\u7684\u5173\u7CFB\uFF0C\u5728\u5B89\u6392\u89D2\u8272\u51FA\u573A\u65F6\u8003\u8651\u4ED6\u4EEC\u7684\u5173\u7CFB\u8BBE\u5B9A`;
-  }
-  const requireStanceTonePerNode = params.applyto !== "storyboard-scripts" && (!!params.stance || !!params.tone);
-  const requireVoiceSpeechRatePerNode = params.applyto === "voice-scripts" && !!params.speech_rate;
-  const requireStoryboardRhythmPerNode = params.applyto === "storyboard-scripts" && !!params.rhythm;
-  const totalDurationSecForNode = params.total_duration_seconds ?? (params.total_duration_minutes != null ? params.total_duration_minutes * 60 : void 0);
-  outlinePrompt += `
+    }
+    const requireStanceTonePerNode = params.applyto !== "storyboard-scripts" && (!!params.stance || !!params.tone);
+    const requireVoiceSpeechRatePerNode = params.applyto === "voice-scripts" && !!params.speech_rate;
+    const requireStoryboardRhythmPerNode = params.applyto === "storyboard-scripts" && !!params.rhythm;
+    const totalDurationSecForNode = params.total_duration_seconds ?? (params.total_duration_minutes != null ? params.total_duration_minutes * 60 : void 0);
+    outlinePrompt += `
 - \u6BCF\u4E2A\u8282\u70B9\u9700\u8981\u5305\u542B\uFF1Acontent\uFF08\u6807\u9898\u5185\u5BB9\uFF09\u3001motivation\uFF08\u5199\u4F5C\u52A8\u673A\uFF0C\u53EF\u9009\uFF09\u3001length\uFF08\u957F\u5EA6\u8981\u6C42\uFF0C\u53EF\u9009\uFF09\u3001key_elements\uFF08\u5173\u952E\u8981\u7D20\uFF0C\u53EF\u9009\uFF09
 - cast\uFF08\u51FA\u573A\u89D2\u8272\uFF0C\u53EF\u9009\uFF09\uFF1Astring \u6570\u7EC4\uFF0C\u53EF\u586B\u89D2\u8272 id \u6216 name\uFF1B\u53EF\u7701\u7565\u6216\u7A7A\u6570\u7EC4\u8868\u793A\u7EAF\u955C\u5934/\u65C1\u767D/\u6C1B\u56F4\u6BB5\u843D\uFF08\u6B63\u5E38\uFF09
 ${requireStanceTonePerNode ? `- **\u5F3A\u5236\u8981\u6C42**\uFF1A\u7531\u4E8E\u5DF2\u6307\u5B9A\u6574\u4F53\u7ACB\u573A/\u8BED\u8C03\uFF0C**\u6BCF\u4E2A\u8282\u70B9\u90FD\u5FC5\u987B\u8F93\u51FA stance \u548C tone \u5B57\u6BB5**\uFF0C\u5E76\u9ED8\u8BA4\u7EE7\u627F\u6574\u4F53\u503C\uFF1Astance="${params.stance || ""}", tone="${params.tone || ""}"\uFF08\u5982\u9700\u5C40\u90E8\u5DEE\u5F02\u624D\u5728\u8BE5\u8282\u70B9\u4FEE\u6539\uFF0C\u4F46\u5FC5\u987B\u59CB\u7EC8\u8F93\u51FA\u8FD9\u4E24\u4E2A\u5B57\u6BB5\uFF09` : `- stance\uFF08\u7ACB\u573A\uFF0C\u53EF\u9009\uFF09\u3001tone\uFF08\u8BED\u8C03\uFF0C\u53EF\u9009\uFF09`}
@@ -18522,9 +18617,11 @@ ${requireStoryboardRhythmPerNode && totalDurationSecForNode != null ? `- **\u5F3
 2. \u786E\u4FDD\u6240\u6709\u5927\u62EC\u53F7\u3001\u4E2D\u62EC\u53F7\u3001\u5F15\u53F7\u90FD\u6B63\u786E\u95ED\u5408
 3. \u4E0D\u8981\u5728\u5927\u7EB2\u5185\u5BB9\u4E2D\u6DFB\u52A0\u4EFB\u4F55\u89E3\u91CA\u6027\u6587\u5B57
 4. \u76F4\u63A5\u8FD4\u56DE JSON \u5BF9\u8C61\uFF0C\u4E0D\u9700\u8981 markdown \u4EE3\u7801\u5757\u5305\u88C5`;
+    promptToSend = outlinePrompt;
+  }
   const { text: resultText, metadata: llmMetadata } = await generateTextWithMetadata(
     modelName,
-    outlinePrompt,
+    promptToSend,
     effectiveProvider
   );
   try {
@@ -18537,6 +18634,10 @@ ${requireStoryboardRhythmPerNode && totalDurationSecForNode != null ? `- **\u5F3
       const lastBrace = jsonText.lastIndexOf("}");
       if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
         jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+      } else if (firstBrace === -1 && (jsonText.startsWith("#") || jsonText.startsWith("*") || /^[#*\d、.-]/.test(jsonText))) {
+        throw new Error(
+          "\u6A21\u578B\u8FD4\u56DE\u4E86 Markdown \u6216\u8BF4\u660E\u6587\u5B57\u800C\u975E JSON\u3002\u8BF7\u5728\u4E1A\u52A1\u7BA1\u7406\u4E2D\u5C06\u8BE5\u4EFB\u52A1\u7684 outputFormatTemplate \u7F6E\u9876\u52A0\u5165\uFF1A\u300C\u4F60\u7684\u56DE\u590D\u6709\u4E14\u4EC5\u80FD\u662F\u4E00\u4E2A JSON \u5BF9\u8C61\uFF0C\u7B2C\u4E00\u4E2A\u975E\u7A7A\u5B57\u7B26\u5FC5\u987B\u662F {\uFF0C\u7981\u6B62\u8F93\u51FA # \u6807\u9898\u3001\u7AE0\u8282\u8BF4\u660E\u7B49\u300D\u3002"
+        );
       }
     }
     let outline;
@@ -19707,7 +19808,7 @@ ${typeOutputFormat2}` : ""}
         let storageInfo3 = void 0;
         if (params.storeToMinio !== false) {
           if (onProgress) await onProgress(90, "\u6B63\u5728\u4FDD\u5B58\u5230 MinIO...");
-          const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
+          const storageRepo = import_mxmdata16.RepositoryFactory.createStorageRepository();
           const timestamp = Date.now();
           const randomStr = Math.random().toString(36).substring(2, 8);
           const key = `${userId || "anonymous"}/writing/${timestamp}-${randomStr}.json`;
@@ -19749,7 +19850,7 @@ ${typeOutputFormat2}` : ""}
       if (onProgress) {
         await onProgress(90, "\u6B63\u5728\u4FDD\u5B58\u5230 MinIO...");
       }
-      const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
+      const storageRepo = import_mxmdata16.RepositoryFactory.createStorageRepository();
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 8);
       const extension = getFileExtension(format2);
@@ -19868,7 +19969,7 @@ ${enhancedPrompt}`;
       if (onProgress) {
         await onProgress(90, "\u6B63\u5728\u4FDD\u5B58\u5230 MinIO...");
       }
-      const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
+      const storageRepo = import_mxmdata16.RepositoryFactory.createStorageRepository();
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 8);
       const key = `${userId || "anonymous"}/writing/${timestamp}-${randomStr}.json`;
@@ -20052,7 +20153,7 @@ ${generatePrompt}`;
   const fileSize = Buffer.isBuffer(formattedContent) ? formattedContent.length : Buffer.byteLength(formattedContent, "utf-8");
   let storageInfo;
   if (params.storeToMinio !== false) {
-    const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata16.RepositoryFactory.createStorageRepository();
     const bucket = process.env.CGI_STORAGE_BUCKET || "user-media";
     const ext = getFileExtension(format);
     const timestamp = Date.now();
@@ -20111,7 +20212,7 @@ async function syncToTask(params, userId) {
   const fileSize = Buffer.isBuffer(formattedContent) ? formattedContent.length : Buffer.byteLength(formattedContent, "utf-8");
   let storageInfo;
   if (params.storeToMinio !== false) {
-    const storageRepo = import_mxmdata15.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata16.RepositoryFactory.createStorageRepository();
     const bucket = process.env.CGI_STORAGE_BUCKET || "user-media";
     const ext = getFileExtension(format);
     const timestamp = Date.now();
@@ -20213,7 +20314,7 @@ async function syncToTask(params, userId) {
     }
   };
 }
-var import_mxmdata15, import_crypto2;
+var import_mxmdata16, import_crypto2;
 var init_writing_service = __esm({
   "src/core/writing/writing-service.ts"() {
     "use strict";
@@ -20222,7 +20323,7 @@ var init_writing_service = __esm({
     init_business_key();
     init_knowledge_enhancer();
     init_document_formatter();
-    import_mxmdata15 = require("@mxmai/mxmdata");
+    import_mxmdata16 = require("@mxmai/mxmdata");
     import_crypto2 = __toESM(require("crypto"));
     init_task_executor();
     init_type();
@@ -20239,6 +20340,7 @@ var init_writing_service = __esm({
 // src/core/writing/writing-task.ts
 var writing_task_exports = {};
 __export(writing_task_exports, {
+  startOutlineTask: () => startOutlineTask,
   startWritingTask: () => startWritingTask
 });
 async function startWritingTask(taskId) {
@@ -20291,6 +20393,7 @@ async function startWritingTask(taskId) {
           {
             uid: outlineParams.uid,
             prompt: outlineParams.prompt,
+            logicalModel: outlineParams.logicalModel,
             maxDepth: outlineParams.maxDepth,
             expectedNodes: outlineParams.expectedNodes,
             total_textcount: outlineParams.total_textcount,
@@ -20305,7 +20408,8 @@ async function startWritingTask(taskId) {
             knowledgeBase: outlineParams.knowledgeBase,
             cast_character_count: outlineParams.cast_character_count,
             cast_character_ids: outlineParams.cast_character_ids,
-            language: outlineParams.language
+            language: outlineParams.language,
+            useConfiguredPrompt: outlineParams.useConfiguredPrompt
           },
           params.userId,
           params.provider
@@ -20460,6 +20564,8 @@ async function startWritingTask(taskId) {
     const llmMeta = result._llmMetadata;
     const needsUsageLog = !!llmMeta;
     if (needsUsageLog && llmMeta) {
+      const billingScope = params.taskType === "outline" ? "outline" : "writing";
+      const usageTaskType = params.taskType === "outline" ? "outline" : "writing";
       const { costUsd } = await UsageService2.logProviderUsage({
         taskId,
         userId: params.userId,
@@ -20468,7 +20574,8 @@ async function startWritingTask(taskId) {
           metadata: {
             usage: llmMeta.usage,
             model: llmMeta.model,
-            provider: llmMeta.provider
+            provider: llmMeta.provider,
+            taskType: usageTaskType
           }
         },
         providerOverride: llmMeta.provider
@@ -20481,7 +20588,7 @@ async function startWritingTask(taskId) {
             userId: params.userId,
             provider: llmMeta.provider || "unknown",
             modelKey: llmMeta.model || "unknown",
-            scope: "writing",
+            scope: billingScope,
             inputTokens: Number(usageAny?.prompt_tokens ?? usageAny?.input_tokens ?? 0),
             outputTokens: Number(usageAny?.completion_tokens ?? usageAny?.output_tokens ?? 0),
             totalTokens: Number(usageAny?.total_tokens ?? 0),
@@ -20499,6 +20606,15 @@ async function startWritingTask(taskId) {
       error instanceof Error ? error.message : String(error)
     );
   }
+}
+async function startOutlineTask(taskId) {
+  const taskManager2 = taskExecutor.getTaskManager();
+  const taskResponse = await taskManager2.getTask(taskId);
+  const requestParams = taskResponse?.task?.requestParams;
+  if (!requestParams || requestParams.taskType !== "outline") {
+    throw new Error(`[OutlineTask] task ${taskId} requestParams.taskType \u4E0D\u662F outline`);
+  }
+  await startWritingTask(taskId);
 }
 var init_writing_task = __esm({
   "src/core/writing/writing-task.ts"() {
@@ -22939,7 +23055,7 @@ var init_cartoon2 = __esm({
 async function resolveGraphModel(graphType, subType, preferredProvider) {
   const key = `graph-${graphType}-${subType}`;
   try {
-    const repo = import_mxmdata16.RepositoryFactory.createGraphModelConfigRepository();
+    const repo = import_mxmdata17.RepositoryFactory.createGraphModelConfigRepository();
     const cfg = await repo.findConfig("graph", graphType, subType);
     if (cfg && cfg.enabled) {
       return {
@@ -22963,11 +23079,11 @@ async function resolveGraphModel(graphType, subType, preferredProvider) {
     `\u672A\u914D\u7F6E\u56FE\u50CF\u4E1A\u52A1\u6A21\u578B: ${key}\uFF08graphType=${graphType}, subType=${subType}\uFF09\u3002\u8BF7\u5728 graph_model_config \u8868\u4E2D\u914D\u7F6E\u8BE5\u4E1A\u52A1\uFF0C\u6216\u6269\u5C55 DEFAULT_GRAPH_MODEL_ROUTING\uFF0C\u4E0D\u5141\u8BB8\u4F7F\u7528\u515C\u5E95\u6A21\u578B\u3002`
   );
 }
-var import_mxmdata16, DEFAULT_GRAPH_MODEL_ROUTING;
+var import_mxmdata17, DEFAULT_GRAPH_MODEL_ROUTING;
 var init_graph_model_routing = __esm({
   "src/core/graph/graph-model-routing.ts"() {
     "use strict";
-    import_mxmdata16 = require("@mxmai/mxmdata");
+    import_mxmdata17 = require("@mxmai/mxmdata");
     DEFAULT_GRAPH_MODEL_ROUTING = {
       // 摄影（统一 nano-banana-2，需在 provider_pricing 配置对应定价）
       "graph-photograph-portrait": { provider: "deer", model: "nano-banana-2" },
@@ -23885,7 +24001,7 @@ ${userPrompt}
 }
 async function getAdminUserId() {
   try {
-    const userRepo = import_mxmdata17.RepositoryFactory.createUserRepository();
+    const userRepo = import_mxmdata18.RepositoryFactory.createUserRepository();
     try {
       const adminUser = await userRepo.findByUsername("admin");
       if (adminUser && adminUser.role === "admin") {
@@ -23925,10 +24041,10 @@ function normalizeSubTypeForStorage(graphType, type) {
 async function resolveSystemKnowledgeBaseName(graphType, type) {
   const subType = normalizeSubTypeForStorage(graphType, type);
   try {
-    const defaultsRepo = import_mxmdata17.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    const defaultsRepo = import_mxmdata18.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
     const kbId = await defaultsRepo.getDefault("graph", graphType, subType);
     if (kbId) {
-      const kbRepo = import_mxmdata17.RepositoryFactory.createKnowledgeBaseRepository();
+      const kbRepo = import_mxmdata18.RepositoryFactory.createKnowledgeBaseRepository();
       const kb = await kbRepo.findKnowledgeBaseById(kbId);
       if (kb) {
         return kb.name;
@@ -23950,7 +24066,7 @@ async function retrieveSystemKnowledgeForPortrait(params, userId) {
   const maxTotalChunks = parseInt(process.env.GRAPH_KB_MAX_TOTAL_CHUNKS || "10", 10);
   let adminUserId = userId;
   try {
-    const userRepo = import_mxmdata17.RepositoryFactory.createUserRepository();
+    const userRepo = import_mxmdata18.RepositoryFactory.createUserRepository();
     if (userId) {
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
@@ -24136,7 +24252,7 @@ async function retrieveSystemKnowledgeCommon(graphType, type, queries, generateD
   const maxTotalChunks = parseInt(process.env.GRAPH_KB_MAX_TOTAL_CHUNKS || "10", 10);
   let adminUserId = userId;
   try {
-    const userRepo = import_mxmdata17.RepositoryFactory.createUserRepository();
+    const userRepo = import_mxmdata18.RepositoryFactory.createUserRepository();
     if (userId) {
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
@@ -24868,7 +24984,7 @@ async function generateGraphImage(graphType, params, generatedPrompt, provider13
       );
       console.log(`[GraphService] \u5904\u7406\u53C2\u8003\u56FE: ${processedReferenceImages.length} \u5F20, URLs: ${urls.length}, Base64s: ${base64s.length}`);
       if (modelName === "nano-banana-pro") {
-        const storageRepo = import_mxmdata17.RepositoryFactory.createStorageRepository();
+        const storageRepo = import_mxmdata18.RepositoryFactory.createStorageRepository();
         const toDataUriFromUrl = async (u) => {
           try {
             const parsed = new URL(u);
@@ -25008,7 +25124,7 @@ async function generateGraph(graphType, params, userId, provider13, parentTaskId
     promptGenerationCostUsd: promptResult.promptGenerationCostUsd
   };
 }
-var import_mxmdata17;
+var import_mxmdata18;
 var init_graph_service = __esm({
   "src/core/graph/graph-service.ts"() {
     "use strict";
@@ -25030,7 +25146,7 @@ var init_graph_service = __esm({
     init_comic2();
     init_conceptArt2();
     init_cartoon2();
-    import_mxmdata17 = require("@mxmai/mxmdata");
+    import_mxmdata18 = require("@mxmai/mxmdata");
     init_graph_model_routing();
     init_reference_image2();
     init_basic_text();
@@ -25140,7 +25256,7 @@ function replacePathTemplate(template, variables) {
   return path2;
 }
 async function storeMedia(mediaData, config, userId, modelName) {
-  const storageRepo = import_mxmdata18.RepositoryFactory.createStorageRepository();
+  const storageRepo = import_mxmdata19.RepositoryFactory.createStorageRepository();
   const { buffer, contentType, ext: detectedExt } = await downloadOrConvertToBuffer(mediaData.url);
   const fileExt = mediaData.ext || detectedExt || config.defaultExt || "bin";
   const now = /* @__PURE__ */ new Date();
@@ -25199,11 +25315,11 @@ async function storeFromGenerateResult(generateResult, config, userId, modelName
   }));
   return storeMediaBatch(mediaDataList, config, userId, finalModelName);
 }
-var import_mxmdata18;
+var import_mxmdata19;
 var init_data_store = __esm({
   "src/core/utils/data-store.ts"() {
     "use strict";
-    import_mxmdata18 = require("@mxmai/mxmdata");
+    import_mxmdata19 = require("@mxmai/mxmdata");
   }
 });
 
@@ -26029,7 +26145,7 @@ function replacePathTemplate2(template, variables) {
   return path2;
 }
 async function storeMedia2(mediaData, config, userId, modelName) {
-  const storageRepo = import_mxmdata19.RepositoryFactory.createStorageRepository();
+  const storageRepo = import_mxmdata20.RepositoryFactory.createStorageRepository();
   const { buffer, contentType, ext: detectedExt } = await downloadOrConvertToBuffer2(
     mediaData.url
   );
@@ -26093,11 +26209,11 @@ async function storeFromGenerateResult2(generateResult, config, userId, modelNam
   }));
   return storeMediaBatch2(mediaDataList, config, userId, finalModelName);
 }
-var import_mxmdata19;
+var import_mxmdata20;
 var init_data_store2 = __esm({
   "src/task/data-store.ts"() {
     "use strict";
-    import_mxmdata19 = require("@mxmai/mxmdata");
+    import_mxmdata20 = require("@mxmai/mxmdata");
   }
 });
 
@@ -26113,7 +26229,7 @@ function getTaskExecutor() {
   }
   return _taskExecutor;
 }
-var import_mxmdata20, TaskExecutor, _taskExecutor, taskExecutor;
+var import_mxmdata21, TaskExecutor, _taskExecutor, taskExecutor;
 var init_task_executor = __esm({
   "src/task/task-executor.ts"() {
     "use strict";
@@ -26121,7 +26237,7 @@ var init_task_executor = __esm({
     init_database_storage();
     init_providers2();
     init_run();
-    import_mxmdata20 = require("@mxmai/mxmdata");
+    import_mxmdata21 = require("@mxmai/mxmdata");
     init_usage_service();
     init_billing_service();
     TaskExecutor = class {
@@ -26168,8 +26284,8 @@ var init_task_executor = __esm({
             const currentTask = taskResponse?.task;
             if (currentTask?.metadata) {
               const requestParams = currentTask.requestParams;
-              const isOutlineTask = currentTask.type === "writing" && requestParams?.taskType === "outline";
-              const routingKey = isOutlineTask ? "writing-outlines" : modelName;
+              const isOutlineTask = currentTask.type === "outline" || currentTask.type === "writing" && requestParams?.taskType === "outline";
+              const routingKey = isOutlineTask ? currentTask.type === "outline" ? modelName : "writing-outlines" : modelName;
               const resolved = getResolvedRouting(routingKey, provider13);
               const merged = {
                 ...currentTask.metadata,
@@ -26190,6 +26306,11 @@ var init_task_executor = __esm({
             }
           } catch (err) {
             console.warn(`[TaskExecutor] \u5199\u5165\u4EFB\u52A1 provider/model \u5931\u8D25 (taskId: ${taskId}):`, err);
+          }
+          if (modelName.startsWith("outline-")) {
+            const { startOutlineTask: startOutlineTask2 } = await Promise.resolve().then(() => (init_writing_task(), writing_task_exports));
+            await startOutlineTask2(taskId);
+            return;
           }
           if (modelName.startsWith("writing-")) {
             const { startWritingTask: startWritingTask2 } = await Promise.resolve().then(() => (init_writing_task(), writing_task_exports));
@@ -26623,7 +26744,7 @@ var init_task_executor = __esm({
           }
           const taskMetadata = taskResponse?.task?.metadata || {};
           const resultMetadata = result.metadata || {};
-          const finalMetadata = {
+          const finalMetadataBase = {
             userId: taskMetadata.userId || userId,
             storeToMinio: taskMetadata.storeToMinio !== void 0 ? taskMetadata.storeToMinio : storeToMinio,
             storageConfig: taskMetadata.storageConfig || storageConfig,
@@ -26651,6 +26772,10 @@ var init_task_executor = __esm({
               return "unknown";
             })()
           };
+          const finalMetadata = typeof result?.text === "string" && result.text.trim() ? {
+            ...finalMetadataBase,
+            text: result.text
+          } : finalMetadataBase;
           await this.taskManager.setTaskResult(taskId, {
             mediaUrls,
             storageInfo,
@@ -26755,7 +26880,7 @@ var init_task_executor = __esm({
         for (const [k, v] of Object.entries(pathVariables)) {
           key = key.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
         }
-        const storageRepo = import_mxmdata20.RepositoryFactory.createStorageRepository();
+        const storageRepo = import_mxmdata21.RepositoryFactory.createStorageRepository();
         const uploadOptions = {
           contentType,
           metadata: {
@@ -27754,11 +27879,11 @@ var init_task_recovery = __esm({
 });
 
 // src/index.ts
-var import_express15 = __toESM(require("express"));
+var import_express16 = __toESM(require("express"));
 var import_dotenv = __toESM(require("dotenv"));
 var path = __toESM(require("path"));
 var fs = __toESM(require("fs"));
-var import_mxmdata29 = require("@mxmai/mxmdata");
+var import_mxmdata31 = require("@mxmai/mxmdata");
 var import_video = __toESM(require_video());
 var import_audio = __toESM(require_audio());
 var import_writing6 = __toESM(require_writing());
@@ -28192,7 +28317,7 @@ router3.post("/:modelName", async (req, res) => {
     if (req.body.storageConfig) {
       Object.assign(storageConfig, req.body.storageConfig);
     }
-    const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports));
+    const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports2));
     const defaultProvider = providerFactory2.getDefaultProvider();
     console.log(`[Graph Route] \u6A21\u578B: ${modelName}, \u6307\u5B9A provider: ${provider13 || "(\u672A\u6307\u5B9A\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4: " + defaultProvider + ")"}, \u9ED8\u8BA4 provider: ${defaultProvider}`);
     const imageParams = ["image", "images", "image_input", "image_urls", "image_base64s", "input_image"];
@@ -28314,7 +28439,7 @@ router4.post("/:modelName", async (req, res) => {
     if (req.body.storageConfig) {
       Object.assign(storageConfig, req.body.storageConfig);
     }
-    const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports));
+    const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports2));
     const defaultProvider = providerFactory2.getDefaultProvider();
     console.log(`[Audio Route] \u6A21\u578B: ${modelName}, \u6307\u5B9A provider: ${provider13 || "(\u672A\u6307\u5B9A\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4: " + defaultProvider + ")"}, \u9ED8\u8BA4 provider: ${defaultProvider}`);
     const isSyncModel = SYNC_MODELS.includes(modelName);
@@ -28945,7 +29070,7 @@ router5.post("/:modelName", async (req, res) => {
     if (req.body.storageConfig) {
       Object.assign(storageConfig, req.body.storageConfig);
     }
-    const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports));
+    const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports2));
     const defaultProvider = providerFactory2.getDefaultProvider();
     console.log(`[Video Route] \u6A21\u578B: ${modelName}, \u6307\u5B9A provider: ${provider13 || "(\u672A\u6307\u5B9A\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4: " + defaultProvider + ")"}, \u9ED8\u8BA4 provider: ${defaultProvider}`);
     const taskManager2 = taskExecutor.getTaskManager();
@@ -28992,7 +29117,7 @@ var video_default = router5;
 // src/routes/upload.ts
 var import_express6 = require("express");
 var import_multer = __toESM(require("multer"));
-var import_mxmdata21 = require("@mxmai/mxmdata");
+var import_mxmdata22 = require("@mxmai/mxmdata");
 var router6 = (0, import_express6.Router)();
 var upload = (0, import_multer.default)({ storage: import_multer.default.memoryStorage() });
 router6.post("/temp", upload.single("file"), async (req, res) => {
@@ -29006,7 +29131,7 @@ router6.post("/temp", upload.single("file"), async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing file field "file"' });
     }
     const file = multerReq.file;
-    const storageRepo = import_mxmdata21.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata22.RepositoryFactory.createStorageRepository();
     const now = /* @__PURE__ */ new Date();
     const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(
       now.getDate()
@@ -29050,7 +29175,7 @@ router6.post("/assets", upload.single("file"), async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing file field "file"' });
     }
     const file = multerReq.file;
-    const storageRepo = import_mxmdata21.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata22.RepositoryFactory.createStorageRepository();
     const ext = (file.originalname.match(/\.(\w+)$/)?.[1] || "jpg").toLowerCase();
     const allowExt = ["jpg", "jpeg", "png", "webp", "gif"];
     const finalExt = allowExt.includes(ext) ? ext : "jpg";
@@ -29202,8 +29327,8 @@ router7.get("/admin", async (req, res) => {
     const userIds = [...new Set(response.tasks.map((t) => t.metadata?.userId).filter(Boolean))];
     const userIdToName = /* @__PURE__ */ new Map();
     try {
-      const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
-      const userRepo = RepositoryFactory22.createUserRepository();
+      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+      const userRepo = RepositoryFactory24.createUserRepository();
       for (const uid6 of userIds) {
         const user = await userRepo.findById(uid6);
         userIdToName.set(uid6, user?.username ?? uid6);
@@ -29513,8 +29638,8 @@ async function isAdminUser(req) {
       return false;
     }
     try {
-      const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
-      const userRepo = RepositoryFactory22.createUserRepository();
+      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+      const userRepo = RepositoryFactory24.createUserRepository();
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
         return true;
@@ -29586,12 +29711,11 @@ var cgi_tasks_default = router7;
 
 // src/routes/system.ts
 var import_express11 = require("express");
-init_suport_list();
 init_client();
 
 // src/routes/prompt-config.ts
 var import_express8 = require("express");
-var import_mxmdata22 = require("@mxmai/mxmdata");
+var import_mxmdata23 = require("@mxmai/mxmdata");
 var router8 = (0, import_express8.Router)();
 async function isAdminUser2(req) {
   try {
@@ -29600,7 +29724,7 @@ async function isAdminUser2(req) {
     const userId = req.headers["x-user-id"];
     if (!userId) return false;
     try {
-      const userRepo = import_mxmdata22.RepositoryFactory.createUserRepository();
+      const userRepo = import_mxmdata23.RepositoryFactory.createUserRepository();
       const user = await userRepo.findById(userId);
       return !!(user && user.role === "admin");
     } catch {
@@ -29615,7 +29739,7 @@ router8.get("/", async (req, res) => {
     return res.status(403).json({ success: false, error: "Admin only" });
   }
   try {
-    const repo = import_mxmdata22.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
     const scope = req.query.scope;
     const type = req.query.type;
     const subtype = req.query.subtype;
@@ -29644,7 +29768,7 @@ router8.get("/by-key", async (req, res) => {
     if (!scope || !type) {
       return res.status(400).json({ success: false, error: "scope and type are required" });
     }
-    const repo = import_mxmdata22.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
     const row = await repo.findByKey(scope, type, subtype === "" ? null : subtype);
     if (!row) {
       return res.status(404).json({ success: false, error: "Not found" });
@@ -29688,7 +29812,7 @@ router8.put("/", async (req, res) => {
       return res.status(400).json({ success: false, error: "scope and type are required" });
     }
     const userId = req.headers["x-user-id"];
-    const repo = import_mxmdata22.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
     const row = await repo.upsert({
       scope,
       type,
@@ -29713,7 +29837,7 @@ router8.delete("/:id", async (req, res) => {
   try {
     const id = req.params.id;
     if (!id) return res.status(400).json({ success: false, error: "id required" });
-    const repo = import_mxmdata22.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
     await repo.delete(id);
     return res.status(204).send();
   } catch (e) {
@@ -29727,7 +29851,526 @@ var prompt_config_default = router8;
 var import_express9 = require("express");
 init_providers2();
 init_registry();
-var import_mxmdata23 = require("@mxmai/mxmdata");
+var import_mxmdata24 = require("@mxmai/mxmdata");
+
+// src/routes/provider-connectivity-test.ts
+init_provider_model_catalog();
+init_registry();
+
+// src/routes/deer-image-connectivity-test.ts
+init_client2();
+init_providers2();
+init_provider_model_catalog();
+function isDeerRateLimitError(e) {
+  const msg = e instanceof Error ? e.message : String(e);
+  const lower = msg.toLowerCase();
+  return lower.includes("429") || lower.includes("too many requests") || msg.includes("1302") || msg.includes("\u901F\u7387\u9650\u5236") || msg.includes("rix_api_error");
+}
+function resolveDeerPhysicalModelName(modelKey43) {
+  return getUpstreamModel("deer", modelKey43) ?? modelKey43;
+}
+function classifyDeerImageModel(modelKey43) {
+  if (modelKey43.startsWith("flux-")) return "flux";
+  if (modelKey43 === "seedream-4" || modelKey43 === "seedream-5") return "seedream";
+  return "gemini";
+}
+function extractImageUrlsFromGeminiResponse(response) {
+  const imageUrls = [];
+  if (response?.candidates?.[0]) {
+    const candidate = response.candidates[0];
+    const parts = candidate.content?.parts || [];
+    for (const part of parts) {
+      const inlineData = part?.inline_data || part?.inlineData;
+      if (inlineData?.data && typeof inlineData.data === "string") {
+        const mime = inlineData.mime_type || inlineData.mimeType || "image/png";
+        imageUrls.push(`data:${mime};base64,${inlineData.data}`);
+      }
+    }
+  }
+  if (imageUrls.length === 0 && Array.isArray(response?.data)) {
+    for (const item of response.data) {
+      if (item?.url) imageUrls.push(item.url);
+      else if (item?.b64_json) imageUrls.push(`data:image/png;base64,${item.b64_json}`);
+    }
+  }
+  return imageUrls;
+}
+function extractImageUrlsFromSeedreamResponse(response) {
+  const imageUrls = [];
+  const pushMaybe = (item) => {
+    if (!item) return;
+    if (typeof item === "string" && (item.startsWith("http://") || item.startsWith("https://"))) {
+      imageUrls.push(item);
+      return;
+    }
+    const obj = item;
+    if (typeof obj.url === "string") imageUrls.push(obj.url);
+    else if (typeof obj.image_url === "string") imageUrls.push(obj.image_url);
+    else if (typeof obj.output_url === "string") imageUrls.push(obj.output_url);
+    else if (typeof obj?.image?.url === "string") imageUrls.push(obj.image.url);
+    else if (typeof obj?.result?.url === "string") imageUrls.push(obj.result.url);
+    else if (typeof obj.b64_json === "string") imageUrls.push(`data:image/png;base64,${obj.b64_json}`);
+    else if (typeof obj.base64 === "string") imageUrls.push(`data:image/png;base64,${obj.base64}`);
+    else if (typeof obj.b64 === "string") imageUrls.push(`data:image/png;base64,${obj.b64}`);
+    else if (typeof obj.image_base64 === "string") imageUrls.push(`data:image/png;base64,${obj.image_base64}`);
+  };
+  const candidates = [
+    response?.data,
+    response?.images,
+    response?.output,
+    response?.result,
+    response?.result?.data,
+    response?.result?.images,
+    response?.choices
+  ];
+  for (const c of candidates) {
+    if (Array.isArray(c)) c.forEach(pushMaybe);
+    else pushMaybe(c);
+  }
+  return imageUrls;
+}
+function push(steps, key, title, status, detail) {
+  steps.push({ key, title, status, detail, at: (/* @__PURE__ */ new Date()).toISOString() });
+}
+async function withDeerKeyRotationForTest(fn) {
+  const baseUrl = process.env.DEERAPI_BASE_URL;
+  if (!baseUrl) throw new Error("DEERAPI_BASE_URL \u672A\u8BBE\u7F6E");
+  const group = process.env.DEERAPI_GROUP;
+  const keys = await getDeerProviderKeys();
+  if (!keys.length) {
+    throw new Error("\u672A\u914D\u7F6E Deer API Key\uFF08\u6570\u636E\u5E93\u6216\u73AF\u5883\u53D8\u91CF\uFF09");
+  }
+  let lastErr;
+  for (let i = 0; i < keys.length; i++) {
+    const client = new DeerAPIClient({ baseUrl, apiKey: keys[i], group });
+    try {
+      return await fn(client);
+    } catch (e) {
+      lastErr = e;
+      if (i < keys.length - 1 && isDeerRateLimitError(e)) {
+        console.warn(`[deer-image-connectivity] 429\uFF0C\u5207\u6362\u4E0B\u4E00\u6761 Key\uFF08${i + 2}/${keys.length}\uFF09`);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+async function runDeerImageConnectivityTest(modelKey43) {
+  const steps = [];
+  const kind = classifyDeerImageModel(modelKey43);
+  const deerModel = resolveDeerPhysicalModelName(modelKey43);
+  try {
+    return await withDeerKeyRotationForTest(async (client) => {
+      push(steps, "invoke", "\u63D0\u4EA4\u56FE\u7247\u751F\u6210\u4EFB\u52A1", "running", `kind=${kind}, upstream=${deerModel}`);
+      if (kind === "flux") {
+        const prediction = await client.createFluxPrediction({
+          model: deerModel,
+          prompt: "A single minimal geometric icon on plain background",
+          aspect_ratio: "1:1",
+          output_format: "png"
+        });
+        const taskId = prediction.id;
+        if (!taskId) {
+          push(steps, "invoke", "\u63D0\u4EA4\u56FE\u7247\u751F\u6210\u4EFB\u52A1", "failed", "Flux \u672A\u8FD4\u56DE\u4EFB\u52A1 id");
+          return { success: false, error: "Flux \u672A\u8FD4\u56DE\u4EFB\u52A1 id", steps };
+        }
+        push(steps, "invoke", "\u63D0\u4EA4\u56FE\u7247\u751F\u6210\u4EFB\u52A1", "success", `taskId=${taskId}`);
+        push(steps, "poll", "\u8F6E\u8BE2\u4EFB\u52A1\u76F4\u5230\u53EF\u83B7\u53D6\u56FE\u7247", "running", `taskId=${taskId}`);
+        const maxAttempts = 90;
+        const intervalMs = 2e3;
+        for (let a = 0; a < maxAttempts; a++) {
+          await new Promise((r) => setTimeout(r, intervalMs));
+          const result = await client.getFluxResult(taskId);
+          const st = (result.status || "").toLowerCase();
+          if (st === "ready" && result.result?.sample) {
+            push(
+              steps,
+              "poll",
+              "\u8F6E\u8BE2\u4EFB\u52A1\u76F4\u5230\u53EF\u83B7\u53D6\u56FE\u7247",
+              "success",
+              `status=${result.status}, imageUrl \u5DF2\u5C31\u7EEA`
+            );
+            push(steps, "verify", "\u9A8C\u8BC1\u751F\u6210\u7ED3\u679C", "success", "\u5DF2\u53D6\u5F97\u56FE\u7247 URL");
+            return {
+              success: true,
+              taskId,
+              responseMeta: { model: modelKey43, upstream: deerModel, fluxStatus: result.status },
+              steps
+            };
+          }
+          if (st === "failed") {
+            const err = JSON.stringify(result.error || "Flux failed");
+            push(steps, "poll", "\u8F6E\u8BE2\u4EFB\u52A1\u76F4\u5230\u53EF\u83B7\u53D6\u56FE\u7247", "failed", err);
+            return { success: false, error: err, taskId, steps };
+          }
+        }
+        push(steps, "poll", "\u8F6E\u8BE2\u4EFB\u52A1\u76F4\u5230\u53EF\u83B7\u53D6\u56FE\u7247", "failed", "\u8F6E\u8BE2\u8D85\u65F6\uFF08\u7EA6 3 \u5206\u949F\uFF09");
+        return { success: false, error: "Flux \u8F6E\u8BE2\u8D85\u65F6", taskId, steps };
+      }
+      if (kind === "seedream") {
+        const formats = ["url", "b64_json"];
+        const sizeModes = ["omit", "1k"];
+        let lastReason = "Seedream \u672A\u8FD4\u56DE\u56FE\u7247\u6570\u636E";
+        for (const sizeMode of sizeModes) {
+          for (const rf of formats) {
+            try {
+              const req = {
+                model: deerModel,
+                prompt: "A minimal connectivity test icon",
+                response_format: rf,
+                n: 1
+              };
+              if (sizeMode === "1k") req.size = "1k";
+              const response2 = await client.createSeedreamImageGeneration(req);
+              const urls2 = extractImageUrlsFromSeedreamResponse(response2);
+              if (urls2.length > 0) {
+                push(
+                  steps,
+                  "invoke",
+                  "\u63D0\u4EA4\u56FE\u7247\u751F\u6210\u4EFB\u52A1",
+                  "success",
+                  `Seedream \u5DF2\u8FD4\u56DE\u56FE\u7247\u6570\u636E\uFF08response_format=${rf}, size=${sizeMode}\uFF09`
+                );
+                push(steps, "verify", "\u9A8C\u8BC1\u751F\u6210\u7ED3\u679C", "success", `images=${urls2.length}`);
+                return {
+                  success: true,
+                  responseMeta: {
+                    model: modelKey43,
+                    upstream: deerModel,
+                    created: response2.created,
+                    response_format: rf,
+                    size: sizeMode
+                  },
+                  steps
+                };
+              }
+              const responseKeys = Object.keys(response2 || {}).join(", ");
+              lastReason = `Seedream \u54CD\u5E94\u672A\u89E3\u6790\u5230\u56FE\u7247\u5B57\u6BB5\uFF08response_format=${rf}, size=${sizeMode}, keys: ${responseKeys || "none"}\uFF09`;
+            } catch (e) {
+              lastReason = e instanceof Error ? e.message : String(e);
+            }
+          }
+        }
+        push(steps, "invoke", "\u63D0\u4EA4\u56FE\u7247\u751F\u6210\u4EFB\u52A1", "failed", lastReason);
+        return { success: false, error: lastReason, steps };
+      }
+      let response;
+      try {
+        response = await client.generateContent({
+          model: deerModel,
+          prompt: "A single minimal geometric icon on plain white background",
+          responseModalities: ["TEXT", "IMAGE"]
+        });
+      } catch (e1) {
+        try {
+          response = await client.generateContent({
+            model: deerModel,
+            prompt: "A single minimal geometric icon on plain white background",
+            responseModalities: ["IMAGE"]
+          });
+        } catch {
+          const msg = e1 instanceof Error ? e1.message : String(e1);
+          push(steps, "invoke", "\u63D0\u4EA4\u56FE\u7247\u751F\u6210\u4EFB\u52A1", "failed", msg);
+          return { success: false, error: msg, steps };
+        }
+      }
+      const urls = extractImageUrlsFromGeminiResponse(response);
+      if (urls.length > 0) {
+        push(steps, "invoke", "\u63D0\u4EA4\u56FE\u7247\u751F\u6210\u4EFB\u52A1", "success", "Gemini generateContent \u5DF2\u8FD4\u56DE\u56FE\u50CF\u6570\u636E");
+        push(steps, "verify", "\u9A8C\u8BC1\u751F\u6210\u7ED3\u679C", "success", `images=${urls.length}`);
+        return {
+          success: true,
+          responseMeta: { model: modelKey43, upstream: deerModel, imageCount: urls.length },
+          steps
+        };
+      }
+      push(steps, "invoke", "\u63D0\u4EA4\u56FE\u7247\u751F\u6210\u4EFB\u52A1", "failed", "Gemini \u54CD\u5E94\u4E2D\u672A\u89E3\u6790\u5230\u56FE\u50CF\u6570\u636E");
+      return {
+        success: false,
+        error: "DeerAPI \u56FE\u50CF\u751F\u6210\u54CD\u5E94\u4E2D\u672A\u5305\u542B\u53EF\u89E3\u6790\u7684\u56FE\u50CF\u6570\u636E\uFF08\u8BF7\u68C0\u67E5\u4E0A\u6E38\u6A21\u578B\u4E0E\u914D\u989D\uFF09",
+        responseMeta: { model: modelKey43, upstream: deerModel },
+        steps
+      };
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    push(steps, "invoke", "\u63D0\u4EA4\u56FE\u7247\u751F\u6210\u4EFB\u52A1", "failed", msg);
+    return { success: false, error: msg, steps };
+  }
+}
+
+// src/routes/provider-connectivity-test.ts
+function isProviderType2(s) {
+  return ["deer", "replicate", "ppio", "openai", "google", "anthropic", "qwen", "volc", "minimax"].includes(s);
+}
+function inferModalityFromRegistry(provider13, modelKey43) {
+  if (!isProviderType2(provider13)) return null;
+  const scopes = [
+    { scope: "graph", modality: "image" },
+    { scope: "audio", modality: "audio" },
+    { scope: "video", modality: "video" }
+  ];
+  for (const { scope, modality } of scopes) {
+    if (getModel(provider13, scope, modelKey43)) return modality;
+  }
+  return null;
+}
+function resolveInferedModalityForConnectivityTest(provider13, modelKey43, scope, modalityFromRow) {
+  if (scope === "graph") return "image";
+  if (scope === "audio") return "audio";
+  if (scope === "video") return "video";
+  if (isProviderType2(provider13)) {
+    const rows = listByProvider(provider13).filter((m) => m.model_key === modelKey43);
+    if (rows.some((r) => r.scope === "graph" || r.modality === "image")) return "image";
+    if (rows.some((r) => r.scope === "audio" || r.modality === "audio")) return "audio";
+    if (rows.some((r) => r.scope === "video" || r.modality === "video")) return "video";
+    if (rows.some(
+      (r) => ["writing", "text", "default", "outline"].includes((r.scope ?? "").toLowerCase()) || (r.modality ?? "").toLowerCase() === "text"
+    )) {
+      return "text";
+    }
+  }
+  const fromRegistry = inferModalityFromRegistry(provider13, modelKey43);
+  if (fromRegistry) return fromRegistry;
+  if (modalityFromRow === "image" || modalityFromRow === "audio" || modalityFromRow === "video") {
+    return modalityFromRow;
+  }
+  if (modalityFromRow === "text") return "text";
+  return scope === "audio" ? "audio" : scope === "video" ? "video" : "text";
+}
+var PROMPT = {
+  text: "\u8FDE\u901A\u6027\u6D4B\u8BD5\uFF1A\u8BF7\u56DE\u590D OK",
+  image: "A single minimal geometric icon on plain background",
+  audio: "Hello, this is a connectivity test.",
+  video: "A simple scene with a static object and subtle camera movement"
+};
+function buildMinConnectivityGenerateParams(provider13, modelKey43, modality) {
+  switch (provider13) {
+    case "deer":
+      if (modality === "text") {
+        return {
+          params: {
+            prompt: PROMPT.text,
+            outputFormat: "json",
+            parameters: { max_tokens: 16, temperature: 0 }
+          },
+          strategy: "deer:chat/completions \u6700\u5C0F token"
+        };
+      }
+      if (modality === "audio") {
+        return {
+          params: {
+            prompt: PROMPT.audio,
+            outputFormat: "json",
+            parameters: {}
+          },
+          strategy: "deer:\u97F3\u9891\uFF08Suno \u7B49\u7531 Provider \u5185\u90E8\u5206\u652F\u5904\u7406\uFF09"
+        };
+      }
+      if (modality === "video") {
+        return {
+          params: {
+            prompt: PROMPT.video,
+            outputFormat: "json",
+            parameters: { seconds: "4", size: "1280x720" }
+          },
+          strategy: "deer:\u89C6\u9891 multipart \u6700\u5C0F\u53C2\u6570"
+        };
+      }
+      break;
+    case "replicate":
+      if (modality === "image") {
+        return {
+          params: {
+            prompt: PROMPT.image,
+            outputFormat: "json",
+            parameters: {
+              aspect_ratio: "1:1",
+              num_outputs: 1
+            },
+            enableProgress: true
+          },
+          strategy: "replicate:\u5F02\u6B65 prediction\uFF0CenableProgress \u7B49\u5F85 output"
+        };
+      }
+      if (modality === "video" || modality === "audio") {
+        return {
+          params: {
+            prompt: modality === "video" ? PROMPT.video : PROMPT.audio,
+            outputFormat: "json",
+            parameters: {},
+            enableProgress: true
+          },
+          strategy: `replicate:\u5F02\u6B65 prediction\uFF08${modality}\uFF09\uFF0CenableProgress \u7B49\u5F85 output`
+        };
+      }
+      return {
+        params: {
+          prompt: PROMPT.text,
+          outputFormat: "json",
+          parameters: { max_tokens: 64, temperature: 0 }
+        },
+        strategy: "replicate:\u6587\u672C/\u517C\u5BB9 run \u6216 stream"
+      };
+    case "ppio":
+      if (modality === "image") {
+        return {
+          params: {
+            prompt: PROMPT.image,
+            outputFormat: "json",
+            parameters: { size: "1K" }
+          },
+          strategy: "ppio:textToImage/editImage\uFF0Csize=1K"
+        };
+      }
+      if (modality === "audio") {
+        return {
+          params: {
+            prompt: PROMPT.audio,
+            outputFormat: "json",
+            parameters: {
+              voice_setting: { voice_id: "female-shaonv" },
+              language_boost: "en",
+              output_format: "url"
+            }
+          },
+          strategy: "ppio:\u8BED\u97F3\u5408\u6210\u9ED8\u8BA4\u97F3\u8272"
+        };
+      }
+      return {
+        params: {
+          prompt: PROMPT.text,
+          outputFormat: "json",
+          parameters: { max_tokens: 64, temperature: 0 }
+        },
+        strategy: "ppio:OpenAI \u517C\u5BB9 Chat"
+      };
+    case "openai":
+    case "google":
+    case "anthropic":
+    case "qwen":
+    case "volc":
+    case "minimax":
+      if (modality !== "text") {
+        return {
+          params: {
+            prompt: modality === "image" ? PROMPT.image : modality === "audio" ? PROMPT.audio : PROMPT.video,
+            outputFormat: "json",
+            parameters: {}
+          },
+          strategy: `${provider13}:\u5F53\u524D\u5B9E\u73B0\u4EE5 Chat \u4E3A\u4E3B\uFF1B\u82E5\u5931\u8D25\u8BF7\u786E\u8BA4\u8BE5 model_key \u5728 Provider \u5185\u662F\u5426\u652F\u6301\u6B64\u6A21\u6001`
+        };
+      }
+      return {
+        params: {
+          prompt: PROMPT.text,
+          outputFormat: "json",
+          parameters: { max_tokens: 32, temperature: 0 }
+        },
+        strategy: `${provider13}:Chat Completions \u6700\u5C0F\u8BF7\u6C42`
+      };
+    default:
+      break;
+  }
+  const fallback = {
+    text: { max_tokens: 16, temperature: 0 },
+    image: { size: "1024x1024", n: 1 },
+    audio: { seconds: 1, language_boost: "en" },
+    video: { seconds: 2, size: "720p" }
+  };
+  const pr = PROMPT[modality] || PROMPT.text;
+  return {
+    params: {
+      prompt: pr,
+      outputFormat: "json",
+      parameters: fallback[modality] || fallback.text
+    },
+    strategy: `default:${provider13}/${modality} \u515C\u5E95\u53C2\u6570`
+  };
+}
+function verifyResult(provider13, modality, result) {
+  const meta = result.metadata;
+  const hasMedia = Array.isArray(result.mediaUrls) && result.mediaUrls.length > 0;
+  const hasStream = !!result.stream || !!result.streamString;
+  const hasMetadata = !!result.metadata;
+  const hasTaskId = !!(meta?.taskId && String(meta.taskId).length > 0) || !!(meta?.task_id && String(meta.task_id).length > 0);
+  if (modality === "text") {
+    return hasMedia || hasMetadata || hasStream;
+  }
+  if (provider13 === "replicate" && (modality === "image" || modality === "video" || modality === "audio")) {
+    return hasMedia || hasMetadata;
+  }
+  if (modality === "image") {
+    return hasMedia || hasMetadata || hasTaskId;
+  }
+  return hasMedia || hasMetadata || hasTaskId;
+}
+async function runProviderConnectivityTest(options) {
+  const { provider: provider13, modelKey: modelKey43, inferredModality, p, pushStep } = options;
+  if (provider13 === "deer" && inferredModality === "image") {
+    const deerImg = await runDeerImageConnectivityTest(modelKey43);
+    for (const s of deerImg.steps) {
+      pushStep(s.key, s.title, s.status, s.detail);
+    }
+    return {
+      success: deerImg.success,
+      error: deerImg.success ? void 0 : deerImg.error ?? "\u56FE\u7247\u8FDE\u901A\u6027\u6D4B\u8BD5\u5931\u8D25",
+      responseMeta: deerImg.responseMeta ?? null,
+      requestPayload: {
+        prompt: "[deer:image] DeerAPI \u4E13\u7528\u56FE\u751F\u8FDE\u901A\u6027\uFF08Flux \u8F6E\u8BE2 / Seedream / Gemini\uFF09",
+        outputFormat: "json",
+        parameters: {},
+        inferredModality: "image",
+        strategy: "deer-image: \u89C1\u6B65\u9AA4 invoke / poll / verify"
+      }
+    };
+  }
+  const { params, strategy } = buildMinConnectivityGenerateParams(provider13, modelKey43, inferredModality);
+  const requestPayload = {
+    prompt: params.prompt,
+    outputFormat: "json",
+    parameters: params.parameters || {},
+    inferredModality,
+    strategy
+  };
+  pushStep("invoke", `\u8C03\u7528\u4E0A\u6E38\uFF08${provider13}\uFF09`, "running", strategy);
+  try {
+    const result = await p.generate(modelKey43, params);
+    const responseMeta = result.metadata ?? null;
+    pushStep("invoke", `\u8C03\u7528\u4E0A\u6E38\uFF08${provider13}\uFF09`, "success");
+    pushStep("verify", "\u9A8C\u8BC1\u8FD4\u56DE\u7ED3\u679C", "running");
+    const ok = verifyResult(provider13, inferredModality, result);
+    if (ok) {
+      const meta = result.metadata;
+      const hasMedia = Array.isArray(result.mediaUrls) && result.mediaUrls.length > 0;
+      pushStep(
+        "verify",
+        "\u9A8C\u8BC1\u8FD4\u56DE\u7ED3\u679C",
+        "success",
+        hasMedia ? `mediaUrls=${result.mediaUrls?.length ?? 0}` : meta?.taskId || meta?.task_id ? `taskId=${String(meta?.taskId ?? meta?.task_id)}` : "metadata/stream \u5C31\u7EEA"
+      );
+      return { success: true, responseMeta, requestPayload };
+    }
+    pushStep("verify", "\u9A8C\u8BC1\u8FD4\u56DE\u7ED3\u679C", "failed", "\u8FD4\u56DE\u7ED3\u6784\u4E3A\u7A7A\u6216\u65E0\u6CD5\u8BC6\u522B");
+    return {
+      success: false,
+      error: "\u8FD4\u56DE\u7ED3\u6784\u4E3A\u7A7A\u6216\u65E0\u6CD5\u8BC6\u522B",
+      responseMeta,
+      requestPayload
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    pushStep("invoke", `\u8C03\u7528\u4E0A\u6E38\uFF08${provider13}\uFF09`, "failed", msg);
+    return {
+      success: false,
+      error: msg,
+      requestPayload
+    };
+  }
+}
+
+// src/routes/providers.ts
 var router9 = (0, import_express9.Router)();
 async function requireAdmin(req, res, next) {
   try {
@@ -29741,8 +30384,8 @@ async function requireAdmin(req, res, next) {
       res.status(403).json({ success: false, error: "Admin access required" });
       return;
     }
-    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
-    const userRepo = RepositoryFactory22.createUserRepository();
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const userRepo = RepositoryFactory24.createUserRepository();
     const user = await userRepo.findById(userId);
     if (user && user.role === "admin") {
       next();
@@ -29753,28 +30396,58 @@ async function requireAdmin(req, res, next) {
     res.status(500).json({ success: false, error: "Failed to check admin" });
   }
 }
-router9.use(requireAdmin);
-router9.get("/options", (_req, res) => {
+async function refreshProviderModelCatalog() {
   try {
-    const allModels = listModels();
+    const { loadProviderModelCatalog: loadProviderModelCatalog2 } = await Promise.resolve().then(() => (init_provider_model_catalog(), provider_model_catalog_exports));
+    await loadProviderModelCatalog2();
+    const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports2));
+    await providerFactory2.loadProviderCatalog();
+  } catch (e) {
+    console.warn("[providers] refreshProviderModelCatalog failed:", e instanceof Error ? e.message : String(e));
+  }
+}
+function normalizeModalityByScope(scope, modality) {
+  const s = String(scope || "").toLowerCase();
+  if (s === "graph") return "image";
+  if (s === "audio") return "audio";
+  if (s === "video") return "video";
+  if (s === "text" || s === "default" || s === "writing" || s === "outline") return "text";
+  const m = (modality ?? "").toLowerCase();
+  if (m === "text" || m === "image" || m === "audio" || m === "video") return m;
+  return null;
+}
+router9.use(requireAdmin);
+router9.get("/options", async (_req, res) => {
+  try {
     const modelsByProvider = {};
     const modelsByProviderByScope = {};
+    try {
+      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+      const repo = RepositoryFactory24.createProviderModelRepository();
+      const dbModels = await repo.list({ onlyEnabled: true });
+      for (const m of dbModels) {
+        const provider13 = m.provider;
+        const scope = m.scope;
+        const key = m.model_key;
+        if (!modelsByProvider[provider13]) modelsByProvider[provider13] = [];
+        if (!modelsByProvider[provider13].includes(key)) modelsByProvider[provider13].push(key);
+        if (!modelsByProviderByScope[provider13]) modelsByProviderByScope[provider13] = {};
+        if (!modelsByProviderByScope[provider13][scope]) modelsByProviderByScope[provider13][scope] = [];
+        if (!modelsByProviderByScope[provider13][scope].includes(key)) {
+          modelsByProviderByScope[provider13][scope].push(key);
+        }
+      }
+    } catch (_) {
+    }
+    const allModels = listModels();
     for (const def of allModels) {
       const provider13 = def.provider;
       const scope = def.scope;
       const key = def.modelKey;
-      if (!modelsByProvider[provider13]) {
-        modelsByProvider[provider13] = [];
-      }
-      if (!modelsByProvider[provider13].includes(key)) {
-        modelsByProvider[provider13].push(key);
-      }
-      if (!modelsByProviderByScope[provider13]) {
-        modelsByProviderByScope[provider13] = {};
-      }
-      if (!modelsByProviderByScope[provider13][scope]) {
-        modelsByProviderByScope[provider13][scope] = [];
-      }
+      if (!modelsByProvider[provider13]) modelsByProvider[provider13] = [];
+      if (!modelsByProvider[provider13].includes(key)) modelsByProvider[provider13].push(key);
+      if (!modelsByProviderByScope[provider13]) modelsByProviderByScope[provider13] = {};
+      if (!modelsByProviderByScope[provider13][scope]) modelsByProviderByScope[provider13][scope] = [];
       if (!modelsByProviderByScope[provider13][scope].includes(key)) {
         modelsByProviderByScope[provider13][scope].push(key);
       }
@@ -29821,7 +30494,7 @@ router9.post("/routing", async (req, res) => {
       return;
     }
     const canonical = canonicalLogicalModel(logicalModel);
-    const supabase = (0, import_mxmdata23.getSupabaseClient)();
+    const supabase = (0, import_mxmdata24.getSupabaseClient)();
     const { error } = await supabase.from("model_routing_overrides").upsert(
       { logical_model: canonical, provider: provider13, model, updated_at: (/* @__PURE__ */ new Date()).toISOString() },
       { onConflict: "logical_model" }
@@ -29850,7 +30523,7 @@ router9.delete("/routing", async (req, res) => {
       return;
     }
     const canonical = canonicalLogicalModel(logicalModel);
-    const supabase = (0, import_mxmdata23.getSupabaseClient)();
+    const supabase = (0, import_mxmdata24.getSupabaseClient)();
     await supabase.from("model_routing_overrides").delete().eq("logical_model", canonical);
     clearRoutingOverride(logicalModel);
     res.json({ success: true });
@@ -29865,7 +30538,8 @@ router9.get("/stats", async (req, res) => {
   try {
     const provider13 = req.query.provider;
     const window = req.query.window || "1h";
-    const list = await getProviderStats({ provider: provider13, window });
+    const groupBy = req.query.groupBy;
+    const list = await getProviderStats({ provider: provider13, window, groupBy });
     res.json({ success: true, data: list });
   } catch (e) {
     res.status(500).json({
@@ -29887,7 +30561,7 @@ var BILLING_PROVIDERS = [
 ];
 router9.get("/billing", async (_req, res) => {
   try {
-    const supabase = (0, import_mxmdata23.getSupabaseClient)();
+    const supabase = (0, import_mxmdata24.getSupabaseClient)();
     const { data: balanceRows } = await supabase.from("provider_balances").select("provider, balance, currency");
     const balanceMap = /* @__PURE__ */ new Map();
     (balanceRows || []).forEach((r) => {
@@ -29941,7 +30615,7 @@ router9.get("/billing", async (_req, res) => {
 });
 router9.get("/balances", async (_req, res) => {
   try {
-    const supabase = (0, import_mxmdata23.getSupabaseClient)();
+    const supabase = (0, import_mxmdata24.getSupabaseClient)();
     const { data, error } = await supabase.from("provider_balances").select("provider, balance, currency, updated_at").order("provider");
     if (error) {
       return res.status(500).json({ success: false, error: error.message });
@@ -29960,7 +30634,7 @@ router9.put("/balances", async (req, res) => {
     if (!provider13 || typeof balance !== "number") {
       return res.status(400).json({ success: false, error: "Missing provider or balance" });
     }
-    const supabase = (0, import_mxmdata23.getSupabaseClient)();
+    const supabase = (0, import_mxmdata24.getSupabaseClient)();
     const { data: existing } = await supabase.from("provider_balances").select("id").eq("provider", provider13).maybeSingle();
     if (existing) {
       const { data: data2, error: error2 } = await supabase.from("provider_balances").update({ balance: Number(balance), updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("provider", provider13).select().maybeSingle();
@@ -29979,7 +30653,7 @@ router9.put("/balances", async (req, res) => {
 });
 router9.get("/costs", async (req, res) => {
   try {
-    const supabase = (0, import_mxmdata23.getSupabaseClient)();
+    const supabase = (0, import_mxmdata24.getSupabaseClient)();
     const windowParam = req.query.window || "7d";
     const groupBy = req.query.groupBy || "provider";
     const windowMap = {
@@ -30152,8 +30826,8 @@ router9.get("/costs", async (req, res) => {
 });
 router9.get("/keys", async (req, res) => {
   try {
-    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory22.createProviderApiKeyRepository();
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderApiKeyRepository();
     const provider13 = req.query.provider;
     const service = req.query.service;
     const list = await repo.listMasked({ provider: provider13, service: service ?? null });
@@ -30173,8 +30847,8 @@ router9.post("/keys", async (req, res) => {
       res.status(400).json({ success: false, error: "Missing provider or key_value" });
       return;
     }
-    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory22.createProviderApiKeyRepository();
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderApiKeyRepository();
     const created = await repo.create({
       provider: provider13,
       service: service ?? null,
@@ -30204,8 +30878,8 @@ router9.put("/keys/:id", async (req, res) => {
   try {
     const userId = req.headers["x-user-id"];
     const { priority, is_active } = req.body;
-    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory22.createProviderApiKeyRepository();
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderApiKeyRepository();
     const updated = await repo.update(req.params.id, { priority, is_active, updated_by: userId ?? null });
     res.json({
       success: true,
@@ -30227,10 +30901,358 @@ router9.put("/keys/:id", async (req, res) => {
 });
 router9.delete("/keys/:id", async (req, res) => {
   try {
-    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory22.createProviderApiKeyRepository();
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderApiKeyRepository();
     await repo.delete(req.params.id);
     res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e)
+    });
+  }
+});
+router9.get("/models", async (req, res) => {
+  try {
+    const provider13 = req.query.provider;
+    const scope = req.query.scope;
+    const onlyEnabled = req.query.onlyEnabled === "true" || req.query.onlyEnabled === "1";
+    const page = Math.max(1, parseInt(String(req.query.page || 1), 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize || 20), 10)));
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderModelRepository();
+    let list = await repo.list({ provider: provider13, scope, onlyEnabled: onlyEnabled || void 0 });
+    list = list.map((m) => ({
+      ...m,
+      modality: normalizeModalityByScope(m.scope, m.modality)
+    }));
+    try {
+      const supabase = (0, import_mxmdata24.getSupabaseClient)();
+      const ids = list.map((m) => m.id).filter(Boolean);
+      if (ids.length > 0) {
+        const { data: runs } = await supabase.from("provider_model_test_runs").select("provider_model_id, success, latency_ms, error_message, created_at").in("provider_model_id", ids).order("created_at", { ascending: false });
+        const latestById = /* @__PURE__ */ new Map();
+        for (const r of runs || []) {
+          const k = String(r.provider_model_id);
+          if (!latestById.has(k)) latestById.set(k, r);
+        }
+        list = list.map((m) => ({
+          ...m,
+          latest_test: latestById.get(String(m.id)) ?? null
+        }));
+      }
+    } catch (e) {
+      console.warn("[providers] load latest provider_model_test_runs failed:", e instanceof Error ? e.message : String(e));
+    }
+    const total = list.length;
+    const offset = (page - 1) * pageSize;
+    list = list.slice(offset, offset + pageSize);
+    res.json({ success: true, data: list, total, page, pageSize });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e)
+    });
+  }
+});
+router9.get("/models/:id/tests", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || 20), 10)));
+    const supabase = (0, import_mxmdata24.getSupabaseClient)();
+    const { data, error } = await supabase.from("provider_model_test_runs").select("*").eq("provider_model_id", id).order("created_at", { ascending: false }).limit(limit);
+    if (error) {
+      res.status(500).json({ success: false, error: error.message });
+      return;
+    }
+    res.json({ success: true, data: data || [] });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e instanceof Error ? e.message : String(e) });
+  }
+});
+router9.post("/models", async (req, res) => {
+  try {
+    const body = req.body;
+    if (!body.provider || !body.scope || !body.model_key) {
+      res.status(400).json({ success: false, error: "Missing provider, scope, or model_key" });
+      return;
+    }
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderModelRepository();
+    const created = await repo.upsert({
+      provider: body.provider,
+      scope: body.scope,
+      model_key: body.model_key,
+      upstream_model: body.upstream_model ?? null,
+      protocol: body.protocol ?? null,
+      modality: normalizeModalityByScope(body.scope, body.modality),
+      io_schema: body.io_schema ?? null,
+      display_name: body.display_name ?? null,
+      description: body.description ?? null,
+      capabilities: body.capabilities ?? null,
+      default_parameters: body.default_parameters ?? null,
+      is_enabled: body.is_enabled ?? true
+    });
+    await refreshProviderModelCatalog();
+    res.json({
+      success: true,
+      data: { ...created, modality: normalizeModalityByScope(created.scope, created.modality) }
+    });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e)
+    });
+  }
+});
+router9.put("/models/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const body = req.body;
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderModelRepository();
+    const existing = await repo.findById(id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: "Model not found" });
+      return;
+    }
+    if (body.provider !== void 0 && body.provider !== existing.provider) {
+      res.status(400).json({ success: false, error: "\u4E0D\u5141\u8BB8\u4FEE\u6539 provider" });
+      return;
+    }
+    if (body.model_key !== void 0 && body.model_key !== existing.model_key) {
+      res.status(400).json({ success: false, error: "\u4E0D\u5141\u8BB8\u4FEE\u6539 model_key" });
+      return;
+    }
+    const patch = {};
+    if (body.scope !== void 0) patch.scope = body.scope;
+    if (body.upstream_model !== void 0) patch.upstream_model = body.upstream_model;
+    if (body.protocol !== void 0) patch.protocol = body.protocol;
+    if (body.modality !== void 0 || body.scope !== void 0) {
+      patch.modality = normalizeModalityByScope(
+        body.scope ?? existing.scope,
+        body.modality ?? existing.modality
+      );
+    }
+    if (body.io_schema !== void 0) patch.io_schema = body.io_schema;
+    if (body.display_name !== void 0) patch.display_name = body.display_name;
+    if (body.description !== void 0) patch.description = body.description;
+    if (body.capabilities !== void 0) patch.capabilities = body.capabilities;
+    if (body.default_parameters !== void 0) patch.default_parameters = body.default_parameters;
+    if (body.is_enabled !== void 0) patch.is_enabled = body.is_enabled;
+    const newScope = patch.scope !== void 0 ? patch.scope : existing.scope;
+    if (patch.scope !== void 0 && patch.scope !== existing.scope) {
+      const duplicate = await repo.findByKey({
+        provider: existing.provider,
+        scope: newScope,
+        model_key: existing.model_key
+      });
+      if (duplicate && duplicate.id !== id) {
+        const mergePatch = { ...patch };
+        delete mergePatch.scope;
+        if (Object.keys(mergePatch).length > 0) {
+          await repo.update(duplicate.id, mergePatch);
+        }
+        const supabase = (0, import_mxmdata24.getSupabaseClient)();
+        const { error: pricingErr } = await supabase.from("provider_pricing").delete().eq("provider", existing.provider).eq("scope", existing.scope).eq("model_key", existing.model_key);
+        if (pricingErr) {
+          res.status(500).json({
+            success: false,
+            error: `\u5408\u5E76\u91CD\u590D\u8BB0\u5F55\u65F6\u5220\u9664\u65E7 Provider \u6210\u672C\u884C\u5931\u8D25: ${pricingErr.message}`
+          });
+          return;
+        }
+        await repo.deleteById(id);
+        await refreshProviderModelCatalog();
+        const finalRow = await repo.findById(duplicate.id);
+        res.json({
+          success: true,
+          data: finalRow ? { ...finalRow, modality: normalizeModalityByScope(finalRow.scope, finalRow.modality) } : null,
+          merged: true,
+          message: "\u5DF2\u5B58\u5728\u76F8\u540C provider + scope + model_key \u7684\u8BB0\u5F55\uFF1A\u5DF2\u5C06\u672C\u6B21\u7F16\u8F91\u5408\u5E76\u5230\u8BE5\u8BB0\u5F55\uFF0C\u5E76\u5220\u9664\u91CD\u590D\u7684\u7269\u7406\u6A21\u578B\u884C\u3002"
+        });
+        return;
+      }
+    }
+    const updated = await repo.update(id, patch);
+    await refreshProviderModelCatalog();
+    res.json({
+      success: true,
+      data: { ...updated, modality: normalizeModalityByScope(updated.scope, updated.modality) }
+    });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e)
+    });
+  }
+});
+router9.delete("/models/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderModelRepository();
+    const existing = await repo.findById(id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: "Model not found" });
+      return;
+    }
+    const supabase = (0, import_mxmdata24.getSupabaseClient)();
+    const { error: pricingErr } = await supabase.from("provider_pricing").delete().eq("provider", existing.provider).eq("scope", existing.scope).eq("model_key", existing.model_key);
+    if (pricingErr) {
+      res.status(500).json({
+        success: false,
+        error: `\u5220\u9664\u5173\u8054\u5B9A\u4EF7\u5931\u8D25: ${pricingErr.message}`
+      });
+      return;
+    }
+    await repo.deleteById(id);
+    await refreshProviderModelCatalog();
+    res.json({ success: true, data: { id, deleted: true } });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e)
+    });
+  }
+});
+router9.post("/models/test", async (req, res) => {
+  try {
+    const body = req.body;
+    let provider13;
+    let modelKey43;
+    let scope;
+    let modality = null;
+    const steps = [];
+    const pushStep = (key, title, status, detail) => {
+      steps.push({ key, title, status, detail, at: (/* @__PURE__ */ new Date()).toISOString() });
+    };
+    let providerModelId = null;
+    if (body.provider_model_id) {
+      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+      const repo = RepositoryFactory24.createProviderModelRepository();
+      const m = await repo.findById(body.provider_model_id);
+      if (!m) {
+        res.status(404).json({ success: false, error: "Provider model not found" });
+        return;
+      }
+      providerModelId = m.id;
+      provider13 = m.provider;
+      modelKey43 = m.model_key;
+      scope = m.scope;
+      modality = m.modality ?? null;
+    } else if (body.provider && body.model_key && body.scope) {
+      provider13 = body.provider;
+      modelKey43 = body.model_key;
+      scope = body.scope;
+      modality = null;
+      try {
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createProviderModelRepository();
+        const m = await repo.findByKey({ provider: provider13, scope, model_key: modelKey43 });
+        providerModelId = m?.id ?? null;
+      } catch {
+        providerModelId = null;
+      }
+    } else {
+      res.status(400).json({
+        success: false,
+        error: "Provide provider_model_id or (provider, model_key, scope)"
+      });
+      return;
+    }
+    const start2 = Date.now();
+    let success = false;
+    let errorMessage = null;
+    let requestPayload = null;
+    let responseMeta = null;
+    try {
+      const inferredModality = resolveInferedModalityForConnectivityTest(
+        provider13,
+        modelKey43,
+        scope,
+        modality
+      );
+      pushStep(
+        "prepare",
+        "\u6784\u9020\u6700\u5C0F\u6D4B\u8BD5\u8BF7\u6C42",
+        "success",
+        `scope=${scope}, modality=${inferredModality}, provider=${provider13}, model=${modelKey43}`
+      );
+      pushStep("connect", "\u68C0\u67E5 Provider \u4E0E\u6A21\u578B\u652F\u6301", "running");
+      const p = providerFactory.tryGet(provider13);
+      if (!p || !p.supportsModel(modelKey43)) {
+        pushStep("connect", "\u68C0\u67E5 Provider \u4E0E\u6A21\u578B\u652F\u6301", "failed", "Provider \u4E0D\u652F\u6301\u8BE5\u6A21\u578B");
+        errorMessage = `Provider ${provider13} does not support model ${modelKey43}`;
+      } else {
+        pushStep("connect", "\u68C0\u67E5 Provider \u4E0E\u6A21\u578B\u652F\u6301", "success");
+        const outcome = await runProviderConnectivityTest({
+          provider: provider13,
+          modelKey: modelKey43,
+          inferredModality,
+          p,
+          pushStep
+        });
+        success = outcome.success;
+        responseMeta = outcome.responseMeta ?? null;
+        requestPayload = outcome.requestPayload;
+        if (!success) {
+          errorMessage = outcome.error ?? "\u8FDE\u901A\u6027\u6D4B\u8BD5\u5931\u8D25";
+        }
+      }
+    } catch (e) {
+      errorMessage = e instanceof Error ? e.message : String(e);
+      steps.push({
+        key: "invoke",
+        title: "\u53D1\u9001\u6700\u5C0F\u6D4B\u8BD5\u8BF7\u6C42",
+        status: "failed",
+        detail: errorMessage,
+        at: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    }
+    const latencyMs = Date.now() - start2;
+    pushStep(
+      "done",
+      "\u6D4B\u8BD5\u5B8C\u6210",
+      success ? "success" : "failed",
+      success ? `\u8017\u65F6 ${latencyMs}ms` : errorMessage || "\u6D4B\u8BD5\u5931\u8D25"
+    );
+    try {
+      if (providerModelId) {
+        const inferred = String(requestPayload?.inferredModality ?? modality ?? "text");
+        const supabase = (0, import_mxmdata24.getSupabaseClient)();
+        await supabase.from("provider_model_test_runs").insert({
+          provider_model_id: providerModelId,
+          provider: provider13,
+          scope,
+          model_key: modelKey43,
+          inferred_modality: inferred,
+          success,
+          latency_ms: latencyMs,
+          error_message: errorMessage,
+          request_payload: requestPayload,
+          response_meta: responseMeta,
+          steps
+        });
+      }
+    } catch (e) {
+      console.warn("[providers] insert provider_model_test_runs failed:", e instanceof Error ? e.message : String(e));
+    }
+    res.json({
+      success: true,
+      data: {
+        success,
+        latencyMs,
+        error: errorMessage,
+        provider: provider13,
+        model_key: modelKey43,
+        scope,
+        modality: requestPayload?.inferredModality ?? modality ?? null,
+        requestPayload,
+        responseMeta,
+        steps
+      }
+    });
   } catch (e) {
     res.status(500).json({
       success: false,
@@ -30242,7 +31264,7 @@ var providers_default = router9;
 
 // src/routes/sensitive-words.ts
 var import_express10 = require("express");
-var import_mxmdata24 = require("@mxmai/mxmdata");
+var import_mxmdata25 = require("@mxmai/mxmdata");
 var router10 = (0, import_express10.Router)();
 async function isAdminUser3(req) {
   try {
@@ -30250,7 +31272,7 @@ async function isAdminUser3(req) {
     if (userRole === "admin") return true;
     const userId = req.headers["x-user-id"];
     if (!userId) return false;
-    const userRepo = import_mxmdata24.RepositoryFactory.createUserRepository();
+    const userRepo = import_mxmdata25.RepositoryFactory.createUserRepository();
     const user = await userRepo.findById(userId);
     return !!(user && user.role === "admin");
   } catch {
@@ -30296,7 +31318,7 @@ router10.get("/lists", async (req, res) => {
     return res.status(403).json({ success: false, error: "Admin only" });
   }
   try {
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     const items = await repo.listLists();
     return res.json({ success: true, data: { items } });
   } catch (e) {
@@ -30313,7 +31335,7 @@ router10.get("/lists/:listId", async (req, res) => {
   try {
     const listId = req.params.listId;
     if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     const list = await repo.findListById(listId);
     if (!list) return res.status(404).json({ success: false, error: "Not found" });
     return res.json({ success: true, data: list });
@@ -30331,7 +31353,7 @@ router10.post("/lists", async (req, res) => {
     if (!body.name || typeof body.name !== "string") {
       return res.status(400).json({ success: false, error: "name is required" });
     }
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     const list = await repo.createList({
       name: body.name,
       description: body.description ?? null,
@@ -30350,7 +31372,7 @@ router10.put("/lists/:listId", async (req, res) => {
     const listId = req.params.listId;
     const body = req.body;
     if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     const list = await repo.updateList(listId, {
       name: body.name,
       description: body.description,
@@ -30369,7 +31391,7 @@ router10.delete("/lists/:listId", async (req, res) => {
   try {
     const listId = req.params.listId;
     if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     await repo.deleteList(listId);
     return res.status(204).send();
   } catch (e) {
@@ -30384,7 +31406,7 @@ router10.get("/lists/:listId/words", async (req, res) => {
   try {
     const listId = req.params.listId;
     if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     const words = await repo.listWordsByListId(listId);
     return res.json({ success: true, data: { items: words } });
   } catch (e) {
@@ -30403,7 +31425,7 @@ router10.post("/lists/:listId/words", async (req, res) => {
     if (!body.word || typeof body.word !== "string") {
       return res.status(400).json({ success: false, error: "word is required" });
     }
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     const word = await repo.addWord({ list_id: listId, word: body.word.trim() });
     return res.status(201).json({ success: true, data: word });
   } catch (e) {
@@ -30423,7 +31445,7 @@ router10.post("/lists/:listId/words/batch", async (req, res) => {
     if (words.length === 0) {
       return res.status(400).json({ success: false, error: "words array is required and non-empty" });
     }
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     const count = await repo.addWordsBatch(listId, words);
     return res.status(201).json({ success: true, data: { added: count } });
   } catch (e) {
@@ -30438,7 +31460,7 @@ router10.delete("/words/:wordId", async (req, res) => {
   try {
     const wordId = req.params.wordId;
     if (!wordId) return res.status(400).json({ success: false, error: "wordId required" });
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     await repo.deleteWord(wordId);
     return res.status(204).send();
   } catch (e) {
@@ -30454,7 +31476,7 @@ router10.get("/bindings", async (req, res) => {
     const scope = req.query.scope;
     const type = req.query.type;
     const subtype = req.query.subtype;
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     const items = await repo.listBindings(
       scope,
       type,
@@ -30478,7 +31500,7 @@ router10.put("/bindings/slot", async (req, res) => {
       return res.status(400).json({ success: false, error: "scope and type are required" });
     }
     const listIds = Array.isArray(body.list_ids) ? body.list_ids : [];
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     await repo.setBindingsForSlot(body.scope, body.type, body.subtype ?? null, listIds);
     return res.json({ success: true, data: { scope: body.scope, type: body.type, subtype: body.subtype ?? null, list_ids: listIds } });
   } catch (e) {
@@ -30493,7 +31515,7 @@ router10.delete("/bindings/:bindingId", async (req, res) => {
   try {
     const bindingId = req.params.bindingId;
     if (!bindingId) return res.status(400).json({ success: false, error: "bindingId required" });
-    const repo = (0, import_mxmdata24.createSensitiveWordRepository)();
+    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
     await repo.removeBinding(bindingId);
     return res.status(204).send();
   } catch (e) {
@@ -30504,7 +31526,7 @@ router10.delete("/bindings/:bindingId", async (req, res) => {
 var sensitive_words_default = router10;
 
 // src/routes/system.ts
-var import_mxmdata25 = require("@mxmai/mxmdata");
+var import_mxmdata26 = require("@mxmai/mxmdata");
 var router11 = (0, import_express11.Router)();
 router11.use("/prompt-config", prompt_config_default);
 router11.use("/admin/providers", providers_default);
@@ -30518,7 +31540,7 @@ router11.get("/admin/stats", async (req, res) => {
         error: "Admin access required"
       });
     }
-    const supabase = (0, import_mxmdata25.getSupabaseClient)();
+    const supabase = (0, import_mxmdata26.getSupabaseClient)();
     const days = Math.min(Math.max(parseInt(req.query.days) || 30, 7), 90);
     const topLimit = Math.min(Math.max(parseInt(req.query.topLimit) || 10, 5), 50);
     const [
@@ -30606,8 +31628,8 @@ async function isAdminUser4(req) {
       return false;
     }
     try {
-      const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
-      const userRepo = RepositoryFactory22.createUserRepository();
+      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+      const userRepo = RepositoryFactory24.createUserRepository();
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
         return true;
@@ -30641,108 +31663,102 @@ function processModelConfig(config, isAdmin) {
   }
   return result;
 }
+function scopeToSystemCategory(scope) {
+  const s = (scope || "").toLowerCase();
+  if (s === "graph") return "graph";
+  if (s === "audio") return "audio";
+  if (s === "video") return "video";
+  return "text";
+}
+function normalizeChargeMode(raw) {
+  const s = (raw ?? "token_based").toLowerCase();
+  if (s === "token_based_per_thousand") return "token_based_per_thousand" /* token_based_per_thousand */;
+  if (s === "token_based") return "token_based" /* token_based */;
+  return "per_change_mode" /* per_change_mode */;
+}
+async function loadModelsTreeFromDatabase(isAdmin) {
+  const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+  const repo = RepositoryFactory24.createProviderModelRepository();
+  const models = await repo.list({ onlyEnabled: true });
+  const supabase = (0, import_mxmdata26.getSupabaseClient)();
+  const { data: pricingRows, error } = await supabase.from("provider_pricing").select("*");
+  if (error) {
+    console.warn("[System Route] provider_pricing \u67E5\u8BE2\u5931\u8D25:", error.message);
+  }
+  const pricingMap = /* @__PURE__ */ new Map();
+  for (const p of pricingRows || []) {
+    pricingMap.set(`${p.provider}:${p.scope}:${p.model_key}`, p);
+  }
+  const allowed = /* @__PURE__ */ new Set(["replicate", "ppio", "deer"]);
+  const result = {};
+  for (const m of models) {
+    if (!allowed.has(m.provider)) continue;
+    const cat = scopeToSystemCategory(m.scope);
+    const pr = pricingMap.get(`${m.provider}:${m.scope}:${m.model_key}`);
+    const cfg = {
+      modelname: m.upstream_model ?? m.model_key,
+      price: pr != null ? Number(pr.unit_price) : 0,
+      charge_mode: normalizeChargeMode(pr?.charge_mode),
+      currency: pr?.currency || "USD"
+    };
+    if (!result[m.provider]) result[m.provider] = {};
+    if (!result[m.provider][cat]) result[m.provider][cat] = {};
+    result[m.provider][cat][m.model_key] = processModelConfig(cfg, isAdmin);
+  }
+  return result;
+}
 router11.get("/models", async (req, res) => {
   try {
     const { category, provider: provider13 } = req.query;
     const isAdmin = await isAdminUser4(req);
+    const tree = await loadModelsTreeFromDatabase(isAdmin);
     if (category && provider13) {
       const categoryKey = category;
       const providerKey = provider13;
-      const providerModels = suport_list_default[providerKey]?.[categoryKey];
-      if (!providerModels) {
+      const providerModels = tree[providerKey]?.[categoryKey];
+      if (!providerModels || Object.keys(providerModels).length === 0) {
         return res.status(404).json({
           success: false,
           error: "Not found",
           message: `No models found for provider "${providerKey}" and category "${categoryKey}"`
         });
       }
-      const result2 = {};
-      for (const [modelName, config] of Object.entries(providerModels)) {
-        result2[modelName] = processModelConfig(config, isAdmin);
-      }
       return res.json({
         success: true,
         data: {
           [providerKey]: {
-            [categoryKey]: result2
+            [categoryKey]: providerModels
           }
         }
       });
     }
     if (category) {
       const categoryKey = category;
-      const result2 = {};
+      const result = {};
       for (const providerKey of ["replicate", "ppio", "deer"]) {
-        const providerModels = suport_list_default[providerKey]?.[categoryKey];
-        if (providerModels) {
-          result2[providerKey] = {};
-          result2[providerKey][categoryKey] = {};
-          for (const [modelName, config] of Object.entries(providerModels)) {
-            result2[providerKey][categoryKey][modelName] = processModelConfig(
-              config,
-              isAdmin
-            );
-          }
+        const block = tree[providerKey]?.[categoryKey];
+        if (block && Object.keys(block).length > 0) {
+          result[providerKey] = { [categoryKey]: block };
         }
       }
-      return res.json({
-        success: true,
-        data: result2
-      });
+      return res.json({ success: true, data: result });
     }
     if (provider13) {
       const providerKey = provider13;
-      const providerData = suport_list_default[providerKey];
-      if (!providerData) {
+      const providerData = tree[providerKey];
+      if (!providerData || Object.keys(providerData).length === 0) {
         return res.status(404).json({
           success: false,
           error: "Not found",
           message: `Provider "${providerKey}" not found`
         });
       }
-      const result2 = {};
-      for (const categoryKey of ["graph", "text", "audio"]) {
-        const categoryModels = providerData[categoryKey];
-        if (categoryModels) {
-          result2[categoryKey] = {};
-          for (const [modelName, config] of Object.entries(categoryModels)) {
-            result2[categoryKey][modelName] = processModelConfig(
-              config,
-              isAdmin
-            );
-          }
-        }
-      }
       return res.json({
         success: true,
-        data: {
-          [providerKey]: result2
-        }
+        data: { [providerKey]: providerData }
       });
     }
-    const result = {};
-    for (const providerKey of ["replicate", "ppio", "deer"]) {
-      const providerData = suport_list_default[providerKey];
-      if (providerData) {
-        result[providerKey] = {};
-        for (const categoryKey of ["graph", "text", "audio"]) {
-          const categoryModels = providerData[categoryKey];
-          if (categoryModels) {
-            result[providerKey][categoryKey] = {};
-            for (const [modelName, config] of Object.entries(categoryModels)) {
-              result[providerKey][categoryKey][modelName] = processModelConfig(
-                config,
-                isAdmin
-              );
-            }
-          }
-        }
-      }
-    }
-    return res.json({
-      success: true,
-      data: result
-    });
+    return res.json({ success: true, data: tree });
   } catch (error) {
     console.error("[System Route] \u83B7\u53D6\u6A21\u578B\u914D\u7F6E\u5931\u8D25:", error);
     res.status(500).json({
@@ -30934,7 +31950,7 @@ router11.get("/admin/pricing/provider", async (req, res) => {
     if (!isAdmin) {
       return res.status(403).json({ success: false, error: "Admin access required" });
     }
-    const supabase = (0, import_mxmdata25.getSupabaseClient)();
+    const supabase = (0, import_mxmdata26.getSupabaseClient)();
     const { provider: provider13, scope } = req.query;
     let query = supabase.from("provider_pricing").select("*");
     if (provider13) {
@@ -31006,7 +32022,7 @@ router11.put("/admin/pricing/provider", async (req, res) => {
       platform_min_charge: platform_min_charge ?? null,
       metadata: metadata ?? null
     };
-    const supabase = (0, import_mxmdata25.getSupabaseClient)();
+    const supabase = (0, import_mxmdata26.getSupabaseClient)();
     if (id) {
       const { data: data2, error: error2 } = await supabase.from("provider_pricing").update(pricingPayload).eq("id", id).select("*").maybeSingle();
       if (error2) {
@@ -31045,7 +32061,7 @@ router11.delete("/admin/pricing/provider/:id", async (req, res) => {
     if (!id) {
       return res.status(400).json({ success: false, error: "Missing id" });
     }
-    const supabase = (0, import_mxmdata25.getSupabaseClient)();
+    const supabase = (0, import_mxmdata26.getSupabaseClient)();
     const { error } = await supabase.from("provider_pricing").delete().eq("id", id);
     if (error) {
       return res.status(500).json({
@@ -31069,7 +32085,7 @@ router11.get("/admin/pricing/business", async (req, res) => {
     if (!isAdmin) {
       return res.status(403).json({ success: false, error: "Admin access required" });
     }
-    const supabase = (0, import_mxmdata25.getSupabaseClient)();
+    const supabase = (0, import_mxmdata26.getSupabaseClient)();
     const { business_type } = req.query;
     let query = supabase.from("business_pricing").select("*");
     if (business_type) {
@@ -31116,7 +32132,7 @@ router11.put("/admin/pricing/business", async (req, res) => {
         error: "Missing required fields: business_type, charge_metric, price_in_tokens"
       });
     }
-    const supabase = (0, import_mxmdata25.getSupabaseClient)();
+    const supabase = (0, import_mxmdata26.getSupabaseClient)();
     if (id) {
       const { data: data2, error: error2 } = await supabase.from("business_pricing").update({
         business_type,
@@ -31173,7 +32189,7 @@ router11.delete("/admin/pricing/business/:id", async (req, res) => {
     if (!id) {
       return res.status(400).json({ success: false, error: "Missing id" });
     }
-    const supabase = (0, import_mxmdata25.getSupabaseClient)();
+    const supabase = (0, import_mxmdata26.getSupabaseClient)();
     const { error } = await supabase.from("business_pricing").delete().eq("id", id);
     if (error) {
       return res.status(500).json({
@@ -31196,7 +32212,7 @@ var system_default = router11;
 // src/routes/media.ts
 var import_express12 = require("express");
 init_task_manager();
-var import_mxmdata26 = require("@mxmai/mxmdata");
+var import_mxmdata27 = require("@mxmai/mxmdata");
 var router12 = (0, import_express12.Router)();
 router12.get("/graph/:taskId", async (req, res) => {
   try {
@@ -31230,7 +32246,7 @@ router12.get("/graph/:taskId", async (req, res) => {
     }
     const bucket = storageInfo.bucket;
     const key = storageInfo.keys[0];
-    const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(bucket, key);
     const metadata = await storageRepo.getFileMetadata(bucket, key);
     const contentType = metadata?.contentType || (key.endsWith(".png") ? "image/png" : key.endsWith(".jpg") || key.endsWith(".jpeg") ? "image/jpeg" : key.endsWith(".webp") ? "image/webp" : "application/octet-stream");
@@ -31283,7 +32299,7 @@ router12.get("/asset", async (req, res) => {
         error: "Forbidden: You can only access your own uploads"
       });
     }
-    const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(bucket, key);
     const metadata = await storageRepo.getFileMetadata(bucket, key);
     const contentType = metadata?.contentType || (key.endsWith(".png") ? "image/png" : key.endsWith(".jpg") || key.endsWith(".jpeg") ? "image/jpeg" : key.endsWith(".webp") ? "image/webp" : key.endsWith(".gif") ? "image/gif" : "application/octet-stream");
@@ -31344,7 +32360,7 @@ router12.get("/video/:taskId", async (req, res) => {
     }
     const bucket = storageInfo.bucket;
     const key = storageInfo.keys[0];
-    const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(bucket, key);
     const metadata = await storageRepo.getFileMetadata(bucket, key);
     const contentType = metadata?.contentType || (key.endsWith(".mp4") ? "video/mp4" : key.endsWith(".webm") ? "video/webm" : key.endsWith(".mov") ? "video/quicktime" : key.endsWith(".avi") ? "video/x-msvideo" : "application/octet-stream");
@@ -31412,7 +32428,7 @@ router12.get("/writing/:taskId", async (req, res) => {
       if (key) {
         const bucket = storageInfo.bucket;
         filename = key.split("/").pop() || "content";
-        const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
+        const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
         try {
           const fileBuffer = await storageRepo.downloadFile(bucket, key);
           const fileMetadata = await storageRepo.getFileMetadata(bucket, key);
@@ -31577,7 +32593,7 @@ router12.put("/writing/:taskId", async (req, res) => {
         });
       }
       const bucket = storageInfo.bucket;
-      const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
+      const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
       const contentType = normalizedFormat === "markdown" ? "text/markdown; charset=utf-8" : normalizedFormat === "txt" ? "text/plain; charset=utf-8" : "application/pdf";
       const buffer = Buffer.from(content, "utf-8");
       await storageRepo.uploadFile(bucket, key, buffer, {
@@ -31665,7 +32681,7 @@ router12.get("/audio/:taskId", async (req, res) => {
     }
     const bucket = storageInfo.bucket;
     const key = storageInfo.keys[0];
-    const storageRepo = import_mxmdata26.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(bucket, key);
     const metadata = await storageRepo.getFileMetadata(bucket, key);
     const contentType = metadata?.contentType || (key.endsWith(".mp3") ? "audio/mpeg" : key.endsWith(".wav") ? "audio/wav" : key.endsWith(".flac") ? "audio/flac" : key.endsWith(".pcm") ? "audio/pcm" : "application/octet-stream");
@@ -31702,12 +32718,12 @@ var import_express13 = require("express");
 var import_uid5 = require("uid");
 var import_multer2 = __toESM(require("multer"));
 init_knowledge_service();
-var import_mxmdata28 = require("@mxmai/mxmdata");
+var import_mxmdata29 = require("@mxmai/mxmdata");
 init_task_executor();
 
 // src/knowledge/knowledge-task.ts
 init_task_executor();
-var import_mxmdata27 = require("@mxmai/mxmdata");
+var import_mxmdata28 = require("@mxmai/mxmdata");
 init_knowledge_service();
 async function startKnowledgeImportTask(taskId) {
   const taskManager2 = taskExecutor.getTaskManager();
@@ -31737,7 +32753,7 @@ async function startKnowledgeImportTask(taskId) {
       logs: ["\u5F00\u59CB\u4ECE\u5B58\u50A8\u4E0B\u8F7D\u6587\u4EF6"],
       startedAt: /* @__PURE__ */ new Date()
     });
-    const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata28.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(params.fileBucket, params.fileKey);
     await taskManager2.updateTaskProgress(taskId, {
       progress: 20,
@@ -31805,7 +32821,7 @@ async function isAdminUser5(req) {
       return true;
     }
     try {
-      const userRepo = import_mxmdata28.RepositoryFactory.createUserRepository();
+      const userRepo = import_mxmdata29.RepositoryFactory.createUserRepository();
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
         return true;
@@ -32006,7 +33022,7 @@ router13.get("/admin/defaults", async (req, res) => {
       return res.status(403).json({ success: false, error: "Admin only" });
     }
     const { scope } = req.query;
-    const repo = import_mxmdata28.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
     const list = await repo.listDefaults(scope);
     return res.json({ success: true, data: { defaults: list } });
   } catch (error) {
@@ -32029,7 +33045,7 @@ router13.put("/admin/defaults", async (req, res) => {
         error: "Missing required fields: scope, category, sub_type, knowledge_base_id"
       });
     }
-    const kbRepo = import_mxmdata28.RepositoryFactory.createKnowledgeBaseRepository();
+    const kbRepo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseRepository();
     const kb = await kbRepo.findKnowledgeBaseById(knowledge_base_id);
     if (!kb) {
       return res.status(404).json({
@@ -32037,7 +33053,7 @@ router13.put("/admin/defaults", async (req, res) => {
         error: `Knowledge base "${knowledge_base_id}" not found`
       });
     }
-    const repo = import_mxmdata28.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
     const def = await repo.setDefault({
       scope,
       category,
@@ -32059,7 +33075,7 @@ router13.delete("/admin/defaults/:scope/:category/:subType", async (req, res) =>
       return res.status(403).json({ success: false, error: "Admin only" });
     }
     const { scope, category, subType } = req.params;
-    const repo = import_mxmdata28.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+    const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
     await repo.removeDefault(scope, category, subType);
     return res.json({ success: true, message: "Default removed" });
   } catch (error) {
@@ -32349,7 +33365,7 @@ router13.post(
       const chunkSize = chunk_size ? Number(chunk_size) : void 0;
       const chunkOverlap = chunk_overlap ? Number(chunk_overlap) : void 0;
       const maxChunkSize = max_chunk_size ? Number(max_chunk_size) : void 0;
-      const storageRepo = import_mxmdata28.RepositoryFactory.createStorageRepository();
+      const storageRepo = import_mxmdata29.RepositoryFactory.createStorageRepository();
       const bucket = process.env.KNOWLEDGE_STORAGE_BUCKET || process.env.CGI_STORAGE_BUCKET || "user-media";
       const originalName = multerReq.file.originalname;
       const ext = (originalName.split(".").pop() || "txt").toLowerCase();
@@ -32595,8 +33611,8 @@ router13.delete("/documents/:id", async (req, res) => {
       return res.status(401).json({ success: false, error: "Missing x-user-id header" });
     }
     const { id } = req.params;
-    const { RepositoryFactory: RepositoryFactory22 } = await import("@mxmai/mxmdata");
-    const kbRepo = RepositoryFactory22.createKnowledgeBaseRepository();
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const kbRepo = RepositoryFactory24.createKnowledgeBaseRepository();
     const doc = await kbRepo.findDocumentById(id);
     if (!doc) {
       return res.status(404).json({
@@ -33053,6 +34069,99 @@ router14.post("/generate", async (req, res) => {
 });
 var character_default = router14;
 
+// src/tasks/routes.ts
+var import_express15 = require("express");
+init_task_definition();
+init_task_engine();
+init_errors();
+var import_mxmdata30 = require("@mxmai/mxmdata");
+var router15 = (0, import_express15.Router)();
+function getUserId(req) {
+  return req.headers["x-user-id"] ?? void 0;
+}
+function asScope(v) {
+  if (v === "writing" || v === "outline" || v === "graph" || v === "audio" || v === "video") return v;
+  return null;
+}
+router15.get("/form-config", async (req, res) => {
+  try {
+    const scope = asScope(req.query.scope);
+    const taskKey = String(req.query.taskKey || "");
+    const subtype = req.query.subtype != null ? String(req.query.subtype) : null;
+    if (!scope || !taskKey) {
+      return res.status(400).json({ success: false, error: "scope/taskKey are required" });
+    }
+    const { template } = await loadTaskDefinition({ scope, taskKey, subtype, lang: "zh" });
+    return res.json({
+      success: true,
+      data: {
+        scope,
+        taskKey,
+        subtype,
+        schema: template.formSchema,
+        uiSchema: template.uiSchema ?? null
+      }
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const code = e?.code;
+    const status = code === "TASK_CONFIG_ERROR" ? 404 : 500;
+    return res.status(status).json({ success: false, error: msg });
+  }
+});
+router15.get("/form-config/list", async (req, res) => {
+  try {
+    const scope = asScope(req.query.scope);
+    if (!scope) return res.status(400).json({ success: false, error: "scope is required" });
+    const repo = import_mxmdata30.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const list = await repo.list({ scope, limit: 500, offset: 0 });
+    const items = (list.items || []).filter((r) => r && r.is_active !== false).map((r) => ({
+      taskKey: String(r.type),
+      subtype: r.subtype ?? null,
+      updated_at: r.updated_at
+    }));
+    return res.json({ success: true, data: { scope, items } });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return res.status(500).json({ success: false, error: msg });
+  }
+});
+router15.post("/run", async (req, res) => {
+  try {
+    const body = req.body;
+    const scope = asScope(body?.scope);
+    const taskKey = typeof body?.taskKey === "string" ? body.taskKey : "";
+    const subtype = body?.subtype != null ? String(body.subtype) : null;
+    const params = body?.params && typeof body.params === "object" ? body.params : null;
+    if (!scope || !taskKey || !params) {
+      return res.status(400).json({ success: false, error: "scope/taskKey/params are required" });
+    }
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, error: "Missing x-user-id header" });
+    }
+    const result = await runTaskV2(
+      { scope, taskKey, subtype, params, options: body?.options },
+      userId
+    );
+    return res.json(result);
+  } catch (e) {
+    const err = e;
+    if (err instanceof ValidationError) {
+      return res.status(400).json({ success: false, code: err.code, error: err.message, details: err.details ?? null });
+    }
+    if (err instanceof ConfigurationError) {
+      return res.status(404).json({ success: false, code: err.code, error: err.message });
+    }
+    if (err?.code === "INSUFFICIENT_BALANCE") {
+      return res.status(402).json({ success: false, code: "INSUFFICIENT_BALANCE", error: err.message });
+    }
+    const msg = e instanceof Error ? e.message : String(e);
+    return res.status(500).json({ success: false, error: msg });
+  }
+});
+var routes_default = router15;
+
 // src/index.ts
 process.env.DOTENV_CONFIG_DEBUG = "false";
 var currentFileDir = __dirname;
@@ -33093,8 +34202,8 @@ if (process.env.DEFAULT_PROVIDER) {
 } else {
   console.warn(`[mxmcgi] \u26A0\uFE0F  DEFAULT_PROVIDER \u672A\u8BBE\u7F6E\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4\u503C: replicate`);
 }
-import_mxmdata29.RepositoryFactory.init();
-var app = (0, import_express15.default)();
+import_mxmdata31.RepositoryFactory.init();
+var app = (0, import_express16.default)();
 var port = process.env.PORT ? Number(process.env.PORT) : 4003;
 app.use((req, res, next) => {
   if (req.headers["content-type"] === "text/plain" && req.method === "POST") {
@@ -33102,13 +34211,13 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(import_express15.default.json({
+app.use(import_express16.default.json({
   limit: "20mb",
   // 支持大文件上传（base64 图片等）
   type: ["application/json", "text/plain"]
   // 同时支持两种 Content-Type
 }));
-app.use(import_express15.default.urlencoded({ extended: true, limit: "20mb" }));
+app.use(import_express16.default.urlencoded({ extended: true, limit: "20mb" }));
 app.use("/", health_default);
 app.use("/graph", graph_default);
 app.use("/audio", audio_default);
@@ -33120,6 +34229,7 @@ app.use("/media", media_default);
 app.use("/knowledge", knowledge_default);
 app.use("/writing", writing_default);
 app.use("/api/v1/characters", character_default);
+app.use("/api/v2/tasks", routes_default);
 app.use((err, _req, res, _next) => {
   if (res.headersSent) return;
   const msg = err?.message ?? String(err);
@@ -33137,55 +34247,67 @@ app.use((err, _req, res, _next) => {
   } catch {
   }
 });
-app.listen(port, async () => {
-  console.log("mxmcgi service listening on port " + port);
+async function start() {
   try {
-    const { getSupabaseClient: getSupabaseClient12 } = await import("@mxmai/mxmdata");
-    const { setRoutingOverride: setRoutingOverride2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports));
-    const supabase = getSupabaseClient12();
-    const { data: rows, error } = await supabase.from("model_routing_overrides").select("logical_model, provider, model");
-    if (!error && rows && rows.length > 0) {
-      for (const r of rows) {
-        setRoutingOverride2(r.logical_model, { provider: r.provider, model: r.model });
+    const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers(), providers_exports));
+    await providerFactory2.loadProviderCatalog();
+  } catch (e) {
+    console.warn("[mxmcgi] \u26A0\uFE0F  \u52A0\u8F7D Provider \u6A21\u578B\u76EE\u5F55\u5931\u8D25:", e instanceof Error ? e.message : String(e));
+  }
+  app.listen(port, async () => {
+    console.log("mxmcgi service listening on port " + port);
+    try {
+      const { getSupabaseClient: getSupabaseClient12 } = await import("@mxmai/mxmdata");
+      const { setRoutingOverride: setRoutingOverride2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports2));
+      const supabase = getSupabaseClient12();
+      const { data: rows, error } = await supabase.from("model_routing_overrides").select("logical_model, provider, model");
+      if (!error && rows && rows.length > 0) {
+        for (const r of rows) {
+          setRoutingOverride2(r.logical_model, { provider: r.provider, model: r.model });
+        }
+        console.log(`[mxmcgi] \u2705 \u5DF2\u52A0\u8F7D ${rows.length} \u6761\u4E1A\u52A1\u6A21\u578B\u8DEF\u7531\u8986\u76D6`);
       }
-      console.log(`[mxmcgi] \u2705 \u5DF2\u52A0\u8F7D ${rows.length} \u6761\u4E1A\u52A1\u6A21\u578B\u8DEF\u7531\u8986\u76D6`);
+    } catch (e) {
+      console.warn("[mxmcgi] \u26A0\uFE0F  \u52A0\u8F7D\u4E1A\u52A1\u6A21\u578B\u8DEF\u7531\u8986\u76D6\u5931\u8D25:", e instanceof Error ? e.message : String(e));
     }
-  } catch (e) {
-    console.warn("[mxmcgi] \u26A0\uFE0F  \u52A0\u8F7D\u4E1A\u52A1\u6A21\u578B\u8DEF\u7531\u8986\u76D6\u5931\u8D25:", e instanceof Error ? e.message : String(e));
-  }
-  try {
-    const { TaskEventOutboxProcessor: TaskEventOutboxProcessor2 } = await Promise.resolve().then(() => (init_notification_outbox(), notification_outbox_exports));
-    const processor = new TaskEventOutboxProcessor2({
-      intervalMs: Number(process.env.TASK_EVENT_OUTBOX_INTERVAL_MS || 3e3),
-      batchSize: Number(process.env.TASK_EVENT_OUTBOX_BATCH_SIZE || 30),
-      maxAttempts: Number(process.env.TASK_EVENT_OUTBOX_MAX_ATTEMPTS || 20)
-    });
-    processor.start();
-    console.log("[mxmcgi] \u2705 Task event outbox processor started");
-  } catch (e) {
-    console.warn("[mxmcgi] \u26A0\uFE0F  Task event outbox processor start failed:", e instanceof Error ? e.message : String(e));
-  }
-  try {
-    const { getTaskRecoveryService: getTaskRecoveryService2 } = await Promise.resolve().then(() => (init_task_recovery(), task_recovery_exports));
-    const taskRecoveryService2 = getTaskRecoveryService2({
-      timeoutMs: 60 * 60 * 1e3,
-      // 60 分钟（视频任务可能需要更长时间）
-      checkIntervalMs: 5 * 60 * 1e3,
-      // 5 分钟检查一次
-      autoRecoverOnStartup: true,
-      autoRetry: false
-    });
-    await taskRecoveryService2.start();
-    console.log("[mxmcgi] \u2705 \u4EFB\u52A1\u6062\u590D\u670D\u52A1\u5DF2\u542F\u52A8\uFF08\u8D85\u65F6\u65F6\u95F4\uFF1A60 \u5206\u949F\uFF09");
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes("fetch failed") || errorMessage.includes("ECONNREFUSED")) {
-      console.warn("[mxmcgi] \u26A0\uFE0F  \u4EFB\u52A1\u6062\u590D\u670D\u52A1\u542F\u52A8\u5931\u8D25\uFF1ASupabase \u8FDE\u63A5\u4E0D\u53EF\u7528");
-      console.warn("[mxmcgi] \u26A0\uFE0F  \u63D0\u793A\uFF1A\u8BF7\u68C0\u67E5 SUPABASE_URL \u548C SUPABASE_ANON_KEY \u73AF\u5883\u53D8\u91CF\u662F\u5426\u6B63\u786E");
-      console.warn("[mxmcgi] \u26A0\uFE0F  \u5E94\u7528\u5C06\u7EE7\u7EED\u8FD0\u884C\uFF0C\u4F46\u4EFB\u52A1\u6062\u590D\u529F\u80FD\u6682\u65F6\u4E0D\u53EF\u7528");
-    } else {
-      console.error("[mxmcgi] \u26A0\uFE0F  \u4EFB\u52A1\u6062\u590D\u670D\u52A1\u542F\u52A8\u5931\u8D25:", errorMessage);
+    try {
+      const { TaskEventOutboxProcessor: TaskEventOutboxProcessor2 } = await Promise.resolve().then(() => (init_notification_outbox(), notification_outbox_exports));
+      const processor = new TaskEventOutboxProcessor2({
+        intervalMs: Number(process.env.TASK_EVENT_OUTBOX_INTERVAL_MS || 3e3),
+        batchSize: Number(process.env.TASK_EVENT_OUTBOX_BATCH_SIZE || 30),
+        maxAttempts: Number(process.env.TASK_EVENT_OUTBOX_MAX_ATTEMPTS || 20)
+      });
+      processor.start();
+      console.log("[mxmcgi] \u2705 Task event outbox processor started");
+    } catch (e) {
+      console.warn("[mxmcgi] \u26A0\uFE0F  Task event outbox processor start failed:", e instanceof Error ? e.message : String(e));
     }
-  }
+    try {
+      const { getTaskRecoveryService: getTaskRecoveryService2 } = await Promise.resolve().then(() => (init_task_recovery(), task_recovery_exports));
+      const taskRecoveryService2 = getTaskRecoveryService2({
+        timeoutMs: 60 * 60 * 1e3,
+        // 60 分钟（视频任务可能需要更长时间）
+        checkIntervalMs: 5 * 60 * 1e3,
+        // 5 分钟检查一次
+        autoRecoverOnStartup: true,
+        autoRetry: false
+      });
+      await taskRecoveryService2.start();
+      console.log("[mxmcgi] \u2705 \u4EFB\u52A1\u6062\u590D\u670D\u52A1\u5DF2\u542F\u52A8\uFF08\u8D85\u65F6\u65F6\u95F4\uFF1A60 \u5206\u949F\uFF09");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("fetch failed") || errorMessage.includes("ECONNREFUSED")) {
+        console.warn("[mxmcgi] \u26A0\uFE0F  \u4EFB\u52A1\u6062\u590D\u670D\u52A1\u542F\u52A8\u5931\u8D25\uFF1ASupabase \u8FDE\u63A5\u4E0D\u53EF\u7528");
+        console.warn("[mxmcgi] \u26A0\uFE0F  \u63D0\u793A\uFF1A\u8BF7\u68C0\u67E5 SUPABASE_URL \u548C SUPABASE_ANON_KEY \u73AF\u5883\u53D8\u91CF\u662F\u5426\u6B63\u786E");
+        console.warn("[mxmcgi] \u26A0\uFE0F  \u5E94\u7528\u5C06\u7EE7\u7EED\u8FD0\u884C\uFF0C\u4F46\u4EFB\u52A1\u6062\u590D\u529F\u80FD\u6682\u65F6\u4E0D\u53EF\u7528");
+      } else {
+        console.error("[mxmcgi] \u26A0\uFE0F  \u4EFB\u52A1\u6062\u590D\u670D\u52A1\u542F\u52A8\u5931\u8D25:", errorMessage);
+      }
+    }
+  });
+}
+start().catch((err) => {
+  console.error("[mxmcgi] \u542F\u52A8\u5931\u8D25:", err);
+  process.exit(1);
 });
 //# sourceMappingURL=index.js.map

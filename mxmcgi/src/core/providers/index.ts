@@ -14,6 +14,10 @@ import { VolcProvider } from '../../models/volc/provider';
 import { MinimaxProvider } from '../../models/minimax/provider';
 import { getResolvedRouting } from './model-routing';
 import { listModels } from '../../models/registry';
+import {
+  loadProviderModelCatalog,
+  getEnabledForMerge,
+} from '../../models/provider-model-catalog';
 
 /**
  * 模型到提供商的映射表
@@ -388,6 +392,32 @@ export class ProviderFactory {
   getSupportedProviders(modelName: string): ProviderType[] {
     return this.modelProviderMap[modelName] || [];
   }
+
+  /**
+   * 将 DB 中的 provider_models 合并到 modelProviderMap
+   */
+  mergeDbModels(entries: { provider: ProviderType; model_key: string }[]): void {
+    for (const { provider, model_key } of entries) {
+      if (!this.modelProviderMap[model_key]) {
+        this.modelProviderMap[model_key] = [];
+      }
+      if (!this.modelProviderMap[model_key].includes(provider)) {
+        this.modelProviderMap[model_key].push(provider);
+      }
+    }
+    console.log(
+      `[ProviderFactory] 已合并 ${entries.length} 个 DB 模型到 modelProviderMap`
+    );
+  }
+
+  /**
+   * 从 provider_models 表加载启用模型并合并到 modelProviderMap
+   */
+  async loadProviderCatalog(): Promise<void> {
+    await loadProviderModelCatalog();
+    const entries = getEnabledForMerge();
+    this.mergeDbModels(entries);
+  }
 }
 
 // 导出单例（延迟初始化，确保环境变量已加载）
@@ -452,5 +482,5 @@ export {
 export type { RoutingEntry } from './model-routing';
 export { recordStats, getProviderStats } from './provider-stats';
 export type { ProviderStatsRecord, ProviderStatsAggregate } from './provider-stats';
-export { getProviderKeys, getFirstProviderKey } from './provider-keys';
+export { getProviderKeys, getDeerProviderKeys, getFirstProviderKey } from './provider-keys';
 export type { ProviderKeyKind, OfficialService } from './provider-keys';

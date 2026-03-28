@@ -87,7 +87,12 @@ export class NotificationService {
    * 发送任务完成通知
    */
   async sendTaskCompletedNotification(task: GenerationTask): Promise<Notification> {
-    const taskTypeLabel = task.task_type === 'graph' ? '图片生成' : '文本生成';
+    const taskTypeLabel =
+      task.task_type === 'graph'
+        ? '图片生成'
+        : task.task_type === 'outline'
+          ? '大纲生成'
+          : '文本生成';
     const title = `${taskTypeLabel}任务已完成`;
     
     let content = `您的${taskTypeLabel}任务已完成。`;
@@ -124,7 +129,12 @@ export class NotificationService {
    * 发送任务失败通知
    */
   async sendTaskFailedNotification(task: GenerationTask): Promise<Notification> {
-    const taskTypeLabel = task.task_type === 'graph' ? '图片生成' : '文本生成';
+    const taskTypeLabel =
+      task.task_type === 'graph'
+        ? '图片生成'
+        : task.task_type === 'outline'
+          ? '大纲生成'
+          : '文本生成';
     const title = `${taskTypeLabel}任务失败`;
 
     const notification = await this.createNotification({

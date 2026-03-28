@@ -53,6 +53,18 @@
 - **同一业务内的阶段**：当前实现中，同一业务内仍有「生成大纲 / 段落展开 / 整篇生成」等阶段，由 `selectModel('outline'|'paragraph'|'full')` 从 `WRITING_MODEL_SELECTION` 选模型。规范后优先按**业务 key** 解析路由（如 `getResolvedRouting('writing-articles')`）；若需对「业务+阶段」细分配置，可再扩展 key（如 `writing-articles-outline`、`writing-articles-paragraph`），与 model-routing 一致即可。
 - **已废弃**：`writing-rewrite`、`writing-polish` 为旧逻辑，当前未使用，不再作为业务接口 key。
 
+### 大纲 (outline)
+
+大纲已作为独立域：创建大纲任务时传入大纲业务接口 key（逻辑模型名），并在执行端通过 `outline-*` 路由表解析实际 provider + physical model。
+
+| 业务接口 key | 说明 | 当前默认 (model-routing) |
+|--------------|------|--------------------------|
+| `outline-<taskKey>` | 大纲业务线（如小说/短视频/课程大纲等），由 Admin 为每条线配置 `TaskTemplate` 的 `formSchema/systemTemplate/outputFormatTemplate` | 由 Admin 配置（建议初始与 `writing-outlines` 对齐） |
+
+说明：
+- outline 业务接口 key 不再依赖写作阶段 `outline/paragraph/full` 的语义，而是直接表达“该大纲业务线要输出什么结构与字段”。
+- 业务与提示词工程可以在同一 key（`outline-<taskKey>`）维度下并行配置、独立演化。
+
 ### 1.2 图文 (graph)
 
 | 业务接口 key | 说明 | 当前默认 |

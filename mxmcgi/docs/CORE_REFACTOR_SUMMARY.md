@@ -46,8 +46,7 @@
 
 ### 3. 过时注释与文档
 
-- **core/providers/deer.provider.ts**：注释由「core/utils/suport-list.ts」改为「models/suport-list.ts」。
-- **core/providers/OFFICIAL_PROVIDER.md**：所有「core/utils/suport-list」改为「src/models/suport-list」。
+- 历史曾引用 `suport-list.ts` 静态表；**已移除**，物理模型以数据库 `provider_models` 为准。若文档仍出现旧路径，应改为 Admin「物理模型」与 `model-catalog-types.ts`（类型）。
 
 ---
 

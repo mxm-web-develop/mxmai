@@ -16,6 +16,7 @@ export {
   recordStats,
   getProviderStats,
   getProviderKeys,
+  getDeerProviderKeys,
   getFirstProviderKey,
 } from './providers-inner';
 export type {

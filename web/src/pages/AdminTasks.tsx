@@ -16,6 +16,8 @@ export default function AdminTasks() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [detailTask, setDetailTask] = useState<AdminTaskItem | null>(null);
+  const [detailViewMode, setDetailViewMode] = useState<'content' | 'raw'>('content');
 
   const formatJsonPreview = (input: unknown, maxLen = 220) => {
     if (input == null) return '-';
@@ -185,31 +187,17 @@ export default function AdminTasks() {
     {
       title: 'Provider 传参',
       key: 'providerParams',
-      width: 320,
+      width: 200,
       ellipsis: true,
       render: (_, r) => {
-        const preview = formatJsonPreview(r.requestParams);
-        const pretty = formatJsonPretty(r.requestParams);
-        return preview !== '-' ? (
-          <Tooltip
-            title={
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', maxWidth: 560 }}>
-                {pretty}
-              </pre>
-            }
-            placement="left"
-          >
-            <span>{preview}</span>
-          </Tooltip>
-        ) : (
-          '-'
-        );
+        const preview = formatJsonPreview(r.requestParams, 80);
+        return preview !== '-' ? <span className="muted">{preview}</span> : '-';
       },
     },
     {
       title: '错误信息',
       key: 'error',
-      width: 280,
+      width: 180,
       ellipsis: true,
       render: (_, r) => {
         const err =
@@ -217,9 +205,7 @@ export default function AdminTasks() {
             ? r.progress?.error || '无详细错误'
             : '-';
         return err !== '-' ? (
-          <Tooltip title={err}>
-            <span style={{ color: 'var(--admin-tasks-error-color, #f87171)' }}>{err}</span>
-          </Tooltip>
+          <span style={{ color: 'var(--admin-tasks-error-color, #f87171)' }}>{err}</span>
         ) : (
           '-'
         );
@@ -228,12 +214,15 @@ export default function AdminTasks() {
     {
       title: '操作',
       key: 'actions',
-      width: 180,
+      width: 220,
       fixed: 'right',
       render: (_, r) => {
         const loading = actionLoading === r.id;
         return (
           <Space size="small" wrap>
+            <Button size="small" onClick={() => { setDetailTask(r); setDetailViewMode('content'); }}>
+              查看详情
+            </Button>
             {['pending', 'queued', 'processing'].includes(r.status) && (
               <Button size="small" disabled={actionLoading !== null} onClick={() => handleAction(r.id, 'cancel')} loading={loading}>
                 取消
@@ -339,6 +328,176 @@ export default function AdminTasks() {
           />
         </div>
       </div>
+
+      {detailTask && (
+        <>
+          <div
+            className="admin-task-detail-overlay"
+            onClick={() => setDetailTask(null)}
+            aria-hidden="true"
+          />
+          <div className="admin-task-detail-panel">
+            <div className="admin-task-detail-header">
+              <h3 className="admin-task-detail-title">任务详情 · {detailTask.id}</h3>
+              <div className="admin-task-detail-actions">
+                <button
+                  type="button"
+                  className={`admin-task-detail-tab ${detailViewMode === 'content' ? 'active' : ''}`}
+                  onClick={() => setDetailViewMode('content')}
+                >
+                  内容
+                </button>
+                <button
+                  type="button"
+                  className={`admin-task-detail-tab ${detailViewMode === 'raw' ? 'active' : ''}`}
+                  onClick={() => setDetailViewMode('raw')}
+                >
+                  查看数据
+                </button>
+                <button type="button" className="admin-task-detail-close" onClick={() => setDetailTask(null)}>
+                  ×
+                </button>
+              </div>
+            </div>
+            <div className="admin-task-detail-body">
+              {detailViewMode === 'content' ? (
+                <div className="admin-task-detail-content">
+                  <div className="admin-task-detail-meta">
+                    类型: {detailTask.type ?? '-'} · 状态: {detailTask.status ?? '-'} · Provider: {detailTask.metadata?.provider ?? '-'} · 模型: {detailTask.metadata?.model ?? '-'} · 创建: {detailTask.createdAt ? new Date(detailTask.createdAt).toLocaleString() : '-'}
+                  </div>
+                  <div className="admin-task-detail-block">
+                    <div className="admin-task-detail-block-title">Provider 传参</div>
+                    <pre className="admin-task-detail-pre">
+                      {formatJsonPretty(detailTask.requestParams) || '-'}
+                    </pre>
+                  </div>
+                  <div className="admin-task-detail-block">
+                    <div className="admin-task-detail-block-title">错误信息</div>
+                    <pre className="admin-task-detail-pre admin-task-detail-error">
+                      {detailTask.status === 'failed' || detailTask.status === 'network_error' || detailTask.progress?.error
+                        ? detailTask.progress?.error || '无详细错误'
+                        : '无'}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                <pre className="admin-task-detail-pre admin-task-detail-raw">
+                  {JSON.stringify(detailTask, null, 2)}
+                </pre>
+              )}
+            </div>
+            <style>{`
+              .admin-task-detail-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.7);
+                z-index: 1000;
+              }
+              .admin-task-detail-panel {
+                position: fixed;
+                inset: 0;
+                z-index: 1001;
+                background: hsl(var(--background, 0 0% 9%));
+                border: 1px solid hsl(var(--border, 0 0% 22%));
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+              }
+              .admin-task-detail-header {
+                flex-shrink: 0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 1rem 1.25rem;
+                border-bottom: 1px solid hsl(var(--border, 0 0% 22%));
+              }
+              .admin-task-detail-title {
+                margin: 0;
+                font-size: 1rem;
+                color: hsl(var(--foreground, 0 0% 98%));
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                max-width: 50%;
+              }
+              .admin-task-detail-actions {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+              }
+              .admin-task-detail-tab {
+                padding: 0.35rem 0.75rem;
+                border-radius: 6px;
+                border: 1px solid #444;
+                background: transparent;
+                color: #888;
+                font-size: 0.85rem;
+                cursor: pointer;
+              }
+              .admin-task-detail-tab:hover {
+                background: #333;
+                color: #e0e0e0;
+              }
+              .admin-task-detail-tab.active {
+                background: #1e3a5f;
+                color: #93c5fd;
+                border-color: #1e3a5f;
+              }
+              .admin-task-detail-close {
+                background: none;
+                border: none;
+                color: #888;
+                font-size: 1.5rem;
+                cursor: pointer;
+                padding: 0 0.5rem;
+                line-height: 1;
+              }
+              .admin-task-detail-close:hover {
+                color: #e0e0e0;
+              }
+              .admin-task-detail-body {
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+                padding: 1rem 1.5rem;
+              }
+              .admin-task-detail-content {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+              }
+              .admin-task-detail-meta {
+                font-size: 0.8rem;
+                color: #94a3b8;
+              }
+              .admin-task-detail-block-title {
+                font-weight: 600;
+                margin-bottom: 0.5rem;
+                color: hsl(var(--foreground, 0 0% 98%));
+              }
+              .admin-task-detail-pre {
+                margin: 0;
+                padding: 1rem;
+                background: #0f172a;
+                border-radius: 8px;
+                font-size: 0.8rem;
+                color: #e2e8f0;
+                overflow: auto;
+                white-space: pre-wrap;
+                word-break: break-word;
+                line-height: 1.5;
+                max-height: none;
+              }
+              .admin-task-detail-error {
+                color: #f87171;
+              }
+              .admin-task-detail-raw {
+                max-height: none;
+              }
+            `}</style>
+          </div>
+        </>
+      )}
     </div>
   );
 }

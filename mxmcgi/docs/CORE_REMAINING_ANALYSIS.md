@@ -16,7 +16,7 @@
 
 | 路径 | 说明 |
 |------|------|
-| **core/providers/** | 整目录：Provider 工厂、deer/ppio/replicate/official 实现、model-routing、provider-keys、provider-stats、types。与 models/registry、models/suport-list 强相关，规划迁到 `src/models/providers`。 |
+| **core/providers/** | 整目录：Provider 工厂、deer/ppio/replicate/official 实现、model-routing、provider-keys、provider-stats、types。与 models/registry、DB `provider_models` 强相关，规划迁到 `src/models/providers`。 |
 | **core/audio/** | 各音频模型适配层（minimax-*、suno-music 等），多为委托 models 的薄封装，规划与 `src/models` 下已有 audio 合并或迁入 models。 |
 | **core/video/** | video-service（业务编排）+ sora-2、runway 等适配层；适配层规划迁 models，video-service 可保留或归入业务层。 |
 | **core/graph/** 中模型适配 | nano-banana、seedream-4、seedream-4-volc、flux-*、ideogram-v2a、recraft-crisp-upscale 等，已委托 models，规划迁入 models 或删除 core 内重复。 |

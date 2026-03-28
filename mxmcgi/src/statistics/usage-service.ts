@@ -83,7 +83,7 @@ export class UsageService {
       const mediaUrls = Array.isArray(result.mediaUrls) ? result.mediaUrls : [];
       const imageCount =
         scope === 'graph' || scope === 'image'
-          ? mediaUrls.filter((u) => typeof u === 'string' && u.length > 0).length
+          ? mediaUrls.filter((u: any) => typeof u === 'string' && u.length > 0).length
           : 0;
 
       // 音频/视频时长优先从 metadata.duration / duration_sec 中取
@@ -188,6 +188,7 @@ export class UsageService {
   private static inferScope(modelKey: string, metadata: Record<string, any>): string {
     // 优先从 logical model 前缀推断
     if (modelKey.startsWith('writing-')) return 'writing';
+    if (modelKey.startsWith('outline-')) return 'outline';
     if (modelKey.startsWith('graph-') || modelKey.startsWith('image-')) return 'graph';
     if (modelKey.startsWith('audio-')) return 'audio';
     if (modelKey.startsWith('video-')) return 'video';
@@ -195,6 +196,7 @@ export class UsageService {
     const taskType = metadata.taskType || metadata.task_type;
     if (typeof taskType === 'string') {
       if (taskType === 'writing') return 'writing';
+      if (taskType === 'outline') return 'outline';
       if (taskType === 'graph') return 'graph';
       if (taskType === 'audio') return 'audio';
       if (taskType === 'video') return 'video';

@@ -96,6 +96,7 @@ export async function startWritingTask(taskId: string): Promise<void> {
           {
             uid: outlineParams.uid,
             prompt: outlineParams.prompt,
+            logicalModel: outlineParams.logicalModel,
             maxDepth: outlineParams.maxDepth,
             expectedNodes: outlineParams.expectedNodes,
             total_textcount: outlineParams.total_textcount,
@@ -111,6 +112,7 @@ export async function startWritingTask(taskId: string): Promise<void> {
             cast_character_count: outlineParams.cast_character_count,
             cast_character_ids: outlineParams.cast_character_ids,
             language: outlineParams.language,
+            useConfiguredPrompt: outlineParams.useConfiguredPrompt,
           },
           params.userId,
           params.provider as any
@@ -301,6 +303,8 @@ export async function startWritingTask(taskId: string): Promise<void> {
     const llmMeta = (result as { _llmMetadata?: { usage?: unknown; model?: string; provider?: string } })._llmMetadata;
     const needsUsageLog = !!llmMeta;
     if (needsUsageLog && llmMeta) {
+      const billingScope = params.taskType === 'outline' ? 'outline' : 'writing';
+      const usageTaskType = params.taskType === 'outline' ? 'outline' : 'writing';
       const { costUsd } = await UsageService.logProviderUsage({
         taskId,
         userId: params.userId,
@@ -310,6 +314,7 @@ export async function startWritingTask(taskId: string): Promise<void> {
             usage: llmMeta.usage,
             model: llmMeta.model,
             provider: llmMeta.provider,
+            taskType: usageTaskType,
           },
         } as any,
         providerOverride: llmMeta.provider as any,
@@ -324,7 +329,7 @@ export async function startWritingTask(taskId: string): Promise<void> {
             userId: params.userId,
             provider: llmMeta.provider || 'unknown',
             modelKey: llmMeta.model || 'unknown',
-            scope: 'writing',
+            scope: billingScope,
             inputTokens: Number(usageAny?.prompt_tokens ?? usageAny?.input_tokens ?? 0),
             outputTokens: Number(usageAny?.completion_tokens ?? usageAny?.output_tokens ?? 0),
             totalTokens: Number(usageAny?.total_tokens ?? 0),
@@ -342,5 +347,20 @@ export async function startWritingTask(taskId: string): Promise<void> {
       error instanceof Error ? error.message : String(error)
     );
   }
+}
+
+/**
+ * outline 独立任务入口
+ * 当前实现复用 startWritingTask 内部的 outline 分支，避免重复落库/扣费/通知逻辑。
+ */
+export async function startOutlineTask(taskId: string): Promise<void> {
+  // 为了安全地复用现有编排逻辑，确保 requestParams.taskType 确实是 outline
+  const taskManager: TaskManager = taskExecutor.getTaskManager();
+  const taskResponse = await taskManager.getTask(taskId);
+  const requestParams = taskResponse?.task?.requestParams as any;
+  if (!requestParams || requestParams.taskType !== 'outline') {
+    throw new Error(`[OutlineTask] task ${taskId} requestParams.taskType 不是 outline`);
+  }
+  await startWritingTask(taskId);
 }
 

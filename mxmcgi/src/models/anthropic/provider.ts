@@ -15,19 +15,12 @@ import type {
   ProviderBillingInfo,
 } from '../providers-inner';
 import { getFirstProviderKey, recordStats, getProviderStats } from '../providers-inner';
-import { type ModelMapping, getModelName } from '../suport-list';
+import { isModelEnabled } from '../provider-model-catalog';
+import { requireUpstreamPhysicalId } from '../physical-model-id';
 
 export class AnthropicProvider implements ModelProvider {
   readonly provider: ProviderType = 'anthropic';
   readonly name = 'Anthropic Claude';
-
-  private readonly modelMap: Record<string, ModelMapping> = (() => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const supportList = require('../suport-list').default;
-    return {
-      ...(supportList.anthropic?.text || {}),
-    };
-  })();
 
   constructor(private readonly injectApiKey?: string, private readonly injectBaseUrl?: string) {}
 
@@ -46,15 +39,11 @@ export class AnthropicProvider implements ModelProvider {
   }
 
   private resolveModelName(modelKey: string): string {
-    const mapping = this.modelMap[modelKey];
-    if (!mapping) {
-      throw new Error(`Anthropic provider 不支持模型: ${modelKey}`);
-    }
-    return getModelName(mapping);
+    return requireUpstreamPhysicalId('anthropic', modelKey);
   }
 
   supportsModel(modelName: string): boolean {
-    return modelName in this.modelMap;
+    return isModelEnabled('anthropic', modelName);
   }
 
   async generate(modelName: string, params: GenerateParams): Promise<GenerateResult> {
@@ -154,6 +143,7 @@ export class AnthropicProvider implements ModelProvider {
       recordStats({
         provider: 'anthropic',
         logicalModel: modelName,
+        model_key: modelName,
         success,
         latencyMs: Date.now() - start,
         errorCode,

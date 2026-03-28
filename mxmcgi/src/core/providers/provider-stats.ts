@@ -14,6 +14,12 @@ export interface ProviderStatsRecord {
   latencyMs: number;
   errorCode?: string;
   ts: number;
+  /** 物理模型键（与 provider_models.model_key 对应） */
+  model_key?: string;
+  /** 业务域：writing/graph/audio/video/text/default */
+  scope?: string;
+  /** 关联的 cgi_task id */
+  task_id?: string;
 }
 
 export interface ProviderStatsAggregate {
@@ -29,6 +35,10 @@ export interface ProviderStatsAggregate {
   window: string;
   /** 主要错误类型及次数 */
   errorDistribution?: Record<string, number>;
+  /** 按 provider_model 聚合时的 model_key */
+  modelKey?: string;
+  /** 按 logical_model 聚合时的 logical_model */
+  logicalModel?: string;
 }
 
 // 为了在 Supabase 持久化失败时仍能提供近期数据，这里同时保留一份内存缓存
@@ -54,12 +64,15 @@ export function recordStats(entry: Omit<ProviderStatsRecord, 'ts'>): void {
   void (async () => {
     try {
       const supabase = getSupabaseClient();
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         provider: entry.provider,
         logical_model: entry.logicalModel,
         success: entry.success,
         latency_ms: entry.latencyMs,
         error_code: entry.errorCode ?? null,
+        model_key: entry.model_key ?? null,
+        scope: entry.scope ?? null,
+        task_id: entry.task_id ?? null,
       };
       const { error } = await supabase.from('provider_call_stats').insert(payload);
       if (error) {
@@ -91,21 +104,48 @@ function parseWindow(window: string): number {
   return 60 * 60 * 1000;
 }
 
+type GroupByKey = 'provider' | 'provider_model' | 'logical_model';
+
+function getGroupKey(r: ProviderStatsRecord, groupBy: GroupByKey): string {
+  if (groupBy === 'provider') return r.provider;
+  if (groupBy === 'provider_model') {
+    const mk = r.model_key ?? r.logicalModel;
+    return `${r.provider}::${mk}`;
+  }
+  return r.logicalModel;
+}
+
+function getGroupMeta(r: ProviderStatsRecord, groupBy: GroupByKey): { provider: ProviderType; modelKey?: string; logicalModel?: string } {
+  const provider = r.provider as ProviderType;
+  if (groupBy === 'provider') return { provider };
+  if (groupBy === 'provider_model') {
+    return { provider, modelKey: r.model_key ?? r.logicalModel };
+  }
+  return { provider, logicalModel: r.logicalModel };
+}
+
 /**
  * 基于若干记录聚合统计（供内存 / DB 两种来源复用）
  */
-function aggregate(records: ProviderStatsRecord[], windowLabel: string, providerFilter?: ProviderType): ProviderStatsAggregate[] {
+function aggregate(
+  records: ProviderStatsRecord[],
+  windowLabel: string,
+  providerFilter?: ProviderType,
+  groupBy: GroupByKey = 'provider',
+): ProviderStatsAggregate[] {
   const filtered = records.filter(
     (r) => providerFilter == null || r.provider === providerFilter,
   );
   const byKey = new Map<string, ProviderStatsRecord[]>();
   for (const r of filtered) {
-    const key = r.provider;
+    const key = getGroupKey(r, groupBy);
     if (!byKey.has(key)) byKey.set(key, []);
     byKey.get(key)!.push(r);
   }
   const result: ProviderStatsAggregate[] = [];
-  for (const [provider, list] of byKey.entries()) {
+  for (const [, list] of byKey.entries()) {
+    const first = list[0]!;
+    const meta = getGroupMeta(first, groupBy);
     const successCount = list.filter((r) => r.success).length;
     const latencies = list.map((r) => r.latencyMs).sort((a, b) => a - b);
     const p50 = latencies.length ? latencies[Math.floor(latencies.length * 0.5)] : undefined;
@@ -117,7 +157,7 @@ function aggregate(records: ProviderStatsRecord[], windowLabel: string, provider
       }
     }
     result.push({
-      provider: provider as ProviderType,
+      ...meta,
       requestCount: list.length,
       successCount,
       errorRate: list.length ? 1 - successCount / list.length : 0,
@@ -135,11 +175,13 @@ function aggregate(records: ProviderStatsRecord[], windowLabel: string, provider
  * 查询聚合统计（仅 admin 可调用），从数据库中读取，失败时回退到内存缓存。
  * @param provider 可选，按 provider 过滤
  * @param window 时间窗口，如 '5m', '1h', '24h'
+ * @param groupBy 聚合维度：provider（默认）| provider_model | logical_model
  */
 export async function getProviderStats(
-  options: { provider?: ProviderType; window?: string } = {}
+  options: { provider?: ProviderType; window?: string; groupBy?: 'provider' | 'provider_model' | 'logical_model' } = {}
 ): Promise<ProviderStatsAggregate[]> {
   const windowLabel = options.window || '1h';
+  const groupBy = options.groupBy || 'provider';
   const windowMs = parseWindow(windowLabel);
   const since = new Date(Date.now() - windowMs).toISOString();
 
@@ -147,7 +189,7 @@ export async function getProviderStats(
     const supabase = getSupabaseClient();
     let query = supabase
       .from('provider_call_stats')
-      .select('provider, logical_model, success, latency_ms, error_code, created_at')
+      .select('provider, logical_model, success, latency_ms, error_code, model_key, scope, task_id, created_at')
       .gte('created_at', since);
 
     if (options.provider) {
@@ -161,10 +203,9 @@ export async function getProviderStats(
         message: error.message,
         details: error.details,
       });
-      // 回退：仅使用当前进程内存中的记录
       const sinceTs = Date.now() - windowMs;
       const recent = RECORDS.filter((r) => r.ts >= sinceTs);
-      return aggregate(recent, windowLabel, options.provider);
+      return aggregate(recent, windowLabel, options.provider, groupBy);
     }
 
     const rows = (data || []) as Array<{
@@ -173,6 +214,9 @@ export async function getProviderStats(
       success: boolean;
       latency_ms: number;
       error_code?: string | null;
+      model_key?: string | null;
+      scope?: string | null;
+      task_id?: string | null;
       created_at?: string;
     }>;
 
@@ -186,15 +230,18 @@ export async function getProviderStats(
       success: r.success,
       latencyMs: Number(r.latency_ms) || 0,
       errorCode: r.error_code ?? undefined,
+      model_key: r.model_key ?? undefined,
+      scope: r.scope ?? undefined,
+      task_id: r.task_id ?? undefined,
       ts: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
     }));
 
-    return aggregate(records, windowLabel, options.provider);
+    return aggregate(records, windowLabel, options.provider, groupBy);
   } catch (e) {
     console.warn('[ProviderStats] 查询 Provider 调用统计异常，回退到内存缓存:', e instanceof Error ? e.message : String(e));
     const windowMsFallback = parseWindow(windowLabel);
     const sinceTs = Date.now() - windowMsFallback;
     const recent = RECORDS.filter((r) => r.ts >= sinceTs);
-    return aggregate(recent, windowLabel, options.provider);
+    return aggregate(recent, windowLabel, options.provider, groupBy);
   }
 }

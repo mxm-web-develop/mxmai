@@ -24,7 +24,8 @@ import type { IProviderApiKeyRepository } from '../interfaces/IProviderApiKeyRep
 import type { IUserApiKeyRepository } from '../interfaces/IUserApiKeyRepository';
 import type { IGraphModelConfigRepository } from '../interfaces/IGraphModelConfigRepository';
 import type { ISensitiveWordRepository } from '../interfaces/ISensitiveWordRepository';
-import { SupabaseUserRepository, SupabasePaymentRepository, SupabaseWalletRepository, SupabasePromptOptimizerRepository, SupabaseConversationRepository, SupabaseSmartflowRepository, SupabaseSmartflowExecutionRepository, SupabasePromptTemplateRepository, SupabaseCGITaskRepository, SupabaseKnowledgeBaseRepository, SupabaseKnowledgeBaseDefaultsRepository, SupabaseFolderRepository, SupabaseCharacterRepository, SupabasePromptEngineeringConfigRepository, SupabaseProviderApiKeyRepository, SupabaseUserApiKeyRepository, SupabaseSensitiveWordRepository, SupabaseGraphModelConfigRepository, initSupabaseClient } from '../adapters/supabase';
+import type { IProviderModelRepository } from '../interfaces/IProviderModelRepository';
+import { SupabaseUserRepository, SupabasePaymentRepository, SupabaseWalletRepository, SupabasePromptOptimizerRepository, SupabaseConversationRepository, SupabaseSmartflowRepository, SupabaseSmartflowExecutionRepository, SupabasePromptTemplateRepository, SupabaseCGITaskRepository, SupabaseKnowledgeBaseRepository, SupabaseKnowledgeBaseDefaultsRepository, SupabaseFolderRepository, SupabaseCharacterRepository, SupabasePromptEngineeringConfigRepository, SupabaseProviderApiKeyRepository, SupabaseUserApiKeyRepository, SupabaseSensitiveWordRepository, SupabaseGraphModelConfigRepository, SupabaseProviderModelRepository, initSupabaseClient } from '../adapters/supabase';
 import { MinIOStorageRepository, initMinIOClient } from '../adapters/minio';
 import { loadDataConfig, type DataLayerConfig } from '../config/dataConfig';
 
@@ -270,6 +271,14 @@ export class RepositoryFactory {
       throw new Error('当前只支持 Supabase 适配器');
     }
     return new SupabaseGraphModelConfigRepository();
+  }
+
+  static createProviderModelRepository(): IProviderModelRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabaseProviderModelRepository();
   }
 }
 

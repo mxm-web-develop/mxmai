@@ -17,21 +17,13 @@ import type {
   ProviderBillingInfo,
 } from '../providers-inner';
 import { getFirstProviderKey, recordStats, getProviderStats } from '../providers-inner';
-import { type ModelMapping, getModelName } from '../suport-list';
+import { isModelEnabled } from '../provider-model-catalog';
+import { requireUpstreamPhysicalId } from '../physical-model-id';
 import { fetch as undiciFetch, ProxyAgent } from 'undici';
 
 export class OpenAIProvider implements ModelProvider {
   readonly provider: ProviderType = 'openai';
   readonly name = 'OpenAI';
-
-  // 仅收录 suport-list.openai 下的 text 模型
-  private readonly modelMap: Record<string, ModelMapping> = (() => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const supportList = require('../suport-list').default;
-    return {
-      ...(supportList.openai?.text || {}),
-    };
-  })();
 
   constructor(private readonly injectApiKey?: string, private readonly injectBaseUrl?: string) {}
 
@@ -49,16 +41,33 @@ export class OpenAIProvider implements ModelProvider {
   }
 
   /**
-   * 获取用于 OpenAI 请求的 dispatcher（Clash 代理开关）
-   * - 若存在 CLASHPROXY，则优先使用（例如 http://127.0.0.1:7890）
-   * - 否则回退到 HTTPS_PROXY / HTTP_PROXY
-   * - 都不存在时返回 undefined（直连）
+   * 获取用于 OpenAI 请求的 dispatcher
+   *
+   * 需求：
+   * - 线上部署在国外机房，不需要翻墙，应该「直连」OpenAI
+   * - 本地开发在中国大陆，需要通过 Clash 等本地代理访问 OpenAI
+   *
+   * 方案：
+   * - 默认「不使用」 ProxyAgent（即不走本地 HTTP 代理，保持直连行为，适合线上环境）
+   * - 只有在显式设置 OPENAI_USE_PROXY_AGENT=1 时，才启用 ProxyAgent，
+   *   并优先使用 CLASHPROXY，其次 HTTPS_PROXY / HTTP_PROXY
+   *
+   * 这样：
+   * - 线上环境只要不配置 OPENAI_USE_PROXY_AGENT，就永远直连，不受本机代理配置影响
+   * - 本地开发只需在环境里加一行 OPENAI_USE_PROXY_AGENT=1，就可以复用 Clash 代理
    */
   private getDispatcher() {
+    // 开关：只有本地开发时才会显式打开
+    if (process.env.OPENAI_USE_PROXY_AGENT !== '1') {
+      return undefined;
+    }
+
     const clashProxy = process.env.CLASHPROXY;
     const envProxy = clashProxy || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
     if (!envProxy) return undefined;
+
     try {
+      console.log('[OpenAIProvider] 使用 ProxyAgent 代理 OpenAI 请求:', { envProxy });
       return new ProxyAgent(envProxy);
     } catch (e) {
       console.warn('[OpenAIProvider] 创建 ProxyAgent 失败，将尝试直连:', e);
@@ -67,15 +76,11 @@ export class OpenAIProvider implements ModelProvider {
   }
 
   private resolveModelName(modelKey: string): string {
-    const mapping = this.modelMap[modelKey];
-    if (!mapping) {
-      throw new Error(`OpenAI provider 不支持模型: ${modelKey}`);
-    }
-    return getModelName(mapping);
+    return requireUpstreamPhysicalId('openai', modelKey);
   }
 
   supportsModel(modelName: string): boolean {
-    return modelName in this.modelMap;
+    return isModelEnabled('openai', modelName);
   }
 
   async generate(modelName: string, params: GenerateParams): Promise<GenerateResult> {
@@ -174,9 +179,34 @@ export class OpenAIProvider implements ModelProvider {
       } as any;
     } catch (e) {
       success = false;
-      if (!errorCode && e instanceof Error) {
-        errorCode = e.message;
+
+      // 组装更详细的错误信息（便于在 Task 列表中直观看到原因）
+      let detailedMessage = e instanceof Error ? e.message : String(e);
+      const baseUrl = this.getBaseUrl();
+      const proxy =
+        process.env.CLASHPROXY || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || 'direct';
+
+      // 从 undici 的 cause 中提取底层网络错误（如 ECONNRESET / ECONNREFUSED）
+      const cause =
+        e && typeof e === 'object' && 'cause' in e ? ((e as any).cause as any) : undefined;
+      const causeParts: string[] = [];
+      if (cause && typeof cause === 'object') {
+        if (cause.code) causeParts.push(`code=${cause.code}`);
+        if (cause.errno && cause.errno !== cause.code) causeParts.push(`errno=${cause.errno}`);
+        if (cause.address) {
+          const port = cause.port ? `:${cause.port}` : '';
+          causeParts.push(`addr=${cause.address}${port}`);
+        }
       }
+
+      if (e instanceof Error && e.message.includes('fetch failed')) {
+        detailedMessage = `fetch failed: ${causeParts.join(', ') || 'unknown network error'}, baseUrl=${baseUrl}, proxy=${proxy}`;
+      }
+
+      if (!errorCode) {
+        errorCode = detailedMessage;
+      }
+
       // 网络层 / SDK 层异常（如 fetch failed），这里补充详细日志，便于排查
       console.error('[OpenAIProvider] 调用 OpenAI 出错', {
         logicalModel: modelName,
@@ -187,22 +217,24 @@ export class OpenAIProvider implements ModelProvider {
             return 'unknown';
           }
         })(),
-        baseUrl: this.getBaseUrl(),
+        baseUrl,
+        proxy,
         message: e instanceof Error ? e.message : String(e),
+        detailedMessage,
         name: e instanceof Error ? e.name : undefined,
         stack: e instanceof Error ? e.stack : undefined,
         // Node fetch 通常会把底层错误挂在 cause 上（包含 ECONNREFUSED / ETIMEDOUT 等信息）
-        cause:
-          e && typeof e === 'object' && 'cause' in e
-            ? (e as any).cause
-            : undefined,
+        cause,
       });
-      throw e;
+
+      // 抛出带有详细信息的新错误，让任务系统将其写入 task 错误字段
+      throw new Error(detailedMessage);
     } finally {
       // 记录基础统计信息，便于 Admin 监控
       recordStats({
         provider: 'openai',
         logicalModel: modelName,
+        model_key: modelName,
         success,
         latencyMs: Date.now() - start,
         errorCode,
@@ -211,7 +243,7 @@ export class OpenAIProvider implements ModelProvider {
   }
 
   async getUsageSummary(window: string): Promise<ProviderUsageSummary> {
-    const list = getProviderStats({ provider: 'openai', window });
+    const list = await getProviderStats({ provider: 'openai', window });
     const agg =
       list.find((a) => a.provider === 'openai') || {
         provider: 'openai' as ProviderType,

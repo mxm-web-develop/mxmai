@@ -17,6 +17,11 @@ import {
 } from '../models/providers';
 import { listModels } from '../models/registry';
 import { getSupabaseClient } from '@mxmai/mxmdata';
+import {
+  resolveInferedModalityForConnectivityTest,
+  runProviderConnectivityTest,
+  type ConnectivityRequestPayload,
+} from './provider-connectivity-test';
 
 const router = Router();
 
@@ -45,33 +50,71 @@ async function requireAdmin(req: Request, res: Response, next: () => void): Prom
   }
 }
 
+/** provider_models 变更后刷新内存目录，供连通性推断与 ProviderFactory 合并 */
+async function refreshProviderModelCatalog(): Promise<void> {
+  try {
+    const { loadProviderModelCatalog } = await import('../models/provider-model-catalog');
+    await loadProviderModelCatalog();
+    const { providerFactory } = await import('../models/providers');
+    await providerFactory.loadProviderCatalog();
+  } catch (e) {
+    console.warn('[providers] refreshProviderModelCatalog failed:', e instanceof Error ? e.message : String(e));
+  }
+}
+
+function normalizeModalityByScope(
+  scope: string,
+  modality?: string | null
+): 'text' | 'image' | 'audio' | 'video' | null {
+  const s = String(scope || '').toLowerCase();
+  if (s === 'graph') return 'image';
+  if (s === 'audio') return 'audio';
+  if (s === 'video') return 'video';
+  if (s === 'text' || s === 'default' || s === 'writing' || s === 'outline') return 'text';
+  const m = (modality ?? '').toLowerCase();
+  if (m === 'text' || m === 'image' || m === 'audio' || m === 'video') return m;
+  return null;
+}
+
 router.use(requireAdmin);
 
 /** GET 配置选项：各 provider 可选模型列表，供 Admin 切换业务对应 provider/模型时下拉使用 */
-router.get('/options', (_req: Request, res: Response) => {
+router.get('/options', async (_req: Request, res: Response) => {
   try {
-    const allModels = listModels();
     const modelsByProvider: Record<string, string[]> = {};
     const modelsByProviderByScope: Record<string, Record<string, string[]>> = {};
 
+    // 1. 优先从 provider_models 加载启用模型
+    try {
+      const { RepositoryFactory } = await import('@mxmai/mxmdata');
+      const repo = RepositoryFactory.createProviderModelRepository();
+      const dbModels = await repo.list({ onlyEnabled: true });
+      for (const m of dbModels) {
+        const provider = m.provider;
+        const scope = m.scope;
+        const key = m.model_key;
+        if (!modelsByProvider[provider]) modelsByProvider[provider] = [];
+        if (!modelsByProvider[provider].includes(key)) modelsByProvider[provider].push(key);
+        if (!modelsByProviderByScope[provider]) modelsByProviderByScope[provider] = {};
+        if (!modelsByProviderByScope[provider][scope]) modelsByProviderByScope[provider][scope] = [];
+        if (!modelsByProviderByScope[provider][scope].includes(key)) {
+          modelsByProviderByScope[provider][scope].push(key);
+        }
+      }
+    } catch (_) {
+      // 忽略 DB 错误，继续使用静态模型
+    }
+
+    // 2. 合并 registry 中的静态模型（补充 DB 中未覆盖的）
+    const allModels = listModels();
     for (const def of allModels) {
       const provider = def.provider;
       const scope = def.scope;
       const key = def.modelKey;
-
-      if (!modelsByProvider[provider]) {
-        modelsByProvider[provider] = [];
-      }
-      if (!modelsByProvider[provider].includes(key)) {
-        modelsByProvider[provider].push(key);
-      }
-
-      if (!modelsByProviderByScope[provider]) {
-        modelsByProviderByScope[provider] = {};
-      }
-      if (!modelsByProviderByScope[provider][scope]) {
-        modelsByProviderByScope[provider][scope] = [];
-      }
+      if (!modelsByProvider[provider]) modelsByProvider[provider] = [];
+      if (!modelsByProvider[provider].includes(key)) modelsByProvider[provider].push(key);
+      if (!modelsByProviderByScope[provider]) modelsByProviderByScope[provider] = {};
+      if (!modelsByProviderByScope[provider][scope]) modelsByProviderByScope[provider][scope] = [];
       if (!modelsByProviderByScope[provider][scope].includes(key)) {
         modelsByProviderByScope[provider][scope].push(key);
       }
@@ -176,12 +219,13 @@ router.delete('/routing', async (req: Request, res: Response) => {
   }
 });
 
-/** GET 统计：?provider=deer&window=1h */
+/** GET 统计：?provider=deer&window=1h&groupBy=provider|provider_model|logical_model */
 router.get('/stats', async (req: Request, res: Response) => {
   try {
     const provider = req.query.provider as ProviderType | undefined;
     const window = (req.query.window as string) || '1h';
-    const list = await getProviderStats({ provider, window });
+    const groupBy = req.query.groupBy as 'provider' | 'provider_model' | 'logical_model' | undefined;
+    const list = await getProviderStats({ provider, window, groupBy });
     res.json({ success: true, data: list });
   } catch (e) {
     res.status(500).json({
@@ -677,6 +721,446 @@ router.delete('/keys/:id', async (req: Request, res: Response) => {
     const repo = RepositoryFactory.createProviderApiKeyRepository();
     await repo.delete(req.params.id);
     res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+});
+
+// ========== Provider 物理模型目录 (provider_models) ==========
+
+/** GET 物理模型列表：?provider=deer&scope=text&onlyEnabled=true&page=1&pageSize=20 */
+router.get('/models', async (req: Request, res: Response) => {
+  try {
+    const provider = req.query.provider as string | undefined;
+    const scope = req.query.scope as string | undefined;
+    const onlyEnabled = req.query.onlyEnabled === 'true' || req.query.onlyEnabled === '1';
+    const page = Math.max(1, parseInt(String(req.query.page || 1), 10));
+    const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize || 20), 10)));
+
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+    const repo = RepositoryFactory.createProviderModelRepository();
+    let list = await repo.list({ provider, scope, onlyEnabled: onlyEnabled || undefined });
+    list = list.map((m) => ({
+      ...m,
+      modality: normalizeModalityByScope(m.scope, m.modality),
+    }));
+
+    // 最近一次连通性测试状态（可选展示）
+    try {
+      const supabase = getSupabaseClient();
+      const ids = list.map((m) => m.id).filter(Boolean);
+      if (ids.length > 0) {
+        const { data: runs } = await supabase
+          .from('provider_model_test_runs')
+          .select('provider_model_id, success, latency_ms, error_message, created_at')
+          .in('provider_model_id', ids)
+          .order('created_at', { ascending: false });
+        const latestById = new Map<string, any>();
+        for (const r of (runs || []) as any[]) {
+          const k = String(r.provider_model_id);
+          if (!latestById.has(k)) latestById.set(k, r);
+        }
+        list = list.map((m: any) => ({
+          ...m,
+          latest_test: latestById.get(String(m.id)) ?? null,
+        }));
+      }
+    } catch (e) {
+      // 表不存在或无权限时不阻塞列表
+      console.warn('[providers] load latest provider_model_test_runs failed:', e instanceof Error ? e.message : String(e));
+    }
+    const total = list.length;
+    const offset = (page - 1) * pageSize;
+    list = list.slice(offset, offset + pageSize);
+
+    res.json({ success: true, data: list, total, page, pageSize });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+});
+
+/** GET 某物理模型的最近测试记录：?limit=20 */
+router.get('/models/:id/tests', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || 20), 10)));
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('provider_model_test_runs')
+      .select('*')
+      .eq('provider_model_id', id)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) {
+      res.status(500).json({ success: false, error: error.message });
+      return;
+    }
+    res.json({ success: true, data: data || [] });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/** POST 创建物理模型 */
+router.post('/models', async (req: Request, res: Response) => {
+  try {
+    const body = req.body as {
+      provider: string;
+      scope: string;
+      model_key: string;
+      upstream_model?: string | null;
+      protocol?: string | null;
+      modality?: string | null;
+      io_schema?: string | null;
+      display_name?: string | null;
+      description?: string | null;
+      capabilities?: Record<string, unknown> | null;
+      default_parameters?: Record<string, unknown> | null;
+      is_enabled?: boolean;
+    };
+    if (!body.provider || !body.scope || !body.model_key) {
+      res.status(400).json({ success: false, error: 'Missing provider, scope, or model_key' });
+      return;
+    }
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+    const repo = RepositoryFactory.createProviderModelRepository();
+    const created = await repo.upsert({
+      provider: body.provider,
+      scope: body.scope,
+      model_key: body.model_key,
+      upstream_model: body.upstream_model ?? null,
+      protocol: body.protocol ?? null,
+      modality: normalizeModalityByScope(body.scope, body.modality),
+      io_schema: body.io_schema ?? null,
+      display_name: body.display_name ?? null,
+      description: body.description ?? null,
+      capabilities: body.capabilities ?? null,
+      default_parameters: body.default_parameters ?? null,
+      is_enabled: body.is_enabled ?? true,
+    });
+    await refreshProviderModelCatalog();
+    res.json({
+      success: true,
+      data: { ...created, modality: normalizeModalityByScope(created.scope, created.modality) },
+    });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+});
+
+/** PUT 更新物理模型 */
+router.put('/models/:id', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    const body = req.body as {
+      provider?: string;
+      scope?: string;
+      model_key?: string;
+      upstream_model?: string | null;
+      protocol?: string | null;
+      modality?: string | null;
+      io_schema?: string | null;
+      display_name?: string | null;
+      description?: string | null;
+      capabilities?: Record<string, unknown> | null;
+      default_parameters?: Record<string, unknown> | null;
+      is_enabled?: boolean;
+    };
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+    const repo = RepositoryFactory.createProviderModelRepository();
+    const existing = await repo.findById(id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Model not found' });
+      return;
+    }
+    if (body.provider !== undefined && body.provider !== existing.provider) {
+      res.status(400).json({ success: false, error: '不允许修改 provider' });
+      return;
+    }
+    if (body.model_key !== undefined && body.model_key !== existing.model_key) {
+      res.status(400).json({ success: false, error: '不允许修改 model_key' });
+      return;
+    }
+    const patch: Record<string, unknown> = {};
+    if (body.scope !== undefined) patch.scope = body.scope;
+    if (body.upstream_model !== undefined) patch.upstream_model = body.upstream_model;
+    if (body.protocol !== undefined) patch.protocol = body.protocol;
+    if (body.modality !== undefined || body.scope !== undefined) {
+      patch.modality = normalizeModalityByScope(
+        body.scope ?? existing.scope,
+        body.modality ?? existing.modality
+      );
+    }
+    if (body.io_schema !== undefined) patch.io_schema = body.io_schema;
+    if (body.display_name !== undefined) patch.display_name = body.display_name;
+    if (body.description !== undefined) patch.description = body.description;
+    if (body.capabilities !== undefined) patch.capabilities = body.capabilities;
+    if (body.default_parameters !== undefined) patch.default_parameters = body.default_parameters;
+    if (body.is_enabled !== undefined) patch.is_enabled = body.is_enabled;
+
+    const newScope = patch.scope !== undefined ? (patch.scope as string) : existing.scope;
+    if (patch.scope !== undefined && patch.scope !== existing.scope) {
+      const duplicate = await repo.findByKey({
+        provider: existing.provider,
+        scope: newScope,
+        model_key: existing.model_key,
+      });
+      if (duplicate && duplicate.id !== id) {
+        const mergePatch: Record<string, unknown> = { ...patch };
+        delete mergePatch.scope;
+        if (Object.keys(mergePatch).length > 0) {
+          await repo.update(duplicate.id, mergePatch);
+        }
+        const supabase = getSupabaseClient();
+        const { error: pricingErr } = await supabase
+          .from('provider_pricing')
+          .delete()
+          .eq('provider', existing.provider)
+          .eq('scope', existing.scope)
+          .eq('model_key', existing.model_key);
+        if (pricingErr) {
+          res.status(500).json({
+            success: false,
+            error: `合并重复记录时删除旧 Provider 成本行失败: ${pricingErr.message}`,
+          });
+          return;
+        }
+        await repo.deleteById(id);
+        await refreshProviderModelCatalog();
+        const finalRow = await repo.findById(duplicate.id);
+        res.json({
+          success: true,
+          data: finalRow
+            ? { ...finalRow, modality: normalizeModalityByScope(finalRow.scope, finalRow.modality) }
+            : null,
+          merged: true,
+          message:
+            '已存在相同 provider + scope + model_key 的记录：已将本次编辑合并到该记录，并删除重复的物理模型行。',
+        });
+        return;
+      }
+    }
+
+    const updated = await repo.update(id, patch);
+    await refreshProviderModelCatalog();
+    res.json({
+      success: true,
+      data: { ...updated, modality: normalizeModalityByScope(updated.scope, updated.modality) },
+    });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+});
+
+/** DELETE 物理模型：永久删除行，并删除同 provider+scope+model_key 的 provider_pricing（停用请用 PUT is_enabled=false） */
+router.delete('/models/:id', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+    const repo = RepositoryFactory.createProviderModelRepository();
+    const existing = await repo.findById(id);
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Model not found' });
+      return;
+    }
+    const supabase = getSupabaseClient();
+    const { error: pricingErr } = await supabase
+      .from('provider_pricing')
+      .delete()
+      .eq('provider', existing.provider)
+      .eq('scope', existing.scope)
+      .eq('model_key', existing.model_key);
+    if (pricingErr) {
+      res.status(500).json({
+        success: false,
+        error: `删除关联定价失败: ${pricingErr.message}`,
+      });
+      return;
+    }
+    await repo.deleteById(id);
+    await refreshProviderModelCatalog();
+    res.json({ success: true, data: { id, deleted: true } });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+});
+
+/** POST 连通性测试：body 为 provider_model_id 或 { provider, model_key, scope } */
+router.post('/models/test', async (req: Request, res: Response) => {
+  try {
+    const body = req.body as {
+      provider_model_id?: string;
+      provider?: string;
+      model_key?: string;
+      scope?: string;
+    };
+    let provider: string;
+    let modelKey: string;
+    let scope: string;
+    let modality: string | null = null;
+    const steps: Array<{
+      key: string;
+      title: string;
+      status: 'pending' | 'running' | 'success' | 'failed';
+      detail?: string;
+      at: string;
+    }> = [];
+    const pushStep = (
+      key: string,
+      title: string,
+      status: 'pending' | 'running' | 'success' | 'failed',
+      detail?: string
+    ) => {
+      steps.push({ key, title, status, detail, at: new Date().toISOString() });
+    };
+
+    let providerModelId: string | null = null;
+    if (body.provider_model_id) {
+      const { RepositoryFactory } = await import('@mxmai/mxmdata');
+      const repo = RepositoryFactory.createProviderModelRepository();
+      const m = await repo.findById(body.provider_model_id);
+      if (!m) {
+        res.status(404).json({ success: false, error: 'Provider model not found' });
+        return;
+      }
+      providerModelId = m.id;
+      provider = m.provider;
+      modelKey = m.model_key;
+      scope = m.scope;
+      modality = m.modality ?? null;
+    } else if (body.provider && body.model_key && body.scope) {
+      provider = body.provider;
+      modelKey = body.model_key;
+      scope = body.scope;
+      modality = null;
+      try {
+        const { RepositoryFactory } = await import('@mxmai/mxmdata');
+        const repo = RepositoryFactory.createProviderModelRepository();
+        const m = await repo.findByKey({ provider, scope, model_key: modelKey });
+        providerModelId = m?.id ?? null;
+      } catch {
+        providerModelId = null;
+      }
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Provide provider_model_id or (provider, model_key, scope)',
+      });
+      return;
+    }
+
+    const start = Date.now();
+    let success = false;
+    let errorMessage: string | null = null;
+    let requestPayload: ConnectivityRequestPayload | null = null;
+    let responseMeta: Record<string, unknown> | null = null;
+
+    try {
+      const inferredModality = resolveInferedModalityForConnectivityTest(
+        provider,
+        modelKey,
+        scope,
+        modality
+      );
+      pushStep(
+        'prepare',
+        '构造最小测试请求',
+        'success',
+        `scope=${scope}, modality=${inferredModality}, provider=${provider}, model=${modelKey}`
+      );
+      pushStep('connect', '检查 Provider 与模型支持', 'running');
+      const p = providerFactory.tryGet(provider as ProviderType);
+      if (!p || !p.supportsModel(modelKey)) {
+        pushStep('connect', '检查 Provider 与模型支持', 'failed', 'Provider 不支持该模型');
+        errorMessage = `Provider ${provider} does not support model ${modelKey}`;
+      } else {
+        pushStep('connect', '检查 Provider 与模型支持', 'success');
+        const outcome = await runProviderConnectivityTest({
+          provider,
+          modelKey,
+          inferredModality,
+          p,
+          pushStep,
+        });
+        success = outcome.success;
+        responseMeta = outcome.responseMeta ?? null;
+        requestPayload = outcome.requestPayload;
+        if (!success) {
+          errorMessage = outcome.error ?? '连通性测试失败';
+        }
+      }
+    } catch (e) {
+      errorMessage = e instanceof Error ? e.message : String(e);
+      steps.push({
+        key: 'invoke',
+        title: '发送最小测试请求',
+        status: 'failed',
+        detail: errorMessage,
+        at: new Date().toISOString(),
+      });
+    }
+
+    const latencyMs = Date.now() - start;
+    pushStep(
+      'done',
+      '测试完成',
+      success ? 'success' : 'failed',
+      success ? `耗时 ${latencyMs}ms` : (errorMessage || '测试失败')
+    );
+
+    // 写入测试记录（不影响返回）
+    try {
+      if (providerModelId) {
+        const inferred = String(requestPayload?.inferredModality ?? modality ?? 'text');
+        const supabase = getSupabaseClient();
+        await supabase.from('provider_model_test_runs').insert({
+          provider_model_id: providerModelId,
+          provider,
+          scope,
+          model_key: modelKey,
+          inferred_modality: inferred,
+          success,
+          latency_ms: latencyMs,
+          error_message: errorMessage,
+          request_payload: requestPayload,
+          response_meta: responseMeta,
+          steps,
+        });
+      }
+    } catch (e) {
+      console.warn('[providers] insert provider_model_test_runs failed:', e instanceof Error ? e.message : String(e));
+    }
+
+    res.json({
+      success: true,
+      data: {
+        success,
+        latencyMs,
+        error: errorMessage,
+        provider,
+        model_key: modelKey,
+        scope,
+        modality: requestPayload?.inferredModality ?? modality ?? null,
+        requestPayload,
+        responseMeta,
+        steps,
+      },
+    });
   } catch (e) {
     res.status(500).json({
       success: false,

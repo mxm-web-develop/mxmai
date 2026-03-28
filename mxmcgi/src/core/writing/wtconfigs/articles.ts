@@ -4,7 +4,7 @@
  */
 
 import type { WritingTypeConfig } from './index';
-import type { FormOptionsConfig, FieldMetadata } from '../../shared/formOptions';
+import type { FormOptionsConfig, FieldMetadata } from '../../../clientServer/shared/formOptions';
 import type { OutlineType } from '../type';
 
 type ArticlesOutlineType = Extract<OutlineType, 'tech-article' | 'story-novel' | 'academic-paper'> | undefined;

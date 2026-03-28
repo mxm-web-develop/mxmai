@@ -247,6 +247,14 @@ export interface OutlineParams {
   cast_character_ids?: string[];
   /** 输出语言：'zh' 中文 | 'en' 英文，默认 'zh'；影响大纲/写作生成内容的语言 */
   language?: 'zh' | 'en';
+  /**
+   * 由 Task v2 / Admin 配置写入：用于大纲的模型路由（logicalModel）。
+   * 建议形如 `outline-<taskKey>`。
+   * 未提供时使用历史逻辑（writing-outlines）。
+   */
+  logicalModel?: string;
+  /** 由 Task v2 写入：为 true 时 generateOutline 仅用 params.prompt 调 LLM，不拼接硬编码 prompt（不暴露到 formSchema） */
+  useConfiguredPrompt?: boolean;
 }
 
 //POST /api/v1/writing/generate

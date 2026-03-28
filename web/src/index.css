@@ -6,13 +6,43 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-hover: 224 76% 48%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224 76% 48%;
+    --radius: 0.75rem;
+    --surface: 217 32% 17%;
+    --surface-light: 217 28% 22%;
+    --surface-glass: 217 32% 17% / 0.8;
+    --error: 0 72% 51%;
+    --success: 160 84% 39%;
+  }
+
+  .light {
+    --background: 210 40% 98%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
+    --primary: 217 91% 60%;
+    --primary-hover: 224 76% 48%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -24,30 +54,12 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --ring: 224 76% 48%;
+    --surface: 0 0% 100%;
+    --surface-light: 210 40% 96%;
+    --surface-glass: 0 0% 100% / 0.85;
+    --error: 0 72% 51%;
+    --success: 160 84% 39%;
   }
 }
 
@@ -57,7 +69,171 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family:
+      'DM Sans',
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-surface/80 backdrop-blur-glass border border-border rounded-2xl p-6 shadow-glass transition-all duration-300;
+  }
+
+  .glass-card:hover {
+    @apply shadow-glass-hover -translate-y-0.5 border-primary;
+  }
+
+  .btn-primary {
+    @apply px-5 py-2.5 rounded-xl font-medium text-sm bg-gradient-primary text-white shadow-lg shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+  }
+
+  .btn-secondary {
+    @apply px-5 py-2.5 rounded-xl font-medium text-sm bg-surface-light text-foreground border border-border transition-all duration-200 hover:bg-surface hover:border-primary;
+  }
+
+  .btn-danger {
+    @apply px-5 py-2.5 rounded-xl font-medium text-sm bg-error text-white transition-all duration-200 hover:-translate-y-0.5;
+  }
+
+  .form-input {
+    @apply px-4 py-3 rounded-xl border border-border bg-surface-light text-foreground text-sm transition-all duration-200 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 focus:bg-surface;
+  }
+
+  .form-label {
+    @apply text-sm font-medium text-foreground;
+  }
+
+  .form-label.required::after {
+    content: ' *';
+    @apply text-error;
+  }
+
+  .task-item {
+    @apply bg-surface-light border border-border rounded-xl p-4 cursor-pointer transition-all duration-200 hover:bg-surface hover:border-primary hover:translate-x-1;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4;
+  }
+
+  .modal-content {
+    @apply bg-surface/80 backdrop-blur-glass border border-border rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl animate-modal-slide-in;
+  }
+
+  .modal-header {
+    @apply px-6 pt-6 pb-4 border-b border-border/50 flex justify-between items-center;
+  }
+
+  .modal-body {
+    @apply px-6 py-6 overflow-y-auto flex-1;
+  }
+
+  .modal-footer {
+    @apply px-6 py-4 border-t border-border/50 flex justify-end gap-3;
+  }
+
+  .tag {
+    @apply inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-surface-light border border-border;
+  }
+
+  .tag-primary {
+    @apply bg-primary/10 border-primary/30 text-primary;
+  }
+
+  .tag-success {
+    @apply bg-success/10 border-success/30 text-success;
+  }
+
+  .tag-warning {
+    @apply bg-amber-500/10 border-amber-500/30 text-amber-500;
+  }
+
+  .tag-error {
+    @apply bg-error/10 border-error/30 text-error;
+  }
+
+  .status-badge {
+    @apply text-xs px-2 py-1 rounded-md font-medium;
+  }
+
+  .status-pending {
+    @apply bg-amber-500/20 text-amber-500;
+  }
+
+  .status-processing {
+    @apply bg-primary/20 text-primary;
+  }
+
+  .status-completed {
+    @apply bg-success/20 text-success;
+  }
+
+  .status-failed {
+    @apply bg-error/20 text-error;
+  }
+
+  .two-pane-layout {
+    @apply flex gap-6 h-full min-h-0;
+  }
+
+  .pane-left {
+    @apply flex-[3] min-w-0 flex flex-col gap-4;
+  }
+
+  .pane-right {
+    @apply flex-[7] min-w-0 flex flex-col gap-4;
+  }
+
+  @media (max-width: 1024px) {
+    .two-pane-layout {
+      @apply flex-col;
+    }
+
+    .pane-left,
+    .pane-right {
+      @apply flex-none w-full;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .glass-card {
+      @apply p-4 rounded-xl;
+    }
+
+    .modal-content {
+      @apply rounded-2xl;
+    }
+
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+      @apply px-4 py-4;
+    }
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-text bg-clip-text text-transparent;
+  }
+
+  .loading-spinner {
+    @apply w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin;
+  }
+
+  .empty-state {
+    @apply text-center py-12 px-4 text-muted-foreground;
+  }
+
+  .empty-state-icon {
+    @apply text-5xl mb-4 opacity-50;
   }
 }

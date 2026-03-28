@@ -16,7 +16,7 @@
 ┌────────────────────────────▼────────────────────────────────────┐
 │  模型层 (models/)                                                │
 │  - registry：内存注册表，getModel / getModelsByKey / listModels  │
-│  - suport-list：provider ↔ modelKey ↔ 上游模型名/价格/计费       │
+│  - DB provider_models：provider + model_key + upstream_model（Admin）│
 │  - models/{provider}/{scope}/*.ts：各模型 registerModel()       │
 │    只做一件事：generate 时调 providerFactory.getProviderForModel │
 │    → provider.generate(modelKey, params)                        │
@@ -24,7 +24,7 @@
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
 │  Provider 层 (core/providers/)                                  │
-│  - 根据 suport-list 决定本 provider 支持哪些 modelKey           │
+│  - 根据 provider_models（catalog）决定本 provider 支持哪些 modelKey │
 │  - 实际请求上游 API（Deer/Replicate/Official 等）               │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -49,7 +49,7 @@
 
 | 能力 | 说明 |
 |------|------|
-| **Provider 选择** | `DEFAULT_PROVIDER` 环境变量、请求里 `providerOverride`、或 `getProviderForModel` 按 suport-list 自动选支持的 provider。 |
+| **Provider 选择** | `DEFAULT_PROVIDER` 环境变量、请求里 `providerOverride`、或 `getProviderForModel` 结合已注册模型与 `provider_models` 选择。 |
 | **逻辑模型路由** | `model-routing.ts` 提供 `setRoutingOverride` / `clearRoutingOverride`，admin 可在内存中覆盖「逻辑名 → provider + model」；注释里预留“可选后续改为 DB”。 |
 | **API Key** | `getFirstProviderKey()` 优先从 DB 读，再回退 .env，便于运维动态配置 key。 |
 
@@ -64,13 +64,10 @@
 - **现状**：`core/writing/wtconfigs/writing-models.ts` 里写死 `WRITING_MODEL_SELECTION`（outline/paragraph/full 各对应一个 modelKey 数组）。
 - **动态化**：把该结构放到配置表或配置服务，启动或定时拉取；`model-selector` 改为从配置读取候选列表再 `selectModel`。业务逻辑不变，只是数据源从代码改为配置。
 
-### 2. 模型支持列表与定价（suport-list）
+### 2. 物理模型目录与定价（已实现 DB 化）
 
-- **现状**：`models/suport-list.ts` 是 TS 默认导出，各 provider 的 graph/text/audio/video 及 price、charge_mode 等都在代码里。
-- **动态化**：  
-  - 将 suport-list 的内容迁到 DB 或 JSON/配置服务（按 provider、scope、modelKey 存储 modelname、price、charge_mode、service 等）；  
-  - 启动时或定时加载到内存，provider 和 buildModelProviderMap 改为读这份配置。  
-这样新增/下架模型、调价、改上游模型名都可以只改配置，不碰代码。
+- **现状**：`provider_models` 存启用模型与 `upstream_model`；`provider_pricing` 存成本价与计费模式；服务启动 `loadProviderModelCatalog()`。
+- **运维**：新增/下架模型、改上游名在 Admin「物理模型」；调价在「模型价格管理」或 SQL。
 
 ### 3. 逻辑模型 → provider + 物理模型（model-routing）
 
@@ -80,9 +77,9 @@
 ### 4. 可选：纯配置驱动的新模型
 
 - **现状**：每增加一个 modelKey 就要在 `models/{provider}/{scope}/` 下加一个 TS 文件并 `registerModel`。
-- **动态化**：  
-  - 若 suport-list（或等价配置）里已包含「provider + modelKey + 上游 modelname」，可为一个 scope 提供一个**通用 model 定义**：根据配置中的 (provider, modelKey) 调用 `provider.generate(modelKey, params)`，并对结果做统一映射（如 writing 的 text/stream）。  
-  - 这样新增“写作/图文/音频/视频”模型只需在配置里加一条，无需新文件。
+- **动态化（可选演进）**：  
+  - 若 `provider_models` + 元数据已足够描述通用调用，可为一个 scope 提供**通用 model 定义**：按 (provider, modelKey) 调用 `provider.generate(modelKey, params)` 并统一映射结果。  
+  - 这样部分场景可少写重复 TS 文件，仍以安全与可观测性为前提。
 
 ---
 
@@ -104,5 +101,5 @@
 
 - **是的，按当前设计业务和模型已经分开**：业务只依赖 registry 的 `getModel`/`getModelsByKey` 和 `def.generate()`，模型层只负责按 provider + modelKey 转发并适配结果。
 - **已经具备一部分动态配置**：provider 选择、逻辑路由覆盖（内存）、API Key 来源。
-- **若要“业务与模型分离且尽量动态配置”**：把「写作候选列表、suport-list、model-routing 默认表」迁到配置/DB，并可选地增加按配置驱动的通用模型定义，即可在不改业务代码的前提下，通过配置驱动模型与路由。
+- **若要进一步动态化**：把「写作候选列表、model-routing 默认表」等仍写死在代码里的部分迁到配置/DB，并可选增加通用模型定义，即可减少改代码频率。
 - **业务接口统一**：按 [BUSINESS_INTERFACE_SPEC.md](./BUSINESS_INTERFACE_SPEC.md) 收口业务 key 与调用方式，便于 Admin 对细分业务做 provider/模型配置与后续提示词管理。

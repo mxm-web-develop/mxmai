@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Drawer, notification } from 'antd';
 import {
   createVideo,
@@ -92,9 +92,14 @@ export default function Video() {
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
+  // 仅首次进入页面时展示整体 loading，后续轮询静默更新，避免列表反复“闪一下”
+  const hasInitialLoadedRef = useRef(false);
+
   const loadTasks = useCallback(async () => {
     if (!isLoggedIn) return;
-    setLoadingTasks(true);
+    if (!hasInitialLoadedRef.current) {
+      setLoadingTasks(true);
+    }
     try {
       const res = await listCgiTasks({ type: 'video', limit: 200, offset: 0 });
       const body = res.data as WritingTaskListResponse | undefined;
@@ -104,6 +109,7 @@ export default function Video() {
       console.error('加载视频任务失败:', e);
       setTasks([]);
     } finally {
+      hasInitialLoadedRef.current = true;
       setLoadingTasks(false);
     }
   }, [isLoggedIn]);

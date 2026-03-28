@@ -107,8 +107,8 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       logger.warn(`[Auth] 💡 提示: 请确保 gateway 和 mxmauth 使用相同的 JWT_SECRET`);
       logger.warn(`[Auth] 💡 建议: 在 mxmdata/.env 中配置 JWT_SECRET`);
     } else {
-      logger.debug(`[Auth] JWT_SECRET is configured (length: ${process.env.JWT_SECRET.length})`);
-      logger.debug(`[Auth] JWT_SECRET 前10个字符: ${process.env.JWT_SECRET.substring(0, 10)}...`);
+      // logger.debug(`[Auth] JWT_SECRET is configured (length: ${process.env.JWT_SECRET.length})`);
+      // logger.debug(`[Auth] JWT_SECRET 前10个字符: ${process.env.JWT_SECRET.substring(0, 10)}...`);
     }
 
     try {
@@ -142,7 +142,7 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
         role: decoded.role,
       };
 
-      logger.debug(`[Auth] JWT token authenticated for user ${decoded.username} (${req.method} ${req.path})`);
+      // logger.debug(`[Auth] JWT token authenticated for user ${decoded.username} (${req.method} ${req.path})`);
       next();
     } catch (error: any) {
       // JWT 校验失败时，尝试作为用户 API Key 校验（懒加载 mxmdata，避免启动时依赖导致 Gateway 起不来）

@@ -14,3 +14,4 @@ export * from './CGITask';
 export * from './PromptEngineeringConfig';
 export * from './ProviderApiKey';
 export * from './SensitiveWord';
+export * from './ProviderModel';

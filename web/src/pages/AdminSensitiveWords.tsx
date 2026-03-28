@@ -99,7 +99,7 @@ const SENSITIVE_SUBTYPE_OPTIONS: Record<string, Record<string, Array<{ value: st
   },
 };
 
-export default function AdminSensitiveWords() {
+export default function AdminSensitiveWords({ embedded }: { embedded?: boolean } = {}) {
   const { isLoggedIn, isAdmin } = useAuth();
   const [lists, setLists] = useState<{ id: string; name: string; description?: string | null; is_active: boolean }[]>([]);
   const [words, setWords] = useState<{ id: string; list_id: string; word: string }[]>([]);
@@ -149,10 +149,16 @@ export default function AdminSensitiveWords() {
 
   if (!isLoggedIn || !isAdmin) {
     return (
-      <div className="page-card">
-        <h2>敏感词管理</h2>
-        <p>请先使用 Admin 账号登录。</p>
-      </div>
+      embedded ? (
+        <div>
+          <p>请先使用 Admin 账号登录。</p>
+        </div>
+      ) : (
+        <div className="page-card">
+          <h2>敏感词管理</h2>
+          <p>请先使用 Admin 账号登录。</p>
+        </div>
+      )
     );
   }
 
@@ -296,12 +302,16 @@ export default function AdminSensitiveWords() {
     });
   };
 
-  return (
-    <div className="page-card admin-sensitive-words-page">
-      <h2>敏感词管理（Admin）</h2>
-      <p className="hint">
-        管理敏感词表、词条，以及按业务 slot (scope / type / subtype) 绑定使用的敏感词表；一个业务可绑定多张表，校验时合并检查。
-      </p>
+  const content = (
+    <div className="admin-sensitive-words-page">
+      {!embedded && (
+        <>
+          <h2>敏感词管理（Admin）</h2>
+          <p className="hint">
+            管理敏感词表、词条，以及按业务 slot (scope / type / subtype) 绑定使用的敏感词表；一个业务可绑定多张表，校验时合并检查。
+          </p>
+        </>
+      )}
 
       <div style={{ marginBottom: 16 }}>
         <Space>
@@ -500,4 +510,6 @@ export default function AdminSensitiveWords() {
       </Modal>
     </div>
   );
+
+  return embedded ? content : <div className="page-card">{content}</div>;
 }

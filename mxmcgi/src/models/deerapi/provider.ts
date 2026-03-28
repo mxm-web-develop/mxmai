@@ -22,68 +22,33 @@ import {
   ProviderUsageSummary,
   recordStats,
   getProviderStats,
-  getFirstProviderKey,
+  getDeerProviderKeys,
 } from '../providers';
 import { DeerAPIClient, DeerAPIChatMessage } from '../deerapi/client';
-import { ModelMapping, getModelName } from '../suport-list';
+import {
+  isModelEnabled,
+  getByProviderAndModelKey,
+  getUpstreamModel,
+} from '../provider-model-catalog';
+import { requireUpstreamPhysicalId } from '../physical-model-id';
 import { ProviderBalanceService } from '../../statistics/provider-balance-service';
 
 export class DeerProvider implements ModelProvider {
   readonly provider: ProviderType = 'deer';
   readonly name = 'DeerAPI';
 
-  private client: DeerAPIClient | null = null;
-  private clientPromise: Promise<DeerAPIClient> | null = null;
-
-  // 模型映射与支持列表，从 suport-list.ts 统一导出
-  private readonly modelMap: Record<string, ModelMapping> = (() => {
-    const supportList = require('../suport-list').default;
-    return {
-      ...(supportList.deer?.graph || {}),
-      ...(supportList.deer?.text || {}),
-      ...(supportList.deer?.audio || {}),
-      ...(supportList.deer?.video || {}),
-    };
-  })();
-  
   /**
-   * 获取模型的实际名称（从 ModelMapping 中提取）
+   * Deer 上游物理模型 ID：以 provider_models 为准；Runway 特例可仅配 model_key。
    */
   private getModelName(modelName: string): string {
-    const mapping = this.modelMap[modelName];
-    if (!mapping) {
-      return modelName; // 如果找不到映射，返回原名称
+    if (this.runwayVideoModels.includes(modelName)) {
+      return getUpstreamModel('deer', modelName) ?? modelName;
     }
-    return getModelName(mapping);
+    return requireUpstreamPhysicalId('deer', modelName);
   }
 
-  // Anthropic 模型（内部维护，不放在 suport-list.ts）
-  private readonly anthropicModels: string[] = ['claude-4.5-sonnet'];
-
-  private readonly imageModels: string[] = (() => {
-    const supportList = require('../suport-list').default;
-    return Object.keys(supportList.deer?.graph || {});
-  })();
-
-  private readonly textModels: string[] = (() => {
-    const supportList = require('../suport-list').default;
-    return Object.keys(supportList.deer?.text || {});
-  })();
-
-  private readonly videoModels: string[] = (() => {
-    const supportList = require('../suport-list').default;
-    return Object.keys(supportList.deer?.video || {});
-  })();
-
-  private readonly audioModels: string[] = (() => {
-    const supportList = require('../suport-list').default;
-    return Object.keys(supportList.deer?.audio || {});
-  })();
-
-  // Runway 视频模型列表
-  private readonly runwayVideoModels: string[] = [
-    'runway',
-  ];
+  /** Runway 视频（可走独立 API，未入库时仍允许 model_key=runway） */
+  private readonly runwayVideoModels: string[] = ['runway'];
 
   constructor(
     private readonly injectApiKey?: string,
@@ -91,29 +56,56 @@ export class DeerProvider implements ModelProvider {
     private readonly injectGroup?: string
   ) {}
 
-  /** 延迟初始化 client（Key 优先从 DB 读取，支持 Admin 随时切换） */
-  private async ensureClient(): Promise<DeerAPIClient> {
-    if (this.client) return this.client;
-    if (this.clientPromise) return this.clientPromise;
-    this.clientPromise = (async () => {
-      const key = this.injectApiKey ?? (await getFirstProviderKey('deer')) ?? process.env.DEERAPI_API_KEY;
-      const url = this.injectBaseUrl || process.env.DEERAPI_BASE_URL;
-      const apiGroup = this.injectGroup || process.env.DEERAPI_GROUP;
-      if (!key) {
-        throw new Error('DEERAPI_API_KEY / DEERAPI_API_KEYS 未设置，或在 Admin 中配置 provider=deer 的 Key');
+  /** 判断是否为 DeerAPI 速率限制类错误（可尝试切换下一条 Key） */
+  private isDeerRateLimitError(e: unknown): boolean {
+    const msg = e instanceof Error ? e.message : String(e);
+    const lower = msg.toLowerCase();
+    return (
+      lower.includes('429') ||
+      lower.includes('too many requests') ||
+      msg.includes('1302') ||
+      msg.includes('速率限制') ||
+      msg.includes('rix_api_error')
+    );
+  }
+
+  /**
+   * 使用 Admin/数据库配置的 deer key 列表（priority 升序）依次尝试；
+   * 命中 429/限流时自动切换下一条 Key。无 DB key 时与 getProviderKeys 一致回退环境变量。
+   * 注入单 key（测试）时不轮换。
+   */
+  private async withDeerKeyRotation<T>(fn: (client: DeerAPIClient) => Promise<T>): Promise<T> {
+    const url = this.injectBaseUrl || process.env.DEERAPI_BASE_URL;
+    const apiGroup = this.injectGroup || process.env.DEERAPI_GROUP;
+    if (!url) {
+      throw new Error('DEERAPI_BASE_URL 环境变量必须设置，或通过 baseUrl 参数提供');
+    }
+    const keys = this.injectApiKey ? [this.injectApiKey] : await getDeerProviderKeys();
+    if (!keys.length) {
+      throw new Error(
+        '未配置 Deer API Key：请先在 Admin「API Key 管理」中为 provider=deer 添加 Key（推荐），或配置 DEERAPI_API_KEY / DEERAPI_API_KEYS 环境变量'
+      );
+    }
+    let lastErr: unknown;
+    for (let i = 0; i < keys.length; i++) {
+      const client = new DeerAPIClient({ baseUrl: url, apiKey: keys[i], group: apiGroup });
+      try {
+        return await fn(client);
+      } catch (e) {
+        lastErr = e;
+        if (i < keys.length - 1 && this.isDeerRateLimitError(e)) {
+          console.warn(`[DeerProvider] DeerAPI 限流/429，切换下一条 Key（${i + 2}/${keys.length}）`);
+          continue;
+        }
+        throw e;
       }
-      if (!url) {
-        throw new Error('DEERAPI_BASE_URL 环境变量必须设置，或通过 baseUrl 参数提供');
-      }
-      this.client = new DeerAPIClient({ baseUrl: url, apiKey: key, group: apiGroup });
-      return this.client;
-    })();
-    return this.clientPromise;
+    }
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
   }
 
   supportsModel(modelName: string): boolean {
-    // 检查模型映射表或 Runway 模型列表
-    return modelName in this.modelMap || this.runwayVideoModels.includes(modelName);
+    if (isModelEnabled('deer', modelName)) return true;
+    return this.runwayVideoModels.includes(modelName);
   }
 
   async generate(modelName: string, params: GenerateParams): Promise<GenerateResult> {
@@ -124,47 +116,56 @@ export class DeerProvider implements ModelProvider {
     const start = Date.now();
     let success = true;
     let errorCode: string | undefined;
-    const client = await this.ensureClient();
     try {
-      const deerModel = this.getModelName(modelName);
-      const isImageModel = this.imageModels.includes(modelName);
-      const isTextModel = this.textModels.includes(modelName);
-      const isVideoModel = this.videoModels.includes(modelName);
-      const isAudioModel = this.audioModels.includes(modelName);
-      const isRunwayVideoModel = this.runwayVideoModels.includes(modelName);
-      const outputFormat = params.outputFormat || 'json';
+      return await this.withDeerKeyRotation(async (client) => {
+        const deerModel = this.getModelName(modelName);
+        const dbModel = getByProviderAndModelKey('deer', modelName);
+        const dbModality = dbModel?.modality?.toLowerCase() ?? null;
+        const dbScope = dbModel?.scope?.toLowerCase() ?? null;
+        const isImageModel = dbModality === 'image' || dbScope === 'graph';
+        const isTextModel =
+          dbModality === 'text' ||
+          dbScope === 'text' ||
+          dbScope === 'default' ||
+          dbScope === 'writing' ||
+          dbScope === 'outline';
+        const isVideoModel = dbModality === 'video' || dbScope === 'video';
+        const isAudioModel = dbModality === 'audio' || dbScope === 'audio';
+        const isRunwayVideoModel = this.runwayVideoModels.includes(modelName);
+        const outputFormat = params.outputFormat || 'json';
 
-      // 关键：调用上游前先检查是否配置了 provider_pricing（无则早失败，避免消耗上游余额）
-      // scope 与 provider_pricing.scope 对齐：text/graph/audio/video（未命中将自动回落 scope='default'）
-      const scopeForPricing =
-        isImageModel ? 'graph' :
-        isRunwayVideoModel ? 'video' :
-        isVideoModel ? 'video' :
-        isAudioModel ? 'audio' :
-        isTextModel ? 'text' :
-        'default';
-      await ProviderBalanceService.assertPricingConfigured({
-        provider: this.provider,
-        model_key: modelName,
-        scope: scopeForPricing,
+        // 关键：调用上游前先检查是否配置了 provider_pricing（无则早失败，避免消耗上游余额）
+        // scope 与 provider_pricing.scope 对齐：text/graph/audio/video（未命中将自动回落 scope='default'）
+        const scopeForPricing =
+          isImageModel ? 'graph' :
+          isRunwayVideoModel ? 'video' :
+          isVideoModel ? 'video' :
+          isAudioModel ? 'audio' :
+          isTextModel ? 'text' :
+          'default';
+        await ProviderBalanceService.assertPricingConfigured({
+          provider: this.provider,
+          model_key: modelName,
+          scope: scopeForPricing,
+        });
+
+        if (isImageModel) {
+          return await this.generateImage(modelName, deerModel, params, client);
+        }
+        if (isRunwayVideoModel) {
+          return await this.generateRunwayVideo(modelName, params, client);
+        }
+        if (isVideoModel) {
+          return await this.generateVideo(modelName, deerModel, params, client);
+        }
+        if (isAudioModel) {
+          return await this.generateAudio(modelName, deerModel, params, client);
+        }
+        if (!isTextModel) {
+          throw new Error(`Deer provider 无法识别模型类型: ${modelName}`);
+        }
+        return await this.generateText(modelName, deerModel, params, outputFormat, client);
       });
-
-      if (isImageModel) {
-        return await this.generateImage(modelName, deerModel, params);
-      }
-      if (isRunwayVideoModel) {
-        return await this.generateRunwayVideo(modelName, params);
-      }
-      if (isVideoModel) {
-        return await this.generateVideo(modelName, deerModel, params);
-      }
-      if (isAudioModel) {
-        return await this.generateAudio(modelName, deerModel, params);
-      }
-      if (!isTextModel) {
-        throw new Error(`Deer provider 无法识别模型类型: ${modelName}`);
-      }
-      return await this.generateText(modelName, deerModel, params, outputFormat);
     } catch (e) {
       success = false;
       errorCode = e instanceof Error ? e.message : String(e);
@@ -173,6 +174,7 @@ export class DeerProvider implements ModelProvider {
       recordStats({
         provider: 'deer',
         logicalModel: modelName,
+        model_key: modelName,
         success,
         latencyMs: Date.now() - start,
         errorCode,
@@ -214,6 +216,7 @@ export class DeerProvider implements ModelProvider {
     modelName: string,
     _deerModel: string,
     params: GenerateParams,
+    client: DeerAPIClient,
   ): Promise<GenerateResult> {
     if (modelName !== 'suno-music') {
       throw new Error(`Deer provider 暂不支持该音频模型: ${modelName}`);
@@ -228,10 +231,10 @@ export class DeerProvider implements ModelProvider {
     }
 
     // submit
-    const submit = await this.client!.submitSunoMusic(body);
+    const submit = await client.submitSunoMusic(body);
     const taskId = submit.taskId;
 
-    const progressStream = this.createSunoMusicProgressStream(taskId);
+    const progressStream = this.createSunoMusicProgressStream(taskId, client);
 
     return {
       mediaUrls: [],
@@ -245,7 +248,7 @@ export class DeerProvider implements ModelProvider {
     };
   }
 
-  private async *createSunoMusicProgressStream(taskId: string): AsyncIterable<ProgressEvent> {
+  private async *createSunoMusicProgressStream(taskId: string, client: DeerAPIClient): AsyncIterable<ProgressEvent> {
     yield { status: 'starting', progress: 10, logs: ['Suno 音乐任务已提交，等待生成...'] };
 
     const maxAttempts = 180; // 约 15 分钟（5s * 180）
@@ -261,7 +264,7 @@ export class DeerProvider implements ModelProvider {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await new Promise((r) => setTimeout(r, pollInterval));
 
-      const fetched = await this.client!.fetchSunoTask(taskId);
+      const fetched = await client.fetchSunoTask(taskId);
       const status = fetched.status;
 
       if (isFail(status)) {
@@ -368,6 +371,7 @@ export class DeerProvider implements ModelProvider {
     deerModel: string,
     params: GenerateParams,
     outputFormat: 'stream' | 'json',
+    client: DeerAPIClient,
   ): Promise<GenerateResult> {
     const messages: DeerAPIChatMessage[] = [];
     const systemPrompt = params.parameters?.system_prompt || params.parameters?.system_instruction;
@@ -379,7 +383,9 @@ export class DeerProvider implements ModelProvider {
     const temperature = params.parameters?.temperature ?? 0.7;
     const max_tokens = params.parameters?.max_tokens ?? params.parameters?.max_output_tokens;
 
-    const isAnthropic = this.anthropicModels.includes(modelName);
+    const isAnthropic =
+      modelName.toLowerCase().includes('claude') ||
+      (getByProviderAndModelKey('deer', modelName)?.protocol ?? '').toLowerCase() === 'anthropic';
 
     if (outputFormat === 'stream') {
       if (isAnthropic) {
@@ -388,6 +394,7 @@ export class DeerProvider implements ModelProvider {
           messages.filter((m) => m.role !== 'system') as Array<{ role: 'user' | 'assistant'; content: string }>,
           systemPrompt,
           params,
+          client,
         );
 
         return {
@@ -402,7 +409,7 @@ export class DeerProvider implements ModelProvider {
         };
       }
 
-      const stream = this.createTextStream(deerModel, messages, params);
+      const stream = this.createTextStream(deerModel, messages, params, client);
       return {
         mediaUrls: [],
         metadata: {
@@ -417,7 +424,7 @@ export class DeerProvider implements ModelProvider {
 
     // JSON 模式
     if (isAnthropic) {
-      const response = await this.client!.anthropicMessages({
+      const response = await client.anthropicMessages({
         model: deerModel,
         messages: messages.filter((m) => m.role !== 'system') as Array<{ role: 'user' | 'assistant'; content: string }>,
         system: systemPrompt,
@@ -454,7 +461,7 @@ export class DeerProvider implements ModelProvider {
       } as any;
     }
 
-    const chatResponse = await this.client!.chat({
+    const chatResponse = await client.chat({
       model: deerModel,
       messages,
       temperature,
@@ -487,11 +494,12 @@ export class DeerProvider implements ModelProvider {
     deerModel: string,
     messages: DeerAPIChatMessage[],
     params: GenerateParams,
+    client: DeerAPIClient,
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const enableCollection = params.enableCollection !== false;
     let collection = '';
 
-    const stream = this.client!.chatStream({
+    const stream = client.chatStream({
       model: deerModel,
       messages,
       temperature: params.parameters?.temperature,
@@ -520,6 +528,7 @@ export class DeerProvider implements ModelProvider {
     messages: Array<{ role: 'user' | 'assistant'; content: string }>,
     system: string | undefined,
     params: GenerateParams,
+    client: DeerAPIClient,
   ): AsyncGenerator<StreamChunk, void, unknown> {
     const enableCollection = params.enableCollection !== false;
     let collection = '';
@@ -527,7 +536,7 @@ export class DeerProvider implements ModelProvider {
     const maxTokensParam = params.parameters?.max_tokens ?? params.parameters?.max_output_tokens;
     const max_tokens = maxTokensParam || 4096;
 
-    const stream = this.client!.anthropicMessagesStream({
+    const stream = client.anthropicMessagesStream({
       model: deerModel,
       messages,
       system,
@@ -576,6 +585,7 @@ export class DeerProvider implements ModelProvider {
     modelName: string,
     deerModel: string,
     params: GenerateParams,
+    client: DeerAPIClient,
   ): Promise<GenerateResult> {
     try {
       // 判断使用哪种接口
@@ -588,11 +598,11 @@ export class DeerProvider implements ModelProvider {
       const isSeedreamModel = modelName === 'seedream-4' || modelName === 'seedream-5';
 
       if (isGeminiModel) {
-        return await this.generateImageWithGemini(modelName, deerModel, params);
+        return await this.generateImageWithGemini(modelName, deerModel, params, client);
       } else if (isFluxModel) {
-        return await this.generateImageWithReplicate(modelName, deerModel, params);
+        return await this.generateImageWithReplicate(modelName, deerModel, params, client);
       } else if (isSeedreamModel) {
-        return await this.generateImageWithSeedream(modelName, deerModel, params);
+        return await this.generateImageWithSeedream(modelName, deerModel, params, client);
       } else {
         throw new Error(`DeerAPI 暂不支持模型 ${modelName} 的图像生成`);
       }
@@ -603,12 +613,13 @@ export class DeerProvider implements ModelProvider {
 
   /**
    * 使用 Gemini generateContent 接口生成图像（nano-banana / nano-banana-pro）
-   * 上游模型名从 suport-list.deer.graph 读取（nano-banana: gemini-2.5-flash-image, nano-banana-pro: gemini-3-pro-image）
+   * 上游模型名来自 provider_models.upstream_model（或 Runway 特例）
    */
   private async generateImageWithGemini(
     modelName: string,
     deerModel: string,
     params: GenerateParams,
+    client: DeerAPIClient,
   ): Promise<GenerateResult> {
     const geminiModel = deerModel || 'gemini-3-pro-image';
 
@@ -672,7 +683,7 @@ export class DeerProvider implements ModelProvider {
     const imageSize = params.parameters?.image_size || params.parameters?.imageSize;
 
     // 调用 Gemini generateContent 接口
-    const response = await this.client!.generateContent({
+    const response = await client.generateContent({
       model: geminiModel,
       prompt: params.prompt,
       imageInputs: imageInputs.length > 0 ? imageInputs : undefined,
@@ -859,6 +870,7 @@ export class DeerProvider implements ModelProvider {
     modelName: string,
     deerModel: string,
     params: GenerateParams,
+    client: DeerAPIClient,
   ): Promise<GenerateResult> {
     // 构建 Flux 接口的请求参数
     const fluxRequest: {
@@ -878,7 +890,7 @@ export class DeerProvider implements ModelProvider {
       input_image_3?: string;
       input_image_4?: string;
     } = {
-      model: deerModel, // 使用 suport-list.ts 中的模型 ID（如 'flux-2-pro'）
+      model: deerModel,
       prompt: params.prompt,
     };
 
@@ -960,24 +972,25 @@ export class DeerProvider implements ModelProvider {
     }
 
     // 创建 Flux 任务
-    const prediction = await this.client!.createFluxPrediction(fluxRequest);
+    const prediction = await client.createFluxPrediction(fluxRequest);
 
     // 如果启用进度监控，返回进度流
     if (params.enableProgress !== false) {
-      const progressStream = this.createFluxProgressStream(prediction.id);
+      const progressStream = this.createFluxProgressStream(prediction.id, client);
       return {
         mediaUrls: [],
         metadata: {
           model: modelName,
           provider: this.provider,
           outputFormat: 'json',
+          taskId: prediction.id,
         },
         progress: progressStream,
       };
     }
 
     // 如果不启用进度监控，直接轮询直到完成
-    let finalResult = await this.client!.getFluxResult(prediction.id);
+    let finalResult = await client.getFluxResult(prediction.id);
     
     // 防御性检查
     if (!finalResult || !finalResult.status) {
@@ -988,7 +1001,7 @@ export class DeerProvider implements ModelProvider {
     const statusLower = finalResult.status.toLowerCase();
     while (statusLower === 'processing' || statusLower === 'starting') {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      finalResult = await this.client!.getFluxResult(prediction.id);
+      finalResult = await client.getFluxResult(prediction.id);
       
       // 再次检查
       if (!finalResult || !finalResult.status) {
@@ -1031,6 +1044,7 @@ export class DeerProvider implements ModelProvider {
    */
   private async *createFluxProgressStream(
     taskId: string,
+    client: DeerAPIClient,
   ): AsyncIterable<ProgressEvent> {
     yield {
       status: 'starting',
@@ -1044,7 +1058,7 @@ export class DeerProvider implements ModelProvider {
       try {
         await new Promise(resolve => setTimeout(resolve, 1000)); // 每秒轮询一次
 
-        const result = await this.client!.getFluxResult(taskId);
+        const result = await client.getFluxResult(taskId);
 
         // 防御性检查：确保 status 存在
         if (!result || result.status === undefined || result.status === null) {
@@ -1143,6 +1157,7 @@ export class DeerProvider implements ModelProvider {
     modelName: string,
     deerModel: string,
     params: GenerateParams,
+    client: DeerAPIClient,
   ): Promise<GenerateResult> {
     // 构建 Seedream 接口的请求参数
     const seedreamRequest: {
@@ -1155,7 +1170,7 @@ export class DeerProvider implements ModelProvider {
       guidance_scale?: number;
       image?: string | string[];
     } = {
-      model: deerModel, // 使用 suport-list.ts 中的模型 ID（如 'doubao-seedream-4-5-251128'）
+      model: deerModel,
       prompt: params.prompt,
     };
 
@@ -1215,23 +1230,44 @@ export class DeerProvider implements ModelProvider {
 
     // 调用 Seedream 接口
     console.log(`[DeerProvider] 准备调用 Seedream 接口，模型: ${deerModel}, 参考图数量: ${seedreamRequest.image ? (Array.isArray(seedreamRequest.image) ? seedreamRequest.image.length : 1) : 0}`);
-    const response = await this.client!.createSeedreamImageGeneration(seedreamRequest);
+    const response = await client.createSeedreamImageGeneration(seedreamRequest);
 
-    // 提取图片 URL 或 Base64
+    // 提取图片 URL 或 Base64（兼容 data/images/output/result 等返回形态）
     const imageUrls: string[] = [];
-    if (response.data && Array.isArray(response.data)) {
-      for (const item of response.data) {
-        if (item.url) {
-          imageUrls.push(item.url);
-        } else if (item.b64_json) {
-          // 将 Base64 转换为 data URI
-          imageUrls.push(`data:image/png;base64,${item.b64_json}`);
-        }
+    const pushMaybe = (item: any) => {
+      if (!item) return;
+      if (typeof item === 'string' && (item.startsWith('http://') || item.startsWith('https://'))) {
+        imageUrls.push(item);
+        return;
       }
+      const obj = item as Record<string, any>;
+      if (typeof obj.url === 'string') imageUrls.push(obj.url);
+      else if (typeof obj.image_url === 'string') imageUrls.push(obj.image_url);
+      else if (typeof obj.output_url === 'string') imageUrls.push(obj.output_url);
+      else if (typeof obj?.image?.url === 'string') imageUrls.push(obj.image.url);
+      else if (typeof obj?.result?.url === 'string') imageUrls.push(obj.result.url);
+      else if (typeof obj.b64_json === 'string') imageUrls.push(`data:image/png;base64,${obj.b64_json}`);
+      else if (typeof obj.base64 === 'string') imageUrls.push(`data:image/png;base64,${obj.base64}`);
+      else if (typeof obj.b64 === 'string') imageUrls.push(`data:image/png;base64,${obj.b64}`);
+      else if (typeof obj.image_base64 === 'string') imageUrls.push(`data:image/png;base64,${obj.image_base64}`);
+    };
+    const candidates = [
+      response?.data,
+      response?.images,
+      response?.output,
+      response?.result,
+      response?.result?.data,
+      response?.result?.images,
+      response?.choices,
+    ];
+    for (const c of candidates) {
+      if (Array.isArray(c)) c.forEach(pushMaybe);
+      else pushMaybe(c);
     }
 
     if (imageUrls.length === 0) {
-      throw new Error(`DeerAPI Seedream 图像生成成功但未返回图像数据。响应: ${JSON.stringify(response)}`);
+      const keys = Object.keys((response || {}) as Record<string, unknown>).join(', ');
+      throw new Error(`DeerAPI Seedream 图像生成成功但未返回图像数据（keys: ${keys || 'none'}）。响应: ${JSON.stringify(response)}`);
     }
 
     return {
@@ -1252,6 +1288,7 @@ export class DeerProvider implements ModelProvider {
     modelName: string,
     deerModel: string,
     params: GenerateParams,
+    client: DeerAPIClient,
   ): Promise<GenerateResult> {
     const prompt = params.prompt;
     if (!prompt) {
@@ -1306,7 +1343,7 @@ export class DeerProvider implements ModelProvider {
     console.log(`   character_timestamps: ${character_timestamps || '未提供'}`);
 
     // 创建视频生成任务（文档：multipart/form-data，prompt/model/size/seconds/input_reference/character_*）
-    const videoTask = await this.client!.createVideo({
+    const videoTask = await client.createVideo({
       prompt,
       model,
       seconds,
@@ -1317,7 +1354,7 @@ export class DeerProvider implements ModelProvider {
     });
 
     // 创建进度流（轮询任务状态）
-    const progressStream = this.createVideoProgressStream(videoTask.id);
+    const progressStream = this.createVideoProgressStream(videoTask.id, client);
 
     return {
       mediaUrls: [], // 初始为空，完成后会更新
@@ -1335,7 +1372,7 @@ export class DeerProvider implements ModelProvider {
   /**
    * 创建视频生成进度流
    */
-  private async *createVideoProgressStream(videoId: string): AsyncIterable<ProgressEvent> {
+  private async *createVideoProgressStream(videoId: string, client: DeerAPIClient): AsyncIterable<ProgressEvent> {
     // 视频生成平均 5–15 分钟，高峰期可能 1–3 小时，使用较长轮询避免误判超时
     // 180 次 * 60 秒 = 10800 秒 = 3 小时
     const maxAttempts = 180; // 最多轮询 180 次（约 3 小时）
@@ -1346,7 +1383,7 @@ export class DeerProvider implements ModelProvider {
 
     while (attempt < maxAttempts) {
       try {
-        const status = await this.client!.getVideoStatusUnified(videoId);
+        const status = await client.getVideoStatusUnified(videoId);
 
         // 更新进度
         const currentProgress = status.progress || 0;
@@ -1434,6 +1471,7 @@ export class DeerProvider implements ModelProvider {
   private async generateRunwayVideo(
     modelName: string,
     params: GenerateParams,
+    client: DeerAPIClient,
   ): Promise<GenerateResult> {
     const videoParams = params.parameters || {};
 
@@ -1476,7 +1514,7 @@ export class DeerProvider implements ModelProvider {
         : undefined;
       requestedDuration = validDuration ?? durationParam;
       
-      const runwayTask = await this.client!.createRunwayImageToVideo({
+      const runwayTask = await client.createRunwayImageToVideo({
         model: (videoParams.model as any) || 'gen3a_turbo', // 默认使用 gen3a_turbo（根据文档）
         promptImage,
         ratio: (videoParams.ratio as any) || '1280:720',
@@ -1496,7 +1534,7 @@ export class DeerProvider implements ModelProvider {
         throw new Error('videoUri 参数是必需的（视频转视频）');
       }
 
-      const runwayTask = await this.client!.createRunwayVideoToVideo({
+      const runwayTask = await client.createRunwayVideoToVideo({
         videoUri,
         ratio: (videoParams.ratio as any) || '1280:720',
         promptText: params.prompt,
@@ -1518,7 +1556,7 @@ export class DeerProvider implements ModelProvider {
     }
 
     // 创建进度流（轮询任务状态）
-    const progressStream = this.createRunwayVideoProgressStream(taskId);
+    const progressStream = this.createRunwayVideoProgressStream(taskId, client);
 
     return {
       mediaUrls: [], // 初始为空，完成后会更新
@@ -1539,7 +1577,7 @@ export class DeerProvider implements ModelProvider {
   /**
    * 创建 Runway 视频生成进度流
    */
-  private async *createRunwayVideoProgressStream(taskId: string): AsyncIterable<ProgressEvent> {
+  private async *createRunwayVideoProgressStream(taskId: string, client: DeerAPIClient): AsyncIterable<ProgressEvent> {
     const maxAttempts = 720; // 最多轮询 720 次（约 60 分钟，每 5 秒一次）
     const pollInterval = 5000; // 每 5 秒轮询一次
     const initialDelay = 15000; // 首次查询前等待 15 秒（任务创建后可能需要更长时间才能在系统中注册）
@@ -1555,7 +1593,7 @@ export class DeerProvider implements ModelProvider {
       try {
         // 使用 Runway API 查询任务状态
         console.log(`[Deer Provider] 第 ${attempt + 1} 次查询任务状态 (TaskId: ${taskId})`);
-        const taskStatus = await this.client!.getRunwayTaskStatus(taskId);
+        const taskStatus = await client.getRunwayTaskStatus(taskId);
         
         // 映射 Runway 状态到我们的任务系统状态
         // Runway 状态：PENDING, RUNNING, SUCCEEDED, FAILED, CANCELLED

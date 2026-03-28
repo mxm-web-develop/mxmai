@@ -85,6 +85,7 @@ import mediaRouter from './routes/media';
 import knowledgeRouter from './routes/knowledge';
 import writingRouter from './routes/writing';
 import characterRouter from './routes/character';
+import tasksV2Router from './tasks/routes';
 
 const app = express();
 const port = process.env.PORT ? Number(process.env.PORT) : 4003;
@@ -114,6 +115,7 @@ app.use('/media', mediaRouter);
 app.use('/knowledge', knowledgeRouter);
 app.use('/writing', writingRouter);
 app.use('/api/v1/characters', characterRouter);
+app.use('/api/v2/tasks', tasksV2Router);
 
 // 全局错误处理：客户端/网关提前关闭连接会导致 raw-body 抛出 request aborted，避免未处理异常刷屏
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -128,7 +130,16 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   try { res.status(500).json({ success: false, error: msg }); } catch { /* ignore */ }
 });
 
-app.listen(port, async () => {
+async function start(): Promise<void> {
+  // 在启动前加载 provider_models 目录，合并 DB 模型到路由
+  try {
+    const { providerFactory } = await import('./core/providers');
+    await providerFactory.loadProviderCatalog();
+  } catch (e) {
+    console.warn('[mxmcgi] ⚠️  加载 Provider 模型目录失败:', e instanceof Error ? e.message : String(e));
+  }
+
+  app.listen(port, async () => {
   console.log('mxmcgi service listening on port ' + port);
 
   // 从 DB 加载业务模型路由覆盖，使 Admin 配置在重启后生效
@@ -187,4 +198,10 @@ app.listen(port, async () => {
     }
     // 不阻止应用启动，恢复服务失败不影响主要功能
   }
+  });
+}
+
+start().catch((err) => {
+  console.error('[mxmcgi] 启动失败:', err);
+  process.exit(1);
 });

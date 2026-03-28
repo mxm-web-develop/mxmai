@@ -16,19 +16,12 @@ import type {
   ProviderBillingInfo,
 } from '../providers-inner';
 import { getFirstProviderKey, recordStats, getProviderStats } from '../providers-inner';
-import { type ModelMapping, getModelName } from '../suport-list';
+import { isModelEnabled } from '../provider-model-catalog';
+import { requireUpstreamPhysicalId } from '../physical-model-id';
 
 export class MinimaxProvider implements ModelProvider {
   readonly provider: ProviderType = 'minimax';
   readonly name = 'Minimax';
-
-  private readonly modelMap: Record<string, ModelMapping> = (() => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const supportList = require('../suport-list').default;
-    return {
-      ...(supportList.minimax?.audio || {}),
-    };
-  })();
 
   constructor(private readonly injectApiKey?: string, private readonly injectGroupId?: string, private readonly injectBaseUrl?: string) {}
 
@@ -54,15 +47,11 @@ export class MinimaxProvider implements ModelProvider {
   }
 
   private resolveModelName(modelKey: string): string {
-    const mapping = this.modelMap[modelKey];
-    if (!mapping) {
-      throw new Error(`Minimax provider 不支持模型: ${modelKey}`);
-    }
-    return getModelName(mapping);
+    return requireUpstreamPhysicalId('minimax', modelKey);
   }
 
   supportsModel(modelName: string): boolean {
-    return modelName in this.modelMap;
+    return isModelEnabled('minimax', modelName);
   }
 
   /**
@@ -154,6 +143,7 @@ export class MinimaxProvider implements ModelProvider {
       recordStats({
         provider: 'minimax',
         logicalModel: modelName,
+        model_key: modelName,
         success,
         latencyMs: Date.now() - start,
         errorCode,

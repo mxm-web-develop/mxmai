@@ -7,7 +7,8 @@
 
 import { ModelProvider, GenerateParams, GenerateResult, ProviderType } from '../providers';
 import { PPIOClient } from './client';
-import { ModelMapping, getModelName } from '../suport-list';
+import { isModelEnabled } from '../provider-model-catalog';
+import { requireUpstreamPhysicalId } from '../physical-model-id';
 
 export class PPIOProvider implements ModelProvider {
   readonly provider: ProviderType = 'ppio';
@@ -15,37 +16,9 @@ export class PPIOProvider implements ModelProvider {
   
   private client: PPIOClient;
   
-  // PPIO 支持的模型映射（从 suport-list.ts 导入）
-  private readonly modelMap: Record<string, ModelMapping> = (() => {
-    const supportList = require('../suport-list').default;
-    return {
-      ...(supportList.ppio?.graph || {}),
-      ...(supportList.ppio?.text || {}),
-      ...(supportList.ppio?.audio || {}),
-    };
-  })();
-  
-  /**
-   * 获取模型的实际名称（从 ModelMapping 中提取）
-   */
   private getModelName(modelName: string): string {
-    const mapping = this.modelMap[modelName];
-    if (!mapping) {
-      return modelName; // 如果找不到映射，返回原名称
-    }
-    return getModelName(mapping);
+    return requireUpstreamPhysicalId('ppio', modelName);
   }
-  
-  // PPIO 支持的模型列表（从 modelMap 的键中提取）
-  private readonly supportedModels: string[] = (() => {
-    const supportList = require('../suport-list').default;
-    const modelMap = {
-      ...(supportList.ppio?.graph || {}),
-      ...(supportList.ppio?.text || {}),
-      ...(supportList.ppio?.audio || {}),
-    };
-    return Object.keys(modelMap);
-  })();
 
   constructor(apiKey?: string, baseUrl?: string) {
     const key = apiKey || process.env.PPIO_API_KEY;
@@ -71,7 +44,7 @@ export class PPIOProvider implements ModelProvider {
   }
 
   supportsModel(modelName: string): boolean {
-    return this.supportedModels.includes(modelName);
+    return isModelEnabled('ppio', modelName);
   }
 
   async generate(modelName: string, params: GenerateParams): Promise<GenerateResult> {

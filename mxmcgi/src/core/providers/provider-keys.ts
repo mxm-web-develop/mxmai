@@ -44,7 +44,7 @@ function getEnvKeysFallback(provider: ProviderKeyKind, _service?: OfficialServic
 
 /**
  * 获取指定 provider（及 optional service）的 API key 数组，按使用顺序（第一个优先）
- * 优先使用 DB 中 Admin 配置的 key；无则使用 .env
+ * **默认**：优先使用 DB 中 Admin 配置的 key；仅当 DB 无可用 key 或查询失败时回退 .env
  */
 export async function getProviderKeys(provider: ProviderKeyKind, service?: OfficialService | string | null): Promise<string[]> {
   try {
@@ -59,6 +59,14 @@ export async function getProviderKeys(provider: ProviderKeyKind, service?: Offic
     // DB 不可用或表未建时回退 .env
   }
   return getEnvKeysFallback(provider, service);
+}
+
+/**
+ * Deer 专用：与 getProviderKeys('deer') 相同，但语义上强调「以 Admin/数据库为准」。
+ * 多 key 时按 priority 升序，供 429 等场景轮换。
+ */
+export async function getDeerProviderKeys(service?: OfficialService | string | null): Promise<string[]> {
+  return getProviderKeys('deer', service);
 }
 
 /**

@@ -72,7 +72,9 @@ export async function request<T = unknown>(
         try {
           sessionStorage.setItem('auth_401', '1');
           window.dispatchEvent(new CustomEvent('auth:401'));
-        } catch {}
+    } catch {
+      // ignore
+    }
         const errMsg = (data as { message?: string; error?: string })?.message ?? (data as { message?: string; error?: string })?.error ?? res.statusText;
         return { error: String(errMsg), status: res.status };
       }
@@ -261,8 +263,30 @@ export async function linkCharacterImageTask(
 }
 
 // 大纲生成
-export async function createOutline(body: Record<string, unknown>) {
-  return request<{ data?: { taskId?: string } }>('/api/v1/writing/outline', { method: 'POST', body });
+export async function createOutline(
+  body: Record<string, unknown>,
+  opts?: {
+    scope?: 'outline' | 'writing';
+    taskKey?: string;
+    subtype?: string | null;
+  }
+) {
+  // v2：通过 Task v2 接口提交大纲任务（默认 scope=outline, taskKey=default）
+  const scope = opts?.scope ?? 'outline';
+  const taskKey = opts?.taskKey ?? 'default';
+  const subtype = opts?.subtype ?? null;
+  return request<{ taskId: string; scope: string; taskKey: string; result?: unknown; storage?: unknown }>(
+    '/api/v2/tasks/run',
+    {
+      method: 'POST',
+      body: {
+        scope,
+        taskKey,
+        subtype,
+        params: body,
+      },
+    }
+  );
 }
 
 // 写作生成
@@ -312,6 +336,22 @@ export async function listWritingTasks(params?: {
 }) {
   const q = new URLSearchParams();
   q.set('type', 'writing');
+  if (params?.status) q.set('status', params.status);
+  if (params?.model) q.set('model', params.model);
+  if (params?.limit != null) q.set('limit', String(params.limit));
+  if (params?.offset != null) q.set('offset', String(params.offset));
+  return request<WritingTaskListResponse>(`/api/v1/cgi-tasks?${q.toString()}`);
+}
+
+// 大纲任务列表（type=outline）
+export async function listOutlineTasks(params?: {
+  status?: string;
+  model?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const q = new URLSearchParams();
+  q.set('type', 'outline');
   if (params?.status) q.set('status', params.status);
   if (params?.model) q.set('model', params.model);
   if (params?.limit != null) q.set('limit', String(params.limit));
@@ -643,7 +683,7 @@ export interface AdminTaskItem {
   progress?: { status: string; progress?: number; error?: string };
   metadata?: { userId?: string; userName?: string; model?: string; provider?: string };
   /** 后端保存的原始请求参数（已做 base64 清理），用于展示 provider 传参 */
-  requestParams?: Record<string, any>;
+  requestParams?: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -862,6 +902,32 @@ export async function getSystemBills(params?: {
   );
 }
 
+// ---------- Task v2：表单配置与执行 ----------
+
+export interface TaskFormConfig {
+  scope: string;
+  taskKey: string;
+  subtype?: string | null;
+  schema: {
+    $schema?: string;
+    type?: string;
+    properties?: Record<string, Record<string, unknown>>;
+    required?: string[];
+    [key: string]: unknown;
+  };
+  uiSchema?: Record<string, unknown> | null;
+}
+
+export async function getTaskFormConfig(params: { scope: string; taskKey: string; subtype?: string }) {
+  const q = new URLSearchParams();
+  q.set('scope', params.scope);
+  q.set('taskKey', params.taskKey);
+  if (params.subtype) q.set('subtype', params.subtype);
+  return request<{ success?: boolean; data?: TaskFormConfig }>(
+    `/api/v2/tasks/form-config?${q.toString()}`
+  );
+}
+
 // ---------- Admin：Provider / 业务定价 ----------
 
 export interface ProviderPricingRow {
@@ -913,6 +979,49 @@ export async function upsertProviderPricing(body: UpsertProviderPricingBody) {
 export async function deleteProviderPricing(id: string) {
   return request<{ success?: boolean }>(
     `/api/v1/system/admin/pricing/provider/${encodeURIComponent(id)}`,
+    { method: 'DELETE' },
+  );
+}
+
+export interface BusinessPricingRow {
+  id: string;
+  business_type: string;
+  charge_metric: string;
+  price_in_tokens: number;
+  min_charge_tokens?: number | null;
+  provider?: string | null;
+  model_key?: string | null;
+  subtype?: string | null;
+  metadata?: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export async function getBusinessPricing(params?: { business_type?: string }) {
+  const q = new URLSearchParams();
+  if (params?.business_type) q.set('business_type', params.business_type);
+  const query = q.toString();
+  return request<{ success?: boolean; data?: BusinessPricingRow[] }>(
+    `/api/v1/system/admin/pricing/business${query ? `?${query}` : ''}`,
+  );
+}
+
+export type UpsertBusinessPricingBody = Partial<BusinessPricingRow> & {
+  business_type: string;
+  charge_metric: string;
+  price_in_tokens: number;
+};
+
+export async function upsertBusinessPricing(body: UpsertBusinessPricingBody) {
+  return request<{ success?: boolean; data?: BusinessPricingRow }>(
+    '/api/v1/system/admin/pricing/business',
+    { method: 'PUT', body },
+  );
+}
+
+export async function deleteBusinessPricing(id: string) {
+  return request<{ success?: boolean }>(
+    `/api/v1/system/admin/pricing/business/${encodeURIComponent(id)}`,
     { method: 'DELETE' },
   );
 }
@@ -969,6 +1078,147 @@ export async function deleteProviderKey(id: string) {
     `/api/v1/system/admin/providers/keys/${encodeURIComponent(id)}`,
     { method: 'DELETE' }
   );
+}
+
+// ---------- Admin：Provider 物理模型目录 (provider_models) ----------
+export interface ProviderModelRow {
+  id: string;
+  provider: string;
+  scope: string;
+  model_key: string;
+  upstream_model: string | null;
+  protocol: string | null;
+  modality: string | null;
+  io_schema: string | null;
+  display_name: string | null;
+  description: string | null;
+  capabilities: Record<string, unknown> | null;
+  default_parameters: Record<string, unknown> | null;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+  /** 后端可选拼接：最近一次连通性测试结果 */
+  latest_test?: {
+    success: boolean;
+    latency_ms?: number | null;
+    error_message?: string | null;
+    created_at: string;
+  } | null;
+}
+
+export async function getProviderModels(params?: {
+  provider?: string;
+  scope?: string;
+  onlyEnabled?: boolean;
+  page?: number;
+  pageSize?: number;
+}) {
+  const q = new URLSearchParams();
+  if (params?.provider) q.set('provider', params.provider);
+  if (params?.scope) q.set('scope', params.scope);
+  if (params?.onlyEnabled) q.set('onlyEnabled', 'true');
+  if (params?.page) q.set('page', String(params.page));
+  if (params?.pageSize) q.set('pageSize', String(params.pageSize));
+  const query = q.toString();
+  return request<{ success?: boolean; data?: ProviderModelRow[]; total?: number; page?: number; pageSize?: number }>(
+    `/api/v1/system/admin/providers/models${query ? `?${query}` : ''}`
+  );
+}
+
+export type ProviderModelTestRunRow = {
+  id: string;
+  provider_model_id: string;
+  provider: string;
+  scope: string;
+  model_key: string;
+  inferred_modality: string;
+  success: boolean;
+  latency_ms?: number | null;
+  error_message?: string | null;
+  created_at: string;
+  request_payload?: Record<string, unknown> | null;
+  response_meta?: Record<string, unknown> | null;
+  steps?: unknown;
+};
+
+export async function getProviderModelTests(providerModelId: string, params?: { limit?: number }) {
+  const q = new URLSearchParams();
+  if (params?.limit) q.set('limit', String(params.limit));
+  const query = q.toString();
+  return request<{ success?: boolean; data?: ProviderModelTestRunRow[] }>(
+    `/api/v1/system/admin/providers/models/${encodeURIComponent(providerModelId)}/tests${query ? `?${query}` : ''}`
+  );
+}
+
+export async function postProviderModel(body: {
+  provider: string;
+  scope: string;
+  model_key: string;
+  upstream_model?: string | null;
+  protocol?: string | null;
+  modality?: string | null;
+  io_schema?: string | null;
+  display_name?: string | null;
+  description?: string | null;
+  capabilities?: Record<string, unknown> | null;
+  default_parameters?: Record<string, unknown> | null;
+  is_enabled?: boolean;
+}) {
+  return request<{ success?: boolean; data?: ProviderModelRow }>(
+    '/api/v1/system/admin/providers/models',
+    { method: 'POST', body }
+  );
+}
+
+export async function putProviderModel(id: string, body: Partial<ProviderModelRow>) {
+  return request<{
+    success?: boolean;
+    data?: ProviderModelRow;
+    /** scope 变更命中已存在行时，后端合并并删除当前重复行 */
+    merged?: boolean;
+    message?: string;
+  }>(`/api/v1/system/admin/providers/models/${encodeURIComponent(id)}`, { method: 'PUT', body });
+}
+
+export async function deleteProviderModel(id: string) {
+  return request<{ success?: boolean; data?: ProviderModelRow }>(
+    `/api/v1/system/admin/providers/models/${encodeURIComponent(id)}`,
+    { method: 'DELETE' }
+  );
+}
+
+export async function testProviderModel(body: {
+  provider_model_id?: string;
+  provider?: string;
+  model_key?: string;
+  scope?: string;
+}) {
+  return request<{
+    success?: boolean;
+    data?: {
+      success: boolean;
+      latencyMs: number;
+      error: string | null;
+      provider: string;
+      model_key: string;
+      scope: string;
+      modality?: string | null;
+      requestPayload?: {
+        prompt: string;
+        outputFormat: 'json';
+        parameters: Record<string, unknown>;
+        inferredModality: string;
+      } | null;
+      responseMeta?: Record<string, unknown> | null;
+      steps?: Array<{
+        key: string;
+        title: string;
+        status: 'pending' | 'running' | 'success' | 'failed';
+        detail?: string;
+        at: string;
+      }>;
+    };
+  }>('/api/v1/system/admin/providers/models/test', { method: 'POST', body });
 }
 
 // ─────────────────────────────────────────────

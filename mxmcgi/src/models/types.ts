@@ -26,7 +26,7 @@ export interface ModelMeta {
   upstreamName?: string;
   /** 计费价格（单价），单位由 currency 决定 */
   price?: number;
-  /** 计费模式（例如 token_based/per_change_mode 等，与 suport-list 对齐） */
+  /** 计费模式（例如 token_based/per_change_mode 等，与 provider_pricing 对齐） */
   chargeMode?: string;
   currency?: string;
   /** 对应官方 service（如 openai/google/anthropic/volc 等） */
@@ -43,7 +43,7 @@ export interface ModelDefinition<
   provider: string;
   /** 业务域：graph / writing / audio / video */
   scope: ModelScope;
-  /** 对外模型 key（与 suport-list 中的 key 对齐） */
+  /** 对外模型 key（与 provider_models.model_key 对齐） */
   modelKey: string;
   /** 核心生成函数：由具体模型负责封装参数与调用上游 Provider */
   generate: (params: P, context?: ModelContext) => Promise<R>;

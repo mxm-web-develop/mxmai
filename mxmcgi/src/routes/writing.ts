@@ -193,6 +193,33 @@ router.post('/outline', async (req: Request, res: Response) => {
     }
 
     // 异步任务模式（默认）
+    // v2 策略：优先走独立 scope=outline 的 Task v2（outputFormat=json）
+    // 若未命中配置（例如尚未 seed outline/default），则回退到旧的 writing-outlines 链路。
+    try {
+      const { runTaskV2 } = await import('../tasks/task-engine');
+      const v2Res = await runTaskV2(
+        {
+          scope: 'outline',
+          taskKey: 'default',
+          subtype: null,
+          params: params as any,
+          options: { stream: false },
+        },
+        userId
+      );
+      if (v2Res?.success) {
+        return res.json({
+          success: true,
+          data: {
+            taskId: v2Res.taskId,
+            status: v2Res.status,
+          },
+        });
+      }
+    } catch (e) {
+      console.warn('[Writing Route] /writing/outline fallback to legacy due to v2 error:', e);
+    }
+
     const taskManager = taskExecutor.getTaskManager();
     const writingType = params.writing_type || 'outlines';
     const businessKey = getWritingBusinessKeyFromParams(
