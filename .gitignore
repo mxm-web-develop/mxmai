@@ -1,3 +1,9 @@
 /docs-generator
 node_modules
 aiweb
+.env
+mxmdata/.env
+mxmauth/.env
+gateway/.env
+
+mxmdata
