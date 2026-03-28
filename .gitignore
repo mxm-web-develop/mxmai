@@ -4,6 +4,8 @@ aiweb
 .env
 mxmdata/.env
 mxmauth/.env
+mxmcgi/.env
+mxmcgi/.env.bak
 gateway/.env
 
 mxmdata
