@@ -622,7 +622,7 @@ async function handleGeneralChat(
 
   if (result.stream) {
     for await (const chunk of result.stream) {
-      const text = typeof chunk === 'string' ? chunk : (chunk.content || chunk.text || '');
+      const text = typeof chunk === 'string' ? chunk : (chunk.chunk || '');
       if (text) {
         assistantMessage += text;
         emit(res, { type: 'text', content: text });
