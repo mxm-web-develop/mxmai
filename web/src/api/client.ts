@@ -289,6 +289,39 @@ export async function createOutline(
   );
 }
 
+/** POST /api/v2/tasks/run 响应体（Gateway 可能再包一层 data） */
+export type TaskRunV2ResponseBody = {
+  success?: boolean;
+  taskId?: string;
+  status?: string;
+  scope?: string;
+  taskKey?: string;
+  subtype?: string | null;
+  /** scope=text 时同步返回 */
+  syncResult?: { text?: string; metadata?: Record<string, unknown> };
+  error?: string;
+};
+
+export async function runTaskV2(params: {
+  scope: string;
+  taskKey: string;
+  subtype?: string | null;
+  params: Record<string, unknown>;
+}) {
+  return request<TaskRunV2ResponseBody>(
+    '/api/v2/tasks/run',
+    {
+      method: 'POST',
+      body: {
+        scope: params.scope,
+        taskKey: params.taskKey,
+        subtype: params.subtype ?? null,
+        params: params.params,
+      },
+    }
+  );
+}
+
 // 写作生成
 export async function createWriting(body: Record<string, unknown>) {
   return request<{ data?: { taskId?: string } }>('/api/v1/writing/generate', { method: 'POST', body });
@@ -359,9 +392,9 @@ export async function listOutlineTasks(params?: {
   return request<WritingTaskListResponse>(`/api/v1/cgi-tasks?${q.toString()}`);
 }
 
-// 通用 CGI 任务列表（图片 type=graph、音频 type=audio、视频 type=video）
+// 通用 CGI 任务列表（图片 type=image、音频 type=audio、视频 type=video）
 export async function listCgiTasks(params: {
-  type: 'graph' | 'audio' | 'video';
+  type: 'image' | 'audio' | 'music' | 'video';
   status?: string;
   model?: string;
   limit?: number;
@@ -447,7 +480,7 @@ export async function getMediaAudio(taskId: string) {
 /** 获取媒体文件的 Blob URL（用于 img/audio 展示，需带认证） */
 export async function fetchMediaBlobUrl(
   taskId: string,
-  type: 'graph' | 'audio' | 'video'
+  type: 'graph' | 'audio' | 'music' | 'video'
 ): Promise<string> {
   const base = getBaseUrl().replace(/\/$/, '');
   const path = `/api/v1/media/${type}/${encodeURIComponent(taskId)}`;
@@ -748,6 +781,28 @@ export async function getAdminStats(params?: { days?: number; topLimit?: number 
   );
 }
 
+// ---------- Admin：模型配置（Agent Chat 全局配置）----------
+export type AdminModelConfigData = {
+  model_key: string;
+  temperature: number;
+  max_tokens: number | null;
+  top_p: number | null;
+  frequency_penalty: number | null;
+  presence_penalty: number | null;
+  updated_at?: string;
+};
+
+export async function getAdminModelConfig() {
+  return request<{ success?: boolean; data?: AdminModelConfigData }>('/api/v1/system/admin/model-config');
+}
+
+export async function putAdminModelConfig(data: Partial<AdminModelConfigData> & { model_key: string }) {
+  return request<{ success?: boolean; data?: AdminModelConfigData }>('/api/v1/system/admin/model-config', {
+    method: 'PUT',
+    body: data,
+  });
+}
+
 // ---------- Admin：Provider 路由与监控（仅 Admin 可访问）----------
 export type ProviderRoutingEntry = { provider: string; model: string; overridden?: boolean };
 export type ProvidersRoutingResponse = { success?: boolean; data?: Record<string, ProviderRoutingEntry> };
@@ -928,6 +983,23 @@ export async function getTaskFormConfig(params: { scope: string; taskKey: string
   );
 }
 
+export type TaskFormConfigListItem = {
+  taskKey: string;
+  subtype: string | null;
+  /** Admin 可配置的显示名（避免用户看到业务 key） */
+  taskLabel?: string | null;
+  subtypeLabel?: string | null;
+  updated_at?: string;
+};
+
+export async function getTaskFormConfigList(params: { scope: string }) {
+  const q = new URLSearchParams();
+  q.set('scope', params.scope);
+  return request<{ success?: boolean; data?: { scope: string; items: TaskFormConfigListItem[] } }>(
+    `/api/v2/tasks/form-config/list?${q.toString()}`
+  );
+}
+
 // ---------- Admin：Provider / 业务定价 ----------
 
 export interface ProviderPricingRow {
@@ -1056,6 +1128,8 @@ export async function postProviderKey(body: {
   service?: string | null;
   key_value: string;
   priority?: number;
+  /** 默认 true */
+  is_active?: boolean;
 }) {
   return request<{ success?: boolean; data?: ProviderApiKeyMasked }>(
     '/api/v1/system/admin/providers/keys',
@@ -1307,5 +1381,141 @@ export async function adminDepositToWallet(params: {
         metadata: params.metadata,
       },
     }
+  );
+}
+
+// ─────────────────────────────────────────────
+// Smartflow（mxmcgi / Gateway /api/v1/smartflows）
+// ─────────────────────────────────────────────
+
+/** 与后端 SmartflowSchema 对齐的宽松结构（测试页用 JSON 编辑） */
+export interface SmartflowSchemaBody {
+  version?: string;
+  nodes: unknown[];
+  edges: unknown[];
+  variables?: Record<string, unknown>;
+  settings?: Record<string, unknown>;
+}
+
+export interface SmartflowListItem {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  version?: string;
+  status?: string;
+  is_public?: boolean;
+  schema?: SmartflowSchemaBody;
+  author_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
+export interface CreateSmartflowBody {
+  id?: string;
+  name: string;
+  schema: SmartflowSchemaBody;
+  description?: string;
+  category?: string;
+  icon?: string;
+  tags?: string[];
+  status?: 'active' | 'inactive' | 'draft';
+  version?: string;
+  is_public?: boolean;
+}
+
+export type UpdateSmartflowBody = Partial<
+  Pick<
+    CreateSmartflowBody,
+    'name' | 'schema' | 'description' | 'category' | 'icon' | 'tags' | 'status' | 'version' | 'is_public'
+  >
+> & { status?: 'active' | 'inactive' | 'draft' | 'deprecated' };
+
+export interface SmartflowExecutionItem {
+  id: string;
+  smartflow_id: string;
+  user_id: string;
+  status: string;
+  progress?: number;
+  input_data?: Record<string, unknown>;
+  output_data?: Record<string, unknown>;
+  error_message?: string;
+  flow_chain?: unknown[];
+  started_at?: string;
+  completed_at?: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
+type SmartflowEnvelope<T> = { success?: boolean; data?: T; count?: number; error?: { message?: string; code?: string } };
+
+/** 列表：默认走网关，公开列表可加 ?public=true */
+export async function listSmartflows(params?: { publicOnly?: boolean; limit?: number; offset?: number }) {
+  const q = new URLSearchParams();
+  if (params?.publicOnly) q.set('public', 'true');
+  if (params?.limit != null) q.set('limit', String(params.limit));
+  if (params?.offset != null) q.set('offset', String(params.offset));
+  const qs = q.toString();
+  return request<SmartflowEnvelope<SmartflowListItem[]>>(
+    `/api/v1/smartflows${qs ? `?${qs}` : ''}`
+  );
+}
+
+export async function getSmartflow(id: string) {
+  return request<SmartflowEnvelope<SmartflowListItem>>(`/api/v1/smartflows/${encodeURIComponent(id)}`);
+}
+
+/** 需登录 */
+export async function createSmartflow(body: CreateSmartflowBody) {
+  return request<SmartflowEnvelope<SmartflowListItem>>('/api/v1/smartflows', {
+    method: 'POST',
+    body,
+  });
+}
+
+/** 需登录 */
+export async function updateSmartflow(id: string, body: UpdateSmartflowBody) {
+  return request<SmartflowEnvelope<SmartflowListItem>>(`/api/v1/smartflows/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body,
+  });
+}
+
+/** 需登录 */
+export async function deleteSmartflow(id: string) {
+  return request<SmartflowEnvelope<{ message?: string }>>(
+    `/api/v1/smartflows/${encodeURIComponent(id)}`,
+    { method: 'DELETE' }
+  );
+}
+
+/** 需登录（网关对 POST …/execute 做 JWT 校验并注入 x-user-id） */
+export async function executeSmartflow(
+  id: string,
+  body: { input_data: Record<string, unknown>; conversation_id?: string }
+) {
+  return request<SmartflowEnvelope<SmartflowExecutionItem>>(
+    `/api/v1/smartflows/${encodeURIComponent(id)}/execute`,
+    { method: 'POST', body }
+  );
+}
+
+/** 需登录；可选按 smartflowId 过滤 */
+export async function listSmartflowTasks(params?: { smartflowId?: string; limit?: number; offset?: number }) {
+  const q = new URLSearchParams();
+  if (params?.smartflowId) q.set('smartflowId', params.smartflowId);
+  if (params?.limit != null) q.set('limit', String(params.limit));
+  if (params?.offset != null) q.set('offset', String(params.offset));
+  const qs = q.toString();
+  return request<SmartflowEnvelope<SmartflowExecutionItem[]>>(
+    `/api/v1/smartflow-tasks${qs ? `?${qs}` : ''}`
+  );
+}
+
+export async function getSmartflowTask(id: string) {
+  return request<SmartflowEnvelope<SmartflowExecutionItem>>(
+    `/api/v1/smartflow-tasks/${encodeURIComponent(id)}`
   );
 }

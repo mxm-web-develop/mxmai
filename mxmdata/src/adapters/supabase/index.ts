@@ -22,4 +22,5 @@ export * from './SupabaseProviderApiKeyRepository';
 export * from './SupabaseUserApiKeyRepository';
 export * from './SupabaseSensitiveWordRepository';
 export * from './SupabaseProviderModelRepository';
+export * from './SupabaseModelConfigRepository';
 

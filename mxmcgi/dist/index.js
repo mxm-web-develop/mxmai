@@ -8,9 +8,6 @@ var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
-var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -33,15 +30,107 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+// src/routes/health.ts
+var health_exports = {};
+__export(health_exports, {
+  default: () => health_default
+});
+var import_express, router, health_default;
+var init_health = __esm({
+  "src/routes/health.ts"() {
+    "use strict";
+    import_express = require("express");
+    router = (0, import_express.Router)();
+    router.get("/health", (_req, res) => {
+      res.json({ status: "ok", service: "mxmcgi" });
+    });
+    health_default = router;
+  }
+});
+
+// src/task/reference-image.ts
+function isBase64(content) {
+  if (content.startsWith("data:image/")) {
+    return true;
+  }
+  const base64Pattern = /^[A-Za-z0-9+/=]+$/;
+  return content.length > 100 && base64Pattern.test(content);
+}
+function isUrl(content) {
+  try {
+    const url = new URL(content);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+function sanitizeReferenceImagesForStorage(referenceImages) {
+  return referenceImages.map((ref) => {
+    const sanitized = {
+      type: ref.type
+    };
+    if (isUrl(ref.content)) {
+      sanitized.content = ref.content;
+      sanitized.metadata = {
+        isUrl: true
+      };
+    } else if (isBase64(ref.content)) {
+      sanitized.metadata = {
+        isBase64: true,
+        size: ref.content.length,
+        format: ref.content.startsWith("data:image/") ? ref.content.substring(5, ref.content.indexOf(";")) : "unknown"
+      };
+      sanitized.content = "[Base64\u6570\u636E\u5DF2\u8FC7\u6EE4\uFF0C\u5927\u5C0F: " + (ref.content.length / 1024).toFixed(2) + " KB]";
+    } else {
+      sanitized.content = ref.content;
+    }
+    return sanitized;
+  });
+}
+function sanitizeBase64InObject(obj) {
+  if (obj === null || obj === void 0) {
+    return obj;
+  }
+  if (typeof obj === "string") {
+    if (isBase64(obj)) {
+      return "[Base64\u6570\u636E\u5DF2\u8FC7\u6EE4\uFF0C\u5927\u5C0F: " + (obj.length / 1024).toFixed(2) + " KB]";
+    }
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizeBase64InObject(item));
+  }
+  if (typeof obj === "object") {
+    const sanitized = {};
+    for (const key in obj) {
+      if (key === "referenceImage" && Array.isArray(obj[key])) {
+        sanitized[key] = sanitizeReferenceImagesForStorage(obj[key]);
+      } else {
+        sanitized[key] = sanitizeBase64InObject(obj[key]);
+      }
+    }
+    return sanitized;
+  }
+  return obj;
+}
+var init_reference_image = __esm({
+  "src/task/reference-image.ts"() {
+    "use strict";
+  }
+});
+
 // src/models/provider-model-catalog.ts
 var provider_model_catalog_exports = {};
 __export(provider_model_catalog_exports, {
+  findEnabledModel: () => findEnabledModel,
   getByProviderAndModelKey: () => getByProviderAndModelKey,
   getEnabledForMerge: () => getEnabledForMerge,
   getUpstreamModel: () => getUpstreamModel,
   isLoaded: () => isLoaded,
   isModelEnabled: () => isModelEnabled,
+  listAllEnabled: () => listAllEnabled,
   listByProvider: () => listByProvider,
+  listEnabledModelKeysByScope: () => listEnabledModelKeysByScope,
   loadProviderModelCatalog: () => loadProviderModelCatalog
 });
 function isProviderType(s) {
@@ -49,17 +138,17 @@ function isProviderType(s) {
 }
 async function loadProviderModelCatalog() {
   try {
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory24.createProviderModelRepository();
+    const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory23.createProviderModelRepository();
     const all = await repo.list({ onlyEnabled: true });
-    const byProvider2 = /* @__PURE__ */ new Map();
+    const byProvider = /* @__PURE__ */ new Map();
     for (const m of all) {
       if (!isProviderType(m.provider)) continue;
-      const list = byProvider2.get(m.provider) ?? [];
+      const list = byProvider.get(m.provider) ?? [];
       list.push(m);
-      byProvider2.set(m.provider, list);
+      byProvider.set(m.provider, list);
     }
-    cache = byProvider2;
+    cache = byProvider;
     loaded = true;
     console.log(
       `[ProviderModelCatalog] \u5DF2\u52A0\u8F7D ${all.length} \u4E2A\u542F\u7528\u6A21\u578B\uFF0C\u8986\u76D6 provider: ${Array.from(cache.keys()).join(", ")}`
@@ -73,28 +162,61 @@ async function loadProviderModelCatalog() {
 function isLoaded() {
   return loaded;
 }
-function getByProviderAndModelKey(provider13, modelKey43) {
-  const list = cache.get(provider13) ?? [];
-  return list.find((m) => m.model_key === modelKey43 || m.upstream_model === modelKey43) ?? null;
+function getByProviderAndModelKey(provider, modelKey) {
+  const list = cache.get(provider) ?? [];
+  return list.find((m) => m.model_key === modelKey || m.upstream_model === modelKey) ?? null;
 }
-function isModelEnabled(provider13, modelKey43) {
-  return getByProviderAndModelKey(provider13, modelKey43) !== null;
+function isModelEnabled(provider, modelKey) {
+  return getByProviderAndModelKey(provider, modelKey) !== null;
 }
-function getUpstreamModel(provider13, modelKey43) {
-  const m = getByProviderAndModelKey(provider13, modelKey43);
+function getUpstreamModel(provider, modelKey) {
+  const m = getByProviderAndModelKey(provider, modelKey);
   return m ? m.upstream_model ?? m.model_key : null;
 }
-function listByProvider(provider13) {
-  return cache.get(provider13) ?? [];
+function listByProvider(provider) {
+  return cache.get(provider) ?? [];
+}
+function listAllEnabled() {
+  const all = [];
+  for (const list of cache.values()) {
+    all.push(...list);
+  }
+  return all;
+}
+function listEnabledModelKeysByScope(scope) {
+  const want = String(scope).toLowerCase();
+  const keys = /* @__PURE__ */ new Set();
+  for (const m of listAllEnabled()) {
+    const s = String(m.scope ?? "").toLowerCase();
+    if (s === want) {
+      keys.add(m.model_key);
+    }
+  }
+  return Array.from(keys);
+}
+function findEnabledModel(filter) {
+  const modelKey = filter.modelKey;
+  const wantScope = filter.scope != null ? String(filter.scope).toLowerCase() : null;
+  const wantProvider = filter.provider ?? null;
+  const list = wantProvider ? listByProvider(wantProvider) : listAllEnabled();
+  for (const m of list) {
+    if (m.model_key !== modelKey && m.upstream_model !== modelKey) continue;
+    if (wantScope) {
+      const s = String(m.scope ?? "").toLowerCase();
+      if (s !== wantScope) continue;
+    }
+    return m;
+  }
+  return null;
 }
 function getEnabledForMerge() {
   const result = [];
-  for (const [provider13, list] of cache) {
-    if (!isProviderType(provider13)) continue;
+  for (const [provider, list] of cache) {
+    if (!isProviderType(provider)) continue;
     for (const m of list) {
-      result.push({ provider: provider13, model_key: m.model_key });
+      result.push({ provider, model_key: m.model_key });
       if (m.upstream_model && m.upstream_model !== m.model_key) {
-        result.push({ provider: provider13, model_key: m.upstream_model });
+        result.push({ provider, model_key: m.upstream_model });
       }
     }
   }
@@ -113,7 +235,9 @@ var init_provider_model_catalog = __esm({
       "anthropic",
       "qwen",
       "volc",
-      "minimax"
+      "minimax",
+      "atlascloud",
+      "maxplan"
     ];
     cache = /* @__PURE__ */ new Map();
     loaded = false;
@@ -121,13 +245,13 @@ var init_provider_model_catalog = __esm({
 });
 
 // src/models/physical-model-id.ts
-function requireUpstreamPhysicalId(provider13, modelKey43) {
-  const id = getUpstreamModel(provider13, modelKey43);
+function requireUpstreamPhysicalId(provider, modelKey) {
+  const id = getUpstreamModel(provider, modelKey);
   if (id != null && String(id).trim().length > 0) {
     return String(id).trim();
   }
   throw new Error(
-    `\u672A\u5728 provider_models \u627E\u5230\u5DF2\u542F\u7528\u6A21\u578B\u6216\u7F3A\u5C11 upstream_model/model_key\uFF1Aprovider=${provider13}, model_key=${modelKey43}`
+    `\u672A\u5728 provider_models \u627E\u5230\u5DF2\u542F\u7528\u6A21\u578B\u6216\u7F3A\u5C11 upstream_model/model_key\uFF1Aprovider=${provider}, model_key=${modelKey}`
   );
 }
 var init_physical_model_id = __esm({
@@ -157,8 +281,8 @@ var init_provider = __esm({
       /**
        * Replicate 上游须为 owner/model（provider_models.upstream_model 或 model_key）
        */
-      resolveReplicatePhysicalModel(modelKey43) {
-        const raw = requireUpstreamPhysicalId("replicate", modelKey43);
+      resolveReplicatePhysicalModel(modelKey) {
+        const raw = requireUpstreamPhysicalId("replicate", modelKey);
         if (!raw.includes("/")) {
           throw new Error(
             `Replicate \u4E0A\u6E38\u6A21\u578B\u987B\u4E3A owner/model \u683C\u5F0F\uFF0C\u5F53\u524D\u4E3A\u300C${raw}\u300D\uFF1A\u8BF7\u5728 provider_models \u914D\u7F6E upstream_model`
@@ -167,8 +291,8 @@ var init_provider = __esm({
         return raw;
       }
       /** 异步 prediction + 进度轮询（图/视频/音频等）；文本走 run/stream 解析 */
-      useAsyncPredictionPath(modelKey43) {
-        const row = getByProviderAndModelKey("replicate", modelKey43);
+      useAsyncPredictionPath(modelKey) {
+        const row = getByProviderAndModelKey("replicate", modelKey);
         if (row) {
           const m = (row.modality ?? "").toLowerCase();
           const s = (row.scope ?? "").toLowerCase();
@@ -177,11 +301,11 @@ var init_provider = __esm({
           if (m === "text") return false;
           if (["writing", "text", "default", "outline"].includes(s)) return false;
         }
-        return modelKey43 === "nano-banana" || modelKey43 === "nano-banana-pro" || modelKey43 === "ideogram-v2a" || modelKey43 === "recraft-crisp-upscale" || modelKey43 === "flux-fast" || modelKey43 === "flux-2-flex" || modelKey43 === "seedream-4";
+        return modelKey === "nano-banana" || modelKey === "nano-banana-pro" || modelKey === "ideogram-v2a" || modelKey === "recraft-crisp-upscale" || modelKey === "flux-fast" || modelKey === "flux-2-flex" || modelKey === "seedream-4";
       }
       /** 输出按文本解析（token/choices）；否则按 URL/媒体解析 */
-      isTextOutputModel(modelKey43) {
-        const row = getByProviderAndModelKey("replicate", modelKey43);
+      isTextOutputModel(modelKey) {
+        const row = getByProviderAndModelKey("replicate", modelKey);
         if (row) {
           const m = (row.modality ?? "").toLowerCase();
           const s = (row.scope ?? "").toLowerCase();
@@ -190,11 +314,11 @@ var init_provider = __esm({
           if (m === "image" || m === "video" || m === "audio") return false;
           if (s === "graph" || s === "video" || s === "audio") return false;
         }
-        return modelKey43.startsWith("deepseek") || modelKey43.startsWith("gemini") || modelKey43.startsWith("claude") || modelKey43.startsWith("gpt") || modelKey43.includes("gemini-3-pro");
+        return modelKey.startsWith("deepseek") || modelKey.startsWith("gemini") || modelKey.startsWith("claude") || modelKey.startsWith("gpt") || modelKey.includes("gemini-3-pro");
       }
-      isNanoBananaStyleModel(modelKey43) {
-        if (modelKey43 === "nano-banana" || modelKey43 === "nano-banana-pro") return true;
-        const row = getByProviderAndModelKey("replicate", modelKey43);
+      isNanoBananaStyleModel(modelKey) {
+        if (modelKey === "nano-banana" || modelKey === "nano-banana-pro") return true;
+        const row = getByProviderAndModelKey("replicate", modelKey);
         const u = (row?.upstream_model ?? "").toLowerCase();
         return u.includes("nano-banana");
       }
@@ -2701,13 +2825,18 @@ var init_client2 = __esm({
             if (attempt >= maxRetries) break;
             const jitter = Math.floor(Math.random() * 200);
             const delay = baseDelayMs * Math.pow(2, attempt) + jitter;
+            const causeCode2 = e?.cause?.code ? String(e.cause.code) : "";
+            const extra2 = causeCode2 ? `, cause=${causeCode2}` : "";
             console.warn(
-              `[DeerAPIClient] ${label} \u8BF7\u6C42\u5F02\u5E38\uFF0C\u51C6\u5907\u91CD\u8BD5\uFF08${attempt + 1}/${maxRetries}\uFF09\uFF0C\u7B49\u5F85 ${delay}ms\u3002\u9519\u8BEF: ${e instanceof Error ? e.message : String(e)}`
+              `[DeerAPIClient] ${label} \u8BF7\u6C42\u5F02\u5E38\uFF0C\u51C6\u5907\u91CD\u8BD5\uFF08${attempt + 1}/${maxRetries}\uFF09\uFF0C\u7B49\u5F85 ${delay}ms\u3002 url=${url} \u9519\u8BEF: ${e instanceof Error ? e.message : String(e)}${extra2}`
             );
             await new Promise((r) => setTimeout(r, delay));
           }
         }
-        throw lastError instanceof Error ? lastError : new Error(`${label} \u8BF7\u6C42\u5931\u8D25: ${String(lastError)}`);
+        const causeCode = lastError?.cause?.code ? String(lastError.cause.code) : "";
+        const extra = causeCode ? ` (cause=${causeCode})` : "";
+        const msg = lastError instanceof Error ? lastError.message : String(lastError);
+        throw new Error(`${label} \u8BF7\u6C42\u5931\u8D25: ${msg}${extra} url=${url}`);
       }
       /**
        * OpenAI embeddings 兼容接口
@@ -3989,9 +4118,9 @@ var init_provider_balance_service = __esm({
        * 不会扣减余额，也不会计算真实成本（usage 为 0 仅用于复用查询逻辑）。
        */
       static async assertPricingConfigured(params) {
-        const { provider: provider13, model_key, scope } = params;
+        const { provider, model_key, scope } = params;
         const { hasPricing } = await this.calculateCostWithCheck({
-          provider: provider13,
+          provider,
           model_key,
           scope,
           input_tokens: 0,
@@ -4003,7 +4132,7 @@ var init_provider_balance_service = __esm({
           request_count: 1
         });
         if (!hasPricing) {
-          const detail = `provider=${provider13} model_key=${model_key} scope=${scope ?? "default"}`;
+          const detail = `provider=${provider} model_key=${model_key} scope=${scope ?? "default"}`;
           console.warn("[ProviderBalanceService] \u65E0\u5B9A\u4EF7\u8BB0\u5F55(\u9884\u68C0):", detail);
           throw new Error(`${PRICING_ERROR_NO_RECORD}: ${detail}\uFF0C\u8BF7\u5728\u300CProvider \u7BA1\u7406 - \u6A21\u578B\u4EF7\u683C\u300D\u4E2D\u914D\u7F6E`);
         }
@@ -5483,8 +5612,8 @@ var init_provider4 = __esm({
           return void 0;
         }
       }
-      resolveModelName(modelKey43) {
-        return requireUpstreamPhysicalId("openai", modelKey43);
+      resolveModelName(modelKey) {
+        return requireUpstreamPhysicalId("openai", modelKey);
       }
       supportsModel(modelName) {
         return isModelEnabled("openai", modelName);
@@ -5672,8 +5801,8 @@ var init_provider5 = __esm({
         const base = this.injectBaseUrl || process.env.GOOGLE_BASE_URL || "https://generativelanguage.googleapis.com/v1beta";
         return base.replace(/\/+$/, "");
       }
-      resolveModelName(modelKey43) {
-        return requireUpstreamPhysicalId("google", modelKey43);
+      resolveModelName(modelKey) {
+        return requireUpstreamPhysicalId("google", modelKey);
       }
       supportsModel(modelName) {
         return isModelEnabled("google", modelName);
@@ -5806,8 +5935,8 @@ var init_provider6 = __esm({
         const base = this.injectBaseUrl || process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com/v1";
         return base.replace(/\/+$/, "");
       }
-      resolveModelName(modelKey43) {
-        return requireUpstreamPhysicalId("anthropic", modelKey43);
+      resolveModelName(modelKey) {
+        return requireUpstreamPhysicalId("anthropic", modelKey);
       }
       supportsModel(modelName) {
         return isModelEnabled("anthropic", modelName);
@@ -5950,8 +6079,8 @@ var init_provider7 = __esm({
         const base = this.injectBaseUrl || process.env.QWEN_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1";
         return base.replace(/\/+$/, "");
       }
-      resolveModelName(modelKey43) {
-        return requireUpstreamPhysicalId("qwen", modelKey43);
+      resolveModelName(modelKey) {
+        return requireUpstreamPhysicalId("qwen", modelKey);
       }
       supportsModel(modelName) {
         return isModelEnabled("qwen", modelName);
@@ -6065,31 +6194,34 @@ function parseEnvKeys(singleVar, multiVar) {
   }
   return [];
 }
-function getEnvKeysFallback(provider13, _service) {
-  const key = provider13;
+function getEnvKeysFallback(provider, _service) {
+  const key = provider;
   const singleVar = ENV_MAP[key]?.single;
   const multiVar = ENV_MAP[key]?.multi;
   if (!singleVar || !multiVar) return [];
   return parseEnvKeys(singleVar, multiVar);
 }
-async function getProviderKeys(provider13, service) {
+async function getProviderKeys(provider, service) {
   try {
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory24.createProviderApiKeyRepository();
+    const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory23.createProviderApiKeyRepository();
     const serviceNorm = service ? String(service).toLowerCase() : null;
-    const dbKeys = await repo.listKeysForProvider(provider13, serviceNorm ?? void 0);
+    let dbKeys = await repo.listKeysForProvider(provider, serviceNorm ?? void 0);
+    if ((!dbKeys || dbKeys.length === 0) && !serviceNorm && (provider === "replicate" || provider === "ppio")) {
+      dbKeys = await repo.listAllActiveKeysForProvider(provider);
+    }
     if (dbKeys && dbKeys.length > 0) {
       return dbKeys.map((r) => r.key_value);
     }
   } catch (_e) {
   }
-  return getEnvKeysFallback(provider13, service);
+  return getEnvKeysFallback(provider, service);
 }
 async function getDeerProviderKeys(service) {
   return getProviderKeys("deer", service);
 }
-async function getFirstProviderKey(provider13, service) {
-  const keys = await getProviderKeys(provider13, service);
+async function getFirstProviderKey(provider, service) {
+  const keys = await getProviderKeys(provider, service);
   return keys.length > 0 ? keys[0] : null;
 }
 var ENV_MAP;
@@ -6105,7 +6237,9 @@ var init_provider_keys = __esm({
       anthropic: { single: "ANTHROPIC_API_KEY", multi: "ANTHROPIC_API_KEYS" },
       minimax: { single: "MINIMAX_API_KEY", multi: "MINIMAX_API_KEYS" },
       qwen: { single: "QWEN_API_KEY", multi: "QWEN_API_KEYS" },
-      volc: { single: "VOLC_API_KEY", multi: "VOLC_API_KEYS" }
+      volc: { single: "VOLC_API_KEY", multi: "VOLC_API_KEYS" },
+      atlascloud: { single: "ATLASCLOUD_API_KEY", multi: "ATLASCLOUD_API_KEYS" },
+      maxplan: { single: "MAXPLAN_API_KEY", multi: "MAXPLAN_API_KEYS" }
     };
   }
 });
@@ -6167,12 +6301,12 @@ function getGroupKey(r, groupBy) {
   return r.logicalModel;
 }
 function getGroupMeta(r, groupBy) {
-  const provider13 = r.provider;
-  if (groupBy === "provider") return { provider: provider13 };
+  const provider = r.provider;
+  if (groupBy === "provider") return { provider };
   if (groupBy === "provider_model") {
-    return { provider: provider13, modelKey: r.model_key ?? r.logicalModel };
+    return { provider, modelKey: r.model_key ?? r.logicalModel };
   }
-  return { provider: provider13, logicalModel: r.logicalModel };
+  return { provider, logicalModel: r.logicalModel };
 }
 function aggregate(records, windowLabel, providerFilter, groupBy = "provider") {
   const filtered = records.filter(
@@ -6299,8 +6433,8 @@ var init_provider8 = __esm({
         const base = this.injectBaseUrl || process.env.VOLC_BASE_URL || "https://ark.cn-beijing.volces.com/api/v3";
         return base.replace(/\/+$/, "");
       }
-      resolveModelName(modelKey43) {
-        return requireUpstreamPhysicalId("volc", modelKey43);
+      resolveModelName(modelKey) {
+        return requireUpstreamPhysicalId("volc", modelKey);
       }
       supportsModel(modelName) {
         return isModelEnabled("volc", modelName);
@@ -6433,8 +6567,8 @@ var init_provider9 = __esm({
         const base = this.injectBaseUrl || process.env.MINIMAX_BASE_URL || "https://api.minimax.chat";
         return base.replace(/\/+$/, "");
       }
-      resolveModelName(modelKey43) {
-        return requireUpstreamPhysicalId("minimax", modelKey43);
+      resolveModelName(modelKey) {
+        return requireUpstreamPhysicalId("minimax", modelKey);
       }
       supportsModel(modelName) {
         return isModelEnabled("minimax", modelName);
@@ -6545,36 +6679,627 @@ var init_provider9 = __esm({
   }
 });
 
+// src/models/atlascloud/provider.ts
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+var AtlasCloudProvider;
+var init_provider10 = __esm({
+  "src/models/atlascloud/provider.ts"() {
+    "use strict";
+    init_providers();
+    init_provider_keys();
+    init_provider_model_catalog();
+    init_physical_model_id();
+    AtlasCloudProvider = class {
+      constructor(injectApiKey, injectBaseUrl) {
+        this.injectApiKey = injectApiKey;
+        this.injectBaseUrl = injectBaseUrl;
+      }
+      provider = "atlascloud";
+      name = "AtlasCloud";
+      async getApiKey() {
+        const key = this.injectApiKey ?? await getFirstProviderKey("atlascloud") ?? process.env.ATLASCLOUD_API_KEY;
+        if (!key) {
+          throw new Error("ATLASCLOUD_API_KEY / Admin \u4E2D provider=atlascloud \u7684 Key \u672A\u914D\u7F6E");
+        }
+        return key;
+      }
+      getBaseUrl() {
+        const base = this.injectBaseUrl || process.env.ATLASCLOUD_BASE_URL || "https://api.atlascloud.ai";
+        return base.replace(/\/+$/, "");
+      }
+      /**
+       * AtlasCloud 的 LLM 接口为 OpenAI Chat Completions 兼容：/v1/chat/completions
+       * 参考：https://www.atlascloud.ai/models/openai/gpt-oss-120b?tab=api
+       */
+      getChatBaseUrl() {
+        const base = process.env.ATLASCLOUD_CHAT_BASE_URL || process.env.ATLASCLOUD_OPENAI_BASE_URL || "https://api.atlascloud.ai/v1";
+        return String(base).replace(/\/+$/, "");
+      }
+      resolveUpstreamModel(modelKey) {
+        return requireUpstreamPhysicalId("atlascloud", modelKey);
+      }
+      /**
+       * 决定该模型走哪条 AtlasCloud API。
+       *
+       * 强约束（推荐）：在 `provider_models.protocol` 明确声明：
+       * - openai / openai_chat / chat_completions -> chat
+       * - sedeo / video_task -> sedeo
+       * - prediction / generate_image -> prediction_image
+       * - generate_video / prediction_video -> prediction_video
+       *
+       * 兼容兜底：根据 scope/modality/upstream/modelKey 猜测。
+       */
+      resolveRouteKind(modelKey) {
+        const row = getByProviderAndModelKey("atlascloud", modelKey);
+        const protocol = String(row?.protocol ?? "").toLowerCase();
+        if (protocol) {
+          if (protocol.includes("openai") || protocol.includes("chat")) return "chat";
+          if (protocol.includes("sedeo") || protocol.includes("video_task")) return "sedeo";
+          if (protocol.includes("generate_video") || protocol.includes("prediction_video") || protocol.includes("text-to-video")) {
+            return "prediction_video";
+          }
+          if (protocol.includes("prediction") || protocol.includes("generate_image") || protocol.includes("text-to-image") || protocol.includes("image")) {
+            return "prediction_image";
+          }
+        }
+        const scope = String(row?.scope ?? "").toLowerCase();
+        const modality = String(row?.modality ?? "").toLowerCase();
+        const upstream = String(row?.upstream_model ?? "").toLowerCase();
+        if (scope === "text" || scope === "writing" || scope === "default") return "chat";
+        if (modality === "text") return "chat";
+        if (upstream.includes("openai/") || upstream.includes("/gpt-")) return "chat";
+        if (scope === "video" || modality === "video") return "prediction_video";
+        if (upstream.includes("sedeo")) return "sedeo";
+        if (modelKey.startsWith("sedeo-") || modelKey.includes("sedeo")) return "sedeo";
+        return "prediction_image";
+      }
+      supportsModel(modelName) {
+        return isModelEnabled("atlascloud", modelName);
+      }
+      getUsageSummary(window) {
+        return getProviderStats({ provider: this.provider, window }).then((list) => {
+          return list.find((a) => a.provider === this.provider) || {
+            provider: this.provider,
+            requestCount: 0,
+            successCount: 0,
+            errorRate: 0,
+            avgLatencyMs: 0,
+            window
+          };
+        });
+      }
+      async atlasFetchJson(path2, init) {
+        const apiKey = await this.getApiKey();
+        const baseUrl = this.getBaseUrl();
+        const res = await fetch(`${baseUrl}${path2}`, {
+          ...init,
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            ...init.headers ?? {}
+          }
+        });
+        const text = await res.text();
+        let json;
+        try {
+          json = text ? JSON.parse(text) : {};
+        } catch {
+          json = { raw: text };
+        }
+        if (!res.ok) {
+          const msg = json && (json.message || json.error || json.raw) || `HTTP ${res.status}`;
+          throw new Error(`AtlasCloud API \u8BF7\u6C42\u5931\u8D25: ${path2} (${res.status}) ${msg}`);
+        }
+        return json;
+      }
+      sanitizeAtlasParams(raw) {
+        const p = raw && typeof raw === "object" ? raw : {};
+        const { max_wait_ms, poll_interval_ms, ...rest } = p;
+        return rest;
+      }
+      /**
+       * AtlasCloud 部分模型文档同时给了两种写法：
+       * - 平铺字段：{ model, prompt, width, height, ... }
+       * - input 包裹：{ model, input: { prompt, ... } }
+       *
+       * 为了兼容后续新增模型，统一在这里做归一化：
+       * - 若存在 parameters.input（object），优先展开到顶层
+       * - prompt 优先级：input.prompt > parameters.prompt > params.prompt
+       */
+      buildGenerateBody(upstreamModel, params) {
+        const rawParams = this.sanitizeAtlasParams(params.parameters);
+        const inputObj = rawParams.input && typeof rawParams.input === "object" && !Array.isArray(rawParams.input) ? this.sanitizeAtlasParams(rawParams.input) : null;
+        if (inputObj) {
+          delete rawParams.input;
+        }
+        const prompt = (inputObj && inputObj.prompt != null ? String(inputObj.prompt) : void 0) ?? (rawParams.prompt != null ? String(rawParams.prompt) : void 0) ?? (params.prompt != null ? String(params.prompt) : void 0);
+        return {
+          model: upstreamModel,
+          ...inputObj ?? {},
+          ...rawParams,
+          ...prompt != null ? { prompt } : {}
+        };
+      }
+      async generateTextViaChatCompletions(modelKey, params) {
+        const apiKey = await this.getApiKey();
+        const upstreamModel = this.resolveUpstreamModel(modelKey);
+        const baseUrl = this.getChatBaseUrl();
+        const rawParams = params.parameters ?? {};
+        const providedMessages = rawParams.messages;
+        const body = {
+          model: upstreamModel,
+          ...rawParams,
+          messages: Array.isArray(providedMessages) ? providedMessages : [{ role: "user", content: params.prompt }]
+        };
+        const resp = await fetch(`${baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`
+          },
+          body: JSON.stringify(body)
+        });
+        if (!resp.ok) {
+          const text = await resp.text().catch(() => "");
+          throw new Error(`AtlasCloud LLM \u8BF7\u6C42\u5931\u8D25: ${resp.status} ${resp.statusText} ${text}`);
+        }
+        const json = await resp.json().catch(() => ({}));
+        const content = json?.choices?.[0]?.message?.content != null ? String(json.choices[0].message.content) : "";
+        const usage = {
+          prompt_tokens: Number(json?.usage?.prompt_tokens ?? 0),
+          completion_tokens: Number(json?.usage?.completion_tokens ?? 0),
+          total_tokens: Number(json?.usage?.total_tokens ?? 0)
+        };
+        return {
+          mediaUrls: content ? [content] : [],
+          metadata: {
+            provider: this.provider,
+            model: modelKey,
+            upstreamModel,
+            text: content,
+            usage,
+            raw: json
+          },
+          ...content ? { text: content } : {},
+          ...usage ? { usage } : {}
+        };
+      }
+      createPredictionProgressStream(predictionId, pollEveryMs) {
+        const self = this;
+        return (async function* () {
+          yield { status: "starting", progress: 5 };
+          while (true) {
+            await sleep(pollEveryMs);
+            const result = await self.atlasFetchJson(
+              `/api/v1/model/prediction/${predictionId}`,
+              { method: "GET" }
+            );
+            const status = String(result?.data?.status ?? "processing");
+            if (status === "completed" || status === "succeeded") {
+              yield { status: "succeeded", progress: 100, output: result?.data };
+              break;
+            }
+            if (status === "failed" || status === "timeout") {
+              yield {
+                status: "failed",
+                progress: 0,
+                error: result?.data?.error || "Generation failed",
+                output: result?.data
+              };
+              break;
+            }
+            yield { status: "processing", progress: 50, output: result?.data };
+          }
+        })();
+      }
+      async generateImageViaPrediction(modelKey, params) {
+        const upstream = this.resolveUpstreamModel(modelKey);
+        const body = this.buildGenerateBody(upstream, params);
+        const create = await this.atlasFetchJson(
+          "/api/v1/model/generateImage",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+          }
+        );
+        const predictionId = create?.data?.id ?? create?.id;
+        if (!predictionId) {
+          throw new Error("AtlasCloud generateImage \u672A\u8FD4\u56DE prediction id");
+        }
+        const pollEveryMs = Math.max(
+          500,
+          Number(params.parameters?.poll_interval_ms ?? 2e3)
+        );
+        const maxWaitMsRaw = params.parameters?.max_wait_ms;
+        const maxWaitMs = maxWaitMsRaw != null ? Math.max(0, Number(maxWaitMsRaw)) : null;
+        const progress = params.enableProgress === false ? void 0 : this.createPredictionProgressStream(predictionId, pollEveryMs);
+        const startPollAt = Date.now();
+        while (true) {
+          const result = await this.atlasFetchJson(
+            `/api/v1/model/prediction/${predictionId}`,
+            { method: "GET" }
+          );
+          const status = String(result?.data?.status ?? "processing");
+          if (status === "completed" || status === "succeeded") {
+            const outputs = Array.isArray(result?.data?.outputs) ? result.data.outputs : [];
+            const mediaUrls = outputs.filter((u) => typeof u === "string" && u.length > 0);
+            return {
+              mediaUrls,
+              metadata: {
+                model: modelKey,
+                provider: this.provider,
+                upstream,
+                predictionId,
+                raw: result?.data
+              },
+              progress
+            };
+          }
+          if (status === "failed" || status === "timeout") {
+            const errMsg = result?.data?.error || "Generation failed";
+            throw new Error(`AtlasCloud \u56FE\u50CF\u751F\u6210\u5931\u8D25: ${errMsg}`);
+          }
+          if (maxWaitMs != null && Date.now() - startPollAt >= maxWaitMs) {
+            return {
+              mediaUrls: [],
+              metadata: {
+                model: modelKey,
+                provider: this.provider,
+                upstream,
+                predictionId,
+                status,
+                raw: result?.data
+              },
+              progress
+            };
+          }
+          await sleep(pollEveryMs);
+        }
+      }
+      async generateVideoViaPrediction(modelKey, params) {
+        const upstream = this.resolveUpstreamModel(modelKey);
+        const body = this.buildGenerateBody(upstream, params);
+        const create = await this.atlasFetchJson(
+          "/api/v1/model/generateVideo",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+          }
+        );
+        const predictionId = create?.data?.id ?? create?.id;
+        if (!predictionId) {
+          throw new Error("AtlasCloud generateVideo \u672A\u8FD4\u56DE prediction id");
+        }
+        const pollEveryMs = Math.max(
+          500,
+          Number(params.parameters?.poll_interval_ms ?? 2e3)
+        );
+        const maxWaitMsRaw = params.parameters?.max_wait_ms;
+        const maxWaitMs = maxWaitMsRaw != null ? Math.max(0, Number(maxWaitMsRaw)) : null;
+        const progress = params.enableProgress === false ? void 0 : this.createPredictionProgressStream(predictionId, pollEveryMs);
+        const startPollAt = Date.now();
+        while (true) {
+          const result = await this.atlasFetchJson(
+            `/api/v1/model/prediction/${predictionId}`,
+            { method: "GET" }
+          );
+          const status = String(result?.data?.status ?? "processing");
+          if (status === "completed" || status === "succeeded") {
+            const outputs = Array.isArray(result?.data?.outputs) ? result.data.outputs : [];
+            const mediaUrls = outputs.filter((u) => typeof u === "string" && u.length > 0);
+            const usage = result?.data?.usage ?? {
+              completion_tokens: result?.data?.completion_tokens,
+              total_tokens: result?.data?.total_tokens
+            };
+            return {
+              mediaUrls,
+              metadata: {
+                model: modelKey,
+                provider: this.provider,
+                upstream,
+                predictionId,
+                usage,
+                raw: result?.data
+              },
+              progress
+            };
+          }
+          if (status === "failed" || status === "timeout") {
+            const errMsg = result?.data?.error || "Generation failed";
+            throw new Error(`AtlasCloud \u89C6\u9891\u751F\u6210\u5931\u8D25: ${errMsg}`);
+          }
+          if (maxWaitMs != null && Date.now() - startPollAt >= maxWaitMs) {
+            const usage = result?.data?.usage ?? {
+              completion_tokens: result?.data?.completion_tokens,
+              total_tokens: result?.data?.total_tokens
+            };
+            return {
+              mediaUrls: [],
+              metadata: {
+                model: modelKey,
+                provider: this.provider,
+                upstream,
+                predictionId,
+                usage,
+                status,
+                raw: result?.data
+              },
+              progress
+            };
+          }
+          await sleep(pollEveryMs);
+        }
+      }
+      async generateVideoViaSedeoTask(modelKey, params) {
+        const upstream = this.resolveUpstreamModel(modelKey);
+        const p = params.parameters ?? {};
+        const content = Array.isArray(p.content) ? p.content : [{ type: "text", text: params.prompt }];
+        const body = {
+          model: upstream,
+          content,
+          ...p
+        };
+        const create = await this.atlasFetchJson(
+          "/api/v1/model/sedeo/tasks",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+          }
+        );
+        const taskId = create?.data?.id;
+        if (!taskId) {
+          throw new Error("AtlasCloud Sedeo \u521B\u5EFA\u4EFB\u52A1\u672A\u8FD4\u56DE id");
+        }
+        const pollEveryMs = Math.max(
+          500,
+          Number(params.parameters?.poll_interval_ms ?? 2e3)
+        );
+        const progress = params.enableProgress === false ? void 0 : (async function* (self) {
+          yield { status: "starting", progress: 5 };
+          while (true) {
+            await sleep(pollEveryMs);
+            const result = await self.atlasFetchJson(
+              `/api/v1/model/sedeo/tasks/${taskId}`,
+              { method: "GET" }
+            );
+            const status = String(result?.data?.status ?? "processing");
+            if (status === "completed") {
+              yield { status: "succeeded", progress: 100, output: result?.data };
+              break;
+            }
+            if (status === "failed" || status === "timeout") {
+              yield {
+                status: "failed",
+                progress: 0,
+                error: result?.data?.error || "Generation failed",
+                output: result?.data
+              };
+              break;
+            }
+            yield { status: "processing", progress: 50, output: result?.data };
+          }
+        })(this);
+        while (true) {
+          const result = await this.atlasFetchJson(
+            `/api/v1/model/sedeo/tasks/${taskId}`,
+            { method: "GET" }
+          );
+          const status = String(result?.data?.status ?? "processing");
+          if (status === "completed") {
+            const outputs = Array.isArray(result?.data?.outputs) ? result.data.outputs : [];
+            const mediaUrls = outputs.filter((u) => typeof u === "string" && u.length > 0);
+            const usage = result?.data?.usage ?? {
+              completion_tokens: result?.data?.completion_tokens,
+              total_tokens: result?.data?.total_tokens
+            };
+            return {
+              mediaUrls,
+              metadata: {
+                model: modelKey,
+                provider: this.provider,
+                upstream,
+                taskId,
+                usage,
+                raw: result?.data
+              },
+              progress
+            };
+          }
+          if (status === "failed" || status === "timeout") {
+            const errMsg = result?.data?.error || "Generation failed";
+            throw new Error(`AtlasCloud \u89C6\u9891\u751F\u6210\u5931\u8D25: ${errMsg}`);
+          }
+          await sleep(pollEveryMs);
+        }
+      }
+      async generate(modelName, params) {
+        if (!this.supportsModel(modelName)) {
+          throw new Error(`AtlasCloud provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelName}`);
+        }
+        const start2 = Date.now();
+        let success = true;
+        let errorCode;
+        try {
+          const kind = this.resolveRouteKind(modelName);
+          if (kind === "chat") return await this.generateTextViaChatCompletions(modelName, params);
+          if (kind === "sedeo") return await this.generateVideoViaSedeoTask(modelName, params);
+          if (kind === "prediction_video") return await this.generateVideoViaPrediction(modelName, params);
+          return await this.generateImageViaPrediction(modelName, params);
+        } catch (e) {
+          success = false;
+          errorCode = "atlascloud_error";
+          throw e;
+        } finally {
+          const latencyMs = Date.now() - start2;
+          recordStats({
+            provider: this.provider,
+            logicalModel: modelName,
+            model_key: modelName,
+            success,
+            latencyMs,
+            errorCode
+          });
+        }
+      }
+    };
+  }
+});
+
+// src/models/maxplan/provider.ts
+var MaxplanProvider;
+var init_provider11 = __esm({
+  "src/models/maxplan/provider.ts"() {
+    "use strict";
+    init_providers();
+    init_provider_keys();
+    init_provider_model_catalog();
+    init_physical_model_id();
+    MaxplanProvider = class {
+      constructor(injectApiKey, injectBaseUrl) {
+        this.injectApiKey = injectApiKey;
+        this.injectBaseUrl = injectBaseUrl;
+      }
+      provider = "maxplan";
+      name = "Maxplan";
+      async getApiKey() {
+        const key = this.injectApiKey ?? await getFirstProviderKey("maxplan") ?? process.env.MAXPLAN_API_KEY;
+        if (!key) {
+          throw new Error("MAXPLAN_API_KEY / Admin \u4E2D provider=maxplan \u7684 Key \u672A\u914D\u7F6E");
+        }
+        return key;
+      }
+      getBaseUrl() {
+        const base = this.injectBaseUrl || process.env.MAXPLAN_BASE_URL || "https://api.minimaxi.com";
+        return String(base).replace(/\/+$/, "");
+      }
+      resolveUpstreamModel(modelKey) {
+        return requireUpstreamPhysicalId("maxplan", modelKey);
+      }
+      supportsModel(modelName) {
+        return isModelEnabled("maxplan", modelName);
+      }
+      getUsageSummary(window) {
+        return getProviderStats({ provider: this.provider, window }).then((list) => {
+          return list.find((a) => a.provider === this.provider) || {
+            provider: this.provider,
+            requestCount: 0,
+            successCount: 0,
+            errorRate: 0,
+            avgLatencyMs: 0,
+            window
+          };
+        });
+      }
+      async getBillingInfo() {
+        return { provider: "maxplan", supported: false };
+      }
+      /**
+       * Maxplan 文本生成 - Chat Completion v2
+       * POST https://api.minimaxi.com/v1/text/chatcompletion_v2
+       */
+      async generateText(modelKey, params) {
+        const apiKey = await this.getApiKey();
+        const upstreamModel = this.resolveUpstreamModel(modelKey);
+        const baseUrl = this.getBaseUrl();
+        const rawParams = params.parameters ?? {};
+        const providedMessages = rawParams.messages;
+        const body = {
+          model: upstreamModel,
+          ...rawParams,
+          messages: Array.isArray(providedMessages) ? providedMessages : [{ role: "user", content: params.prompt }]
+        };
+        const resp = await fetch(`${baseUrl}/v1/text/chatcompletion_v2`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`
+          },
+          body: JSON.stringify(body)
+        });
+        if (!resp.ok) {
+          const text = await resp.text().catch(() => "");
+          throw new Error(`Maxplan API \u8BF7\u6C42\u5931\u8D25: ${resp.status} ${resp.statusText} ${text}`);
+        }
+        const json = await resp.json().catch(() => ({}));
+        const content = json?.choices?.[0]?.message?.content != null ? String(json.choices[0].message.content) : "";
+        const usage = {
+          prompt_tokens: Number(json?.usage?.prompt_tokens ?? 0),
+          completion_tokens: Number(json?.usage?.completion_tokens ?? 0),
+          total_tokens: Number(json?.usage?.total_tokens ?? 0)
+        };
+        return {
+          mediaUrls: content ? [content] : [],
+          metadata: {
+            provider: this.provider,
+            model: modelKey,
+            upstreamModel,
+            text: content,
+            usage,
+            raw: json
+          }
+        };
+      }
+      async generate(modelName, params) {
+        if (!this.supportsModel(modelName)) {
+          throw new Error(`Maxplan provider \u4E0D\u652F\u6301\u6A21\u578B: ${modelName}`);
+        }
+        const start2 = Date.now();
+        let success = true;
+        let errorCode;
+        try {
+          return await this.generateText(modelName, params);
+        } catch (e) {
+          success = false;
+          errorCode = "maxplan_error";
+          throw e;
+        } finally {
+          const latencyMs = Date.now() - start2;
+          recordStats({
+            provider: this.provider,
+            logicalModel: modelName,
+            model_key: modelName,
+            success,
+            latencyMs,
+            errorCode
+          });
+        }
+      }
+    };
+  }
+});
+
 // src/core/providers/model-routing.ts
 function getResolvedRouting(logicalOrPhysicalName, preferredProvider) {
   const lookupKey = OUTLINE_ROUTING_ALIAS[logicalOrPhysicalName] ?? logicalOrPhysicalName;
   const entry = overrides[logicalOrPhysicalName] ?? overrides[lookupKey] ?? defaultRouting[logicalOrPhysicalName] ?? defaultRouting[lookupKey];
   if (entry) {
-    const provider13 = preferredProvider ?? entry.provider;
+    const provider = preferredProvider ?? entry.provider;
     return {
-      provider: provider13,
+      provider,
       model: entry.model,
       fromRouting: true
     };
   }
   return {
-    provider: preferredProvider ?? "deer",
+    // 注意：当 fromRouting=false 时，provider 字段不应被用于强制选择；
+    // ProviderFactory.getProviderAndModel 会用调用方的 preferredProvider 决定是否限定。
+    provider: preferredProvider ?? "replicate",
     model: logicalOrPhysicalName,
     fromRouting: false
   };
 }
 function getFullRoutingTable() {
   const result = {};
-  for (const [key, entry] of Object.entries(defaultRouting)) {
-    result[key] = { ...entry, overridden: key in overrides };
-  }
   for (const [key, entry] of Object.entries(overrides)) {
     if (key === "writing-outline") {
       result["writing-outlines"] = { ...entry, overridden: true };
       continue;
     }
-    if (!(key in defaultRouting)) result[key] = { ...entry, overridden: true };
-    else result[key] = { ...entry, overridden: true };
+    result[key] = { ...entry, overridden: true };
   }
   return result;
 }
@@ -6593,116 +7318,11 @@ var defaultRouting, overrides, OUTLINE_ROUTING_ALIAS;
 var init_model_routing = __esm({
   "src/core/providers/model-routing.ts"() {
     "use strict";
-    defaultRouting = {
-      // 图文（仅业务接口：photograph / design / painting，不与模型名/子类型混用）
-      "graph-photograph": { provider: "deer", model: "nano-banana-pro" },
-      "graph-design": { provider: "deer", model: "nano-banana-pro" },
-      "graph-painting": { provider: "deer", model: "nano-banana-pro" },
-      // 写作（按业务类型，与 BUSINESS_INTERFACE_SPEC 一致）
-      "writing-outlines": { provider: "deer", model: "gemini-3-pro" },
-      "writing-articles": { provider: "deer", model: "gemini-2-5-flash" },
-      "writing-lyrics": { provider: "deer", model: "gemini-2-5-flash" },
-      "writing-voice-scripts": { provider: "deer", model: "gemini-2-5-flash" },
-      "writing-storyboard-scripts": { provider: "deer", model: "gemini-2-5-flash" },
-      "writing-media-post": { provider: "deer", model: "gemini-2-5-flash" },
-      "writing-reviews": { provider: "deer", model: "gemini-2-5-flash" },
-      "writing-resumes": { provider: "deer", model: "gemini-2-5-flash" },
-      // 兼容旧 task 中的 model 字段（可选）
-      "writing-article": { provider: "deer", model: "gemini-2-5-flash" },
-      // 基础文本能力（内部调用）：生图提示词、写作内压缩/摘要等，统一用此逻辑模型
-      "writing-basic-text": { provider: "deer", model: "gemini-3-pro" },
-      // 音频
-      "audio-speak": { provider: "deer", model: "minimax-speech-2.5-hd" },
-      "audio-music": { provider: "deer", model: "suno-music" },
-      // 视频（按业务类型，不使用模型名 sora/runway 作为 key）
-      "video-short": { provider: "deer", model: "sora-2" },
-      "video-movie": { provider: "deer", model: "sora-2" },
-      "video-animation": { provider: "deer", model: "sora-2" },
-      "video-music-video": { provider: "deer", model: "sora-2" },
-      "video-commercial": { provider: "deer", model: "sora-2" },
-      "video-documentary": { provider: "deer", model: "sora-2" },
-      "video-motion-graphics": { provider: "deer", model: "sora-2" },
-      "video-game-cg": { provider: "deer", model: "sora-2" },
-      "video-educational": { provider: "deer", model: "sora-2" }
-    };
+    defaultRouting = {};
     overrides = {};
     OUTLINE_ROUTING_ALIAS = {
       "writing-outline": "writing-outlines"
     };
-  }
-});
-
-// src/models/registry.ts
-function registerModel(def) {
-  const { provider: provider13, scope, modelKey: modelKey43 } = def;
-  let scopeMap = byProvider.get(provider13);
-  if (!scopeMap) {
-    scopeMap = /* @__PURE__ */ new Map();
-    byProvider.set(provider13, scopeMap);
-  }
-  let modelMap = scopeMap.get(scope);
-  if (!modelMap) {
-    modelMap = /* @__PURE__ */ new Map();
-    scopeMap.set(scope, modelMap);
-  }
-  const existingForProvider = modelMap.get(modelKey43) ?? [];
-  existingForProvider.push(def);
-  modelMap.set(modelKey43, existingForProvider);
-  let scopeKeyMap = byScopeAndKey.get(scope);
-  if (!scopeKeyMap) {
-    scopeKeyMap = /* @__PURE__ */ new Map();
-    byScopeAndKey.set(scope, scopeKeyMap);
-  }
-  const existingGlobal = scopeKeyMap.get(modelKey43) ?? [];
-  existingGlobal.push(def);
-  scopeKeyMap.set(modelKey43, existingGlobal);
-}
-function getModel(provider13, scope, modelKey43) {
-  const scopeMap = byProvider.get(provider13);
-  const modelMap = scopeMap?.get(scope);
-  const defs = modelMap?.get(modelKey43);
-  return defs && defs.length > 0 ? defs[0] : null;
-}
-function getModelsByKey(scope, modelKey43) {
-  const scopeMap = byScopeAndKey.get(scope);
-  return scopeMap?.get(modelKey43) ?? [];
-}
-function listModels(filter) {
-  const results = [];
-  if (filter?.provider) {
-    const scopeMap = byProvider.get(filter.provider);
-    if (!scopeMap) return [];
-    const scopes = filter.scope ? [filter.scope] : Array.from(scopeMap.keys());
-    for (const scope of scopes) {
-      const modelMap = scopeMap.get(scope);
-      if (!modelMap) continue;
-      for (const defs of modelMap.values()) {
-        results.push(...defs);
-      }
-    }
-    return results;
-  }
-  if (filter?.scope) {
-    const scopeMap = byScopeAndKey.get(filter.scope);
-    if (!scopeMap) return [];
-    for (const defs of scopeMap.values()) {
-      results.push(...defs);
-    }
-    return results;
-  }
-  for (const scopeMap of byScopeAndKey.values()) {
-    for (const defs of scopeMap.values()) {
-      results.push(...defs);
-    }
-  }
-  return results;
-}
-var byProvider, byScopeAndKey;
-var init_registry = __esm({
-  "src/models/registry.ts"() {
-    "use strict";
-    byProvider = /* @__PURE__ */ new Map();
-    byScopeAndKey = /* @__PURE__ */ new Map();
   }
 });
 
@@ -6739,22 +7359,6 @@ __export(providers_exports, {
   recordStats: () => recordStats,
   setRoutingOverride: () => setRoutingOverride
 });
-function buildModelProviderMap(providerTypes) {
-  const map = {};
-  const allModels = listModels();
-  for (const def of allModels) {
-    const provider13 = def.provider;
-    const modelKey43 = def.modelKey;
-    if (!providerTypes.includes(provider13)) continue;
-    if (!map[modelKey43]) {
-      map[modelKey43] = [];
-    }
-    if (!map[modelKey43].includes(provider13)) {
-      map[modelKey43].push(provider13);
-    }
-  }
-  return map;
-}
 function getProviderFactory() {
   if (!_providerFactoryInstance) {
     if (!process.env.DEFAULT_PROVIDER) {
@@ -6795,8 +7399,9 @@ var init_providers = __esm({
     init_provider7();
     init_provider8();
     init_provider9();
+    init_provider10();
+    init_provider11();
     init_model_routing();
-    init_registry();
     init_provider_model_catalog();
     init_types();
     init_model_routing();
@@ -6871,17 +7476,21 @@ var init_providers = __esm({
             throw new Error(`MinimaxProvider \u521D\u59CB\u5316\u5931\u8D25: ${error instanceof Error ? error.message : String(error)}`);
           }
         });
-        this.modelProviderMap = buildModelProviderMap([
-          "replicate",
-          "ppio",
-          "deer",
-          "openai",
-          "google",
-          "anthropic",
-          "qwen",
-          "volc",
-          "minimax"
-        ]);
+        this.providerInitializers.set("atlascloud", () => {
+          try {
+            return new AtlasCloudProvider();
+          } catch (error) {
+            throw new Error(`AtlasCloudProvider \u521D\u59CB\u5316\u5931\u8D25: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        });
+        this.providerInitializers.set("maxplan", () => {
+          try {
+            return new MaxplanProvider();
+          } catch (error) {
+            throw new Error(`MaxplanProvider \u521D\u59CB\u5316\u5931\u8D25: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        });
+        this.modelProviderMap = {};
         const envDefaultProvider = process.env.DEFAULT_PROVIDER?.toLowerCase();
         console.log(`[ProviderFactory] ========== \u521D\u59CB\u5316\u5F00\u59CB ==========`);
         console.log(`[ProviderFactory] \u5F53\u524D process.env.DEFAULT_PROVIDER: ${process.env.DEFAULT_PROVIDER || "(\u672A\u8BBE\u7F6E)"}`);
@@ -6890,7 +7499,7 @@ var init_providers = __esm({
         if (envDefaultProvider === "deerapi") {
           this.defaultProvider = "deer";
           console.log(`[ProviderFactory] \u2705 \u68C0\u6D4B\u5230 'deerapi'\uFF0C\u6620\u5C04\u4E3A 'deer'`);
-        } else if (envDefaultProvider === "replicate" || envDefaultProvider === "ppio" || envDefaultProvider === "deer" || envDefaultProvider === "openai" || envDefaultProvider === "google" || envDefaultProvider === "anthropic" || envDefaultProvider === "qwen" || envDefaultProvider === "volc" || envDefaultProvider === "minimax") {
+        } else if (envDefaultProvider === "replicate" || envDefaultProvider === "ppio" || envDefaultProvider === "deer" || envDefaultProvider === "openai" || envDefaultProvider === "google" || envDefaultProvider === "anthropic" || envDefaultProvider === "qwen" || envDefaultProvider === "volc" || envDefaultProvider === "minimax" || envDefaultProvider === "atlascloud" || envDefaultProvider === "maxplan") {
           this.defaultProvider = envDefaultProvider;
           console.log(`[ProviderFactory] \u2705 \u4F7F\u7528\u73AF\u5883\u53D8\u91CF\u4E2D\u7684 provider: ${envDefaultProvider}`);
         } else {
@@ -6900,22 +7509,22 @@ var init_providers = __esm({
         console.log(`[ProviderFactory] \u6700\u7EC8\u8BBE\u7F6E\u7684\u9ED8\u8BA4\u63D0\u4F9B\u5546: ${this.defaultProvider}`);
         console.log(`[ProviderFactory] ========== \u521D\u59CB\u5316\u5B8C\u6210 ==========`);
       }
-      register(type, provider13) {
-        this.providers.set(type, provider13);
+      register(type, provider) {
+        this.providers.set(type, provider);
       }
       get(type) {
-        let provider13 = this.providers.get(type);
-        if (provider13) {
-          return provider13;
+        let provider = this.providers.get(type);
+        if (provider) {
+          return provider;
         }
         const initializer = this.providerInitializers.get(type);
         if (!initializer) {
           throw new Error(`Provider "${type}" \u672A\u6CE8\u518C`);
         }
         try {
-          provider13 = initializer();
-          this.providers.set(type, provider13);
-          return provider13;
+          provider = initializer();
+          this.providers.set(type, provider);
+          return provider;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           throw new Error(`Provider "${type}" \u521D\u59CB\u5316\u5931\u8D25: ${errorMessage}`);
@@ -6938,13 +7547,13 @@ var init_providers = __esm({
       getProviderAndModel(logicalOrPhysicalName, preferredProvider) {
         const resolved = getResolvedRouting(logicalOrPhysicalName, preferredProvider);
         if (resolved.fromRouting) {
-          const provider14 = this.get(resolved.provider);
-          if (provider14.supportsModel(resolved.model)) {
-            return { provider: provider14, model: resolved.model };
+          const provider2 = this.get(resolved.provider);
+          if (provider2.supportsModel(resolved.model)) {
+            return { provider: provider2, model: resolved.model };
           }
         }
-        const provider13 = this.getProviderForModel(resolved.model, resolved.provider);
-        return { provider: provider13, model: resolved.model };
+        const provider = this.getProviderForModel(resolved.model, preferredProvider);
+        return { provider, model: resolved.model };
       }
       /**
        * 获取支持指定模型的 provider
@@ -6963,12 +7572,12 @@ var init_providers = __esm({
         console.log(`[ProviderFactory] getProviderForModel: modelName=${modelName}, preferredProvider=${preferredProvider || "(\u672A\u6307\u5B9A)"}, defaultProvider=${this.defaultProvider}`);
         if (preferredProvider) {
           try {
-            const provider13 = this.get(preferredProvider);
-            if (provider13.supportsModel(modelName)) {
+            const provider = this.get(preferredProvider);
+            if (provider.supportsModel(modelName)) {
               if (process.env.DEBUG_PROVIDER_FACTORY) {
                 console.log(`[ProviderFactory] \u4F7F\u7528\u6307\u5B9A\u7684 provider: ${preferredProvider}`);
               }
-              return provider13;
+              return provider;
             }
             console.warn(`\u26A0\uFE0F  Provider "${preferredProvider}" \u4E0D\u652F\u6301\u6A21\u578B "${modelName}"\uFF0C\u5C06\u81EA\u52A8\u9009\u62E9\u5176\u4ED6\u63D0\u4F9B\u5546`);
           } catch (error) {
@@ -6982,10 +7591,10 @@ var init_providers = __esm({
         }
         if (supportedProviders.length === 1) {
           const singleProvider = supportedProviders[0];
-          const provider13 = this.tryGet(singleProvider);
-          if (provider13 && provider13.supportsModel(modelName)) {
+          const provider = this.tryGet(singleProvider);
+          if (provider && provider.supportsModel(modelName)) {
             console.log(`\u2705 \u6A21\u578B "${modelName}" \u53EA\u6709\u4E00\u4E2A\u63D0\u4F9B\u5546\u652F\u6301\uFF0C\u81EA\u52A8\u4F7F\u7528: ${singleProvider}`);
-            return provider13;
+            return provider;
           }
           throw new Error(`\u6A21\u578B "${modelName}" \u7684\u552F\u4E00\u63D0\u4F9B\u5546 "${singleProvider}" \u4E0D\u53EF\u7528\uFF08\u53EF\u80FD\u7F3A\u5C11\u4F9D\u8D56\u6216\u914D\u7F6E\uFF09`);
         }
@@ -7012,13 +7621,13 @@ var init_providers = __esm({
         for (const providerType of supportedProviders) {
           if (providerType !== this.defaultProvider) {
             console.log(`[ProviderFactory] \u5C1D\u8BD5\u63D0\u4F9B\u5546: ${providerType}`);
-            const provider13 = this.tryGet(providerType);
-            if (provider13) {
-              const supportsModel = provider13.supportsModel(modelName);
+            const provider = this.tryGet(providerType);
+            if (provider) {
+              const supportsModel = provider.supportsModel(modelName);
               console.log(`[ProviderFactory] \u63D0\u4F9B\u5546 ${providerType} \u5B9E\u4F8B\u5B58\u5728\uFF0C\u662F\u5426\u652F\u6301\u6A21\u578B: ${supportsModel}`);
               if (supportsModel) {
                 console.log(`\u2705 \u4F7F\u7528\u63D0\u4F9B\u5546 "${providerType}" \u8C03\u7528\u6A21\u578B "${modelName}"`);
-                return provider13;
+                return provider;
               }
             } else {
               console.log(`[ProviderFactory] \u63D0\u4F9B\u5546 ${providerType} \u5B9E\u4F8B\u4E0D\u5B58\u5728\uFF08\u521D\u59CB\u5316\u5931\u8D25\uFF09`);
@@ -7041,8 +7650,8 @@ var init_providers = __esm({
           }
         }
         for (const providerType of checkOrder) {
-          const provider13 = this.tryGet(providerType);
-          if (provider13 && provider13.supportsModel(modelName)) {
+          const provider = this.tryGet(providerType);
+          if (provider && provider.supportsModel(modelName)) {
             console.log(`\u2705 \u52A8\u6001\u53D1\u73B0\u6A21\u578B "${modelName}" \u7531\u63D0\u4F9B\u5546 "${providerType}" \u652F\u6301`);
             if (!this.modelProviderMap[modelName]) {
               this.modelProviderMap[modelName] = [];
@@ -7050,7 +7659,7 @@ var init_providers = __esm({
             if (!this.modelProviderMap[modelName].includes(providerType)) {
               this.modelProviderMap[modelName].push(providerType);
             }
-            return provider13;
+            return provider;
           }
         }
         throw new Error(`\u6CA1\u6709\u627E\u5230\u652F\u6301\u6A21\u578B "${modelName}" \u7684\u53EF\u7528 provider`);
@@ -7071,12 +7680,12 @@ var init_providers = __esm({
        * 将 DB 中的 provider_models 合并到 modelProviderMap
        */
       mergeDbModels(entries) {
-        for (const { provider: provider13, model_key } of entries) {
+        for (const { provider, model_key } of entries) {
           if (!this.modelProviderMap[model_key]) {
             this.modelProviderMap[model_key] = [];
           }
-          if (!this.modelProviderMap[model_key].includes(provider13)) {
-            this.modelProviderMap[model_key].push(provider13);
+          if (!this.modelProviderMap[model_key].includes(provider)) {
+            this.modelProviderMap[model_key].push(provider);
           }
         }
         console.log(
@@ -7133,1720 +7742,6 @@ var init_providers2 = __esm({
   "src/models/providers.ts"() {
     "use strict";
     init_providers_inner();
-  }
-});
-
-// src/models/deerapi/video/sora-utils.ts
-function normalizeSize(size) {
-  if (!size || typeof size !== "string") return void 0;
-  const s = size.trim();
-  if (SORA2_SUPPORTED_SIZE.includes(s)) return s;
-  const mapped = SIZE_ALIAS[s];
-  if (mapped) return mapped;
-  return void 0;
-}
-var SORA2_SUPPORTED_SIZE, SIZE_ALIAS;
-var init_sora_utils = __esm({
-  "src/models/deerapi/video/sora-utils.ts"() {
-    "use strict";
-    SORA2_SUPPORTED_SIZE = ["720x1280", "1280x720", "1024x1792", "1792x1024"];
-    SIZE_ALIAS = {
-      "1920x1080": "1280x720",
-      "1080x1920": "720x1280"
-    };
-  }
-});
-
-// src/models/deerapi/video/sora-2.ts
-async function generateImpl(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const seconds = params.seconds != null ? String(params.seconds) : void 0;
-  const size = normalizeSize(params.size);
-  const modelProvider = providerFactory.getProviderForModel(modelKey, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    enableProgress: params.enableProgress,
-    parameters: { ...params.parameters, seconds, size, input_reference: params.input_reference }
-  };
-  if (seconds != null || size != null) {
-    console.log("[Sora-2] \u8BF7\u6C42\u53C2\u6570: seconds=" + seconds + ", size=" + size + " (\u539F\u59CB size=" + params.size + ")");
-  }
-  const result = await modelProvider.generate(modelKey, generateParams);
-  return { ...result, video_urls: result.mediaUrls, progress: result.progress };
-}
-var modelKey, logicalProvider, definition;
-var init_sora_2 = __esm({
-  "src/models/deerapi/video/sora-2.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_sora_utils();
-    modelKey = "sora-2";
-    logicalProvider = "deer";
-    definition = {
-      provider: logicalProvider,
-      scope: "video",
-      modelKey,
-      generate: generateImpl
-    };
-    registerModel(definition);
-  }
-});
-
-// src/models/deerapi/video/sora-2-pro.ts
-async function generateImpl2(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const seconds = params.seconds != null ? String(params.seconds) : void 0;
-  const size = normalizeSize(params.size);
-  const modelProvider = providerFactory.getProviderForModel(modelKey2, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      ...params.parameters,
-      seconds,
-      size,
-      input_reference: params.input_reference
-    }
-  };
-  const result = await modelProvider.generate(modelKey2, generateParams);
-  return {
-    ...result,
-    video_urls: result.mediaUrls,
-    progress: result.progress
-  };
-}
-var modelKey2, logicalProvider2, definition2;
-var init_sora_2_pro = __esm({
-  "src/models/deerapi/video/sora-2-pro.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_sora_utils();
-    modelKey2 = "sora-2-pro";
-    logicalProvider2 = "deer";
-    definition2 = {
-      provider: logicalProvider2,
-      scope: "video",
-      modelKey: modelKey2,
-      generate: generateImpl2
-    };
-    registerModel(definition2);
-  }
-});
-
-// src/models/deerapi/video/sora-2-deer.ts
-async function generateImpl3(params, _ctx) {
-  if (params.seconds && params.seconds !== "10" && params.seconds !== "15") {
-    throw new Error(`sora-2-deer \u4EC5\u652F\u6301 10 \u6216 15 \u79D2\uFF0C\u4E0D\u652F\u6301 ${params.seconds} \u79D2\u3002\u5982\u9700\u4F7F\u7528 25 \u79D2\uFF0C\u8BF7\u4F7F\u7528 sora-2-deer-pro \u6A21\u578B`);
-  }
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey3, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      seconds: params.seconds,
-      size: params.size,
-      input_reference: params.input_reference,
-      character_url: params.character_url,
-      character_timestamps: params.character_timestamps,
-      ...params.parameters
-    }
-  };
-  console.log("[sora-2-deer] \u4F20\u7ED9 provider \u7684\u53C2\u6570:", {
-    promptLength: (generateParams.prompt ?? "").length,
-    seconds: generateParams.parameters?.seconds,
-    size: generateParams.parameters?.size,
-    hasInputReference: !!generateParams.parameters?.input_reference
-  });
-  const result = await modelProvider.generate(modelKey3, generateParams);
-  return { ...result, video_urls: result.mediaUrls, progress: result.progress };
-}
-var modelKey3, logicalProvider3, definition3;
-var init_sora_2_deer = __esm({
-  "src/models/deerapi/video/sora-2-deer.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey3 = "sora-2-deer";
-    logicalProvider3 = "deer";
-    definition3 = {
-      provider: logicalProvider3,
-      scope: "video",
-      modelKey: modelKey3,
-      generate: generateImpl3
-    };
-    registerModel(definition3);
-  }
-});
-
-// src/models/deerapi/video/sora-2-deer-pro.ts
-async function generateImpl4(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey4, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      seconds: params.seconds,
-      size: params.size,
-      input_reference: params.input_reference,
-      character_url: params.character_url,
-      character_timestamps: params.character_timestamps,
-      ...params.parameters
-    }
-  };
-  const result = await modelProvider.generate(modelKey4, generateParams);
-  return { ...result, video_urls: result.mediaUrls, progress: result.progress };
-}
-var modelKey4, logicalProvider4, definition4;
-var init_sora_2_deer_pro = __esm({
-  "src/models/deerapi/video/sora-2-deer-pro.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey4 = "sora-2-deer-pro";
-    logicalProvider4 = "deer";
-    definition4 = {
-      provider: logicalProvider4,
-      scope: "video",
-      modelKey: modelKey4,
-      generate: generateImpl4
-    };
-    registerModel(definition4);
-  }
-});
-
-// src/models/deerapi/video/runway.ts
-async function generateImpl5(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey5, preferred);
-  let mode;
-  let generateParams;
-  if (params.promptImage) {
-    mode = "image-to-video";
-    generateParams = {
-      prompt: params.prompt || params.promptText || "",
-      enableProgress: params.enableProgress,
-      parameters: {
-        mode: "image-to-video",
-        model: params.imageToVideoModel || "gen3a_turbo",
-        promptImage: params.promptImage,
-        ratio: params.ratio || "1280:720",
-        seed: params.seed,
-        duration: params.duration,
-        contentModeration: params.contentModeration,
-        watermark: params.watermark,
-        ...params.parameters
-      }
-    };
-  } else if (params.videoUri) {
-    mode = "video-to-video";
-    generateParams = {
-      prompt: params.prompt || params.promptText || "",
-      enableProgress: params.enableProgress,
-      parameters: {
-        mode: "video-to-video",
-        model: "gen4_aleph",
-        videoUri: params.videoUri,
-        ratio: params.ratio || "1280:720",
-        seed: params.seed,
-        duration: params.duration,
-        references: params.references,
-        contentModeration: params.contentModeration,
-        ...params.parameters
-      }
-    };
-  } else {
-    throw new Error("Runway \u4E0D\u652F\u6301\u7EAF\u6587\u672C\u8F6C\u89C6\u9891\u3002\u5FC5\u987B\u63D0\u4F9B\u4EE5\u4E0B\u53C2\u6570\u4E4B\u4E00\uFF1ApromptImage\uFF08\u56FE\u7247\u8F6C\u89C6\u9891\uFF09\u6216 videoUri\uFF08\u89C6\u9891\u8F6C\u89C6\u9891\uFF09");
-  }
-  const result = await modelProvider.generate(modelKey5, generateParams);
-  return {
-    ...result,
-    video_urls: result.mediaUrls,
-    progress: result.progress,
-    mode
-  };
-}
-var modelKey5, logicalProvider5, definition5;
-var init_runway = __esm({
-  "src/models/deerapi/video/runway.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey5 = "runway";
-    logicalProvider5 = "deer";
-    definition5 = {
-      provider: logicalProvider5,
-      scope: "video",
-      modelKey: modelKey5,
-      generate: generateImpl5
-    };
-    registerModel(definition5);
-  }
-});
-
-// src/models/deerapi/video/index.ts
-var require_video = __commonJS({
-  "src/models/deerapi/video/index.ts"() {
-    "use strict";
-    init_sora_2();
-    init_sora_2_pro();
-    init_sora_2_deer();
-    init_sora_2_deer_pro();
-    init_runway();
-  }
-});
-
-// src/models/deerapi/audio/suno-music.ts
-async function generateImpl6(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey6, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: {
-      ...params.parameters || {},
-      mv: params.mv ?? params.parameters?.mv,
-      title: params.title ?? params.parameters?.title,
-      tags: params.tags ?? params.parameters?.tags,
-      negative_tags: params.negative_tags ?? params.parameters?.negative_tags,
-      make_instrumental: params.make_instrumental ?? params.parameters?.make_instrumental,
-      gpt_description_prompt: params.gpt_description_prompt ?? params.parameters?.gpt_description_prompt,
-      task: params.task ?? params.parameters?.task,
-      task_id: params.task_id ?? params.parameters?.task_id,
-      continue_clip_id: params.continue_clip_id ?? params.parameters?.continue_clip_id,
-      continue_at: params.continue_at ?? params.parameters?.continue_at,
-      notify_hook: params.notify_hook ?? params.parameters?.notify_hook
-    },
-    enableProgress: params.enableProgress !== false,
-    outputFormat: "json"
-  };
-  return await modelProvider.generate(modelKey6, generateParams);
-}
-var modelKey6, logicalProvider6, definition6;
-var init_suno_music = __esm({
-  "src/models/deerapi/audio/suno-music.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey6 = "suno-music";
-    logicalProvider6 = "deer";
-    definition6 = {
-      provider: logicalProvider6,
-      scope: "audio",
-      modelKey: modelKey6,
-      generate: generateImpl6
-    };
-    registerModel(definition6);
-  }
-});
-
-// src/models/deerapi/audio/index.ts
-var require_audio = __commonJS({
-  "src/models/deerapi/audio/index.ts"() {
-    "use strict";
-    init_suno_music();
-  }
-});
-
-// src/models/deerapi/writing/common.ts
-function mapProviderResultToWritingResult(result) {
-  let text = "";
-  if (result.metadata?.text) {
-    text = result.metadata.text;
-  } else if (Array.isArray(result.mediaUrls) && result.mediaUrls.length > 0) {
-    text = result.mediaUrls.join("");
-  } else if (result.mediaUrls?.length) {
-    text = result.mediaUrls[0];
-  }
-  return {
-    ...result,
-    text: text || void 0
-  };
-}
-var init_common = __esm({
-  "src/models/deerapi/writing/common.ts"() {
-    "use strict";
-  }
-});
-
-// src/models/deerapi/writing/deepseek-r1.ts
-async function generateImpl7(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey7, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey7, params);
-  return mapProviderResultToWritingResult(result);
-}
-var modelKey7, provider, definition7;
-var init_deepseek_r1 = __esm({
-  "src/models/deerapi/writing/deepseek-r1.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common();
-    modelKey7 = "deepseek-r1";
-    provider = "deer";
-    definition7 = {
-      provider,
-      scope: "writing",
-      modelKey: modelKey7,
-      generate: generateImpl7
-    };
-    registerModel(definition7);
-  }
-});
-
-// src/models/deerapi/writing/deepseek-v3.2.ts
-async function generateImpl8(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey8, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey8, params);
-  return mapProviderResultToWritingResult(result);
-}
-var modelKey8, provider2, definition8;
-var init_deepseek_v3_2 = __esm({
-  "src/models/deerapi/writing/deepseek-v3.2.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common();
-    modelKey8 = "deepseek-v3.2";
-    provider2 = "deer";
-    definition8 = {
-      provider: provider2,
-      scope: "writing",
-      modelKey: modelKey8,
-      generate: generateImpl8
-    };
-    registerModel(definition8);
-  }
-});
-
-// src/models/deerapi/writing/gemini-3-pro.ts
-async function generateImpl9(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey9, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey9, params);
-  return mapProviderResultToWritingResult(result);
-}
-var modelKey9, provider3, definition9;
-var init_gemini_3_pro = __esm({
-  "src/models/deerapi/writing/gemini-3-pro.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common();
-    modelKey9 = "gemini-3-pro";
-    provider3 = "deer";
-    definition9 = {
-      provider: provider3,
-      scope: "writing",
-      modelKey: modelKey9,
-      generate: generateImpl9
-    };
-    registerModel(definition9);
-  }
-});
-
-// src/models/deerapi/writing/gemini-2-5-flash.ts
-async function generateImpl10(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey10, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey10, params);
-  return mapProviderResultToWritingResult(result);
-}
-var modelKey10, provider4, definition10;
-var init_gemini_2_5_flash = __esm({
-  "src/models/deerapi/writing/gemini-2-5-flash.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common();
-    modelKey10 = "gemini-2-5-flash";
-    provider4 = "deer";
-    definition10 = {
-      provider: provider4,
-      scope: "writing",
-      modelKey: modelKey10,
-      generate: generateImpl10
-    };
-    registerModel(definition10);
-  }
-});
-
-// src/models/deerapi/writing/gpt-5-2.ts
-async function generateImpl11(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey11, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey11, params);
-  return mapProviderResultToWritingResult(result);
-}
-var modelKey11, provider5, definition11;
-var init_gpt_5_2 = __esm({
-  "src/models/deerapi/writing/gpt-5-2.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common();
-    modelKey11 = "gpt-5-2";
-    provider5 = "deer";
-    definition11 = {
-      provider: provider5,
-      scope: "writing",
-      modelKey: modelKey11,
-      generate: generateImpl11
-    };
-    registerModel(definition11);
-  }
-});
-
-// src/models/deerapi/writing/qwen3-30b.ts
-async function generateImpl12(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey12, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey12, params);
-  return mapProviderResultToWritingResult(result);
-}
-var modelKey12, provider6, definition12;
-var init_qwen3_30b = __esm({
-  "src/models/deerapi/writing/qwen3-30b.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common();
-    modelKey12 = "qwen3-30b";
-    provider6 = "deer";
-    definition12 = {
-      provider: provider6,
-      scope: "writing",
-      modelKey: modelKey12,
-      generate: generateImpl12
-    };
-    registerModel(definition12);
-  }
-});
-
-// src/models/deerapi/writing/qwen3-235b.ts
-async function generateImpl13(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey13, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey13, params);
-  return mapProviderResultToWritingResult(result);
-}
-var modelKey13, provider7, definition13;
-var init_qwen3_235b = __esm({
-  "src/models/deerapi/writing/qwen3-235b.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common();
-    modelKey13 = "qwen3-235b";
-    provider7 = "deer";
-    definition13 = {
-      provider: provider7,
-      scope: "writing",
-      modelKey: modelKey13,
-      generate: generateImpl13
-    };
-    registerModel(definition13);
-  }
-});
-
-// src/models/deerapi/writing/claude-4-5-sonnet.ts
-async function generateImpl14(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey14, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey14, params);
-  return mapProviderResultToWritingResult(result);
-}
-var modelKey14, provider8, definition14;
-var init_claude_4_5_sonnet = __esm({
-  "src/models/deerapi/writing/claude-4-5-sonnet.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common();
-    modelKey14 = "claude-4.5-sonnet";
-    provider8 = "deer";
-    definition14 = {
-      provider: provider8,
-      scope: "writing",
-      modelKey: modelKey14,
-      generate: generateImpl14
-    };
-    registerModel(definition14);
-  }
-});
-
-// src/models/deerapi/writing/index.ts
-var require_writing = __commonJS({
-  "src/models/deerapi/writing/index.ts"() {
-    "use strict";
-    init_deepseek_r1();
-    init_deepseek_v3_2();
-    init_gemini_3_pro();
-    init_gemini_2_5_flash();
-    init_gpt_5_2();
-    init_qwen3_30b();
-    init_qwen3_235b();
-    init_claude_4_5_sonnet();
-  }
-});
-
-// src/models/replicate/writing/common.ts
-function mapProviderResultToWritingResult2(result) {
-  let text = "";
-  if (result.metadata?.text) {
-    text = result.metadata.text;
-  } else if (Array.isArray(result.mediaUrls) && result.mediaUrls.length > 0) {
-    text = result.mediaUrls.join("");
-  } else if (result.mediaUrls?.length) {
-    text = result.mediaUrls[0];
-  }
-  return {
-    ...result,
-    text: text || void 0
-  };
-}
-var init_common2 = __esm({
-  "src/models/replicate/writing/common.ts"() {
-    "use strict";
-  }
-});
-
-// src/models/replicate/writing/gemini-3-pro.ts
-async function generateImpl15(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey15, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey15, params);
-  return mapProviderResultToWritingResult2(result);
-}
-var modelKey15, provider9, definition15;
-var init_gemini_3_pro2 = __esm({
-  "src/models/replicate/writing/gemini-3-pro.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common2();
-    modelKey15 = "gemini-3-pro";
-    provider9 = "replicate";
-    definition15 = {
-      provider: provider9,
-      scope: "writing",
-      modelKey: modelKey15,
-      generate: generateImpl15
-    };
-    registerModel(definition15);
-  }
-});
-
-// src/models/replicate/writing/gemini-2-5-flash.ts
-async function generateImpl16(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey16, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey16, params);
-  return mapProviderResultToWritingResult2(result);
-}
-var modelKey16, provider10, definition16;
-var init_gemini_2_5_flash2 = __esm({
-  "src/models/replicate/writing/gemini-2-5-flash.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common2();
-    modelKey16 = "gemini-2-5-flash";
-    provider10 = "replicate";
-    definition16 = {
-      provider: provider10,
-      scope: "writing",
-      modelKey: modelKey16,
-      generate: generateImpl16
-    };
-    registerModel(definition16);
-  }
-});
-
-// src/models/replicate/writing/claude-4-5-sonnet.ts
-async function generateImpl17(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey17, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey17, params);
-  return mapProviderResultToWritingResult2(result);
-}
-var modelKey17, provider11, definition17;
-var init_claude_4_5_sonnet2 = __esm({
-  "src/models/replicate/writing/claude-4-5-sonnet.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common2();
-    modelKey17 = "claude-4.5-sonnet";
-    provider11 = "replicate";
-    definition17 = {
-      provider: provider11,
-      scope: "writing",
-      modelKey: modelKey17,
-      generate: generateImpl17
-    };
-    registerModel(definition17);
-  }
-});
-
-// src/models/replicate/writing/gpt-5-nano.ts
-async function generateImpl18(params, ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey18, ctx?.providerOverride);
-  const result = await modelProvider.generate(modelKey18, params);
-  return mapProviderResultToWritingResult2(result);
-}
-var modelKey18, provider12, definition18;
-var init_gpt_5_nano = __esm({
-  "src/models/replicate/writing/gpt-5-nano.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    init_common2();
-    modelKey18 = "gpt-5-nano";
-    provider12 = "replicate";
-    definition18 = {
-      provider: provider12,
-      scope: "writing",
-      modelKey: modelKey18,
-      generate: generateImpl18
-    };
-    registerModel(definition18);
-  }
-});
-
-// src/models/replicate/writing/index.ts
-var require_writing2 = __commonJS({
-  "src/models/replicate/writing/index.ts"() {
-    "use strict";
-    init_gemini_3_pro2();
-    init_gemini_2_5_flash2();
-    init_claude_4_5_sonnet2();
-    init_gpt_5_nano();
-  }
-});
-
-// src/models/deerapi/graph/nano-banana.ts
-async function generateImpl19(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey19, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      aspect_ratio: params.aspect_ratio,
-      image_size: params.image_size,
-      ...params.parameters
-    }
-  };
-  if (params.image) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image: params.image
-    };
-    const isBase643 = typeof params.image === "string" && params.image.startsWith("data:");
-    console.log(`[models/deerapi/graph/nano-banana] \u4F7F\u7528\u5355\u5F20\u56FE\u7247\u53C2\u6570 (image): ${isBase643 ? "Base64\u6570\u636E" : "URL"}`);
-  } else if (params.image_urls && params.image_urls.length > 0) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image_urls: params.image_urls
-    };
-    console.log(
-      `[models/deerapi/graph/nano-banana] \u4F7F\u7528\u591A\u56FEURL\u53C2\u6570 (image_urls): ${params.image_urls.length} \u5F20\u56FE\u7247`
-    );
-  } else if (params.image_base64s && params.image_base64s.length > 0) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image_base64s: params.image_base64s
-    };
-    console.log(
-      `[models/deerapi/graph/nano-banana] \u4F7F\u7528\u591A\u56FEBase64\u53C2\u6570 (image_base64s): ${params.image_base64s.length} \u5F20\u56FE\u7247`
-    );
-  }
-  const result = await modelProvider.generate(modelKey19, generateParams);
-  return {
-    ...result,
-    image_urls: result.mediaUrls,
-    progress: result.progress
-  };
-}
-var modelKey19, logicalProvider7, definition19;
-var init_nano_banana = __esm({
-  "src/models/deerapi/graph/nano-banana.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey19 = "nano-banana";
-    logicalProvider7 = "deer";
-    definition19 = {
-      provider: logicalProvider7,
-      scope: "graph",
-      modelKey: modelKey19,
-      generate: generateImpl19
-    };
-    registerModel(definition19);
-  }
-});
-
-// src/models/deerapi/graph/nano-banana-pro.ts
-async function generateImpl20(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey20, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      aspect_ratio: params.aspect_ratio,
-      image_size: params.image_size,
-      ...params.parameters
-    }
-  };
-  if (params.image) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image: params.image
-    };
-    const isBase643 = typeof params.image === "string" && params.image.startsWith("data:");
-    console.log(`[models/deerapi/graph/nano-banana-pro] \u4F7F\u7528\u5355\u5F20\u56FE\u7247\u53C2\u6570 (image): ${isBase643 ? "Base64\u6570\u636E" : "URL"}`);
-  } else if (params.image_urls && params.image_urls.length > 0) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image_urls: params.image_urls
-    };
-    console.log(
-      `[models/deerapi/graph/nano-banana-pro] \u4F7F\u7528\u591A\u56FEURL\u53C2\u6570 (image_urls): ${params.image_urls.length} \u5F20\u56FE\u7247`
-    );
-  } else if (params.image_base64s && params.image_base64s.length > 0) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image_base64s: params.image_base64s
-    };
-    console.log(
-      `[models/deerapi/graph/nano-banana-pro] \u4F7F\u7528\u591A\u56FEBase64\u53C2\u6570 (image_base64s): ${params.image_base64s.length} \u5F20\u56FE\u7247`
-    );
-  }
-  const result = await modelProvider.generate(modelKey20, generateParams);
-  return {
-    ...result,
-    image_urls: result.mediaUrls,
-    progress: result.progress
-  };
-}
-var modelKey20, logicalProvider8, definition20;
-var init_nano_banana_pro = __esm({
-  "src/models/deerapi/graph/nano-banana-pro.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey20 = "nano-banana-pro";
-    logicalProvider8 = "deer";
-    definition20 = {
-      provider: logicalProvider8,
-      scope: "graph",
-      modelKey: modelKey20,
-      generate: generateImpl20
-    };
-    registerModel(definition20);
-  }
-});
-
-// src/models/deerapi/graph/nano-banana-2.ts
-async function generateImpl21(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey21, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      aspect_ratio: params.aspect_ratio,
-      image_size: params.image_size,
-      ...params.parameters
-    }
-  };
-  if (params.image) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image: params.image
-    };
-    const isBase643 = typeof params.image === "string" && params.image.startsWith("data:");
-    console.log(
-      `[models/deerapi/graph/nano-banana-2] \u4F7F\u7528\u5355\u5F20\u56FE\u7247\u53C2\u6570 (image): ${isBase643 ? "Base64\u6570\u636E" : "URL"}`
-    );
-  } else if (params.image_urls && params.image_urls.length > 0) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image_urls: params.image_urls
-    };
-    console.log(
-      `[models/deerapi/graph/nano-banana-2] \u4F7F\u7528\u591A\u56FEURL\u53C2\u6570 (image_urls): ${params.image_urls.length} \u5F20\u56FE\u7247`
-    );
-  } else if (params.image_base64s && params.image_base64s.length > 0) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image_base64s: params.image_base64s
-    };
-    console.log(
-      `[models/deerapi/graph/nano-banana-2] \u4F7F\u7528\u591A\u56FEBase64\u53C2\u6570 (image_base64s): ${params.image_base64s.length} \u5F20\u56FE\u7247`
-    );
-  }
-  const result = await modelProvider.generate(modelKey21, generateParams);
-  return {
-    ...result,
-    image_urls: result.mediaUrls,
-    progress: result.progress
-  };
-}
-var modelKey21, logicalProvider9, definition21;
-var init_nano_banana_2 = __esm({
-  "src/models/deerapi/graph/nano-banana-2.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey21 = "nano-banana-2";
-    logicalProvider9 = "deer";
-    definition21 = {
-      provider: logicalProvider9,
-      scope: "graph",
-      modelKey: modelKey21,
-      generate: generateImpl21
-    };
-    registerModel(definition21);
-  }
-});
-
-// src/models/deerapi/graph/nano-banana-2-pro.ts
-async function generateImpl22(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey22, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      aspect_ratio: params.aspect_ratio,
-      image_size: params.image_size,
-      ...params.parameters
-    }
-  };
-  if (params.image) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image: params.image
-    };
-    const isBase643 = typeof params.image === "string" && params.image.startsWith("data:");
-    console.log(
-      `[models/deerapi/graph/nano-banana-2-pro] \u4F7F\u7528\u5355\u5F20\u56FE\u7247\u53C2\u6570 (image): ${isBase643 ? "Base64\u6570\u636E" : "URL"}`
-    );
-  } else if (params.image_urls && params.image_urls.length > 0) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image_urls: params.image_urls
-    };
-    console.log(
-      `[models/deerapi/graph/nano-banana-2-pro] \u4F7F\u7528\u591A\u56FEURL\u53C2\u6570 (image_urls): ${params.image_urls.length} \u5F20\u56FE\u7247`
-    );
-  } else if (params.image_base64s && params.image_base64s.length > 0) {
-    generateParams.parameters = {
-      ...generateParams.parameters,
-      image_base64s: params.image_base64s
-    };
-    console.log(
-      `[models/deerapi/graph/nano-banana-2-pro] \u4F7F\u7528\u591A\u56FEBase64\u53C2\u6570 (image_base64s): ${params.image_base64s.length} \u5F20\u56FE\u7247`
-    );
-  }
-  const result = await modelProvider.generate(modelKey22, generateParams);
-  return {
-    ...result,
-    image_urls: result.mediaUrls,
-    progress: result.progress
-  };
-}
-var modelKey22, logicalProvider10, definition22;
-var init_nano_banana_2_pro = __esm({
-  "src/models/deerapi/graph/nano-banana-2-pro.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey22 = "nano-banana-2-pro";
-    logicalProvider10 = "deer";
-    definition22 = {
-      provider: logicalProvider10,
-      scope: "graph",
-      modelKey: modelKey22,
-      generate: generateImpl22
-    };
-    registerModel(definition22);
-  }
-});
-
-// src/models/deerapi/graph/seedream-4.ts
-async function generateImpl23(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey23, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      size: params.size,
-      aspect_ratio: params.aspect_ratio,
-      width: params.width,
-      height: params.height,
-      image_input: params.image_input,
-      sequential_image_generation: params.sequential_image_generation,
-      max_images: params.max_images,
-      ...params.parameters
-    }
-  };
-  const result = await modelProvider.generate(modelKey23, generateParams);
-  return {
-    ...result,
-    image_urls: result.mediaUrls,
-    progress: result.progress
-  };
-}
-var modelKey23, logicalProvider11, definition23;
-var init_seedream_4 = __esm({
-  "src/models/deerapi/graph/seedream-4.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey23 = "seedream-4";
-    logicalProvider11 = "deer";
-    definition23 = {
-      provider: logicalProvider11,
-      scope: "graph",
-      modelKey: modelKey23,
-      generate: generateImpl23
-    };
-    registerModel(definition23);
-  }
-});
-
-// src/models/deerapi/graph/seedream-5.ts
-async function generateImpl24(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey24, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      size: params.size,
-      aspect_ratio: params.aspect_ratio,
-      width: params.width,
-      height: params.height,
-      image_input: params.image_input,
-      sequential_image_generation: params.sequential_image_generation,
-      max_images: params.max_images,
-      ...params.parameters
-    }
-  };
-  const result = await modelProvider.generate(modelKey24, generateParams);
-  return {
-    ...result,
-    image_urls: result.mediaUrls,
-    progress: result.progress
-  };
-}
-var modelKey24, logicalProvider12, definition24;
-var init_seedream_5 = __esm({
-  "src/models/deerapi/graph/seedream-5.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey24 = "seedream-5";
-    logicalProvider12 = "deer";
-    definition24 = {
-      provider: logicalProvider12,
-      scope: "graph",
-      modelKey: modelKey24,
-      generate: generateImpl24
-    };
-    registerModel(definition24);
-  }
-});
-
-// src/models/deerapi/graph/flux-2-pro.ts
-async function generateImpl25(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey25, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      aspect_ratio: params.aspect_ratio,
-      image_size: params.image_size,
-      num_outputs: params.num_outputs,
-      output_format: params.output_format,
-      safety_tolerance: params.safety_tolerance,
-      ...params.parameters
-    }
-  };
-  const result = await modelProvider.generate(modelKey25, generateParams);
-  return {
-    ...result,
-    image_urls: result.mediaUrls,
-    progress: result.progress
-  };
-}
-var modelKey25, logicalProvider13, definition25;
-var init_flux_2_pro = __esm({
-  "src/models/deerapi/graph/flux-2-pro.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey25 = "flux-2-pro";
-    logicalProvider13 = "deer";
-    definition25 = {
-      provider: logicalProvider13,
-      scope: "graph",
-      modelKey: modelKey25,
-      generate: generateImpl25
-    };
-    registerModel(definition25);
-  }
-});
-
-// src/models/deerapi/graph/index.ts
-var require_graph = __commonJS({
-  "src/models/deerapi/graph/index.ts"() {
-    "use strict";
-    init_nano_banana();
-    init_nano_banana_pro();
-    init_nano_banana_2();
-    init_nano_banana_2_pro();
-    init_seedream_4();
-    init_seedream_5();
-    init_flux_2_pro();
-  }
-});
-
-// src/models/volc/graph/seedream-4-volc.ts
-async function generateImpl26(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey26, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      size: params.size,
-      aspect_ratio: params.aspect_ratio,
-      width: params.width,
-      height: params.height,
-      image_input: params.image_input,
-      sequential_image_generation: params.sequential_image_generation,
-      max_images: params.max_images,
-      ...params.parameters
-    }
-  };
-  const result = await modelProvider.generate(modelKey26, generateParams);
-  return {
-    ...result,
-    image_urls: result.mediaUrls,
-    progress: result.progress
-  };
-}
-var modelKey26, logicalProvider14, definition26;
-var init_seedream_4_volc = __esm({
-  "src/models/volc/graph/seedream-4-volc.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey26 = "seedream-4-volc";
-    logicalProvider14 = "volc";
-    definition26 = {
-      provider: logicalProvider14,
-      scope: "graph",
-      modelKey: modelKey26,
-      generate: generateImpl26
-    };
-    registerModel(definition26);
-  }
-});
-
-// src/models/volc/graph/index.ts
-var require_graph2 = __commonJS({
-  "src/models/volc/graph/index.ts"() {
-    "use strict";
-    init_seedream_4_volc();
-  }
-});
-
-// src/models/replicate/graph/flux-fast.ts
-async function generateImpl27(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey27, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    parameters: {
-      aspect_ratio: params.aspect_ratio,
-      num_outputs: params.num_outputs,
-      output_format: params.output_format,
-      safety_tolerance: params.safety_tolerance,
-      ...params.parameters
-    }
-  };
-  const result = await modelProvider.generate(modelKey27, generateParams);
-  return { ...result, image_urls: result.mediaUrls };
-}
-var modelKey27, logicalProvider15, definition27;
-var init_flux_fast = __esm({
-  "src/models/replicate/graph/flux-fast.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey27 = "flux-fast";
-    logicalProvider15 = "replicate";
-    definition27 = {
-      provider: logicalProvider15,
-      scope: "graph",
-      modelKey: modelKey27,
-      generate: generateImpl27
-    };
-    registerModel(definition27);
-  }
-});
-
-// src/models/replicate/graph/flux-2-flex.ts
-async function generateImpl28(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey28, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    enableProgress: params.enableProgress,
-    parameters: {
-      aspect_ratio: params.aspect_ratio,
-      num_outputs: params.num_outputs,
-      output_format: params.output_format,
-      safety_tolerance: params.safety_tolerance,
-      ...params.parameters
-    }
-  };
-  const result = await modelProvider.generate(modelKey28, generateParams);
-  return { ...result, image_urls: result.mediaUrls, progress: result.progress };
-}
-var modelKey28, logicalProvider16, definition28;
-var init_flux_2_flex = __esm({
-  "src/models/replicate/graph/flux-2-flex.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey28 = "flux-2-flex";
-    logicalProvider16 = "replicate";
-    definition28 = {
-      provider: logicalProvider16,
-      scope: "graph",
-      modelKey: modelKey28,
-      generate: generateImpl28
-    };
-    registerModel(definition28);
-  }
-});
-
-// src/models/replicate/graph/ideogram-v2a.ts
-async function generateImpl29(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey29, preferred);
-  const generateParams = {
-    prompt: params.prompt,
-    negativePrompt: params.negativePrompt,
-    parameters: {
-      aspect_ratio: params.aspect_ratio,
-      resolution: params.resolution,
-      turbo: params.turbo,
-      magic_prompt_option: params.magic_prompt_option,
-      seed: params.seed,
-      style_type: params.style_type,
-      num_images: params.num_images,
-      ...params.parameters
-    }
-  };
-  const result = await modelProvider.generate(modelKey29, generateParams);
-  return { ...result, image_urls: result.mediaUrls };
-}
-var modelKey29, logicalProvider17, definition29;
-var init_ideogram_v2a = __esm({
-  "src/models/replicate/graph/ideogram-v2a.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey29 = "ideogram-v2a";
-    logicalProvider17 = "replicate";
-    definition29 = {
-      provider: logicalProvider17,
-      scope: "graph",
-      modelKey: modelKey29,
-      generate: generateImpl29
-    };
-    registerModel(definition29);
-  }
-});
-
-// src/models/replicate/graph/recraft-crisp-upscale.ts
-async function generateImpl30(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey30, preferred);
-  const generateParams = {
-    prompt: params.prompt || "",
-    negativePrompt: params.negativePrompt,
-    parameters: {
-      image_size: params.image_size,
-      style: params.style,
-      colors: params.colors,
-      num_images: params.num_images,
-      image: params.parameters?.image ?? params.input_image,
-      ...params.parameters
-    }
-  };
-  if (generateParams.parameters?.input_image) delete generateParams.parameters.input_image;
-  const result = await modelProvider.generate(modelKey30, generateParams);
-  return { ...result, image_urls: result.mediaUrls };
-}
-var modelKey30, logicalProvider18, definition30;
-var init_recraft_crisp_upscale = __esm({
-  "src/models/replicate/graph/recraft-crisp-upscale.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey30 = "recraft-crisp-upscale";
-    logicalProvider18 = "replicate";
-    definition30 = {
-      provider: logicalProvider18,
-      scope: "graph",
-      modelKey: modelKey30,
-      generate: generateImpl30
-    };
-    registerModel(definition30);
-  }
-});
-
-// src/models/replicate/graph/index.ts
-var require_graph3 = __commonJS({
-  "src/models/replicate/graph/index.ts"() {
-    "use strict";
-    init_flux_fast();
-    init_flux_2_flex();
-    init_ideogram_v2a();
-    init_recraft_crisp_upscale();
-  }
-});
-
-// src/models/ppio/audio/minimax-voice-cloning.ts
-async function generateImpl31(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey31, preferred);
-  const generateParams = {
-    prompt: params.audio_url,
-    parameters: {
-      audio_url: params.audio_url,
-      text: params.text,
-      model: params.model,
-      clone_prompt: params.clone_prompt,
-      accuracy: params.accuracy,
-      need_noise_reduction: params.need_noise_reduction,
-      need_volume_normalization: params.need_volume_normalization,
-      ...params.parameters
-    }
-  };
-  const result = await modelProvider.generate(modelKey31, generateParams);
-  return {
-    ...result,
-    voice_id: result.metadata?.voice_id || "",
-    demo_audio_url: result.mediaUrls?.[0]
-  };
-}
-var modelKey31, logicalProvider19, definition31;
-var init_minimax_voice_cloning = __esm({
-  "src/models/ppio/audio/minimax-voice-cloning.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey31 = "minimax-voice-cloning";
-    logicalProvider19 = "ppio";
-    definition31 = {
-      provider: logicalProvider19,
-      scope: "audio",
-      modelKey: modelKey31,
-      generate: generateImpl31
-    };
-    registerModel(definition31);
-  }
-});
-
-// src/models/ppio/audio/minimax-speech-02-turbo.ts
-async function generateImpl32(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey32, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, timbre_weights: params.timbre_weights, stream: params.stream, stream_options: params.stream_options, language_boost: params.language_boost, output_format: params.output_format, voice_modify: params.voice_modify, ...params.parameters },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey32, generateParams);
-  return { ...result, status: result.metadata?.status };
-}
-var modelKey32, logicalProvider20, definition32;
-var init_minimax_speech_02_turbo = __esm({
-  "src/models/ppio/audio/minimax-speech-02-turbo.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey32 = "minimax-speech-02-turbo";
-    logicalProvider20 = "ppio";
-    definition32 = { provider: logicalProvider20, scope: "audio", modelKey: modelKey32, generate: generateImpl32 };
-    registerModel(definition32);
-  }
-});
-
-// src/models/ppio/audio/minimax-speech-02-hd-async.ts
-async function generateImpl33(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey33, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, language_boost: params.language_boost, voice_modify: params.voice_modify },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey33, generateParams);
-  return { ...result, task_id: result.metadata?.task_id, progress: result.progress };
-}
-var modelKey33, logicalProvider21, definition33;
-var init_minimax_speech_02_hd_async = __esm({
-  "src/models/ppio/audio/minimax-speech-02-hd-async.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey33 = "minimax-speech-02-hd-async";
-    logicalProvider21 = "ppio";
-    definition33 = { provider: logicalProvider21, scope: "audio", modelKey: modelKey33, generate: generateImpl33 };
-    registerModel(definition33);
-  }
-});
-
-// src/models/ppio/audio/minimax-speech-2.6-hd.ts
-async function generateImpl34(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey34, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, timbre_weights: params.timbre_weights, stream: params.stream, stream_options: params.stream_options, language_boost: params.language_boost, output_format: params.output_format, voice_modify: params.voice_modify },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey34, generateParams);
-  return { ...result, status: result.metadata?.status };
-}
-var modelKey34, logicalProvider22, definition34;
-var init_minimax_speech_2_6_hd = __esm({
-  "src/models/ppio/audio/minimax-speech-2.6-hd.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey34 = "minimax-speech-2.6-hd";
-    logicalProvider22 = "ppio";
-    definition34 = { provider: logicalProvider22, scope: "audio", modelKey: modelKey34, generate: generateImpl34 };
-    registerModel(definition34);
-  }
-});
-
-// src/models/ppio/audio/minimax-speech-2.6-hd-async.ts
-async function generateImpl35(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey35, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, language_boost: params.language_boost, voice_modify: params.voice_modify },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey35, generateParams);
-  return { ...result, task_id: result.metadata?.task_id, progress: result.progress };
-}
-var modelKey35, logicalProvider23, definition35;
-var init_minimax_speech_2_6_hd_async = __esm({
-  "src/models/ppio/audio/minimax-speech-2.6-hd-async.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey35 = "minimax-speech-2.6-hd-async";
-    logicalProvider23 = "ppio";
-    definition35 = { provider: logicalProvider23, scope: "audio", modelKey: modelKey35, generate: generateImpl35 };
-    registerModel(definition35);
-  }
-});
-
-// src/models/ppio/audio/minimax-speech-2.5-hd.ts
-async function generateImpl36(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey36, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, timbre_weights: params.timbre_weights, stream: params.stream, stream_options: params.stream_options, language_boost: params.language_boost, output_format: params.output_format, voice_modify: params.voice_modify },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey36, generateParams);
-  return { ...result, status: result.metadata?.status };
-}
-var modelKey36, logicalProvider24, definition36;
-var init_minimax_speech_2_5_hd = __esm({
-  "src/models/ppio/audio/minimax-speech-2.5-hd.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey36 = "minimax-speech-2.5-hd";
-    logicalProvider24 = "ppio";
-    definition36 = { provider: logicalProvider24, scope: "audio", modelKey: modelKey36, generate: generateImpl36 };
-    registerModel(definition36);
-  }
-});
-
-// src/models/ppio/audio/minimax-speech-2.5-hd-async.ts
-async function generateImpl37(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey37, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, language_boost: params.language_boost, voice_modify: params.voice_modify },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey37, generateParams);
-  return { ...result, task_id: result.metadata?.task_id, progress: result.progress };
-}
-var modelKey37, logicalProvider25, definition37;
-var init_minimax_speech_2_5_hd_async = __esm({
-  "src/models/ppio/audio/minimax-speech-2.5-hd-async.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey37 = "minimax-speech-2.5-hd-async";
-    logicalProvider25 = "ppio";
-    definition37 = { provider: logicalProvider25, scope: "audio", modelKey: modelKey37, generate: generateImpl37 };
-    registerModel(definition37);
-  }
-});
-
-// src/models/ppio/audio/minimax-speech-2.5-turbo.ts
-async function generateImpl38(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey38, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, timbre_weights: params.timbre_weights, stream: params.stream, stream_options: params.stream_options, language_boost: params.language_boost, output_format: params.output_format, voice_modify: params.voice_modify, ...params.parameters },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey38, generateParams);
-  return { ...result, status: result.metadata?.status };
-}
-var modelKey38, logicalProvider26, definition38;
-var init_minimax_speech_2_5_turbo = __esm({
-  "src/models/ppio/audio/minimax-speech-2.5-turbo.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey38 = "minimax-speech-2.5-turbo";
-    logicalProvider26 = "ppio";
-    definition38 = { provider: logicalProvider26, scope: "audio", modelKey: modelKey38, generate: generateImpl38 };
-    registerModel(definition38);
-  }
-});
-
-// src/models/ppio/audio/minimax-speech-2.5-turbo-async.ts
-async function generateImpl39(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey39, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, pronunciation_dict: params.pronunciation_dict, language_boost: params.language_boost, voice_modify: params.voice_modify },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey39, generateParams);
-  return { ...result, task_id: result.metadata?.task_id, progress: result.progress };
-}
-var modelKey39, logicalProvider27, definition39;
-var init_minimax_speech_2_5_turbo_async = __esm({
-  "src/models/ppio/audio/minimax-speech-2.5-turbo-async.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey39 = "minimax-speech-2.5-turbo-async";
-    logicalProvider27 = "ppio";
-    definition39 = { provider: logicalProvider27, scope: "audio", modelKey: modelKey39, generate: generateImpl39 };
-    registerModel(definition39);
-  }
-});
-
-// src/models/ppio/audio/index.ts
-var require_audio2 = __commonJS({
-  "src/models/ppio/audio/index.ts"() {
-    "use strict";
-    init_minimax_voice_cloning();
-    init_minimax_speech_02_turbo();
-    init_minimax_speech_02_hd_async();
-    init_minimax_speech_2_6_hd();
-    init_minimax_speech_2_6_hd_async();
-    init_minimax_speech_2_5_hd();
-    init_minimax_speech_2_5_hd_async();
-    init_minimax_speech_2_5_turbo();
-    init_minimax_speech_2_5_turbo_async();
-  }
-});
-
-// src/models/minimax/audio/minimax-speech-2.8-hd.ts
-async function generateImpl40(params, _ctx) {
-  const modelProvider = providerFactory.getProviderForModel(modelKey40, _ctx?.providerOverride);
-  const generateParams = {
-    prompt: params.prompt,
-    parameters: { ...params.parameters, voice_setting: params.voice_setting, audio_setting: params.audio_setting, stream: params.stream, output_format: params.output_format },
-    enableProgress: params.enableProgress
-  };
-  const result = await modelProvider.generate(modelKey40, generateParams);
-  return { ...result, status: result.metadata?.status };
-}
-var modelKey40, logicalProvider28, definition40;
-var init_minimax_speech_2_8_hd = __esm({
-  "src/models/minimax/audio/minimax-speech-2.8-hd.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey40 = "minimax-speech-2.8-hd";
-    logicalProvider28 = "minimax";
-    definition40 = { provider: logicalProvider28, scope: "audio", modelKey: modelKey40, generate: generateImpl40 };
-    registerModel(definition40);
-  }
-});
-
-// src/models/minimax/audio/index.ts
-var require_audio3 = __commonJS({
-  "src/models/minimax/audio/index.ts"() {
-    "use strict";
-    init_minimax_speech_2_8_hd();
-  }
-});
-
-// src/models/openai/gpt-5-nano.ts
-async function generateImpl41(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey41, preferred);
-  const result = await modelProvider.generate(modelKey41, {
-    ...params
-  });
-  return {
-    ...result
-  };
-}
-var modelKey41, logicalProvider29, definition41;
-var init_gpt_5_nano2 = __esm({
-  "src/models/openai/gpt-5-nano.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey41 = "gpt-5-nano";
-    logicalProvider29 = "openai";
-    definition41 = {
-      provider: logicalProvider29,
-      scope: "writing",
-      modelKey: modelKey41,
-      generate: generateImpl41
-    };
-    registerModel(definition41);
-  }
-});
-
-// src/models/openai/gpt-5-2.ts
-async function generateImpl42(params, _ctx) {
-  const preferred = _ctx?.providerOverride;
-  const modelProvider = providerFactory.getProviderForModel(modelKey42, preferred);
-  const result = await modelProvider.generate(modelKey42, {
-    ...params
-  });
-  return {
-    ...result
-  };
-}
-var modelKey42, logicalProvider30, definition42;
-var init_gpt_5_22 = __esm({
-  "src/models/openai/gpt-5-2.ts"() {
-    "use strict";
-    init_providers2();
-    init_registry();
-    modelKey42 = "gpt-5-2";
-    logicalProvider30 = "openai";
-    definition42 = {
-      provider: logicalProvider30,
-      scope: "writing",
-      modelKey: modelKey42,
-      generate: generateImpl42
-    };
-    registerModel(definition42);
-  }
-});
-
-// src/models/openai/index.ts
-var require_openai = __commonJS({
-  "src/models/openai/index.ts"() {
-    "use strict";
-    init_gpt_5_nano2();
-    init_gpt_5_22();
-  }
-});
-
-// src/task/reference-image.ts
-function isBase64(content) {
-  if (content.startsWith("data:image/")) {
-    return true;
-  }
-  const base64Pattern = /^[A-Za-z0-9+/=]+$/;
-  return content.length > 100 && base64Pattern.test(content);
-}
-function isUrl(content) {
-  try {
-    const url = new URL(content);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-function sanitizeReferenceImagesForStorage(referenceImages) {
-  return referenceImages.map((ref) => {
-    const sanitized = {
-      type: ref.type
-    };
-    if (isUrl(ref.content)) {
-      sanitized.content = ref.content;
-      sanitized.metadata = {
-        isUrl: true
-      };
-    } else if (isBase64(ref.content)) {
-      sanitized.metadata = {
-        isBase64: true,
-        size: ref.content.length,
-        format: ref.content.startsWith("data:image/") ? ref.content.substring(5, ref.content.indexOf(";")) : "unknown"
-      };
-      sanitized.content = "[Base64\u6570\u636E\u5DF2\u8FC7\u6EE4\uFF0C\u5927\u5C0F: " + (ref.content.length / 1024).toFixed(2) + " KB]";
-    } else {
-      sanitized.content = ref.content;
-    }
-    return sanitized;
-  });
-}
-function sanitizeBase64InObject(obj) {
-  if (obj === null || obj === void 0) {
-    return obj;
-  }
-  if (typeof obj === "string") {
-    if (isBase64(obj)) {
-      return "[Base64\u6570\u636E\u5DF2\u8FC7\u6EE4\uFF0C\u5927\u5C0F: " + (obj.length / 1024).toFixed(2) + " KB]";
-    }
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map((item) => sanitizeBase64InObject(item));
-  }
-  if (typeof obj === "object") {
-    const sanitized = {};
-    for (const key in obj) {
-      if (key === "referenceImage" && Array.isArray(obj[key])) {
-        sanitized[key] = sanitizeReferenceImagesForStorage(obj[key]);
-      } else {
-        sanitized[key] = sanitizeBase64InObject(obj[key]);
-      }
-    }
-    return sanitized;
-  }
-  return obj;
-}
-var init_reference_image = __esm({
-  "src/task/reference-image.ts"() {
-    "use strict";
   }
 });
 
@@ -9138,8 +8033,8 @@ function nowIso() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
 function generateEventId() {
-  const crypto3 = require("crypto");
-  if (typeof crypto3.randomUUID === "function") return crypto3.randomUUID();
+  const crypto4 = require("crypto");
+  if (typeof crypto4.randomUUID === "function") return crypto4.randomUUID();
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 function buildTaskStatusChangedEvent(input) {
@@ -9531,35 +8426,35 @@ var init_task_manager = __esm({
           }
         }
         const requestLabel = (request.params?.metadata && typeof request.params.metadata.label === "string" ? request.params.metadata.label : void 0) || (typeof request.params?.label === "string" ? request.params.label : void 0) || void 0;
-        let provider13 = request.provider;
-        if (!provider13 && request.model) {
+        let provider = request.provider;
+        if (!provider && request.model) {
           try {
             const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports2));
             const modelProvider = providerFactory2.getProviderForModel(request.model);
             if (modelProvider && typeof modelProvider.provider !== "undefined") {
-              provider13 = modelProvider.provider;
-              console.log(`[TaskManager] \u4E3A\u6A21\u578B "${request.model}" \u81EA\u52A8\u9009\u62E9 provider: ${provider13}`);
+              provider = modelProvider.provider;
+              console.log(`[TaskManager] \u4E3A\u6A21\u578B "${request.model}" \u81EA\u52A8\u9009\u62E9 provider: ${provider}`);
             } else {
               const defaultProvider = providerFactory2.getDefaultProvider();
-              provider13 = defaultProvider;
+              provider = defaultProvider;
               console.log(`[TaskManager] \u65E0\u6CD5\u4ECE provider \u5B9E\u4F8B\u83B7\u53D6\u7C7B\u578B\uFF0C\u4F7F\u7528\u9ED8\u8BA4 provider: ${defaultProvider}`);
             }
           } catch (error) {
             console.warn(`[TaskManager] \u65E0\u6CD5\u4E3A\u6A21\u578B "${request.model}" \u786E\u5B9A provider\uFF0C\u4F7F\u7528\u9ED8\u8BA4 provider:`, error instanceof Error ? error.message : String(error));
             try {
               const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports2));
-              provider13 = providerFactory2.getDefaultProvider();
-              console.log(`[TaskManager] \u4F7F\u7528\u9ED8\u8BA4 provider: ${provider13}`);
+              provider = providerFactory2.getDefaultProvider();
+              console.log(`[TaskManager] \u4F7F\u7528\u9ED8\u8BA4 provider: ${provider}`);
             } catch (defaultError) {
               throw new Error(`\u65E0\u6CD5\u83B7\u53D6\u9ED8\u8BA4 provider\uFF0C\u8BF7\u68C0\u67E5 DEFAULT_PROVIDER \u73AF\u5883\u53D8\u91CF: ${defaultError instanceof Error ? defaultError.message : String(defaultError)}`);
             }
           }
         }
-        if (!provider13) {
+        if (!provider) {
           try {
             const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports2));
-            provider13 = providerFactory2.getDefaultProvider();
-            console.log(`[TaskManager] Provider \u672A\u6307\u5B9A\uFF0C\u4F7F\u7528\u9ED8\u8BA4 provider: ${provider13}`);
+            provider = providerFactory2.getDefaultProvider();
+            console.log(`[TaskManager] Provider \u672A\u6307\u5B9A\uFF0C\u4F7F\u7528\u9ED8\u8BA4 provider: ${provider}`);
           } catch (error) {
             throw new Error(`\u65E0\u6CD5\u83B7\u53D6\u9ED8\u8BA4 provider\uFF0C\u8BF7\u68C0\u67E5 DEFAULT_PROVIDER \u73AF\u5883\u53D8\u91CF: ${error instanceof Error ? error.message : String(error)}`);
           }
@@ -9567,7 +8462,7 @@ var init_task_manager = __esm({
         if (this.storage instanceof DatabaseTaskStorage) {
           const taskId2 = await this.storage.createAndGetId({
             ...request,
-            provider: provider13,
+            provider,
             // 兜底：把 idempotencyKey 写入 params.metadata，便于 DB 查询
             params: {
               ...request.params || {},
@@ -9616,7 +8511,7 @@ var init_task_manager = __esm({
           },
           metadata: {
             model: request.model,
-            provider: provider13 || "unknown",
+            provider: provider || "unknown",
             userId: request.userId,
             storeToMinio: request.storeToMinio || false,
             storageConfig: request.storageConfig,
@@ -9886,42 +8781,135 @@ var init_task_manager = __esm({
   }
 });
 
+// src/core/providers/fallback.ts
+function findFallbackRule(provider, model) {
+  return FALLBACK_RULES.find(
+    (rule) => rule.provider === provider && rule.model === model
+  );
+}
+var FALLBACK_RULES;
+var init_fallback = __esm({
+  "src/core/providers/fallback.ts"() {
+    "use strict";
+    FALLBACK_RULES = [
+      {
+        provider: "maxplan",
+        model: "MiniMax-M2.7-highspeed",
+        fallbackProvider: "openai",
+        fallbackModel: "gpt-5-nano"
+      }
+    ];
+  }
+});
+
 // src/models/run.ts
-function pickDefinition(defs, providerOverride) {
-  if (!defs.length) return null;
-  if (providerOverride) {
-    const match = defs.find((d) => d.provider === providerOverride);
-    if (match) return match;
-    return null;
-  }
-  return defs[0];
-}
-async function runByModelKey(scope, modelKey43, params, context) {
-  const defs = getModelsByKey(scope, modelKey43);
+async function runByModelKey(scope, modelKey, params, context) {
   const providerOverride = context?.providerOverride;
-  const def = pickDefinition(defs, providerOverride);
-  if (!def) {
-    throw new Error(`\u672A\u627E\u5230\u6A21\u578B: scope=${scope}, modelKey=${modelKey43}${providerOverride ? `, provider=${providerOverride}` : ""}`);
+  const row = findEnabledModel({
+    modelKey,
+    scope,
+    provider: providerOverride
+  });
+  if (!row) {
+    throw new Error(
+      `\u672A\u5728 provider_models \u627E\u5230\u5DF2\u542F\u7528\u6A21\u578B: scope=${scope}, modelKey=${modelKey}${providerOverride ? `, provider=${providerOverride}` : ""}`
+    );
   }
-  return def.generate(params, context);
+  const provider = providerFactory.getProviderForModel(row.model_key, providerOverride);
+  try {
+    return await provider.generate(row.model_key, params);
+  } catch (originalError) {
+    const fallbackRule = findFallbackRule(row.provider, row.model_key);
+    if (!fallbackRule) {
+      throw originalError;
+    }
+    const err = originalError instanceof Error ? originalError : new Error(String(originalError));
+    const statusMatch = err.message.match(/\b(\d{3})\b/);
+    const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : void 0;
+    const triggerKeywords = ["quota", "exhausted", "insufficient", "balance", "\u4F59\u989D", "\u9650\u989D", "\u989D\u5EA6"];
+    const hasTriggerKeyword = triggerKeywords.some(
+      (kw) => err.message.toLowerCase().includes(kw.toLowerCase())
+    );
+    const isTriggered = statusCode && [401, 403, 429, 500, 502, 503, 504].includes(statusCode) || hasTriggerKeyword || err.message.toLowerCase().includes("timeout") || err.message.toLowerCase().includes("network") || err.message.toLowerCase().includes("connrefused");
+    if (!isTriggered) {
+      throw originalError;
+    }
+    console.log(`[runByModelKey] \u89E6\u53D1 fallback: ${row.provider}/${row.model_key} -> ${fallbackRule.fallbackProvider}/${fallbackRule.fallbackModel}`);
+    const fallbackProvider = providerFactory.get(fallbackRule.fallbackProvider);
+    const fallbackResult = await fallbackProvider.generate(fallbackRule.fallbackModel, params);
+    if (fallbackResult.metadata) {
+      fallbackResult.metadata.fallbackFrom = {
+        provider: row.provider,
+        model: row.model_key
+      };
+    } else {
+      fallbackResult.metadata = {
+        fallbackFrom: {
+          provider: row.provider,
+          model: row.model_key
+        }
+      };
+    }
+    return fallbackResult;
+  }
 }
-async function runByModelKeyAnyScope(modelKey43, params, context) {
+async function runByModelKeyAnyScope(modelKey, params, context) {
   const providerOverride = context?.providerOverride;
   for (const scope of SCOPE_ORDER) {
-    const defs = getModelsByKey(scope, modelKey43);
-    const def = pickDefinition(defs, providerOverride);
-    if (def) {
-      return def.generate(params, context);
+    const row = findEnabledModel({
+      modelKey,
+      scope,
+      provider: providerOverride
+    });
+    if (!row) continue;
+    const provider = providerFactory.getProviderForModel(row.model_key, providerOverride);
+    try {
+      return await provider.generate(row.model_key, params);
+    } catch (originalError) {
+      const fallbackRule = findFallbackRule(row.provider, row.model_key);
+      if (!fallbackRule) {
+        throw originalError;
+      }
+      const err = originalError instanceof Error ? originalError : new Error(String(originalError));
+      const statusMatch = err.message.match(/\b(\d{3})\b/);
+      const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : void 0;
+      const triggerKeywords = ["quota", "exhausted", "insufficient", "balance", "\u4F59\u989D", "\u9650\u989D", "\u989D\u5EA6"];
+      const hasTriggerKeyword = triggerKeywords.some(
+        (kw) => err.message.toLowerCase().includes(kw.toLowerCase())
+      );
+      const isTriggered = statusCode && [401, 403, 429, 500, 502, 503, 504].includes(statusCode) || hasTriggerKeyword || err.message.toLowerCase().includes("timeout") || err.message.toLowerCase().includes("network") || err.message.toLowerCase().includes("connrefused");
+      if (!isTriggered) {
+        throw originalError;
+      }
+      console.log(`[runByModelKeyAnyScope] \u89E6\u53D1 fallback: ${row.provider}/${row.model_key} -> ${fallbackRule.fallbackProvider}/${fallbackRule.fallbackModel}`);
+      const fallbackProvider = providerFactory.get(fallbackRule.fallbackProvider);
+      const fallbackResult = await fallbackProvider.generate(fallbackRule.fallbackModel, params);
+      if (fallbackResult.metadata) {
+        fallbackResult.metadata.fallbackFrom = {
+          provider: row.provider,
+          model: row.model_key
+        };
+      } else {
+        fallbackResult.metadata = {
+          fallbackFrom: {
+            provider: row.provider,
+            model: row.model_key
+          }
+        };
+      }
+      return fallbackResult;
     }
   }
-  throw new Error(`\u672A\u627E\u5230\u6A21\u578B: modelKey=${modelKey43}\uFF08\u5DF2\u5C1D\u8BD5 scope: ${SCOPE_ORDER.join(", ")}\uFF09`);
+  throw new Error(`\u672A\u627E\u5230\u6A21\u578B: modelKey=${modelKey}\uFF08\u5DF2\u5C1D\u8BD5 scope: ${SCOPE_ORDER.join(", ")}\uFF09`);
 }
 var SCOPE_ORDER;
 var init_run = __esm({
   "src/models/run.ts"() {
     "use strict";
-    init_registry();
-    SCOPE_ORDER = ["video", "graph", "audio", "writing"];
+    init_providers2();
+    init_provider_model_catalog();
+    init_fallback();
+    SCOPE_ORDER = ["text", "video", "graph", "audio", "writing"];
   }
 });
 
@@ -9943,12 +8931,12 @@ var init_usage_service = __esm({
         const { taskId, userId, logicalModel, result, providerOverride } = params;
         try {
           const metadata = result.metadata || {};
-          const provider13 = metadata.provider || providerOverride;
-          const modelKey43 = metadata.model || logicalModel || "unknown";
-          if (!provider13) {
+          const provider = metadata.provider || providerOverride;
+          const modelKey = metadata.model || logicalModel || "unknown";
+          if (!provider) {
             throw new Error("\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
           }
-          const scope = this.inferScope(logicalModel || modelKey43, metadata);
+          const scope = this.inferScope(logicalModel || modelKey, metadata);
           const usage = metadata.usage || // 向后兼容：部分 Provider 可能直接把 usage 挂在 result 上
           result.usage;
           let inputTokens = 0;
@@ -9969,7 +8957,7 @@ var init_usage_service = __esm({
           const durationRaw = metadata.duration ?? metadata.duration_sec ?? metadata.seconds ?? void 0;
           const duration = typeof durationRaw === "number" ? durationRaw : Number(durationRaw) || 0;
           if (duration > 0) {
-            if (scope === "audio") {
+            if (scope === "audio" || scope === "music") {
               audioSeconds = duration;
             } else if (scope === "video") {
               videoSeconds = duration;
@@ -9977,9 +8965,9 @@ var init_usage_service = __esm({
           }
           const supabase = (0, import_mxmdata5.getSupabaseClient)();
           const payload = {
-            provider: provider13,
+            provider,
             scope,
-            model_key: modelKey43,
+            model_key: modelKey,
             input_tokens: inputTokens,
             output_tokens: outputTokens,
             total_tokens: totalTokens,
@@ -10001,18 +8989,18 @@ var init_usage_service = __esm({
               code: error.code,
               message: error.message,
               details: error.details,
-              provider: provider13,
+              provider,
               scope,
-              modelKey: modelKey43,
+              modelKey,
               taskId
             });
             throw new Error("\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
           }
           if (true) {
             console.log("[UsageService] \u2705 \u5DF2\u8BB0\u5F55 Provider Usage:", {
-              provider: provider13,
+              provider,
               scope,
-              modelKey: modelKey43,
+              modelKey,
               taskId,
               userId,
               inputTokens,
@@ -10024,8 +9012,8 @@ var init_usage_service = __esm({
             });
           }
           const costUsd = await ProviderBalanceService.deductFromUsage({
-            provider: provider13,
-            model_key: modelKey43,
+            provider,
+            model_key: modelKey,
             scope,
             input_tokens: inputTokens,
             output_tokens: outputTokens,
@@ -10049,22 +9037,26 @@ var init_usage_service = __esm({
           throw new Error(err instanceof Error ? err.message : "\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
         }
       }
-      static inferScopePublic(modelKey43, metadata) {
-        return this.inferScope(modelKey43, metadata);
+      static inferScopePublic(modelKey, metadata) {
+        return this.inferScope(modelKey, metadata);
       }
-      static inferScope(modelKey43, metadata) {
-        if (modelKey43.startsWith("writing-")) return "writing";
-        if (modelKey43.startsWith("outline-")) return "outline";
-        if (modelKey43.startsWith("graph-") || modelKey43.startsWith("image-")) return "graph";
-        if (modelKey43.startsWith("audio-")) return "audio";
-        if (modelKey43.startsWith("video-")) return "video";
+      static inferScope(modelKey, metadata) {
+        if (modelKey.startsWith("writing-")) return "writing";
+        if (modelKey.startsWith("outline-")) return "outline";
+        if (modelKey.startsWith("graph-") || modelKey.startsWith("image-")) return "graph";
+        if (modelKey.startsWith("audio-")) return "audio";
+        if (modelKey.startsWith("music-")) return "music";
+        if (modelKey.startsWith("video-")) return "video";
+        if (modelKey.startsWith("text-")) return "text";
         const taskType = metadata.taskType || metadata.task_type;
         if (typeof taskType === "string") {
           if (taskType === "writing") return "writing";
           if (taskType === "outline") return "outline";
           if (taskType === "graph") return "graph";
           if (taskType === "audio") return "audio";
+          if (taskType === "music") return "music";
           if (taskType === "video") return "video";
+          if (taskType === "text") return "text";
         }
         return "text";
       }
@@ -10087,8 +9079,8 @@ var init_billing_service = __esm({
         const {
           taskId,
           userId,
-          provider: provider13,
-          modelKey: modelKey43,
+          provider,
+          modelKey,
           scope,
           inputTokens = 0,
           outputTokens = 0,
@@ -10100,9 +9092,9 @@ var init_billing_service = __esm({
           providerCostUsd
         } = params;
         try {
-          const pricing = await this.getPricing(provider13, modelKey43, scope);
+          const pricing = await this.getPricing(provider, modelKey, scope);
           if (!pricing) {
-            console.warn("[BillingService] \u672A\u627E\u5230\u5E73\u53F0\u5B9A\u4EF7\uFF0C\u8DF3\u8FC7\u7528\u6237\u6263\u8D39", { provider: provider13, modelKey: modelKey43, scope, taskId });
+            console.warn("[BillingService] \u672A\u627E\u5230\u5E73\u53F0\u5B9A\u4EF7\uFF0C\u8DF3\u8FC7\u7528\u6237\u6263\u8D39", { provider, modelKey, scope, taskId });
             return;
           }
           const tokens = this.computePlatformTokens(pricing, {
@@ -10115,7 +9107,7 @@ var init_billing_service = __esm({
             requestCount
           });
           if (tokens <= 0) {
-            console.warn("[BillingService] \u8BA1\u7B97\u5F97\u5230 0 token\uFF0C\u8DF3\u8FC7\u6263\u8D39", { provider: provider13, modelKey: modelKey43, taskId });
+            console.warn("[BillingService] \u8BA1\u7B97\u5F97\u5230 0 token\uFF0C\u8DF3\u8FC7\u6263\u8D39", { provider, modelKey, taskId });
             return;
           }
           const isAdmin = await this.isAdminUser(userId);
@@ -10160,8 +9152,8 @@ var init_billing_service = __esm({
             balance_after: nextBalance.toFixed(dec),
             reference_id: taskId,
             metadata: {
-              provider: provider13,
-              modelKey: modelKey43,
+              provider,
+              modelKey,
               scope,
               charge_mode: pricing.charge_mode,
               pricing_id: pricing.id,
@@ -10181,8 +9173,8 @@ var init_billing_service = __esm({
             console.log("[BillingService] \u2705 \u5DF2\u6263\u51CF\u7528\u6237 Token", {
               userId,
               taskId,
-              provider: provider13,
-              modelKey: modelKey43,
+              provider,
+              modelKey,
               scope,
               tokens,
               isAdmin,
@@ -10206,8 +9198,8 @@ var init_billing_service = __esm({
       static async checkBalance(params) {
         const {
           userId,
-          provider: provider13,
-          modelKey: modelKey43,
+          provider,
+          modelKey,
           scope,
           estimatedInputTokens = 0,
           estimatedOutputTokens = 0,
@@ -10217,7 +9209,7 @@ var init_billing_service = __esm({
           estimatedVideoSeconds = 0,
           estimatedRequestCount = 1
         } = params;
-        const pricing = await this.getPricing(provider13, modelKey43, scope);
+        const pricing = await this.getPricing(provider, modelKey, scope);
         if (!pricing) {
           return { allowed: true, estimatedTokens: 0, currentBalance: 0, hasPricing: false };
         }
@@ -10245,13 +9237,13 @@ var init_billing_service = __esm({
        * 查询 provider_pricing 中的平台定价。
        * 优先精确匹配 (provider, model_key, scope)，未命中则回落 scope='default'。
        */
-      static async getPricing(provider13, modelKey43, scope) {
+      static async getPricing(provider, modelKey, scope) {
         const supabase = (0, import_mxmdata6.getSupabaseClient)();
         const cols = "id, charge_mode, platform_unit_price, platform_input_unit_price, platform_output_unit_price, platform_min_charge";
-        const { data } = await supabase.from("provider_pricing").select(cols).eq("provider", provider13).eq("model_key", modelKey43).eq("scope", scope).maybeSingle();
+        const { data } = await supabase.from("provider_pricing").select(cols).eq("provider", provider).eq("model_key", modelKey).eq("scope", scope).maybeSingle();
         if (data) return data;
         if (scope !== "default") {
-          const { data: fallback } = await supabase.from("provider_pricing").select(cols).eq("provider", provider13).eq("model_key", modelKey43).eq("scope", "default").maybeSingle();
+          const { data: fallback } = await supabase.from("provider_pricing").select(cols).eq("provider", provider).eq("model_key", modelKey).eq("scope", "default").maybeSingle();
           if (fallback) return fallback;
         }
         return null;
@@ -10324,9 +9316,9 @@ var init_provider_balance_service2 = __esm({
        * 不会扣减余额，也不会计算真实成本（usage 为 0 仅用于复用查询逻辑）。
        */
       static async assertPricingConfigured(params) {
-        const { provider: provider13, model_key, scope } = params;
+        const { provider, model_key, scope } = params;
         const { hasPricing } = await this.calculateCostWithCheck({
-          provider: provider13,
+          provider,
           model_key,
           scope,
           input_tokens: 0,
@@ -10338,7 +9330,7 @@ var init_provider_balance_service2 = __esm({
           request_count: 1
         });
         if (!hasPricing) {
-          const detail = `provider=${provider13} model_key=${model_key} scope=${scope ?? "default"}`;
+          const detail = `provider=${provider} model_key=${model_key} scope=${scope ?? "default"}`;
           console.warn("[ProviderBalanceService] \u65E0\u5B9A\u4EF7\u8BB0\u5F55(\u9884\u68C0):", detail);
           throw new Error(`${PRICING_ERROR_NO_RECORD2}: ${detail}\uFF0C\u8BF7\u5728\u300CProvider \u7BA1\u7406 - \u6A21\u578B\u4EF7\u683C\u300D\u4E2D\u914D\u7F6E`);
         }
@@ -10479,12 +9471,12 @@ var init_usage_service2 = __esm({
         const { taskId, userId, logicalModel, result, providerOverride } = params;
         try {
           const metadata = result.metadata || {};
-          const provider13 = metadata.provider || providerOverride;
-          const modelKey43 = metadata.model || logicalModel || "unknown";
-          if (!provider13) {
+          const provider = metadata.provider || providerOverride;
+          const modelKey = metadata.model || logicalModel || "unknown";
+          if (!provider) {
             throw new Error("\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
           }
-          const scope = this.inferScope(logicalModel || modelKey43, metadata);
+          const scope = this.inferScope(logicalModel || modelKey, metadata);
           const usage = metadata.usage || // 向后兼容：部分 Provider 可能直接把 usage 挂在 result 上
           result.usage;
           let inputTokens = 0;
@@ -10505,7 +9497,7 @@ var init_usage_service2 = __esm({
           const durationRaw = metadata.duration ?? metadata.duration_sec ?? metadata.seconds ?? void 0;
           const duration = typeof durationRaw === "number" ? durationRaw : Number(durationRaw) || 0;
           if (duration > 0) {
-            if (scope === "audio") {
+            if (scope === "audio" || scope === "music") {
               audioSeconds = duration;
             } else if (scope === "video") {
               videoSeconds = duration;
@@ -10513,9 +9505,9 @@ var init_usage_service2 = __esm({
           }
           const supabase = (0, import_mxmdata8.getSupabaseClient)();
           const payload = {
-            provider: provider13,
+            provider,
             scope,
-            model_key: modelKey43,
+            model_key: modelKey,
             input_tokens: inputTokens,
             output_tokens: outputTokens,
             total_tokens: totalTokens,
@@ -10537,18 +9529,18 @@ var init_usage_service2 = __esm({
               code: error.code,
               message: error.message,
               details: error.details,
-              provider: provider13,
+              provider,
               scope,
-              modelKey: modelKey43,
+              modelKey,
               taskId
             });
             throw new Error("\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
           }
           if (true) {
             console.log("[UsageService] \u2705 \u5DF2\u8BB0\u5F55 Provider Usage:", {
-              provider: provider13,
+              provider,
               scope,
-              modelKey: modelKey43,
+              modelKey,
               taskId,
               userId,
               inputTokens,
@@ -10560,8 +9552,8 @@ var init_usage_service2 = __esm({
             });
           }
           const costUsd = await ProviderBalanceService2.deductFromUsage({
-            provider: provider13,
-            model_key: modelKey43,
+            provider,
+            model_key: modelKey,
             scope,
             input_tokens: inputTokens,
             output_tokens: outputTokens,
@@ -10585,19 +9577,21 @@ var init_usage_service2 = __esm({
           throw new Error(err instanceof Error ? err.message : "\u670D\u52A1\u4EF7\u683C\u62A5\u9519\uFF0C\u8BF7\u8054\u7CFB\u7BA1\u7406\u4EBA\u5458");
         }
       }
-      static inferScopePublic(modelKey43, metadata) {
-        return this.inferScope(modelKey43, metadata);
+      static inferScopePublic(modelKey, metadata) {
+        return this.inferScope(modelKey, metadata);
       }
-      static inferScope(modelKey43, metadata) {
-        if (modelKey43.startsWith("writing-")) return "writing";
-        if (modelKey43.startsWith("graph-") || modelKey43.startsWith("image-")) return "graph";
-        if (modelKey43.startsWith("audio-")) return "audio";
-        if (modelKey43.startsWith("video-")) return "video";
+      static inferScope(modelKey, metadata) {
+        if (modelKey.startsWith("writing-")) return "writing";
+        if (modelKey.startsWith("graph-") || modelKey.startsWith("image-")) return "graph";
+        if (modelKey.startsWith("audio-")) return "audio";
+        if (modelKey.startsWith("music-")) return "music";
+        if (modelKey.startsWith("video-")) return "video";
         const taskType = metadata.taskType || metadata.task_type;
         if (typeof taskType === "string") {
           if (taskType === "writing") return "writing";
           if (taskType === "graph") return "graph";
           if (taskType === "audio") return "audio";
+          if (taskType === "music") return "music";
           if (taskType === "video") return "video";
         }
         return "text";
@@ -10621,8 +9615,8 @@ var init_billing_service2 = __esm({
         const {
           taskId,
           userId,
-          provider: provider13,
-          modelKey: modelKey43,
+          provider,
+          modelKey,
           scope,
           inputTokens = 0,
           outputTokens = 0,
@@ -10634,9 +9628,9 @@ var init_billing_service2 = __esm({
           providerCostUsd
         } = params;
         try {
-          const pricing = await this.getPricing(provider13, modelKey43, scope);
+          const pricing = await this.getPricing(provider, modelKey, scope);
           if (!pricing) {
-            console.warn("[BillingService] \u672A\u627E\u5230\u5E73\u53F0\u5B9A\u4EF7\uFF0C\u8DF3\u8FC7\u7528\u6237\u6263\u8D39", { provider: provider13, modelKey: modelKey43, scope, taskId });
+            console.warn("[BillingService] \u672A\u627E\u5230\u5E73\u53F0\u5B9A\u4EF7\uFF0C\u8DF3\u8FC7\u7528\u6237\u6263\u8D39", { provider, modelKey, scope, taskId });
             return;
           }
           const tokens = this.computePlatformTokens(pricing, {
@@ -10649,7 +9643,7 @@ var init_billing_service2 = __esm({
             requestCount
           });
           if (tokens <= 0) {
-            console.warn("[BillingService] \u8BA1\u7B97\u5F97\u5230 0 token\uFF0C\u8DF3\u8FC7\u6263\u8D39", { provider: provider13, modelKey: modelKey43, taskId });
+            console.warn("[BillingService] \u8BA1\u7B97\u5F97\u5230 0 token\uFF0C\u8DF3\u8FC7\u6263\u8D39", { provider, modelKey, taskId });
             return;
           }
           const isAdmin = await this.isAdminUser(userId);
@@ -10694,8 +9688,8 @@ var init_billing_service2 = __esm({
             balance_after: nextBalance.toFixed(dec),
             reference_id: taskId,
             metadata: {
-              provider: provider13,
-              modelKey: modelKey43,
+              provider,
+              modelKey,
               scope,
               charge_mode: pricing.charge_mode,
               pricing_id: pricing.id,
@@ -10715,8 +9709,8 @@ var init_billing_service2 = __esm({
             console.log("[BillingService] \u2705 \u5DF2\u6263\u51CF\u7528\u6237 Token", {
               userId,
               taskId,
-              provider: provider13,
-              modelKey: modelKey43,
+              provider,
+              modelKey,
               scope,
               tokens,
               isAdmin,
@@ -10740,8 +9734,8 @@ var init_billing_service2 = __esm({
       static async checkBalance(params) {
         const {
           userId,
-          provider: provider13,
-          modelKey: modelKey43,
+          provider,
+          modelKey,
           scope,
           estimatedInputTokens = 0,
           estimatedOutputTokens = 0,
@@ -10751,7 +9745,7 @@ var init_billing_service2 = __esm({
           estimatedVideoSeconds = 0,
           estimatedRequestCount = 1
         } = params;
-        const pricing = await this.getPricing(provider13, modelKey43, scope);
+        const pricing = await this.getPricing(provider, modelKey, scope);
         if (!pricing) {
           return { allowed: true, estimatedTokens: 0, currentBalance: 0, hasPricing: false };
         }
@@ -10779,13 +9773,13 @@ var init_billing_service2 = __esm({
        * 查询 provider_pricing 中的平台定价。
        * 优先精确匹配 (provider, model_key, scope)，未命中则回落 scope='default'。
        */
-      static async getPricing(provider13, modelKey43, scope) {
+      static async getPricing(provider, modelKey, scope) {
         const supabase = (0, import_mxmdata9.getSupabaseClient)();
         const cols = "id, charge_mode, platform_unit_price, platform_input_unit_price, platform_output_unit_price, platform_min_charge";
-        const { data } = await supabase.from("provider_pricing").select(cols).eq("provider", provider13).eq("model_key", modelKey43).eq("scope", scope).maybeSingle();
+        const { data } = await supabase.from("provider_pricing").select(cols).eq("provider", provider).eq("model_key", modelKey).eq("scope", scope).maybeSingle();
         if (data) return data;
         if (scope !== "default") {
-          const { data: fallback } = await supabase.from("provider_pricing").select(cols).eq("provider", provider13).eq("model_key", modelKey43).eq("scope", "default").maybeSingle();
+          const { data: fallback } = await supabase.from("provider_pricing").select(cols).eq("provider", provider).eq("model_key", modelKey).eq("scope", "default").maybeSingle();
           if (fallback) return fallback;
         }
         return null;
@@ -10873,24 +9867,11 @@ var init_writing_models = __esm({
 });
 
 // src/core/writing/model-selector.ts
-function isModelAvailable(modelName) {
-  try {
-    const provider13 = providerFactory.getProviderForModel(modelName);
-    return !!provider13;
-  } catch (error) {
-    return false;
-  }
-}
 function selectModel(taskType) {
-  const candidates = MODEL_SELECTION[taskType];
-  for (const model of candidates) {
-    if (isModelAvailable(model)) {
-      console.log(`[ModelSelector] \u4E3A\u4EFB\u52A1\u7C7B\u578B "${taskType}" \u9009\u62E9\u6A21\u578B: ${model}`);
-      return model;
-    }
-  }
-  console.warn(`[ModelSelector] \u8B66\u544A\uFF1A\u4EFB\u52A1\u7C7B\u578B "${taskType}" \u7684\u6240\u6709\u5019\u9009\u6A21\u578B\u90FD\u4E0D\u53EF\u7528\uFF0C\u4F7F\u7528\u9ED8\u8BA4: ${candidates[0]}`);
-  return candidates[0];
+  const candidates = MODEL_SELECTION[taskType] ?? [];
+  throw new Error(
+    `[ModelSelector] \u7EAF\u52A8\u6001\u6A21\u5F0F\u4E0B\u7981\u6B62 selectModel(taskType=${taskType}) \u9759\u6001\u9009\u6A21` + (candidates.length ? `\uFF0C\u5386\u53F2\u5019\u9009: ${candidates.join(", ")}` : "") + `\u3002\u8BF7\u5728 Admin \u914D\u7F6E\u6A21\u578B\u8DEF\u7531\uFF08model_routing_overrides\uFF09`
+  );
 }
 function selectModelWithRouting(businessKey, taskType, preferredProvider) {
   const routingKey = taskType === "outline" ? businessKey.startsWith("outline-") ? businessKey : "writing-outlines" : businessKey;
@@ -10904,14 +9885,10 @@ function selectModelWithRouting(businessKey, taskType, preferredProvider) {
       fromRouting: true
     };
   }
-  const modelName = selectModel(taskType);
-  const prov = providerFactory.getProviderForModel(modelName, preferredProvider);
-  return {
-    provider: prov.provider,
-    model: modelName,
-    modelName,
-    fromRouting: false
-  };
+  const fallbackCandidates = MODEL_SELECTION[taskType];
+  throw new Error(
+    `[ModelSelector] \u672A\u914D\u7F6E\u6A21\u578B\u8DEF\u7531: routingKey=${routingKey}\uFF08taskType=${taskType}\uFF09` + (fallbackCandidates?.length ? `\uFF0C\u5386\u53F2\u5019\u9009: ${fallbackCandidates.join(", ")}` : "")
+  );
 }
 var MODEL_SELECTION;
 var init_model_selector = __esm({
@@ -11055,26 +10032,26 @@ var init_factory = __esm({
       /**
        * 注册 provider
        */
-      register(type, provider13) {
-        this.providers.set(type, provider13);
+      register(type, provider) {
+        this.providers.set(type, provider);
       }
       /**
        * 获取 provider
        */
       get(type) {
         const providerType = type || this.defaultProvider;
-        let provider13 = this.providers.get(providerType);
-        if (provider13) {
-          return provider13;
+        let provider = this.providers.get(providerType);
+        if (provider) {
+          return provider;
         }
         const initializer = this.providerInitializers.get(providerType);
         if (!initializer) {
           throw new Error(`Embedding Provider "${providerType}" \u672A\u6CE8\u518C`);
         }
         try {
-          provider13 = initializer();
-          this.providers.set(providerType, provider13);
-          return provider13;
+          provider = initializer();
+          this.providers.set(providerType, provider);
+          return provider;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           throw new Error(`Embedding Provider "${providerType}" \u521D\u59CB\u5316\u5931\u8D25: ${errorMessage}`);
@@ -11102,9 +10079,9 @@ var init_factory = __esm({
        */
       getProviderForModel(modelName, preferredProvider) {
         if (preferredProvider) {
-          const provider13 = this.tryGet(preferredProvider);
-          if (provider13 && provider13.supportsModel(modelName)) {
-            return provider13;
+          const provider = this.tryGet(preferredProvider);
+          if (provider && provider.supportsModel(modelName)) {
+            return provider;
           }
         }
         const defaultProvider = this.tryGet();
@@ -11115,9 +10092,9 @@ var init_factory = __esm({
           if (type === preferredProvider || type === this.defaultProvider) {
             continue;
           }
-          const provider13 = this.tryGet(type);
-          if (provider13 && provider13.supportsModel(modelName)) {
-            return provider13;
+          const provider = this.tryGet(type);
+          if (provider && provider.supportsModel(modelName)) {
+            return provider;
           }
         }
         return this.get(preferredProvider);
@@ -11126,8 +10103,8 @@ var init_factory = __esm({
        * 生成 embedding（自动选择 provider）
        */
       async embed(request, providerType) {
-        const provider13 = request.model ? this.getProviderForModel(request.model, providerType) : this.get(providerType);
-        return await provider13.embed(request);
+        const provider = request.model ? this.getProviderForModel(request.model, providerType) : this.get(providerType);
+        return await provider.embed(request);
       }
     };
     _embeddingProviderFactoryInstance = null;
@@ -11152,45 +10129,45 @@ var init_service = __esm({
     EmbeddingService = class _EmbeddingService {
       defaultModel;
       defaultProvider;
-      constructor(model, provider13) {
+      constructor(model, provider) {
         this.defaultModel = model || process.env.EMBEDDING_MODEL || "text-embedding-3-small";
-        this.defaultProvider = provider13;
+        this.defaultProvider = provider;
       }
       /**
        * 从环境变量创建服务实例
        */
-      static fromEnv(model, provider13) {
-        return new _EmbeddingService(model, provider13);
+      static fromEnv(model, provider) {
+        return new _EmbeddingService(model, provider);
       }
       /**
        * 生成单个文本的 embedding
        */
-      async embedQuery(text, model, provider13, dimensions) {
-        const response = await this.embed([text], model, provider13, dimensions);
+      async embedQuery(text, model, provider, dimensions) {
+        const response = await this.embed([text], model, provider, dimensions);
         return response.data[0].embedding;
       }
       /**
        * 批量生成 embedding
        */
-      async embed(input, model, provider13, dimensions) {
+      async embed(input, model, provider, dimensions) {
         return await embeddingProviderFactory.embed(
           {
             input,
             model: model || this.defaultModel,
             dimensions
           },
-          provider13 || this.defaultProvider
+          provider || this.defaultProvider
         );
       }
       /**
        * 批量生成 embedding（处理大量文本）
        * 自动分批处理，避免超出 API 限制
        */
-      async embedBatch(texts, batchSize = 100, model, provider13, dimensions) {
+      async embedBatch(texts, batchSize = 100, model, provider, dimensions) {
         const results = [];
         for (let i = 0; i < texts.length; i += batchSize) {
           const batch = texts.slice(i, i + batchSize);
-          const response = await this.embed(batch, model, provider13, dimensions);
+          const response = await this.embed(batch, model, provider, dimensions);
           results.push(...response.data.map((item) => item.embedding));
         }
         return results;
@@ -15738,7 +14715,8 @@ async function getPromptFullConfig(scope, type, subtype, lang = "zh") {
       default_knowledge_base_ids: extra.default_knowledge_base_ids,
       task_template_i18n: extra.task_template_i18n,
       knowledge_template_i18n: extra.knowledge_template_i18n,
-      storyboard_output_format_template_zh: extra.storyboard_output_format_template_zh
+      storyboard_output_format_template_zh: extra.storyboard_output_format_template_zh,
+      prompt_text_mode: typeof extra.prompt_text_mode === "string" ? extra.prompt_text_mode : void 0
     };
   } catch (_) {
     return null;
@@ -15779,7 +14757,7 @@ var init_prompts = __esm({
 async function runBasicText(logicalModel, prompt, options = {}) {
   const { userId, parentTaskId, flowId, flowStepId, providerOverride, llmParams } = options;
   const resolved = getResolvedRouting(logicalModel, providerOverride);
-  const provider13 = resolved.provider;
+  const provider = resolved.provider;
   const physicalModelKey = resolved.model;
   const params = {
     prompt,
@@ -15791,11 +14769,11 @@ async function runBasicText(logicalModel, prompt, options = {}) {
     "writing",
     physicalModelKey,
     params,
-    { providerOverride: provider13 }
+    { providerOverride: provider }
   );
   const metadata = {
     ...result.metadata || {},
-    provider: provider13,
+    provider,
     model: physicalModelKey,
     logicalModel
   };
@@ -15807,7 +14785,7 @@ async function runBasicText(logicalModel, prompt, options = {}) {
     userId,
     logicalModel,
     result,
-    providerOverride: provider13
+    providerOverride: provider
   });
   let text = result.text;
   if (!text && typeof metadata.text === "string") {
@@ -15820,7 +14798,7 @@ async function runBasicText(logicalModel, prompt, options = {}) {
     text: text ?? "",
     usage: result,
     costUsd,
-    provider: provider13,
+    provider,
     model: physicalModelKey,
     logicalModel
   };
@@ -15932,6 +14910,75 @@ var init_errors = __esm({
   }
 });
 
+// src/tasks/prompt-template.ts
+function collectTemplateVars(s) {
+  const out = [];
+  let m;
+  while ((m = VAR_RE.exec(s)) !== null) {
+    out.push(m[1]);
+  }
+  return Array.from(new Set(out));
+}
+function interpolateTemplate(template, vars) {
+  return template.replace(VAR_RE, (_all, key) => {
+    const v = vars[key];
+    if (v == null) return "";
+    if (typeof v === "string") return v;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(v);
+    }
+  });
+}
+function composeLegacyPromptToUnified(p) {
+  const sys = (p.systemTemplate || p.rulesFallback || "").trim();
+  const userTpl = p.userTemplate != null && String(p.userTemplate).trim() !== "" ? String(p.userTemplate).trim() : "${prompt}";
+  const out = (p.outputFormatTemplate || p.outputFormatFallback || "").trim();
+  const parts = [];
+  if (sys) parts.push(sys);
+  parts.push(`\u3010\u7528\u6237\u9700\u6C42\u3011
+${userTpl}`);
+  if (out) parts.push(`\u3010\u8F93\u51FA\u8981\u6C42\u3011
+${out}`);
+  return parts.join("\n\n").trim();
+}
+function assertTemplateVarsAllowed(paramsSchema, varsUsed, allowList = []) {
+  const props = paramsSchema?.properties;
+  const allowed = /* @__PURE__ */ new Set([...Object.keys(props || {}), ...allowList]);
+  const unknown = varsUsed.filter((v) => !allowed.has(v));
+  if (unknown.length > 0) {
+    throw new ConfigurationError(
+      `Prompt \u6A21\u677F\u5F15\u7528\u4E86\u672A\u5728 formSchema.properties \u4E2D\u58F0\u660E\u7684\u53D8\u91CF: ${unknown.join(", ")}`
+    );
+  }
+}
+function renderPromptFromTemplate(args) {
+  const { prompt, paramsSchema, params, contextVars } = args;
+  const vars = { ...contextVars || {}, ...params || {} };
+  let body = (prompt.unifiedTemplate || "").trim();
+  if (!body) {
+    body = composeLegacyPromptToUnified({
+      systemTemplate: prompt.systemTemplate,
+      userTemplate: prompt.userTemplate,
+      outputFormatTemplate: prompt.outputFormatTemplate
+    });
+  }
+  const uniVars = collectTemplateVars(body);
+  assertTemplateVarsAllowed(paramsSchema, uniVars, ["userId", "taskId", "date", "timestamp", "uuid"]);
+  const finalPrompt = interpolateTemplate(body, vars).trim();
+  return { finalPrompt, varsUsed: uniVars };
+}
+var VAR_RE;
+var init_prompt_template = __esm({
+  "src/tasks/prompt-template.ts"() {
+    "use strict";
+    init_errors();
+    VAR_RE = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
+  }
+});
+
 // src/tasks/task-definition.ts
 function langFallback2(i18n, lang) {
   if (!i18n || typeof i18n !== "object") return "";
@@ -15961,17 +15008,32 @@ async function loadTaskDefinition(params) {
   }
   const rules = langFallback2(row.rules_i18n, lang);
   const outFmt = langFallback2(row.output_format_i18n, lang);
-  template.prompt.systemTemplate = (template.prompt.systemTemplate || rules || "").trim();
-  template.prompt.outputFormatTemplate = (template.prompt.outputFormatTemplate || outFmt || "").trim();
-  if (!template.prompt.systemTemplate) {
-    throw new ConfigurationError(`systemTemplate \u4E3A\u7A7A\uFF1Ascope=${scope} taskKey=${taskKey}`);
+  const unifiedTrim = (template.prompt.unifiedTemplate || "").trim();
+  if (unifiedTrim) {
+    template.prompt.unifiedTemplate = unifiedTrim;
+  } else {
+    template.prompt.unifiedTemplate = composeLegacyPromptToUnified({
+      systemTemplate: template.prompt.systemTemplate,
+      userTemplate: template.prompt.userTemplate,
+      outputFormatTemplate: template.prompt.outputFormatTemplate,
+      rulesFallback: rules,
+      outputFormatFallback: outFmt
+    });
   }
-  if (!template.prompt.outputFormatTemplate) {
-    throw new ConfigurationError(`outputFormatTemplate \u4E3A\u7A7A\uFF1Ascope=${scope} taskKey=${taskKey}`);
+  if (!template.prompt.unifiedTemplate?.trim()) {
+    throw new ConfigurationError(`unifiedTemplate \u4E3A\u7A7A\uFF08\u4E14\u65E0\u6CD5\u4ECE rules/\u65E7\u4E09\u6BB5\u751F\u6210\uFF09\uFF1Ascope=${scope} taskKey=${taskKey}`);
   }
+  const pr = template.prompt;
+  delete pr.systemTemplate;
+  delete pr.userTemplate;
+  delete pr.outputFormatTemplate;
+  delete pr.systemTemplateMarkup;
+  delete pr.userTemplateMarkup;
+  delete pr.outputFormatTemplateMarkup;
   if (template.storage) {
-    if (template.storage.scope !== scope) {
-      throw new ConfigurationError(`storage.scope \u5FC5\u987B\u4E0E task scope \u4E00\u81F4\uFF1Ascope=${scope} taskKey=${taskKey}`);
+    const storageScope = template.storage.scope;
+    if (typeof storageScope === "string" && storageScope !== scope) {
+      template.storage.scope = scope;
     }
   }
   return { row, template };
@@ -15982,6 +15044,7 @@ var init_task_definition = __esm({
     "use strict";
     import_mxmdata13 = require("@mxmai/mxmdata");
     init_errors();
+    init_prompt_template();
   }
 });
 
@@ -16017,94 +15080,235 @@ var init_schema_validator = __esm({
   }
 });
 
-// src/tasks/prompt-template.ts
-function collectTemplateVars(s) {
-  const out = [];
-  let m;
-  while ((m = VAR_RE.exec(s)) !== null) {
-    out.push(m[1]);
-  }
-  return Array.from(new Set(out));
+// src/tasks/pipeline-registry.ts
+function registerInputStep(name, runner) {
+  _inputSteps.set(name, runner);
 }
-function interpolateTemplate(template, vars) {
-  return template.replace(VAR_RE, (_all, key) => {
-    const v = vars[key];
-    if (v == null) return "";
-    if (typeof v === "string") return v;
-    if (typeof v === "number" || typeof v === "boolean") return String(v);
-    try {
-      return JSON.stringify(v);
-    } catch {
-      return String(v);
+function registerOutputStep2(name, runner) {
+  _outputSteps.set(name, runner);
+}
+function getInputRunner(name) {
+  return _inputSteps.get(name);
+}
+var _inputSteps, _outputSteps;
+var init_pipeline_registry = __esm({
+  "src/tasks/pipeline-registry.ts"() {
+    "use strict";
+    _inputSteps = /* @__PURE__ */ new Map();
+    _outputSteps = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/tasks/pipeline-llm-plugin.ts
+function resolveRef(ref, ctx) {
+  const match = ref.match(/^\$\{([^}]+)\}$/);
+  if (!match) return ref;
+  const path2 = match[1];
+  if (path2.startsWith("params.")) {
+    const field = path2.slice("params.".length);
+    return String(ctx.params[field] ?? "");
+  }
+  if (path2.startsWith("state.")) {
+    const rest = path2.slice("state.".length);
+    const dotIdx = rest.indexOf(".");
+    if (dotIdx === -1) {
+      const val2 = ctx.state[rest];
+      return typeof val2 === "object" ? JSON.stringify(val2) : String(val2 ?? "");
     }
+    const stepName = rest.slice(0, dotIdx);
+    const fieldPath = rest.slice(dotIdx + 1);
+    const stepState = ctx.state[stepName];
+    if (stepState == null || typeof stepState !== "object") return "";
+    const val = stepState[fieldPath];
+    return typeof val === "object" ? JSON.stringify(val) : String(val ?? "");
+  }
+  if (ctx.params[path2] !== void 0) return String(ctx.params[path2]);
+  if (ctx.state[path2] !== void 0) {
+    const v = ctx.state[path2];
+    return typeof v === "object" ? JSON.stringify(v) : String(v);
+  }
+  return "";
+}
+function interpolateTemplate2(template, ctx) {
+  return template.replace(/\$\{[^}]+\}/g, (token) => resolveRef(token.trim(), ctx));
+}
+function tryParseJSON(raw) {
+  const trimmed = raw.trim();
+  try {
+    return { ok: true, value: JSON.parse(trimmed) };
+  } catch {
+  }
+  const jsonBlockMatch = trimmed.match(/^```json\s*([\s\S]+?)\s*```$/);
+  if (jsonBlockMatch) {
+    try {
+      return { ok: true, value: JSON.parse(jsonBlockMatch[1].trim()) };
+    } catch {
+    }
+  }
+  const blockMatch = trimmed.match(/^```\s*([\s\S]+?)\s*```$/);
+  if (blockMatch) {
+    try {
+      return { ok: true, value: JSON.parse(blockMatch[1].trim()) };
+    } catch {
+    }
+  }
+  return { ok: false, raw };
+}
+function parseOutput(raw, parseMode) {
+  if (parseMode === "plain") return raw;
+  if (parseMode === "json") {
+    const result2 = tryParseJSON(raw);
+    if (!result2.ok) throw new Error(`LLM \u8F93\u51FA\u4E0D\u662F\u6709\u6548 JSON\uFF1A${result2.raw.slice(0, 200)}`);
+    return result2.value;
+  }
+  const result = tryParseJSON(raw);
+  return result.ok ? result.value : raw;
+}
+function createLLMStepRunner(stepType, options) {
+  return async (ctx, step) => {
+    const p = step.params ?? {};
+    const {
+      model: cfgModel,
+      provider: cfgProvider,
+      systemPrompt,
+      userPrompt,
+      outputVar,
+      schema,
+      temperature,
+      maxTokens,
+      topP,
+      maxRetries = 1,
+      parseMode = "auto",
+      keepRawResponse = false
+    } = p;
+    if (!outputVar) throw new Error(`[${stepType}] LLM step \u5FC5\u987B\u6307\u5B9A outputVar`);
+    if (!userPrompt) throw new Error(`[${stepType}] LLM step \u5FC5\u987B\u6307\u5B9A userPrompt`);
+    const resolvedSystem = systemPrompt ? interpolateTemplate2(systemPrompt, ctx) : "";
+    const resolvedUser = interpolateTemplate2(userPrompt, ctx);
+    const routingKey = cfgModel ?? options.defaultModel ?? `${options.scope}-default`;
+    const resolved = getResolvedRouting(routingKey, cfgProvider ?? options.defaultProvider ?? void 0);
+    const actualProvider = cfgProvider ?? resolved.provider ?? options.defaultProvider ?? "deerapi";
+    const actualModel = resolved.model ?? routingKey;
+    let lastError;
+    const attemptCount = Math.max(1, maxRetries ?? 1);
+    for (let attempt = 1; attempt <= attemptCount; attempt++) {
+      try {
+        const result = await runByModelKey(
+          options.scope,
+          actualModel,
+          {
+            prompt: resolvedUser,
+            systemPrompt: resolvedSystem || void 0,
+            temperature: temperature ?? options.defaultTemperature ?? 0.7,
+            maxTokens: maxTokens ?? options.defaultMaxTokens ?? 4096,
+            topP: topP ?? 1,
+            outputFormat: "json",
+            ...schema ? { schema } : {}
+          },
+          { providerOverride: actualProvider }
+        );
+        const rawText = typeof result === "string" ? result : result?.text ?? result?.content ?? result?.result ?? JSON.stringify(result);
+        const parsed = parseOutput(rawText, parseMode ?? options.defaultParseMode ?? "auto");
+        if (schema && parsed && typeof parsed === "object") {
+          const validate = ajv2.compile(schema);
+          if (!validate(parsed)) {
+            const errMsg = `Schema \u9A8C\u8BC1\u5931\u8D25\uFF1A${ajv2.errorsText(validate.errors)}`;
+            if (attempt < attemptCount) {
+              console.warn(`[${stepType}] attempt ${attempt} schema \u9A8C\u8BC1\u5931\u8D25\uFF0C\u91CD\u8BD5\u4E2D...`);
+              continue;
+            }
+            throw new Error(errMsg);
+          }
+        }
+        const newState = {
+          ...ctx.state,
+          [outputVar]: parsed
+        };
+        if (keepRawResponse) {
+          newState[`rawResponse.${outputVar}`] = rawText;
+        }
+        return { ...ctx, state: newState };
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        console.warn(`[${stepType}] attempt ${attempt} \u5931\u8D25: ${lastError.message}`);
+        if (attempt < attemptCount) {
+          ctx = {
+            ...ctx,
+            state: {
+              ...ctx.state,
+              [`${outputVar}.error`]: lastError.message
+            }
+          };
+        }
+      }
+    }
+    throw new Error(`[${stepType}] LLM step \u6267\u884C\u5931\u8D25\uFF08\u5DF2\u91CD\u8BD5 ${attemptCount} \u6B21\uFF09\uFF1A${lastError?.message}`);
+  };
+}
+function registerLLMStep(stepType, options, where = "input") {
+  const runner = createLLMStepRunner(stepType, options);
+  if (where === "input") {
+    registerInputStep(stepType, runner);
+  } else {
+    registerOutputStep(stepType, runner);
+  }
+  console.log(`[pipeline] \u2705 LLM step \u6CE8\u518C: ${stepType}`, options);
+}
+function setupLLMSteps() {
+  registerLLMStep("textPlan", {
+    scope: "writing",
+    defaultModel: "writing-plan",
+    defaultProvider: "deerapi",
+    defaultTemperature: 0.5,
+    defaultMaxTokens: 1500,
+    defaultParseMode: "json",
+    defaultMaxRetries: 1
+  });
+  registerLLMStep("textThinking", {
+    scope: "writing",
+    defaultModel: "writing-reasoning",
+    defaultProvider: "deerapi",
+    defaultTemperature: 0.3,
+    defaultMaxTokens: 3e3,
+    defaultParseMode: "plain",
+    defaultMaxRetries: 1
+  });
+  registerLLMStep("textFormat", {
+    scope: "writing",
+    defaultModel: "writing-default",
+    defaultProvider: "deerapi",
+    defaultTemperature: 0.7,
+    defaultMaxTokens: 2e3,
+    defaultParseMode: "json",
+    defaultMaxRetries: 1
   });
 }
-function assertTemplateVarsAllowed(paramsSchema, varsUsed, allowList = []) {
-  const props = paramsSchema?.properties;
-  const allowed = /* @__PURE__ */ new Set([...Object.keys(props || {}), ...allowList]);
-  const unknown = varsUsed.filter((v) => !allowed.has(v));
-  if (unknown.length > 0) {
-    throw new ConfigurationError(
-      `Prompt \u6A21\u677F\u5F15\u7528\u4E86\u672A\u5728 formSchema.properties \u4E2D\u58F0\u660E\u7684\u53D8\u91CF: ${unknown.join(", ")}`
-    );
-  }
-}
-function renderPromptFromTemplate(args) {
-  const { prompt, paramsSchema, params, contextVars } = args;
-  const vars = { ...contextVars || {}, ...params || {} };
-  const systemVars = collectTemplateVars(prompt.systemTemplate || "");
-  const userVars = collectTemplateVars(prompt.userTemplate || "");
-  const outVars = collectTemplateVars(prompt.outputFormatTemplate || "");
-  const varsUsed = Array.from(/* @__PURE__ */ new Set([...systemVars, ...userVars, ...outVars]));
-  assertTemplateVarsAllowed(paramsSchema, varsUsed, ["userId", "taskId", "date", "timestamp", "uuid"]);
-  const system = interpolateTemplate(prompt.systemTemplate || "", vars).trim();
-  const user = (prompt.userTemplate ? interpolateTemplate(prompt.userTemplate, vars) : String(params.prompt ?? "")).trim();
-  const output = interpolateTemplate(prompt.outputFormatTemplate || "", vars).trim();
-  const parts = [
-    system,
-    user ? `\u3010\u7528\u6237\u9700\u6C42\u3011
-${user}` : "",
-    output ? `\u3010\u8F93\u51FA\u8981\u6C42\u3011
-${output}` : ""
-  ].filter(Boolean);
-  return { finalPrompt: parts.join("\n\n").trim(), varsUsed };
-}
-var VAR_RE;
-var init_prompt_template = __esm({
-  "src/tasks/prompt-template.ts"() {
+var import_ajv2, import_ajv_formats2, ajv2;
+var init_pipeline_llm_plugin = __esm({
+  "src/tasks/pipeline-llm-plugin.ts"() {
     "use strict";
-    init_errors();
-    VAR_RE = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
+    init_run();
+    init_providers2();
+    import_ajv2 = __toESM(require("ajv"));
+    import_ajv_formats2 = __toESM(require("ajv-formats"));
+    init_pipeline_registry();
+    ajv2 = new import_ajv2.default({ allErrors: true, strict: false });
+    (0, import_ajv_formats2.default)(ajv2);
   }
 });
 
 // src/tasks/pipeline.ts
-function registerInputStep(name, runner) {
-  inputSteps.set(name, runner);
-}
-function registerOutputStep(name, runner) {
-  outputSteps.set(name, runner);
-}
-async function runInputPipeline(ctx, steps) {
-  let cur = ctx;
-  for (const s of steps ?? []) {
-    const r = inputSteps.get(s.step);
-    if (!r) throw new Error(`\u672A\u77E5 inputPipeline step: ${s.step}`);
-    cur = await r(cur, s);
-  }
-  return cur;
-}
-var inputSteps, outputSteps;
 var init_pipeline = __esm({
   "src/tasks/pipeline.ts"() {
     "use strict";
     init_sensitive_resolver();
     init_check();
     init_knowledge_enhancer();
-    inputSteps = /* @__PURE__ */ new Map();
-    outputSteps = /* @__PURE__ */ new Map();
+    init_pipeline_registry();
+    init_pipeline_registry();
+    init_pipeline_llm_plugin();
     registerInputStep("noop", async (ctx) => ctx);
-    registerOutputStep("noop", async (ctx) => ctx);
+    registerOutputStep2("noop", async (ctx) => ctx);
     registerInputStep("sensitiveCheck", async (ctx, step) => {
       const { scope, taskKey, subtype } = ctx;
       const sensitives = await getSensitiveWordsForSlot(scope, taskKey, subtype ?? null);
@@ -16146,6 +15350,42 @@ var init_pipeline = __esm({
       }
       return { ...ctx, state: mergedState };
     });
+    setupLLMSteps();
+  }
+});
+
+// src/tasks/task-v2-prelude.ts
+async function runFixedTaskV2Prelude(ctx, template) {
+  const sens = getInputRunner("sensitiveCheck");
+  if (!sens) {
+    throw new Error("internal: sensitiveCheck step not registered");
+  }
+  let next = await sens(ctx, { step: "sensitiveCheck", params: { paths: ["prompt"] } });
+  const kb = template.knowledge;
+  if (kb?.useKnowledge && Array.isArray(kb.defaultKnowledgeBaseIds) && kb.defaultKnowledgeBaseIds.length > 0) {
+    const kr = getInputRunner("knowledgeRetrieve");
+    if (kr) {
+      next = await kr(next, {
+        step: "knowledgeRetrieve",
+        params: { knowledgeBaseIds: kb.defaultKnowledgeBaseIds, limit: 5 }
+      });
+    }
+  }
+  const stateFp = typeof next.state?.finalPrompt === "string" ? String(next.state.finalPrompt).trim() : "";
+  const ep = typeof next.state?.enhancedPrompt === "string" ? String(next.state.enhancedPrompt).trim() : "";
+  if (ep && !stateFp) {
+    next = {
+      ...next,
+      params: { ...next.params, prompt: ep }
+    };
+  }
+  return next;
+}
+var init_task_v2_prelude = __esm({
+  "src/tasks/task-v2-prelude.ts"() {
+    "use strict";
+    init_pipeline_registry();
+    init_pipeline();
   }
 });
 
@@ -16154,6 +15394,27 @@ var task_engine_exports = {};
 __export(task_engine_exports, {
   runTaskV2: () => runTaskV2
 });
+function pickGenerateDefaultsFromTemplate(template) {
+  const raw = template?.extra?.generateParams ?? template?.extra?.llmParams ?? template?.extra?.generationParams;
+  if (!raw || typeof raw !== "object") return {};
+  const out = {};
+  const t = raw.temperature;
+  const mt = raw.maxTokens;
+  const tp = raw.topP;
+  if (typeof t === "number" && Number.isFinite(t)) out.temperature = t;
+  if (typeof mt === "number" && Number.isFinite(mt)) out.maxTokens = mt;
+  if (typeof tp === "number" && Number.isFinite(tp)) out.topP = tp;
+  return out;
+}
+function mergeGenerateDefaults(params, defaults) {
+  const next = { ...params };
+  for (const k of ["temperature", "maxTokens", "topP"]) {
+    if (next[k] === void 0 && defaults[k] !== void 0) {
+      next[k] = defaults[k];
+    }
+  }
+  return next;
+}
 async function runTaskV2(req, userId) {
   const { scope, taskKey, subtype } = req;
   const { template } = await loadTaskDefinition({ scope, taskKey, subtype: subtype ?? null, lang: "zh" });
@@ -16167,7 +15428,7 @@ async function runTaskV2(req, userId) {
     params: req.params,
     state: {}
   };
-  ctx = await runInputPipeline(ctx, template.inputPipeline);
+  ctx = await runFixedTaskV2Prelude(ctx, template);
   const { finalPrompt } = renderPromptFromTemplate({
     prompt: template.prompt,
     paramsSchema: template.formSchema,
@@ -16184,24 +15445,59 @@ async function runTaskV2(req, userId) {
   if (!userId) {
     throw new Error("Missing userId");
   }
-  if (scope !== "writing" && scope !== "outline") {
-    throw new Error(`Task v2 \u6682\u672A\u5B9E\u73B0 scope=${scope} \u7684\u5B8C\u6574\u4EFB\u52A1\u94FE\u8DEF`);
-  }
-  const isOutlineScope = scope === "outline";
-  const computedRoutingKey = isOutlineScope ? taskKey.startsWith("outline-") ? taskKey : `outline-${taskKey}` : taskKey.startsWith("writing-") ? taskKey : `writing-${taskKey}`;
+  const prefix = scope;
+  const computedRoutingKey = taskKey.startsWith(`${prefix}-`) ? taskKey : `${prefix}-${taskKey}`;
   const extraLogicalModelRaw = template.extra?.logicalModel;
   const extraLogicalModel = typeof extraLogicalModelRaw === "string" && extraLogicalModelRaw.trim() ? extraLogicalModelRaw.trim() : void 0;
-  const routingKey = isOutlineScope && extraLogicalModel && extraLogicalModel.startsWith("outline-") ? extraLogicalModel : computedRoutingKey;
-  const resolved = getResolvedRouting(routingKey, req.params.provider ?? void 0);
+  const routingKey = extraLogicalModel && extraLogicalModel.startsWith(`${prefix}-`) ? extraLogicalModel : computedRoutingKey;
+  const preferredProvider = req.params.provider ?? void 0;
+  let resolved = getResolvedRouting(routingKey, preferredProvider);
+  if (!resolved.fromRouting) {
+    try {
+      const { getSupabaseClient: getSupabaseClient14 } = await import("@mxmai/mxmdata");
+      const { setRoutingOverride: setRoutingOverride2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports2));
+      const supabase = getSupabaseClient14();
+      const { data: row, error } = await supabase.from("model_routing_overrides").select("logical_model, provider, model").eq("logical_model", routingKey).maybeSingle();
+      if (!error && row && row.provider && row.model) {
+        setRoutingOverride2(routingKey, { provider: row.provider, model: row.model });
+        resolved = getResolvedRouting(routingKey, preferredProvider);
+      }
+    } catch {
+    }
+  }
   const paramsAny = ctx.params;
+  const templateGenerateDefaults = pickGenerateDefaultsFromTemplate(template);
+  const paramsWithDefaults = mergeGenerateDefaults(paramsAny, templateGenerateDefaults);
   const estOutputTokens = Math.ceil(Number(paramsAny.total_textcount || 1500) * 1.5);
+  const estInputTokens = 1e3;
+  const estImageCount = Math.max(0, Number(paramsAny.image_count ?? paramsAny.n ?? 1) || 0);
+  const durRaw = paramsAny.total_duration_seconds ?? paramsAny.duration ?? paramsAny.duration_sec ?? paramsAny.seconds;
+  const estSeconds = Math.max(0, Number(durRaw ?? 0) || 0);
+  const estRequestCount = 1;
+  const estimated = (() => {
+    if (scope === "writing" || scope === "outline" || scope === "text") {
+      return { estimatedInputTokens: estInputTokens, estimatedOutputTokens: estOutputTokens, estimatedRequestCount: 1 };
+    }
+    if (scope === "graph") {
+      return { estimatedImageCount: estImageCount > 0 ? estImageCount : 1, estimatedRequestCount: 1 };
+    }
+    if (scope === "audio") {
+      return { estimatedAudioSeconds: estSeconds, estimatedRequestCount: 1 };
+    }
+    if (scope === "music") {
+      return { estimatedAudioSeconds: estSeconds, estimatedRequestCount: 1 };
+    }
+    if (scope === "video") {
+      return { estimatedVideoSeconds: estSeconds, estimatedRequestCount: 1 };
+    }
+    return { estimatedRequestCount: estRequestCount };
+  })();
   const balanceCheck = await BillingService.checkBalance({
     userId,
     provider: resolved.provider,
     modelKey: resolved.model,
-    scope: isOutlineScope ? "outline" : "writing",
-    estimatedOutputTokens: estOutputTokens,
-    estimatedInputTokens: 1e3
+    scope,
+    ...estimated
   });
   if (!balanceCheck.allowed) {
     const err = new Error(
@@ -16210,24 +15506,128 @@ async function runTaskV2(req, userId) {
     err.code = "INSUFFICIENT_BALANCE";
     throw err;
   }
+  if (scope === "text") {
+    const syncId = `text-${(0, import_node_crypto.randomUUID)()}`;
+    const paramsForGen = {
+      ...paramsWithDefaults,
+      prompt: finalPromptEnhanced,
+      useConfiguredPrompt: true,
+      logicalModel: routingKey
+    };
+    if (!resolved.fromRouting || !resolved.model || typeof resolved.model !== "string") {
+      throw new Error(
+        `\u672A\u914D\u7F6E\u4E1A\u52A1\u6A21\u578B\u8DEF\u7531\u8986\u76D6\uFF1AlogicalModel=${routingKey}\u3002\u8BF7\u5728 Admin\u300C\u6A21\u578B\u4E0E\u5B9A\u4EF7\u300D\u4E2D\u4E3A\u8BE5\u4E1A\u52A1\u4FDD\u5B58 provider/model\uFF08\u5C06\u5199\u5165 model_routing_overrides\uFF09\u3002`
+      );
+    }
+    const physicalModelKey = resolved.model;
+    const result = await taskExecutor.callModelGenerate(physicalModelKey, paramsForGen, resolved.provider);
+    const extractText = (r) => {
+      const t = r.text;
+      if (typeof t === "string" && t.trim()) return t;
+      const mt = r.metadata?.text;
+      if (typeof mt === "string" && mt.trim()) return mt;
+      if (Array.isArray(r.mediaUrls) && r.mediaUrls.length && typeof r.mediaUrls[0] === "string" && !r.mediaUrls[0].startsWith("http")) {
+        return r.mediaUrls[0];
+      }
+      return void 0;
+    };
+    const finalMetadata = {
+      ...result.metadata || {},
+      model: result.metadata?.model ?? resolved.model,
+      provider: result.metadata?.provider ?? resolved.provider,
+      text: extractText(result),
+      taskType: "text"
+    };
+    const { costUsd } = await UsageService.logProviderUsage({
+      taskId: syncId,
+      userId,
+      logicalModel: routingKey,
+      result: {
+        ...result,
+        metadata: finalMetadata
+      },
+      providerOverride: finalMetadata.provider
+    });
+    const usageMeta = finalMetadata;
+    const inferredScope = UsageService.inferScopePublic(routingKey, usageMeta);
+    try {
+      await BillingService.consumeForTask({
+        taskId: syncId,
+        userId,
+        provider: String(finalMetadata.provider || "unknown"),
+        modelKey: String(finalMetadata.model || resolved.model),
+        scope: inferredScope,
+        inputTokens: Number(usageMeta.usage?.prompt_tokens ?? usageMeta.usage?.input_tokens ?? 0),
+        outputTokens: Number(usageMeta.usage?.completion_tokens ?? usageMeta.usage?.output_tokens ?? 0),
+        totalTokens: Number(usageMeta.usage?.total_tokens ?? 0),
+        imageCount: 0,
+        audioSeconds: 0,
+        videoSeconds: 0,
+        requestCount: 1,
+        providerCostUsd: costUsd
+      });
+    } catch (billingErr) {
+      console.warn("[TaskV2/text] consumeForTask failed:", billingErr);
+    }
+    return {
+      success: true,
+      taskId: syncId,
+      status: "completed",
+      scope,
+      taskKey,
+      subtype: subtype ?? null,
+      syncResult: {
+        text: extractText(result),
+        metadata: finalMetadata
+      }
+    };
+  }
   const taskManager2 = taskExecutor.getTaskManager();
   const createRes = await taskManager2.createTask({
-    type: isOutlineScope ? "outline" : "writing",
+    type: scope,
     model: routingKey,
     // DB 中记录业务逻辑模型名，便于 Admin 配置与监控
     provider: resolved.provider,
     params: {
-      // 兼容现有 writing-task / task-executor：通过 taskType=outline 走大纲链路
-      taskType: "outline",
-      prompt: finalPromptEnhanced,
-      // 方便 DB prompt 字段展示（含 KB 增强）
-      params: {
-        ...paramsAny,
-        writing_type: paramsAny.writing_type || "outlines",
+      ...scope === "outline" ? {
+        // 兼容现有 writing-task / task-executor：通过 taskType=outline 走大纲链路
+        taskType: "outline",
         prompt: finalPromptEnhanced,
-        useConfiguredPrompt: true,
-        // v2：generateOutline 使用 params.prompt 作为唯一 prompt，不拼接硬编码
-        ...isOutlineScope ? { logicalModel: routingKey } : {}
+        params: {
+          ...paramsWithDefaults,
+          writing_type: paramsAny.writing_type || "outlines",
+          prompt: finalPromptEnhanced,
+          useConfiguredPrompt: true,
+          logicalModel: routingKey
+        }
+      } : scope === "writing" ? {
+        taskType: "writing",
+        prompt: finalPromptEnhanced,
+        params: {
+          ...paramsWithDefaults,
+          prompt: finalPromptEnhanced,
+          useConfiguredPrompt: true
+        }
+      } : scope === "graph" ? {
+        taskType: "graph",
+        graphType: String(taskKey || ""),
+        prompt: finalPromptEnhanced,
+        params: {
+          ...paramsWithDefaults,
+          prompt: finalPromptEnhanced,
+          useConfiguredPrompt: true,
+          logicalModel: routingKey,
+          graphType: String(taskKey || "")
+        }
+      } : {
+        taskType: scope,
+        prompt: finalPromptEnhanced,
+        params: {
+          ...paramsWithDefaults,
+          prompt: finalPromptEnhanced,
+          useConfiguredPrompt: true,
+          logicalModel: routingKey
+        }
       },
       userId,
       provider: resolved.provider
@@ -16240,14 +15640,35 @@ async function runTaskV2(req, userId) {
     modelName: routingKey,
     provider: resolved.provider,
     params: {
-      taskType: "outline",
-      prompt: finalPromptEnhanced,
-      params: {
-        ...paramsAny,
-        writing_type: paramsAny.writing_type || "outlines",
+      ...scope === "outline" ? {
+        taskType: "outline",
         prompt: finalPromptEnhanced,
-        useConfiguredPrompt: true,
-        ...isOutlineScope ? { logicalModel: routingKey } : {}
+        params: {
+          ...paramsWithDefaults,
+          writing_type: paramsAny.writing_type || "outlines",
+          prompt: finalPromptEnhanced,
+          useConfiguredPrompt: true,
+          logicalModel: routingKey
+        }
+      } : scope === "writing" ? {
+        taskType: "writing",
+        prompt: finalPromptEnhanced,
+        params: { ...paramsWithDefaults, prompt: finalPromptEnhanced, useConfiguredPrompt: true }
+      } : scope === "graph" ? {
+        taskType: "graph",
+        graphType: String(taskKey || ""),
+        prompt: finalPromptEnhanced,
+        params: {
+          ...paramsWithDefaults,
+          prompt: finalPromptEnhanced,
+          useConfiguredPrompt: true,
+          logicalModel: routingKey,
+          graphType: String(taskKey || "")
+        }
+      } : {
+        taskType: scope,
+        prompt: finalPromptEnhanced,
+        params: { ...paramsWithDefaults, prompt: finalPromptEnhanced, useConfiguredPrompt: true, logicalModel: routingKey }
       },
       userId,
       provider: resolved.provider
@@ -16266,24 +15687,32 @@ async function runTaskV2(req, userId) {
     subtype: subtype ?? null
   };
 }
+var import_node_crypto;
 var init_task_engine = __esm({
   "src/tasks/task-engine.ts"() {
     "use strict";
+    import_node_crypto = require("crypto");
     init_task_definition();
     init_schema_validator();
     init_prompt_template();
-    init_pipeline();
+    init_task_v2_prelude();
     init_providers2();
     init_billing_service();
+    init_usage_service();
     init_task_executor();
   }
 });
 
 // src/routes/writing.ts
+var writing_exports = {};
+__export(writing_exports, {
+  MODEL_MAP: () => MODEL_MAP,
+  default: () => writing_default
+});
 function isWritingModelSupported(modelName) {
-  return getModelsByKey("writing", modelName).length > 0;
+  return findEnabledModel({ modelKey: modelName, scope: "writing" }) !== null;
 }
-var import_express2, import_mxmdata14, router2, WRITING_MODELS, WRITING_MODEL_KEYS, MODEL_MAP, writing_default;
+var import_express2, import_mxmdata14, router2, WRITING_MODEL_KEYS, MODEL_MAP, writing_default;
 var init_writing2 = __esm({
   "src/routes/writing.ts"() {
     "use strict";
@@ -16297,27 +15726,29 @@ var init_writing2 = __esm({
     init_client2();
     init_writing();
     init_business_key();
-    init_registry();
     init_run();
+    init_provider_model_catalog();
     router2 = (0, import_express2.Router)();
-    WRITING_MODELS = listModels({ scope: "writing" });
-    WRITING_MODEL_KEYS = Array.from(new Set(WRITING_MODELS.map((d) => d.modelKey)));
-    MODEL_MAP = (() => {
-      const map = {};
-      for (const modelKey43 of WRITING_MODEL_KEYS) {
-        map[modelKey43] = {
-          generate: (params, provider13) => runByModelKey("writing", modelKey43, params, { providerOverride: provider13 })
-        };
+    WRITING_MODEL_KEYS = listEnabledModelKeysByScope("writing");
+    MODEL_MAP = new Proxy(
+      {},
+      {
+        get: (_target, prop) => {
+          const modelKey = String(prop);
+          return {
+            generate: (params, provider) => runByModelKey("writing", modelKey, params, { providerOverride: provider })
+          };
+        }
       }
-      return map;
-    })();
+    );
     router2.get("/models", (_req, res) => {
-      res.json({ models: WRITING_MODEL_KEYS.map((name) => ({ name })) });
+      const keys = listEnabledModelKeysByScope("writing");
+      res.json({ models: keys.map((name) => ({ name })) });
     });
     router2.post("/completion/:modelName", async (req, res) => {
       try {
         const { modelName } = req.params;
-        const provider13 = req.query.provider;
+        const provider = req.query.provider;
         if (!isWritingModelSupported(modelName)) {
           return res.status(404).json({
             error: "Model not found",
@@ -16344,7 +15775,7 @@ var init_writing2 = __esm({
           res.setHeader("Content-Type", "text/event-stream");
           res.setHeader("Cache-Control", "no-cache");
           res.setHeader("Connection", "keep-alive");
-          const result = await runByModelKey("writing", modelName, params, { providerOverride: provider13 });
+          const result = await runByModelKey("writing", modelName, params, { providerOverride: provider });
           const r = result;
           if (r.stream) {
             for await (const chunk of r.stream) {
@@ -16362,7 +15793,7 @@ var init_writing2 = __esm({
           res.write("data: [DONE]\n\n");
           res.end();
         } else {
-          const result = await runByModelKey("writing", modelName, params, { providerOverride: provider13 });
+          const result = await runByModelKey("writing", modelName, params, { providerOverride: provider });
           res.json({ success: true, model: modelName, result });
         }
       } catch (error) {
@@ -17200,7 +16631,7 @@ var init_character_service = __esm({
        * @param provider 模型提供者（可选）
        * @returns 生成的角色数组（不保存到数据库）
        */
-      async generateCharacters(params, userId, provider13) {
+      async generateCharacters(params, userId, provider) {
         const modelName = selectModel("outline");
         const model = MODEL_MAP[modelName];
         if (!model) {
@@ -17273,7 +16704,7 @@ ${params.prompt}
         const result = await model.generate({
           prompt: characterPrompt,
           outputFormat: "json"
-        }, provider13);
+        }, provider);
         if (!result.text) {
           throw new Error("LLM \u751F\u6210\u7ED3\u679C\u4E3A\u7A7A");
         }
@@ -18131,7 +17562,7 @@ function expandOutlinesToSections(outlines, depth = 0, startIndex = 0, globalPar
   }
   return sections;
 }
-async function compressText(text, maxLength = 500, provider13, usageAccumulator) {
+async function compressText(text, maxLength = 500, provider, usageAccumulator) {
   if (text.length <= maxLength) {
     return text;
   }
@@ -18151,14 +17582,14 @@ ${firstPart}
     let compressedFirstPart;
     if (usageAccumulator) {
       const basicResult = await runBasicText("writing-basic-text", compressPrompt, {
-        providerOverride: provider13
+        providerOverride: provider
       });
       const meta = basicResult.usage.metadata;
       addUsage(usageAccumulator, meta);
       compressedFirstPart = basicResult.text;
     } else {
       const basicResult = await runBasicText("writing-basic-text", compressPrompt, {
-        providerOverride: provider13
+        providerOverride: provider
       });
       compressedFirstPart = basicResult.text;
     }
@@ -18192,12 +17623,12 @@ async function getPreviousContentFromTask(taskId, userId) {
     return null;
   }
 }
-async function generateText(modelName, prompt, provider13, llmParams) {
+async function generateText(modelName, prompt, provider, llmParams) {
   const result = await runByModelKey(
     "writing",
     modelName,
     { prompt, outputFormat: "json", ...llmParams },
-    { providerOverride: provider13 }
+    { providerOverride: provider }
   );
   const text = result.text;
   if (text == null || text === "") throw new Error("LLM \u751F\u6210\u7ED3\u679C\u4E3A\u7A7A");
@@ -18231,12 +17662,12 @@ function toLlmMetadata(acc) {
     provider: acc.provider || "unknown"
   };
 }
-async function generateTextWithMetadata(modelName, prompt, provider13, llmParams) {
+async function generateTextWithMetadata(modelName, prompt, provider, llmParams) {
   const result = await runByModelKey(
     "writing",
     modelName,
     { prompt, outputFormat: "json", ...llmParams },
-    { providerOverride: provider13 }
+    { providerOverride: provider }
   );
   const text = result.text;
   if (text == null || text === "") throw new Error("LLM \u751F\u6210\u7ED3\u679C\u4E3A\u7A7A");
@@ -18250,12 +17681,12 @@ async function generateTextWithMetadata(modelName, prompt, provider13, llmParams
     } : void 0
   };
 }
-async function generateTextStream(modelName, prompt, provider13, llmParams) {
+async function generateTextStream(modelName, prompt, provider, llmParams) {
   const result = await runByModelKey(
     "writing",
     modelName,
     { prompt, outputFormat: "stream", enableCollection: false, ...llmParams },
-    { providerOverride: provider13 }
+    { providerOverride: provider }
   );
   const r = result;
   if (r.stream) return r.stream;
@@ -18269,7 +17700,7 @@ async function generateTextStream(modelName, prompt, provider13, llmParams) {
   }
   throw new Error("LLM \u4E0D\u652F\u6301\u6D41\u5F0F\u8F93\u51FA");
 }
-async function* generateOutlineStream(params, userId, provider13) {
+async function* generateOutlineStream(params, userId, provider) {
   const lang = params.language ?? "zh";
   if (params.applyto) {
     if (!OUTLINE_APPLY_TO_VALUES.includes(params.applyto)) {
@@ -18279,7 +17710,7 @@ async function* generateOutlineStream(params, userId, provider13) {
   const outlineParamsForKey = { writing_type: "outlines", applyto: params.applyto };
   const businessKey = getWritingBusinessKeyFromParams(outlineParamsForKey, "outline");
   const routingKeyOverride = typeof params.logicalModel === "string" && params.logicalModel.trim() ? params.logicalModel.trim() : void 0;
-  const resolved = selectModelWithRouting(routingKeyOverride ?? businessKey, "outline", provider13);
+  const resolved = selectModelWithRouting(routingKeyOverride ?? businessKey, "outline", provider);
   const modelName = resolved.modelName;
   const effectiveProvider = resolved.provider;
   let castCharacters;
@@ -18428,7 +17859,7 @@ ${requireStoryboardRhythmPerNode && totalDurationSecForNode != null ? `- **\u5F3
     yield chunk;
   }
 }
-async function generateOutline(params, userId, provider13) {
+async function generateOutline(params, userId, provider) {
   const lang = params.language ?? "zh";
   if (params.applyto) {
     if (!OUTLINE_APPLY_TO_VALUES.includes(params.applyto)) {
@@ -18438,7 +17869,7 @@ async function generateOutline(params, userId, provider13) {
   const outlineParamsForKey = { writing_type: "outlines", applyto: params.applyto };
   const businessKey = getWritingBusinessKeyFromParams(outlineParamsForKey, "outline");
   const routingKeyOverride = typeof params.logicalModel === "string" && params.logicalModel.trim() ? params.logicalModel.trim() : void 0;
-  const resolved = selectModelWithRouting(routingKeyOverride ?? businessKey, "outline", provider13);
+  const resolved = selectModelWithRouting(routingKeyOverride ?? businessKey, "outline", provider);
   const modelName = resolved.modelName;
   const effectiveProvider = resolved.provider;
   let castCharacters;
@@ -18699,7 +18130,7 @@ ${requireStoryboardRhythmPerNode && totalDurationSecForNode != null ? `- **\u5F3
     throw new Error(`\u5927\u7EB2\u751F\u6210\u5931\u8D25\uFF1A${errorMessage}\u3002\u539F\u59CB\u7ED3\u679C\u9884\u89C8\uFF1A${resultText.substring(0, 300)}...`);
   }
 }
-async function* generateWritingParallel(sections, params, userId, provider13, enhancedPrompt, hasGlobalKnowledgeInPrompt = false, useKnowledge = true) {
+async function* generateWritingParallel(sections, params, userId, provider, enhancedPrompt, hasGlobalKnowledgeInPrompt = false, useKnowledge = true) {
   const modelName = selectModel("paragraph");
   const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
   const summaryPrompt = `\u8BF7\u6839\u636E\u4EE5\u4E0B\u5927\u7EB2\u751F\u6210\u4E00\u4E2A800\u5B57\u4EE5\u5185\u7684\u603B\u7ED3\uFF0C\u4F5C\u4E3A\u6574\u7BC7\u6587\u7AE0\u7684\u516C\u7528\u5F15\u7528\u548C\u80CC\u666F\u4FE1\u606F\uFF1A
@@ -18713,7 +18144,7 @@ ${sections.map((s) => `- ${s.content}`).join("\n")}
 - \u53EA\u8FD4\u56DE\u603B\u7ED3\u6587\u672C\uFF0C\u4E0D\u8981\u6DFB\u52A0\u4EFB\u4F55\u6807\u8BB0`;
   let sharedSummary = "";
   try {
-    sharedSummary = await generateText(modelName, summaryPrompt, provider13);
+    sharedSummary = await generateText(modelName, summaryPrompt, provider);
     yield {
       chunk: `<section uid="summary" index="-1" position="0">${sharedSummary}</section>`,
       status: "completed",
@@ -18841,7 +18272,7 @@ ${typeOutputFormat}` : ""}
 6. \u5982\u679C\u8BE5\u6BB5\u843D\u6CA1\u6709\u914D\u7F6E\uFF08\u65E0 motivation\u3001stance\u3001tone\u3001length\u3001key_elements\uFF09\uFF0C\u5219\u53EA\u751F\u6210\u6807\u9898\uFF0C\u65E0\u5B9E\u9645\u5185\u5BB9
 
 \u8BF7\u5F00\u59CB\u751F\u6210\u6BB5\u843D\u6B63\u6587\uFF08\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u53C2\u6570\u8BF4\u660E\uFF09\uFF1A`;
-      const stream = await generateTextStream(modelName, sectionPrompt, provider13);
+      const stream = await generateTextStream(modelName, sectionPrompt, provider);
       let sectionContent = "";
       const chunks = [];
       for await (const chunk of stream) {
@@ -18930,14 +18361,14 @@ ${typeOutputFormat}` : ""}
     }
   }
 }
-async function* generateWritingSequential(sections, params, userId, provider13, enhancedPrompt, hasGlobalKnowledgeInPrompt = false, useKnowledge = true) {
+async function* generateWritingSequential(sections, params, userId, provider, enhancedPrompt, hasGlobalKnowledgeInPrompt = false, useKnowledge = true) {
   const modelName = selectModel("paragraph");
   const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
   let previousMemory = "";
   for (const section of sections) {
     try {
       if (previousMemory.length > 500) {
-        previousMemory = await compressText(previousMemory, 500, provider13);
+        previousMemory = await compressText(previousMemory, 500, provider);
       }
       const currentWritingType = params.writing_type || "articles";
       const globalGuidance = section.globalParams ? buildWritingGuidance(section.globalParams, currentWritingType, params.outline_type) : [];
@@ -19060,7 +18491,7 @@ ${typeOutputFormat}` : ""}
 7. \u4E0E\u524D\u6587\u4FDD\u6301\u903B\u8F91\u8FDE\u8D2F\uFF0C\u81EA\u7136\u8FC7\u6E21
 
 \u8BF7\u5F00\u59CB\u751F\u6210\u6BB5\u843D\u6B63\u6587\uFF08\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u53C2\u6570\u8BF4\u660E\uFF09\uFF1A`;
-      const stream = await generateTextStream(modelName, sectionPrompt, provider13);
+      const stream = await generateTextStream(modelName, sectionPrompt, provider);
       let sectionContent = "";
       let isFirstChunk = true;
       for await (const chunk of stream) {
@@ -19122,7 +18553,7 @@ ${typeOutputFormat}` : ""}
     }
   }
 }
-async function* generateWritingStream(params, userId, provider13) {
+async function* generateWritingStream(params, userId, provider) {
   let previousContent = null;
   if (params.previous_content) {
     previousContent = params.previous_content;
@@ -19168,9 +18599,9 @@ async function* generateWritingStream(params, userId, provider13) {
     }
     const hasGlobalKnowledgeInPrompt = useKnowledge && !!(params.knowledgeBase && params.knowledgeBase.length > 0 && !params.outlines?.some((outline) => outline.knowledgeBase && outline.knowledgeBase.length > 0));
     if (generationMode === "parallel") {
-      yield* generateWritingParallel(sections, params, userId, provider13, enhancedPrompt, hasGlobalKnowledgeInPrompt, useKnowledge);
+      yield* generateWritingParallel(sections, params, userId, provider, enhancedPrompt, hasGlobalKnowledgeInPrompt, useKnowledge);
     } else {
-      yield* generateWritingSequential(sections, params, userId, provider13, enhancedPrompt, hasGlobalKnowledgeInPrompt, useKnowledge);
+      yield* generateWritingSequential(sections, params, userId, provider, enhancedPrompt, hasGlobalKnowledgeInPrompt, useKnowledge);
     }
     return;
   }
@@ -19185,7 +18616,7 @@ async function* generateWritingStream(params, userId, provider13) {
   const taskType = "full";
   const currentWritingType = params.writing_type || "articles";
   const businessKey = getWritingBusinessKeyFromParams({ writing_type: currentWritingType }, taskType);
-  const resolved = selectModelWithRouting(businessKey, taskType, provider13);
+  const resolved = selectModelWithRouting(businessKey, taskType, provider);
   const modelName = resolved.modelName;
   const effectiveProvider = resolved.provider;
   const resolvedBase = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, "zh");
@@ -19337,7 +18768,7 @@ ${generatePrompt}`;
     };
   }
 }
-async function generateWriting(params, userId, provider13, onProgress) {
+async function generateWriting(params, userId, provider, onProgress) {
   let previousContent = null;
   if (params.previous_content) {
     previousContent = params.previous_content;
@@ -19409,7 +18840,7 @@ ${sections.map((s) => `- ${s.content}`).join("\n")}
         if (onProgress) {
           await onProgress(30, "\u5F00\u59CB\u751F\u6210\u516C\u7528\u603B\u7ED3...");
         }
-        const { text, metadata } = await generateTextWithMetadata(modelName2, summaryPrompt, provider13);
+        const { text, metadata } = await generateTextWithMetadata(modelName2, summaryPrompt, provider);
         addUsage(usageAccumulator, metadata);
         sharedSummary = text;
         if (onProgress) {
@@ -19555,7 +18986,7 @@ ${typeOutputFormat2}` : ""}
 6. \u5982\u679C\u8BE5\u6BB5\u843D\u6CA1\u6709\u914D\u7F6E\uFF08\u65E0 motivation\u3001stance\u3001tone\u3001length\u3001key_elements\uFF09\uFF0C\u5219\u53EA\u751F\u6210\u6807\u9898\uFF0C\u65E0\u5B9E\u9645\u5185\u5BB9
 
 \u8BF7\u5F00\u59CB\u751F\u6210${isStoryboardChunkMode ? "\u5206\u955C JSON\uFF08\u4EC5\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u53C2\u6570\u8BF4\u660E\uFF09" : "\u6BB5\u843D\u6B63\u6587\uFF08\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u53C2\u6570\u8BF4\u660E\uFF09"}\uFF1A`;
-          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName2, sectionPrompt, provider13);
+          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName2, sectionPrompt, provider);
           addUsage(usageAccumulator, sectionMeta);
           const sectionMatch = !isStoryboardChunkMode ? sectionText.match(/<section[^>]*>([\s\S]*?)<\/section>/) : null;
           let content = isStoryboardChunkMode ? sectionText.trim() : sectionMatch ? sectionMatch[1].trim() : sectionText.trim();
@@ -19614,7 +19045,7 @@ ${typeOutputFormat2}` : ""}
             );
           }
           if (previousMemory.length > 500) {
-            previousMemory = await compressText(previousMemory, 500, provider13, usageAccumulator);
+            previousMemory = await compressText(previousMemory, 500, provider, usageAccumulator);
           }
           const currentWritingType2 = params.writing_type || "articles";
           const globalGuidance = section.globalParams ? buildWritingGuidance(section.globalParams, currentWritingType2, params.outline_type) : [];
@@ -19738,7 +19169,7 @@ ${typeOutputFormat2}` : ""}
 7. \u4E0E\u524D\u6587\u4FDD\u6301\u903B\u8F91\u8FDE\u8D2F\uFF0C\u81EA\u7136\u8FC7\u6E21
 
 \u8BF7\u5F00\u59CB\u751F\u6210${isStoryboardChunkMode ? "\u5206\u955C JSON\uFF08\u4EC5\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u53C2\u6570\u8BF4\u660E\uFF09" : "\u6BB5\u843D\u6B63\u6587\uFF08\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u53C2\u6570\u8BF4\u660E\uFF09"}\uFF1A`;
-          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName2, sectionPrompt, provider13);
+          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName2, sectionPrompt, provider);
           addUsage(usageAccumulator, sectionMeta);
           const sectionMatch = !isStoryboardChunkMode ? sectionText.match(/<section[^>]*>([\s\S]*?)<\/section>/) : null;
           let content = isStoryboardChunkMode ? sectionText.trim() : sectionMatch ? sectionMatch[1].trim() : sectionText.trim();
@@ -19937,7 +19368,7 @@ ${enhancedPrompt}`;
       await onProgress(50, "\u6B63\u5728\u751F\u6210\u5206\u955C JSON...");
     }
     const noOutlineUsageAccumulator = createUsageAccumulator();
-    const { text: rawText, metadata: storyboardMeta } = await generateTextWithMetadata(modelName2, storyboardPrompt, provider13);
+    const { text: rawText, metadata: storyboardMeta } = await generateTextWithMetadata(modelName2, storyboardPrompt, provider);
     addUsage(noOutlineUsageAccumulator, storyboardMeta);
     const parsed = parseStoryboardChunksJson(rawText, chunkSeconds, params.rhythm);
     if (!parsed.chunks?.length) {
@@ -20010,7 +19441,7 @@ ${enhancedPrompt}`;
   const taskType = "full";
   const currentWritingType = params.writing_type || "articles";
   const businessKey = getWritingBusinessKeyFromParams({ writing_type: currentWritingType }, taskType);
-  const resolved = selectModelWithRouting(businessKey, taskType, provider13);
+  const resolved = selectModelWithRouting(businessKey, taskType, provider);
   const modelName = resolved.modelName;
   const effectiveProvider = resolved.provider;
   const resolvedFinal = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, "zh");
@@ -23223,10 +22654,11 @@ function buildReferenceImagePrompt(referenceImages, language = "en") {
   referenceImages.forEach((ref, index) => {
     const imageNum = index + 1;
     const description = descriptions[ref.type];
+    const purpose = typeof ref.purpose === "string" ? ref.purpose.trim() : "";
     if (language === "en") {
-      lines.push(`- Image ${imageNum}: ${description}`);
+      lines.push(`- Image ${imageNum}: ${description}${purpose ? ` (Purpose: ${purpose})` : ""}`);
     } else {
-      lines.push(`- \u56FE\u7247 ${imageNum}\uFF1A${description}`);
+      lines.push(`- \u56FE\u7247 ${imageNum}\uFF1A${description}${purpose ? `\uFF08\u7528\u9014\uFF1A${purpose}\uFF09` : ""}`);
     }
   });
   return lines.join("\n");
@@ -23298,6 +22730,27 @@ var init_reference_image2 = __esm({
       "color-reference": "\u98CE\u683C\u548C\u8272\u5F69\u53C2\u8003",
       "style-reference": "UI \u98CE\u683C\u53C2\u8003\uFF08\u5E03\u5C40\u3001\u914D\u8272\u3001\u5B57\u4F53\u3001\u7EC4\u4EF6\u4E0E\u6574\u4F53\u8BBE\u8BA1\u8BED\u8A00\uFF09"
     };
+  }
+});
+
+// src/core/graph/graph-prompt-text.ts
+function resolveGraphPromptTextMode(config) {
+  const m = config?.prompt_text_mode?.trim();
+  if (!m) return DEFAULT_GRAPH_PROMPT_TEXT_MODE;
+  return m;
+}
+function assertSupportedGraphPromptTextMode(mode) {
+  if (mode !== DEFAULT_GRAPH_PROMPT_TEXT_MODE) {
+    throw new Error(
+      `\u751F\u56FE\u63D0\u793A\u8BCD text \u6A21\u5F0F "${mode}" \u5C1A\u672A\u652F\u6301\uFF0C\u8BF7\u4F7F\u7528 ${DEFAULT_GRAPH_PROMPT_TEXT_MODE}\uFF08\u9ED8\u8BA4\uFF09\uFF0C\u6216\u7B49\u5F85 Smartflow \u63A5\u5165`
+    );
+  }
+}
+var DEFAULT_GRAPH_PROMPT_TEXT_MODE;
+var init_graph_prompt_text = __esm({
+  "src/core/graph/graph-prompt-text.ts"() {
+    "use strict";
+    DEFAULT_GRAPH_PROMPT_TEXT_MODE = "basic";
   }
 });
 
@@ -24648,12 +24101,14 @@ async function retrieveSystemKnowledgeByType(graphType, type, params, userId) {
   }
   return null;
 }
-async function generateGraphPrompt(graphType, params, userId, provider13, parentTaskId) {
+async function generateGraphPrompt(graphType, params, userId, provider, parentTaskId) {
   const { type, prompt: userPrompt } = params;
   const businessParams = extractBusinessParams(params, graphType, type);
   const outputLanguage = detectOutputLanguage(userPrompt || "");
   const lang = outputLanguage === "zh" ? "zh" : "en";
   const promptConfig = await getPromptFullConfig("graph", graphType, type, lang);
+  const graphPromptTextMode = resolveGraphPromptTextMode(promptConfig);
+  assertSupportedGraphPromptTextMode(graphPromptTextMode);
   let knowledgeContext = "";
   let knowledgeRecallMetadata = null;
   if (promptConfig?.use_knowledge === true) {
@@ -24800,7 +24255,7 @@ async function generateGraphPrompt(graphType, params, userId, provider13, parent
   console.log(`[GraphService] \u4F7F\u7528\u89C4\u5219\u524D\u7F00: ${rules.substring(0, 180)}${rules.length > 180 ? "..." : ""}`);
   console.log(`[GraphService] \u4E1A\u52A1\u53C2\u6570:`, businessParams);
   console.log(`[GraphService] \u63D0\u793A\u8BCD\u751F\u6210\u8BF7\u6C42\u524D\u7F00: ${promptGenerationRequest.substring(0, 500)}${promptGenerationRequest.length > 500 ? "..." : ""}`);
-  const finalProvider = provider13 ?? providerFactory.getDefaultProvider();
+  const finalProvider = provider ?? providerFactory.getDefaultProvider();
   console.log(
     `[GraphService] \u4F7F\u7528 BasicText \u751F\u6210\u63D0\u793A\u8BCD: logicalModel=writing-basic-text, providerOverride=${finalProvider}`
   );
@@ -24864,7 +24319,7 @@ Generate: ${cleanedPrompt}`;
     promptGenerationCostUsd
   };
 }
-async function generateGraphImage(graphType, params, generatedPrompt, provider13) {
+async function generateGraphImage(graphType, params, generatedPrompt, provider) {
   const { referenceImage, aspect_ratio } = params;
   const subType = params.type;
   const isGrid9 = params.grid9 === true;
@@ -24879,7 +24334,7 @@ async function generateGraphImage(graphType, params, generatedPrompt, provider13
   const { modelName, provider: resolvedProvider } = await resolveGraphModel(
     graphType,
     subType,
-    provider13
+    provider
   );
   if (isGrid9) {
     console.log(
@@ -25032,6 +24487,123 @@ async function generateGraphImage(graphType, params, generatedPrompt, provider13
         } else if (imageInputs.length > 1) {
           imageParams.image_base64s = imageInputs;
         }
+      } else if (modelName === "nano-banana-2" || modelName === "nano-banana-2-pro") {
+        if (resolvedProvider === "deer") {
+          const storageRepo = import_mxmdata18.RepositoryFactory.createStorageRepository();
+          const toDataUriFromUrl = async (u) => {
+            try {
+              const parsed = new URL(u);
+              if (parsed.pathname.endsWith("/api/v1/media/asset") || parsed.pathname.endsWith("/media/asset")) {
+                const bucket = parsed.searchParams.get("bucket") || "";
+                const key = parsed.searchParams.get("key") || "";
+                if (bucket && key) {
+                  const buf = await storageRepo.downloadFile(bucket, key);
+                  const meta = await storageRepo.getFileMetadata(bucket, key);
+                  const ct2 = meta?.contentType || (key.endsWith(".png") ? "image/png" : key.endsWith(".webp") ? "image/webp" : key.endsWith(".gif") ? "image/gif" : "image/jpeg");
+                  const b642 = Buffer.from(buf).toString("base64");
+                  return `data:${ct2};base64,${b642}`;
+                }
+              }
+            } catch {
+            }
+            const resp = await fetch(u);
+            if (!resp.ok) throw new Error(`\u4E0B\u8F7D\u53C2\u8003\u56FE\u5931\u8D25: ${resp.status} ${resp.statusText}`);
+            const ct = resp.headers.get("content-type") || "image/jpeg";
+            const ab = await resp.arrayBuffer();
+            const b64 = Buffer.from(ab).toString("base64");
+            return `data:${ct};base64,${b64}`;
+          };
+          const imageInputs = [];
+          for (const ref of processedReferenceImages) {
+            const c = ref.content;
+            if (isBase642(c)) {
+              imageInputs.push(c);
+              continue;
+            }
+            if (isUrl2(c)) {
+              const dataUri = await toDataUriFromUrl(c);
+              const base64Data = extractBase64FromDataUri(dataUri);
+              const sizeMB = base64Data.length / 1024 / 1024;
+              if (sizeMB > 2) {
+                const compressed = await compressImage(dataUri, 2, 2048, 2048, 85);
+                imageInputs.push(compressed.compressed);
+              } else {
+                imageInputs.push(dataUri);
+              }
+            }
+          }
+          if (imageInputs.length === 1) imageParams.image = imageInputs[0];
+          else if (imageInputs.length > 1) imageParams.image_base64s = imageInputs;
+        } else if (resolvedProvider === "atlascloud") {
+          const { getFirstProviderKey: getFirstProviderKey2 } = await Promise.resolve().then(() => (init_providers(), providers_exports));
+          const apiKey = await getFirstProviderKey2("atlascloud") ?? process.env.ATLASCLOUD_API_KEY;
+          const base = String(process.env.ATLASCLOUD_BASE_URL || "https://api.atlascloud.ai").replace(/\/+$/, "");
+          if (!apiKey) throw new Error("AtlasCloud API Key \u672A\u914D\u7F6E\uFF1Aprovider=atlascloud \u6216 ATLASCLOUD_API_KEY");
+          const storageRepo = import_mxmdata18.RepositoryFactory.createStorageRepository();
+          const uploadToAtlasCloud = async (buf, filename, contentType) => {
+            const form = new FormData();
+            const blob = new Blob([buf], { type: contentType });
+            form.append("file", blob, filename);
+            const resp = await fetch(`${base}/api/v1/model/uploadMedia`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${apiKey}` },
+              body: form
+            });
+            const text = await resp.text().catch(() => "");
+            let json = {};
+            try {
+              json = text ? JSON.parse(text) : {};
+            } catch {
+              json = { raw: text };
+            }
+            if (!resp.ok) {
+              throw new Error(
+                `AtlasCloud uploadMedia \u5931\u8D25: ${resp.status} ${resp.statusText} ${(json?.message || json?.error || json?.raw || "").toString()}`.trim()
+              );
+            }
+            const url = json?.data?.download_url ?? json?.download_url;
+            if (!url || typeof url !== "string") throw new Error("AtlasCloud uploadMedia \u672A\u8FD4\u56DE download_url");
+            return url;
+          };
+          const isInternalAssetProxy = (u) => {
+            try {
+              const parsed = new URL(u, "http://local");
+              const path2 = parsed.pathname || "";
+              if (path2.endsWith("/api/v1/media/asset") || path2.endsWith("/media/asset")) {
+                const bucket = parsed.searchParams.get("bucket") || "";
+                const key = parsed.searchParams.get("key") || "";
+                if (bucket && key) return { bucket, key };
+              }
+            } catch {
+            }
+            return null;
+          };
+          const toAtlasUrl = async (ref) => {
+            const c = ref.content;
+            if (isBase642(c)) {
+              const b64 = extractBase64FromDataUri(c);
+              const buf = Buffer.from(b64, "base64");
+              const ct = c.startsWith("data:image/png") ? "image/png" : c.startsWith("data:image/webp") ? "image/webp" : c.startsWith("data:image/gif") ? "image/gif" : "image/jpeg";
+              return uploadToAtlasCloud(buf, `ref_${ref.type || "image"}.jpg`, ct);
+            }
+            if (isUrl2(c)) {
+              const hit = isInternalAssetProxy(c);
+              if (hit) {
+                const bufAny = await storageRepo.downloadFile(hit.bucket, hit.key);
+                const meta = await storageRepo.getFileMetadata(hit.bucket, hit.key);
+                const ct = meta?.contentType || (hit.key.endsWith(".png") ? "image/png" : hit.key.endsWith(".webp") ? "image/webp" : "image/jpeg");
+                const buf = Buffer.isBuffer(bufAny) ? bufAny : Buffer.from(bufAny);
+                return uploadToAtlasCloud(buf, `ref_${ref.type || "image"}`, ct);
+              }
+              return c;
+            }
+            return String(c);
+          };
+          const atlasUrls = [];
+          for (const ref of processedReferenceImages) atlasUrls.push(await toAtlasUrl(ref));
+          if (atlasUrls.length > 0) imageParams.images = atlasUrls.slice(0, 14);
+        } else {
+        }
       } else {
         const imageInput = [];
         imageInput.push(...urls);
@@ -25100,7 +24672,7 @@ async function generateGraphImage(graphType, params, generatedPrompt, provider13
     throw error;
   }
 }
-async function generateGraph(graphType, params, userId, provider13, parentTaskId) {
+async function generateGraph(graphType, params, userId, provider, parentTaskId) {
   console.log(`
 ========== [GraphService] \u5F00\u59CB\u751F\u6210\u56FE\u7247 (graphType: ${graphType}) ==========`);
   console.log(`[GraphService] \u7528\u6237\u53C2\u6570:`, {
@@ -25113,8 +24685,8 @@ async function generateGraph(graphType, params, userId, provider13, parentTaskId
     lighting: params.lighting,
     quality: params.quality
   });
-  const promptResult = await generateGraphPrompt(graphType, params, userId, provider13, parentTaskId);
-  const imageResult = await generateGraphImage(graphType, params, promptResult.prompt, provider13);
+  const promptResult = await generateGraphPrompt(graphType, params, userId, provider, parentTaskId);
+  const imageResult = await generateGraphImage(graphType, params, promptResult.prompt, provider);
   return {
     prompt: promptResult.prompt,
     image_urls: imageResult.image_urls,
@@ -25150,6 +24722,7 @@ var init_graph_service = __esm({
     init_graph_model_routing();
     init_reference_image2();
     init_basic_text();
+    init_graph_prompt_text();
   }
 });
 
@@ -25465,7 +25038,7 @@ async function startGraphTask(taskId, originalParams) {
     const graphType = requestParams.graphType;
     const taskType = requestParams.taskType;
     const userId = requestParams.userId;
-    const provider13 = requestParams.provider;
+    const provider = requestParams.provider;
     const graphParams = { ...requestParams };
     delete graphParams.taskType;
     delete graphParams.graphType;
@@ -25487,7 +25060,7 @@ async function startGraphTask(taskId, originalParams) {
       graphType,
       graphParams,
       finalUserId,
-      provider13,
+      provider,
       taskId
     );
     console.log(`[GraphTask] generateGraph \u5B8C\u6210\uFF0C\u6A21\u578B: ${result.modelName}, \u56FE\u7247\u6570\u91CF: ${result.image_urls.length}`);
@@ -25533,7 +25106,7 @@ async function startGraphTask(taskId, originalParams) {
         metadata: updatedMetadata
       });
     }
-    const effProvider = task.metadata?.provider || provider13 || "deer";
+    const effProvider = task.metadata?.provider || provider || "deer";
     let providerCostUsd = 0;
     let promptCostUsd = result.promptGenerationCostUsd ?? 0;
     try {
@@ -25750,7 +25323,7 @@ async function startGraphTask(taskId, originalParams) {
         console.error(`[GraphTask] \u4E5D\u5BAB\u683C\u4EFB\u52A1\u5904\u7406\u5931\u8D25:`, error);
         await taskManager2.setTaskResult(taskId, taskResult);
         hasSavedFallbackResultForGrid9 = true;
-        const effProviderGrid9 = task.metadata?.provider || provider13 || "deer";
+        const effProviderGrid9 = task.metadata?.provider || provider || "deer";
         if (finalUserId) {
           try {
             if (result.promptGenerationUsage?.metadata && promptCostUsd >= 0) {
@@ -26262,7 +25835,7 @@ var init_task_executor = __esm({
        * 统一处理同步和异步任务，通过进度流更新任务状态
        */
       async executeTask(options) {
-        const { taskId, modelName, provider: provider13, params, userId, storeToMinio, storageConfig } = options;
+        const { taskId, modelName, provider, params, userId, storeToMinio, storageConfig } = options;
         try {
           try {
             const t = await this.taskManager.getTask(taskId);
@@ -26286,7 +25859,7 @@ var init_task_executor = __esm({
               const requestParams = currentTask.requestParams;
               const isOutlineTask = currentTask.type === "outline" || currentTask.type === "writing" && requestParams?.taskType === "outline";
               const routingKey = isOutlineTask ? currentTask.type === "outline" ? modelName : "writing-outlines" : modelName;
-              const resolved = getResolvedRouting(routingKey, provider13);
+              const resolved = getResolvedRouting(routingKey, provider);
               const merged = {
                 ...currentTask.metadata,
                 provider: resolved.provider,
@@ -26330,7 +25903,7 @@ var init_task_executor = __esm({
             }
           } catch {
           }
-          const result = await this.callModelGenerate(modelName, params, provider13);
+          const result = await this.callModelGenerate(modelName, params, provider);
           if (result.metadata) {
             try {
               const taskResponse = await this.taskManager.getTask(taskId);
@@ -26362,11 +25935,11 @@ var init_task_executor = __esm({
             }
           }
           if (result.progress) {
-            this.processProgressStream(taskId, result.progress, result, storeToMinio, storageConfig, userId, modelName, provider13).catch(
+            this.processProgressStream(taskId, result.progress, result, storeToMinio, storageConfig, userId, modelName, provider).catch(
               (error) => {
                 console.error(`[TaskExecutor] \u274C \u5904\u7406\u8FDB\u5EA6\u6D41\u5931\u8D25 (taskId: ${taskId}):`, error);
                 console.error(`[TaskExecutor] \u9519\u8BEF\u5806\u6808:`, error instanceof Error ? error.stack : String(error));
-                console.error(`[TaskExecutor] \u6A21\u578B: ${modelName}, Provider: ${provider13 || "auto"}`);
+                console.error(`[TaskExecutor] \u6A21\u578B: ${modelName}, Provider: ${provider || "auto"}`);
                 this.taskManager.setTaskError(
                   taskId,
                   `\u5904\u7406\u8FDB\u5EA6\u6D41\u5931\u8D25: ${error instanceof Error ? error.message : String(error)}`
@@ -26384,13 +25957,13 @@ var init_task_executor = __esm({
                 progress: 100
               });
             }
-            await this.processResult(taskId, result, storeToMinio, storageConfig, userId, modelName, provider13);
+            await this.processResult(taskId, result, storeToMinio, storageConfig, userId, modelName, provider);
           }
         } catch (error) {
           console.error("[TaskExecutor] \u274C \u4EFB\u52A1\u6267\u884C\u5931\u8D25", {
             taskId,
             modelName,
-            provider: provider13 || "auto",
+            provider: provider || "auto",
             error: error instanceof Error ? {
               name: error.name,
               message: error.message,
@@ -26406,12 +25979,12 @@ var init_task_executor = __esm({
       /**
        * 处理进度流（异步任务）
        */
-      async processProgressStream(taskId, progressStream, result, storeToMinio, storageConfig, userId, modelName, provider13) {
+      async processProgressStream(taskId, progressStream, result, storeToMinio, storageConfig, userId, modelName, provider) {
         try {
           let resultProvider = result.metadata?.provider;
           if (!resultProvider && modelName) {
             try {
-              const modelProvider = providerFactory.getProviderForModel(modelName, provider13);
+              const modelProvider = providerFactory.getProviderForModel(modelName, provider);
               if (modelProvider && typeof modelProvider.provider !== "undefined") {
                 resultProvider = modelProvider.provider;
                 console.log(`[TaskExecutor] \u4E3A\u6A21\u578B "${modelName}" \u81EA\u52A8\u786E\u5B9A provider: ${resultProvider}`);
@@ -26454,7 +26027,7 @@ var init_task_executor = __esm({
               let currentProvider = finalResult.metadata?.provider;
               if (!currentProvider && modelName) {
                 try {
-                  const modelProvider = providerFactory.getProviderForModel(modelName, provider13);
+                  const modelProvider = providerFactory.getProviderForModel(modelName, provider);
                   if (modelProvider && typeof modelProvider.provider !== "undefined") {
                     currentProvider = modelProvider.provider;
                   }
@@ -26664,7 +26237,7 @@ var init_task_executor = __esm({
       /**
        * 处理任务结果
        */
-      async processResult(taskId, result, storeToMinio, storageConfig, userId, modelName, provider13) {
+      async processResult(taskId, result, storeToMinio, storageConfig, userId, modelName, provider) {
         try {
           let mediaUrls = result.mediaUrls || [];
           let storageInfo;
@@ -26695,6 +26268,7 @@ var init_task_executor = __esm({
               image: "{userId}/graph/{timestamp}-{randomId}.{ext}",
               video: "{userId}/video/{timestamp}-{randomId}.{ext}",
               audio: "{userId}/audio/{timestamp}-{randomId}.{ext}",
+              music: "{userId}/music/{timestamp}-{randomId}.{ext}",
               text: "{userId}/text/{timestamp}-{randomId}.{ext}",
               writing: "{userId}/writing/{timestamp}-{randomId}.{ext}",
               outlines: "{userId}/outlines/{timestamp}-{randomId}.{ext}",
@@ -26720,7 +26294,7 @@ var init_task_executor = __esm({
             });
             const keys = storageResults.map((r) => r.key);
             const bucket = storageResults[0].bucket;
-            const proxyType = taskType === "video" ? "video" : taskType === "audio" ? "audio" : taskType === "image" ? "graph" : "graph";
+            const proxyType = taskType === "video" ? "video" : taskType === "audio" ? "audio" : taskType === "music" ? "music" : taskType === "image" ? "graph" : "graph";
             const proxyBasePath = `/api/v1/media/${proxyType}/${taskId}`;
             storageInfo = {
               keys,
@@ -26759,7 +26333,7 @@ var init_task_executor = __esm({
               if (taskMetadata.provider && taskMetadata.provider !== "unknown") return taskMetadata.provider;
               if (modelName) {
                 try {
-                  const modelProvider = providerFactory.getProviderForModel(modelName, provider13);
+                  const modelProvider = providerFactory.getProviderForModel(modelName, provider);
                   if (modelProvider && typeof modelProvider.provider !== "undefined") {
                     const autoProvider = modelProvider.provider;
                     console.log(`[TaskExecutor] \u4E3A\u6A21\u578B "${modelName}" \u81EA\u52A8\u786E\u5B9A provider: ${autoProvider}`);
@@ -26809,7 +26383,7 @@ var init_task_executor = __esm({
                 outputTokens: Number(usageMetadata.usage?.completion_tokens ?? usageMetadata.usage?.output_tokens ?? 0),
                 totalTokens: Number(usageMetadata.usage?.total_tokens ?? 0),
                 imageCount: scope === "graph" ? mediaCount : 0,
-                audioSeconds: scope === "audio" ? duration : 0,
+                audioSeconds: scope === "audio" || scope === "music" ? duration : 0,
                 videoSeconds: scope === "video" ? duration : 0,
                 requestCount: 1,
                 providerCostUsd: costUsd
@@ -26825,7 +26399,7 @@ var init_task_executor = __esm({
           console.error("[TaskExecutor] \u274C \u5904\u7406\u7ED3\u679C\u5931\u8D25", {
             taskId,
             modelName,
-            provider: provider13 || "auto",
+            provider: provider || "auto",
             error: error instanceof Error ? {
               name: error.name,
               message: error.message,
@@ -26906,39 +26480,10 @@ var init_task_executor = __esm({
        * 与 text 路由逻辑一致：使用模型文件的 generate() 函数，内部自动选择 provider
        * 如果默认 provider 不支持该模型，会自动选择支持的 provider
        */
-      async callModelGenerate(modelName, params, provider13) {
-        try {
-          const taskParams = { ...params, enableProgress: true };
-          return await runByModelKeyAnyScope(modelName, taskParams, { providerOverride: provider13 });
-        } catch (registryError) {
-          console.warn(
-            `[TaskExecutor] \u672A\u5728 registry \u4E2D\u627E\u5230\u6A21\u578B ${modelName}\uFF0C\u4F7F\u7528\u76F4\u63A5 provider \u8C03\u7528:`,
-            registryError instanceof Error ? registryError.message : String(registryError)
-          );
-        }
-        const modelProvider = providerFactory.getProviderForModel(modelName, provider13);
-        const generateParams = {
-          prompt: params.prompt || params.text || "",
-          parameters: {
-            voice_setting: params.voice_setting,
-            audio_setting: params.audio_setting,
-            pronunciation_dict: params.pronunciation_dict,
-            timbre_weights: params.timbre_weights,
-            stream: params.stream,
-            stream_options: params.stream_options,
-            language_boost: params.language_boost,
-            output_format: params.output_format,
-            voice_modify: params.voice_modify,
-            seconds: params.seconds,
-            size: params.size,
-            input_reference: params.input_reference,
-            character_url: params.character_url,
-            character_timestamps: params.character_timestamps
-          },
-          enableProgress: true,
-          outputFormat: "json"
-        };
-        return await modelProvider.generate(modelName, generateParams);
+      /** 供 Task v2（如 scope=text 同步执行）复用，与异步任务内调用路径一致 */
+      async callModelGenerate(modelName, params, provider) {
+        const taskParams = { ...params, enableProgress: true };
+        return await runByModelKeyAnyScope(modelName, taskParams, { providerOverride: provider });
       }
       /**
        * 获取任务管理器实例
@@ -26958,6 +26503,1382 @@ var init_task_executor = __esm({
         return value;
       }
     });
+  }
+});
+
+// src/routes/graph.ts
+var graph_exports = {};
+__export(graph_exports, {
+  default: () => graph_default
+});
+function isGraphModelSupported(modelName) {
+  return findEnabledModel({ modelKey: modelName, scope: "graph" }) !== null;
+}
+var import_express3, SUPPORTED_MODELS, router3, graph_default;
+var init_graph2 = __esm({
+  "src/routes/graph.ts"() {
+    "use strict";
+    import_express3 = require("express");
+    init_task_executor();
+    init_graph();
+    init_graph_model_routing();
+    init_billing_service();
+    init_provider_model_catalog();
+    SUPPORTED_MODELS = listEnabledModelKeysByScope("graph");
+    router3 = (0, import_express3.Router)();
+    router3.get("/models", (_req, res) => {
+      const models = listEnabledModelKeysByScope("graph").map((modelName) => ({ name: modelName }));
+      res.json({ models });
+    });
+    router3.get("/getformOptions", (req, res) => {
+      try {
+        const { photograph, design, painting, type, lang } = req.query;
+        const language = lang || "zh";
+        if (language !== "zh" && language !== "en") {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid language parameter",
+            message: 'lang must be "zh" or "en"'
+          });
+        }
+        const hasPhotograph = "photograph" in req.query;
+        const hasDesign = "design" in req.query;
+        const hasPainting = "painting" in req.query;
+        let graphType = null;
+        if (hasPhotograph) {
+          graphType = "photograph";
+        } else if (hasDesign) {
+          graphType = "design";
+        } else if (hasPainting) {
+          graphType = "painting";
+        }
+        if (!graphType) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing type parameter",
+            message: "Please specify one of: photograph, design, painting"
+          });
+        }
+        let subType = type;
+        if (!subType) {
+          const typeOptions = getGraphTypeOptions(graphType);
+          if (typeOptions.length > 0) {
+            subType = typeOptions[0].value;
+          } else {
+            return res.status(400).json({
+              success: false,
+              error: "Missing type parameter",
+              message: `Please specify a type for ${graphType}`
+            });
+          }
+        }
+        const formOptions = getFormOptionsForType(graphType, subType, language);
+        if (!formOptions) {
+          return res.status(404).json({
+            success: false,
+            error: "Form options not found",
+            message: `Form options for ${graphType}/${subType} are not available`
+          });
+        }
+        return res.json({
+          success: true,
+          data: {
+            graphType,
+            type: subType,
+            language,
+            options: formOptions
+          }
+        });
+      } catch (error) {
+        console.error("[Graph Route] \u83B7\u53D6\u8868\u5355\u9009\u9879\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: "Failed to get form options",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router3.post("/photograph", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header",
+            message: "User authentication required"
+          });
+        }
+        const params = req.body;
+        if (!params.type || !params.prompt) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required parameters",
+            message: "type and prompt are required"
+          });
+        }
+        const typeOptions = getGraphTypeOptions("photograph");
+        const validTypes = typeOptions.map((opt) => opt.value);
+        if (!validTypes.includes(params.type)) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid type",
+            message: `Type "${params.type}" is not supported. Valid types: ${validTypes.join(", ")}`
+          });
+        }
+        const resolvedPhotograph = await resolveGraphModel("photograph", params.type, req.query.provider);
+        const rProvider = resolvedPhotograph.provider;
+        const rModel = resolvedPhotograph.modelName;
+        const balanceCheck = await BillingService.checkBalance({
+          userId,
+          provider: rProvider,
+          modelKey: rModel,
+          scope: "graph",
+          estimatedImageCount: 1
+        });
+        if (!balanceCheck.allowed) {
+          return res.status(402).json({
+            success: false,
+            code: "INSUFFICIENT_BALANCE",
+            message: `\u4F59\u989D\u4E0D\u8DB3\uFF0C\u672C\u6B21\u9884\u8BA1\u6D88\u8017\u7EA6 ${balanceCheck.estimatedTokens} MXM-TOKEN\uFF0C\u5F53\u524D\u4F59\u989D ${balanceCheck.currentBalance}`
+          });
+        }
+        const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio !== void 0 ? req.query.storeToMinio === "true" : true;
+        const storageConfig = {
+          bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
+          pathTemplate: "{userId}/graph/photograph/{timestamp}-{randomId}.{ext}"
+        };
+        if (req.body.storageConfig) {
+          Object.assign(storageConfig, req.body.storageConfig);
+        }
+        const taskManager2 = taskExecutor.getTaskManager();
+        const createResponse = await taskManager2.createTask({
+          type: "graph",
+          model: "graph-photograph",
+          provider: req.query.provider,
+          params: {
+            taskType: "generate",
+            graphType: "photograph",
+            ...params
+          },
+          userId,
+          storeToMinio,
+          storageConfig
+        });
+        taskExecutor.executeTask({
+          taskId: createResponse.taskId,
+          modelName: "graph-photograph",
+          provider: req.query.provider,
+          params: {
+            taskType: "generate",
+            graphType: "photograph",
+            ...params
+          },
+          userId,
+          storeToMinio,
+          storageConfig
+        }).catch((error) => {
+          console.error(`[Graph Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
+        });
+        return res.json({
+          success: true,
+          data: {
+            taskId: createResponse.taskId,
+            status: createResponse.status,
+            createdAt: createResponse.createdAt
+          }
+        });
+      } catch (error) {
+        console.error("[Graph Route] \u6444\u5F71\u63A5\u53E3\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: "Task creation failed",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router3.post("/design", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header",
+            message: "User authentication required"
+          });
+        }
+        const params = req.body;
+        if (!params.type || !params.prompt) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required parameters",
+            message: "type and prompt are required"
+          });
+        }
+        const typeOptions = getGraphTypeOptions("design");
+        const validTypes = typeOptions.map((opt) => opt.value);
+        if (!validTypes.includes(params.type)) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid type",
+            message: `Type "${params.type}" is not supported. Valid types: ${validTypes.join(", ")}`
+          });
+        }
+        const resolvedDesign = await resolveGraphModel("design", params.type, req.query.provider);
+        const rProviderD = resolvedDesign.provider;
+        const rModelD = resolvedDesign.modelName;
+        const balanceCheckD = await BillingService.checkBalance({
+          userId,
+          provider: rProviderD,
+          modelKey: rModelD,
+          scope: "graph",
+          estimatedImageCount: 1
+        });
+        if (!balanceCheckD.allowed) {
+          return res.status(402).json({
+            success: false,
+            code: "INSUFFICIENT_BALANCE",
+            message: `\u4F59\u989D\u4E0D\u8DB3\uFF0C\u672C\u6B21\u9884\u8BA1\u6D88\u8017\u7EA6 ${balanceCheckD.estimatedTokens} MXM-TOKEN\uFF0C\u5F53\u524D\u4F59\u989D ${balanceCheckD.currentBalance}`
+          });
+        }
+        const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio !== void 0 ? req.query.storeToMinio === "true" : true;
+        const storageConfig = {
+          bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
+          pathTemplate: "{userId}/graph/design/{timestamp}-{randomId}.{ext}"
+        };
+        if (req.body.storageConfig) {
+          Object.assign(storageConfig, req.body.storageConfig);
+        }
+        const taskManager2 = taskExecutor.getTaskManager();
+        const createResponse = await taskManager2.createTask({
+          type: "graph",
+          model: "graph-design",
+          provider: req.query.provider,
+          params: {
+            taskType: "generate",
+            graphType: "design",
+            ...params
+          },
+          userId,
+          storeToMinio,
+          storageConfig
+        });
+        taskExecutor.executeTask({
+          taskId: createResponse.taskId,
+          modelName: "graph-design",
+          provider: req.query.provider,
+          params: {
+            taskType: "generate",
+            graphType: "design",
+            ...params
+          },
+          userId,
+          storeToMinio,
+          storageConfig
+        }).catch((error) => {
+          console.error(`[Graph Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
+        });
+        return res.json({
+          success: true,
+          data: {
+            taskId: createResponse.taskId,
+            status: createResponse.status,
+            createdAt: createResponse.createdAt
+          }
+        });
+      } catch (error) {
+        console.error("[Graph Route] \u8BBE\u8BA1\u63A5\u53E3\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: "Task creation failed",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router3.post("/painting", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header",
+            message: "User authentication required"
+          });
+        }
+        const params = req.body;
+        if (!params.type || !params.prompt) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required parameters",
+            message: "type and prompt are required"
+          });
+        }
+        const typeOptions = getGraphTypeOptions("painting");
+        const validTypes = typeOptions.map((opt) => opt.value);
+        if (!validTypes.includes(params.type)) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid type",
+            message: `Type "${params.type}" is not supported. Valid types: ${validTypes.join(", ")}`
+          });
+        }
+        const resolvedPainting = await resolveGraphModel("painting", params.type, req.query.provider);
+        const rProviderP = resolvedPainting.provider;
+        const rModelP = resolvedPainting.modelName;
+        const balanceCheckP = await BillingService.checkBalance({
+          userId,
+          provider: rProviderP,
+          modelKey: rModelP,
+          scope: "graph",
+          estimatedImageCount: 1
+        });
+        if (!balanceCheckP.allowed) {
+          return res.status(402).json({
+            success: false,
+            code: "INSUFFICIENT_BALANCE",
+            message: `\u4F59\u989D\u4E0D\u8DB3\uFF0C\u672C\u6B21\u9884\u8BA1\u6D88\u8017\u7EA6 ${balanceCheckP.estimatedTokens} MXM-TOKEN\uFF0C\u5F53\u524D\u4F59\u989D ${balanceCheckP.currentBalance}`
+          });
+        }
+        const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio !== void 0 ? req.query.storeToMinio === "true" : true;
+        const storageConfig = {
+          bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
+          pathTemplate: "{userId}/graph/painting/{timestamp}-{randomId}.{ext}"
+        };
+        if (req.body.storageConfig) {
+          Object.assign(storageConfig, req.body.storageConfig);
+        }
+        const taskManager2 = taskExecutor.getTaskManager();
+        const createResponse = await taskManager2.createTask({
+          type: "graph",
+          model: "graph-painting",
+          provider: req.query.provider,
+          params: {
+            taskType: "generate",
+            graphType: "painting",
+            ...params
+          },
+          userId,
+          storeToMinio,
+          storageConfig
+        });
+        taskExecutor.executeTask({
+          taskId: createResponse.taskId,
+          modelName: "graph-painting",
+          provider: req.query.provider,
+          params: {
+            taskType: "generate",
+            graphType: "painting",
+            ...params
+          },
+          userId,
+          storeToMinio,
+          storageConfig
+        }).catch((error) => {
+          console.error(`[Graph Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
+        });
+        return res.json({
+          success: true,
+          data: {
+            taskId: createResponse.taskId,
+            status: createResponse.status,
+            createdAt: createResponse.createdAt
+          }
+        });
+      } catch (error) {
+        console.error("[Graph Route] \u7ED8\u753B\u63A5\u53E3\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: "Task creation failed",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router3.post("/:modelName", async (req, res) => {
+      try {
+        const { modelName } = req.params;
+        const provider = req.query.provider;
+        if (!isGraphModelSupported(modelName)) {
+          return res.status(404).json({
+            success: false,
+            error: "Model not found",
+            message: `Model "${modelName}" is not available. Available models: ${SUPPORTED_MODELS.join(", ")}`
+          });
+        }
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header",
+            message: "User authentication required"
+          });
+        }
+        const params = req.body;
+        if (!params.prompt) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required parameter",
+            message: "prompt is required"
+          });
+        }
+        const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio === "true";
+        const storageConfig = {
+          bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
+          pathTemplate: "{userId}/graph/{timestamp}-{randomId}.{ext}"
+        };
+        if (req.body.storageConfig) {
+          Object.assign(storageConfig, req.body.storageConfig);
+        }
+        const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports2));
+        const defaultProvider = providerFactory2.getDefaultProvider();
+        console.log(`[Graph Route] \u6A21\u578B: ${modelName}, \u6307\u5B9A provider: ${provider || "(\u672A\u6307\u5B9A\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4: " + defaultProvider + ")"}, \u9ED8\u8BA4 provider: ${defaultProvider}`);
+        const imageParams = ["image", "images", "image_input", "image_urls", "image_base64s", "input_image"];
+        const receivedImageParams = Object.keys(params).filter((k) => imageParams.includes(k));
+        if (receivedImageParams.length > 0) {
+          console.log(`[graph route] \u63A5\u6536\u5230\u56FE\u7247\u53C2\u6570 (${modelName}):`, {
+            params: receivedImageParams,
+            image_urls_count: params.image_urls ? Array.isArray(params.image_urls) ? params.image_urls.length : 1 : 0
+          });
+        }
+        const taskManager2 = taskExecutor.getTaskManager();
+        const createResponse = await taskManager2.createTask({
+          type: "image",
+          model: modelName,
+          provider,
+          params,
+          userId,
+          storeToMinio,
+          storageConfig
+        });
+        taskExecutor.executeTask({
+          taskId: createResponse.taskId,
+          modelName,
+          provider,
+          params,
+          userId,
+          storeToMinio,
+          storageConfig
+        }).catch((error) => {
+          console.error(`[Graph Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
+        });
+        return res.json({
+          success: true,
+          model: modelName,
+          data: {
+            taskId: createResponse.taskId,
+            status: createResponse.status,
+            createdAt: createResponse.createdAt
+          }
+        });
+      } catch (error) {
+        console.error(`[Graph Route] Error creating task for model ${req.params.modelName}:`, error);
+        res.status(500).json({
+          success: false,
+          error: "Task creation failed",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    graph_default = router3;
+  }
+});
+
+// src/routes/audio.ts
+var audio_exports = {};
+__export(audio_exports, {
+  default: () => audio_default
+});
+function isAudioModelSupported(modelName) {
+  return findEnabledModel({ modelKey: modelName, scope: "audio" }) !== null;
+}
+var import_express4, SUPPORTED_MODELS2, router4, audio_default;
+var init_audio = __esm({
+  "src/routes/audio.ts"() {
+    "use strict";
+    import_express4 = require("express");
+    init_task_executor();
+    init_run();
+    init_provider_model_catalog();
+    SUPPORTED_MODELS2 = listEnabledModelKeysByScope("audio");
+    router4 = (0, import_express4.Router)();
+    router4.get("/models", (_req, res) => {
+      const models = listEnabledModelKeysByScope("audio").map((modelName) => ({ name: modelName }));
+      res.json({ models });
+    });
+    router4.post("/:modelName", async (req, res) => {
+      try {
+        const { modelName } = req.params;
+        const provider = req.query.provider;
+        if (!isAudioModelSupported(modelName)) {
+          return res.status(404).json({
+            success: false,
+            error: "Model not found",
+            message: `Model "${modelName}" is not available. Available models: ${SUPPORTED_MODELS2.join(", ")}`
+          });
+        }
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header",
+            message: "User authentication required"
+          });
+        }
+        const params = req.body;
+        console.log(`[Audio Route] \u63A5\u6536\u5230\u7684\u8BF7\u6C42\u4F53:`, {
+          hasBody: !!req.body,
+          bodyType: typeof req.body,
+          bodyKeys: req.body ? Object.keys(req.body) : [],
+          text: req.body?.text,
+          prompt: req.body?.prompt,
+          contentType: req.headers["content-type"],
+          method: req.method
+        });
+        if (modelName === "minimax-voice-cloning") {
+          if (!params.audio_url && !params.audioUrl) {
+            return res.status(400).json({
+              success: false,
+              error: "Missing required parameter",
+              message: "audio_url is required for voice cloning"
+            });
+          }
+        } else {
+          if (!params.text && !params.prompt) {
+            return res.status(400).json({
+              success: false,
+              error: "Missing required parameter",
+              message: "text or prompt is required"
+            });
+          }
+        }
+        const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio === "true";
+        const storageConfig = {
+          bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
+          pathTemplate: "{userId}/audio/{timestamp}-{randomId}.{ext}"
+        };
+        if (req.body.storageConfig) {
+          Object.assign(storageConfig, req.body.storageConfig);
+        }
+        const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports2));
+        const defaultProvider = providerFactory2.getDefaultProvider();
+        console.log(`[Audio Route] \u6A21\u578B: ${modelName}, \u6307\u5B9A provider: ${provider || "(\u672A\u6307\u5B9A\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4: " + defaultProvider + ")"}, \u9ED8\u8BA4 provider: ${defaultProvider}`);
+        const useSyncStream = !storeToMinio && (params.stream === true || req.query.stream === "true" || req.query.sync === "true");
+        if (useSyncStream) {
+          console.log(`[Audio Route] \u540C\u6B65\u6D41\u5F0F\uFF08\u4E0D\u5B58\u50A8\uFF09\uFF0C\u76F4\u63A5\u8FD4\u56DE\u6D41\u6570\u636E`);
+          try {
+            res.setHeader("Content-Type", "text/event-stream");
+            res.setHeader("Cache-Control", "no-cache");
+            res.setHeader("Connection", "keep-alive");
+            res.setHeader("X-Accel-Buffering", "no");
+            const result = await runByModelKey(
+              "audio",
+              modelName,
+              {
+                prompt: params.text || params.prompt,
+                voice_setting: params.voice_setting,
+                audio_setting: params.audio_setting,
+                pronunciation_dict: params.pronunciation_dict,
+                timbre_weights: params.timbre_weights,
+                stream: true,
+                stream_options: params.stream_options,
+                language_boost: params.language_boost,
+                output_format: params.output_format || "url",
+                voice_modify: params.voice_modify
+              },
+              { providerOverride: provider }
+            );
+            if (result.stream) {
+              for await (const chunk of result.stream) {
+                res.write(`data: ${JSON.stringify(chunk)}
+
+`);
+                if (typeof res.flush === "function") {
+                  res.flush();
+                }
+              }
+              res.write("data: [DONE]\n\n");
+              res.end();
+            } else if (result.mediaUrls && result.mediaUrls.length > 0) {
+              res.write(`data: ${JSON.stringify({
+                status: "completed",
+                mediaUrls: result.mediaUrls,
+                metadata: result.metadata
+              })}
+
+`);
+              res.write("data: [DONE]\n\n");
+              res.end();
+            } else {
+              throw new Error("\u672A\u8FD4\u56DE\u97F3\u9891\u6570\u636E");
+            }
+          } catch (error) {
+            console.error(`[Audio Route] \u540C\u6B65\u6A21\u578B\u751F\u6210\u5931\u8D25:`, error);
+            res.write(`data: ${JSON.stringify({
+              status: "error",
+              error: error instanceof Error ? error.message : String(error)
+            })}
+
+`);
+            res.end();
+          }
+          return;
+        }
+        console.log(
+          `[Audio Route] \u4F7F\u7528\u4EFB\u52A1\u7CFB\u7EDF\u6267\u884C\uFF08\u6A21\u578B: ${modelName}, storeToMinio: ${storeToMinio})`
+        );
+        const taskManager2 = taskExecutor.getTaskManager();
+        const createResponse = await taskManager2.createTask({
+          type: "audio",
+          model: modelName,
+          provider,
+          params,
+          userId,
+          storeToMinio,
+          storageConfig
+        });
+        taskExecutor.executeTask({
+          taskId: createResponse.taskId,
+          modelName,
+          provider,
+          params,
+          userId,
+          storeToMinio,
+          storageConfig
+        }).catch((error) => {
+          console.error(`[Audio Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
+        });
+        return res.json({
+          success: true,
+          model: modelName,
+          data: {
+            taskId: createResponse.taskId,
+            status: createResponse.status,
+            createdAt: createResponse.createdAt
+          }
+        });
+      } catch (error) {
+        console.error(`[Audio Route] Error creating task for model ${req.params.modelName}:`, error);
+        res.status(500).json({
+          success: false,
+          error: "Task creation failed",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    audio_default = router4;
+  }
+});
+
+// src/clientServer/graph/utils/image-processor.ts
+async function processReferenceImage(inputReference, targetSize) {
+  if (!inputReference || typeof inputReference !== "string") {
+    throw new Error("input_reference \u5FC5\u987B\u662F base64 \u5B57\u7B26\u4E32");
+  }
+  const base64Match = inputReference.match(/^data:image\/(\w+);base64,(.+)$/);
+  if (!base64Match) {
+    throw new Error(
+      "input_reference \u683C\u5F0F\u9519\u8BEF\uFF0C\u5FC5\u987B\u662F data:image/xxx;base64,... \u683C\u5F0F"
+    );
+  }
+  const mimeType = base64Match[1];
+  const base64Data = base64Match[2];
+  const imageBuffer = Buffer.from(base64Data, "base64");
+  const originalSizeKB = imageBuffer.length / 1024;
+  const [targetWidth, targetHeight] = targetSize.split("x").map(Number);
+  if (!targetWidth || !targetHeight) {
+    throw new Error(
+      `targetSize \u683C\u5F0F\u9519\u8BEF\uFF0C\u5E94\u4E3A "WIDTHxHEIGHT"\uFF0C\u5982 "720x1280"`
+    );
+  }
+  let sharp2;
+  try {
+    sharp2 = require("sharp");
+  } catch (error) {
+    console.warn("[ImageProcessor] sharp \u672A\u5B89\u88C5\uFF0C\u65E0\u6CD5\u8C03\u6574\u56FE\u7247\u5C3A\u5BF8\u548C\u538B\u7F29");
+    console.warn("   \u5EFA\u8BAE\u5B89\u88C5: npm install sharp \u6216 pnpm add sharp");
+    return {
+      base64: inputReference,
+      targetSize,
+      resized: false,
+      compressed: false,
+      originalSizeKB,
+      finalSizeKB: originalSizeKB
+    };
+  }
+  try {
+    const metadata = await sharp2(imageBuffer).metadata();
+    const originalSize = `${metadata.width}x${metadata.height}`;
+    let sharpInstance = sharp2(imageBuffer);
+    const isPng = mimeType === "png";
+    const isJpeg = mimeType === "jpeg" || mimeType === "jpg";
+    if (metadata.width === targetWidth && metadata.height === targetHeight) {
+      if (isPng) {
+        sharpInstance = sharpInstance.png({ quality: 85, compressionLevel: 9 });
+      } else if (isJpeg) {
+        sharpInstance = sharpInstance.jpeg({ quality: 85, mozjpeg: true });
+      } else {
+        sharpInstance = sharpInstance.jpeg({ quality: 85, mozjpeg: true });
+      }
+      const compressedBuffer = await sharpInstance.toBuffer();
+      const finalSizeKB2 = compressedBuffer.length / 1024;
+      const compressedBase64 = compressedBuffer.toString("base64");
+      const finalMimeType2 = isPng ? "png" : "jpeg";
+      const finalBase642 = `data:image/${finalMimeType2};base64,${compressedBase64}`;
+      console.log(
+        `[ImageProcessor] \u56FE\u7247\u5C3A\u5BF8\u5DF2\u5339\u914D (${originalSize})\uFF0C\u4EC5\u538B\u7F29: ${originalSizeKB.toFixed(
+          2
+        )} KB \u2192 ${finalSizeKB2.toFixed(2)} KB`
+      );
+      return {
+        base64: finalBase642,
+        originalSize,
+        targetSize,
+        resized: false,
+        compressed: true,
+        originalSizeKB,
+        finalSizeKB: finalSizeKB2
+      };
+    }
+    console.log(
+      `[ImageProcessor] \u56FE\u7247\u5C3A\u5BF8\u4E0D\u5339\u914D: ${originalSize} \u2260 ${targetSize}\uFF0C\u6B63\u5728\u8C03\u6574\u5E76\u538B\u7F29...`
+    );
+    sharpInstance = sharp2(imageBuffer).resize(targetWidth, targetHeight, {
+      fit: "cover",
+      // 保持宽高比，裁剪多余部分
+      position: "center"
+      // 居中裁剪
+    });
+    if (isPng) {
+      sharpInstance = sharpInstance.png({ quality: 85, compressionLevel: 9 });
+    } else if (isJpeg) {
+      sharpInstance = sharpInstance.jpeg({ quality: 85, mozjpeg: true });
+    } else {
+      sharpInstance = sharpInstance.jpeg({ quality: 85, mozjpeg: true });
+    }
+    const resizedBuffer = await sharpInstance.toBuffer();
+    const finalSizeKB = resizedBuffer.length / 1024;
+    const resizedBase64 = resizedBuffer.toString("base64");
+    const finalMimeType = isPng ? "png" : "jpeg";
+    const finalBase64 = `data:image/${finalMimeType};base64,${resizedBase64}`;
+    console.log(
+      `[ImageProcessor] \u56FE\u7247\u5DF2\u8C03\u6574\u5E76\u538B\u7F29: ${originalSize} \u2192 ${targetSize}, ${originalSizeKB.toFixed(
+        2
+      )} KB \u2192 ${finalSizeKB.toFixed(2)} KB`
+    );
+    return {
+      base64: finalBase64,
+      originalSize,
+      targetSize,
+      resized: true,
+      compressed: true,
+      originalSizeKB,
+      finalSizeKB
+    };
+  } catch (error) {
+    console.error(`[ImageProcessor] \u5904\u7406\u56FE\u7247\u5931\u8D25:`, error);
+    console.warn(
+      "[ImageProcessor] \u5C06\u4F7F\u7528\u539F\u56FE\uFF0C\u4F46\u53C2\u8003\u56FE\u53EF\u80FD\u4E0D\u4F1A\u751F\u6548\uFF08\u5C3A\u5BF8\u4E0D\u5339\u914D\uFF09"
+    );
+    return {
+      base64: inputReference,
+      targetSize,
+      resized: false,
+      compressed: false,
+      originalSizeKB,
+      finalSizeKB: originalSizeKB
+    };
+  }
+}
+var init_image_processor = __esm({
+  "src/clientServer/graph/utils/image-processor.ts"() {
+    "use strict";
+  }
+});
+
+// src/clientServer/video/formOptions.ts
+function secondsOptionsByMode(mode) {
+  if (mode === "sora-2-deer") {
+    return [
+      { value: "10", label: "10 \u79D2", labelEn: "10 seconds" },
+      { value: "15", label: "15 \u79D2", labelEn: "15 seconds" }
+    ];
+  }
+  return [
+    { value: "4", label: "4 \u79D2", labelEn: "4 seconds" },
+    { value: "8", label: "8 \u79D2", labelEn: "8 seconds" },
+    { value: "12", label: "12 \u79D2", labelEn: "12 seconds" }
+  ];
+}
+function getVideoFormOptions(language = "zh", mode = "sora-2") {
+  const options = secondsOptionsByMode(mode);
+  if (language === "en") {
+    return {
+      seconds: options.map((opt) => ({
+        value: opt.value,
+        label: opt.labelEn ?? opt.label
+      }))
+    };
+  }
+  return {
+    seconds: [...options],
+    _metadata: { mode }
+  };
+}
+var init_formOptions = __esm({
+  "src/clientServer/video/formOptions.ts"() {
+    "use strict";
+  }
+});
+
+// src/core/video/videoconfigs/formOptions.ts
+var init_formOptions2 = __esm({
+  "src/core/video/videoconfigs/formOptions.ts"() {
+    "use strict";
+    init_formOptions();
+  }
+});
+
+// src/core/video/videoconfigs/index.ts
+function getVideoBusinessMode() {
+  const m = (process.env.CGI_VIDEO_MODE || "sora-2").trim();
+  return m === "sora-2-deer" ? "sora-2-deer" : "sora-2";
+}
+function normalizeSeconds(seconds) {
+  const n = typeof seconds === "string" ? parseInt(seconds, 10) : Number(seconds);
+  if (VIDEO_BUSINESS_MODEL === "sora-2-deer") {
+    if (n === 10) return 10;
+    return 15;
+  }
+  if (n === 4) return 4;
+  if (n === 12) return 12;
+  return 8;
+}
+var VIDEO_BUSINESS_MODEL, secondsToModel;
+var init_videoconfigs = __esm({
+  "src/core/video/videoconfigs/index.ts"() {
+    "use strict";
+    init_formOptions2();
+    VIDEO_BUSINESS_MODEL = getVideoBusinessMode();
+    secondsToModel = new Proxy(
+      {},
+      {
+        get: () => VIDEO_BUSINESS_MODEL
+      }
+    );
+  }
+});
+
+// src/core/video/video-service.ts
+function isBatchBody(body) {
+  return Array.isArray(body.chunks) && body.chunks.length > 0;
+}
+function getChunkPrompt(chunk) {
+  const s = chunk.prompt?.trim();
+  if (s) return s;
+  return chunkToPromptString(chunk);
+}
+function getBestSize(orientation) {
+  return orientation === "portrait" ? "720x1280" : "1280x720";
+}
+async function generate(body, options) {
+  const { userId, provider } = options;
+  const taskManager2 = taskExecutor.getTaskManager();
+  const storageConfig = {
+    bucket: body.storageConfig?.bucket ?? process.env.CGI_STORAGE_BUCKET ?? "user-media",
+    pathTemplate: body.storageConfig?.pathTemplate ?? "{userId}/video/{timestamp}-{randomId}.{ext}"
+  };
+  const storeToMinio = body.storeToMinio !== void 0 ? body.storeToMinio : false;
+  if (isBatchBody(body)) {
+    const chunks = body.chunks;
+    const baseLabel = (body.label?.trim() || "\u5206\u955C\u6210\u7247").replace(/\d+$/, "").trim() || "\u5206\u955C\u6210\u7247";
+    for (let i = 0; i < chunks.length; i++) {
+      const c = chunks[i];
+      if (!c || typeof c !== "object") {
+        throw new Error(`chunks[${i}] \u65E0\u6548`);
+      }
+      const prompt = getChunkPrompt(c);
+      if (!prompt) {
+        throw new Error(`chunks[${i}] \u7F3A\u5C11 prompt \u6216 video_description`);
+      }
+      normalizeSeconds(c.chunk_seconds);
+    }
+    const parentTask = await taskManager2.createTask({
+      type: "video-batch-parent",
+      model: "video-batch",
+      provider,
+      params: {
+        metadata: {
+          label: baseLabel,
+          childTaskIds: []
+          // 稍后回写
+        }
+      },
+      userId,
+      storeToMinio: false,
+      storageConfig
+    });
+    const parentTaskId = parentTask.taskId;
+    const batchId = parentTaskId;
+    const childTaskIds = [];
+    const tasksResult = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const sec = normalizeSeconds(chunk.chunk_seconds);
+      const prompt = getChunkPrompt(chunk);
+      const secondsStr2 = String(sec);
+      const childLabel = `${baseLabel}${i + 1}`;
+      const size2 = getBestSize(body.orientation);
+      const childParams = {
+        prompt,
+        seconds: secondsStr2,
+        size: size2,
+        input_reference: chunk.input_reference ?? chunk.reference_image_url,
+        label: childLabel,
+        metadata: {
+          label: childLabel,
+          parentTaskId,
+          chunkIndex: i,
+          batchId
+        }
+      };
+      const childTask = await taskManager2.createTask({
+        type: "video",
+        model: VIDEO_BUSINESS_MODEL,
+        provider,
+        params: childParams,
+        userId,
+        storeToMinio,
+        storageConfig
+      });
+      childTaskIds.push(childTask.taskId);
+      tasksResult.push({ taskId: childTask.taskId, chunkIndex: i, label: childLabel });
+    }
+    const storage = taskManager2.storage;
+    if (storage) {
+      const parent = await taskManager2.getTask(parentTaskId);
+      const existingMeta = parent?.task?.metadata ?? {};
+      await storage.update(parentTaskId, {
+        metadata: {
+          ...existingMeta,
+          label: baseLabel,
+          childTaskIds
+        }
+      });
+    }
+    for (let i = 0; i < childTaskIds.length; i++) {
+      const chunk = chunks[i];
+      const sec = normalizeSeconds(chunk.chunk_seconds);
+      const prompt = getChunkPrompt(chunk);
+      const secondsStr2 = String(sec);
+      const size2 = getBestSize(body.orientation);
+      const execParams = {
+        prompt,
+        seconds: secondsStr2,
+        size: size2,
+        input_reference: chunk.input_reference ?? chunk.reference_image_url
+      };
+      console.log("[VideoService] \u5B50\u4EFB\u52A1 executeTask \u53C2\u6570:", {
+        chunkIndex: i,
+        promptLength: prompt.length,
+        promptPreview: prompt.slice(0, 80) + (prompt.length > 80 ? "..." : ""),
+        seconds: execParams.seconds,
+        size: execParams.size,
+        hasInputReference: !!execParams.input_reference
+      });
+      taskExecutor.executeTask({
+        taskId: childTaskIds[i],
+        modelName: VIDEO_BUSINESS_MODEL,
+        provider,
+        params: execParams,
+        userId,
+        storeToMinio,
+        storageConfig
+      }).catch((err) => {
+        console.error(`[VideoService] \u5B50\u4EFB\u52A1 ${childTaskIds[i]} \u6267\u884C\u5931\u8D25:`, err);
+      });
+    }
+    return {
+      parentTaskId,
+      batchId,
+      tasks: tasksResult
+    };
+  }
+  const one = body;
+  if (!one.prompt || one.prompt.trim() === "") {
+    throw new Error("\u7F3A\u5C11 prompt");
+  }
+  const chunk_seconds = normalizeSeconds(one.chunk_seconds);
+  const secondsStr = String(chunk_seconds);
+  const inputRef = one.input_reference ?? one.reference_image_url;
+  const size = getBestSize(one.orientation);
+  const createRes = await taskManager2.createTask({
+    type: "video",
+    model: VIDEO_BUSINESS_MODEL,
+    provider,
+    params: {
+      prompt: one.prompt.trim(),
+      seconds: secondsStr,
+      size,
+      input_reference: inputRef,
+      label: one.label,
+      metadata: one.label ? { label: one.label } : void 0
+    },
+    userId,
+    storeToMinio,
+    storageConfig
+  });
+  taskExecutor.executeTask({
+    taskId: createRes.taskId,
+    modelName: VIDEO_BUSINESS_MODEL,
+    provider,
+    params: {
+      prompt: one.prompt.trim(),
+      seconds: secondsStr,
+      size,
+      input_reference: inputRef
+    },
+    userId,
+    storeToMinio,
+    storageConfig
+  }).catch((err) => {
+    console.error(`[VideoService] \u5355\u6BB5\u4EFB\u52A1 ${createRes.taskId} \u6267\u884C\u5931\u8D25:`, err);
+  });
+  return {
+    taskId: createRes.taskId,
+    status: createRes.status,
+    createdAt: createRes.createdAt
+  };
+}
+var init_video_service = __esm({
+  "src/core/video/video-service.ts"() {
+    "use strict";
+    init_task_executor();
+    init_videoconfigs();
+    init_storyboard_chunk_utils();
+  }
+});
+
+// src/routes/video.ts
+var video_exports = {};
+__export(video_exports, {
+  default: () => video_default
+});
+function isVideoModelSupported(modelName) {
+  return findEnabledModel({ modelKey: modelName, scope: "video" }) !== null;
+}
+var import_express5, SUPPORTED_MODELS3, router5, video_default;
+var init_video = __esm({
+  "src/routes/video.ts"() {
+    "use strict";
+    import_express5 = require("express");
+    init_task_executor();
+    init_image_processor();
+    init_formOptions();
+    init_video_service();
+    init_provider_model_catalog();
+    SUPPORTED_MODELS3 = listEnabledModelKeysByScope("video");
+    router5 = (0, import_express5.Router)();
+    router5.get("/models", (_req, res) => {
+      const models = listEnabledModelKeysByScope("video").map((modelName) => ({ name: modelName }));
+      res.json({ models });
+    });
+    router5.get("/getformOptions", (req, res) => {
+      const lang = req.query.lang === "en" ? "en" : "zh";
+      const modeParam = req.query.mode;
+      const mode = modeParam === "sora-2-deer" ? "sora-2-deer" : "sora-2";
+      const options = getVideoFormOptions(lang, mode);
+      res.json({ success: true, data: options });
+    });
+    router5.post("/generate", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header",
+            message: "User authentication required"
+          });
+        }
+        const body = req.body;
+        const provider = req.query.provider || void 0;
+        const chunks = body.chunks;
+        console.log("[Video Route] POST /video/generate \u5165\u53C2:", {
+          keys: Object.keys(body),
+          hasChunks: Array.isArray(chunks),
+          chunkCount: Array.isArray(chunks) ? chunks.length : 0,
+          scriptType: body.scriptType,
+          label: body.label,
+          storeToMinio: body.storeToMinio,
+          ...Array.isArray(chunks) && chunks.length > 0 ? {
+            firstChunkKeys: Object.keys(chunks[0] || {}),
+            firstChunkPromptLength: (chunks[0]?.prompt ?? "").length,
+            firstChunkSeconds: chunks[0]?.chunk_seconds,
+            firstChunkHasRef: !!(chunks[0]?.reference_image_url ?? chunks[0]?.input_reference)
+          } : {}
+        });
+        const result = await generate(body, { userId, provider });
+        return res.json({ success: true, data: result });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("[Video Route] POST /video/generate error:", message);
+        return res.status(400).json({
+          success: false,
+          error: "Bad request",
+          message
+        });
+      }
+    });
+    router5.post("/:modelName", async (req, res) => {
+      try {
+        const { modelName } = req.params;
+        const provider = req.query.provider;
+        if (!isVideoModelSupported(modelName)) {
+          return res.status(404).json({
+            success: false,
+            error: "Model not found",
+            message: `Model "${modelName}" is not available. Available models: ${SUPPORTED_MODELS3.join(", ")}`
+          });
+        }
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header",
+            message: "User authentication required"
+          });
+        }
+        const params = req.body;
+        if (modelName !== "runway" && !params.prompt) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required parameter",
+            message: "prompt is required"
+          });
+        }
+        if (modelName === "runway") {
+          if (!params.promptImage && !params.videoUri) {
+            return res.status(400).json({
+              success: false,
+              error: "Missing required parameter",
+              message: "\u5FC5\u987B\u63D0\u4F9B\u4EE5\u4E0B\u53C2\u6570\u4E4B\u4E00\uFF1ApromptImage\uFF08\u56FE\u7247\u8F6C\u89C6\u9891\uFF09\u6216 videoUri\uFF08\u89C6\u9891\u8F6C\u89C6\u9891\uFF09"
+            });
+          }
+        }
+        const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio === "true";
+        console.log(`[Video Route] \u63A5\u6536\u5230\u7684\u53C2\u6570:`);
+        console.log(`   model: ${modelName}`);
+        if (params.prompt) {
+          console.log(`   prompt: ${params.prompt?.substring(0, 50)}...`);
+        }
+        if (modelName !== "runway") {
+          console.log(`   seconds: ${params.seconds} (\u7C7B\u578B: ${typeof params.seconds})`);
+          console.log(`   size: ${params.size}`);
+          let inputRefLog = "\u672A\u63D0\u4F9B";
+          if (params.input_reference) {
+            if (typeof params.input_reference === "string") {
+              const sizeKB = (params.input_reference.length / 1024).toFixed(2);
+              inputRefLog = `\u5DF2\u63D0\u4F9B (${sizeKB} KB base64)`;
+            } else {
+              inputRefLog = "\u5DF2\u63D0\u4F9B (Buffer/File)";
+            }
+          }
+          console.log(`   input_reference: ${inputRefLog}`);
+          if (params.seconds !== void 0) {
+            params.seconds = String(params.seconds);
+          }
+          if (params.input_reference && params.size) {
+            try {
+              console.log(`[Video Route] \u5904\u7406\u53C2\u8003\u56FE\u7247\uFF0C\u76EE\u6807\u5206\u8FA8\u7387: ${params.size}`);
+              const processedImage = await processReferenceImage(
+                params.input_reference,
+                params.size
+              );
+              if (processedImage.resized) {
+                console.log(
+                  `[Video Route] \u53C2\u8003\u56FE\u7247\u5DF2\u8C03\u6574: ${processedImage.originalSize} \u2192 ${processedImage.targetSize}, \u5927\u5C0F: ${processedImage.originalSizeKB.toFixed(2)} KB \u2192 ${processedImage.finalSizeKB.toFixed(2)} KB`
+                );
+              } else if (processedImage.compressed) {
+                console.log(
+                  `[Video Route] \u53C2\u8003\u56FE\u7247\u5DF2\u538B\u7F29: ${processedImage.originalSizeKB.toFixed(2)} KB \u2192 ${processedImage.finalSizeKB.toFixed(2)} KB`
+                );
+              }
+              params.input_reference = processedImage.base64;
+            } catch (error) {
+              console.error(`[Video Route] \u5904\u7406\u53C2\u8003\u56FE\u7247\u5931\u8D25:`, error);
+              console.warn(
+                `[Video Route] \u8B66\u544A: \u53C2\u8003\u56FE\u7247\u5904\u7406\u5931\u8D25\uFF0C\u5C06\u4F7F\u7528\u539F\u56FE\u3002\u5982\u679C\u56FE\u7247\u5C3A\u5BF8\u4E0E\u89C6\u9891\u5206\u8FA8\u7387\u4E0D\u5339\u914D\uFF0C\u53C2\u8003\u56FE\u53EF\u80FD\u4E0D\u4F1A\u751F\u6548\u3002`
+              );
+            }
+          }
+        } else {
+          if (params.promptImage) {
+            const sizeKB = typeof params.promptImage === "string" ? (params.promptImage.length / 1024).toFixed(2) : "unknown";
+            console.log(`   promptImage: \u5DF2\u63D0\u4F9B (${sizeKB} KB)`);
+          }
+          if (params.videoUri) {
+            console.log(`   videoUri: ${params.videoUri}`);
+          }
+          console.log(`   ratio: ${params.ratio || "\u672A\u6307\u5B9A"}`);
+          console.log(`   duration: ${params.duration || "\u672A\u6307\u5B9A"}`);
+        }
+        console.log(`   storeToMinio: ${storeToMinio}`);
+        const storageConfig = {
+          bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
+          pathTemplate: "{userId}/video/{timestamp}-{randomId}.{ext}"
+        };
+        if (req.body.storageConfig) {
+          Object.assign(storageConfig, req.body.storageConfig);
+        }
+        const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports2));
+        const defaultProvider = providerFactory2.getDefaultProvider();
+        console.log(`[Video Route] \u6A21\u578B: ${modelName}, \u6307\u5B9A provider: ${provider || "(\u672A\u6307\u5B9A\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4: " + defaultProvider + ")"}, \u9ED8\u8BA4 provider: ${defaultProvider}`);
+        const taskManager2 = taskExecutor.getTaskManager();
+        const createResponse = await taskManager2.createTask({
+          type: "video",
+          model: modelName,
+          provider,
+          params,
+          userId,
+          storeToMinio,
+          storageConfig
+        });
+        taskExecutor.executeTask({
+          taskId: createResponse.taskId,
+          modelName,
+          provider,
+          params,
+          userId,
+          storeToMinio,
+          storageConfig
+        }).catch((error) => {
+          console.error(`[Video Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
+        });
+        return res.json({
+          success: true,
+          model: modelName,
+          data: {
+            taskId: createResponse.taskId,
+            status: createResponse.status,
+            createdAt: createResponse.createdAt
+          }
+        });
+      } catch (error) {
+        console.error(`[Video Route] Error creating task for model ${req.params.modelName}:`, error);
+        res.status(500).json({
+          success: false,
+          error: "Task creation failed",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    video_default = router5;
+  }
+});
+
+// src/routes/upload.ts
+var upload_exports = {};
+__export(upload_exports, {
+  default: () => upload_default
+});
+var import_express6, import_multer, import_mxmdata22, router6, upload, upload_default;
+var init_upload = __esm({
+  "src/routes/upload.ts"() {
+    "use strict";
+    import_express6 = require("express");
+    import_multer = __toESM(require("multer"));
+    import_mxmdata22 = require("@mxmai/mxmdata");
+    router6 = (0, import_express6.Router)();
+    upload = (0, import_multer.default)({ storage: import_multer.default.memoryStorage() });
+    router6.post("/temp", upload.single("file"), async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({ success: false, error: "Missing x-user-id header" });
+        }
+        const multerReq = req;
+        if (!multerReq.file) {
+          return res.status(400).json({ success: false, error: 'Missing file field "file"' });
+        }
+        const file = multerReq.file;
+        const storageRepo = import_mxmdata22.RepositoryFactory.createStorageRepository();
+        const now = /* @__PURE__ */ new Date();
+        const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(
+          now.getDate()
+        ).padStart(2, "0")}`;
+        const ext = (file.originalname.match(/\.(\w+)$/)?.[1] || "bin").toLowerCase();
+        const randomId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const key = `temp/${userId}/${dateStr}/${randomId}.${ext}`;
+        const bucket = process.env.CGI_STORAGE_BUCKET || "user-media";
+        const uploadResult = await storageRepo.uploadFile(bucket, key, file.buffer, {
+          contentType: file.mimetype || "application/octet-stream",
+          metadata: {
+            userId,
+            mediaType: "temp",
+            originalName: file.originalname
+          }
+        });
+        return res.json({
+          success: true,
+          data: {
+            url: uploadResult.url,
+            key: uploadResult.key,
+            bucket: uploadResult.bucket
+          }
+        });
+      } catch (error) {
+        console.error("[Upload Route] temp upload failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router6.post("/assets", upload.single("file"), async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({ success: false, error: "Missing x-user-id header" });
+        }
+        const multerReq = req;
+        if (!multerReq.file) {
+          return res.status(400).json({ success: false, error: 'Missing file field "file"' });
+        }
+        const file = multerReq.file;
+        const storageRepo = import_mxmdata22.RepositoryFactory.createStorageRepository();
+        const ext = (file.originalname.match(/\.(\w+)$/)?.[1] || "jpg").toLowerCase();
+        const allowExt = ["jpg", "jpeg", "png", "webp", "gif"];
+        const finalExt = allowExt.includes(ext) ? ext : "jpg";
+        const randomId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const key = `${userId}/upload/graph/${randomId}.${finalExt}`;
+        const bucket = process.env.CGI_STORAGE_BUCKET || "user-media";
+        await storageRepo.uploadFile(bucket, key, file.buffer, {
+          contentType: file.mimetype || (finalExt === "png" ? "image/png" : "image/jpeg"),
+          metadata: {
+            userId,
+            mediaType: "user-upload",
+            originalName: file.originalname
+          }
+        });
+        const gatewayOrigin = process.env.PUBLIC_GATEWAY_ORIGIN || "";
+        const base = gatewayOrigin.replace(/\/+$/, "");
+        const proxyPath = `/api/v1/media/asset?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
+        const url = base ? `${base}${proxyPath}` : proxyPath;
+        return res.json({
+          success: true,
+          data: {
+            url,
+            key,
+            bucket,
+            proxyPath
+          }
+        });
+      } catch (error) {
+        console.error("[Upload Route] assets upload failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    upload_default = router6;
   }
 });
 
@@ -27308,10 +28229,10 @@ var init_task_recovery = __esm({
               continue;
             }
             const model = task.metadata?.model || "";
-            const provider13 = task.metadata?.provider || "unknown";
-            const isDeerAPITask = task.type === "video" && (provider13 === "deer" || /^sora-2/.test(model) || /^sora/.test(model) || model.includes("runway") || model.includes("gen3") || model.includes("gen4"));
+            const provider = task.metadata?.provider || "unknown";
+            const isDeerAPITask = task.type === "video" && (provider === "deer" || /^sora-2/.test(model) || /^sora/.test(model) || model.includes("runway") || model.includes("gen3") || model.includes("gen4"));
             if (isDeerAPITask) {
-              console.log(`[TaskRecovery] \u68C0\u6D4B\u5230 DeerAPI \u89C6\u9891\u4EFB\u52A1 (model: ${model}, provider: ${provider13})\uFF0C\u5148\u67E5\u8BE2\u5B9E\u9645\u72B6\u6001...`);
+              console.log(`[TaskRecovery] \u68C0\u6D4B\u5230 DeerAPI \u89C6\u9891\u4EFB\u52A1 (model: ${model}, provider: ${provider})\uFF0C\u5148\u67E5\u8BE2\u5B9E\u9645\u72B6\u6001...`);
               const checkResult = await this.checkAndRecoverDeerAPITask(task);
               if (checkResult === "completed") {
                 console.log(`[TaskRecovery] \u4EFB\u52A1 ${task.id} \u5DF2\u6210\u529F\u6062\u590D\u4E3A\u5B8C\u6210\u72B6\u6001`);
@@ -27512,10 +28433,10 @@ var init_task_recovery = __esm({
             }
           }
           const model = task.metadata?.model || "";
-          const provider13 = task.metadata?.provider || "unknown";
-          const isDeerAPITask = task.type === "video" && (provider13 === "deer" || /^sora-2/.test(model) || /^sora/.test(model) || model.includes("runway") || model.includes("gen3") || model.includes("gen4"));
+          const provider = task.metadata?.provider || "unknown";
+          const isDeerAPITask = task.type === "video" && (provider === "deer" || /^sora-2/.test(model) || /^sora/.test(model) || model.includes("runway") || model.includes("gen3") || model.includes("gen4"));
           if (isDeerAPITask) {
-            console.log(`[TaskRecovery] \u68C0\u6D4B\u5230 DeerAPI \u89C6\u9891\u4EFB\u52A1 (model: ${model}, provider: ${provider13})\uFF0C\u67E5\u8BE2\u5B9E\u9645\u72B6\u6001...`);
+            console.log(`[TaskRecovery] \u68C0\u6D4B\u5230 DeerAPI \u89C6\u9891\u4EFB\u52A1 (model: ${model}, provider: ${provider})\uFF0C\u67E5\u8BE2\u5B9E\u9645\u72B6\u6001...`);
             const checkResult = await this.checkAndRecoverDeerAPITask(task);
             if (checkResult === "completed") {
               console.log(`[TaskRecovery] \u4EFB\u52A1 ${task.id} \u5DF2\u6210\u529F\u6062\u590D\u4E3A\u5B8C\u6210\u72B6\u6001`);
@@ -27878,1755 +28799,11 @@ var init_task_recovery = __esm({
   }
 });
 
-// src/index.ts
-var import_express16 = __toESM(require("express"));
-var import_dotenv = __toESM(require("dotenv"));
-var path = __toESM(require("path"));
-var fs = __toESM(require("fs"));
-var import_mxmdata31 = require("@mxmai/mxmdata");
-var import_video = __toESM(require_video());
-var import_audio = __toESM(require_audio());
-var import_writing6 = __toESM(require_writing());
-var import_writing7 = __toESM(require_writing2());
-var import_graph3 = __toESM(require_graph());
-var import_graph4 = __toESM(require_graph2());
-var import_graph5 = __toESM(require_graph3());
-var import_audio2 = __toESM(require_audio2());
-var import_audio3 = __toESM(require_audio3());
-var import_openai = __toESM(require_openai());
-
-// src/routes/health.ts
-var import_express = require("express");
-var router = (0, import_express.Router)();
-router.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "mxmcgi" });
-});
-var health_default = router;
-
-// src/routes/graph.ts
-var import_express3 = require("express");
-init_task_executor();
-init_graph();
-init_registry();
-init_graph_model_routing();
-init_billing_service();
-var GRAPH_MODELS = listModels({ scope: "graph" });
-var SUPPORTED_MODELS = Array.from(new Set(GRAPH_MODELS.map((d) => d.modelKey)));
-function isGraphModelSupported(modelName) {
-  return getModelsByKey("graph", modelName).length > 0;
-}
-var router3 = (0, import_express3.Router)();
-router3.get("/models", (_req, res) => {
-  const models = SUPPORTED_MODELS.map((modelName) => ({ name: modelName }));
-  res.json({ models });
-});
-router3.get("/getformOptions", (req, res) => {
-  try {
-    const { photograph, design, painting, type, lang } = req.query;
-    const language = lang || "zh";
-    if (language !== "zh" && language !== "en") {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid language parameter",
-        message: 'lang must be "zh" or "en"'
-      });
-    }
-    const hasPhotograph = "photograph" in req.query;
-    const hasDesign = "design" in req.query;
-    const hasPainting = "painting" in req.query;
-    let graphType = null;
-    if (hasPhotograph) {
-      graphType = "photograph";
-    } else if (hasDesign) {
-      graphType = "design";
-    } else if (hasPainting) {
-      graphType = "painting";
-    }
-    if (!graphType) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing type parameter",
-        message: "Please specify one of: photograph, design, painting"
-      });
-    }
-    let subType = type;
-    if (!subType) {
-      const typeOptions = getGraphTypeOptions(graphType);
-      if (typeOptions.length > 0) {
-        subType = typeOptions[0].value;
-      } else {
-        return res.status(400).json({
-          success: false,
-          error: "Missing type parameter",
-          message: `Please specify a type for ${graphType}`
-        });
-      }
-    }
-    const formOptions = getFormOptionsForType(graphType, subType, language);
-    if (!formOptions) {
-      return res.status(404).json({
-        success: false,
-        error: "Form options not found",
-        message: `Form options for ${graphType}/${subType} are not available`
-      });
-    }
-    return res.json({
-      success: true,
-      data: {
-        graphType,
-        type: subType,
-        language,
-        options: formOptions
-      }
-    });
-  } catch (error) {
-    console.error("[Graph Route] \u83B7\u53D6\u8868\u5355\u9009\u9879\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Failed to get form options",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router3.post("/photograph", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header",
-        message: "User authentication required"
-      });
-    }
-    const params = req.body;
-    if (!params.type || !params.prompt) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required parameters",
-        message: "type and prompt are required"
-      });
-    }
-    const typeOptions = getGraphTypeOptions("photograph");
-    const validTypes = typeOptions.map((opt) => opt.value);
-    if (!validTypes.includes(params.type)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid type",
-        message: `Type "${params.type}" is not supported. Valid types: ${validTypes.join(", ")}`
-      });
-    }
-    const resolvedPhotograph = await resolveGraphModel("photograph", params.type, req.query.provider);
-    const rProvider = resolvedPhotograph.provider;
-    const rModel = resolvedPhotograph.modelName;
-    const balanceCheck = await BillingService.checkBalance({
-      userId,
-      provider: rProvider,
-      modelKey: rModel,
-      scope: "graph",
-      estimatedImageCount: 1
-    });
-    if (!balanceCheck.allowed) {
-      return res.status(402).json({
-        success: false,
-        code: "INSUFFICIENT_BALANCE",
-        message: `\u4F59\u989D\u4E0D\u8DB3\uFF0C\u672C\u6B21\u9884\u8BA1\u6D88\u8017\u7EA6 ${balanceCheck.estimatedTokens} MXM-TOKEN\uFF0C\u5F53\u524D\u4F59\u989D ${balanceCheck.currentBalance}`
-      });
-    }
-    const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio !== void 0 ? req.query.storeToMinio === "true" : true;
-    const storageConfig = {
-      bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
-      pathTemplate: "{userId}/graph/photograph/{timestamp}-{randomId}.{ext}"
-    };
-    if (req.body.storageConfig) {
-      Object.assign(storageConfig, req.body.storageConfig);
-    }
-    const taskManager2 = taskExecutor.getTaskManager();
-    const createResponse = await taskManager2.createTask({
-      type: "graph",
-      model: "graph-photograph",
-      provider: req.query.provider,
-      params: {
-        taskType: "generate",
-        graphType: "photograph",
-        ...params
-      },
-      userId,
-      storeToMinio,
-      storageConfig
-    });
-    taskExecutor.executeTask({
-      taskId: createResponse.taskId,
-      modelName: "graph-photograph",
-      provider: req.query.provider,
-      params: {
-        taskType: "generate",
-        graphType: "photograph",
-        ...params
-      },
-      userId,
-      storeToMinio,
-      storageConfig
-    }).catch((error) => {
-      console.error(`[Graph Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
-    });
-    return res.json({
-      success: true,
-      data: {
-        taskId: createResponse.taskId,
-        status: createResponse.status,
-        createdAt: createResponse.createdAt
-      }
-    });
-  } catch (error) {
-    console.error("[Graph Route] \u6444\u5F71\u63A5\u53E3\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Task creation failed",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router3.post("/design", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header",
-        message: "User authentication required"
-      });
-    }
-    const params = req.body;
-    if (!params.type || !params.prompt) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required parameters",
-        message: "type and prompt are required"
-      });
-    }
-    const typeOptions = getGraphTypeOptions("design");
-    const validTypes = typeOptions.map((opt) => opt.value);
-    if (!validTypes.includes(params.type)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid type",
-        message: `Type "${params.type}" is not supported. Valid types: ${validTypes.join(", ")}`
-      });
-    }
-    const resolvedDesign = await resolveGraphModel("design", params.type, req.query.provider);
-    const rProviderD = resolvedDesign.provider;
-    const rModelD = resolvedDesign.modelName;
-    const balanceCheckD = await BillingService.checkBalance({
-      userId,
-      provider: rProviderD,
-      modelKey: rModelD,
-      scope: "graph",
-      estimatedImageCount: 1
-    });
-    if (!balanceCheckD.allowed) {
-      return res.status(402).json({
-        success: false,
-        code: "INSUFFICIENT_BALANCE",
-        message: `\u4F59\u989D\u4E0D\u8DB3\uFF0C\u672C\u6B21\u9884\u8BA1\u6D88\u8017\u7EA6 ${balanceCheckD.estimatedTokens} MXM-TOKEN\uFF0C\u5F53\u524D\u4F59\u989D ${balanceCheckD.currentBalance}`
-      });
-    }
-    const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio !== void 0 ? req.query.storeToMinio === "true" : true;
-    const storageConfig = {
-      bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
-      pathTemplate: "{userId}/graph/design/{timestamp}-{randomId}.{ext}"
-    };
-    if (req.body.storageConfig) {
-      Object.assign(storageConfig, req.body.storageConfig);
-    }
-    const taskManager2 = taskExecutor.getTaskManager();
-    const createResponse = await taskManager2.createTask({
-      type: "graph",
-      model: "graph-design",
-      provider: req.query.provider,
-      params: {
-        taskType: "generate",
-        graphType: "design",
-        ...params
-      },
-      userId,
-      storeToMinio,
-      storageConfig
-    });
-    taskExecutor.executeTask({
-      taskId: createResponse.taskId,
-      modelName: "graph-design",
-      provider: req.query.provider,
-      params: {
-        taskType: "generate",
-        graphType: "design",
-        ...params
-      },
-      userId,
-      storeToMinio,
-      storageConfig
-    }).catch((error) => {
-      console.error(`[Graph Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
-    });
-    return res.json({
-      success: true,
-      data: {
-        taskId: createResponse.taskId,
-        status: createResponse.status,
-        createdAt: createResponse.createdAt
-      }
-    });
-  } catch (error) {
-    console.error("[Graph Route] \u8BBE\u8BA1\u63A5\u53E3\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Task creation failed",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router3.post("/painting", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header",
-        message: "User authentication required"
-      });
-    }
-    const params = req.body;
-    if (!params.type || !params.prompt) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required parameters",
-        message: "type and prompt are required"
-      });
-    }
-    const typeOptions = getGraphTypeOptions("painting");
-    const validTypes = typeOptions.map((opt) => opt.value);
-    if (!validTypes.includes(params.type)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid type",
-        message: `Type "${params.type}" is not supported. Valid types: ${validTypes.join(", ")}`
-      });
-    }
-    const resolvedPainting = await resolveGraphModel("painting", params.type, req.query.provider);
-    const rProviderP = resolvedPainting.provider;
-    const rModelP = resolvedPainting.modelName;
-    const balanceCheckP = await BillingService.checkBalance({
-      userId,
-      provider: rProviderP,
-      modelKey: rModelP,
-      scope: "graph",
-      estimatedImageCount: 1
-    });
-    if (!balanceCheckP.allowed) {
-      return res.status(402).json({
-        success: false,
-        code: "INSUFFICIENT_BALANCE",
-        message: `\u4F59\u989D\u4E0D\u8DB3\uFF0C\u672C\u6B21\u9884\u8BA1\u6D88\u8017\u7EA6 ${balanceCheckP.estimatedTokens} MXM-TOKEN\uFF0C\u5F53\u524D\u4F59\u989D ${balanceCheckP.currentBalance}`
-      });
-    }
-    const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio !== void 0 ? req.query.storeToMinio === "true" : true;
-    const storageConfig = {
-      bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
-      pathTemplate: "{userId}/graph/painting/{timestamp}-{randomId}.{ext}"
-    };
-    if (req.body.storageConfig) {
-      Object.assign(storageConfig, req.body.storageConfig);
-    }
-    const taskManager2 = taskExecutor.getTaskManager();
-    const createResponse = await taskManager2.createTask({
-      type: "graph",
-      model: "graph-painting",
-      provider: req.query.provider,
-      params: {
-        taskType: "generate",
-        graphType: "painting",
-        ...params
-      },
-      userId,
-      storeToMinio,
-      storageConfig
-    });
-    taskExecutor.executeTask({
-      taskId: createResponse.taskId,
-      modelName: "graph-painting",
-      provider: req.query.provider,
-      params: {
-        taskType: "generate",
-        graphType: "painting",
-        ...params
-      },
-      userId,
-      storeToMinio,
-      storageConfig
-    }).catch((error) => {
-      console.error(`[Graph Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
-    });
-    return res.json({
-      success: true,
-      data: {
-        taskId: createResponse.taskId,
-        status: createResponse.status,
-        createdAt: createResponse.createdAt
-      }
-    });
-  } catch (error) {
-    console.error("[Graph Route] \u7ED8\u753B\u63A5\u53E3\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Task creation failed",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router3.post("/:modelName", async (req, res) => {
-  try {
-    const { modelName } = req.params;
-    const provider13 = req.query.provider;
-    if (!isGraphModelSupported(modelName)) {
-      return res.status(404).json({
-        success: false,
-        error: "Model not found",
-        message: `Model "${modelName}" is not available. Available models: ${SUPPORTED_MODELS.join(", ")}`
-      });
-    }
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header",
-        message: "User authentication required"
-      });
-    }
-    const params = req.body;
-    if (!params.prompt) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required parameter",
-        message: "prompt is required"
-      });
-    }
-    const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio === "true";
-    const storageConfig = {
-      bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
-      pathTemplate: "{userId}/graph/{timestamp}-{randomId}.{ext}"
-    };
-    if (req.body.storageConfig) {
-      Object.assign(storageConfig, req.body.storageConfig);
-    }
-    const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports2));
-    const defaultProvider = providerFactory2.getDefaultProvider();
-    console.log(`[Graph Route] \u6A21\u578B: ${modelName}, \u6307\u5B9A provider: ${provider13 || "(\u672A\u6307\u5B9A\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4: " + defaultProvider + ")"}, \u9ED8\u8BA4 provider: ${defaultProvider}`);
-    const imageParams = ["image", "images", "image_input", "image_urls", "image_base64s", "input_image"];
-    const receivedImageParams = Object.keys(params).filter((k) => imageParams.includes(k));
-    if (receivedImageParams.length > 0) {
-      console.log(`[graph route] \u63A5\u6536\u5230\u56FE\u7247\u53C2\u6570 (${modelName}):`, {
-        params: receivedImageParams,
-        image_urls_count: params.image_urls ? Array.isArray(params.image_urls) ? params.image_urls.length : 1 : 0
-      });
-    }
-    const taskManager2 = taskExecutor.getTaskManager();
-    const createResponse = await taskManager2.createTask({
-      type: "image",
-      model: modelName,
-      provider: provider13,
-      params,
-      userId,
-      storeToMinio,
-      storageConfig
-    });
-    taskExecutor.executeTask({
-      taskId: createResponse.taskId,
-      modelName,
-      provider: provider13,
-      params,
-      userId,
-      storeToMinio,
-      storageConfig
-    }).catch((error) => {
-      console.error(`[Graph Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
-    });
-    return res.json({
-      success: true,
-      model: modelName,
-      data: {
-        taskId: createResponse.taskId,
-        status: createResponse.status,
-        createdAt: createResponse.createdAt
-      }
-    });
-  } catch (error) {
-    console.error(`[Graph Route] Error creating task for model ${req.params.modelName}:`, error);
-    res.status(500).json({
-      success: false,
-      error: "Task creation failed",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-var graph_default = router3;
-
-// src/routes/audio.ts
-var import_express4 = require("express");
-init_task_executor();
-init_registry();
-init_run();
-var AUDIO_MODELS = listModels({ scope: "audio" });
-var SUPPORTED_MODELS2 = Array.from(new Set(AUDIO_MODELS.map((d) => d.modelKey)));
-function isAudioModelSupported(modelName) {
-  return getModelsByKey("audio", modelName).length > 0;
-}
-var SYNC_MODELS = ["minimax-speech-2.8-hd"];
-var router4 = (0, import_express4.Router)();
-router4.get("/models", (_req, res) => {
-  const models = SUPPORTED_MODELS2.map((modelName) => ({ name: modelName }));
-  res.json({ models });
-});
-router4.post("/:modelName", async (req, res) => {
-  try {
-    const { modelName } = req.params;
-    const provider13 = req.query.provider;
-    if (!isAudioModelSupported(modelName)) {
-      return res.status(404).json({
-        success: false,
-        error: "Model not found",
-        message: `Model "${modelName}" is not available. Available models: ${SUPPORTED_MODELS2.join(", ")}`
-      });
-    }
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header",
-        message: "User authentication required"
-      });
-    }
-    const params = req.body;
-    console.log(`[Audio Route] \u63A5\u6536\u5230\u7684\u8BF7\u6C42\u4F53:`, {
-      hasBody: !!req.body,
-      bodyType: typeof req.body,
-      bodyKeys: req.body ? Object.keys(req.body) : [],
-      text: req.body?.text,
-      prompt: req.body?.prompt,
-      contentType: req.headers["content-type"],
-      method: req.method
-    });
-    if (modelName === "minimax-voice-cloning") {
-      if (!params.audio_url && !params.audioUrl) {
-        return res.status(400).json({
-          success: false,
-          error: "Missing required parameter",
-          message: "audio_url is required for voice cloning"
-        });
-      }
-    } else {
-      if (!params.text && !params.prompt) {
-        return res.status(400).json({
-          success: false,
-          error: "Missing required parameter",
-          message: "text or prompt is required"
-        });
-      }
-    }
-    const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio === "true";
-    const storageConfig = {
-      bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
-      pathTemplate: "{userId}/audio/{timestamp}-{randomId}.{ext}"
-    };
-    if (req.body.storageConfig) {
-      Object.assign(storageConfig, req.body.storageConfig);
-    }
-    const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports2));
-    const defaultProvider = providerFactory2.getDefaultProvider();
-    console.log(`[Audio Route] \u6A21\u578B: ${modelName}, \u6307\u5B9A provider: ${provider13 || "(\u672A\u6307\u5B9A\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4: " + defaultProvider + ")"}, \u9ED8\u8BA4 provider: ${defaultProvider}`);
-    const isSyncModel = SYNC_MODELS.includes(modelName);
-    if (isSyncModel && !storeToMinio) {
-      console.log(`[Audio Route] \u540C\u6B65\u6A21\u578B\uFF08\u4E0D\u5B58\u50A8\uFF09\uFF0C\u76F4\u63A5\u8FD4\u56DE\u6D41\u6570\u636E`);
-      try {
-        res.setHeader("Content-Type", "text/event-stream");
-        res.setHeader("Cache-Control", "no-cache");
-        res.setHeader("Connection", "keep-alive");
-        res.setHeader("X-Accel-Buffering", "no");
-        const result = await runByModelKey(
-          "audio",
-          modelName,
-          {
-            prompt: params.text || params.prompt,
-            voice_setting: params.voice_setting,
-            audio_setting: params.audio_setting,
-            pronunciation_dict: params.pronunciation_dict,
-            timbre_weights: params.timbre_weights,
-            stream: true,
-            stream_options: params.stream_options,
-            language_boost: params.language_boost,
-            output_format: params.output_format || "url",
-            voice_modify: params.voice_modify
-          },
-          { providerOverride: provider13 }
-        );
-        if (result.stream) {
-          for await (const chunk of result.stream) {
-            res.write(`data: ${JSON.stringify(chunk)}
-
-`);
-            if (typeof res.flush === "function") {
-              res.flush();
-            }
-          }
-          res.write("data: [DONE]\n\n");
-          res.end();
-        } else if (result.mediaUrls && result.mediaUrls.length > 0) {
-          res.write(`data: ${JSON.stringify({
-            status: "completed",
-            mediaUrls: result.mediaUrls,
-            metadata: result.metadata
-          })}
-
-`);
-          res.write("data: [DONE]\n\n");
-          res.end();
-        } else {
-          throw new Error("\u672A\u8FD4\u56DE\u97F3\u9891\u6570\u636E");
-        }
-      } catch (error) {
-        console.error(`[Audio Route] \u540C\u6B65\u6A21\u578B\u751F\u6210\u5931\u8D25:`, error);
-        res.write(`data: ${JSON.stringify({
-          status: "error",
-          error: error instanceof Error ? error.message : String(error)
-        })}
-
-`);
-        res.end();
-      }
-      return;
-    }
-    console.log(
-      `[Audio Route] \u4F7F\u7528\u4EFB\u52A1\u7CFB\u7EDF\u6267\u884C\uFF08\u6A21\u578B: ${modelName}, isSyncModel: ${isSyncModel}, storeToMinio: ${storeToMinio})`
-    );
-    const taskManager2 = taskExecutor.getTaskManager();
-    const createResponse = await taskManager2.createTask({
-      type: "audio",
-      model: modelName,
-      provider: provider13,
-      params,
-      userId,
-      storeToMinio,
-      storageConfig
-    });
-    taskExecutor.executeTask({
-      taskId: createResponse.taskId,
-      modelName,
-      provider: provider13,
-      params,
-      userId,
-      storeToMinio,
-      storageConfig
-    }).catch((error) => {
-      console.error(`[Audio Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
-    });
-    return res.json({
-      success: true,
-      model: modelName,
-      data: {
-        taskId: createResponse.taskId,
-        status: createResponse.status,
-        createdAt: createResponse.createdAt
-      }
-    });
-  } catch (error) {
-    console.error(`[Audio Route] Error creating task for model ${req.params.modelName}:`, error);
-    res.status(500).json({
-      success: false,
-      error: "Task creation failed",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-var audio_default = router4;
-
-// src/routes/video.ts
-var import_express5 = require("express");
-init_task_executor();
-
-// src/clientServer/graph/utils/image-processor.ts
-async function processReferenceImage(inputReference, targetSize) {
-  if (!inputReference || typeof inputReference !== "string") {
-    throw new Error("input_reference \u5FC5\u987B\u662F base64 \u5B57\u7B26\u4E32");
-  }
-  const base64Match = inputReference.match(/^data:image\/(\w+);base64,(.+)$/);
-  if (!base64Match) {
-    throw new Error(
-      "input_reference \u683C\u5F0F\u9519\u8BEF\uFF0C\u5FC5\u987B\u662F data:image/xxx;base64,... \u683C\u5F0F"
-    );
-  }
-  const mimeType = base64Match[1];
-  const base64Data = base64Match[2];
-  const imageBuffer = Buffer.from(base64Data, "base64");
-  const originalSizeKB = imageBuffer.length / 1024;
-  const [targetWidth, targetHeight] = targetSize.split("x").map(Number);
-  if (!targetWidth || !targetHeight) {
-    throw new Error(
-      `targetSize \u683C\u5F0F\u9519\u8BEF\uFF0C\u5E94\u4E3A "WIDTHxHEIGHT"\uFF0C\u5982 "720x1280"`
-    );
-  }
-  let sharp2;
-  try {
-    sharp2 = require("sharp");
-  } catch (error) {
-    console.warn("[ImageProcessor] sharp \u672A\u5B89\u88C5\uFF0C\u65E0\u6CD5\u8C03\u6574\u56FE\u7247\u5C3A\u5BF8\u548C\u538B\u7F29");
-    console.warn("   \u5EFA\u8BAE\u5B89\u88C5: npm install sharp \u6216 pnpm add sharp");
-    return {
-      base64: inputReference,
-      targetSize,
-      resized: false,
-      compressed: false,
-      originalSizeKB,
-      finalSizeKB: originalSizeKB
-    };
-  }
-  try {
-    const metadata = await sharp2(imageBuffer).metadata();
-    const originalSize = `${metadata.width}x${metadata.height}`;
-    let sharpInstance = sharp2(imageBuffer);
-    const isPng = mimeType === "png";
-    const isJpeg = mimeType === "jpeg" || mimeType === "jpg";
-    if (metadata.width === targetWidth && metadata.height === targetHeight) {
-      if (isPng) {
-        sharpInstance = sharpInstance.png({ quality: 85, compressionLevel: 9 });
-      } else if (isJpeg) {
-        sharpInstance = sharpInstance.jpeg({ quality: 85, mozjpeg: true });
-      } else {
-        sharpInstance = sharpInstance.jpeg({ quality: 85, mozjpeg: true });
-      }
-      const compressedBuffer = await sharpInstance.toBuffer();
-      const finalSizeKB2 = compressedBuffer.length / 1024;
-      const compressedBase64 = compressedBuffer.toString("base64");
-      const finalMimeType2 = isPng ? "png" : "jpeg";
-      const finalBase642 = `data:image/${finalMimeType2};base64,${compressedBase64}`;
-      console.log(
-        `[ImageProcessor] \u56FE\u7247\u5C3A\u5BF8\u5DF2\u5339\u914D (${originalSize})\uFF0C\u4EC5\u538B\u7F29: ${originalSizeKB.toFixed(
-          2
-        )} KB \u2192 ${finalSizeKB2.toFixed(2)} KB`
-      );
-      return {
-        base64: finalBase642,
-        originalSize,
-        targetSize,
-        resized: false,
-        compressed: true,
-        originalSizeKB,
-        finalSizeKB: finalSizeKB2
-      };
-    }
-    console.log(
-      `[ImageProcessor] \u56FE\u7247\u5C3A\u5BF8\u4E0D\u5339\u914D: ${originalSize} \u2260 ${targetSize}\uFF0C\u6B63\u5728\u8C03\u6574\u5E76\u538B\u7F29...`
-    );
-    sharpInstance = sharp2(imageBuffer).resize(targetWidth, targetHeight, {
-      fit: "cover",
-      // 保持宽高比，裁剪多余部分
-      position: "center"
-      // 居中裁剪
-    });
-    if (isPng) {
-      sharpInstance = sharpInstance.png({ quality: 85, compressionLevel: 9 });
-    } else if (isJpeg) {
-      sharpInstance = sharpInstance.jpeg({ quality: 85, mozjpeg: true });
-    } else {
-      sharpInstance = sharpInstance.jpeg({ quality: 85, mozjpeg: true });
-    }
-    const resizedBuffer = await sharpInstance.toBuffer();
-    const finalSizeKB = resizedBuffer.length / 1024;
-    const resizedBase64 = resizedBuffer.toString("base64");
-    const finalMimeType = isPng ? "png" : "jpeg";
-    const finalBase64 = `data:image/${finalMimeType};base64,${resizedBase64}`;
-    console.log(
-      `[ImageProcessor] \u56FE\u7247\u5DF2\u8C03\u6574\u5E76\u538B\u7F29: ${originalSize} \u2192 ${targetSize}, ${originalSizeKB.toFixed(
-        2
-      )} KB \u2192 ${finalSizeKB.toFixed(2)} KB`
-    );
-    return {
-      base64: finalBase64,
-      originalSize,
-      targetSize,
-      resized: true,
-      compressed: true,
-      originalSizeKB,
-      finalSizeKB
-    };
-  } catch (error) {
-    console.error(`[ImageProcessor] \u5904\u7406\u56FE\u7247\u5931\u8D25:`, error);
-    console.warn(
-      "[ImageProcessor] \u5C06\u4F7F\u7528\u539F\u56FE\uFF0C\u4F46\u53C2\u8003\u56FE\u53EF\u80FD\u4E0D\u4F1A\u751F\u6548\uFF08\u5C3A\u5BF8\u4E0D\u5339\u914D\uFF09"
-    );
-    return {
-      base64: inputReference,
-      targetSize,
-      resized: false,
-      compressed: false,
-      originalSizeKB,
-      finalSizeKB: originalSizeKB
-    };
-  }
-}
-
-// src/clientServer/video/formOptions.ts
-function secondsOptionsByMode(mode) {
-  if (mode === "sora-2-deer") {
-    return [
-      { value: "10", label: "10 \u79D2", labelEn: "10 seconds" },
-      { value: "15", label: "15 \u79D2", labelEn: "15 seconds" }
-    ];
-  }
-  return [
-    { value: "4", label: "4 \u79D2", labelEn: "4 seconds" },
-    { value: "8", label: "8 \u79D2", labelEn: "8 seconds" },
-    { value: "12", label: "12 \u79D2", labelEn: "12 seconds" }
-  ];
-}
-function getVideoFormOptions(language = "zh", mode = "sora-2") {
-  const options = secondsOptionsByMode(mode);
-  if (language === "en") {
-    return {
-      seconds: options.map((opt) => ({
-        value: opt.value,
-        label: opt.labelEn ?? opt.label
-      }))
-    };
-  }
-  return {
-    seconds: [...options],
-    _metadata: { mode }
-  };
-}
-
-// src/core/video/video-service.ts
-init_task_executor();
-
-// src/core/video/videoconfigs/index.ts
-function getVideoBusinessMode() {
-  const m = (process.env.CGI_VIDEO_MODE || "sora-2").trim();
-  return m === "sora-2-deer" ? "sora-2-deer" : "sora-2";
-}
-var VIDEO_BUSINESS_MODEL = getVideoBusinessMode();
-var secondsToModel = new Proxy(
-  {},
-  {
-    get: () => VIDEO_BUSINESS_MODEL
-  }
-);
-function normalizeSeconds(seconds) {
-  const n = typeof seconds === "string" ? parseInt(seconds, 10) : Number(seconds);
-  if (VIDEO_BUSINESS_MODEL === "sora-2-deer") {
-    if (n === 10) return 10;
-    return 15;
-  }
-  if (n === 4) return 4;
-  if (n === 12) return 12;
-  return 8;
-}
-
-// src/core/video/video-service.ts
-init_storyboard_chunk_utils();
-function isBatchBody(body) {
-  return Array.isArray(body.chunks) && body.chunks.length > 0;
-}
-function getChunkPrompt(chunk) {
-  const s = chunk.prompt?.trim();
-  if (s) return s;
-  return chunkToPromptString(chunk);
-}
-function getBestSize(orientation) {
-  return orientation === "portrait" ? "720x1280" : "1280x720";
-}
-async function generate(body, options) {
-  const { userId, provider: provider13 } = options;
-  const taskManager2 = taskExecutor.getTaskManager();
-  const storageConfig = {
-    bucket: body.storageConfig?.bucket ?? process.env.CGI_STORAGE_BUCKET ?? "user-media",
-    pathTemplate: body.storageConfig?.pathTemplate ?? "{userId}/video/{timestamp}-{randomId}.{ext}"
-  };
-  const storeToMinio = body.storeToMinio !== void 0 ? body.storeToMinio : false;
-  if (isBatchBody(body)) {
-    const chunks = body.chunks;
-    const baseLabel = (body.label?.trim() || "\u5206\u955C\u6210\u7247").replace(/\d+$/, "").trim() || "\u5206\u955C\u6210\u7247";
-    for (let i = 0; i < chunks.length; i++) {
-      const c = chunks[i];
-      if (!c || typeof c !== "object") {
-        throw new Error(`chunks[${i}] \u65E0\u6548`);
-      }
-      const prompt = getChunkPrompt(c);
-      if (!prompt) {
-        throw new Error(`chunks[${i}] \u7F3A\u5C11 prompt \u6216 video_description`);
-      }
-      normalizeSeconds(c.chunk_seconds);
-    }
-    const parentTask = await taskManager2.createTask({
-      type: "video-batch-parent",
-      model: "video-batch",
-      provider: provider13,
-      params: {
-        metadata: {
-          label: baseLabel,
-          childTaskIds: []
-          // 稍后回写
-        }
-      },
-      userId,
-      storeToMinio: false,
-      storageConfig
-    });
-    const parentTaskId = parentTask.taskId;
-    const batchId = parentTaskId;
-    const childTaskIds = [];
-    const tasksResult = [];
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      const sec = normalizeSeconds(chunk.chunk_seconds);
-      const prompt = getChunkPrompt(chunk);
-      const secondsStr2 = String(sec);
-      const childLabel = `${baseLabel}${i + 1}`;
-      const size2 = getBestSize(body.orientation);
-      const childParams = {
-        prompt,
-        seconds: secondsStr2,
-        size: size2,
-        input_reference: chunk.input_reference ?? chunk.reference_image_url,
-        label: childLabel,
-        metadata: {
-          label: childLabel,
-          parentTaskId,
-          chunkIndex: i,
-          batchId
-        }
-      };
-      const childTask = await taskManager2.createTask({
-        type: "video",
-        model: VIDEO_BUSINESS_MODEL,
-        provider: provider13,
-        params: childParams,
-        userId,
-        storeToMinio,
-        storageConfig
-      });
-      childTaskIds.push(childTask.taskId);
-      tasksResult.push({ taskId: childTask.taskId, chunkIndex: i, label: childLabel });
-    }
-    const storage = taskManager2.storage;
-    if (storage) {
-      const parent = await taskManager2.getTask(parentTaskId);
-      const existingMeta = parent?.task?.metadata ?? {};
-      await storage.update(parentTaskId, {
-        metadata: {
-          ...existingMeta,
-          label: baseLabel,
-          childTaskIds
-        }
-      });
-    }
-    for (let i = 0; i < childTaskIds.length; i++) {
-      const chunk = chunks[i];
-      const sec = normalizeSeconds(chunk.chunk_seconds);
-      const prompt = getChunkPrompt(chunk);
-      const secondsStr2 = String(sec);
-      const size2 = getBestSize(body.orientation);
-      const execParams = {
-        prompt,
-        seconds: secondsStr2,
-        size: size2,
-        input_reference: chunk.input_reference ?? chunk.reference_image_url
-      };
-      console.log("[VideoService] \u5B50\u4EFB\u52A1 executeTask \u53C2\u6570:", {
-        chunkIndex: i,
-        promptLength: prompt.length,
-        promptPreview: prompt.slice(0, 80) + (prompt.length > 80 ? "..." : ""),
-        seconds: execParams.seconds,
-        size: execParams.size,
-        hasInputReference: !!execParams.input_reference
-      });
-      taskExecutor.executeTask({
-        taskId: childTaskIds[i],
-        modelName: VIDEO_BUSINESS_MODEL,
-        provider: provider13,
-        params: execParams,
-        userId,
-        storeToMinio,
-        storageConfig
-      }).catch((err) => {
-        console.error(`[VideoService] \u5B50\u4EFB\u52A1 ${childTaskIds[i]} \u6267\u884C\u5931\u8D25:`, err);
-      });
-    }
-    return {
-      parentTaskId,
-      batchId,
-      tasks: tasksResult
-    };
-  }
-  const one = body;
-  if (!one.prompt || one.prompt.trim() === "") {
-    throw new Error("\u7F3A\u5C11 prompt");
-  }
-  const chunk_seconds = normalizeSeconds(one.chunk_seconds);
-  const secondsStr = String(chunk_seconds);
-  const inputRef = one.input_reference ?? one.reference_image_url;
-  const size = getBestSize(one.orientation);
-  const createRes = await taskManager2.createTask({
-    type: "video",
-    model: VIDEO_BUSINESS_MODEL,
-    provider: provider13,
-    params: {
-      prompt: one.prompt.trim(),
-      seconds: secondsStr,
-      size,
-      input_reference: inputRef,
-      label: one.label,
-      metadata: one.label ? { label: one.label } : void 0
-    },
-    userId,
-    storeToMinio,
-    storageConfig
-  });
-  taskExecutor.executeTask({
-    taskId: createRes.taskId,
-    modelName: VIDEO_BUSINESS_MODEL,
-    provider: provider13,
-    params: {
-      prompt: one.prompt.trim(),
-      seconds: secondsStr,
-      size,
-      input_reference: inputRef
-    },
-    userId,
-    storeToMinio,
-    storageConfig
-  }).catch((err) => {
-    console.error(`[VideoService] \u5355\u6BB5\u4EFB\u52A1 ${createRes.taskId} \u6267\u884C\u5931\u8D25:`, err);
-  });
-  return {
-    taskId: createRes.taskId,
-    status: createRes.status,
-    createdAt: createRes.createdAt
-  };
-}
-
-// src/routes/video.ts
-init_registry();
-var VIDEO_MODELS = listModels({ scope: "video" });
-var SUPPORTED_MODELS3 = Array.from(new Set(VIDEO_MODELS.map((d) => d.modelKey)));
-function isVideoModelSupported(modelName) {
-  return getModelsByKey("video", modelName).length > 0;
-}
-var router5 = (0, import_express5.Router)();
-router5.get("/models", (_req, res) => {
-  const models = SUPPORTED_MODELS3.map((modelName) => ({ name: modelName }));
-  res.json({ models });
-});
-router5.get("/getformOptions", (req, res) => {
-  const lang = req.query.lang === "en" ? "en" : "zh";
-  const modeParam = req.query.mode;
-  const mode = modeParam === "sora-2-deer" ? "sora-2-deer" : "sora-2";
-  const options = getVideoFormOptions(lang, mode);
-  res.json({ success: true, data: options });
-});
-router5.post("/generate", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header",
-        message: "User authentication required"
-      });
-    }
-    const body = req.body;
-    const provider13 = req.query.provider || void 0;
-    const chunks = body.chunks;
-    console.log("[Video Route] POST /video/generate \u5165\u53C2:", {
-      keys: Object.keys(body),
-      hasChunks: Array.isArray(chunks),
-      chunkCount: Array.isArray(chunks) ? chunks.length : 0,
-      scriptType: body.scriptType,
-      label: body.label,
-      storeToMinio: body.storeToMinio,
-      ...Array.isArray(chunks) && chunks.length > 0 ? {
-        firstChunkKeys: Object.keys(chunks[0] || {}),
-        firstChunkPromptLength: (chunks[0]?.prompt ?? "").length,
-        firstChunkSeconds: chunks[0]?.chunk_seconds,
-        firstChunkHasRef: !!(chunks[0]?.reference_image_url ?? chunks[0]?.input_reference)
-      } : {}
-    });
-    const result = await generate(body, { userId, provider: provider13 });
-    return res.json({ success: true, data: result });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[Video Route] POST /video/generate error:", message);
-    return res.status(400).json({
-      success: false,
-      error: "Bad request",
-      message
-    });
-  }
-});
-router5.post("/:modelName", async (req, res) => {
-  try {
-    const { modelName } = req.params;
-    const provider13 = req.query.provider;
-    if (!isVideoModelSupported(modelName)) {
-      return res.status(404).json({
-        success: false,
-        error: "Model not found",
-        message: `Model "${modelName}" is not available. Available models: ${SUPPORTED_MODELS3.join(", ")}`
-      });
-    }
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header",
-        message: "User authentication required"
-      });
-    }
-    const params = req.body;
-    if (modelName !== "runway" && !params.prompt) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required parameter",
-        message: "prompt is required"
-      });
-    }
-    if (modelName === "runway") {
-      if (!params.promptImage && !params.videoUri) {
-        return res.status(400).json({
-          success: false,
-          error: "Missing required parameter",
-          message: "\u5FC5\u987B\u63D0\u4F9B\u4EE5\u4E0B\u53C2\u6570\u4E4B\u4E00\uFF1ApromptImage\uFF08\u56FE\u7247\u8F6C\u89C6\u9891\uFF09\u6216 videoUri\uFF08\u89C6\u9891\u8F6C\u89C6\u9891\uFF09"
-        });
-      }
-    }
-    const storeToMinio = req.body.storeToMinio !== void 0 ? req.body.storeToMinio : req.query.storeToMinio === "true";
-    console.log(`[Video Route] \u63A5\u6536\u5230\u7684\u53C2\u6570:`);
-    console.log(`   model: ${modelName}`);
-    if (params.prompt) {
-      console.log(`   prompt: ${params.prompt?.substring(0, 50)}...`);
-    }
-    if (modelName !== "runway") {
-      console.log(`   seconds: ${params.seconds} (\u7C7B\u578B: ${typeof params.seconds})`);
-      console.log(`   size: ${params.size}`);
-      let inputRefLog = "\u672A\u63D0\u4F9B";
-      if (params.input_reference) {
-        if (typeof params.input_reference === "string") {
-          const sizeKB = (params.input_reference.length / 1024).toFixed(2);
-          inputRefLog = `\u5DF2\u63D0\u4F9B (${sizeKB} KB base64)`;
-        } else {
-          inputRefLog = "\u5DF2\u63D0\u4F9B (Buffer/File)";
-        }
-      }
-      console.log(`   input_reference: ${inputRefLog}`);
-      if (params.seconds !== void 0) {
-        params.seconds = String(params.seconds);
-      }
-      if (params.input_reference && params.size) {
-        try {
-          console.log(`[Video Route] \u5904\u7406\u53C2\u8003\u56FE\u7247\uFF0C\u76EE\u6807\u5206\u8FA8\u7387: ${params.size}`);
-          const processedImage = await processReferenceImage(
-            params.input_reference,
-            params.size
-          );
-          if (processedImage.resized) {
-            console.log(
-              `[Video Route] \u53C2\u8003\u56FE\u7247\u5DF2\u8C03\u6574: ${processedImage.originalSize} \u2192 ${processedImage.targetSize}, \u5927\u5C0F: ${processedImage.originalSizeKB.toFixed(2)} KB \u2192 ${processedImage.finalSizeKB.toFixed(2)} KB`
-            );
-          } else if (processedImage.compressed) {
-            console.log(
-              `[Video Route] \u53C2\u8003\u56FE\u7247\u5DF2\u538B\u7F29: ${processedImage.originalSizeKB.toFixed(2)} KB \u2192 ${processedImage.finalSizeKB.toFixed(2)} KB`
-            );
-          }
-          params.input_reference = processedImage.base64;
-        } catch (error) {
-          console.error(`[Video Route] \u5904\u7406\u53C2\u8003\u56FE\u7247\u5931\u8D25:`, error);
-          console.warn(
-            `[Video Route] \u8B66\u544A: \u53C2\u8003\u56FE\u7247\u5904\u7406\u5931\u8D25\uFF0C\u5C06\u4F7F\u7528\u539F\u56FE\u3002\u5982\u679C\u56FE\u7247\u5C3A\u5BF8\u4E0E\u89C6\u9891\u5206\u8FA8\u7387\u4E0D\u5339\u914D\uFF0C\u53C2\u8003\u56FE\u53EF\u80FD\u4E0D\u4F1A\u751F\u6548\u3002`
-          );
-        }
-      }
-    } else {
-      if (params.promptImage) {
-        const sizeKB = typeof params.promptImage === "string" ? (params.promptImage.length / 1024).toFixed(2) : "unknown";
-        console.log(`   promptImage: \u5DF2\u63D0\u4F9B (${sizeKB} KB)`);
-      }
-      if (params.videoUri) {
-        console.log(`   videoUri: ${params.videoUri}`);
-      }
-      console.log(`   ratio: ${params.ratio || "\u672A\u6307\u5B9A"}`);
-      console.log(`   duration: ${params.duration || "\u672A\u6307\u5B9A"}`);
-    }
-    console.log(`   storeToMinio: ${storeToMinio}`);
-    const storageConfig = {
-      bucket: process.env.CGI_STORAGE_BUCKET || "user-media",
-      pathTemplate: "{userId}/video/{timestamp}-{randomId}.{ext}"
-    };
-    if (req.body.storageConfig) {
-      Object.assign(storageConfig, req.body.storageConfig);
-    }
-    const { providerFactory: providerFactory2 } = (init_providers2(), __toCommonJS(providers_exports2));
-    const defaultProvider = providerFactory2.getDefaultProvider();
-    console.log(`[Video Route] \u6A21\u578B: ${modelName}, \u6307\u5B9A provider: ${provider13 || "(\u672A\u6307\u5B9A\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4: " + defaultProvider + ")"}, \u9ED8\u8BA4 provider: ${defaultProvider}`);
-    const taskManager2 = taskExecutor.getTaskManager();
-    const createResponse = await taskManager2.createTask({
-      type: "video",
-      model: modelName,
-      provider: provider13,
-      params,
-      userId,
-      storeToMinio,
-      storageConfig
-    });
-    taskExecutor.executeTask({
-      taskId: createResponse.taskId,
-      modelName,
-      provider: provider13,
-      params,
-      userId,
-      storeToMinio,
-      storageConfig
-    }).catch((error) => {
-      console.error(`[Video Route] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
-    });
-    return res.json({
-      success: true,
-      model: modelName,
-      data: {
-        taskId: createResponse.taskId,
-        status: createResponse.status,
-        createdAt: createResponse.createdAt
-      }
-    });
-  } catch (error) {
-    console.error(`[Video Route] Error creating task for model ${req.params.modelName}:`, error);
-    res.status(500).json({
-      success: false,
-      error: "Task creation failed",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-var video_default = router5;
-
-// src/routes/upload.ts
-var import_express6 = require("express");
-var import_multer = __toESM(require("multer"));
-var import_mxmdata22 = require("@mxmai/mxmdata");
-var router6 = (0, import_express6.Router)();
-var upload = (0, import_multer.default)({ storage: import_multer.default.memoryStorage() });
-router6.post("/temp", upload.single("file"), async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({ success: false, error: "Missing x-user-id header" });
-    }
-    const multerReq = req;
-    if (!multerReq.file) {
-      return res.status(400).json({ success: false, error: 'Missing file field "file"' });
-    }
-    const file = multerReq.file;
-    const storageRepo = import_mxmdata22.RepositoryFactory.createStorageRepository();
-    const now = /* @__PURE__ */ new Date();
-    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(
-      now.getDate()
-    ).padStart(2, "0")}`;
-    const ext = (file.originalname.match(/\.(\w+)$/)?.[1] || "bin").toLowerCase();
-    const randomId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const key = `temp/${userId}/${dateStr}/${randomId}.${ext}`;
-    const bucket = process.env.CGI_STORAGE_BUCKET || "user-media";
-    const uploadResult = await storageRepo.uploadFile(bucket, key, file.buffer, {
-      contentType: file.mimetype || "application/octet-stream",
-      metadata: {
-        userId,
-        mediaType: "temp",
-        originalName: file.originalname
-      }
-    });
-    return res.json({
-      success: true,
-      data: {
-        url: uploadResult.url,
-        key: uploadResult.key,
-        bucket: uploadResult.bucket
-      }
-    });
-  } catch (error) {
-    console.error("[Upload Route] temp upload failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router6.post("/assets", upload.single("file"), async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({ success: false, error: "Missing x-user-id header" });
-    }
-    const multerReq = req;
-    if (!multerReq.file) {
-      return res.status(400).json({ success: false, error: 'Missing file field "file"' });
-    }
-    const file = multerReq.file;
-    const storageRepo = import_mxmdata22.RepositoryFactory.createStorageRepository();
-    const ext = (file.originalname.match(/\.(\w+)$/)?.[1] || "jpg").toLowerCase();
-    const allowExt = ["jpg", "jpeg", "png", "webp", "gif"];
-    const finalExt = allowExt.includes(ext) ? ext : "jpg";
-    const randomId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const key = `${userId}/upload/graph/${randomId}.${finalExt}`;
-    const bucket = process.env.CGI_STORAGE_BUCKET || "user-media";
-    await storageRepo.uploadFile(bucket, key, file.buffer, {
-      contentType: file.mimetype || (finalExt === "png" ? "image/png" : "image/jpeg"),
-      metadata: {
-        userId,
-        mediaType: "user-upload",
-        originalName: file.originalname
-      }
-    });
-    const gatewayOrigin = process.env.PUBLIC_GATEWAY_ORIGIN || "";
-    const base = gatewayOrigin.replace(/\/+$/, "");
-    const proxyPath = `/api/v1/media/asset?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
-    const url = base ? `${base}${proxyPath}` : proxyPath;
-    return res.json({
-      success: true,
-      data: {
-        url,
-        key,
-        bucket,
-        proxyPath
-      }
-    });
-  } catch (error) {
-    console.error("[Upload Route] assets upload failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-var upload_default = router6;
-
 // src/routes/cgi-tasks.ts
-var import_express7 = require("express");
-init_task_executor();
-init_reference_image();
-init_character_service();
-var router7 = (0, import_express7.Router)();
-router7.post("/", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header"
-      });
-    }
-    const {
-      type,
-      // 'text' | 'image' | 'video' | 'audio'
-      model,
-      // 模型名称
-      provider: provider13,
-      // 可选：'replicate' | 'ppio' | 'deer'
-      params,
-      // 生成参数
-      storeToMinio = false,
-      // 是否存储到 MinIO（默认 false，返回 base64）
-      storageConfig
-      // MinIO 存储配置
-    } = req.body;
-    if (!type || !model || !params) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields: type, model, params"
-      });
-    }
-    const validTypes = ["text", "image", "video", "audio"];
-    if (!validTypes.includes(type)) {
-      return res.status(400).json({
-        success: false,
-        error: `Invalid task type: ${type}. Valid types: ${validTypes.join(", ")}`
-      });
-    }
-    const taskManager2 = taskExecutor.getTaskManager();
-    const createResponse = await taskManager2.createTask({
-      type,
-      model,
-      provider: provider13,
-      params,
-      userId,
-      storeToMinio,
-      storageConfig
-    });
-    taskExecutor.executeTask({
-      taskId: createResponse.taskId,
-      modelName: model,
-      provider: provider13,
-      params,
-      userId,
-      storeToMinio,
-      storageConfig
-    }).catch((error) => {
-      console.error(`[CGI Task] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
-    });
-    return res.json({
-      success: true,
-      data: {
-        taskId: createResponse.taskId,
-        status: createResponse.status,
-        createdAt: createResponse.createdAt
-      }
-    });
-  } catch (error) {
-    console.error("[CGI Task Route] \u521B\u5EFA\u4EFB\u52A1\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
+var cgi_tasks_exports = {};
+__export(cgi_tasks_exports, {
+  default: () => cgi_tasks_default
 });
-router7.get("/admin", async (req, res) => {
-  try {
-    const isAdmin = await isAdminUser(req);
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: "Admin access required"
-      });
-    }
-    const {
-      type,
-      status,
-      model,
-      userId,
-      limit = 20,
-      offset = 0,
-      startDate,
-      endDate,
-      includeDeleted
-    } = req.query;
-    const taskManager2 = taskExecutor.getTaskManager();
-    const response = await taskManager2.listTasks({
-      userId: typeof userId === "string" && userId.length > 0 ? userId : void 0,
-      type,
-      status,
-      model,
-      limit: Number(limit),
-      offset: Number(offset),
-      includeDeleted: includeDeleted === "true",
-      startDate: typeof startDate === "string" && startDate.length > 0 ? startDate : void 0,
-      endDate: typeof endDate === "string" && endDate.length > 0 ? endDate : void 0
-    });
-    const userIds = [...new Set(response.tasks.map((t) => t.metadata?.userId).filter(Boolean))];
-    const userIdToName = /* @__PURE__ */ new Map();
-    try {
-      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-      const userRepo = RepositoryFactory24.createUserRepository();
-      for (const uid6 of userIds) {
-        const user = await userRepo.findById(uid6);
-        userIdToName.set(uid6, user?.username ?? uid6);
-      }
-    } catch (err) {
-      console.warn("[CGI Task Route] \u89E3\u6790\u7528\u6237\u540D\u5931\u8D25\uFF0C\u5217\u8868\u4ECD\u8FD4\u56DE userId:", err);
-    }
-    const tasksWithUserNames = response.tasks.map((t) => ({
-      ...t,
-      metadata: {
-        ...t.metadata,
-        userName: t.metadata?.userId ? userIdToName.get(t.metadata.userId) ?? t.metadata.userId : void 0
-      }
-    }));
-    return res.json({
-      success: true,
-      data: { ...response, tasks: tasksWithUserNames }
-    });
-  } catch (error) {
-    console.error("[CGI Task Route] Admin \u67E5\u8BE2\u4EFB\u52A1\u5217\u8868\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router7.get("/:taskId", async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const userId = req.headers["x-user-id"];
-    const { type } = req.query;
-    const isAdmin = await isAdminUser(req);
-    const taskManager2 = taskExecutor.getTaskManager();
-    const response = await taskManager2.getTask(taskId, isAdmin);
-    if (userId && response.task.metadata.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden: You can only view your own tasks"
-      });
-    }
-    if (type) {
-      const expectedType = type;
-      if (response.task.type !== expectedType) {
-        return res.status(404).json({
-          success: false,
-          error: `Task type mismatch: expected ${expectedType}, got ${response.task.type}`
-        });
-      }
-    }
-    const meta = response.task.result?.metadata;
-    const characterIds = meta?.character_ids;
-    const hasCharacterIds = Array.isArray(characterIds) && characterIds.length > 0;
-    const hasCharacters = Array.isArray(meta?.characters) && meta.characters.length > 0;
-    if (hasCharacterIds && !hasCharacters && response.task.metadata?.userId) {
-      try {
-        const characterService = new CharacterService();
-        const profiles = await characterService.getCharactersForWriting(
-          characterIds,
-          response.task.metadata.userId
-        );
-        if (profiles.length > 0) {
-          response.task = {
-            ...response.task,
-            result: {
-              ...response.task.result,
-              metadata: { ...meta, characters: profiles }
-            }
-          };
-        }
-      } catch (e) {
-        console.warn("[CGI Task] Resolve character_ids to characters failed:", e);
-      }
-    }
-    const sanitizedTask = {
-      ...response.task,
-      requestParams: sanitizeBase64InObject(response.task.requestParams)
-    };
-    return res.json({
-      success: true,
-      data: sanitizedTask
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      });
-    }
-    console.error("[CGI Task Route] \u67E5\u8BE2\u4EFB\u52A1\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router7.get("/", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header"
-      });
-    }
-    const {
-      type,
-      status,
-      model,
-      limit = 20,
-      offset = 0,
-      startDate,
-      endDate
-    } = req.query;
-    const taskManager2 = taskExecutor.getTaskManager();
-    const response = await taskManager2.listTasks({
-      userId,
-      type,
-      status,
-      model,
-      limit: Number(limit),
-      offset: Number(offset),
-      startDate: typeof startDate === "string" && startDate.length > 0 ? startDate : void 0,
-      endDate: typeof endDate === "string" && endDate.length > 0 ? endDate : void 0
-    });
-    return res.json({
-      success: true,
-      data: response
-    });
-  } catch (error) {
-    console.error("[CGI Task Route] \u67E5\u8BE2\u4EFB\u52A1\u5217\u8868\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router7.get("/by-user/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const {
-      type,
-      status,
-      model,
-      limit = 20,
-      offset = 0
-    } = req.query;
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing userId in path params"
-      });
-    }
-    const taskManager2 = taskExecutor.getTaskManager();
-    const response = await taskManager2.listTasks({
-      userId,
-      type,
-      status,
-      model,
-      limit: Number(limit),
-      offset: Number(offset)
-    });
-    return res.json({
-      success: true,
-      data: response
-    });
-  } catch (error) {
-    console.error("[CGI Task Route] \u6309\u7528\u6237\u67E5\u8BE2\u4EFB\u52A1\u5217\u8868\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router7.post("/:taskId/cancel", async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const userId = req.headers["x-user-id"];
-    const isAdmin = await isAdminUser(req);
-    const taskManager2 = taskExecutor.getTaskManager();
-    const taskResponse = await taskManager2.getTask(taskId);
-    if (!isAdmin && userId && taskResponse.task.metadata.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden: You can only cancel your own tasks"
-      });
-    }
-    if (["completed", "failed", "cancelled"].includes(taskResponse.task.status)) {
-      return res.status(400).json({
-        success: false,
-        error: `Cannot cancel task in status: ${taskResponse.task.status}`
-      });
-    }
-    await taskManager2.cancelTask(taskId);
-    return res.json({
-      success: true,
-      message: "Task cancelled successfully"
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      });
-    }
-    console.error("[CGI Task Route] \u53D6\u6D88\u4EFB\u52A1\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-var handleRecover = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const userId = req.headers["x-user-id"];
-    const isAdmin = await isAdminUser(req);
-    const taskManager2 = taskExecutor.getTaskManager();
-    const taskResponse = await taskManager2.getTask(taskId);
-    if (!isAdmin && userId && taskResponse.task.metadata.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden: You can only recover your own tasks"
-      });
-    }
-    if (taskResponse.task.status !== "processing") {
-      return res.status(400).json({
-        success: false,
-        error: `Cannot recover task in status: ${taskResponse.task.status}. Only processing tasks can be recovered.`
-      });
-    }
-    const { taskRecoveryService: taskRecoveryService2 } = await Promise.resolve().then(() => (init_task_recovery(), task_recovery_exports));
-    await taskRecoveryService2.recoverTask(taskId);
-    return res.json({
-      success: true,
-      message: "Task recovered successfully"
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      });
-    }
-    console.error("[CGI Task Route] \u6062\u590D\u4EFB\u52A1\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-};
-router7.post("/:taskId/recover", handleRecover);
-router7.get("/:taskId/recover", handleRecover);
-var handleRetry = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const userId = req.headers["x-user-id"];
-    const isAdmin = await isAdminUser(req);
-    const taskManager2 = taskExecutor.getTaskManager();
-    const taskResponse = await taskManager2.getTask(taskId);
-    const task = taskResponse.task;
-    if (!isAdmin && userId && task.metadata.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden: You can only retry your own tasks"
-      });
-    }
-    const status = task.status;
-    const progressStatus = task.progress?.status;
-    const hasError = !!task.progress?.error;
-    const canRetry = status === "processing" || status === "failed" || progressStatus === "failed" || status === "completed" && hasError;
-    if (!canRetry) {
-      return res.status(400).json({
-        success: false,
-        error: `Cannot retry task in status: ${status}. Only failed or processing tasks can be retried.`
-      });
-    }
-    const { taskRecoveryService: taskRecoveryService2 } = await Promise.resolve().then(() => (init_task_recovery(), task_recovery_exports));
-    await taskRecoveryService2.retryTaskById(taskId);
-    return res.json({
-      success: true,
-      message: "Task retry initiated successfully"
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      });
-    }
-    console.error("[CGI Task Route] \u91CD\u8BD5\u4EFB\u52A1\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-};
-router7.post("/:taskId/retry", handleRetry);
-router7.get("/:taskId/retry", handleRetry);
 async function isAdminUser(req) {
   try {
     const userRole = req.headers["x-user-role"];
@@ -29638,8 +28815,8 @@ async function isAdminUser(req) {
       return false;
     }
     try {
-      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-      const userRepo = RepositoryFactory24.createUserRepository();
+      const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+      const userRepo = RepositoryFactory23.createUserRepository();
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
         return true;
@@ -29653,70 +28830,489 @@ async function isAdminUser(req) {
     return false;
   }
 }
-router7.delete("/:taskId", async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header"
-      });
-    }
-    const isAdmin = await isAdminUser(req);
-    const taskManager2 = taskExecutor.getTaskManager();
-    const taskResponse = await taskManager2.getTask(taskId, isAdmin);
-    if (!taskResponse || !taskResponse.task) {
-      return res.status(410).json({
-        success: false,
-        error: "Task not found or already deleted",
-        code: "TASK_NOT_FOUND_OR_DELETED"
-      });
-    }
-    if (taskResponse.task.metadata.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden: You can only delete your own tasks"
-      });
-    }
-    if (isAdmin) {
-      await taskManager2.hardDeleteTask(taskId);
-      return res.json({
-        success: true,
-        message: "Task deleted permanently (admin)"
-      });
-    } else {
-      await taskManager2.softDeleteTask(taskId);
-      return res.json({
-        success: true,
-        message: "Task deleted successfully"
-      });
-    }
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return res.status(410).json({
-        success: false,
-        error: error.message,
-        code: "TASK_NOT_FOUND_OR_DELETED"
-      });
-    }
-    console.error("[CGI Task Route] \u5220\u9664\u4EFB\u52A1\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
+var import_express7, router7, handleRecover, handleRetry, cgi_tasks_default;
+var init_cgi_tasks = __esm({
+  "src/routes/cgi-tasks.ts"() {
+    "use strict";
+    import_express7 = require("express");
+    init_task_executor();
+    init_reference_image();
+    init_character_service();
+    router7 = (0, import_express7.Router)();
+    router7.post("/", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header"
+          });
+        }
+        const {
+          type,
+          // 'text' | 'image' | 'video' | 'audio'
+          model,
+          // 模型名称
+          provider,
+          // 可选：'replicate' | 'ppio' | 'deer'
+          params,
+          // 生成参数
+          storeToMinio = false,
+          // 是否存储到 MinIO（默认 false，返回 base64）
+          storageConfig
+          // MinIO 存储配置
+        } = req.body;
+        if (!type || !model || !params) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required fields: type, model, params"
+          });
+        }
+        const validTypes = ["text", "image", "video", "audio"];
+        if (!validTypes.includes(type)) {
+          return res.status(400).json({
+            success: false,
+            error: `Invalid task type: ${type}. Valid types: ${validTypes.join(", ")}`
+          });
+        }
+        const taskManager2 = taskExecutor.getTaskManager();
+        const createResponse = await taskManager2.createTask({
+          type,
+          model,
+          provider,
+          params,
+          userId,
+          storeToMinio,
+          storageConfig
+        });
+        taskExecutor.executeTask({
+          taskId: createResponse.taskId,
+          modelName: model,
+          provider,
+          params,
+          userId,
+          storeToMinio,
+          storageConfig
+        }).catch((error) => {
+          console.error(`[CGI Task] \u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`, error);
+        });
+        return res.json({
+          success: true,
+          data: {
+            taskId: createResponse.taskId,
+            status: createResponse.status,
+            createdAt: createResponse.createdAt
+          }
+        });
+      } catch (error) {
+        console.error("[CGI Task Route] \u521B\u5EFA\u4EFB\u52A1\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
     });
+    router7.get("/admin", async (req, res) => {
+      try {
+        const isAdmin = await isAdminUser(req);
+        if (!isAdmin) {
+          return res.status(403).json({
+            success: false,
+            error: "Admin access required"
+          });
+        }
+        const {
+          type,
+          status,
+          model,
+          userId,
+          limit = 20,
+          offset = 0,
+          startDate,
+          endDate,
+          includeDeleted
+        } = req.query;
+        const taskManager2 = taskExecutor.getTaskManager();
+        const response = await taskManager2.listTasks({
+          userId: typeof userId === "string" && userId.length > 0 ? userId : void 0,
+          type,
+          status,
+          model,
+          limit: Number(limit),
+          offset: Number(offset),
+          includeDeleted: includeDeleted === "true",
+          startDate: typeof startDate === "string" && startDate.length > 0 ? startDate : void 0,
+          endDate: typeof endDate === "string" && endDate.length > 0 ? endDate : void 0
+        });
+        const userIds = [...new Set(response.tasks.map((t) => t.metadata?.userId).filter(Boolean))];
+        const userIdToName = /* @__PURE__ */ new Map();
+        try {
+          const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+          const userRepo = RepositoryFactory23.createUserRepository();
+          for (const uid6 of userIds) {
+            const user = await userRepo.findById(uid6);
+            userIdToName.set(uid6, user?.username ?? uid6);
+          }
+        } catch (err) {
+          console.warn("[CGI Task Route] \u89E3\u6790\u7528\u6237\u540D\u5931\u8D25\uFF0C\u5217\u8868\u4ECD\u8FD4\u56DE userId:", err);
+        }
+        const tasksWithUserNames = response.tasks.map((t) => ({
+          ...t,
+          metadata: {
+            ...t.metadata,
+            userName: t.metadata?.userId ? userIdToName.get(t.metadata.userId) ?? t.metadata.userId : void 0
+          }
+        }));
+        return res.json({
+          success: true,
+          data: { ...response, tasks: tasksWithUserNames }
+        });
+      } catch (error) {
+        console.error("[CGI Task Route] Admin \u67E5\u8BE2\u4EFB\u52A1\u5217\u8868\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router7.get("/:taskId", async (req, res) => {
+      try {
+        const { taskId } = req.params;
+        const userId = req.headers["x-user-id"];
+        const { type } = req.query;
+        const isAdmin = await isAdminUser(req);
+        const taskManager2 = taskExecutor.getTaskManager();
+        const response = await taskManager2.getTask(taskId, isAdmin);
+        if (userId && response.task.metadata.userId !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "Forbidden: You can only view your own tasks"
+          });
+        }
+        if (type) {
+          const expectedType = type;
+          if (response.task.type !== expectedType) {
+            return res.status(404).json({
+              success: false,
+              error: `Task type mismatch: expected ${expectedType}, got ${response.task.type}`
+            });
+          }
+        }
+        const meta = response.task.result?.metadata;
+        const characterIds = meta?.character_ids;
+        const hasCharacterIds = Array.isArray(characterIds) && characterIds.length > 0;
+        const hasCharacters = Array.isArray(meta?.characters) && meta.characters.length > 0;
+        if (hasCharacterIds && !hasCharacters && response.task.metadata?.userId) {
+          try {
+            const characterService = new CharacterService();
+            const profiles = await characterService.getCharactersForWriting(
+              characterIds,
+              response.task.metadata.userId
+            );
+            if (profiles.length > 0) {
+              response.task = {
+                ...response.task,
+                result: {
+                  ...response.task.result,
+                  metadata: { ...meta, characters: profiles }
+                }
+              };
+            }
+          } catch (e) {
+            console.warn("[CGI Task] Resolve character_ids to characters failed:", e);
+          }
+        }
+        const sanitizedTask = {
+          ...response.task,
+          requestParams: sanitizeBase64InObject(response.task.requestParams)
+        };
+        return res.json({
+          success: true,
+          data: sanitizedTask
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(404).json({
+            success: false,
+            error: error.message
+          });
+        }
+        console.error("[CGI Task Route] \u67E5\u8BE2\u4EFB\u52A1\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router7.get("/", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header"
+          });
+        }
+        const {
+          type,
+          status,
+          model,
+          limit = 20,
+          offset = 0,
+          startDate,
+          endDate
+        } = req.query;
+        const taskManager2 = taskExecutor.getTaskManager();
+        const response = await taskManager2.listTasks({
+          userId,
+          type,
+          status,
+          model,
+          limit: Number(limit),
+          offset: Number(offset),
+          startDate: typeof startDate === "string" && startDate.length > 0 ? startDate : void 0,
+          endDate: typeof endDate === "string" && endDate.length > 0 ? endDate : void 0
+        });
+        return res.json({
+          success: true,
+          data: response
+        });
+      } catch (error) {
+        console.error("[CGI Task Route] \u67E5\u8BE2\u4EFB\u52A1\u5217\u8868\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router7.get("/by-user/:userId", async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const {
+          type,
+          status,
+          model,
+          limit = 20,
+          offset = 0
+        } = req.query;
+        if (!userId) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing userId in path params"
+          });
+        }
+        const taskManager2 = taskExecutor.getTaskManager();
+        const response = await taskManager2.listTasks({
+          userId,
+          type,
+          status,
+          model,
+          limit: Number(limit),
+          offset: Number(offset)
+        });
+        return res.json({
+          success: true,
+          data: response
+        });
+      } catch (error) {
+        console.error("[CGI Task Route] \u6309\u7528\u6237\u67E5\u8BE2\u4EFB\u52A1\u5217\u8868\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router7.post("/:taskId/cancel", async (req, res) => {
+      try {
+        const { taskId } = req.params;
+        const userId = req.headers["x-user-id"];
+        const isAdmin = await isAdminUser(req);
+        const taskManager2 = taskExecutor.getTaskManager();
+        const taskResponse = await taskManager2.getTask(taskId);
+        if (!isAdmin && userId && taskResponse.task.metadata.userId !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "Forbidden: You can only cancel your own tasks"
+          });
+        }
+        if (["completed", "failed", "cancelled"].includes(taskResponse.task.status)) {
+          return res.status(400).json({
+            success: false,
+            error: `Cannot cancel task in status: ${taskResponse.task.status}`
+          });
+        }
+        await taskManager2.cancelTask(taskId);
+        return res.json({
+          success: true,
+          message: "Task cancelled successfully"
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(404).json({
+            success: false,
+            error: error.message
+          });
+        }
+        console.error("[CGI Task Route] \u53D6\u6D88\u4EFB\u52A1\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    handleRecover = async (req, res) => {
+      try {
+        const { taskId } = req.params;
+        const userId = req.headers["x-user-id"];
+        const isAdmin = await isAdminUser(req);
+        const taskManager2 = taskExecutor.getTaskManager();
+        const taskResponse = await taskManager2.getTask(taskId);
+        if (!isAdmin && userId && taskResponse.task.metadata.userId !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "Forbidden: You can only recover your own tasks"
+          });
+        }
+        if (taskResponse.task.status !== "processing") {
+          return res.status(400).json({
+            success: false,
+            error: `Cannot recover task in status: ${taskResponse.task.status}. Only processing tasks can be recovered.`
+          });
+        }
+        const { taskRecoveryService: taskRecoveryService2 } = await Promise.resolve().then(() => (init_task_recovery(), task_recovery_exports));
+        await taskRecoveryService2.recoverTask(taskId);
+        return res.json({
+          success: true,
+          message: "Task recovered successfully"
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(404).json({
+            success: false,
+            error: error.message
+          });
+        }
+        console.error("[CGI Task Route] \u6062\u590D\u4EFB\u52A1\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    };
+    router7.post("/:taskId/recover", handleRecover);
+    router7.get("/:taskId/recover", handleRecover);
+    handleRetry = async (req, res) => {
+      try {
+        const { taskId } = req.params;
+        const userId = req.headers["x-user-id"];
+        const isAdmin = await isAdminUser(req);
+        const taskManager2 = taskExecutor.getTaskManager();
+        const taskResponse = await taskManager2.getTask(taskId);
+        const task = taskResponse.task;
+        if (!isAdmin && userId && task.metadata.userId !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "Forbidden: You can only retry your own tasks"
+          });
+        }
+        const status = task.status;
+        const progressStatus = task.progress?.status;
+        const hasError = !!task.progress?.error;
+        const canRetry = status === "processing" || status === "failed" || progressStatus === "failed" || status === "completed" && hasError;
+        if (!canRetry) {
+          return res.status(400).json({
+            success: false,
+            error: `Cannot retry task in status: ${status}. Only failed or processing tasks can be retried.`
+          });
+        }
+        const { taskRecoveryService: taskRecoveryService2 } = await Promise.resolve().then(() => (init_task_recovery(), task_recovery_exports));
+        await taskRecoveryService2.retryTaskById(taskId);
+        return res.json({
+          success: true,
+          message: "Task retry initiated successfully"
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(404).json({
+            success: false,
+            error: error.message
+          });
+        }
+        console.error("[CGI Task Route] \u91CD\u8BD5\u4EFB\u52A1\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    };
+    router7.post("/:taskId/retry", handleRetry);
+    router7.get("/:taskId/retry", handleRetry);
+    router7.delete("/:taskId", async (req, res) => {
+      try {
+        const { taskId } = req.params;
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header"
+          });
+        }
+        const isAdmin = await isAdminUser(req);
+        const taskManager2 = taskExecutor.getTaskManager();
+        const taskResponse = await taskManager2.getTask(taskId, isAdmin);
+        if (!taskResponse || !taskResponse.task) {
+          return res.status(410).json({
+            success: false,
+            error: "Task not found or already deleted",
+            code: "TASK_NOT_FOUND_OR_DELETED"
+          });
+        }
+        if (taskResponse.task.metadata.userId !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "Forbidden: You can only delete your own tasks"
+          });
+        }
+        if (isAdmin) {
+          await taskManager2.hardDeleteTask(taskId);
+          return res.json({
+            success: true,
+            message: "Task deleted permanently (admin)"
+          });
+        } else {
+          await taskManager2.softDeleteTask(taskId);
+          return res.json({
+            success: true,
+            message: "Task deleted successfully"
+          });
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(410).json({
+            success: false,
+            error: error.message,
+            code: "TASK_NOT_FOUND_OR_DELETED"
+          });
+        }
+        console.error("[CGI Task Route] \u5220\u9664\u4EFB\u52A1\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    cgi_tasks_default = router7;
   }
 });
-var cgi_tasks_default = router7;
 
-// src/routes/system.ts
-var import_express11 = require("express");
-init_client();
+// src/models/model-catalog-types.ts
+var init_model_catalog_types = __esm({
+  "src/models/model-catalog-types.ts"() {
+    "use strict";
+  }
+});
 
 // src/routes/prompt-config.ts
-var import_express8 = require("express");
-var import_mxmdata23 = require("@mxmai/mxmdata");
-var router8 = (0, import_express8.Router)();
 async function isAdminUser2(req) {
   try {
     const userRole = req.headers["x-user-role"];
@@ -29734,144 +29330,140 @@ async function isAdminUser2(req) {
     return false;
   }
 }
-router8.get("/", async (req, res) => {
-  if (!await isAdminUser2(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
-    const scope = req.query.scope;
-    const type = req.query.type;
-    const subtype = req.query.subtype;
-    const limit = req.query.limit != null ? Math.min(Number(req.query.limit), 500) : void 0;
-    const offset = req.query.offset != null ? Number(req.query.offset) : void 0;
-    const options = { limit, offset };
-    if (scope) options.scope = scope;
-    if (type) options.type = type;
-    if (subtype !== void 0) options.subtype = subtype === "" ? null : subtype;
-    const result = await repo.list(options);
-    return res.json({ success: true, data: { items: result.items, total: result.total } });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-router8.get("/by-key", async (req, res) => {
-  if (!await isAdminUser2(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const scope = req.query.scope;
-    const type = req.query.type;
-    const subtype = req.query.subtype || null;
-    const lang = req.query.lang;
-    if (!scope || !type) {
-      return res.status(400).json({ success: false, error: "scope and type are required" });
-    }
-    const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
-    const row = await repo.findByKey(scope, type, subtype === "" ? null : subtype);
-    if (!row) {
-      return res.status(404).json({ success: false, error: "Not found" });
-    }
-    if (lang) {
-      const rules = row.rules_i18n && typeof row.rules_i18n[lang] !== "undefined" ? row.rules_i18n[lang] : row.rules_i18n?.["zh"] ?? row.rules_i18n?.["en"] ?? "";
-      const output_format = row.output_format_i18n && typeof row.output_format_i18n[lang] !== "undefined" ? row.output_format_i18n[lang] : row.output_format_i18n?.["zh"] ?? row.output_format_i18n?.["en"] ?? "";
-      return res.json({
-        success: true,
-        data: {
-          id: row.id,
-          scope: row.scope,
-          type: row.type,
-          subtype: row.subtype,
-          rules,
-          output_format,
-          form_options_i18n: row.form_options_i18n,
-          extra: row.extra,
-          is_active: row.is_active,
-          updated_by: row.updated_by,
-          created_at: row.created_at,
-          updated_at: row.updated_at
-        }
-      });
-    }
-    return res.json({ success: true, data: row });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-router8.put("/", async (req, res) => {
-  if (!await isAdminUser2(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const body = req.body;
-    const scope = body.scope;
-    const type = body.type;
-    if (!scope || !type) {
-      return res.status(400).json({ success: false, error: "scope and type are required" });
-    }
-    const userId = req.headers["x-user-id"];
-    const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
-    const row = await repo.upsert({
-      scope,
-      type,
-      subtype: body.subtype ?? null,
-      rules_i18n: body.rules_i18n,
-      output_format_i18n: body.output_format_i18n,
-      form_options_i18n: body.form_options_i18n ?? null,
-      extra: body.extra ?? null,
-      is_active: body.is_active,
-      updated_by: userId ?? null
+var import_express8, import_mxmdata23, router8, prompt_config_default;
+var init_prompt_config = __esm({
+  "src/routes/prompt-config.ts"() {
+    "use strict";
+    import_express8 = require("express");
+    import_mxmdata23 = require("@mxmai/mxmdata");
+    router8 = (0, import_express8.Router)();
+    router8.get("/", async (req, res) => {
+      if (!await isAdminUser2(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
+        const scope = req.query.scope;
+        const type = req.query.type;
+        const subtype = req.query.subtype;
+        const limit = req.query.limit != null ? Math.min(Number(req.query.limit), 500) : void 0;
+        const offset = req.query.offset != null ? Number(req.query.offset) : void 0;
+        const options = { limit, offset };
+        if (scope) options.scope = scope;
+        if (type) options.type = type;
+        if (subtype !== void 0) options.subtype = subtype === "" ? null : subtype;
+        const result = await repo.list(options);
+        return res.json({ success: true, data: { items: result.items, total: result.total } });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
     });
-    return res.json({ success: true, data: row });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
+    router8.get("/by-key", async (req, res) => {
+      if (!await isAdminUser2(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const scope = req.query.scope;
+        const type = req.query.type;
+        const subtype = req.query.subtype || null;
+        const lang = req.query.lang;
+        if (!scope || !type) {
+          return res.status(400).json({ success: false, error: "scope and type are required" });
+        }
+        const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
+        const row = await repo.findByKey(scope, type, subtype === "" ? null : subtype);
+        if (!row) {
+          return res.status(404).json({ success: false, error: "Not found" });
+        }
+        if (lang) {
+          const rules = row.rules_i18n && typeof row.rules_i18n[lang] !== "undefined" ? row.rules_i18n[lang] : row.rules_i18n?.["zh"] ?? row.rules_i18n?.["en"] ?? "";
+          const output_format = row.output_format_i18n && typeof row.output_format_i18n[lang] !== "undefined" ? row.output_format_i18n[lang] : row.output_format_i18n?.["zh"] ?? row.output_format_i18n?.["en"] ?? "";
+          return res.json({
+            success: true,
+            data: {
+              id: row.id,
+              scope: row.scope,
+              type: row.type,
+              subtype: row.subtype,
+              rules,
+              output_format,
+              form_options_i18n: row.form_options_i18n,
+              extra: row.extra,
+              is_active: row.is_active,
+              updated_by: row.updated_by,
+              created_at: row.created_at,
+              updated_at: row.updated_at
+            }
+          });
+        }
+        return res.json({ success: true, data: row });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    router8.put("/", async (req, res) => {
+      if (!await isAdminUser2(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const body = req.body;
+        const scope = body.scope;
+        const type = body.type;
+        if (!scope || !type) {
+          return res.status(400).json({ success: false, error: "scope and type are required" });
+        }
+        const userId = req.headers["x-user-id"];
+        const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
+        const row = await repo.upsert({
+          scope,
+          type,
+          subtype: body.subtype ?? null,
+          rules_i18n: body.rules_i18n,
+          output_format_i18n: body.output_format_i18n,
+          form_options_i18n: body.form_options_i18n ?? null,
+          extra: body.extra ?? null,
+          is_active: body.is_active,
+          updated_by: userId ?? null
+        });
+        return res.json({ success: true, data: row });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    router8.delete("/:id", async (req, res) => {
+      if (!await isAdminUser2(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const id = req.params.id;
+        if (!id) return res.status(400).json({ success: false, error: "id required" });
+        const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
+        await repo.delete(id);
+        return res.status(204).send();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    prompt_config_default = router8;
   }
 });
-router8.delete("/:id", async (req, res) => {
-  if (!await isAdminUser2(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const id = req.params.id;
-    if (!id) return res.status(400).json({ success: false, error: "id required" });
-    const repo = import_mxmdata23.RepositoryFactory.createPromptEngineeringConfigRepository();
-    await repo.delete(id);
-    return res.status(204).send();
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-var prompt_config_default = router8;
-
-// src/routes/providers.ts
-var import_express9 = require("express");
-init_providers2();
-init_registry();
-var import_mxmdata24 = require("@mxmai/mxmdata");
-
-// src/routes/provider-connectivity-test.ts
-init_provider_model_catalog();
-init_registry();
 
 // src/routes/deer-image-connectivity-test.ts
-init_client2();
-init_providers2();
-init_provider_model_catalog();
 function isDeerRateLimitError(e) {
   const msg = e instanceof Error ? e.message : String(e);
   const lower = msg.toLowerCase();
   return lower.includes("429") || lower.includes("too many requests") || msg.includes("1302") || msg.includes("\u901F\u7387\u9650\u5236") || msg.includes("rix_api_error");
 }
-function resolveDeerPhysicalModelName(modelKey43) {
-  return getUpstreamModel("deer", modelKey43) ?? modelKey43;
+function resolveDeerPhysicalModelName(modelKey) {
+  return getUpstreamModel("deer", modelKey) ?? modelKey;
 }
-function classifyDeerImageModel(modelKey43) {
-  if (modelKey43.startsWith("flux-")) return "flux";
-  if (modelKey43 === "seedream-4" || modelKey43 === "seedream-5") return "seedream";
+function classifyDeerImageModel(modelKey) {
+  if (modelKey.startsWith("flux-")) return "flux";
+  if (modelKey === "seedream-4" || modelKey === "seedream-5") return "seedream";
   return "gemini";
 }
 function extractImageUrlsFromGeminiResponse(response) {
@@ -29956,10 +29548,10 @@ async function withDeerKeyRotationForTest(fn) {
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
-async function runDeerImageConnectivityTest(modelKey43) {
+async function runDeerImageConnectivityTest(modelKey) {
   const steps = [];
-  const kind = classifyDeerImageModel(modelKey43);
-  const deerModel = resolveDeerPhysicalModelName(modelKey43);
+  const kind = classifyDeerImageModel(modelKey);
+  const deerModel = resolveDeerPhysicalModelName(modelKey);
   try {
     return await withDeerKeyRotationForTest(async (client) => {
       push(steps, "invoke", "\u63D0\u4EA4\u56FE\u7247\u751F\u6210\u4EFB\u52A1", "running", `kind=${kind}, upstream=${deerModel}`);
@@ -29995,7 +29587,7 @@ async function runDeerImageConnectivityTest(modelKey43) {
             return {
               success: true,
               taskId,
-              responseMeta: { model: modelKey43, upstream: deerModel, fluxStatus: result.status },
+              responseMeta: { model: modelKey, upstream: deerModel, fluxStatus: result.status },
               steps
             };
           }
@@ -30036,7 +29628,7 @@ async function runDeerImageConnectivityTest(modelKey43) {
                 return {
                   success: true,
                   responseMeta: {
-                    model: modelKey43,
+                    model: modelKey,
                     upstream: deerModel,
                     created: response2.created,
                     response_format: rf,
@@ -30081,7 +29673,7 @@ async function runDeerImageConnectivityTest(modelKey43) {
         push(steps, "verify", "\u9A8C\u8BC1\u751F\u6210\u7ED3\u679C", "success", `images=${urls.length}`);
         return {
           success: true,
-          responseMeta: { model: modelKey43, upstream: deerModel, imageCount: urls.length },
+          responseMeta: { model: modelKey, upstream: deerModel, imageCount: urls.length },
           steps
         };
       }
@@ -30089,7 +29681,7 @@ async function runDeerImageConnectivityTest(modelKey43) {
       return {
         success: false,
         error: "DeerAPI \u56FE\u50CF\u751F\u6210\u54CD\u5E94\u4E2D\u672A\u5305\u542B\u53EF\u89E3\u6790\u7684\u56FE\u50CF\u6570\u636E\uFF08\u8BF7\u68C0\u67E5\u4E0A\u6E38\u6A21\u578B\u4E0E\u914D\u989D\uFF09",
-        responseMeta: { model: modelKey43, upstream: deerModel },
+        responseMeta: { model: modelKey, upstream: deerModel },
         steps
       };
     });
@@ -30099,31 +29691,29 @@ async function runDeerImageConnectivityTest(modelKey43) {
     return { success: false, error: msg, steps };
   }
 }
+var init_deer_image_connectivity_test = __esm({
+  "src/routes/deer-image-connectivity-test.ts"() {
+    "use strict";
+    init_client2();
+    init_providers2();
+    init_provider_model_catalog();
+  }
+});
 
 // src/routes/provider-connectivity-test.ts
 function isProviderType2(s) {
   return ["deer", "replicate", "ppio", "openai", "google", "anthropic", "qwen", "volc", "minimax"].includes(s);
 }
-function inferModalityFromRegistry(provider13, modelKey43) {
-  if (!isProviderType2(provider13)) return null;
-  const scopes = [
-    { scope: "graph", modality: "image" },
-    { scope: "audio", modality: "audio" },
-    { scope: "video", modality: "video" }
-  ];
-  for (const { scope, modality } of scopes) {
-    if (getModel(provider13, scope, modelKey43)) return modality;
-  }
-  return null;
-}
-function resolveInferedModalityForConnectivityTest(provider13, modelKey43, scope, modalityFromRow) {
+function resolveInferedModalityForConnectivityTest(provider, modelKey, scope, modalityFromRow) {
   if (scope === "graph") return "image";
   if (scope === "audio") return "audio";
+  if (scope === "music") return "audio";
   if (scope === "video") return "video";
-  if (isProviderType2(provider13)) {
-    const rows = listByProvider(provider13).filter((m) => m.model_key === modelKey43);
+  if (isProviderType2(provider)) {
+    const rows = listByProvider(provider).filter((m) => m.model_key === modelKey);
     if (rows.some((r) => r.scope === "graph" || r.modality === "image")) return "image";
     if (rows.some((r) => r.scope === "audio" || r.modality === "audio")) return "audio";
+    if (rows.some((r) => r.scope === "music" || r.modality === "music")) return "audio";
     if (rows.some((r) => r.scope === "video" || r.modality === "video")) return "video";
     if (rows.some(
       (r) => ["writing", "text", "default", "outline"].includes((r.scope ?? "").toLowerCase()) || (r.modality ?? "").toLowerCase() === "text"
@@ -30131,22 +29721,49 @@ function resolveInferedModalityForConnectivityTest(provider13, modelKey43, scope
       return "text";
     }
   }
-  const fromRegistry = inferModalityFromRegistry(provider13, modelKey43);
-  if (fromRegistry) return fromRegistry;
   if (modalityFromRow === "image" || modalityFromRow === "audio" || modalityFromRow === "video") {
     return modalityFromRow;
   }
   if (modalityFromRow === "text") return "text";
-  return scope === "audio" ? "audio" : scope === "video" ? "video" : "text";
+  return scope === "audio" || scope === "music" ? "audio" : scope === "video" ? "video" : "text";
 }
-var PROMPT = {
-  text: "\u8FDE\u901A\u6027\u6D4B\u8BD5\uFF1A\u8BF7\u56DE\u590D OK",
-  image: "A single minimal geometric icon on plain background",
-  audio: "Hello, this is a connectivity test.",
-  video: "A simple scene with a static object and subtle camera movement"
-};
-function buildMinConnectivityGenerateParams(provider13, modelKey43, modality) {
-  switch (provider13) {
+function buildMinConnectivityGenerateParams(provider, modelKey, modality) {
+  switch (provider) {
+    case "atlascloud":
+      if (modality === "video") {
+        return {
+          params: {
+            prompt: PROMPT.video,
+            outputFormat: "json",
+            parameters: {
+              width: 512,
+              height: 512,
+              // 注意：不同 T2V 模型对 duration/fps 支持差异很大（有的只接受固定档位或字段名不同）。
+              // 连通性测试只验证“能创建 prediction + 可轮询”，避免因参数差异导致误判。
+              // 避免测试接口阻塞太久导致网关/Vite 代理断链
+              max_wait_ms: 12e3,
+              poll_interval_ms: 2e3
+            }
+          },
+          strategy: "atlascloud:generateVideo + prediction \u8F6E\u8BE2\uFF08\u53BB\u6389 duration/fps\uFF0Cmax_wait_ms 12s\uFF09"
+        };
+      }
+      if (modality === "image") {
+        return {
+          params: {
+            prompt: PROMPT.image,
+            outputFormat: "json",
+            parameters: {
+              aspect_ratio: "1:1",
+              // 同上：限制测试等待时长
+              max_wait_ms: 1e4,
+              poll_interval_ms: 2e3
+            }
+          },
+          strategy: "atlascloud:generateImage + prediction \u8F6E\u8BE2\uFF08max_wait_ms 10s\uFF09"
+        };
+      }
+      break;
     case "deer":
       if (modality === "text") {
         return {
@@ -30259,7 +29876,7 @@ function buildMinConnectivityGenerateParams(provider13, modelKey43, modality) {
             outputFormat: "json",
             parameters: {}
           },
-          strategy: `${provider13}:\u5F53\u524D\u5B9E\u73B0\u4EE5 Chat \u4E3A\u4E3B\uFF1B\u82E5\u5931\u8D25\u8BF7\u786E\u8BA4\u8BE5 model_key \u5728 Provider \u5185\u662F\u5426\u652F\u6301\u6B64\u6A21\u6001`
+          strategy: `${provider}:\u5F53\u524D\u5B9E\u73B0\u4EE5 Chat \u4E3A\u4E3B\uFF1B\u82E5\u5931\u8D25\u8BF7\u786E\u8BA4\u8BE5 model_key \u5728 Provider \u5185\u662F\u5426\u652F\u6301\u6B64\u6A21\u6001`
         };
       }
       return {
@@ -30268,7 +29885,7 @@ function buildMinConnectivityGenerateParams(provider13, modelKey43, modality) {
           outputFormat: "json",
           parameters: { max_tokens: 32, temperature: 0 }
         },
-        strategy: `${provider13}:Chat Completions \u6700\u5C0F\u8BF7\u6C42`
+        strategy: `${provider}:Chat Completions \u6700\u5C0F\u8BF7\u6C42`
       };
     default:
       break;
@@ -30286,10 +29903,10 @@ function buildMinConnectivityGenerateParams(provider13, modelKey43, modality) {
       outputFormat: "json",
       parameters: fallback[modality] || fallback.text
     },
-    strategy: `default:${provider13}/${modality} \u515C\u5E95\u53C2\u6570`
+    strategy: `default:${provider}/${modality} \u515C\u5E95\u53C2\u6570`
   };
 }
-function verifyResult(provider13, modality, result) {
+function verifyResult(provider, modality, result) {
   const meta = result.metadata;
   const hasMedia = Array.isArray(result.mediaUrls) && result.mediaUrls.length > 0;
   const hasStream = !!result.stream || !!result.streamString;
@@ -30298,7 +29915,7 @@ function verifyResult(provider13, modality, result) {
   if (modality === "text") {
     return hasMedia || hasMetadata || hasStream;
   }
-  if (provider13 === "replicate" && (modality === "image" || modality === "video" || modality === "audio")) {
+  if (provider === "replicate" && (modality === "image" || modality === "video" || modality === "audio")) {
     return hasMedia || hasMetadata;
   }
   if (modality === "image") {
@@ -30307,9 +29924,9 @@ function verifyResult(provider13, modality, result) {
   return hasMedia || hasMetadata || hasTaskId;
 }
 async function runProviderConnectivityTest(options) {
-  const { provider: provider13, modelKey: modelKey43, inferredModality, p, pushStep } = options;
-  if (provider13 === "deer" && inferredModality === "image") {
-    const deerImg = await runDeerImageConnectivityTest(modelKey43);
+  const { provider, modelKey, inferredModality, p, pushStep } = options;
+  if (provider === "deer" && inferredModality === "image") {
+    const deerImg = await runDeerImageConnectivityTest(modelKey);
     for (const s of deerImg.steps) {
       pushStep(s.key, s.title, s.status, s.detail);
     }
@@ -30326,7 +29943,7 @@ async function runProviderConnectivityTest(options) {
       }
     };
   }
-  const { params, strategy } = buildMinConnectivityGenerateParams(provider13, modelKey43, inferredModality);
+  const { params, strategy } = buildMinConnectivityGenerateParams(provider, modelKey, inferredModality);
   const requestPayload = {
     prompt: params.prompt,
     outputFormat: "json",
@@ -30334,13 +29951,13 @@ async function runProviderConnectivityTest(options) {
     inferredModality,
     strategy
   };
-  pushStep("invoke", `\u8C03\u7528\u4E0A\u6E38\uFF08${provider13}\uFF09`, "running", strategy);
+  pushStep("invoke", `\u8C03\u7528\u4E0A\u6E38\uFF08${provider}\uFF09`, "running", strategy);
   try {
-    const result = await p.generate(modelKey43, params);
+    const result = await p.generate(modelKey, params);
     const responseMeta = result.metadata ?? null;
-    pushStep("invoke", `\u8C03\u7528\u4E0A\u6E38\uFF08${provider13}\uFF09`, "success");
+    pushStep("invoke", `\u8C03\u7528\u4E0A\u6E38\uFF08${provider}\uFF09`, "success");
     pushStep("verify", "\u9A8C\u8BC1\u8FD4\u56DE\u7ED3\u679C", "running");
-    const ok = verifyResult(provider13, inferredModality, result);
+    const ok = verifyResult(provider, inferredModality, result);
     if (ok) {
       const meta = result.metadata;
       const hasMedia = Array.isArray(result.mediaUrls) && result.mediaUrls.length > 0;
@@ -30361,7 +29978,7 @@ async function runProviderConnectivityTest(options) {
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    pushStep("invoke", `\u8C03\u7528\u4E0A\u6E38\uFF08${provider13}\uFF09`, "failed", msg);
+    pushStep("invoke", `\u8C03\u7528\u4E0A\u6E38\uFF08${provider}\uFF09`, "failed", msg);
     return {
       success: false,
       error: msg,
@@ -30369,9 +29986,22 @@ async function runProviderConnectivityTest(options) {
     };
   }
 }
+var PROMPT;
+var init_provider_connectivity_test = __esm({
+  "src/routes/provider-connectivity-test.ts"() {
+    "use strict";
+    init_provider_model_catalog();
+    init_deer_image_connectivity_test();
+    PROMPT = {
+      text: "\u8FDE\u901A\u6027\u6D4B\u8BD5\uFF1A\u8BF7\u56DE\u590D OK",
+      image: "A single minimal geometric icon on plain background",
+      audio: "Hello, this is a connectivity test.",
+      video: "A simple scene with a static object and subtle camera movement"
+    };
+  }
+});
 
 // src/routes/providers.ts
-var router9 = (0, import_express9.Router)();
 async function requireAdmin(req, res, next) {
   try {
     const userRole = req.headers["x-user-role"];
@@ -30384,8 +30014,8 @@ async function requireAdmin(req, res, next) {
       res.status(403).json({ success: false, error: "Admin access required" });
       return;
     }
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const userRepo = RepositoryFactory24.createUserRepository();
+    const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+    const userRepo = RepositoryFactory23.createUserRepository();
     const user = await userRepo.findById(userId);
     if (user && user.role === "admin") {
       next();
@@ -30416,856 +30046,888 @@ function normalizeModalityByScope(scope, modality) {
   if (m === "text" || m === "image" || m === "audio" || m === "video") return m;
   return null;
 }
-router9.use(requireAdmin);
-router9.get("/options", async (_req, res) => {
-  try {
-    const modelsByProvider = {};
-    const modelsByProviderByScope = {};
-    try {
-      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-      const repo = RepositoryFactory24.createProviderModelRepository();
-      const dbModels = await repo.list({ onlyEnabled: true });
-      for (const m of dbModels) {
-        const provider13 = m.provider;
-        const scope = m.scope;
-        const key = m.model_key;
-        if (!modelsByProvider[provider13]) modelsByProvider[provider13] = [];
-        if (!modelsByProvider[provider13].includes(key)) modelsByProvider[provider13].push(key);
-        if (!modelsByProviderByScope[provider13]) modelsByProviderByScope[provider13] = {};
-        if (!modelsByProviderByScope[provider13][scope]) modelsByProviderByScope[provider13][scope] = [];
-        if (!modelsByProviderByScope[provider13][scope].includes(key)) {
-          modelsByProviderByScope[provider13][scope].push(key);
-        }
-      }
-    } catch (_) {
-    }
-    const allModels = listModels();
-    for (const def of allModels) {
-      const provider13 = def.provider;
-      const scope = def.scope;
-      const key = def.modelKey;
-      if (!modelsByProvider[provider13]) modelsByProvider[provider13] = [];
-      if (!modelsByProvider[provider13].includes(key)) modelsByProvider[provider13].push(key);
-      if (!modelsByProviderByScope[provider13]) modelsByProviderByScope[provider13] = {};
-      if (!modelsByProviderByScope[provider13][scope]) modelsByProviderByScope[provider13][scope] = [];
-      if (!modelsByProviderByScope[provider13][scope].includes(key)) {
-        modelsByProviderByScope[provider13][scope].push(key);
-      }
-    }
-    for (const p of Object.keys(modelsByProvider)) {
-      modelsByProvider[p].sort();
-    }
-    for (const p of Object.keys(modelsByProviderByScope)) {
-      const scopes = modelsByProviderByScope[p];
-      for (const s of Object.keys(scopes)) {
-        scopes[s].sort();
-      }
-    }
-    res.json({ success: true, data: { modelsByProvider, modelsByProviderByScope } });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.get("/routing", (_req, res) => {
-  try {
-    const table = getFullRoutingTable();
-    res.json({ success: true, data: table });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
 function canonicalLogicalModel(key) {
   return key === "writing-outline" ? "writing-outlines" : key;
 }
-router9.post("/routing", async (req, res) => {
-  try {
-    const { logicalModel, provider: provider13, model } = req.body;
-    if (!logicalModel || !provider13 || !model) {
-      res.status(400).json({
-        success: false,
-        error: "Missing logicalModel, provider, or model"
-      });
-      return;
-    }
-    const canonical = canonicalLogicalModel(logicalModel);
-    const supabase = (0, import_mxmdata24.getSupabaseClient)();
-    const { error } = await supabase.from("model_routing_overrides").upsert(
-      { logical_model: canonical, provider: provider13, model, updated_at: (/* @__PURE__ */ new Date()).toISOString() },
-      { onConflict: "logical_model" }
-    );
-    if (error) {
-      return res.status(500).json({
-        success: false,
-        error: "Failed to persist routing override",
-        message: error.message
-      });
-    }
-    setRoutingOverride(logicalModel, { provider: provider13, model });
-    res.json({ success: true, data: { logicalModel, provider: provider13, model } });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.delete("/routing", async (req, res) => {
-  try {
-    const logicalModel = req.query.logicalModel;
-    if (!logicalModel) {
-      res.status(400).json({ success: false, error: "Missing query logicalModel" });
-      return;
-    }
-    const canonical = canonicalLogicalModel(logicalModel);
-    const supabase = (0, import_mxmdata24.getSupabaseClient)();
-    await supabase.from("model_routing_overrides").delete().eq("logical_model", canonical);
-    clearRoutingOverride(logicalModel);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.get("/stats", async (req, res) => {
-  try {
-    const provider13 = req.query.provider;
-    const window = req.query.window || "1h";
-    const groupBy = req.query.groupBy;
-    const list = await getProviderStats({ provider: provider13, window, groupBy });
-    res.json({ success: true, data: list });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-var BILLING_PROVIDERS = [
-  "deer",
-  "replicate",
-  "ppio",
-  "openai",
-  "google",
-  "anthropic",
-  "qwen",
-  "volc",
-  "minimax"
-];
-router9.get("/billing", async (_req, res) => {
-  try {
-    const supabase = (0, import_mxmdata24.getSupabaseClient)();
-    const { data: balanceRows } = await supabase.from("provider_balances").select("provider, balance, currency");
-    const balanceMap = /* @__PURE__ */ new Map();
-    (balanceRows || []).forEach((r) => {
-      balanceMap.set(r.provider, { balance: Number(r.balance || 0), currency: r.currency || "USD" });
-    });
-    const results = [];
-    for (const type of BILLING_PROVIDERS) {
+var import_express9, import_mxmdata24, router9, BILLING_PROVIDERS, providers_default;
+var init_providers4 = __esm({
+  "src/routes/providers.ts"() {
+    "use strict";
+    import_express9 = require("express");
+    init_providers2();
+    import_mxmdata24 = require("@mxmai/mxmdata");
+    init_provider_connectivity_test();
+    router9 = (0, import_express9.Router)();
+    router9.use(requireAdmin);
+    router9.get("/options", async (_req, res) => {
       try {
-        const p = providerFactory.tryGet(type);
-        if (p && typeof p.getBillingInfo === "function") {
-          const info = await p.getBillingInfo();
-          const out = {
-            provider: info.provider,
-            supported: info.supported,
-            totalLimit: info.totalLimit,
-            used: info.used,
-            resetAt: info.resetAt
-          };
-          const manual = balanceMap.get(type);
-          if (manual) {
-            out.manualBalance = manual.balance;
-            out.currency = manual.currency;
+        const modelsByProvider = {};
+        const modelsByProviderByScope = {};
+        try {
+          const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+          const repo = RepositoryFactory23.createProviderModelRepository();
+          const dbModels = await repo.list({ onlyEnabled: true });
+          for (const m of dbModels) {
+            const provider = m.provider;
+            const scope = m.scope;
+            const key = m.model_key;
+            if (!modelsByProvider[provider]) modelsByProvider[provider] = [];
+            if (!modelsByProvider[provider].includes(key)) modelsByProvider[provider].push(key);
+            if (!modelsByProviderByScope[provider]) modelsByProviderByScope[provider] = {};
+            if (!modelsByProviderByScope[provider][scope]) modelsByProviderByScope[provider][scope] = [];
+            if (!modelsByProviderByScope[provider][scope].includes(key)) {
+              modelsByProviderByScope[provider][scope].push(key);
+            }
           }
-          results.push(out);
-        } else {
-          const manual = balanceMap.get(type);
-          results.push({
-            provider: type,
-            supported: false,
-            manualBalance: manual?.balance ?? void 0,
-            currency: manual?.currency ?? "USD"
+        } catch (_) {
+        }
+        for (const p of Object.keys(modelsByProvider)) {
+          modelsByProvider[p].sort();
+        }
+        for (const p of Object.keys(modelsByProviderByScope)) {
+          const scopes = modelsByProviderByScope[p];
+          for (const s of Object.keys(scopes)) {
+            scopes[s].sort();
+          }
+        }
+        res.json({ success: true, data: { modelsByProvider, modelsByProviderByScope } });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    router9.get("/routing", (_req, res) => {
+      try {
+        const table = getFullRoutingTable();
+        res.json({ success: true, data: table });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    router9.post("/routing", async (req, res) => {
+      try {
+        const { logicalModel, provider, model } = req.body;
+        if (!logicalModel || !provider || !model) {
+          res.status(400).json({
+            success: false,
+            error: "Missing logicalModel, provider, or model"
+          });
+          return;
+        }
+        const canonical = canonicalLogicalModel(logicalModel);
+        const supabase = (0, import_mxmdata24.getSupabaseClient)();
+        const { error } = await supabase.from("model_routing_overrides").upsert(
+          { logical_model: canonical, provider, model, updated_at: (/* @__PURE__ */ new Date()).toISOString() },
+          { onConflict: "logical_model" }
+        );
+        if (error) {
+          return res.status(500).json({
+            success: false,
+            error: "Failed to persist routing override",
+            message: error.message
           });
         }
+        setRoutingOverride(logicalModel, { provider, model });
+        res.json({ success: true, data: { logicalModel, provider, model } });
       } catch (e) {
-        const manual = balanceMap.get(type);
-        results.push({
-          provider: type,
-          supported: false,
-          manualBalance: manual?.balance ?? void 0,
-          currency: manual?.currency ?? "USD"
-        });
-      }
-    }
-    res.json({ success: true, data: results });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.get("/balances", async (_req, res) => {
-  try {
-    const supabase = (0, import_mxmdata24.getSupabaseClient)();
-    const { data, error } = await supabase.from("provider_balances").select("provider, balance, currency, updated_at").order("provider");
-    if (error) {
-      return res.status(500).json({ success: false, error: error.message });
-    }
-    res.json({ success: true, data: data || [] });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.put("/balances", async (req, res) => {
-  try {
-    const { provider: provider13, balance } = req.body;
-    if (!provider13 || typeof balance !== "number") {
-      return res.status(400).json({ success: false, error: "Missing provider or balance" });
-    }
-    const supabase = (0, import_mxmdata24.getSupabaseClient)();
-    const { data: existing } = await supabase.from("provider_balances").select("id").eq("provider", provider13).maybeSingle();
-    if (existing) {
-      const { data: data2, error: error2 } = await supabase.from("provider_balances").update({ balance: Number(balance), updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("provider", provider13).select().maybeSingle();
-      if (error2) return res.status(500).json({ success: false, error: error2.message });
-      return res.json({ success: true, data: data2 });
-    }
-    const { data, error } = await supabase.from("provider_balances").insert({ provider: provider13, balance: Number(balance), currency: "USD" }).select().maybeSingle();
-    if (error) return res.status(500).json({ success: false, error: error.message });
-    res.json({ success: true, data });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.get("/costs", async (req, res) => {
-  try {
-    const supabase = (0, import_mxmdata24.getSupabaseClient)();
-    const windowParam = req.query.window || "7d";
-    const groupBy = req.query.groupBy || "provider";
-    const windowMap = {
-      "1d": 1,
-      "7d": 7,
-      "15d": 15,
-      "30d": 30
-    };
-    const days = windowMap[windowParam] || 7;
-    const now = /* @__PURE__ */ new Date();
-    const from = new Date(now.getTime() - days * 24 * 60 * 60 * 1e3);
-    const fromIso = from.toISOString();
-    const { data: usageAgg, error: usageError } = await supabase.from("provider_usage_records").select(
-      `
-        provider,
-        model_key,
-        input_tokens:sum(input_tokens),
-        output_tokens:sum(output_tokens),
-        total_tokens:sum(total_tokens),
-        image_count:sum(image_count),
-        audio_seconds:sum(audio_seconds),
-        video_seconds:sum(video_seconds),
-        request_count:count(*)
-      `
-    ).gte("created_at", fromIso).group("provider, model_key");
-    if (usageError) {
-      res.status(500).json({
-        success: false,
-        error: "Failed to query provider_usage_records",
-        message: usageError.message
-      });
-      return;
-    }
-    const rows = usageAgg || [];
-    if (rows.length === 0) {
-      res.json({
-        success: true,
-        data: [],
-        window: windowParam,
-        groupBy
-      });
-      return;
-    }
-    const { data: pricingRows, error: pricingError } = await supabase.from("provider_pricing").select("*");
-    if (pricingError) {
-      res.status(500).json({
-        success: false,
-        error: "Failed to query provider_pricing",
-        message: pricingError.message
-      });
-      return;
-    }
-    const pricingMap = /* @__PURE__ */ new Map();
-    (pricingRows || []).forEach((p) => {
-      const key = `${p.provider}::${p.model_key}`;
-      if (!pricingMap.has(key)) {
-        pricingMap.set(key, {
-          provider: p.provider,
-          scope: p.scope,
-          model_key: p.model_key,
-          charge_mode: p.charge_mode,
-          unit_price: Number(p.unit_price || 0),
-          input_unit_price: p.input_unit_price !== null ? Number(p.input_unit_price) : null,
-          output_unit_price: p.output_unit_price !== null ? Number(p.output_unit_price) : null
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
         });
       }
     });
-    const modelCostRows = [];
-    for (const row of rows) {
-      const key = `${row.provider}::${row.model_key}`;
-      const pricing = pricingMap.get(key);
-      const totalTokens = Number(row.total_tokens || 0);
-      const imageCount = Number(row.image_count || 0);
-      const audioSeconds = Number(row.audio_seconds || 0);
-      const videoSeconds = Number(row.video_seconds || 0);
-      const requestCount = Number(row.request_count || 0);
-      let estimatedCost = 0;
-      let chargeMode = pricing?.charge_mode || "unknown";
-      if (pricing) {
-        switch (pricing.charge_mode) {
-          case "token_based": {
-            const inputTokens = Number(row.input_tokens || 0);
-            const outputTokens = Number(row.output_tokens || 0);
-            const hasInputOutput = pricing.input_unit_price != null && pricing.output_unit_price != null && (inputTokens > 0 || outputTokens > 0);
-            if (hasInputOutput) {
-              estimatedCost = inputTokens / 1e3 * pricing.input_unit_price + outputTokens / 1e3 * pricing.output_unit_price;
+    router9.delete("/routing", async (req, res) => {
+      try {
+        const logicalModel = req.query.logicalModel;
+        if (!logicalModel) {
+          res.status(400).json({ success: false, error: "Missing query logicalModel" });
+          return;
+        }
+        const canonical = canonicalLogicalModel(logicalModel);
+        const supabase = (0, import_mxmdata24.getSupabaseClient)();
+        await supabase.from("model_routing_overrides").delete().eq("logical_model", canonical);
+        clearRoutingOverride(logicalModel);
+        res.json({ success: true });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    router9.get("/stats", async (req, res) => {
+      try {
+        const provider = req.query.provider;
+        const window = req.query.window || "1h";
+        const groupBy = req.query.groupBy;
+        const list = await getProviderStats({ provider, window, groupBy });
+        res.json({ success: true, data: list });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    BILLING_PROVIDERS = [
+      "deer",
+      "replicate",
+      "ppio",
+      "openai",
+      "google",
+      "anthropic",
+      "qwen",
+      "volc",
+      "minimax"
+    ];
+    router9.get("/billing", async (_req, res) => {
+      try {
+        const supabase = (0, import_mxmdata24.getSupabaseClient)();
+        const { data: balanceRows } = await supabase.from("provider_balances").select("provider, balance, currency");
+        const balanceMap = /* @__PURE__ */ new Map();
+        (balanceRows || []).forEach((r) => {
+          balanceMap.set(r.provider, { balance: Number(r.balance || 0), currency: r.currency || "USD" });
+        });
+        const results = [];
+        for (const type of BILLING_PROVIDERS) {
+          try {
+            const p = providerFactory.tryGet(type);
+            if (p && typeof p.getBillingInfo === "function") {
+              const info = await p.getBillingInfo();
+              const out = {
+                provider: info.provider,
+                supported: info.supported,
+                totalLimit: info.totalLimit,
+                used: info.used,
+                resetAt: info.resetAt
+              };
+              const manual = balanceMap.get(type);
+              if (manual) {
+                out.manualBalance = manual.balance;
+                out.currency = manual.currency;
+              }
+              results.push(out);
             } else {
-              const units = totalTokens > 0 ? totalTokens / 1e3 : 0;
-              estimatedCost = units * pricing.unit_price;
+              const manual = balanceMap.get(type);
+              results.push({
+                provider: type,
+                supported: false,
+                manualBalance: manual?.balance ?? void 0,
+                currency: manual?.currency ?? "USD"
+              });
             }
-            break;
-          }
-          case "per_image": {
-            estimatedCost = imageCount * pricing.unit_price;
-            break;
-          }
-          case "per_second_audio": {
-            estimatedCost = audioSeconds * pricing.unit_price;
-            break;
-          }
-          case "per_second_video": {
-            estimatedCost = videoSeconds * pricing.unit_price;
-            break;
-          }
-          case "per_request": {
-            estimatedCost = requestCount * pricing.unit_price;
-            break;
-          }
-          default: {
-            chargeMode = pricing.charge_mode || "unknown";
-            break;
+          } catch (e) {
+            const manual = balanceMap.get(type);
+            results.push({
+              provider: type,
+              supported: false,
+              manualBalance: manual?.balance ?? void 0,
+              currency: manual?.currency ?? "USD"
+            });
           }
         }
+        res.json({ success: true, data: results });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
       }
-      modelCostRows.push({
-        provider: row.provider,
-        model_key: row.model_key,
-        requestCount,
-        totalTokens,
-        imageCount,
-        audioSeconds,
-        videoSeconds,
-        estimatedCost,
-        chargeMode
-      });
-    }
-    if (groupBy === "model") {
-      res.json({
-        success: true,
-        data: modelCostRows,
-        window: windowParam,
-        groupBy: "model"
-      });
-      return;
-    }
-    const byProvider2 = {};
-    for (const row of modelCostRows) {
-      const p = row.provider;
-      if (!byProvider2[p]) {
-        byProvider2[p] = {
-          provider: p,
-          requestCount: 0,
-          totalTokens: 0,
-          imageCount: 0,
-          audioSeconds: 0,
-          videoSeconds: 0,
-          estimatedCost: 0
+    });
+    router9.get("/balances", async (_req, res) => {
+      try {
+        const supabase = (0, import_mxmdata24.getSupabaseClient)();
+        const { data, error } = await supabase.from("provider_balances").select("provider, balance, currency, updated_at").order("provider");
+        if (error) {
+          return res.status(500).json({ success: false, error: error.message });
+        }
+        res.json({ success: true, data: data || [] });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    router9.put("/balances", async (req, res) => {
+      try {
+        const { provider, balance } = req.body;
+        if (!provider || typeof balance !== "number") {
+          return res.status(400).json({ success: false, error: "Missing provider or balance" });
+        }
+        const supabase = (0, import_mxmdata24.getSupabaseClient)();
+        const { data: existing } = await supabase.from("provider_balances").select("id").eq("provider", provider).maybeSingle();
+        if (existing) {
+          const { data: data2, error: error2 } = await supabase.from("provider_balances").update({ balance: Number(balance), updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("provider", provider).select().maybeSingle();
+          if (error2) return res.status(500).json({ success: false, error: error2.message });
+          return res.json({ success: true, data: data2 });
+        }
+        const { data, error } = await supabase.from("provider_balances").insert({ provider, balance: Number(balance), currency: "USD" }).select().maybeSingle();
+        if (error) return res.status(500).json({ success: false, error: error.message });
+        res.json({ success: true, data });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    router9.get("/costs", async (req, res) => {
+      try {
+        const supabase = (0, import_mxmdata24.getSupabaseClient)();
+        const windowParam = req.query.window || "7d";
+        const groupBy = req.query.groupBy || "provider";
+        const windowMap = {
+          "1d": 1,
+          "7d": 7,
+          "15d": 15,
+          "30d": 30
         };
-      }
-      const agg = byProvider2[p];
-      agg.requestCount += row.requestCount;
-      agg.totalTokens += row.totalTokens;
-      agg.imageCount += row.imageCount;
-      agg.audioSeconds += row.audioSeconds;
-      agg.videoSeconds += row.videoSeconds;
-      agg.estimatedCost += row.estimatedCost;
-    }
-    res.json({
-      success: true,
-      data: Object.values(byProvider2),
-      window: windowParam,
-      groupBy: "provider"
-    });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.get("/keys", async (req, res) => {
-  try {
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory24.createProviderApiKeyRepository();
-    const provider13 = req.query.provider;
-    const service = req.query.service;
-    const list = await repo.listMasked({ provider: provider13, service: service ?? null });
-    res.json({ success: true, data: list });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.post("/keys", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { provider: provider13, service, key_value, priority } = req.body;
-    if (!provider13 || !key_value || typeof key_value !== "string") {
-      res.status(400).json({ success: false, error: "Missing provider or key_value" });
-      return;
-    }
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory24.createProviderApiKeyRepository();
-    const created = await repo.create({
-      provider: provider13,
-      service: service ?? null,
-      key_value,
-      priority,
-      updated_by: userId ?? null
-    });
-    res.json({
-      success: true,
-      data: {
-        id: created.id,
-        provider: created.provider,
-        service: created.service,
-        key_masked: "***" + (created.key_value.length > 4 ? created.key_value.slice(-4) : ""),
-        priority: created.priority,
-        is_active: created.is_active
-      }
-    });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.put("/keys/:id", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { priority, is_active } = req.body;
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory24.createProviderApiKeyRepository();
-    const updated = await repo.update(req.params.id, { priority, is_active, updated_by: userId ?? null });
-    res.json({
-      success: true,
-      data: {
-        id: updated.id,
-        provider: updated.provider,
-        service: updated.service,
-        key_masked: "***" + (updated.key_value.length > 4 ? updated.key_value.slice(-4) : ""),
-        priority: updated.priority,
-        is_active: updated.is_active
-      }
-    });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.delete("/keys/:id", async (req, res) => {
-  try {
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory24.createProviderApiKeyRepository();
-    await repo.delete(req.params.id);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.get("/models", async (req, res) => {
-  try {
-    const provider13 = req.query.provider;
-    const scope = req.query.scope;
-    const onlyEnabled = req.query.onlyEnabled === "true" || req.query.onlyEnabled === "1";
-    const page = Math.max(1, parseInt(String(req.query.page || 1), 10));
-    const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize || 20), 10)));
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory24.createProviderModelRepository();
-    let list = await repo.list({ provider: provider13, scope, onlyEnabled: onlyEnabled || void 0 });
-    list = list.map((m) => ({
-      ...m,
-      modality: normalizeModalityByScope(m.scope, m.modality)
-    }));
-    try {
-      const supabase = (0, import_mxmdata24.getSupabaseClient)();
-      const ids = list.map((m) => m.id).filter(Boolean);
-      if (ids.length > 0) {
-        const { data: runs } = await supabase.from("provider_model_test_runs").select("provider_model_id, success, latency_ms, error_message, created_at").in("provider_model_id", ids).order("created_at", { ascending: false });
-        const latestById = /* @__PURE__ */ new Map();
-        for (const r of runs || []) {
-          const k = String(r.provider_model_id);
-          if (!latestById.has(k)) latestById.set(k, r);
+        const days = windowMap[windowParam] || 7;
+        const now = /* @__PURE__ */ new Date();
+        const from = new Date(now.getTime() - days * 24 * 60 * 60 * 1e3);
+        const fromIso = from.toISOString();
+        const { data: usageRaw, error: usageError } = await supabase.from("provider_usage_records").select(
+          "provider, model_key, input_tokens, output_tokens, total_tokens, image_count, audio_seconds, video_seconds, request_count"
+        ).gte("created_at", fromIso);
+        if (usageError) {
+          res.status(500).json({
+            success: false,
+            error: "Failed to query provider_usage_records",
+            message: usageError.message
+          });
+          return;
         }
+        const aggByPair = /* @__PURE__ */ new Map();
+        for (const r of usageRaw ?? []) {
+          const row = r;
+          const provider = String(row.provider ?? "");
+          const modelKey = String(row.model_key ?? "");
+          const key = `${provider}::${modelKey}`;
+          const prev = aggByPair.get(key);
+          const it = Number(row.input_tokens ?? 0) || 0;
+          const ot = Number(row.output_tokens ?? 0) || 0;
+          const tt = Number(row.total_tokens ?? 0) || 0;
+          const ic = Number(row.image_count ?? 0) || 0;
+          const asec = Number(row.audio_seconds ?? 0) || 0;
+          const vsec = Number(row.video_seconds ?? 0) || 0;
+          const rc = Number(row.request_count ?? 0) || 0;
+          if (!prev) {
+            aggByPair.set(key, {
+              provider,
+              model_key: modelKey,
+              input_tokens: it,
+              output_tokens: ot,
+              total_tokens: tt,
+              image_count: ic,
+              audio_seconds: asec,
+              video_seconds: vsec,
+              request_count: rc
+            });
+          } else {
+            prev.input_tokens += it;
+            prev.output_tokens += ot;
+            prev.total_tokens += tt;
+            prev.image_count += ic;
+            prev.audio_seconds += asec;
+            prev.video_seconds += vsec;
+            prev.request_count += rc;
+          }
+        }
+        const rows = Array.from(aggByPair.values()).map((u) => ({
+          provider: u.provider,
+          model_key: u.model_key,
+          input_tokens: u.input_tokens,
+          output_tokens: u.output_tokens,
+          total_tokens: u.total_tokens,
+          image_count: u.image_count,
+          audio_seconds: u.audio_seconds,
+          video_seconds: u.video_seconds,
+          request_count: u.request_count
+        }));
+        if (rows.length === 0) {
+          res.json({
+            success: true,
+            data: [],
+            window: windowParam,
+            groupBy
+          });
+          return;
+        }
+        const { data: pricingRows, error: pricingError } = await supabase.from("provider_pricing").select("*");
+        if (pricingError) {
+          res.status(500).json({
+            success: false,
+            error: "Failed to query provider_pricing",
+            message: pricingError.message
+          });
+          return;
+        }
+        const pricingMap = /* @__PURE__ */ new Map();
+        (pricingRows || []).forEach((p) => {
+          const key = `${p.provider}::${p.model_key}`;
+          if (!pricingMap.has(key)) {
+            pricingMap.set(key, {
+              provider: p.provider,
+              scope: p.scope,
+              model_key: p.model_key,
+              charge_mode: p.charge_mode,
+              unit_price: Number(p.unit_price || 0),
+              input_unit_price: p.input_unit_price !== null ? Number(p.input_unit_price) : null,
+              output_unit_price: p.output_unit_price !== null ? Number(p.output_unit_price) : null
+            });
+          }
+        });
+        const modelCostRows = [];
+        for (const row of rows) {
+          const key = `${row.provider}::${row.model_key}`;
+          const pricing = pricingMap.get(key);
+          const totalTokens = Number(row.total_tokens || 0);
+          const imageCount = Number(row.image_count || 0);
+          const audioSeconds = Number(row.audio_seconds || 0);
+          const videoSeconds = Number(row.video_seconds || 0);
+          const requestCount = Number(row.request_count || 0);
+          let estimatedCost = 0;
+          let chargeMode = pricing?.charge_mode || "unknown";
+          if (pricing) {
+            switch (pricing.charge_mode) {
+              case "token_based": {
+                const inputTokens = Number(row.input_tokens || 0);
+                const outputTokens = Number(row.output_tokens || 0);
+                const hasInputOutput = pricing.input_unit_price != null && pricing.output_unit_price != null && (inputTokens > 0 || outputTokens > 0);
+                if (hasInputOutput) {
+                  estimatedCost = inputTokens / 1e3 * pricing.input_unit_price + outputTokens / 1e3 * pricing.output_unit_price;
+                } else {
+                  const units = totalTokens > 0 ? totalTokens / 1e3 : 0;
+                  estimatedCost = units * pricing.unit_price;
+                }
+                break;
+              }
+              case "per_image": {
+                estimatedCost = imageCount * pricing.unit_price;
+                break;
+              }
+              case "per_second_audio": {
+                estimatedCost = audioSeconds * pricing.unit_price;
+                break;
+              }
+              case "per_second_video": {
+                estimatedCost = videoSeconds * pricing.unit_price;
+                break;
+              }
+              case "per_request": {
+                estimatedCost = requestCount * pricing.unit_price;
+                break;
+              }
+              default: {
+                chargeMode = pricing.charge_mode || "unknown";
+                break;
+              }
+            }
+          }
+          modelCostRows.push({
+            provider: row.provider,
+            model_key: row.model_key,
+            requestCount,
+            totalTokens,
+            imageCount,
+            audioSeconds,
+            videoSeconds,
+            estimatedCost,
+            chargeMode
+          });
+        }
+        if (groupBy === "model") {
+          res.json({
+            success: true,
+            data: modelCostRows,
+            window: windowParam,
+            groupBy: "model"
+          });
+          return;
+        }
+        const byProvider = {};
+        for (const row of modelCostRows) {
+          const p = row.provider;
+          if (!byProvider[p]) {
+            byProvider[p] = {
+              provider: p,
+              requestCount: 0,
+              totalTokens: 0,
+              imageCount: 0,
+              audioSeconds: 0,
+              videoSeconds: 0,
+              estimatedCost: 0
+            };
+          }
+          const agg = byProvider[p];
+          agg.requestCount += row.requestCount;
+          agg.totalTokens += row.totalTokens;
+          agg.imageCount += row.imageCount;
+          agg.audioSeconds += row.audioSeconds;
+          agg.videoSeconds += row.videoSeconds;
+          agg.estimatedCost += row.estimatedCost;
+        }
+        res.json({
+          success: true,
+          data: Object.values(byProvider),
+          window: windowParam,
+          groupBy: "provider"
+        });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    router9.get("/keys", async (req, res) => {
+      try {
+        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory23.createProviderApiKeyRepository();
+        const provider = req.query.provider;
+        const service = req.query.service;
+        const list = await repo.listMasked({ provider, service: service ?? null });
+        res.json({ success: true, data: list });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    router9.post("/keys", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { provider, service, key_value, priority, is_active } = req.body;
+        if (!provider || !key_value || typeof key_value !== "string") {
+          res.status(400).json({ success: false, error: "Missing provider or key_value" });
+          return;
+        }
+        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory23.createProviderApiKeyRepository();
+        const created = await repo.create({
+          provider,
+          service: service ?? null,
+          key_value,
+          priority,
+          is_active: typeof is_active === "boolean" ? is_active : true,
+          updated_by: userId ?? null
+        });
+        res.json({
+          success: true,
+          data: {
+            id: created.id,
+            provider: created.provider,
+            service: created.service,
+            key_masked: "***" + (created.key_value.length > 4 ? created.key_value.slice(-4) : ""),
+            priority: created.priority,
+            is_active: created.is_active
+          }
+        });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    router9.put("/keys/:id", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { priority, is_active } = req.body;
+        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory23.createProviderApiKeyRepository();
+        const updated = await repo.update(req.params.id, { priority, is_active, updated_by: userId ?? null });
+        res.json({
+          success: true,
+          data: {
+            id: updated.id,
+            provider: updated.provider,
+            service: updated.service,
+            key_masked: "***" + (updated.key_value.length > 4 ? updated.key_value.slice(-4) : ""),
+            priority: updated.priority,
+            is_active: updated.is_active
+          }
+        });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    router9.delete("/keys/:id", async (req, res) => {
+      try {
+        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory23.createProviderApiKeyRepository();
+        await repo.delete(req.params.id);
+        res.json({ success: true });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    router9.get("/models", async (req, res) => {
+      try {
+        const provider = req.query.provider;
+        const scope = req.query.scope;
+        const onlyEnabled = req.query.onlyEnabled === "true" || req.query.onlyEnabled === "1";
+        const page = Math.max(1, parseInt(String(req.query.page || 1), 10));
+        const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize || 20), 10)));
+        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory23.createProviderModelRepository();
+        let list = await repo.list({ provider, scope, onlyEnabled: onlyEnabled || void 0 });
         list = list.map((m) => ({
           ...m,
-          latest_test: latestById.get(String(m.id)) ?? null
+          modality: normalizeModalityByScope(m.scope, m.modality)
         }));
+        try {
+          const supabase = (0, import_mxmdata24.getSupabaseClient)();
+          const ids = list.map((m) => m.id).filter(Boolean);
+          if (ids.length > 0) {
+            const { data: runs } = await supabase.from("provider_model_test_runs").select("provider_model_id, success, latency_ms, error_message, created_at").in("provider_model_id", ids).order("created_at", { ascending: false });
+            const latestById = /* @__PURE__ */ new Map();
+            for (const r of runs || []) {
+              const k = String(r.provider_model_id);
+              if (!latestById.has(k)) latestById.set(k, r);
+            }
+            list = list.map((m) => ({
+              ...m,
+              latest_test: latestById.get(String(m.id)) ?? null
+            }));
+          }
+        } catch (e) {
+          console.warn("[providers] load latest provider_model_test_runs failed:", e instanceof Error ? e.message : String(e));
+        }
+        const total = list.length;
+        const offset = (page - 1) * pageSize;
+        list = list.slice(offset, offset + pageSize);
+        res.json({ success: true, data: list, total, page, pageSize });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
       }
-    } catch (e) {
-      console.warn("[providers] load latest provider_model_test_runs failed:", e instanceof Error ? e.message : String(e));
-    }
-    const total = list.length;
-    const offset = (page - 1) * pageSize;
-    list = list.slice(offset, offset + pageSize);
-    res.json({ success: true, data: list, total, page, pageSize });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
     });
-  }
-});
-router9.get("/models/:id/tests", async (req, res) => {
-  try {
-    const id = req.params.id;
-    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || 20), 10)));
-    const supabase = (0, import_mxmdata24.getSupabaseClient)();
-    const { data, error } = await supabase.from("provider_model_test_runs").select("*").eq("provider_model_id", id).order("created_at", { ascending: false }).limit(limit);
-    if (error) {
-      res.status(500).json({ success: false, error: error.message });
-      return;
-    }
-    res.json({ success: true, data: data || [] });
-  } catch (e) {
-    res.status(500).json({ success: false, error: e instanceof Error ? e.message : String(e) });
-  }
-});
-router9.post("/models", async (req, res) => {
-  try {
-    const body = req.body;
-    if (!body.provider || !body.scope || !body.model_key) {
-      res.status(400).json({ success: false, error: "Missing provider, scope, or model_key" });
-      return;
-    }
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory24.createProviderModelRepository();
-    const created = await repo.upsert({
-      provider: body.provider,
-      scope: body.scope,
-      model_key: body.model_key,
-      upstream_model: body.upstream_model ?? null,
-      protocol: body.protocol ?? null,
-      modality: normalizeModalityByScope(body.scope, body.modality),
-      io_schema: body.io_schema ?? null,
-      display_name: body.display_name ?? null,
-      description: body.description ?? null,
-      capabilities: body.capabilities ?? null,
-      default_parameters: body.default_parameters ?? null,
-      is_enabled: body.is_enabled ?? true
+    router9.get("/models/:id/tests", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || 20), 10)));
+        const supabase = (0, import_mxmdata24.getSupabaseClient)();
+        const { data, error } = await supabase.from("provider_model_test_runs").select("*").eq("provider_model_id", id).order("created_at", { ascending: false }).limit(limit);
+        if (error) {
+          res.status(500).json({ success: false, error: error.message });
+          return;
+        }
+        res.json({ success: true, data: data || [] });
+      } catch (e) {
+        res.status(500).json({ success: false, error: e instanceof Error ? e.message : String(e) });
+      }
     });
-    await refreshProviderModelCatalog();
-    res.json({
-      success: true,
-      data: { ...created, modality: normalizeModalityByScope(created.scope, created.modality) }
+    router9.post("/models", async (req, res) => {
+      try {
+        const body = req.body;
+        if (!body.provider || !body.scope || !body.model_key) {
+          res.status(400).json({ success: false, error: "Missing provider, scope, or model_key" });
+          return;
+        }
+        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory23.createProviderModelRepository();
+        const created = await repo.upsert({
+          provider: body.provider,
+          scope: body.scope,
+          model_key: body.model_key,
+          upstream_model: body.upstream_model ?? null,
+          protocol: body.protocol ?? null,
+          modality: normalizeModalityByScope(body.scope, body.modality),
+          io_schema: body.io_schema ?? null,
+          display_name: body.display_name ?? null,
+          description: body.description ?? null,
+          capabilities: body.capabilities ?? null,
+          default_parameters: body.default_parameters ?? null,
+          is_enabled: body.is_enabled ?? true
+        });
+        await refreshProviderModelCatalog();
+        res.json({
+          success: true,
+          data: { ...created, modality: normalizeModalityByScope(created.scope, created.modality) }
+        });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
     });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
+    router9.put("/models/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const body = req.body;
+        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory23.createProviderModelRepository();
+        const existing = await repo.findById(id);
+        if (!existing) {
+          res.status(404).json({ success: false, error: "Model not found" });
+          return;
+        }
+        if (body.provider !== void 0 && body.provider !== existing.provider) {
+          res.status(400).json({ success: false, error: "\u4E0D\u5141\u8BB8\u4FEE\u6539 provider" });
+          return;
+        }
+        if (body.model_key !== void 0 && body.model_key !== existing.model_key) {
+          res.status(400).json({ success: false, error: "\u4E0D\u5141\u8BB8\u4FEE\u6539 model_key" });
+          return;
+        }
+        const patch = {};
+        if (body.scope !== void 0) patch.scope = body.scope;
+        if (body.upstream_model !== void 0) patch.upstream_model = body.upstream_model;
+        if (body.protocol !== void 0) patch.protocol = body.protocol;
+        if (body.modality !== void 0 || body.scope !== void 0) {
+          patch.modality = normalizeModalityByScope(
+            body.scope ?? existing.scope,
+            body.modality ?? existing.modality
+          );
+        }
+        if (body.io_schema !== void 0) patch.io_schema = body.io_schema;
+        if (body.display_name !== void 0) patch.display_name = body.display_name;
+        if (body.description !== void 0) patch.description = body.description;
+        if (body.capabilities !== void 0) patch.capabilities = body.capabilities;
+        if (body.default_parameters !== void 0) patch.default_parameters = body.default_parameters;
+        if (body.is_enabled !== void 0) patch.is_enabled = body.is_enabled;
+        const newScope = patch.scope !== void 0 ? patch.scope : existing.scope;
+        if (patch.scope !== void 0 && patch.scope !== existing.scope) {
+          const duplicate = await repo.findByKey({
+            provider: existing.provider,
+            scope: newScope,
+            model_key: existing.model_key
+          });
+          if (duplicate && duplicate.id !== id) {
+            const mergePatch = { ...patch };
+            delete mergePatch.scope;
+            if (Object.keys(mergePatch).length > 0) {
+              await repo.update(duplicate.id, mergePatch);
+            }
+            const supabase = (0, import_mxmdata24.getSupabaseClient)();
+            const { error: pricingErr } = await supabase.from("provider_pricing").delete().eq("provider", existing.provider).eq("scope", existing.scope).eq("model_key", existing.model_key);
+            if (pricingErr) {
+              res.status(500).json({
+                success: false,
+                error: `\u5408\u5E76\u91CD\u590D\u8BB0\u5F55\u65F6\u5220\u9664\u65E7 Provider \u6210\u672C\u884C\u5931\u8D25: ${pricingErr.message}`
+              });
+              return;
+            }
+            await repo.deleteById(id);
+            await refreshProviderModelCatalog();
+            const finalRow = await repo.findById(duplicate.id);
+            res.json({
+              success: true,
+              data: finalRow ? { ...finalRow, modality: normalizeModalityByScope(finalRow.scope, finalRow.modality) } : null,
+              merged: true,
+              message: "\u5DF2\u5B58\u5728\u76F8\u540C provider + scope + model_key \u7684\u8BB0\u5F55\uFF1A\u5DF2\u5C06\u672C\u6B21\u7F16\u8F91\u5408\u5E76\u5230\u8BE5\u8BB0\u5F55\uFF0C\u5E76\u5220\u9664\u91CD\u590D\u7684\u7269\u7406\u6A21\u578B\u884C\u3002"
+            });
+            return;
+          }
+        }
+        const updated = await repo.update(id, patch);
+        await refreshProviderModelCatalog();
+        res.json({
+          success: true,
+          data: { ...updated, modality: normalizeModalityByScope(updated.scope, updated.modality) }
+        });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
     });
-  }
-});
-router9.put("/models/:id", async (req, res) => {
-  try {
-    const id = req.params.id;
-    const body = req.body;
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory24.createProviderModelRepository();
-    const existing = await repo.findById(id);
-    if (!existing) {
-      res.status(404).json({ success: false, error: "Model not found" });
-      return;
-    }
-    if (body.provider !== void 0 && body.provider !== existing.provider) {
-      res.status(400).json({ success: false, error: "\u4E0D\u5141\u8BB8\u4FEE\u6539 provider" });
-      return;
-    }
-    if (body.model_key !== void 0 && body.model_key !== existing.model_key) {
-      res.status(400).json({ success: false, error: "\u4E0D\u5141\u8BB8\u4FEE\u6539 model_key" });
-      return;
-    }
-    const patch = {};
-    if (body.scope !== void 0) patch.scope = body.scope;
-    if (body.upstream_model !== void 0) patch.upstream_model = body.upstream_model;
-    if (body.protocol !== void 0) patch.protocol = body.protocol;
-    if (body.modality !== void 0 || body.scope !== void 0) {
-      patch.modality = normalizeModalityByScope(
-        body.scope ?? existing.scope,
-        body.modality ?? existing.modality
-      );
-    }
-    if (body.io_schema !== void 0) patch.io_schema = body.io_schema;
-    if (body.display_name !== void 0) patch.display_name = body.display_name;
-    if (body.description !== void 0) patch.description = body.description;
-    if (body.capabilities !== void 0) patch.capabilities = body.capabilities;
-    if (body.default_parameters !== void 0) patch.default_parameters = body.default_parameters;
-    if (body.is_enabled !== void 0) patch.is_enabled = body.is_enabled;
-    const newScope = patch.scope !== void 0 ? patch.scope : existing.scope;
-    if (patch.scope !== void 0 && patch.scope !== existing.scope) {
-      const duplicate = await repo.findByKey({
-        provider: existing.provider,
-        scope: newScope,
-        model_key: existing.model_key
-      });
-      if (duplicate && duplicate.id !== id) {
-        const mergePatch = { ...patch };
-        delete mergePatch.scope;
-        if (Object.keys(mergePatch).length > 0) {
-          await repo.update(duplicate.id, mergePatch);
+    router9.delete("/models/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory23.createProviderModelRepository();
+        const existing = await repo.findById(id);
+        if (!existing) {
+          res.status(404).json({ success: false, error: "Model not found" });
+          return;
         }
         const supabase = (0, import_mxmdata24.getSupabaseClient)();
         const { error: pricingErr } = await supabase.from("provider_pricing").delete().eq("provider", existing.provider).eq("scope", existing.scope).eq("model_key", existing.model_key);
         if (pricingErr) {
           res.status(500).json({
             success: false,
-            error: `\u5408\u5E76\u91CD\u590D\u8BB0\u5F55\u65F6\u5220\u9664\u65E7 Provider \u6210\u672C\u884C\u5931\u8D25: ${pricingErr.message}`
+            error: `\u5220\u9664\u5173\u8054\u5B9A\u4EF7\u5931\u8D25: ${pricingErr.message}`
           });
           return;
         }
         await repo.deleteById(id);
         await refreshProviderModelCatalog();
-        const finalRow = await repo.findById(duplicate.id);
+        res.json({ success: true, data: { id, deleted: true } });
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
+        });
+      }
+    });
+    router9.post("/models/test", async (req, res) => {
+      try {
+        const body = req.body;
+        let provider;
+        let modelKey;
+        let scope;
+        let modality = null;
+        const steps = [];
+        const pushStep = (key, title, status, detail) => {
+          steps.push({ key, title, status, detail, at: (/* @__PURE__ */ new Date()).toISOString() });
+        };
+        let providerModelId = null;
+        if (body.provider_model_id) {
+          const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+          const repo = RepositoryFactory23.createProviderModelRepository();
+          const m = await repo.findById(body.provider_model_id);
+          if (!m) {
+            res.status(404).json({ success: false, error: "Provider model not found" });
+            return;
+          }
+          providerModelId = m.id;
+          provider = m.provider;
+          modelKey = m.model_key;
+          scope = m.scope;
+          modality = m.modality ?? null;
+        } else if (body.provider && body.model_key && body.scope) {
+          provider = body.provider;
+          modelKey = body.model_key;
+          scope = body.scope;
+          modality = null;
+          try {
+            const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+            const repo = RepositoryFactory23.createProviderModelRepository();
+            const m = await repo.findByKey({ provider, scope, model_key: modelKey });
+            providerModelId = m?.id ?? null;
+          } catch {
+            providerModelId = null;
+          }
+        } else {
+          res.status(400).json({
+            success: false,
+            error: "Provide provider_model_id or (provider, model_key, scope)"
+          });
+          return;
+        }
+        const start2 = Date.now();
+        let success = false;
+        let errorMessage = null;
+        let requestPayload = null;
+        let responseMeta = null;
+        try {
+          const inferredModality = resolveInferedModalityForConnectivityTest(
+            provider,
+            modelKey,
+            scope,
+            modality
+          );
+          pushStep(
+            "prepare",
+            "\u6784\u9020\u6700\u5C0F\u6D4B\u8BD5\u8BF7\u6C42",
+            "success",
+            `scope=${scope}, modality=${inferredModality}, provider=${provider}, model=${modelKey}`
+          );
+          pushStep("connect", "\u68C0\u67E5 Provider \u4E0E\u6A21\u578B\u652F\u6301", "running");
+          const p = providerFactory.tryGet(provider);
+          if (!p || !p.supportsModel(modelKey)) {
+            pushStep("connect", "\u68C0\u67E5 Provider \u4E0E\u6A21\u578B\u652F\u6301", "failed", "Provider \u4E0D\u652F\u6301\u8BE5\u6A21\u578B");
+            errorMessage = `Provider ${provider} does not support model ${modelKey}`;
+          } else {
+            pushStep("connect", "\u68C0\u67E5 Provider \u4E0E\u6A21\u578B\u652F\u6301", "success");
+            const outcome = await runProviderConnectivityTest({
+              provider,
+              modelKey,
+              inferredModality,
+              p,
+              pushStep
+            });
+            success = outcome.success;
+            responseMeta = outcome.responseMeta ?? null;
+            requestPayload = outcome.requestPayload;
+            if (!success) {
+              errorMessage = outcome.error ?? "\u8FDE\u901A\u6027\u6D4B\u8BD5\u5931\u8D25";
+            }
+          }
+        } catch (e) {
+          errorMessage = e instanceof Error ? e.message : String(e);
+          steps.push({
+            key: "invoke",
+            title: "\u53D1\u9001\u6700\u5C0F\u6D4B\u8BD5\u8BF7\u6C42",
+            status: "failed",
+            detail: errorMessage,
+            at: (/* @__PURE__ */ new Date()).toISOString()
+          });
+        }
+        const latencyMs = Date.now() - start2;
+        pushStep(
+          "done",
+          "\u6D4B\u8BD5\u5B8C\u6210",
+          success ? "success" : "failed",
+          success ? `\u8017\u65F6 ${latencyMs}ms` : errorMessage || "\u6D4B\u8BD5\u5931\u8D25"
+        );
+        try {
+          if (providerModelId) {
+            const inferred = String(requestPayload?.inferredModality ?? modality ?? "text");
+            const supabase = (0, import_mxmdata24.getSupabaseClient)();
+            await supabase.from("provider_model_test_runs").insert({
+              provider_model_id: providerModelId,
+              provider,
+              scope,
+              model_key: modelKey,
+              inferred_modality: inferred,
+              success,
+              latency_ms: latencyMs,
+              error_message: errorMessage,
+              request_payload: requestPayload,
+              response_meta: responseMeta,
+              steps
+            });
+          }
+        } catch (e) {
+          console.warn("[providers] insert provider_model_test_runs failed:", e instanceof Error ? e.message : String(e));
+        }
         res.json({
           success: true,
-          data: finalRow ? { ...finalRow, modality: normalizeModalityByScope(finalRow.scope, finalRow.modality) } : null,
-          merged: true,
-          message: "\u5DF2\u5B58\u5728\u76F8\u540C provider + scope + model_key \u7684\u8BB0\u5F55\uFF1A\u5DF2\u5C06\u672C\u6B21\u7F16\u8F91\u5408\u5E76\u5230\u8BE5\u8BB0\u5F55\uFF0C\u5E76\u5220\u9664\u91CD\u590D\u7684\u7269\u7406\u6A21\u578B\u884C\u3002"
+          data: {
+            success,
+            latencyMs,
+            error: errorMessage,
+            provider,
+            model_key: modelKey,
+            scope,
+            modality: requestPayload?.inferredModality ?? modality ?? null,
+            requestPayload,
+            responseMeta,
+            steps
+          }
         });
-        return;
-      }
-    }
-    const updated = await repo.update(id, patch);
-    await refreshProviderModelCatalog();
-    res.json({
-      success: true,
-      data: { ...updated, modality: normalizeModalityByScope(updated.scope, updated.modality) }
-    });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.delete("/models/:id", async (req, res) => {
-  try {
-    const id = req.params.id;
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory24.createProviderModelRepository();
-    const existing = await repo.findById(id);
-    if (!existing) {
-      res.status(404).json({ success: false, error: "Model not found" });
-      return;
-    }
-    const supabase = (0, import_mxmdata24.getSupabaseClient)();
-    const { error: pricingErr } = await supabase.from("provider_pricing").delete().eq("provider", existing.provider).eq("scope", existing.scope).eq("model_key", existing.model_key);
-    if (pricingErr) {
-      res.status(500).json({
-        success: false,
-        error: `\u5220\u9664\u5173\u8054\u5B9A\u4EF7\u5931\u8D25: ${pricingErr.message}`
-      });
-      return;
-    }
-    await repo.deleteById(id);
-    await refreshProviderModelCatalog();
-    res.json({ success: true, data: { id, deleted: true } });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
-  }
-});
-router9.post("/models/test", async (req, res) => {
-  try {
-    const body = req.body;
-    let provider13;
-    let modelKey43;
-    let scope;
-    let modality = null;
-    const steps = [];
-    const pushStep = (key, title, status, detail) => {
-      steps.push({ key, title, status, detail, at: (/* @__PURE__ */ new Date()).toISOString() });
-    };
-    let providerModelId = null;
-    if (body.provider_model_id) {
-      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-      const repo = RepositoryFactory24.createProviderModelRepository();
-      const m = await repo.findById(body.provider_model_id);
-      if (!m) {
-        res.status(404).json({ success: false, error: "Provider model not found" });
-        return;
-      }
-      providerModelId = m.id;
-      provider13 = m.provider;
-      modelKey43 = m.model_key;
-      scope = m.scope;
-      modality = m.modality ?? null;
-    } else if (body.provider && body.model_key && body.scope) {
-      provider13 = body.provider;
-      modelKey43 = body.model_key;
-      scope = body.scope;
-      modality = null;
-      try {
-        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-        const repo = RepositoryFactory24.createProviderModelRepository();
-        const m = await repo.findByKey({ provider: provider13, scope, model_key: modelKey43 });
-        providerModelId = m?.id ?? null;
-      } catch {
-        providerModelId = null;
-      }
-    } else {
-      res.status(400).json({
-        success: false,
-        error: "Provide provider_model_id or (provider, model_key, scope)"
-      });
-      return;
-    }
-    const start2 = Date.now();
-    let success = false;
-    let errorMessage = null;
-    let requestPayload = null;
-    let responseMeta = null;
-    try {
-      const inferredModality = resolveInferedModalityForConnectivityTest(
-        provider13,
-        modelKey43,
-        scope,
-        modality
-      );
-      pushStep(
-        "prepare",
-        "\u6784\u9020\u6700\u5C0F\u6D4B\u8BD5\u8BF7\u6C42",
-        "success",
-        `scope=${scope}, modality=${inferredModality}, provider=${provider13}, model=${modelKey43}`
-      );
-      pushStep("connect", "\u68C0\u67E5 Provider \u4E0E\u6A21\u578B\u652F\u6301", "running");
-      const p = providerFactory.tryGet(provider13);
-      if (!p || !p.supportsModel(modelKey43)) {
-        pushStep("connect", "\u68C0\u67E5 Provider \u4E0E\u6A21\u578B\u652F\u6301", "failed", "Provider \u4E0D\u652F\u6301\u8BE5\u6A21\u578B");
-        errorMessage = `Provider ${provider13} does not support model ${modelKey43}`;
-      } else {
-        pushStep("connect", "\u68C0\u67E5 Provider \u4E0E\u6A21\u578B\u652F\u6301", "success");
-        const outcome = await runProviderConnectivityTest({
-          provider: provider13,
-          modelKey: modelKey43,
-          inferredModality,
-          p,
-          pushStep
-        });
-        success = outcome.success;
-        responseMeta = outcome.responseMeta ?? null;
-        requestPayload = outcome.requestPayload;
-        if (!success) {
-          errorMessage = outcome.error ?? "\u8FDE\u901A\u6027\u6D4B\u8BD5\u5931\u8D25";
-        }
-      }
-    } catch (e) {
-      errorMessage = e instanceof Error ? e.message : String(e);
-      steps.push({
-        key: "invoke",
-        title: "\u53D1\u9001\u6700\u5C0F\u6D4B\u8BD5\u8BF7\u6C42",
-        status: "failed",
-        detail: errorMessage,
-        at: (/* @__PURE__ */ new Date()).toISOString()
-      });
-    }
-    const latencyMs = Date.now() - start2;
-    pushStep(
-      "done",
-      "\u6D4B\u8BD5\u5B8C\u6210",
-      success ? "success" : "failed",
-      success ? `\u8017\u65F6 ${latencyMs}ms` : errorMessage || "\u6D4B\u8BD5\u5931\u8D25"
-    );
-    try {
-      if (providerModelId) {
-        const inferred = String(requestPayload?.inferredModality ?? modality ?? "text");
-        const supabase = (0, import_mxmdata24.getSupabaseClient)();
-        await supabase.from("provider_model_test_runs").insert({
-          provider_model_id: providerModelId,
-          provider: provider13,
-          scope,
-          model_key: modelKey43,
-          inferred_modality: inferred,
-          success,
-          latency_ms: latencyMs,
-          error_message: errorMessage,
-          request_payload: requestPayload,
-          response_meta: responseMeta,
-          steps
+      } catch (e) {
+        res.status(500).json({
+          success: false,
+          error: e instanceof Error ? e.message : String(e)
         });
       }
-    } catch (e) {
-      console.warn("[providers] insert provider_model_test_runs failed:", e instanceof Error ? e.message : String(e));
-    }
-    res.json({
-      success: true,
-      data: {
-        success,
-        latencyMs,
-        error: errorMessage,
-        provider: provider13,
-        model_key: modelKey43,
-        scope,
-        modality: requestPayload?.inferredModality ?? modality ?? null,
-        requestPayload,
-        responseMeta,
-        steps
-      }
     });
-  } catch (e) {
-    res.status(500).json({
-      success: false,
-      error: e instanceof Error ? e.message : String(e)
-    });
+    providers_default = router9;
   }
 });
-var providers_default = router9;
 
 // src/routes/sensitive-words.ts
-var import_express10 = require("express");
-var import_mxmdata25 = require("@mxmai/mxmdata");
-var router10 = (0, import_express10.Router)();
 async function isAdminUser3(req) {
   try {
     const userRole = req.headers["x-user-role"];
@@ -31285,10 +30947,6 @@ function isUninitializedError(e) {
   const full = str + (e instanceof Error && e.cause ? String(e.cause) : "");
   return /relation\s+["']?sensitive_word|does not exist|表.*不存在/i.test(msg) || /Could not find the table|schema cache|schema_cache/i.test(full) || /undefined_table|42P01|PGRST.*sensitive_word/i.test(full) || typeof msg === "string" && msg.includes("sensitive_word");
 }
-var UNINITIALIZED_META = {
-  uninitialized: true,
-  hint: "\u8BF7\u6267\u884C\u6570\u636E\u8FC1\u79FB: pnpm --filter @mxmai/mxmdata run migrate:sensitive-words"
-};
 function sendSensitiveWordError(res, e) {
   console.error("[sensitive-words]", e instanceof Error ? e.stack : e);
   const msg = e instanceof Error ? e.message : String(e);
@@ -31313,309 +30971,235 @@ function sendSensitiveWordError(res, e) {
   }
   res.status(500).json({ success: false, error: msg });
 }
-router10.get("/lists", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    const items = await repo.listLists();
-    return res.json({ success: true, data: { items } });
-  } catch (e) {
-    if (isUninitializedError(e)) {
-      return res.json({ success: true, data: { items: [] }, meta: UNINITIALIZED_META });
-    }
-    return sendSensitiveWordError(res, e);
-  }
-});
-router10.get("/lists/:listId", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const listId = req.params.listId;
-    if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    const list = await repo.findListById(listId);
-    if (!list) return res.status(404).json({ success: false, error: "Not found" });
-    return res.json({ success: true, data: list });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-router10.post("/lists", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const body = req.body;
-    if (!body.name || typeof body.name !== "string") {
-      return res.status(400).json({ success: false, error: "name is required" });
-    }
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    const list = await repo.createList({
-      name: body.name,
-      description: body.description ?? null,
-      is_active: body.is_active !== false
-    });
-    return res.status(201).json({ success: true, data: list });
-  } catch (e) {
-    return sendSensitiveWordError(res, e);
-  }
-});
-router10.put("/lists/:listId", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const listId = req.params.listId;
-    const body = req.body;
-    if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    const list = await repo.updateList(listId, {
-      name: body.name,
-      description: body.description,
-      is_active: body.is_active
-    });
-    return res.json({ success: true, data: list });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-router10.delete("/lists/:listId", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const listId = req.params.listId;
-    if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    await repo.deleteList(listId);
-    return res.status(204).send();
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-router10.get("/lists/:listId/words", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const listId = req.params.listId;
-    if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    const words = await repo.listWordsByListId(listId);
-    return res.json({ success: true, data: { items: words } });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-router10.post("/lists/:listId/words", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const listId = req.params.listId;
-    const body = req.body;
-    if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    if (!body.word || typeof body.word !== "string") {
-      return res.status(400).json({ success: false, error: "word is required" });
-    }
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    const word = await repo.addWord({ list_id: listId, word: body.word.trim() });
-    return res.status(201).json({ success: true, data: word });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-router10.post("/lists/:listId/words/batch", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const listId = req.params.listId;
-    const body = req.body;
-    if (!listId) return res.status(400).json({ success: false, error: "listId required" });
-    const words = Array.isArray(body.words) ? body.words.map((w) => String(w).trim()).filter(Boolean) : [];
-    if (words.length === 0) {
-      return res.status(400).json({ success: false, error: "words array is required and non-empty" });
-    }
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    const count = await repo.addWordsBatch(listId, words);
-    return res.status(201).json({ success: true, data: { added: count } });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-router10.delete("/words/:wordId", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const wordId = req.params.wordId;
-    if (!wordId) return res.status(400).json({ success: false, error: "wordId required" });
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    await repo.deleteWord(wordId);
-    return res.status(204).send();
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-router10.get("/bindings", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const scope = req.query.scope;
-    const type = req.query.type;
-    const subtype = req.query.subtype;
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    const items = await repo.listBindings(
-      scope,
-      type,
-      subtype === void 0 ? void 0 : subtype === "" ? null : subtype
-    );
-    return res.json({ success: true, data: { items } });
-  } catch (e) {
-    if (isUninitializedError(e)) {
-      return res.json({ success: true, data: { items: [] }, meta: UNINITIALIZED_META });
-    }
-    return sendSensitiveWordError(res, e);
-  }
-});
-router10.put("/bindings/slot", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const body = req.body;
-    if (!body.scope || !body.type) {
-      return res.status(400).json({ success: false, error: "scope and type are required" });
-    }
-    const listIds = Array.isArray(body.list_ids) ? body.list_ids : [];
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    await repo.setBindingsForSlot(body.scope, body.type, body.subtype ?? null, listIds);
-    return res.json({ success: true, data: { scope: body.scope, type: body.type, subtype: body.subtype ?? null, list_ids: listIds } });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-router10.delete("/bindings/:bindingId", async (req, res) => {
-  if (!await isAdminUser3(req)) {
-    return res.status(403).json({ success: false, error: "Admin only" });
-  }
-  try {
-    const bindingId = req.params.bindingId;
-    if (!bindingId) return res.status(400).json({ success: false, error: "bindingId required" });
-    const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
-    await repo.removeBinding(bindingId);
-    return res.status(204).send();
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
-  }
-});
-var sensitive_words_default = router10;
-
-// src/routes/system.ts
-var import_mxmdata26 = require("@mxmai/mxmdata");
-var router11 = (0, import_express11.Router)();
-router11.use("/prompt-config", prompt_config_default);
-router11.use("/admin/providers", providers_default);
-router11.use("/admin/sensitive-words", sensitive_words_default);
-router11.get("/admin/stats", async (req, res) => {
-  try {
-    const isAdmin = await isAdminUser4(req);
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: "Admin access required"
-      });
-    }
-    const supabase = (0, import_mxmdata26.getSupabaseClient)();
-    const days = Math.min(Math.max(parseInt(req.query.days) || 30, 7), 90);
-    const topLimit = Math.min(Math.max(parseInt(req.query.topLimit) || 10, 5), 50);
-    const [
-      userCountRes,
-      taskCountRes,
-      statusRes,
-      typeRes,
-      dailyRes,
-      topUsersRes
-    ] = await Promise.all([
-      supabase.from("users").select("*", { count: "exact", head: true }),
-      supabase.from("cgi_tasks").select("*", { count: "exact", head: true }).is("deleted_at", null),
-      supabase.from("cgi_tasks").select("status").is("deleted_at", null),
-      supabase.from("cgi_tasks").select("task_type").is("deleted_at", null),
-      supabase.rpc("admin_get_daily_task_stats", { p_days: days }).then((r) => {
-        if (r.error) {
-          console.warn("[System Route] admin_get_daily_task_stats RPC error:", r.error.message);
-          return { data: [] };
+var import_express10, import_mxmdata25, router10, UNINITIALIZED_META, sensitive_words_default;
+var init_sensitive_words = __esm({
+  "src/routes/sensitive-words.ts"() {
+    "use strict";
+    import_express10 = require("express");
+    import_mxmdata25 = require("@mxmai/mxmdata");
+    router10 = (0, import_express10.Router)();
+    UNINITIALIZED_META = {
+      uninitialized: true,
+      hint: "\u8BF7\u6267\u884C\u6570\u636E\u8FC1\u79FB: pnpm --filter @mxmai/mxmdata run migrate:sensitive-words"
+    };
+    router10.get("/lists", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        const items = await repo.listLists();
+        return res.json({ success: true, data: { items } });
+      } catch (e) {
+        if (isUninitializedError(e)) {
+          return res.json({ success: true, data: { items: [] }, meta: UNINITIALIZED_META });
         }
-        return r;
-      }),
-      supabase.rpc("admin_get_top_users_by_usage", { p_limit: topLimit }).then((r) => {
-        if (r.error) {
-          console.warn("[System Route] admin_get_top_users_by_usage RPC error:", r.error.message);
-          return { data: [] };
-        }
-        return r;
-      })
-    ]);
-    const taskCountByStatus = {};
-    (statusRes.data || []).forEach((row) => {
-      const s = row.status || "unknown";
-      taskCountByStatus[s] = (taskCountByStatus[s] || 0) + 1;
-    });
-    const taskCountByType = {};
-    (typeRes.data || []).forEach((row) => {
-      const t = row.task_type || "unknown";
-      taskCountByType[t] = (taskCountByType[t] || 0) + 1;
-    });
-    const dailyUsage = (dailyRes.data || []).map((row) => ({
-      date: row.stat_date,
-      count: Number(row.task_count) || 0
-    }));
-    const topUsersByUsage = (topUsersRes.data || []).map((row) => ({
-      userId: row.user_id,
-      username: row.username || row.user_id,
-      taskCount: Number(row.task_count) || 0
-    }));
-    if (true) {
-      console.log("[System Route] Admin stats:", {
-        dailyUsageLen: dailyUsage.length,
-        topUsersLen: topUsersByUsage.length,
-        dailySample: dailyUsage.slice(0, 2),
-        topSample: topUsersByUsage.slice(0, 2)
-      });
-    }
-    return res.json({
-      success: true,
-      data: {
-        userCount: userCountRes.count ?? 0,
-        taskCount: taskCountRes.count ?? 0,
-        taskCountByStatus,
-        taskCountByType,
-        dailyUsage,
-        topUsersByUsage
+        return sendSensitiveWordError(res, e);
       }
     });
-  } catch (error) {
-    console.error("[System Route] \u83B7\u53D6 Admin \u7EDF\u8BA1\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Failed to get admin stats",
-      message: error instanceof Error ? error.message : String(error)
+    router10.get("/lists/:listId", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const listId = req.params.listId;
+        if (!listId) return res.status(400).json({ success: false, error: "listId required" });
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        const list = await repo.findListById(listId);
+        if (!list) return res.status(404).json({ success: false, error: "Not found" });
+        return res.json({ success: true, data: list });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
     });
+    router10.post("/lists", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const body = req.body;
+        if (!body.name || typeof body.name !== "string") {
+          return res.status(400).json({ success: false, error: "name is required" });
+        }
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        const list = await repo.createList({
+          name: body.name,
+          description: body.description ?? null,
+          is_active: body.is_active !== false
+        });
+        return res.status(201).json({ success: true, data: list });
+      } catch (e) {
+        return sendSensitiveWordError(res, e);
+      }
+    });
+    router10.put("/lists/:listId", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const listId = req.params.listId;
+        const body = req.body;
+        if (!listId) return res.status(400).json({ success: false, error: "listId required" });
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        const list = await repo.updateList(listId, {
+          name: body.name,
+          description: body.description,
+          is_active: body.is_active
+        });
+        return res.json({ success: true, data: list });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    router10.delete("/lists/:listId", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const listId = req.params.listId;
+        if (!listId) return res.status(400).json({ success: false, error: "listId required" });
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        await repo.deleteList(listId);
+        return res.status(204).send();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    router10.get("/lists/:listId/words", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const listId = req.params.listId;
+        if (!listId) return res.status(400).json({ success: false, error: "listId required" });
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        const words = await repo.listWordsByListId(listId);
+        return res.json({ success: true, data: { items: words } });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    router10.post("/lists/:listId/words", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const listId = req.params.listId;
+        const body = req.body;
+        if (!listId) return res.status(400).json({ success: false, error: "listId required" });
+        if (!body.word || typeof body.word !== "string") {
+          return res.status(400).json({ success: false, error: "word is required" });
+        }
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        const word = await repo.addWord({ list_id: listId, word: body.word.trim() });
+        return res.status(201).json({ success: true, data: word });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    router10.post("/lists/:listId/words/batch", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const listId = req.params.listId;
+        const body = req.body;
+        if (!listId) return res.status(400).json({ success: false, error: "listId required" });
+        const words = Array.isArray(body.words) ? body.words.map((w) => String(w).trim()).filter(Boolean) : [];
+        if (words.length === 0) {
+          return res.status(400).json({ success: false, error: "words array is required and non-empty" });
+        }
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        const count = await repo.addWordsBatch(listId, words);
+        return res.status(201).json({ success: true, data: { added: count } });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    router10.delete("/words/:wordId", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const wordId = req.params.wordId;
+        if (!wordId) return res.status(400).json({ success: false, error: "wordId required" });
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        await repo.deleteWord(wordId);
+        return res.status(204).send();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    router10.get("/bindings", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const scope = req.query.scope;
+        const type = req.query.type;
+        const subtype = req.query.subtype;
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        const items = await repo.listBindings(
+          scope,
+          type,
+          subtype === void 0 ? void 0 : subtype === "" ? null : subtype
+        );
+        return res.json({ success: true, data: { items } });
+      } catch (e) {
+        if (isUninitializedError(e)) {
+          return res.json({ success: true, data: { items: [] }, meta: UNINITIALIZED_META });
+        }
+        return sendSensitiveWordError(res, e);
+      }
+    });
+    router10.put("/bindings/slot", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const body = req.body;
+        if (!body.scope || !body.type) {
+          return res.status(400).json({ success: false, error: "scope and type are required" });
+        }
+        const listIds = Array.isArray(body.list_ids) ? body.list_ids : [];
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        await repo.setBindingsForSlot(body.scope, body.type, body.subtype ?? null, listIds);
+        return res.json({ success: true, data: { scope: body.scope, type: body.type, subtype: body.subtype ?? null, list_ids: listIds } });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    router10.delete("/bindings/:bindingId", async (req, res) => {
+      if (!await isAdminUser3(req)) {
+        return res.status(403).json({ success: false, error: "Admin only" });
+      }
+      try {
+        const bindingId = req.params.bindingId;
+        if (!bindingId) return res.status(400).json({ success: false, error: "bindingId required" });
+        const repo = (0, import_mxmdata25.createSensitiveWordRepository)();
+        await repo.removeBinding(bindingId);
+        return res.status(204).send();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    sensitive_words_default = router10;
   }
+});
+
+// src/routes/system.ts
+var system_exports = {};
+__export(system_exports, {
+  default: () => system_default
 });
 async function isAdminUser4(req) {
   try {
@@ -31628,8 +31212,8 @@ async function isAdminUser4(req) {
       return false;
     }
     try {
-      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-      const userRepo = RepositoryFactory24.createUserRepository();
+      const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+      const userRepo = RepositoryFactory23.createUserRepository();
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
         return true;
@@ -31677,8 +31261,8 @@ function normalizeChargeMode(raw) {
   return "per_change_mode" /* per_change_mode */;
 }
 async function loadModelsTreeFromDatabase(isAdmin) {
-  const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-  const repo = RepositoryFactory24.createProviderModelRepository();
+  const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+  const repo = RepositoryFactory23.createProviderModelRepository();
   const models = await repo.list({ onlyEnabled: true });
   const supabase = (0, import_mxmdata26.getSupabaseClient)();
   const { data: pricingRows, error } = await supabase.from("provider_pricing").select("*");
@@ -31707,949 +31291,617 @@ async function loadModelsTreeFromDatabase(isAdmin) {
   }
   return result;
 }
-router11.get("/models", async (req, res) => {
-  try {
-    const { category, provider: provider13 } = req.query;
-    const isAdmin = await isAdminUser4(req);
-    const tree = await loadModelsTreeFromDatabase(isAdmin);
-    if (category && provider13) {
-      const categoryKey = category;
-      const providerKey = provider13;
-      const providerModels = tree[providerKey]?.[categoryKey];
-      if (!providerModels || Object.keys(providerModels).length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: "Not found",
-          message: `No models found for provider "${providerKey}" and category "${categoryKey}"`
+var import_express11, import_mxmdata26, router11, system_default;
+var init_system = __esm({
+  "src/routes/system.ts"() {
+    "use strict";
+    import_express11 = require("express");
+    init_model_catalog_types();
+    init_client();
+    init_prompt_config();
+    init_providers4();
+    init_sensitive_words();
+    import_mxmdata26 = require("@mxmai/mxmdata");
+    router11 = (0, import_express11.Router)();
+    router11.use("/prompt-config", prompt_config_default);
+    router11.use("/admin/providers", providers_default);
+    router11.use("/admin/sensitive-words", sensitive_words_default);
+    router11.get("/admin/stats", async (req, res) => {
+      try {
+        const isAdmin = await isAdminUser4(req);
+        if (!isAdmin) {
+          return res.status(403).json({
+            success: false,
+            error: "Admin access required"
+          });
+        }
+        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const days = Math.min(Math.max(parseInt(req.query.days) || 30, 7), 90);
+        const topLimit = Math.min(Math.max(parseInt(req.query.topLimit) || 10, 5), 50);
+        const [
+          userCountRes,
+          taskCountRes,
+          statusRes,
+          typeRes,
+          dailyRes,
+          topUsersRes
+        ] = await Promise.all([
+          supabase.from("users").select("*", { count: "exact", head: true }),
+          supabase.from("cgi_tasks").select("*", { count: "exact", head: true }).is("deleted_at", null),
+          supabase.from("cgi_tasks").select("status").is("deleted_at", null),
+          supabase.from("cgi_tasks").select("task_type").is("deleted_at", null),
+          supabase.rpc("admin_get_daily_task_stats", { p_days: days }).then((r) => {
+            if (r.error) {
+              console.warn("[System Route] admin_get_daily_task_stats RPC error:", r.error.message);
+              return { data: [] };
+            }
+            return r;
+          }),
+          supabase.rpc("admin_get_top_users_by_usage", { p_limit: topLimit }).then((r) => {
+            if (r.error) {
+              console.warn("[System Route] admin_get_top_users_by_usage RPC error:", r.error.message);
+              return { data: [] };
+            }
+            return r;
+          })
+        ]);
+        const taskCountByStatus = {};
+        (statusRes.data || []).forEach((row) => {
+          const s = row.status || "unknown";
+          taskCountByStatus[s] = (taskCountByStatus[s] || 0) + 1;
         });
-      }
-      return res.json({
-        success: true,
-        data: {
-          [providerKey]: {
-            [categoryKey]: providerModels
+        const taskCountByType = {};
+        (typeRes.data || []).forEach((row) => {
+          const t = row.task_type || "unknown";
+          taskCountByType[t] = (taskCountByType[t] || 0) + 1;
+        });
+        const dailyUsage = (dailyRes.data || []).map((row) => ({
+          date: row.stat_date,
+          count: Number(row.task_count) || 0
+        }));
+        const topUsersByUsage = (topUsersRes.data || []).map((row) => ({
+          userId: row.user_id,
+          username: row.username || row.user_id,
+          taskCount: Number(row.task_count) || 0
+        }));
+        if (true) {
+          console.log("[System Route] Admin stats:", {
+            dailyUsageLen: dailyUsage.length,
+            topUsersLen: topUsersByUsage.length,
+            dailySample: dailyUsage.slice(0, 2),
+            topSample: topUsersByUsage.slice(0, 2)
+          });
+        }
+        return res.json({
+          success: true,
+          data: {
+            userCount: userCountRes.count ?? 0,
+            taskCount: taskCountRes.count ?? 0,
+            taskCountByStatus,
+            taskCountByType,
+            dailyUsage,
+            topUsersByUsage
           }
-        }
-      });
-    }
-    if (category) {
-      const categoryKey = category;
-      const result = {};
-      for (const providerKey of ["replicate", "ppio", "deer"]) {
-        const block = tree[providerKey]?.[categoryKey];
-        if (block && Object.keys(block).length > 0) {
-          result[providerKey] = { [categoryKey]: block };
-        }
-      }
-      return res.json({ success: true, data: result });
-    }
-    if (provider13) {
-      const providerKey = provider13;
-      const providerData = tree[providerKey];
-      if (!providerData || Object.keys(providerData).length === 0) {
-        return res.status(404).json({
+        });
+      } catch (error) {
+        console.error("[System Route] \u83B7\u53D6 Admin \u7EDF\u8BA1\u5931\u8D25:", error);
+        return res.status(500).json({
           success: false,
-          error: "Not found",
-          message: `Provider "${providerKey}" not found`
+          error: "Failed to get admin stats",
+          message: error instanceof Error ? error.message : String(error)
         });
       }
-      return res.json({
-        success: true,
-        data: { [providerKey]: providerData }
-      });
-    }
-    return res.json({ success: true, data: tree });
-  } catch (error) {
-    console.error("[System Route] \u83B7\u53D6\u6A21\u578B\u914D\u7F6E\u5931\u8D25:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to get model configurations",
-      message: error instanceof Error ? error.message : String(error)
     });
-  }
-});
-router11.get("/account", async (_req, res) => {
-  try {
-    const result = {};
-    try {
-      const ppioClient = PPIOClient.fromEnv();
-      const userInfo = await ppioClient.getUserInfo();
-      result.ppio = {
-        credit_balance: userInfo.credit_balance,
-        allow_features: userInfo.allow_features,
-        free_trial: userInfo.free_trial
-      };
-      console.log("[System Route] PPIO \u8D26\u6237\u4FE1\u606F:", JSON.stringify(result.ppio, null, 2));
-    } catch (error) {
-      console.error("[System Route] PPIO \u83B7\u53D6\u8D26\u6237\u4FE1\u606F\u5931\u8D25:", error);
-      result.ppio = {
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-    const response = {
-      success: true,
-      data: result
-    };
-    console.log("[System Route] \u8D26\u6237\u4FE1\u606F\u54CD\u5E94:", JSON.stringify(response, null, 2));
-    res.json(response);
-  } catch (error) {
-    console.error("[System Route] \u83B7\u53D6\u8D26\u6237\u4FE1\u606F\u5931\u8D25:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to get account information",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router11.get("/bills", async (req, res) => {
-  try {
-    const {
-      cycleType,
-      productCategory,
-      startTime,
-      endTime
-    } = req.query;
-    const result = {};
-    try {
-      const ppioClient = PPIOClient.fromEnv();
-      const userCycleType = cycleType || "Day";
-      const userProductCategory = productCategory;
-      let finalStartTime = startTime;
-      let finalEndTime = endTime;
-      if (!finalStartTime || !finalEndTime) {
-        const now = Math.floor(Date.now() / 1e3);
-        const sevenDaysAgo = now - 7 * 24 * 60 * 60;
-        finalStartTime = finalStartTime || sevenDaysAgo.toString();
-        finalEndTime = finalEndTime || now.toString();
-        console.log("[System Route] \u672A\u63D0\u4F9B\u65F6\u95F4\u8303\u56F4\uFF0C\u9ED8\u8BA4\u67E5\u8BE2\u6700\u8FD17\u5929");
+    router11.get("/models", async (req, res) => {
+      try {
+        const { category, provider } = req.query;
+        const isAdmin = await isAdminUser4(req);
+        const tree = await loadModelsTreeFromDatabase(isAdmin);
+        if (category && provider) {
+          const categoryKey = category;
+          const providerKey = provider;
+          const providerModels = tree[providerKey]?.[categoryKey];
+          if (!providerModels || Object.keys(providerModels).length === 0) {
+            return res.status(404).json({
+              success: false,
+              error: "Not found",
+              message: `No models found for provider "${providerKey}" and category "${categoryKey}"`
+            });
+          }
+          return res.json({
+            success: true,
+            data: {
+              [providerKey]: {
+                [categoryKey]: providerModels
+              }
+            }
+          });
+        }
+        if (category) {
+          const categoryKey = category;
+          const result = {};
+          for (const providerKey of ["replicate", "ppio", "deer"]) {
+            const block = tree[providerKey]?.[categoryKey];
+            if (block && Object.keys(block).length > 0) {
+              result[providerKey] = { [categoryKey]: block };
+            }
+          }
+          return res.json({ success: true, data: result });
+        }
+        if (provider) {
+          const providerKey = provider;
+          const providerData = tree[providerKey];
+          if (!providerData || Object.keys(providerData).length === 0) {
+            return res.status(404).json({
+              success: false,
+              error: "Not found",
+              message: `Provider "${providerKey}" not found`
+            });
+          }
+          return res.json({
+            success: true,
+            data: { [providerKey]: providerData }
+          });
+        }
+        return res.json({ success: true, data: tree });
+      } catch (error) {
+        console.error("[System Route] \u83B7\u53D6\u6A21\u578B\u914D\u7F6E\u5931\u8D25:", error);
+        res.status(500).json({
+          success: false,
+          error: "Failed to get model configurations",
+          message: error instanceof Error ? error.message : String(error)
+        });
       }
-      let allBills = [];
-      if (userProductCategory && userProductCategory !== "") {
-        const queryParams = {
-          cycleType: userCycleType,
-          productCategory: userProductCategory,
-          startTime: finalStartTime,
-          endTime: finalEndTime
+    });
+    router11.get("/account", async (_req, res) => {
+      try {
+        const result = {};
+        try {
+          const ppioClient = PPIOClient.fromEnv();
+          const userInfo = await ppioClient.getUserInfo();
+          result.ppio = {
+            credit_balance: userInfo.credit_balance,
+            allow_features: userInfo.allow_features,
+            free_trial: userInfo.free_trial
+          };
+          console.log("[System Route] PPIO \u8D26\u6237\u4FE1\u606F:", JSON.stringify(result.ppio, null, 2));
+        } catch (error) {
+          console.error("[System Route] PPIO \u83B7\u53D6\u8D26\u6237\u4FE1\u606F\u5931\u8D25:", error);
+          result.ppio = {
+            error: error instanceof Error ? error.message : String(error)
+          };
+        }
+        const response = {
+          success: true,
+          data: result
         };
-        console.log("[System Route] PPIO \u8D26\u5355\u67E5\u8BE2\u53C2\u6570\uFF08\u6307\u5B9A category\uFF09:", JSON.stringify(queryParams, null, 2));
-        const bills2 = await ppioClient.getBills(queryParams);
-        allBills = bills2.bills || [];
-      } else {
-        const categoriesToQuery = ["llm", "gen_api"];
-        console.log("[System Route] \u672A\u6307\u5B9A productCategory\uFF0C\u67E5\u8BE2\u6240\u6709\u7C7B\u522B:", categoriesToQuery);
-        for (const category of categoriesToQuery) {
-          try {
+        console.log("[System Route] \u8D26\u6237\u4FE1\u606F\u54CD\u5E94:", JSON.stringify(response, null, 2));
+        res.json(response);
+      } catch (error) {
+        console.error("[System Route] \u83B7\u53D6\u8D26\u6237\u4FE1\u606F\u5931\u8D25:", error);
+        res.status(500).json({
+          success: false,
+          error: "Failed to get account information",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router11.get("/bills", async (req, res) => {
+      try {
+        const {
+          cycleType,
+          productCategory,
+          startTime,
+          endTime
+        } = req.query;
+        const result = {};
+        try {
+          const ppioClient = PPIOClient.fromEnv();
+          const userCycleType = cycleType || "Day";
+          const userProductCategory = productCategory;
+          let finalStartTime = startTime;
+          let finalEndTime = endTime;
+          if (!finalStartTime || !finalEndTime) {
+            const now = Math.floor(Date.now() / 1e3);
+            const sevenDaysAgo = now - 7 * 24 * 60 * 60;
+            finalStartTime = finalStartTime || sevenDaysAgo.toString();
+            finalEndTime = finalEndTime || now.toString();
+            console.log("[System Route] \u672A\u63D0\u4F9B\u65F6\u95F4\u8303\u56F4\uFF0C\u9ED8\u8BA4\u67E5\u8BE2\u6700\u8FD17\u5929");
+          }
+          let allBills = [];
+          if (userProductCategory && userProductCategory !== "") {
             const queryParams = {
               cycleType: userCycleType,
-              productCategory: category,
+              productCategory: userProductCategory,
               startTime: finalStartTime,
               endTime: finalEndTime
             };
-            console.log(`[System Route] \u67E5\u8BE2 ${category} \u7C7B\u522B\u8D26\u5355...`);
+            console.log("[System Route] PPIO \u8D26\u5355\u67E5\u8BE2\u53C2\u6570\uFF08\u6307\u5B9A category\uFF09:", JSON.stringify(queryParams, null, 2));
             const bills2 = await ppioClient.getBills(queryParams);
-            if (bills2.bills && bills2.bills.length > 0) {
-              allBills = allBills.concat(bills2.bills);
+            allBills = bills2.bills || [];
+          } else {
+            const categoriesToQuery = ["llm", "gen_api"];
+            console.log("[System Route] \u672A\u6307\u5B9A productCategory\uFF0C\u67E5\u8BE2\u6240\u6709\u7C7B\u522B:", categoriesToQuery);
+            for (const category of categoriesToQuery) {
+              try {
+                const queryParams = {
+                  cycleType: userCycleType,
+                  productCategory: category,
+                  startTime: finalStartTime,
+                  endTime: finalEndTime
+                };
+                console.log(`[System Route] \u67E5\u8BE2 ${category} \u7C7B\u522B\u8D26\u5355...`);
+                const bills2 = await ppioClient.getBills(queryParams);
+                if (bills2.bills && bills2.bills.length > 0) {
+                  allBills = allBills.concat(bills2.bills);
+                }
+              } catch (error) {
+                console.warn(`[System Route] \u67E5\u8BE2 ${category} \u7C7B\u522B\u8D26\u5355\u5931\u8D25:`, error);
+              }
             }
-          } catch (error) {
-            console.warn(`[System Route] \u67E5\u8BE2 ${category} \u7C7B\u522B\u8D26\u5355\u5931\u8D25:`, error);
           }
+          const uniqueBills = Array.from(
+            new Map(
+              allBills.map((bill) => [
+                `${bill.userId}-${bill.startTime}-${bill.endTime}-${bill.productName}`,
+                bill
+              ])
+            ).values()
+          );
+          const bills = { bills: uniqueBills };
+          const summary = {
+            totalBills: bills.bills?.length || 0,
+            totalAmount: bills.bills?.reduce((sum, bill) => sum + parseFloat(bill.amount || "0"), 0).toString() || "0",
+            totalPayAmount: bills.bills?.reduce((sum, bill) => sum + parseFloat(bill.payAmount || "0"), 0).toString() || "0",
+            totalVoucherAmount: bills.bills?.reduce((sum, bill) => sum + parseFloat(bill.voucherAmount || "0"), 0).toString() || "0"
+          };
+          const formattedBills = bills.bills?.map((bill) => ({
+            userId: bill.userId,
+            startTime: bill.startTime,
+            endTime: bill.endTime,
+            billingMethod: String(bill.billingMethod),
+            productName: bill.productName,
+            category: bill.category,
+            ownerID: bill.ownerID,
+            billNum0: bill.billNum0,
+            billNum1: bill.billNum1,
+            basePrice0: bill.basePrice0,
+            basePrice1: bill.basePrice1,
+            discountPrice0: bill.discountPrice0,
+            discountPrice1: bill.discountPrice1,
+            amount: bill.amount,
+            voucherAmount: bill.voucherAmount,
+            payAmount: bill.payAmount,
+            payAmountDisplay: bill.payAmountDisplay,
+            pricePrecision: String(bill.pricePrecision),
+            productId: bill.productId,
+            basePrice2: bill.basePrice2,
+            basePrice3: bill.basePrice3,
+            basePrice4: bill.basePrice4,
+            discountPrice2: bill.discountPrice2,
+            discountPrice3: bill.discountPrice3,
+            discountPrice4: bill.discountPrice4,
+            billNum2: bill.billNum2,
+            billNum3: bill.billNum3,
+            billNum4: bill.billNum4,
+            llmSeries: bill.llmSeries
+          })) || [];
+          let accountInfo;
+          try {
+            const userInfo = await ppioClient.getUserInfo();
+            accountInfo = {
+              credit_balance: userInfo.credit_balance,
+              allow_features: userInfo.allow_features,
+              free_trial: userInfo.free_trial
+            };
+            console.log("[System Route] PPIO \u8D26\u6237\u4F59\u989D:", userInfo.credit_balance);
+          } catch (accountError) {
+            console.warn("[System Route] \u83B7\u53D6 PPIO \u8D26\u6237\u4F59\u989D\u5931\u8D25:", accountError);
+          }
+          result.ppio = {
+            bills: formattedBills,
+            summary,
+            account: accountInfo
+          };
+          console.log("[System Route] PPIO \u8D26\u5355\u67E5\u8BE2\u7ED3\u679C:", JSON.stringify({
+            billCount: bills.bills?.length || 0,
+            summary,
+            bills: bills.bills
+          }, null, 2));
+        } catch (error) {
+          console.error("[System Route] PPIO \u67E5\u8BE2\u8D26\u5355\u5931\u8D25:", error);
+          result.ppio = {
+            error: error instanceof Error ? error.message : String(error)
+          };
         }
-      }
-      const uniqueBills = Array.from(
-        new Map(
-          allBills.map((bill) => [
-            `${bill.userId}-${bill.startTime}-${bill.endTime}-${bill.productName}`,
-            bill
-          ])
-        ).values()
-      );
-      const bills = { bills: uniqueBills };
-      const summary = {
-        totalBills: bills.bills?.length || 0,
-        totalAmount: bills.bills?.reduce((sum, bill) => sum + parseFloat(bill.amount || "0"), 0).toString() || "0",
-        totalPayAmount: bills.bills?.reduce((sum, bill) => sum + parseFloat(bill.payAmount || "0"), 0).toString() || "0",
-        totalVoucherAmount: bills.bills?.reduce((sum, bill) => sum + parseFloat(bill.voucherAmount || "0"), 0).toString() || "0"
-      };
-      const formattedBills = bills.bills?.map((bill) => ({
-        userId: bill.userId,
-        startTime: bill.startTime,
-        endTime: bill.endTime,
-        billingMethod: String(bill.billingMethod),
-        productName: bill.productName,
-        category: bill.category,
-        ownerID: bill.ownerID,
-        billNum0: bill.billNum0,
-        billNum1: bill.billNum1,
-        basePrice0: bill.basePrice0,
-        basePrice1: bill.basePrice1,
-        discountPrice0: bill.discountPrice0,
-        discountPrice1: bill.discountPrice1,
-        amount: bill.amount,
-        voucherAmount: bill.voucherAmount,
-        payAmount: bill.payAmount,
-        payAmountDisplay: bill.payAmountDisplay,
-        pricePrecision: String(bill.pricePrecision),
-        productId: bill.productId,
-        basePrice2: bill.basePrice2,
-        basePrice3: bill.basePrice3,
-        basePrice4: bill.basePrice4,
-        discountPrice2: bill.discountPrice2,
-        discountPrice3: bill.discountPrice3,
-        discountPrice4: bill.discountPrice4,
-        billNum2: bill.billNum2,
-        billNum3: bill.billNum3,
-        billNum4: bill.billNum4,
-        llmSeries: bill.llmSeries
-      })) || [];
-      let accountInfo;
-      try {
-        const userInfo = await ppioClient.getUserInfo();
-        accountInfo = {
-          credit_balance: userInfo.credit_balance,
-          allow_features: userInfo.allow_features,
-          free_trial: userInfo.free_trial
+        const response = {
+          success: true,
+          data: result
         };
-        console.log("[System Route] PPIO \u8D26\u6237\u4F59\u989D:", userInfo.credit_balance);
-      } catch (accountError) {
-        console.warn("[System Route] \u83B7\u53D6 PPIO \u8D26\u6237\u4F59\u989D\u5931\u8D25:", accountError);
-      }
-      result.ppio = {
-        bills: formattedBills,
-        summary,
-        account: accountInfo
-      };
-      console.log("[System Route] PPIO \u8D26\u5355\u67E5\u8BE2\u7ED3\u679C:", JSON.stringify({
-        billCount: bills.bills?.length || 0,
-        summary,
-        bills: bills.bills
-      }, null, 2));
-    } catch (error) {
-      console.error("[System Route] PPIO \u67E5\u8BE2\u8D26\u5355\u5931\u8D25:", error);
-      result.ppio = {
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-    const response = {
-      success: true,
-      data: result
-    };
-    console.log("[System Route] \u8D26\u5355\u67E5\u8BE2\u54CD\u5E94:", JSON.stringify(response, null, 2));
-    res.json(response);
-  } catch (error) {
-    console.error("[System Route] \u67E5\u8BE2\u8D26\u5355\u5931\u8D25:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to get bills",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router11.get("/admin/pricing/provider", async (req, res) => {
-  try {
-    const isAdmin = await isAdminUser4(req);
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, error: "Admin access required" });
-    }
-    const supabase = (0, import_mxmdata26.getSupabaseClient)();
-    const { provider: provider13, scope } = req.query;
-    let query = supabase.from("provider_pricing").select("*");
-    if (provider13) {
-      query = query.eq("provider", String(provider13));
-    }
-    if (scope) {
-      query = query.eq("scope", String(scope));
-    }
-    query = query.order("provider", { ascending: true }).order("scope", { ascending: true }).order("model_key", {
-      ascending: true
-    });
-    const { data, error } = await query;
-    if (error) {
-      return res.status(500).json({
-        success: false,
-        error: "Failed to fetch provider_pricing",
-        message: error.message
-      });
-    }
-    return res.json({ success: true, data });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: "Failed to fetch provider_pricing",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router11.put("/admin/pricing/provider", async (req, res) => {
-  try {
-    const isAdmin = await isAdminUser4(req);
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, error: "Admin access required" });
-    }
-    const {
-      id,
-      provider: provider13,
-      scope,
-      model_key,
-      charge_mode,
-      unit_price,
-      currency,
-      input_unit_price,
-      output_unit_price,
-      platform_unit_price,
-      platform_input_unit_price,
-      platform_output_unit_price,
-      platform_min_charge,
-      metadata
-    } = req.body;
-    if (!provider13 || !scope || !model_key || !charge_mode || unit_price == null) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields: provider, scope, model_key, charge_mode, unit_price"
-      });
-    }
-    const pricingPayload = {
-      provider: provider13,
-      scope,
-      model_key,
-      charge_mode,
-      unit_price,
-      currency: currency || "USD",
-      input_unit_price: input_unit_price ?? null,
-      output_unit_price: output_unit_price ?? null,
-      platform_unit_price: platform_unit_price ?? null,
-      platform_input_unit_price: platform_input_unit_price ?? null,
-      platform_output_unit_price: platform_output_unit_price ?? null,
-      platform_min_charge: platform_min_charge ?? null,
-      metadata: metadata ?? null
-    };
-    const supabase = (0, import_mxmdata26.getSupabaseClient)();
-    if (id) {
-      const { data: data2, error: error2 } = await supabase.from("provider_pricing").update(pricingPayload).eq("id", id).select("*").maybeSingle();
-      if (error2) {
-        return res.status(500).json({
+        console.log("[System Route] \u8D26\u5355\u67E5\u8BE2\u54CD\u5E94:", JSON.stringify(response, null, 2));
+        res.json(response);
+      } catch (error) {
+        console.error("[System Route] \u67E5\u8BE2\u8D26\u5355\u5931\u8D25:", error);
+        res.status(500).json({
           success: false,
-          error: "Failed to update provider_pricing",
-          message: error2.message
+          error: "Failed to get bills",
+          message: error instanceof Error ? error.message : String(error)
         });
       }
-      return res.json({ success: true, data: data2 });
-    }
-    const { data, error } = await supabase.from("provider_pricing").insert(pricingPayload).select("*").maybeSingle();
-    if (error) {
-      return res.status(500).json({
-        success: false,
-        error: "Failed to insert provider_pricing",
-        message: error.message
-      });
-    }
-    return res.json({ success: true, data });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: "Failed to upsert provider_pricing",
-      message: error instanceof Error ? error.message : String(error)
     });
-  }
-});
-router11.delete("/admin/pricing/provider/:id", async (req, res) => {
-  try {
-    const isAdmin = await isAdminUser4(req);
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, error: "Admin access required" });
-    }
-    const { id } = req.params;
-    if (!id) {
-      return res.status(400).json({ success: false, error: "Missing id" });
-    }
-    const supabase = (0, import_mxmdata26.getSupabaseClient)();
-    const { error } = await supabase.from("provider_pricing").delete().eq("id", id);
-    if (error) {
-      return res.status(500).json({
-        success: false,
-        error: "Failed to delete provider_pricing",
-        message: error.message
-      });
-    }
-    return res.json({ success: true });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: "Failed to delete provider_pricing",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router11.get("/admin/pricing/business", async (req, res) => {
-  try {
-    const isAdmin = await isAdminUser4(req);
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, error: "Admin access required" });
-    }
-    const supabase = (0, import_mxmdata26.getSupabaseClient)();
-    const { business_type } = req.query;
-    let query = supabase.from("business_pricing").select("*");
-    if (business_type) {
-      query = query.eq("business_type", String(business_type));
-    }
-    query = query.order("business_type", { ascending: true }).order("charge_metric", { ascending: true });
-    const { data, error } = await query;
-    if (error) {
-      return res.status(500).json({
-        success: false,
-        error: "Failed to fetch business_pricing",
-        message: error.message
-      });
-    }
-    return res.json({ success: true, data });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: "Failed to fetch business_pricing",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router11.put("/admin/pricing/business", async (req, res) => {
-  try {
-    const isAdmin = await isAdminUser4(req);
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, error: "Admin access required" });
-    }
-    const {
-      id,
-      business_type,
-      charge_metric,
-      price_in_tokens,
-      min_charge_tokens,
-      provider: provider13,
-      model_key,
-      subtype,
-      metadata
-    } = req.body;
-    if (!business_type || !charge_metric || price_in_tokens == null) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields: business_type, charge_metric, price_in_tokens"
-      });
-    }
-    const supabase = (0, import_mxmdata26.getSupabaseClient)();
-    if (id) {
-      const { data: data2, error: error2 } = await supabase.from("business_pricing").update({
-        business_type,
-        charge_metric,
-        price_in_tokens,
-        min_charge_tokens: min_charge_tokens ?? 0,
-        provider: provider13 ?? null,
-        model_key: model_key ?? null,
-        subtype: subtype ?? null,
-        metadata: metadata ?? null
-      }).eq("id", id).select("*").maybeSingle();
-      if (error2) {
+    router11.get("/admin/pricing/provider", async (req, res) => {
+      try {
+        const isAdmin = await isAdminUser4(req);
+        if (!isAdmin) {
+          return res.status(403).json({ success: false, error: "Admin access required" });
+        }
+        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const { provider, scope } = req.query;
+        let query = supabase.from("provider_pricing").select("*");
+        if (provider) {
+          query = query.eq("provider", String(provider));
+        }
+        if (scope) {
+          query = query.eq("scope", String(scope));
+        }
+        query = query.order("provider", { ascending: true }).order("scope", { ascending: true }).order("model_key", {
+          ascending: true
+        });
+        const { data, error } = await query;
+        if (error) {
+          return res.status(500).json({
+            success: false,
+            error: "Failed to fetch provider_pricing",
+            message: error.message
+          });
+        }
+        return res.json({ success: true, data });
+      } catch (error) {
         return res.status(500).json({
           success: false,
-          error: "Failed to update business_pricing",
-          message: error2.message
+          error: "Failed to fetch provider_pricing",
+          message: error instanceof Error ? error.message : String(error)
         });
       }
-      return res.json({ success: true, data: data2 });
-    }
-    const { data, error } = await supabase.from("business_pricing").insert({
-      business_type,
-      charge_metric,
-      price_in_tokens,
-      min_charge_tokens: min_charge_tokens ?? 0,
-      provider: provider13 ?? null,
-      model_key: model_key ?? null,
-      subtype: subtype ?? null,
-      metadata: metadata ?? null
-    }).select("*").maybeSingle();
-    if (error) {
-      return res.status(500).json({
-        success: false,
-        error: "Failed to insert business_pricing",
-        message: error.message
-      });
-    }
-    return res.json({ success: true, data });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: "Failed to upsert business_pricing",
-      message: error instanceof Error ? error.message : String(error)
     });
+    router11.put("/admin/pricing/provider", async (req, res) => {
+      try {
+        const isAdmin = await isAdminUser4(req);
+        if (!isAdmin) {
+          return res.status(403).json({ success: false, error: "Admin access required" });
+        }
+        const {
+          id,
+          provider,
+          scope,
+          model_key,
+          charge_mode,
+          unit_price,
+          currency,
+          input_unit_price,
+          output_unit_price,
+          platform_unit_price,
+          platform_input_unit_price,
+          platform_output_unit_price,
+          platform_min_charge,
+          metadata
+        } = req.body;
+        if (!provider || !scope || !model_key || !charge_mode || unit_price == null) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required fields: provider, scope, model_key, charge_mode, unit_price"
+          });
+        }
+        const pricingPayload = {
+          provider,
+          scope,
+          model_key,
+          charge_mode,
+          unit_price,
+          currency: currency || "USD",
+          input_unit_price: input_unit_price ?? null,
+          output_unit_price: output_unit_price ?? null,
+          platform_unit_price: platform_unit_price ?? null,
+          platform_input_unit_price: platform_input_unit_price ?? null,
+          platform_output_unit_price: platform_output_unit_price ?? null,
+          platform_min_charge: platform_min_charge ?? null,
+          metadata: metadata ?? null
+        };
+        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        if (id) {
+          const { data: data2, error: error2 } = await supabase.from("provider_pricing").update(pricingPayload).eq("id", id).select("*").maybeSingle();
+          if (error2) {
+            return res.status(500).json({
+              success: false,
+              error: "Failed to update provider_pricing",
+              message: error2.message
+            });
+          }
+          return res.json({ success: true, data: data2 });
+        }
+        const { data, error } = await supabase.from("provider_pricing").insert(pricingPayload).select("*").maybeSingle();
+        if (error) {
+          return res.status(500).json({
+            success: false,
+            error: "Failed to insert provider_pricing",
+            message: error.message
+          });
+        }
+        return res.json({ success: true, data });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: "Failed to upsert provider_pricing",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router11.delete("/admin/pricing/provider/:id", async (req, res) => {
+      try {
+        const isAdmin = await isAdminUser4(req);
+        if (!isAdmin) {
+          return res.status(403).json({ success: false, error: "Admin access required" });
+        }
+        const { id } = req.params;
+        if (!id) {
+          return res.status(400).json({ success: false, error: "Missing id" });
+        }
+        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const { error } = await supabase.from("provider_pricing").delete().eq("id", id);
+        if (error) {
+          return res.status(500).json({
+            success: false,
+            error: "Failed to delete provider_pricing",
+            message: error.message
+          });
+        }
+        return res.json({ success: true });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: "Failed to delete provider_pricing",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router11.get("/admin/pricing/business", async (req, res) => {
+      try {
+        const isAdmin = await isAdminUser4(req);
+        if (!isAdmin) {
+          return res.status(403).json({ success: false, error: "Admin access required" });
+        }
+        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const { business_type } = req.query;
+        let query = supabase.from("business_pricing").select("*");
+        if (business_type) {
+          query = query.eq("business_type", String(business_type));
+        }
+        query = query.order("business_type", { ascending: true }).order("charge_metric", { ascending: true });
+        const { data, error } = await query;
+        if (error) {
+          return res.status(500).json({
+            success: false,
+            error: "Failed to fetch business_pricing",
+            message: error.message
+          });
+        }
+        return res.json({ success: true, data });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: "Failed to fetch business_pricing",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router11.put("/admin/pricing/business", async (req, res) => {
+      try {
+        const isAdmin = await isAdminUser4(req);
+        if (!isAdmin) {
+          return res.status(403).json({ success: false, error: "Admin access required" });
+        }
+        const {
+          id,
+          business_type,
+          charge_metric,
+          price_in_tokens,
+          min_charge_tokens,
+          provider,
+          model_key,
+          subtype,
+          metadata
+        } = req.body;
+        if (!business_type || !charge_metric || price_in_tokens == null) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required fields: business_type, charge_metric, price_in_tokens"
+          });
+        }
+        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        if (id) {
+          const { data: data2, error: error2 } = await supabase.from("business_pricing").update({
+            business_type,
+            charge_metric,
+            price_in_tokens,
+            min_charge_tokens: min_charge_tokens ?? 0,
+            provider: provider ?? null,
+            model_key: model_key ?? null,
+            subtype: subtype ?? null,
+            metadata: metadata ?? null
+          }).eq("id", id).select("*").maybeSingle();
+          if (error2) {
+            return res.status(500).json({
+              success: false,
+              error: "Failed to update business_pricing",
+              message: error2.message
+            });
+          }
+          return res.json({ success: true, data: data2 });
+        }
+        const { data, error } = await supabase.from("business_pricing").insert({
+          business_type,
+          charge_metric,
+          price_in_tokens,
+          min_charge_tokens: min_charge_tokens ?? 0,
+          provider: provider ?? null,
+          model_key: model_key ?? null,
+          subtype: subtype ?? null,
+          metadata: metadata ?? null
+        }).select("*").maybeSingle();
+        if (error) {
+          return res.status(500).json({
+            success: false,
+            error: "Failed to insert business_pricing",
+            message: error.message
+          });
+        }
+        return res.json({ success: true, data });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: "Failed to upsert business_pricing",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router11.delete("/admin/pricing/business/:id", async (req, res) => {
+      try {
+        const isAdmin = await isAdminUser4(req);
+        if (!isAdmin) {
+          return res.status(403).json({ success: false, error: "Admin access required" });
+        }
+        const { id } = req.params;
+        if (!id) {
+          return res.status(400).json({ success: false, error: "Missing id" });
+        }
+        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const { error } = await supabase.from("business_pricing").delete().eq("id", id);
+        if (error) {
+          return res.status(500).json({
+            success: false,
+            error: "Failed to delete business_pricing",
+            message: error.message
+          });
+        }
+        return res.json({ success: true });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: "Failed to delete business_pricing",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    system_default = router11;
   }
 });
-router11.delete("/admin/pricing/business/:id", async (req, res) => {
-  try {
-    const isAdmin = await isAdminUser4(req);
-    if (!isAdmin) {
-      return res.status(403).json({ success: false, error: "Admin access required" });
-    }
-    const { id } = req.params;
-    if (!id) {
-      return res.status(400).json({ success: false, error: "Missing id" });
-    }
-    const supabase = (0, import_mxmdata26.getSupabaseClient)();
-    const { error } = await supabase.from("business_pricing").delete().eq("id", id);
-    if (error) {
-      return res.status(500).json({
-        success: false,
-        error: "Failed to delete business_pricing",
-        message: error.message
-      });
-    }
-    return res.json({ success: true });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: "Failed to delete business_pricing",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-var system_default = router11;
 
 // src/routes/media.ts
-var import_express12 = require("express");
-init_task_manager();
-var import_mxmdata27 = require("@mxmai/mxmdata");
-var router12 = (0, import_express12.Router)();
-router12.get("/graph/:taskId", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"] || void 0;
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header"
-      });
-    }
-    const { taskId } = req.params;
-    if (!taskId) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing taskId"
-      });
-    }
-    const { task } = await taskManager.getTask(taskId);
-    if (task.metadata?.userId && task.metadata.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden: You can only access your own media"
-      });
-    }
-    const storageInfo = task.result?.storageInfo;
-    if (!storageInfo || !storageInfo.bucket || !storageInfo.keys || storageInfo.keys.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: "No storage info for this task"
-      });
-    }
-    const bucket = storageInfo.bucket;
-    const key = storageInfo.keys[0];
-    const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
-    const fileBuffer = await storageRepo.downloadFile(bucket, key);
-    const metadata = await storageRepo.getFileMetadata(bucket, key);
-    const contentType = metadata?.contentType || (key.endsWith(".png") ? "image/png" : key.endsWith(".jpg") || key.endsWith(".jpeg") ? "image/jpeg" : key.endsWith(".webp") ? "image/webp" : "application/octet-stream");
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Length", fileBuffer.length.toString());
-    return res.send(fileBuffer);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      });
-    }
-    const isConnectionError = error?.code === "CONNECTION_ERROR" || error?.originalError?.code === "ECONNREFUSED" || error?.message?.includes("connection") || error?.message?.includes("ECONNREFUSED") || error?.message?.includes("MinIO connection failed");
-    if (isConnectionError) {
-      console.error("[Media Route] \u83B7\u53D6\u56FE\u7247\u5931\u8D25: MinIO \u8FDE\u63A5\u9519\u8BEF", error);
-      return res.status(503).json({
-        success: false,
-        error: "Storage service unavailable. Please check if MinIO is running.",
-        details: "MinIO connection failed. The storage service may be down or misconfigured."
-      });
-    }
-    console.error("[Media Route] \u83B7\u53D6\u56FE\u7247\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
+var media_exports = {};
+__export(media_exports, {
+  default: () => media_default
 });
-router12.get("/asset", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"] || void 0;
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header"
-      });
-    }
-    const bucket = req.query.bucket || "";
-    const key = req.query.key || "";
-    if (!bucket || !key) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing bucket or key query parameter"
-      });
-    }
-    if (!key.startsWith(`${userId}/upload/`)) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden: You can only access your own uploads"
-      });
-    }
-    const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
-    const fileBuffer = await storageRepo.downloadFile(bucket, key);
-    const metadata = await storageRepo.getFileMetadata(bucket, key);
-    const contentType = metadata?.contentType || (key.endsWith(".png") ? "image/png" : key.endsWith(".jpg") || key.endsWith(".jpeg") ? "image/jpeg" : key.endsWith(".webp") ? "image/webp" : key.endsWith(".gif") ? "image/gif" : "application/octet-stream");
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Length", fileBuffer.length.toString());
-    return res.send(fileBuffer);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      });
-    }
-    const isConnectionError = error?.code === "CONNECTION_ERROR" || error?.originalError?.code === "ECONNREFUSED" || error?.message?.includes("connection") || error?.message?.includes("ECONNREFUSED") || error?.message?.includes("MinIO connection failed");
-    if (isConnectionError) {
-      console.error("[Media Route] \u83B7\u53D6\u8D44\u6E90\u5931\u8D25: MinIO \u8FDE\u63A5\u9519\u8BEF", error);
-      return res.status(503).json({
-        success: false,
-        error: "Storage service unavailable."
-      });
-    }
-    console.error("[Media Route] \u83B7\u53D6\u8D44\u6E90\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router12.get("/video/:taskId", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"] || void 0;
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header"
-      });
-    }
-    const { taskId } = req.params;
-    if (!taskId) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing taskId"
-      });
-    }
-    const { task } = await taskManager.getTask(taskId);
-    if (task.metadata?.userId && task.metadata.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden: You can only access your own media"
-      });
-    }
-    const storageInfo = task.result?.storageInfo;
-    if (!storageInfo || !storageInfo.bucket || !storageInfo.keys || storageInfo.keys.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: "No storage info for this task"
-      });
-    }
-    const bucket = storageInfo.bucket;
-    const key = storageInfo.keys[0];
-    const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
-    const fileBuffer = await storageRepo.downloadFile(bucket, key);
-    const metadata = await storageRepo.getFileMetadata(bucket, key);
-    const contentType = metadata?.contentType || (key.endsWith(".mp4") ? "video/mp4" : key.endsWith(".webm") ? "video/webm" : key.endsWith(".mov") ? "video/quicktime" : key.endsWith(".avi") ? "video/x-msvideo" : "application/octet-stream");
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Length", fileBuffer.length.toString());
-    return res.send(fileBuffer);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      });
-    }
-    const isConnectionError = error?.code === "CONNECTION_ERROR" || error?.originalError?.code === "ECONNREFUSED" || error?.message?.includes("connection") || error?.message?.includes("ECONNREFUSED") || error?.message?.includes("MinIO connection failed");
-    if (isConnectionError) {
-      console.error("[Media Route] \u83B7\u53D6\u89C6\u9891\u5931\u8D25: MinIO \u8FDE\u63A5\u9519\u8BEF", error);
-      return res.status(503).json({
-        success: false,
-        error: "Storage service unavailable. Please check if MinIO is running.",
-        details: "MinIO connection failed. The storage service may be down or misconfigured."
-      });
-    }
-    console.error("[Media Route] \u83B7\u53D6\u89C6\u9891\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router12.get("/writing/:taskId", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"] || void 0;
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header"
-      });
-    }
-    const { taskId } = req.params;
-    if (!taskId) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing taskId"
-      });
-    }
-    const { task } = await taskManager.getTask(taskId);
-    if (task.metadata?.userId && task.metadata.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden: You can only access your own media"
-      });
-    }
-    const storageInfo = task.result?.storageInfo;
-    const taskMetadata = task.result?.metadata || task.metadata || {};
-    let content;
-    let contentType;
-    let filename;
-    if (storageInfo && storageInfo.bucket) {
-      let key;
-      if (storageInfo.keys && Array.isArray(storageInfo.keys) && storageInfo.keys.length > 0) {
-        key = storageInfo.keys[0];
-      } else if (storageInfo.key && typeof storageInfo.key === "string") {
-        key = storageInfo.key;
-      }
-      if (key) {
-        const bucket = storageInfo.bucket;
-        filename = key.split("/").pop() || "content";
-        const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
-        try {
-          const fileBuffer = await storageRepo.downloadFile(bucket, key);
-          const fileMetadata = await storageRepo.getFileMetadata(bucket, key);
-          contentType = fileMetadata?.contentType || (key.endsWith(".md") ? "text/markdown; charset=utf-8" : key.endsWith(".txt") ? "text/plain; charset=utf-8" : key.endsWith(".pdf") ? "application/pdf" : "text/plain; charset=utf-8");
-          content = fileBuffer;
-        } catch (error) {
-          if (error?.code === "CONNECTION_ERROR" || error?.originalError?.code === "ECONNREFUSED" || error?.message?.includes("connection") || error?.message?.includes("ECONNREFUSED")) {
-            console.warn(`[Media Route] MinIO \u8FDE\u63A5\u5931\u8D25\uFF0C\u5C1D\u8BD5\u4ECE metadata \u83B7\u53D6\u5185\u5BB9: ${error.message}`);
-          } else {
-            console.warn(`[Media Route] \u4ECE MinIO \u83B7\u53D6\u6587\u4EF6\u5931\u8D25\uFF0C\u5C1D\u8BD5\u4ECE metadata \u83B7\u53D6\u5185\u5BB9: ${error.message}`);
-          }
-        }
-      }
-    }
-    if (!content && taskMetadata.formattedContent) {
-      const formattedContent = taskMetadata.formattedContent;
-      const cleanedContent = typeof formattedContent === "string" ? formattedContent.replace(/\s/g, "") : "";
-      const isBase643 = typeof formattedContent === "string" && formattedContent.length > 100 && cleanedContent.length > 0 && /^[A-Za-z0-9+/=]+$/.test(cleanedContent) && cleanedContent.length % 4 === 0 && !formattedContent.includes("#") && // markdown 标题
-      !formattedContent.includes("*") && // markdown 强调
-      !formattedContent.includes("`") && // markdown 代码
-      !formattedContent.includes("[") && // markdown 链接
-      !formattedContent.includes("---");
-      if (isBase643) {
-        try {
-          const decoded = Buffer.from(formattedContent, "base64");
-          const decodedStr = decoded.toString("utf-8");
-          if (decodedStr && decodedStr.length > 0 && /[\x20-\x7E\u4e00-\u9fa5]/.test(decodedStr)) {
-            content = decodedStr;
-            console.log("[Media] \u4ECE base64 \u89E3\u7801 formattedContent \u6210\u529F\uFF0C\u957F\u5EA6:", decodedStr.length);
-          } else {
-            content = formattedContent;
-            console.log("[Media] base64 \u89E3\u7801\u540E\u4E0D\u662F\u6709\u6548\u6587\u672C\uFF0C\u4F7F\u7528\u539F\u5B57\u7B26\u4E32");
-          }
-        } catch (error) {
-          console.warn("[Media] base64 \u89E3\u7801\u5931\u8D25\uFF0C\u4F7F\u7528\u539F\u5B57\u7B26\u4E32:", error);
-          content = formattedContent;
-        }
-      } else {
-        content = formattedContent;
-        console.log("[Media] formattedContent \u4E0D\u662F base64\uFF0C\u76F4\u63A5\u4F7F\u7528\uFF0C\u957F\u5EA6:", content.length);
-      }
-      const format = taskMetadata.format || "markdown";
-      contentType = format === "markdown" ? "text/markdown; charset=utf-8" : format === "txt" ? "text/plain; charset=utf-8" : format === "pdf" ? "application/pdf" : "text/plain; charset=utf-8";
-      filename = `content.${format === "markdown" ? "md" : format === "txt" ? "txt" : format === "pdf" ? "pdf" : "txt"}`;
-    }
-    if (!content && taskMetadata.text) {
-      content = taskMetadata.text;
-      const format = taskMetadata.format || "markdown";
-      contentType = format === "markdown" ? "text/markdown; charset=utf-8" : "text/plain; charset=utf-8";
-      filename = `content.${format === "markdown" ? "md" : "txt"}`;
-      console.log("[Media] \u4ECE metadata.text \u83B7\u53D6\u5185\u5BB9\uFF0C\u957F\u5EA6:", content.length);
-    }
-    if (!content || !contentType || !filename) {
-      return res.status(404).json({
-        success: false,
-        error: "No content found for this task"
-      });
-    }
-    const contentBuffer = Buffer.isBuffer(content) ? content : Buffer.from(content, "utf-8");
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Length", contentBuffer.length.toString());
-    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
-    return res.send(contentBuffer);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      });
-    }
-    console.error("[Media Route] \u83B7\u53D6\u5199\u4F5C\u5185\u5BB9\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router12.put("/writing/:taskId", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"] || void 0;
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Missing x-user-id header"
-      });
-    }
-    const { taskId } = req.params;
-    if (!taskId) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing taskId"
-      });
-    }
-    const { content, format, characters } = req.body;
-    if (content === void 0) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing field: content"
-      });
-    }
-    const { task } = await taskManager.getTask(taskId);
-    if (task.metadata?.userId && task.metadata.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden: You can only update your own media"
-      });
-    }
-    const existingResult = task.result || {
-      mediaUrls: [],
-      metadata: {}
-    };
-    const storageInfo = existingResult.storageInfo;
-    if (format === "json") {
-      if (!Array.isArray(content) && (typeof content !== "object" || content === null)) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid field: content must be a JSON array or object when format is "json"'
-        });
-      }
-      if (typeof content === "object" && content !== null && Array.isArray(content.chunks)) {
-        const { fillChunkPrompts: fillChunkPrompts2 } = await Promise.resolve().then(() => (init_storyboard_chunk_utils(), storyboard_chunk_utils_exports));
-        fillChunkPrompts2(content.chunks);
-      }
-      const outline = Array.isArray(content) && content.length > 0 ? content[0] : content;
-      const updatedMetadata2 = {
-        ...existingResult.metadata,
-        outline,
-        ...Array.isArray(characters) ? { characters } : {},
-        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      await taskManager.setTaskResult(taskId, {
-        ...existingResult,
-        metadata: updatedMetadata2
-      });
-      return res.json({
-        success: true,
-        data: {
-          storageType: "outline",
-          outline,
-          ...Array.isArray(characters) ? { characters } : {}
-        }
-      });
-    }
-    if (typeof content !== "string") {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid field: content must be a string when format is not "json"'
-      });
-    }
-    const normalizedFormat = format === "txt" || format === "pdf" ? format : "markdown";
-    if (storageInfo && storageInfo.bucket) {
-      let key;
-      if (storageInfo.keys && Array.isArray(storageInfo.keys) && storageInfo.keys.length > 0) {
-        key = storageInfo.keys[0];
-      } else if (storageInfo.key && typeof storageInfo.key === "string") {
-        key = storageInfo.key;
-      }
-      if (!key) {
-        return res.status(400).json({
-          success: false,
-          error: "This writing task has no storage key, cannot update content"
-        });
-      }
-      const bucket = storageInfo.bucket;
-      const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
-      const contentType = normalizedFormat === "markdown" ? "text/markdown; charset=utf-8" : normalizedFormat === "txt" ? "text/plain; charset=utf-8" : "application/pdf";
-      const buffer = Buffer.from(content, "utf-8");
-      await storageRepo.uploadFile(bucket, key, buffer, {
-        contentType
-      });
-      return res.json({
-        success: true,
-        data: {
-          bucket,
-          key,
-          size: buffer.length,
-          contentType,
-          storageType: "minio"
-        }
-      });
-    }
-    const contentSize = Buffer.byteLength(content, "utf-8");
-    const wordCount = content.length;
-    const updatedMetadata = {
-      ...existingResult.metadata,
-      formattedContent: content,
-      text: content,
-      // 同时更新 text 字段以保持兼容
-      format: normalizedFormat,
-      wordCount,
-      fileSize: contentSize,
-      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    await taskManager.setTaskResult(taskId, {
-      ...existingResult,
-      metadata: updatedMetadata
-    });
-    return res.json({
-      success: true,
-      data: {
-        size: contentSize,
-        contentType: normalizedFormat === "markdown" ? "text/markdown; charset=utf-8" : normalizedFormat === "txt" ? "text/plain; charset=utf-8" : "application/pdf",
-        storageType: "metadata",
-        wordCount
-      }
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      return res.status(404).json({
-        success: false,
-        error: error.message
-      });
-    }
-    console.error("[Media Route] \u66F4\u65B0\u5199\u4F5C\u5185\u5BB9\u5931\u8D25:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router12.get("/audio/:taskId", async (req, res) => {
+async function serveAudioLike(req, res) {
   try {
     const userId = req.headers["x-user-id"] || void 0;
     if (!userId) {
@@ -32710,21 +31962,457 @@ router12.get("/audio/:taskId", async (req, res) => {
       error: error instanceof Error ? error.message : String(error)
     });
   }
+}
+var import_express12, import_mxmdata27, router12, media_default;
+var init_media = __esm({
+  "src/routes/media.ts"() {
+    "use strict";
+    import_express12 = require("express");
+    init_task_manager();
+    import_mxmdata27 = require("@mxmai/mxmdata");
+    router12 = (0, import_express12.Router)();
+    router12.get("/graph/:taskId", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"] || void 0;
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header"
+          });
+        }
+        const { taskId } = req.params;
+        if (!taskId) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing taskId"
+          });
+        }
+        const { task } = await taskManager.getTask(taskId);
+        if (task.metadata?.userId && task.metadata.userId !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "Forbidden: You can only access your own media"
+          });
+        }
+        const storageInfo = task.result?.storageInfo;
+        if (!storageInfo || !storageInfo.bucket || !storageInfo.keys || storageInfo.keys.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: "No storage info for this task"
+          });
+        }
+        const bucket = storageInfo.bucket;
+        const key = storageInfo.keys[0];
+        const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+        const fileBuffer = await storageRepo.downloadFile(bucket, key);
+        const metadata = await storageRepo.getFileMetadata(bucket, key);
+        const contentType = metadata?.contentType || (key.endsWith(".png") ? "image/png" : key.endsWith(".jpg") || key.endsWith(".jpeg") ? "image/jpeg" : key.endsWith(".webp") ? "image/webp" : "application/octet-stream");
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Content-Length", fileBuffer.length.toString());
+        return res.send(fileBuffer);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(404).json({
+            success: false,
+            error: error.message
+          });
+        }
+        const isConnectionError = error?.code === "CONNECTION_ERROR" || error?.originalError?.code === "ECONNREFUSED" || error?.message?.includes("connection") || error?.message?.includes("ECONNREFUSED") || error?.message?.includes("MinIO connection failed");
+        if (isConnectionError) {
+          console.error("[Media Route] \u83B7\u53D6\u56FE\u7247\u5931\u8D25: MinIO \u8FDE\u63A5\u9519\u8BEF", error);
+          return res.status(503).json({
+            success: false,
+            error: "Storage service unavailable. Please check if MinIO is running.",
+            details: "MinIO connection failed. The storage service may be down or misconfigured."
+          });
+        }
+        console.error("[Media Route] \u83B7\u53D6\u56FE\u7247\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router12.get("/asset", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"] || void 0;
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header"
+          });
+        }
+        const bucket = req.query.bucket || "";
+        const key = req.query.key || "";
+        if (!bucket || !key) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing bucket or key query parameter"
+          });
+        }
+        if (!key.startsWith(`${userId}/upload/`)) {
+          return res.status(403).json({
+            success: false,
+            error: "Forbidden: You can only access your own uploads"
+          });
+        }
+        const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+        const fileBuffer = await storageRepo.downloadFile(bucket, key);
+        const metadata = await storageRepo.getFileMetadata(bucket, key);
+        const contentType = metadata?.contentType || (key.endsWith(".png") ? "image/png" : key.endsWith(".jpg") || key.endsWith(".jpeg") ? "image/jpeg" : key.endsWith(".webp") ? "image/webp" : key.endsWith(".gif") ? "image/gif" : "application/octet-stream");
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Content-Length", fileBuffer.length.toString());
+        return res.send(fileBuffer);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(404).json({
+            success: false,
+            error: error.message
+          });
+        }
+        const isConnectionError = error?.code === "CONNECTION_ERROR" || error?.originalError?.code === "ECONNREFUSED" || error?.message?.includes("connection") || error?.message?.includes("ECONNREFUSED") || error?.message?.includes("MinIO connection failed");
+        if (isConnectionError) {
+          console.error("[Media Route] \u83B7\u53D6\u8D44\u6E90\u5931\u8D25: MinIO \u8FDE\u63A5\u9519\u8BEF", error);
+          return res.status(503).json({
+            success: false,
+            error: "Storage service unavailable."
+          });
+        }
+        console.error("[Media Route] \u83B7\u53D6\u8D44\u6E90\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router12.get("/video/:taskId", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"] || void 0;
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header"
+          });
+        }
+        const { taskId } = req.params;
+        if (!taskId) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing taskId"
+          });
+        }
+        const { task } = await taskManager.getTask(taskId);
+        if (task.metadata?.userId && task.metadata.userId !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "Forbidden: You can only access your own media"
+          });
+        }
+        const storageInfo = task.result?.storageInfo;
+        if (!storageInfo || !storageInfo.bucket || !storageInfo.keys || storageInfo.keys.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: "No storage info for this task"
+          });
+        }
+        const bucket = storageInfo.bucket;
+        const key = storageInfo.keys[0];
+        const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+        const fileBuffer = await storageRepo.downloadFile(bucket, key);
+        const metadata = await storageRepo.getFileMetadata(bucket, key);
+        const contentType = metadata?.contentType || (key.endsWith(".mp4") ? "video/mp4" : key.endsWith(".webm") ? "video/webm" : key.endsWith(".mov") ? "video/quicktime" : key.endsWith(".avi") ? "video/x-msvideo" : "application/octet-stream");
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Content-Length", fileBuffer.length.toString());
+        return res.send(fileBuffer);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(404).json({
+            success: false,
+            error: error.message
+          });
+        }
+        const isConnectionError = error?.code === "CONNECTION_ERROR" || error?.originalError?.code === "ECONNREFUSED" || error?.message?.includes("connection") || error?.message?.includes("ECONNREFUSED") || error?.message?.includes("MinIO connection failed");
+        if (isConnectionError) {
+          console.error("[Media Route] \u83B7\u53D6\u89C6\u9891\u5931\u8D25: MinIO \u8FDE\u63A5\u9519\u8BEF", error);
+          return res.status(503).json({
+            success: false,
+            error: "Storage service unavailable. Please check if MinIO is running.",
+            details: "MinIO connection failed. The storage service may be down or misconfigured."
+          });
+        }
+        console.error("[Media Route] \u83B7\u53D6\u89C6\u9891\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router12.get("/writing/:taskId", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"] || void 0;
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header"
+          });
+        }
+        const { taskId } = req.params;
+        if (!taskId) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing taskId"
+          });
+        }
+        const { task } = await taskManager.getTask(taskId);
+        if (task.metadata?.userId && task.metadata.userId !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "Forbidden: You can only access your own media"
+          });
+        }
+        const storageInfo = task.result?.storageInfo;
+        const taskMetadata = task.result?.metadata || task.metadata || {};
+        let content;
+        let contentType;
+        let filename;
+        if (storageInfo && storageInfo.bucket) {
+          let key;
+          if (storageInfo.keys && Array.isArray(storageInfo.keys) && storageInfo.keys.length > 0) {
+            key = storageInfo.keys[0];
+          } else if (storageInfo.key && typeof storageInfo.key === "string") {
+            key = storageInfo.key;
+          }
+          if (key) {
+            const bucket = storageInfo.bucket;
+            filename = key.split("/").pop() || "content";
+            const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+            try {
+              const fileBuffer = await storageRepo.downloadFile(bucket, key);
+              const fileMetadata = await storageRepo.getFileMetadata(bucket, key);
+              contentType = fileMetadata?.contentType || (key.endsWith(".md") ? "text/markdown; charset=utf-8" : key.endsWith(".txt") ? "text/plain; charset=utf-8" : key.endsWith(".pdf") ? "application/pdf" : "text/plain; charset=utf-8");
+              content = fileBuffer;
+            } catch (error) {
+              if (error?.code === "CONNECTION_ERROR" || error?.originalError?.code === "ECONNREFUSED" || error?.message?.includes("connection") || error?.message?.includes("ECONNREFUSED")) {
+                console.warn(`[Media Route] MinIO \u8FDE\u63A5\u5931\u8D25\uFF0C\u5C1D\u8BD5\u4ECE metadata \u83B7\u53D6\u5185\u5BB9: ${error.message}`);
+              } else {
+                console.warn(`[Media Route] \u4ECE MinIO \u83B7\u53D6\u6587\u4EF6\u5931\u8D25\uFF0C\u5C1D\u8BD5\u4ECE metadata \u83B7\u53D6\u5185\u5BB9: ${error.message}`);
+              }
+            }
+          }
+        }
+        if (!content && taskMetadata.formattedContent) {
+          const formattedContent = taskMetadata.formattedContent;
+          const cleanedContent = typeof formattedContent === "string" ? formattedContent.replace(/\s/g, "") : "";
+          const isBase643 = typeof formattedContent === "string" && formattedContent.length > 100 && cleanedContent.length > 0 && /^[A-Za-z0-9+/=]+$/.test(cleanedContent) && cleanedContent.length % 4 === 0 && !formattedContent.includes("#") && // markdown 标题
+          !formattedContent.includes("*") && // markdown 强调
+          !formattedContent.includes("`") && // markdown 代码
+          !formattedContent.includes("[") && // markdown 链接
+          !formattedContent.includes("---");
+          if (isBase643) {
+            try {
+              const decoded = Buffer.from(formattedContent, "base64");
+              const decodedStr = decoded.toString("utf-8");
+              if (decodedStr && decodedStr.length > 0 && /[\x20-\x7E\u4e00-\u9fa5]/.test(decodedStr)) {
+                content = decodedStr;
+                console.log("[Media] \u4ECE base64 \u89E3\u7801 formattedContent \u6210\u529F\uFF0C\u957F\u5EA6:", decodedStr.length);
+              } else {
+                content = formattedContent;
+                console.log("[Media] base64 \u89E3\u7801\u540E\u4E0D\u662F\u6709\u6548\u6587\u672C\uFF0C\u4F7F\u7528\u539F\u5B57\u7B26\u4E32");
+              }
+            } catch (error) {
+              console.warn("[Media] base64 \u89E3\u7801\u5931\u8D25\uFF0C\u4F7F\u7528\u539F\u5B57\u7B26\u4E32:", error);
+              content = formattedContent;
+            }
+          } else {
+            content = formattedContent;
+            console.log("[Media] formattedContent \u4E0D\u662F base64\uFF0C\u76F4\u63A5\u4F7F\u7528\uFF0C\u957F\u5EA6:", content.length);
+          }
+          const format = taskMetadata.format || "markdown";
+          contentType = format === "markdown" ? "text/markdown; charset=utf-8" : format === "txt" ? "text/plain; charset=utf-8" : format === "pdf" ? "application/pdf" : "text/plain; charset=utf-8";
+          filename = `content.${format === "markdown" ? "md" : format === "txt" ? "txt" : format === "pdf" ? "pdf" : "txt"}`;
+        }
+        if (!content && taskMetadata.text) {
+          content = taskMetadata.text;
+          const format = taskMetadata.format || "markdown";
+          contentType = format === "markdown" ? "text/markdown; charset=utf-8" : "text/plain; charset=utf-8";
+          filename = `content.${format === "markdown" ? "md" : "txt"}`;
+          console.log("[Media] \u4ECE metadata.text \u83B7\u53D6\u5185\u5BB9\uFF0C\u957F\u5EA6:", content.length);
+        }
+        if (!content || !contentType || !filename) {
+          return res.status(404).json({
+            success: false,
+            error: "No content found for this task"
+          });
+        }
+        const contentBuffer = Buffer.isBuffer(content) ? content : Buffer.from(content, "utf-8");
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Content-Length", contentBuffer.length.toString());
+        res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+        return res.send(contentBuffer);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(404).json({
+            success: false,
+            error: error.message
+          });
+        }
+        console.error("[Media Route] \u83B7\u53D6\u5199\u4F5C\u5185\u5BB9\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router12.put("/writing/:taskId", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"] || void 0;
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Missing x-user-id header"
+          });
+        }
+        const { taskId } = req.params;
+        if (!taskId) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing taskId"
+          });
+        }
+        const { content, format, characters } = req.body;
+        if (content === void 0) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing field: content"
+          });
+        }
+        const { task } = await taskManager.getTask(taskId);
+        if (task.metadata?.userId && task.metadata.userId !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "Forbidden: You can only update your own media"
+          });
+        }
+        const existingResult = task.result || {
+          mediaUrls: [],
+          metadata: {}
+        };
+        const storageInfo = existingResult.storageInfo;
+        if (format === "json") {
+          if (!Array.isArray(content) && (typeof content !== "object" || content === null)) {
+            return res.status(400).json({
+              success: false,
+              error: 'Invalid field: content must be a JSON array or object when format is "json"'
+            });
+          }
+          if (typeof content === "object" && content !== null && Array.isArray(content.chunks)) {
+            const { fillChunkPrompts: fillChunkPrompts2 } = await Promise.resolve().then(() => (init_storyboard_chunk_utils(), storyboard_chunk_utils_exports));
+            fillChunkPrompts2(content.chunks);
+          }
+          const outline = Array.isArray(content) && content.length > 0 ? content[0] : content;
+          const updatedMetadata2 = {
+            ...existingResult.metadata,
+            outline,
+            ...Array.isArray(characters) ? { characters } : {},
+            updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+          };
+          await taskManager.setTaskResult(taskId, {
+            ...existingResult,
+            metadata: updatedMetadata2
+          });
+          return res.json({
+            success: true,
+            data: {
+              storageType: "outline",
+              outline,
+              ...Array.isArray(characters) ? { characters } : {}
+            }
+          });
+        }
+        if (typeof content !== "string") {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid field: content must be a string when format is not "json"'
+          });
+        }
+        const normalizedFormat = format === "txt" || format === "pdf" ? format : "markdown";
+        if (storageInfo && storageInfo.bucket) {
+          let key;
+          if (storageInfo.keys && Array.isArray(storageInfo.keys) && storageInfo.keys.length > 0) {
+            key = storageInfo.keys[0];
+          } else if (storageInfo.key && typeof storageInfo.key === "string") {
+            key = storageInfo.key;
+          }
+          if (!key) {
+            return res.status(400).json({
+              success: false,
+              error: "This writing task has no storage key, cannot update content"
+            });
+          }
+          const bucket = storageInfo.bucket;
+          const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+          const contentType = normalizedFormat === "markdown" ? "text/markdown; charset=utf-8" : normalizedFormat === "txt" ? "text/plain; charset=utf-8" : "application/pdf";
+          const buffer = Buffer.from(content, "utf-8");
+          await storageRepo.uploadFile(bucket, key, buffer, {
+            contentType
+          });
+          return res.json({
+            success: true,
+            data: {
+              bucket,
+              key,
+              size: buffer.length,
+              contentType,
+              storageType: "minio"
+            }
+          });
+        }
+        const contentSize = Buffer.byteLength(content, "utf-8");
+        const wordCount = content.length;
+        const updatedMetadata = {
+          ...existingResult.metadata,
+          formattedContent: content,
+          text: content,
+          // 同时更新 text 字段以保持兼容
+          format: normalizedFormat,
+          wordCount,
+          fileSize: contentSize,
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        };
+        await taskManager.setTaskResult(taskId, {
+          ...existingResult,
+          metadata: updatedMetadata
+        });
+        return res.json({
+          success: true,
+          data: {
+            size: contentSize,
+            contentType: normalizedFormat === "markdown" ? "text/markdown; charset=utf-8" : normalizedFormat === "txt" ? "text/plain; charset=utf-8" : "application/pdf",
+            storageType: "metadata",
+            wordCount
+          }
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("not found")) {
+          return res.status(404).json({
+            success: false,
+            error: error.message
+          });
+        }
+        console.error("[Media Route] \u66F4\u65B0\u5199\u4F5C\u5185\u5BB9\u5931\u8D25:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router12.get("/audio/:taskId", serveAudioLike);
+    router12.get("/music/:taskId", serveAudioLike);
+    media_default = router12;
+  }
 });
-var media_default = router12;
-
-// src/routes/knowledge.ts
-var import_express13 = require("express");
-var import_uid5 = require("uid");
-var import_multer2 = __toESM(require("multer"));
-init_knowledge_service();
-var import_mxmdata29 = require("@mxmai/mxmdata");
-init_task_executor();
 
 // src/knowledge/knowledge-task.ts
-init_task_executor();
-var import_mxmdata28 = require("@mxmai/mxmdata");
-init_knowledge_service();
 async function startKnowledgeImportTask(taskId) {
   const taskManager2 = taskExecutor.getTaskManager();
   try {
@@ -32803,10 +32491,21 @@ async function startKnowledgeImportTask(taskId) {
     );
   }
 }
+var import_mxmdata28;
+var init_knowledge_task = __esm({
+  "src/knowledge/knowledge-task.ts"() {
+    "use strict";
+    init_task_executor();
+    import_mxmdata28 = require("@mxmai/mxmdata");
+    init_knowledge_service();
+  }
+});
 
 // src/routes/knowledge.ts
-var router13 = (0, import_express13.Router)();
-var upload2 = (0, import_multer2.default)({ storage: import_multer2.default.memoryStorage() });
+var knowledge_exports = {};
+__export(knowledge_exports, {
+  default: () => knowledge_default
+});
 async function isAdminUser5(req) {
   try {
     const userRole = req.headers["x-user-role"];
@@ -32835,7 +32534,6 @@ async function isAdminUser5(req) {
     return false;
   }
 }
-var knowledgeServiceInstance = null;
 function getKnowledgeService() {
   if (!knowledgeServiceInstance) {
     try {
@@ -32847,1322 +32545,4160 @@ function getKnowledgeService() {
   }
   return knowledgeServiceInstance;
 }
-router13.post("/bases", async (req, res) => {
-  const timeout = setTimeout(() => {
-    if (!res.headersSent) {
-      console.error("[Knowledge Route] Request timeout after 30s");
-      res.status(504).json({
-        success: false,
-        error: "Request timeout"
-      });
-    }
-  }, 3e4);
-  try {
-    console.log("[Knowledge Route] POST /bases - Request received");
-    console.log("[Knowledge Route] Request body:", JSON.stringify(req.body));
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      clearTimeout(timeout);
-      console.warn("[Knowledge Route] Missing x-user-id header");
-      return res.status(401).json({ success: false, error: "Missing x-user-id header" });
-    }
-    console.log("[Knowledge Route] User ID:", userId);
-    const {
-      name,
-      display_name,
-      description,
-      type,
-      embedding_model,
-      agent_id,
-      agent_name,
-      is_builtin,
-      is_public,
-      config
-    } = req.body;
-    if (!name || !display_name) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields: name, display_name"
-      });
-    }
-    const isAdmin = await isAdminUser5(req);
-    if (!isAdmin && is_public === true) {
-      return res.status(403).json({
-        success: false,
-        error: "Only admin users can create public knowledge bases"
-      });
-    }
-    const finalIsPublic = isAdmin ? is_public !== void 0 ? is_public : false : false;
-    console.log("[Knowledge Route] Creating knowledge base:", { name, display_name, owner_id: userId });
-    const knowledgeBase = await getKnowledgeService().createKnowledgeBase({
-      name,
-      display_name,
-      description,
-      type,
-      embedding_model,
-      agent_id,
-      agent_name,
-      is_builtin: isAdmin ? is_builtin || false : false,
-      // 只有管理员可以创建内置知识库
-      is_public: finalIsPublic,
-      owner_id: userId,
-      config
-    });
-    console.log("[Knowledge Route] Knowledge base created successfully:", knowledgeBase.id);
-    clearTimeout(timeout);
-    return res.json({
-      success: true,
-      data: knowledgeBase
-    });
-  } catch (error) {
-    clearTimeout(timeout);
-    console.error("[Knowledge Route] Create knowledge base failed:", error);
-    console.error("[Knowledge Route] Error stack:", error instanceof Error ? error.stack : "No stack trace");
-    if (!res.headersSent) {
-      return res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      });
-    } else {
-      console.error("[Knowledge Route] Cannot send error response: headers already sent");
-    }
-  }
-});
-router13.get("/bases", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { agent_id, is_public, limit, offset } = req.query;
-    const isPublicParam = is_public === "true" ? true : is_public === "false" ? false : void 0;
-    let result;
-    if (isPublicParam === void 0) {
-      const [userKbsRes, publicKbsRes] = await Promise.all([
-        getKnowledgeService().listKnowledgeBases({
-          agent_id,
-          owner_id: userId,
-          is_public: false,
-          // 用户的私有知识库
-          limit: limit ? Number(limit) : void 0,
-          offset: offset ? Number(offset) : void 0
-        }),
-        getKnowledgeService().listKnowledgeBases({
-          agent_id,
-          owner_id: void 0,
-          // 不限制 owner_id，获取所有公开的知识库
-          is_public: true,
-          // 所有公开的知识库
-          limit: limit ? Number(limit) : void 0,
-          offset: offset ? Number(offset) : void 0
-        })
-      ]);
-      const userKbs = userKbsRes.knowledge_bases || [];
-      const publicKbs = publicKbsRes.knowledge_bases || [];
-      const allKbs = [...userKbs, ...publicKbs];
-      const uniqueKbs = allKbs.filter(
-        (kb, index, self) => index === self.findIndex((k) => k.id === kb.id)
-      );
-      result = {
-        knowledge_bases: uniqueKbs,
-        total: uniqueKbs.length,
-        limit: limit ? Number(limit) : void 0,
-        offset: offset ? Number(offset) : void 0
-      };
-    } else if (isPublicParam === true) {
-      result = await getKnowledgeService().listKnowledgeBases({
-        agent_id,
-        owner_id: void 0,
-        // 不限制 owner_id
-        is_public: true,
-        limit: limit ? Number(limit) : void 0,
-        offset: offset ? Number(offset) : void 0
-      });
-    } else {
-      result = await getKnowledgeService().listKnowledgeBases({
-        agent_id,
-        owner_id: userId,
-        is_public: false,
-        limit: limit ? Number(limit) : void 0,
-        offset: offset ? Number(offset) : void 0
-      });
-    }
-    return res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    console.error("[Knowledge Route] List knowledge bases failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.get("/admin/public-bases", async (req, res) => {
-  try {
-    if (!await isAdminUser5(req)) {
-      return res.status(403).json({ success: false, error: "Admin only" });
-    }
-    const { limit, offset } = req.query;
-    const result = await getKnowledgeService().listKnowledgeBases({
-      public_or_builtin: true,
-      limit: limit ? Number(limit) : void 0,
-      offset: offset ? Number(offset) : void 0
-    });
-    return res.json({ success: true, data: result });
-  } catch (error) {
-    console.error("[Knowledge Route] Admin list public bases failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.get("/admin/defaults", async (req, res) => {
-  try {
-    if (!await isAdminUser5(req)) {
-      return res.status(403).json({ success: false, error: "Admin only" });
-    }
-    const { scope } = req.query;
-    const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
-    const list = await repo.listDefaults(scope);
-    return res.json({ success: true, data: { defaults: list } });
-  } catch (error) {
-    console.error("[Knowledge Route] Admin list defaults failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.put("/admin/defaults", async (req, res) => {
-  try {
-    if (!await isAdminUser5(req)) {
-      return res.status(403).json({ success: false, error: "Admin only" });
-    }
-    const { scope, category, sub_type, knowledge_base_id } = req.body;
-    if (!scope || !category || !sub_type || !knowledge_base_id) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields: scope, category, sub_type, knowledge_base_id"
-      });
-    }
-    const kbRepo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseRepository();
-    const kb = await kbRepo.findKnowledgeBaseById(knowledge_base_id);
-    if (!kb) {
-      return res.status(404).json({
-        success: false,
-        error: `Knowledge base "${knowledge_base_id}" not found`
-      });
-    }
-    const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
-    const def = await repo.setDefault({
-      scope,
-      category,
-      sub_type,
-      knowledge_base_id
-    });
-    return res.json({ success: true, data: def });
-  } catch (error) {
-    console.error("[Knowledge Route] Admin set default failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.delete("/admin/defaults/:scope/:category/:subType", async (req, res) => {
-  try {
-    if (!await isAdminUser5(req)) {
-      return res.status(403).json({ success: false, error: "Admin only" });
-    }
-    const { scope, category, subType } = req.params;
-    const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
-    await repo.removeDefault(scope, category, subType);
-    return res.json({ success: true, message: "Default removed" });
-  } catch (error) {
-    console.error("[Knowledge Route] Admin remove default failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.get("/bases/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    let knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
-    if (!knowledgeBase) {
-      knowledgeBase = await getKnowledgeService().getKnowledgeBase(id);
-    }
-    if (!knowledgeBase) {
-      return res.status(404).json({
-        success: false,
-        error: `Knowledge base with ID or name "${id}" not found`
-      });
-    }
-    return res.json({
-      success: true,
-      data: knowledgeBase
-    });
-  } catch (error) {
-    console.error("[Knowledge Route] Get knowledge base failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.put("/bases/:id", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({ success: false, error: "Missing x-user-id header" });
-    }
-    const { id } = req.params;
-    const {
-      display_name,
-      description,
-      type,
-      agent_id,
-      agent_name,
-      is_public,
-      config
-    } = req.body;
-    const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
-    if (!existingKb) {
-      return res.status(404).json({
-        success: false,
-        error: `Knowledge base with ID "${id}" not found`
-      });
-    }
-    const isAdmin = await isAdminUser5(req);
-    if (!isAdmin && existingKb.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "You can only update your own knowledge bases"
-      });
-    }
-    if (!isAdmin && is_public === true) {
-      return res.status(403).json({
-        success: false,
-        error: "Only admin users can set knowledge base as public"
-      });
-    }
-    const finalIsPublic = isAdmin ? is_public !== void 0 ? is_public : existingKb.is_public : false;
-    const knowledgeBase = await getKnowledgeService().updateKnowledgeBaseById(id, {
-      display_name,
-      description,
-      type,
-      agent_id,
-      agent_name,
-      is_public: finalIsPublic,
-      config
-    });
-    return res.json({
-      success: true,
-      data: knowledgeBase
-    });
-  } catch (error) {
-    console.error("[Knowledge Route] Update knowledge base failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.delete("/bases/:id", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({ success: false, error: "Missing x-user-id header" });
-    }
-    const { id } = req.params;
-    const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
-    if (!existingKb) {
-      return res.status(404).json({
-        success: false,
-        error: `Knowledge base with ID "${id}" not found`
-      });
-    }
-    const isAdmin = await isAdminUser5(req);
-    if (!isAdmin && existingKb.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "You can only delete your own knowledge bases"
-      });
-    }
-    await getKnowledgeService().deleteKnowledgeBaseById(id);
-    return res.json({
-      success: true,
-      message: `Knowledge base with ID "${id}" deleted successfully`
-    });
-  } catch (error) {
-    console.error("[Knowledge Route] Delete knowledge base failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.post(
-  "/bases/:id/upload",
-  upload2.fields([
-    { name: "file", maxCount: 10 },
-    // 单个或多个文件（向后兼容，支持最多10个）
-    { name: "files", maxCount: 10 }
-    // 多个文件（最多10个）
-  ]),
-  async (req, res) => {
-    try {
-      const userId = req.headers["x-user-id"];
-      if (!userId) {
-        return res.status(401).json({ success: false, error: "Missing x-user-id header" });
-      }
-      const { id } = req.params;
-      const multerReq = req;
-      const files = [];
-      if (multerReq.files) {
-        if (Array.isArray(multerReq.files)) {
-          files.push(...multerReq.files);
-        } else {
-          if (multerReq.files["file"]) {
-            files.push(...multerReq.files["file"]);
-          }
-          if (multerReq.files["files"]) {
-            files.push(...multerReq.files["files"]);
-          }
-        }
-      } else if (multerReq.file) {
-        files.push(multerReq.file);
-      }
-      if (files.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing file field. Use "file" for single file or "files" for multiple files.'
-        });
-      }
-      const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
-      if (!existingKb) {
-        return res.status(404).json({
-          success: false,
-          error: `Knowledge base with ID "${id}" not found`
-        });
-      }
-      const isAdmin = await isAdminUser5(req);
-      if (!isAdmin && existingKb.owner_id !== userId) {
-        return res.status(403).json({
-          success: false,
-          error: "You can only upload files to your own knowledge bases"
-        });
-      }
-      const { tags, metadata, is_public, chunk_size, chunk_overlap, max_chunk_size } = req.body;
-      const parsedTags = tags ? typeof tags === "string" ? JSON.parse(tags) : tags : [];
-      const parsedMetadata = metadata ? typeof metadata === "string" ? JSON.parse(metadata) : metadata : void 0;
-      const finalIsPublic = isAdmin ? is_public === "true" || is_public === true : false;
-      const chunkSize = chunk_size ? Number(chunk_size) : void 0;
-      const chunkOverlap = chunk_overlap ? Number(chunk_overlap) : void 0;
-      const maxChunkSize = max_chunk_size ? Number(max_chunk_size) : void 0;
-      const allDocuments = [];
-      let totalChunks = 0;
-      const fileResults = [];
-      for (const file of files) {
-        if (!id) {
-          return res.status(400).json({
+var import_express13, import_uid5, import_multer2, import_mxmdata29, router13, upload2, knowledgeServiceInstance, knowledge_default;
+var init_knowledge = __esm({
+  "src/routes/knowledge.ts"() {
+    "use strict";
+    import_express13 = require("express");
+    import_uid5 = require("uid");
+    import_multer2 = __toESM(require("multer"));
+    init_knowledge_service();
+    import_mxmdata29 = require("@mxmai/mxmdata");
+    init_task_executor();
+    init_knowledge_task();
+    router13 = (0, import_express13.Router)();
+    upload2 = (0, import_multer2.default)({ storage: import_multer2.default.memoryStorage() });
+    knowledgeServiceInstance = null;
+    router13.post("/bases", async (req, res) => {
+      const timeout = setTimeout(() => {
+        if (!res.headersSent) {
+          console.error("[Knowledge Route] Request timeout after 30s");
+          res.status(504).json({
             success: false,
-            error: "Missing knowledge base ID in URL path"
+            error: "Request timeout"
           });
         }
-        const result = await getKnowledgeService().uploadFileById({
-          knowledgeBaseId: id,
-          file: {
-            buffer: file.buffer,
-            originalname: file.originalname,
-            mimetype: file.mimetype,
-            size: file.size
-          },
-          userId,
-          tags: parsedTags,
-          metadata: parsedMetadata,
-          isPublic: finalIsPublic,
-          chunkSize,
-          chunkOverlap,
-          maxChunkSize
-        });
-        allDocuments.push(...result.documents);
-        totalChunks += result.totalChunks;
-        fileResults.push({
-          fileName: file.originalname,
-          fileId: result.fileId,
-          // 文件唯一 ID，用于后续删除
-          documentsCount: result.documents.length,
-          chunks: result.totalChunks,
-          replaced: result.replaced
-          // 是否替换了已存在的文件
-        });
-      }
-      const updatedKb = await getKnowledgeService().getKnowledgeBaseById(id);
-      if (!updatedKb) {
-        console.warn(`[Knowledge Route] Failed to get updated knowledge base: ${id}`);
-      }
-      const includeDocuments = files.length <= 3;
-      return res.json({
-        success: true,
-        data: {
-          knowledgeBase: updatedKb || existingKb,
-          // 使用更新后的知识库信息
-          filesCount: files.length,
-          totalDocumentsCount: allDocuments.length,
-          totalChunks,
-          fileResults,
-          // 每个文件的上传结果
-          ...includeDocuments ? { documents: allDocuments } : {}
-          // 只有文件数 <= 3 时才返回文档列表
+      }, 3e4);
+      try {
+        console.log("[Knowledge Route] POST /bases - Request received");
+        console.log("[Knowledge Route] Request body:", JSON.stringify(req.body));
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          clearTimeout(timeout);
+          console.warn("[Knowledge Route] Missing x-user-id header");
+          return res.status(401).json({ success: false, error: "Missing x-user-id header" });
         }
-      });
-    } catch (error) {
-      console.error("[Knowledge Route] Upload file failed:", error);
-      return res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-  }
-);
-router13.post(
-  "/bases/:id/upload-task",
-  upload2.single("file"),
-  async (req, res) => {
-    try {
-      const userId = req.headers["x-user-id"];
-      if (!userId) {
-        return res.status(401).json({ success: false, error: "Missing x-user-id header" });
-      }
-      const { id } = req.params;
-      const multerReq = req;
-      if (!multerReq.file) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing file field "file"'
-        });
-      }
-      const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
-      if (!existingKb) {
-        return res.status(404).json({
-          success: false,
-          error: `Knowledge base with ID "${id}" not found`
-        });
-      }
-      const isAdmin = await isAdminUser5(req);
-      if (!isAdmin && existingKb.owner_id !== userId) {
-        return res.status(403).json({
-          success: false,
-          error: "You can only upload files to your own knowledge bases"
-        });
-      }
-      const { tags, metadata, is_public, chunk_size, chunk_overlap, max_chunk_size } = req.body;
-      const parsedTags = tags ? typeof tags === "string" ? JSON.parse(tags) : tags : [];
-      const parsedMetadata = metadata ? typeof metadata === "string" ? JSON.parse(metadata) : metadata : void 0;
-      const finalIsPublic = isAdmin ? is_public === "true" || is_public === true : false;
-      const chunkSize = chunk_size ? Number(chunk_size) : void 0;
-      const chunkOverlap = chunk_overlap ? Number(chunk_overlap) : void 0;
-      const maxChunkSize = max_chunk_size ? Number(max_chunk_size) : void 0;
-      const storageRepo = import_mxmdata29.RepositoryFactory.createStorageRepository();
-      const bucket = process.env.KNOWLEDGE_STORAGE_BUCKET || process.env.CGI_STORAGE_BUCKET || "user-media";
-      const originalName = multerReq.file.originalname;
-      const ext = (originalName.split(".").pop() || "txt").toLowerCase();
-      const timestamp = Date.now();
-      const randomId = Math.random().toString(36).slice(2, 8);
-      const key = `knowledge/${userId}/${id}/${timestamp}-${randomId}.${ext}`;
-      await storageRepo.uploadFile(bucket, key, multerReq.file.buffer, {
-        contentType: multerReq.file.mimetype,
-        metadata: {
-          userId,
-          knowledgeBaseId: id,
-          knowledgeBaseName: existingKb.name,
-          // 保留 name 用于内部处理
-          originalFileName: originalName
+        console.log("[Knowledge Route] User ID:", userId);
+        const {
+          name,
+          display_name,
+          description,
+          type,
+          embedding_model,
+          agent_id,
+          agent_name,
+          is_builtin,
+          is_public,
+          config
+        } = req.body;
+        if (!name || !display_name) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required fields: name, display_name"
+          });
         }
-      });
-      const taskManager2 = taskExecutor.getTaskManager();
-      const createResponse = await taskManager2.createTask({
-        type: "other",
-        model: `knowledge-import:${id}`,
-        provider: "knowledge",
-        params: {
-          knowledgeBaseId: id,
-          knowledgeBaseName: existingKb.name,
-          // 保留 name 用于内部处理
-          fileBucket: bucket,
-          fileKey: key,
-          originalFileName: originalName,
-          mimeType: multerReq.file.mimetype,
-          userId,
-          tags: parsedTags,
-          metadata: parsedMetadata,
-          isPublic: finalIsPublic,
-          chunkSize,
-          chunkOverlap,
-          maxChunkSize
-        },
-        userId,
-        // 不需要 MinIO 输出存储，这个任务只是导入知识库
-        storeToMinio: false
-      });
-      startKnowledgeImportTask(createResponse.taskId).catch((error) => {
-        console.error(
-          `[Knowledge Route] \u77E5\u8BC6\u5E93\u5BFC\u5165\u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`,
-          error
+        const isAdmin = await isAdminUser5(req);
+        if (!isAdmin && is_public === true) {
+          return res.status(403).json({
+            success: false,
+            error: "Only admin users can create public knowledge bases"
+          });
+        }
+        const finalIsPublic = isAdmin ? is_public !== void 0 ? is_public : false : false;
+        console.log("[Knowledge Route] Creating knowledge base:", { name, display_name, owner_id: userId });
+        const knowledgeBase = await getKnowledgeService().createKnowledgeBase({
+          name,
+          display_name,
+          description,
+          type,
+          embedding_model,
+          agent_id,
+          agent_name,
+          is_builtin: isAdmin ? is_builtin || false : false,
+          // 只有管理员可以创建内置知识库
+          is_public: finalIsPublic,
+          owner_id: userId,
+          config
+        });
+        console.log("[Knowledge Route] Knowledge base created successfully:", knowledgeBase.id);
+        clearTimeout(timeout);
+        return res.json({
+          success: true,
+          data: knowledgeBase
+        });
+      } catch (error) {
+        clearTimeout(timeout);
+        console.error("[Knowledge Route] Create knowledge base failed:", error);
+        console.error("[Knowledge Route] Error stack:", error instanceof Error ? error.stack : "No stack trace");
+        if (!res.headersSent) {
+          return res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        } else {
+          console.error("[Knowledge Route] Cannot send error response: headers already sent");
+        }
+      }
+    });
+    router13.get("/bases", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { agent_id, is_public, limit, offset } = req.query;
+        const isPublicParam = is_public === "true" ? true : is_public === "false" ? false : void 0;
+        let result;
+        if (isPublicParam === void 0) {
+          const [userKbsRes, publicKbsRes] = await Promise.all([
+            getKnowledgeService().listKnowledgeBases({
+              agent_id,
+              owner_id: userId,
+              is_public: false,
+              // 用户的私有知识库
+              limit: limit ? Number(limit) : void 0,
+              offset: offset ? Number(offset) : void 0
+            }),
+            getKnowledgeService().listKnowledgeBases({
+              agent_id,
+              owner_id: void 0,
+              // 不限制 owner_id，获取所有公开的知识库
+              is_public: true,
+              // 所有公开的知识库
+              limit: limit ? Number(limit) : void 0,
+              offset: offset ? Number(offset) : void 0
+            })
+          ]);
+          const userKbs = userKbsRes.knowledge_bases || [];
+          const publicKbs = publicKbsRes.knowledge_bases || [];
+          const allKbs = [...userKbs, ...publicKbs];
+          const uniqueKbs = allKbs.filter(
+            (kb, index, self) => index === self.findIndex((k) => k.id === kb.id)
+          );
+          result = {
+            knowledge_bases: uniqueKbs,
+            total: uniqueKbs.length,
+            limit: limit ? Number(limit) : void 0,
+            offset: offset ? Number(offset) : void 0
+          };
+        } else if (isPublicParam === true) {
+          result = await getKnowledgeService().listKnowledgeBases({
+            agent_id,
+            owner_id: void 0,
+            // 不限制 owner_id
+            is_public: true,
+            limit: limit ? Number(limit) : void 0,
+            offset: offset ? Number(offset) : void 0
+          });
+        } else {
+          result = await getKnowledgeService().listKnowledgeBases({
+            agent_id,
+            owner_id: userId,
+            is_public: false,
+            limit: limit ? Number(limit) : void 0,
+            offset: offset ? Number(offset) : void 0
+          });
+        }
+        return res.json({
+          success: true,
+          data: result
+        });
+      } catch (error) {
+        console.error("[Knowledge Route] List knowledge bases failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router13.get("/admin/public-bases", async (req, res) => {
+      try {
+        if (!await isAdminUser5(req)) {
+          return res.status(403).json({ success: false, error: "Admin only" });
+        }
+        const { limit, offset } = req.query;
+        const result = await getKnowledgeService().listKnowledgeBases({
+          public_or_builtin: true,
+          limit: limit ? Number(limit) : void 0,
+          offset: offset ? Number(offset) : void 0
+        });
+        return res.json({ success: true, data: result });
+      } catch (error) {
+        console.error("[Knowledge Route] Admin list public bases failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router13.get("/admin/defaults", async (req, res) => {
+      try {
+        if (!await isAdminUser5(req)) {
+          return res.status(403).json({ success: false, error: "Admin only" });
+        }
+        const { scope } = req.query;
+        const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+        const list = await repo.listDefaults(scope);
+        return res.json({ success: true, data: { defaults: list } });
+      } catch (error) {
+        console.error("[Knowledge Route] Admin list defaults failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router13.put("/admin/defaults", async (req, res) => {
+      try {
+        if (!await isAdminUser5(req)) {
+          return res.status(403).json({ success: false, error: "Admin only" });
+        }
+        const { scope, category, sub_type, knowledge_base_id } = req.body;
+        if (!scope || !category || !sub_type || !knowledge_base_id) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required fields: scope, category, sub_type, knowledge_base_id"
+          });
+        }
+        const kbRepo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseRepository();
+        const kb = await kbRepo.findKnowledgeBaseById(knowledge_base_id);
+        if (!kb) {
+          return res.status(404).json({
+            success: false,
+            error: `Knowledge base "${knowledge_base_id}" not found`
+          });
+        }
+        const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+        const def = await repo.setDefault({
+          scope,
+          category,
+          sub_type,
+          knowledge_base_id
+        });
+        return res.json({ success: true, data: def });
+      } catch (error) {
+        console.error("[Knowledge Route] Admin set default failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router13.delete("/admin/defaults/:scope/:category/:subType", async (req, res) => {
+      try {
+        if (!await isAdminUser5(req)) {
+          return res.status(403).json({ success: false, error: "Admin only" });
+        }
+        const { scope, category, subType } = req.params;
+        const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+        await repo.removeDefault(scope, category, subType);
+        return res.json({ success: true, message: "Default removed" });
+      } catch (error) {
+        console.error("[Knowledge Route] Admin remove default failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router13.get("/bases/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+        let knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
+        if (!knowledgeBase) {
+          knowledgeBase = await getKnowledgeService().getKnowledgeBase(id);
+        }
+        if (!knowledgeBase) {
+          return res.status(404).json({
+            success: false,
+            error: `Knowledge base with ID or name "${id}" not found`
+          });
+        }
+        return res.json({
+          success: true,
+          data: knowledgeBase
+        });
+      } catch (error) {
+        console.error("[Knowledge Route] Get knowledge base failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router13.put("/bases/:id", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({ success: false, error: "Missing x-user-id header" });
+        }
+        const { id } = req.params;
+        const {
+          display_name,
+          description,
+          type,
+          agent_id,
+          agent_name,
+          is_public,
+          config
+        } = req.body;
+        const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
+        if (!existingKb) {
+          return res.status(404).json({
+            success: false,
+            error: `Knowledge base with ID "${id}" not found`
+          });
+        }
+        const isAdmin = await isAdminUser5(req);
+        if (!isAdmin && existingKb.owner_id !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "You can only update your own knowledge bases"
+          });
+        }
+        if (!isAdmin && is_public === true) {
+          return res.status(403).json({
+            success: false,
+            error: "Only admin users can set knowledge base as public"
+          });
+        }
+        const finalIsPublic = isAdmin ? is_public !== void 0 ? is_public : existingKb.is_public : false;
+        const knowledgeBase = await getKnowledgeService().updateKnowledgeBaseById(id, {
+          display_name,
+          description,
+          type,
+          agent_id,
+          agent_name,
+          is_public: finalIsPublic,
+          config
+        });
+        return res.json({
+          success: true,
+          data: knowledgeBase
+        });
+      } catch (error) {
+        console.error("[Knowledge Route] Update knowledge base failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router13.delete("/bases/:id", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({ success: false, error: "Missing x-user-id header" });
+        }
+        const { id } = req.params;
+        const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
+        if (!existingKb) {
+          return res.status(404).json({
+            success: false,
+            error: `Knowledge base with ID "${id}" not found`
+          });
+        }
+        const isAdmin = await isAdminUser5(req);
+        if (!isAdmin && existingKb.owner_id !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "You can only delete your own knowledge bases"
+          });
+        }
+        await getKnowledgeService().deleteKnowledgeBaseById(id);
+        return res.json({
+          success: true,
+          message: `Knowledge base with ID "${id}" deleted successfully`
+        });
+      } catch (error) {
+        console.error("[Knowledge Route] Delete knowledge base failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router13.post(
+      "/bases/:id/upload",
+      upload2.fields([
+        { name: "file", maxCount: 10 },
+        // 单个或多个文件（向后兼容，支持最多10个）
+        { name: "files", maxCount: 10 }
+        // 多个文件（最多10个）
+      ]),
+      async (req, res) => {
+        try {
+          const userId = req.headers["x-user-id"];
+          if (!userId) {
+            return res.status(401).json({ success: false, error: "Missing x-user-id header" });
+          }
+          const { id } = req.params;
+          const multerReq = req;
+          const files = [];
+          if (multerReq.files) {
+            if (Array.isArray(multerReq.files)) {
+              files.push(...multerReq.files);
+            } else {
+              if (multerReq.files["file"]) {
+                files.push(...multerReq.files["file"]);
+              }
+              if (multerReq.files["files"]) {
+                files.push(...multerReq.files["files"]);
+              }
+            }
+          } else if (multerReq.file) {
+            files.push(multerReq.file);
+          }
+          if (files.length === 0) {
+            return res.status(400).json({
+              success: false,
+              error: 'Missing file field. Use "file" for single file or "files" for multiple files.'
+            });
+          }
+          const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
+          if (!existingKb) {
+            return res.status(404).json({
+              success: false,
+              error: `Knowledge base with ID "${id}" not found`
+            });
+          }
+          const isAdmin = await isAdminUser5(req);
+          if (!isAdmin && existingKb.owner_id !== userId) {
+            return res.status(403).json({
+              success: false,
+              error: "You can only upload files to your own knowledge bases"
+            });
+          }
+          const { tags, metadata, is_public, chunk_size, chunk_overlap, max_chunk_size } = req.body;
+          const parsedTags = tags ? typeof tags === "string" ? JSON.parse(tags) : tags : [];
+          const parsedMetadata = metadata ? typeof metadata === "string" ? JSON.parse(metadata) : metadata : void 0;
+          const finalIsPublic = isAdmin ? is_public === "true" || is_public === true : false;
+          const chunkSize = chunk_size ? Number(chunk_size) : void 0;
+          const chunkOverlap = chunk_overlap ? Number(chunk_overlap) : void 0;
+          const maxChunkSize = max_chunk_size ? Number(max_chunk_size) : void 0;
+          const allDocuments = [];
+          let totalChunks = 0;
+          const fileResults = [];
+          for (const file of files) {
+            if (!id) {
+              return res.status(400).json({
+                success: false,
+                error: "Missing knowledge base ID in URL path"
+              });
+            }
+            const result = await getKnowledgeService().uploadFileById({
+              knowledgeBaseId: id,
+              file: {
+                buffer: file.buffer,
+                originalname: file.originalname,
+                mimetype: file.mimetype,
+                size: file.size
+              },
+              userId,
+              tags: parsedTags,
+              metadata: parsedMetadata,
+              isPublic: finalIsPublic,
+              chunkSize,
+              chunkOverlap,
+              maxChunkSize
+            });
+            allDocuments.push(...result.documents);
+            totalChunks += result.totalChunks;
+            fileResults.push({
+              fileName: file.originalname,
+              fileId: result.fileId,
+              // 文件唯一 ID，用于后续删除
+              documentsCount: result.documents.length,
+              chunks: result.totalChunks,
+              replaced: result.replaced
+              // 是否替换了已存在的文件
+            });
+          }
+          const updatedKb = await getKnowledgeService().getKnowledgeBaseById(id);
+          if (!updatedKb) {
+            console.warn(`[Knowledge Route] Failed to get updated knowledge base: ${id}`);
+          }
+          const includeDocuments = files.length <= 3;
+          return res.json({
+            success: true,
+            data: {
+              knowledgeBase: updatedKb || existingKb,
+              // 使用更新后的知识库信息
+              filesCount: files.length,
+              totalDocumentsCount: allDocuments.length,
+              totalChunks,
+              fileResults,
+              // 每个文件的上传结果
+              ...includeDocuments ? { documents: allDocuments } : {}
+              // 只有文件数 <= 3 时才返回文档列表
+            }
+          });
+        } catch (error) {
+          console.error("[Knowledge Route] Upload file failed:", error);
+          return res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+    );
+    router13.post(
+      "/bases/:id/upload-task",
+      upload2.single("file"),
+      async (req, res) => {
+        try {
+          const userId = req.headers["x-user-id"];
+          if (!userId) {
+            return res.status(401).json({ success: false, error: "Missing x-user-id header" });
+          }
+          const { id } = req.params;
+          const multerReq = req;
+          if (!multerReq.file) {
+            return res.status(400).json({
+              success: false,
+              error: 'Missing file field "file"'
+            });
+          }
+          const existingKb = await getKnowledgeService().getKnowledgeBaseById(id);
+          if (!existingKb) {
+            return res.status(404).json({
+              success: false,
+              error: `Knowledge base with ID "${id}" not found`
+            });
+          }
+          const isAdmin = await isAdminUser5(req);
+          if (!isAdmin && existingKb.owner_id !== userId) {
+            return res.status(403).json({
+              success: false,
+              error: "You can only upload files to your own knowledge bases"
+            });
+          }
+          const { tags, metadata, is_public, chunk_size, chunk_overlap, max_chunk_size } = req.body;
+          const parsedTags = tags ? typeof tags === "string" ? JSON.parse(tags) : tags : [];
+          const parsedMetadata = metadata ? typeof metadata === "string" ? JSON.parse(metadata) : metadata : void 0;
+          const finalIsPublic = isAdmin ? is_public === "true" || is_public === true : false;
+          const chunkSize = chunk_size ? Number(chunk_size) : void 0;
+          const chunkOverlap = chunk_overlap ? Number(chunk_overlap) : void 0;
+          const maxChunkSize = max_chunk_size ? Number(max_chunk_size) : void 0;
+          const storageRepo = import_mxmdata29.RepositoryFactory.createStorageRepository();
+          const bucket = process.env.KNOWLEDGE_STORAGE_BUCKET || process.env.CGI_STORAGE_BUCKET || "user-media";
+          const originalName = multerReq.file.originalname;
+          const ext = (originalName.split(".").pop() || "txt").toLowerCase();
+          const timestamp = Date.now();
+          const randomId = Math.random().toString(36).slice(2, 8);
+          const key = `knowledge/${userId}/${id}/${timestamp}-${randomId}.${ext}`;
+          await storageRepo.uploadFile(bucket, key, multerReq.file.buffer, {
+            contentType: multerReq.file.mimetype,
+            metadata: {
+              userId,
+              knowledgeBaseId: id,
+              knowledgeBaseName: existingKb.name,
+              // 保留 name 用于内部处理
+              originalFileName: originalName
+            }
+          });
+          const taskManager2 = taskExecutor.getTaskManager();
+          const createResponse = await taskManager2.createTask({
+            type: "other",
+            model: `knowledge-import:${id}`,
+            provider: "knowledge",
+            params: {
+              knowledgeBaseId: id,
+              knowledgeBaseName: existingKb.name,
+              // 保留 name 用于内部处理
+              fileBucket: bucket,
+              fileKey: key,
+              originalFileName: originalName,
+              mimeType: multerReq.file.mimetype,
+              userId,
+              tags: parsedTags,
+              metadata: parsedMetadata,
+              isPublic: finalIsPublic,
+              chunkSize,
+              chunkOverlap,
+              maxChunkSize
+            },
+            userId,
+            // 不需要 MinIO 输出存储，这个任务只是导入知识库
+            storeToMinio: false
+          });
+          startKnowledgeImportTask(createResponse.taskId).catch((error) => {
+            console.error(
+              `[Knowledge Route] \u77E5\u8BC6\u5E93\u5BFC\u5165\u4EFB\u52A1\u6267\u884C\u5931\u8D25 (taskId: ${createResponse.taskId}):`,
+              error
+            );
+          });
+          return res.json({
+            success: true,
+            data: {
+              taskId: createResponse.taskId,
+              status: createResponse.status,
+              createdAt: createResponse.createdAt
+            }
+          });
+        } catch (error) {
+          console.error("[Knowledge Route] Upload file (async task) failed:", error);
+          return res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+    );
+    router13.get("/bases/:id/documents", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { id } = req.params;
+        const { limit, offset } = req.query;
+        let knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
+        if (!knowledgeBase) {
+          knowledgeBase = await getKnowledgeService().getKnowledgeBase(id);
+        }
+        if (!knowledgeBase) {
+          return res.status(404).json({
+            success: false,
+            error: `Knowledge base with ID or name "${id}" not found`
+          });
+        }
+        const result = await getKnowledgeService().listDocuments(knowledgeBase.name, {
+          user_id: userId,
+          limit: limit ? Number(limit) : void 0,
+          offset: offset ? Number(offset) : void 0
+        });
+        const fileChunkCountMap = /* @__PURE__ */ new Map();
+        for (const doc of result.documents) {
+          const metadata = doc.metadata || {};
+          const fileId = metadata.fileId;
+          const filename = metadata.originalFileName || metadata.fileName || doc.title || "\u672A\u77E5\u6587\u4EF6";
+          const fileKey = fileId || filename;
+          fileChunkCountMap.set(fileKey, (fileChunkCountMap.get(fileKey) || 0) + 1);
+        }
+        const documentsWithFileInfo = result.documents.map((doc) => {
+          const metadata = doc.metadata || {};
+          const filename = metadata.originalFileName || metadata.fileName || doc.title || "\u672A\u77E5\u6587\u4EF6";
+          const file_size = metadata.fileSize || 0;
+          const fileId = metadata.fileId;
+          const fileKey = fileId || filename;
+          const hasEmbedding = !!(doc.embedding && Array.isArray(doc.embedding) && doc.embedding.length > 0);
+          const embeddingDimension = hasEmbedding && doc.embedding ? doc.embedding.length : null;
+          const chunk_count = fileChunkCountMap.get(fileKey) || 1;
+          return {
+            ...doc,
+            filename,
+            file_size,
+            file_type: doc.content_type || "text",
+            chunk_count,
+            embedding: {
+              hasEmbedding,
+              dimension: embeddingDimension
+            }
+          };
+        });
+        return res.json({
+          success: true,
+          data: {
+            documents: documentsWithFileInfo,
+            total: result.total,
+            limit: limit ? Number(limit) : void 0,
+            offset: offset ? Number(offset) : void 0
+          }
+        });
+      } catch (error) {
+        console.error("[Knowledge Route] List documents failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router13.get("/bases/:id/detail", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { id } = req.params;
+        const { include_content, include_embedding, limit } = req.query;
+        const knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
+        if (!knowledgeBase) {
+          return res.status(404).json({
+            success: false,
+            error: `Knowledge base with ID "${id}" not found`
+          });
+        }
+        const documentsResult = await getKnowledgeService().listDocumentsById(id, {
+          user_id: userId,
+          limit: limit ? Number(limit) : void 0
+        });
+        const filesMap = /* @__PURE__ */ new Map();
+        const fileNameToFileIdMap = /* @__PURE__ */ new Map();
+        for (const doc of documentsResult.documents) {
+          let fileId = doc.metadata?.fileId;
+          const fileName = doc.metadata?.originalFileName || "\u672A\u77E5\u6587\u4EF6";
+          if (!fileId) {
+            if (!fileNameToFileIdMap.has(fileName)) {
+              fileNameToFileIdMap.set(fileName, `file_${(0, import_uid5.uid)(21)}`);
+            }
+            fileId = fileNameToFileIdMap.get(fileName);
+          }
+          const fileType = doc.content_type || "text";
+          if (!filesMap.has(fileId)) {
+            const uploadTime = doc.created_at ? typeof doc.created_at === "string" ? doc.created_at : doc.created_at.toISOString() : (/* @__PURE__ */ new Date()).toISOString();
+            filesMap.set(fileId, {
+              fileId,
+              fileName,
+              fileType,
+              uploadTime,
+              chunks: []
+            });
+          }
+          const fileInfo = filesMap.get(fileId);
+          const chunkIndex = doc.metadata?.chunkIndex ?? 0;
+          const totalChunks = doc.metadata?.totalChunks ?? 1;
+          const shouldIncludeContent = include_content === "true";
+          const contentPreview = doc.content ? doc.content.length > 200 ? doc.content.substring(0, 200) + "..." : doc.content : "";
+          const hasEmbedding = !!(doc.embedding && Array.isArray(doc.embedding) && doc.embedding.length > 0);
+          const embeddingDimension = hasEmbedding && doc.embedding ? doc.embedding.length : null;
+          const shouldIncludeEmbedding = include_embedding === "true";
+          fileInfo.chunks.push({
+            id: doc.id,
+            title: doc.title || "",
+            content: shouldIncludeContent ? doc.content : null,
+            contentPreview,
+            chunkIndex,
+            totalChunks,
+            embedding: {
+              dimension: embeddingDimension,
+              hasEmbedding,
+              ...shouldIncludeEmbedding && hasEmbedding && doc.embedding ? { vector: doc.embedding } : {}
+            },
+            tags: doc.tags || [],
+            metadata: doc.metadata || {},
+            createdAt: doc.created_at ? typeof doc.created_at === "string" ? doc.created_at : doc.created_at.toISOString() : (/* @__PURE__ */ new Date()).toISOString()
+          });
+          if (doc.created_at) {
+            const createdAtStr = typeof doc.created_at === "string" ? doc.created_at : doc.created_at.toISOString();
+            if (new Date(createdAtStr) < new Date(fileInfo.uploadTime)) {
+              fileInfo.uploadTime = createdAtStr;
+            }
+          }
+        }
+        const files = Array.from(filesMap.values()).sort(
+          (a, b) => new Date(a.uploadTime).getTime() - new Date(b.uploadTime).getTime()
         );
-      });
-      return res.json({
-        success: true,
-        data: {
-          taskId: createResponse.taskId,
-          status: createResponse.status,
-          createdAt: createResponse.createdAt
-        }
-      });
-    } catch (error) {
-      console.error("[Knowledge Route] Upload file (async task) failed:", error);
-      return res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-  }
-);
-router13.get("/bases/:id/documents", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { id } = req.params;
-    const { limit, offset } = req.query;
-    let knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
-    if (!knowledgeBase) {
-      knowledgeBase = await getKnowledgeService().getKnowledgeBase(id);
-    }
-    if (!knowledgeBase) {
-      return res.status(404).json({
-        success: false,
-        error: `Knowledge base with ID or name "${id}" not found`
-      });
-    }
-    const result = await getKnowledgeService().listDocuments(knowledgeBase.name, {
-      user_id: userId,
-      limit: limit ? Number(limit) : void 0,
-      offset: offset ? Number(offset) : void 0
-    });
-    const fileChunkCountMap = /* @__PURE__ */ new Map();
-    for (const doc of result.documents) {
-      const metadata = doc.metadata || {};
-      const fileId = metadata.fileId;
-      const filename = metadata.originalFileName || metadata.fileName || doc.title || "\u672A\u77E5\u6587\u4EF6";
-      const fileKey = fileId || filename;
-      fileChunkCountMap.set(fileKey, (fileChunkCountMap.get(fileKey) || 0) + 1);
-    }
-    const documentsWithFileInfo = result.documents.map((doc) => {
-      const metadata = doc.metadata || {};
-      const filename = metadata.originalFileName || metadata.fileName || doc.title || "\u672A\u77E5\u6587\u4EF6";
-      const file_size = metadata.fileSize || 0;
-      const fileId = metadata.fileId;
-      const fileKey = fileId || filename;
-      const hasEmbedding = !!(doc.embedding && Array.isArray(doc.embedding) && doc.embedding.length > 0);
-      const embeddingDimension = hasEmbedding && doc.embedding ? doc.embedding.length : null;
-      const chunk_count = fileChunkCountMap.get(fileKey) || 1;
-      return {
-        ...doc,
-        filename,
-        file_size,
-        file_type: doc.content_type || "text",
-        chunk_count,
-        embedding: {
-          hasEmbedding,
-          dimension: embeddingDimension
-        }
-      };
-    });
-    return res.json({
-      success: true,
-      data: {
-        documents: documentsWithFileInfo,
-        total: result.total,
-        limit: limit ? Number(limit) : void 0,
-        offset: offset ? Number(offset) : void 0
-      }
-    });
-  } catch (error) {
-    console.error("[Knowledge Route] List documents failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.get("/bases/:id/detail", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { id } = req.params;
-    const { include_content, include_embedding, limit } = req.query;
-    const knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
-    if (!knowledgeBase) {
-      return res.status(404).json({
-        success: false,
-        error: `Knowledge base with ID "${id}" not found`
-      });
-    }
-    const documentsResult = await getKnowledgeService().listDocumentsById(id, {
-      user_id: userId,
-      limit: limit ? Number(limit) : void 0
-    });
-    const filesMap = /* @__PURE__ */ new Map();
-    const fileNameToFileIdMap = /* @__PURE__ */ new Map();
-    for (const doc of documentsResult.documents) {
-      let fileId = doc.metadata?.fileId;
-      const fileName = doc.metadata?.originalFileName || "\u672A\u77E5\u6587\u4EF6";
-      if (!fileId) {
-        if (!fileNameToFileIdMap.has(fileName)) {
-          fileNameToFileIdMap.set(fileName, `file_${(0, import_uid5.uid)(21)}`);
-        }
-        fileId = fileNameToFileIdMap.get(fileName);
-      }
-      const fileType = doc.content_type || "text";
-      if (!filesMap.has(fileId)) {
-        const uploadTime = doc.created_at ? typeof doc.created_at === "string" ? doc.created_at : doc.created_at.toISOString() : (/* @__PURE__ */ new Date()).toISOString();
-        filesMap.set(fileId, {
-          fileId,
-          fileName,
-          fileType,
-          uploadTime,
-          chunks: []
+        files.forEach((file) => {
+          file.chunks.sort((a, b) => a.chunkIndex - b.chunkIndex);
         });
-      }
-      const fileInfo = filesMap.get(fileId);
-      const chunkIndex = doc.metadata?.chunkIndex ?? 0;
-      const totalChunks = doc.metadata?.totalChunks ?? 1;
-      const shouldIncludeContent = include_content === "true";
-      const contentPreview = doc.content ? doc.content.length > 200 ? doc.content.substring(0, 200) + "..." : doc.content : "";
-      const hasEmbedding = !!(doc.embedding && Array.isArray(doc.embedding) && doc.embedding.length > 0);
-      const embeddingDimension = hasEmbedding && doc.embedding ? doc.embedding.length : null;
-      const shouldIncludeEmbedding = include_embedding === "true";
-      fileInfo.chunks.push({
-        id: doc.id,
-        title: doc.title || "",
-        content: shouldIncludeContent ? doc.content : null,
-        contentPreview,
-        chunkIndex,
-        totalChunks,
-        embedding: {
-          dimension: embeddingDimension,
-          hasEmbedding,
-          ...shouldIncludeEmbedding && hasEmbedding && doc.embedding ? { vector: doc.embedding } : {}
-        },
-        tags: doc.tags || [],
-        metadata: doc.metadata || {},
-        createdAt: doc.created_at ? typeof doc.created_at === "string" ? doc.created_at : doc.created_at.toISOString() : (/* @__PURE__ */ new Date()).toISOString()
-      });
-      if (doc.created_at) {
-        const createdAtStr = typeof doc.created_at === "string" ? doc.created_at : doc.created_at.toISOString();
-        if (new Date(createdAtStr) < new Date(fileInfo.uploadTime)) {
-          fileInfo.uploadTime = createdAtStr;
-        }
-      }
-    }
-    const files = Array.from(filesMap.values()).sort(
-      (a, b) => new Date(a.uploadTime).getTime() - new Date(b.uploadTime).getTime()
-    );
-    files.forEach((file) => {
-      file.chunks.sort((a, b) => a.chunkIndex - b.chunkIndex);
-    });
-    return res.json({
-      success: true,
-      data: {
-        knowledgeBase: {
-          id: knowledgeBase.id,
-          name: knowledgeBase.name,
-          display_name: knowledgeBase.display_name,
-          description: knowledgeBase.description,
-          type: knowledgeBase.type,
-          embedding_model: knowledgeBase.embedding_model,
-          document_count: knowledgeBase.document_count,
-          total_size_bytes: knowledgeBase.total_size_bytes,
-          is_public: knowledgeBase.is_public,
-          owner_id: knowledgeBase.owner_id,
-          created_at: knowledgeBase.created_at,
-          updated_at: knowledgeBase.updated_at
-        },
-        files,
-        summary: {
-          totalFiles: files.length,
-          totalChunks: documentsResult.total,
-          totalSizeBytes: knowledgeBase.total_size_bytes
-        }
-      }
-    });
-  } catch (error) {
-    console.error("[Knowledge Route] Get knowledge base detail failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.delete("/documents/:id", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({ success: false, error: "Missing x-user-id header" });
-    }
-    const { id } = req.params;
-    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
-    const kbRepo = RepositoryFactory24.createKnowledgeBaseRepository();
-    const doc = await kbRepo.findDocumentById(id);
-    if (!doc) {
-      return res.status(404).json({
-        success: false,
-        error: `Document "${id}" not found`
-      });
-    }
-    const isAdmin = await isAdminUser5(req);
-    if (!isAdmin && doc.user_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "You can only delete your own documents"
-      });
-    }
-    await getKnowledgeService().deleteDocument(id);
-    return res.json({
-      success: true,
-      message: `Document "${id}" deleted successfully`
-    });
-  } catch (error) {
-    console.error("[Knowledge Route] Delete document failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.delete("/bases/:id/files/:fileId", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({ success: false, error: "Missing x-user-id header" });
-    }
-    const { id, fileId } = req.params;
-    const knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
-    if (!knowledgeBase) {
-      return res.status(404).json({
-        success: false,
-        error: `Knowledge base with ID "${id}" not found`
-      });
-    }
-    const isAdmin = await isAdminUser5(req);
-    const documentsResult = await getKnowledgeService().listDocumentsById(id, {
-      user_id: userId
-    });
-    const fileDocuments = documentsResult.documents.filter(
-      (doc) => doc.metadata?.fileId === fileId
-    );
-    if (fileDocuments.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: `File with ID "${fileId}" not found in knowledge base with ID "${id}"`
-      });
-    }
-    if (!isAdmin) {
-      const hasOtherUserFiles = fileDocuments.some(
-        (doc) => doc.user_id !== userId
-      );
-      if (hasOtherUserFiles) {
-        return res.status(403).json({
+        return res.json({
+          success: true,
+          data: {
+            knowledgeBase: {
+              id: knowledgeBase.id,
+              name: knowledgeBase.name,
+              display_name: knowledgeBase.display_name,
+              description: knowledgeBase.description,
+              type: knowledgeBase.type,
+              embedding_model: knowledgeBase.embedding_model,
+              document_count: knowledgeBase.document_count,
+              total_size_bytes: knowledgeBase.total_size_bytes,
+              is_public: knowledgeBase.is_public,
+              owner_id: knowledgeBase.owner_id,
+              created_at: knowledgeBase.created_at,
+              updated_at: knowledgeBase.updated_at
+            },
+            files,
+            summary: {
+              totalFiles: files.length,
+              totalChunks: documentsResult.total,
+              totalSizeBytes: knowledgeBase.total_size_bytes
+            }
+          }
+        });
+      } catch (error) {
+        console.error("[Knowledge Route] Get knowledge base detail failed:", error);
+        return res.status(500).json({
           success: false,
-          error: "You can only delete files you uploaded"
+          error: error instanceof Error ? error.message : String(error)
         });
       }
-    }
-    const result = await getKnowledgeService().deleteFileById(id, fileId, userId);
-    return res.json({
-      success: true,
-      data: {
-        fileId,
-        fileName: result.fileName,
-        deletedChunksCount: result.deletedCount,
-        message: result.fileName ? `File "${result.fileName}" and ${result.deletedCount} chunks deleted successfully` : `File and ${result.deletedCount} chunks deleted successfully`
+    });
+    router13.delete("/documents/:id", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({ success: false, error: "Missing x-user-id header" });
+        }
+        const { id } = req.params;
+        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+        const kbRepo = RepositoryFactory23.createKnowledgeBaseRepository();
+        const doc = await kbRepo.findDocumentById(id);
+        if (!doc) {
+          return res.status(404).json({
+            success: false,
+            error: `Document "${id}" not found`
+          });
+        }
+        const isAdmin = await isAdminUser5(req);
+        if (!isAdmin && doc.user_id !== userId) {
+          return res.status(403).json({
+            success: false,
+            error: "You can only delete your own documents"
+          });
+        }
+        await getKnowledgeService().deleteDocument(id);
+        return res.json({
+          success: true,
+          message: `Document "${id}" deleted successfully`
+        });
+      } catch (error) {
+        console.error("[Knowledge Route] Delete document failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     });
-  } catch (error) {
-    console.error("[Knowledge Route] Delete file failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router13.post("/bases/:id/search", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { id } = req.params;
-    const {
-      query,
-      search_type = "hybrid",
-      limit = 5,
-      threshold = 0.7,
-      vector_weight = 0.7,
-      keyword_weight = 0.3
-    } = req.body;
-    if (!query) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required field: query"
-      });
-    }
-    let knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
-    if (!knowledgeBase) {
-      knowledgeBase = await getKnowledgeService().getKnowledgeBase(id);
-    }
-    if (!knowledgeBase) {
-      return res.status(404).json({
-        success: false,
-        error: `Knowledge base with ID or name "${id}" not found`
-      });
-    }
-    const results = await getKnowledgeService().searchById({
-      knowledgeBaseId: knowledgeBase.id,
-      query,
-      searchType: search_type,
-      limit: Number(limit),
-      threshold: Number(threshold),
-      vectorWeight: Number(vector_weight),
-      keywordWeight: Number(keyword_weight),
-      userId
-    });
-    return res.json({
-      success: true,
-      data: {
-        results,
-        count: results.length
+    router13.delete("/bases/:id/files/:fileId", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({ success: false, error: "Missing x-user-id header" });
+        }
+        const { id, fileId } = req.params;
+        const knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
+        if (!knowledgeBase) {
+          return res.status(404).json({
+            success: false,
+            error: `Knowledge base with ID "${id}" not found`
+          });
+        }
+        const isAdmin = await isAdminUser5(req);
+        const documentsResult = await getKnowledgeService().listDocumentsById(id, {
+          user_id: userId
+        });
+        const fileDocuments = documentsResult.documents.filter(
+          (doc) => doc.metadata?.fileId === fileId
+        );
+        if (fileDocuments.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: `File with ID "${fileId}" not found in knowledge base with ID "${id}"`
+          });
+        }
+        if (!isAdmin) {
+          const hasOtherUserFiles = fileDocuments.some(
+            (doc) => doc.user_id !== userId
+          );
+          if (hasOtherUserFiles) {
+            return res.status(403).json({
+              success: false,
+              error: "You can only delete files you uploaded"
+            });
+          }
+        }
+        const result = await getKnowledgeService().deleteFileById(id, fileId, userId);
+        return res.json({
+          success: true,
+          data: {
+            fileId,
+            fileName: result.fileName,
+            deletedChunksCount: result.deletedCount,
+            message: result.fileName ? `File "${result.fileName}" and ${result.deletedCount} chunks deleted successfully` : `File and ${result.deletedCount} chunks deleted successfully`
+          }
+        });
+      } catch (error) {
+        console.error("[Knowledge Route] Delete file failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     });
-  } catch (error) {
-    console.error("[Knowledge Route] Search failed:", error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
+    router13.post("/bases/:id/search", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { id } = req.params;
+        const {
+          query,
+          search_type = "hybrid",
+          limit = 5,
+          threshold = 0.7,
+          vector_weight = 0.7,
+          keyword_weight = 0.3
+        } = req.body;
+        if (!query) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required field: query"
+          });
+        }
+        let knowledgeBase = await getKnowledgeService().getKnowledgeBaseById(id);
+        if (!knowledgeBase) {
+          knowledgeBase = await getKnowledgeService().getKnowledgeBase(id);
+        }
+        if (!knowledgeBase) {
+          return res.status(404).json({
+            success: false,
+            error: `Knowledge base with ID or name "${id}" not found`
+          });
+        }
+        const results = await getKnowledgeService().searchById({
+          knowledgeBaseId: knowledgeBase.id,
+          query,
+          searchType: search_type,
+          limit: Number(limit),
+          threshold: Number(threshold),
+          vectorWeight: Number(vector_weight),
+          keywordWeight: Number(keyword_weight),
+          userId
+        });
+        return res.json({
+          success: true,
+          data: {
+            results,
+            count: results.length
+          }
+        });
+      } catch (error) {
+        console.error("[Knowledge Route] Search failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
     });
+    knowledge_default = router13;
   }
 });
-var knowledge_default = router13;
-
-// src/index.ts
-init_writing2();
 
 // src/routes/character.ts
-var import_express14 = require("express");
-init_character_service();
-var router14 = (0, import_express14.Router)();
-router14.get("/", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const characterService = new CharacterService();
-    const filters = {};
-    if (req.query.category) {
-      const categoryParam = req.query.category;
-      filters.category = Array.isArray(categoryParam) ? categoryParam : [categoryParam];
-    }
-    if (req.query.tags) {
-      const tagsParam = req.query.tags;
-      filters.tags = Array.isArray(tagsParam) ? tagsParam : [tagsParam];
-    }
-    if (req.query.search) {
-      filters.search = req.query.search;
-    }
-    if (req.query.is_public !== void 0) {
-      filters.is_public = req.query.is_public === "true";
-    }
-    const pagination = req.query.page && req.query.limit ? {
-      page: parseInt(req.query.page, 10),
-      limit: parseInt(req.query.limit, 10)
-    } : void 0;
-    const result = await characterService.listCharacters(userId, filters, pagination);
-    return res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    console.error("[Character Route] Error listing characters:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to list characters",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
+var character_exports = {};
+__export(character_exports, {
+  default: () => character_default
 });
-router14.post("/", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const characterService = new CharacterService();
-    const dto = {
-      ...req.body,
-      user_id: userId
-    };
-    const character = await characterService.createCharacter(dto);
-    return res.json({
-      success: true,
-      data: character
-    });
-  } catch (error) {
-    console.error("[Character Route] Error creating character:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to create character",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router14.get("/:id", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized",
-        message: "Missing x-user-id header. Please ensure you are logged in and the request includes the Authorization token."
-      });
-    }
-    const { id } = req.params;
-    if (!id || id.trim() === "") {
-      return res.status(400).json({
-        success: false,
-        error: "Bad request",
-        message: "Character id is required"
-      });
-    }
-    const characterService = new CharacterService();
-    const character = await characterService.getCharacterDetail(id, userId);
-    if (!character) {
-      return res.status(404).json({
-        success: false,
-        error: "Character not found",
-        message: `Character with id "${id}" not found`
-      });
-    }
-    const mediaUrls = await characterService.getCharacterMediaUrls(character);
-    return res.json({
-      success: true,
-      data: {
-        ...character,
-        mediaUrls
+var import_express14, router14, character_default;
+var init_character = __esm({
+  "src/routes/character.ts"() {
+    "use strict";
+    import_express14 = require("express");
+    init_character_service();
+    router14 = (0, import_express14.Router)();
+    router14.get("/", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const characterService = new CharacterService();
+        const filters = {};
+        if (req.query.category) {
+          const categoryParam = req.query.category;
+          filters.category = Array.isArray(categoryParam) ? categoryParam : [categoryParam];
+        }
+        if (req.query.tags) {
+          const tagsParam = req.query.tags;
+          filters.tags = Array.isArray(tagsParam) ? tagsParam : [tagsParam];
+        }
+        if (req.query.search) {
+          filters.search = req.query.search;
+        }
+        if (req.query.is_public !== void 0) {
+          filters.is_public = req.query.is_public === "true";
+        }
+        const pagination = req.query.page && req.query.limit ? {
+          page: parseInt(req.query.page, 10),
+          limit: parseInt(req.query.limit, 10)
+        } : void 0;
+        const result = await characterService.listCharacters(userId, filters, pagination);
+        return res.json({
+          success: true,
+          data: result
+        });
+      } catch (error) {
+        console.error("[Character Route] Error listing characters:", error);
+        res.status(500).json({
+          success: false,
+          error: "Failed to list characters",
+          message: error instanceof Error ? error.message : String(error)
+        });
       }
     });
-  } catch (error) {
-    const err = error;
-    console.error("[Character Route] Error getting character:", err);
-    const msg = err?.message ?? String(error);
-    const hint = msg.includes("relation") || msg.includes("column") ? " \u82E5\u6D89\u53CA relations \u5B57\u6BB5\uFF0C\u8BF7\u6267\u884C\u8FC1\u79FB: mxmdata/src/database/migrations/add_character_relations.sql" : "";
-    res.status(500).json({
-      success: false,
-      error: "Failed to get character",
-      message: msg + hint
+    router14.post("/", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const characterService = new CharacterService();
+        const dto = {
+          ...req.body,
+          user_id: userId
+        };
+        const character = await characterService.createCharacter(dto);
+        return res.json({
+          success: true,
+          data: character
+        });
+      } catch (error) {
+        console.error("[Character Route] Error creating character:", error);
+        res.status(500).json({
+          success: false,
+          error: "Failed to create character",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
     });
+    router14.get("/:id", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: "Unauthorized",
+            message: "Missing x-user-id header. Please ensure you are logged in and the request includes the Authorization token."
+          });
+        }
+        const { id } = req.params;
+        if (!id || id.trim() === "") {
+          return res.status(400).json({
+            success: false,
+            error: "Bad request",
+            message: "Character id is required"
+          });
+        }
+        const characterService = new CharacterService();
+        const character = await characterService.getCharacterDetail(id, userId);
+        if (!character) {
+          return res.status(404).json({
+            success: false,
+            error: "Character not found",
+            message: `Character with id "${id}" not found`
+          });
+        }
+        const mediaUrls = await characterService.getCharacterMediaUrls(character);
+        return res.json({
+          success: true,
+          data: {
+            ...character,
+            mediaUrls
+          }
+        });
+      } catch (error) {
+        const err = error;
+        console.error("[Character Route] Error getting character:", err);
+        const msg = err?.message ?? String(error);
+        const hint = msg.includes("relation") || msg.includes("column") ? " \u82E5\u6D89\u53CA relations \u5B57\u6BB5\uFF0C\u8BF7\u6267\u884C\u8FC1\u79FB: mxmdata/src/database/migrations/add_character_relations.sql" : "";
+        res.status(500).json({
+          success: false,
+          error: "Failed to get character",
+          message: msg + hint
+        });
+      }
+    });
+    router14.put("/:id", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { id } = req.params;
+        const characterService = new CharacterService();
+        const updates = req.body;
+        const character = await characterService.updateCharacter(id, updates, userId);
+        return res.json({
+          success: true,
+          data: character
+        });
+      } catch (error) {
+        console.error("[Character Route] Error updating character:", error);
+        const statusCode = error instanceof Error && error.message.includes("\u65E0\u6743\u8BBF\u95EE") ? 403 : 500;
+        res.status(statusCode).json({
+          success: false,
+          error: "Failed to update character",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router14.delete("/:id", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { id } = req.params;
+        const characterService = new CharacterService();
+        await characterService.deleteCharacter(id, userId);
+        return res.json({
+          success: true,
+          message: "Character deleted successfully"
+        });
+      } catch (error) {
+        console.error("[Character Route] Error deleting character:", error);
+        const statusCode = error instanceof Error && error.message.includes("\u65E0\u6743\u8BBF\u95EE") ? 403 : 500;
+        res.status(statusCode).json({
+          success: false,
+          error: "Failed to delete character",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router14.post("/:id/link-image-task", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { id } = req.params;
+        const { taskId, imageType = "appearance" } = req.body;
+        if (!taskId) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing taskId",
+            message: "taskId is required"
+          });
+        }
+        if (imageType !== "appearance" && imageType !== "clothing_style") {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid imageType",
+            message: 'imageType must be "appearance" or "clothing_style"'
+          });
+        }
+        const characterService = new CharacterService();
+        const character = await characterService.linkImageTaskToCharacter(id, taskId, userId, imageType);
+        return res.json({
+          success: true,
+          data: character
+        });
+      } catch (error) {
+        console.error("[Character Route] Error linking image task:", error);
+        res.status(500).json({
+          success: false,
+          error: "Failed to link image task",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router14.post("/:id/link-audio-task", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { id } = req.params;
+        const { taskId, cloneVoiceId } = req.body;
+        if (!taskId) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing taskId",
+            message: "taskId is required"
+          });
+        }
+        const characterService = new CharacterService();
+        const character = await characterService.linkAudioTaskToCharacter(id, taskId, userId, cloneVoiceId);
+        return res.json({
+          success: true,
+          data: character
+        });
+      } catch (error) {
+        console.error("[Character Route] Error linking audio task:", error);
+        res.status(500).json({
+          success: false,
+          error: "Failed to link audio task",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router14.post("/save-from-writing", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { characters, writingTaskId } = req.body;
+        if (!writingTaskId || typeof writingTaskId !== "string" || !writingTaskId.trim()) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid writingTaskId",
+            message: "writingTaskId is required and must be a non-empty string"
+          });
+        }
+        const characterService = new CharacterService();
+        const savedCharacters = await characterService.saveCharactersFromWriting(
+          Array.isArray(characters) ? characters : [],
+          writingTaskId.trim(),
+          userId
+        );
+        return res.json({
+          success: true,
+          data: savedCharacters,
+          message: `\u5DF2\u4FDD\u5B58 ${savedCharacters.length} \u4E2A\u89D2\u8272\u5230\u89D2\u8272\u5E93\uFF0C\u5199\u4F5C\u4EFB\u52A1\u5DF2\u6539\u4E3A\u4ECE\u89D2\u8272\u5E93\u5F15\u7528`
+        });
+      } catch (error) {
+        console.error("[Character Route] Error saving characters from writing:", error);
+        const statusCode = error instanceof Error && (error.message.includes("\u65E0\u6743") || error.message.includes("\u4E0D\u5B58\u5728")) ? 403 : 500;
+        res.status(statusCode).json({
+          success: false,
+          error: "Failed to save characters from writing",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router14.post("/save-from-outline", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { characters, outlineTaskId } = req.body;
+        if (!characters || !Array.isArray(characters) || characters.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid characters",
+            message: "characters must be a non-empty array"
+          });
+        }
+        const characterService = new CharacterService();
+        const savedCharacters = await characterService.saveCharactersFromOutline(
+          characters,
+          outlineTaskId || "",
+          userId
+        );
+        return res.json({
+          success: true,
+          data: savedCharacters,
+          message: `Successfully saved ${savedCharacters.length} character(s)`
+        });
+      } catch (error) {
+        console.error("[Character Route] Error saving characters from outline:", error);
+        res.status(500).json({
+          success: false,
+          error: "Failed to save characters from outline",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router14.post("/generate", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        const { count, prompt } = req.body;
+        if (!count || typeof count !== "number" || count <= 0) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid count",
+            message: "count must be a positive number"
+          });
+        }
+        if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid prompt",
+            message: "prompt must be a non-empty string"
+          });
+        }
+        const characterService = new CharacterService();
+        const characters = await characterService.generateCharacters(
+          { count, prompt: prompt.trim() },
+          userId,
+          req.query.provider
+        );
+        return res.json({
+          success: true,
+          data: characters,
+          message: `Successfully generated ${characters.length} character(s)`
+        });
+      } catch (error) {
+        console.error("[Character Route] Error generating characters:", error);
+        res.status(500).json({
+          success: false,
+          error: "Failed to generate characters",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    character_default = router14;
   }
 });
-router14.put("/:id", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { id } = req.params;
-    const characterService = new CharacterService();
-    const updates = req.body;
-    const character = await characterService.updateCharacter(id, updates, userId);
-    return res.json({
-      success: true,
-      data: character
-    });
-  } catch (error) {
-    console.error("[Character Route] Error updating character:", error);
-    const statusCode = error instanceof Error && error.message.includes("\u65E0\u6743\u8BBF\u95EE") ? 403 : 500;
-    res.status(statusCode).json({
-      success: false,
-      error: "Failed to update character",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router14.delete("/:id", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { id } = req.params;
-    const characterService = new CharacterService();
-    await characterService.deleteCharacter(id, userId);
-    return res.json({
-      success: true,
-      message: "Character deleted successfully"
-    });
-  } catch (error) {
-    console.error("[Character Route] Error deleting character:", error);
-    const statusCode = error instanceof Error && error.message.includes("\u65E0\u6743\u8BBF\u95EE") ? 403 : 500;
-    res.status(statusCode).json({
-      success: false,
-      error: "Failed to delete character",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router14.post("/:id/link-image-task", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { id } = req.params;
-    const { taskId, imageType = "appearance" } = req.body;
-    if (!taskId) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing taskId",
-        message: "taskId is required"
-      });
-    }
-    if (imageType !== "appearance" && imageType !== "clothing_style") {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid imageType",
-        message: 'imageType must be "appearance" or "clothing_style"'
-      });
-    }
-    const characterService = new CharacterService();
-    const character = await characterService.linkImageTaskToCharacter(id, taskId, userId, imageType);
-    return res.json({
-      success: true,
-      data: character
-    });
-  } catch (error) {
-    console.error("[Character Route] Error linking image task:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to link image task",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router14.post("/:id/link-audio-task", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { id } = req.params;
-    const { taskId, cloneVoiceId } = req.body;
-    if (!taskId) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing taskId",
-        message: "taskId is required"
-      });
-    }
-    const characterService = new CharacterService();
-    const character = await characterService.linkAudioTaskToCharacter(id, taskId, userId, cloneVoiceId);
-    return res.json({
-      success: true,
-      data: character
-    });
-  } catch (error) {
-    console.error("[Character Route] Error linking audio task:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to link audio task",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router14.post("/save-from-writing", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { characters, writingTaskId } = req.body;
-    if (!writingTaskId || typeof writingTaskId !== "string" || !writingTaskId.trim()) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid writingTaskId",
-        message: "writingTaskId is required and must be a non-empty string"
-      });
-    }
-    const characterService = new CharacterService();
-    const savedCharacters = await characterService.saveCharactersFromWriting(
-      Array.isArray(characters) ? characters : [],
-      writingTaskId.trim(),
-      userId
-    );
-    return res.json({
-      success: true,
-      data: savedCharacters,
-      message: `\u5DF2\u4FDD\u5B58 ${savedCharacters.length} \u4E2A\u89D2\u8272\u5230\u89D2\u8272\u5E93\uFF0C\u5199\u4F5C\u4EFB\u52A1\u5DF2\u6539\u4E3A\u4ECE\u89D2\u8272\u5E93\u5F15\u7528`
-    });
-  } catch (error) {
-    console.error("[Character Route] Error saving characters from writing:", error);
-    const statusCode = error instanceof Error && (error.message.includes("\u65E0\u6743") || error.message.includes("\u4E0D\u5B58\u5728")) ? 403 : 500;
-    res.status(statusCode).json({
-      success: false,
-      error: "Failed to save characters from writing",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router14.post("/save-from-outline", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { characters, outlineTaskId } = req.body;
-    if (!characters || !Array.isArray(characters) || characters.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid characters",
-        message: "characters must be a non-empty array"
-      });
-    }
-    const characterService = new CharacterService();
-    const savedCharacters = await characterService.saveCharactersFromOutline(
-      characters,
-      outlineTaskId || "",
-      userId
-    );
-    return res.json({
-      success: true,
-      data: savedCharacters,
-      message: `Successfully saved ${savedCharacters.length} character(s)`
-    });
-  } catch (error) {
-    console.error("[Character Route] Error saving characters from outline:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to save characters from outline",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-router14.post("/generate", async (req, res) => {
-  try {
-    const userId = req.headers["x-user-id"];
-    const { count, prompt } = req.body;
-    if (!count || typeof count !== "number" || count <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid count",
-        message: "count must be a positive number"
-      });
-    }
-    if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid prompt",
-        message: "prompt must be a non-empty string"
-      });
-    }
-    const characterService = new CharacterService();
-    const characters = await characterService.generateCharacters(
-      { count, prompt: prompt.trim() },
-      userId,
-      req.query.provider
-    );
-    return res.json({
-      success: true,
-      data: characters,
-      message: `Successfully generated ${characters.length} character(s)`
-    });
-  } catch (error) {
-    console.error("[Character Route] Error generating characters:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to generate characters",
-      message: error instanceof Error ? error.message : String(error)
-    });
-  }
-});
-var character_default = router14;
 
 // src/tasks/routes.ts
-var import_express15 = require("express");
-init_task_definition();
-init_task_engine();
-init_errors();
-var import_mxmdata30 = require("@mxmai/mxmdata");
-var router15 = (0, import_express15.Router)();
+var routes_exports = {};
+__export(routes_exports, {
+  default: () => routes_default
+});
 function getUserId(req) {
   return req.headers["x-user-id"] ?? void 0;
 }
 function asScope(v) {
-  if (v === "writing" || v === "outline" || v === "graph" || v === "audio" || v === "video") return v;
+  if (v === "writing" || v === "outline" || v === "graph" || v === "audio" || v === "music" || v === "video" || v === "text") {
+    return v;
+  }
   return null;
 }
-router15.get("/form-config", async (req, res) => {
-  try {
-    const scope = asScope(req.query.scope);
-    const taskKey = String(req.query.taskKey || "");
-    const subtype = req.query.subtype != null ? String(req.query.subtype) : null;
-    if (!scope || !taskKey) {
-      return res.status(400).json({ success: false, error: "scope/taskKey are required" });
-    }
-    const { template } = await loadTaskDefinition({ scope, taskKey, subtype, lang: "zh" });
-    return res.json({
-      success: true,
-      data: {
-        scope,
-        taskKey,
-        subtype,
-        schema: template.formSchema,
-        uiSchema: template.uiSchema ?? null
+var import_express15, import_mxmdata30, router15, routes_default;
+var init_routes = __esm({
+  "src/tasks/routes.ts"() {
+    "use strict";
+    import_express15 = require("express");
+    init_task_definition();
+    init_task_engine();
+    init_errors();
+    import_mxmdata30 = require("@mxmai/mxmdata");
+    router15 = (0, import_express15.Router)();
+    router15.get("/form-config", async (req, res) => {
+      try {
+        const scope = asScope(req.query.scope);
+        const taskKey = String(req.query.taskKey || "");
+        const subtype = req.query.subtype != null ? String(req.query.subtype) : null;
+        if (!scope || !taskKey) {
+          return res.status(400).json({ success: false, error: "scope/taskKey are required" });
+        }
+        const { template } = await loadTaskDefinition({ scope, taskKey, subtype, lang: "zh" });
+        return res.json({
+          success: true,
+          data: {
+            scope,
+            taskKey,
+            subtype,
+            schema: template.formSchema,
+            uiSchema: template.uiSchema ?? null
+          }
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const code = e?.code;
+        const status = code === "TASK_CONFIG_ERROR" ? 404 : 500;
+        return res.status(status).json({ success: false, error: msg });
       }
     });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const code = e?.code;
-    const status = code === "TASK_CONFIG_ERROR" ? 404 : 500;
-    return res.status(status).json({ success: false, error: msg });
+    router15.get("/form-config/list", async (req, res) => {
+      try {
+        const scope = asScope(req.query.scope);
+        if (!scope) return res.status(400).json({ success: false, error: "scope is required" });
+        const repo = import_mxmdata30.RepositoryFactory.createPromptEngineeringConfigRepository();
+        const list = await repo.list({ scope, limit: 500, offset: 0 });
+        const items = (list.items || []).filter((r) => r && r.is_active !== false).map((r) => {
+          const extra = r.extra && typeof r.extra === "object" ? r.extra : null;
+          const display = extra && typeof extra.display === "object" ? extra.display : null;
+          const taskLabel = display && typeof display.taskLabel === "string" ? display.taskLabel : null;
+          const subtypeLabel = display && typeof display.subtypeLabel === "string" ? display.subtypeLabel : null;
+          return {
+            taskKey: String(r.type),
+            subtype: r.subtype ?? null,
+            taskLabel,
+            subtypeLabel,
+            updated_at: r.updated_at
+          };
+        });
+        return res.json({ success: true, data: { scope, items } });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    router15.post("/run", async (req, res) => {
+      try {
+        const body = req.body;
+        const scope = asScope(body?.scope);
+        const taskKey = typeof body?.taskKey === "string" ? body.taskKey : "";
+        const subtype = body?.subtype != null ? String(body.subtype) : null;
+        const params = body?.params && typeof body.params === "object" ? body.params : null;
+        if (!scope || !taskKey || !params) {
+          return res.status(400).json({ success: false, error: "scope/taskKey/params are required" });
+        }
+        const userId = getUserId(req);
+        if (!userId) {
+          return res.status(401).json({ success: false, error: "Missing x-user-id header" });
+        }
+        const result = await runTaskV2(
+          { scope, taskKey, subtype, params, options: body?.options },
+          userId
+        );
+        return res.json(result);
+      } catch (e) {
+        const err = e;
+        if (err instanceof ValidationError) {
+          return res.status(400).json({ success: false, code: err.code, error: err.message, details: err.details ?? null });
+        }
+        if (err instanceof ConfigurationError) {
+          return res.status(404).json({ success: false, code: err.code, error: err.message });
+        }
+        if (err?.code === "INSUFFICIENT_BALANCE") {
+          return res.status(402).json({ success: false, code: "INSUFFICIENT_BALANCE", error: err.message });
+        }
+        const msg = e instanceof Error ? e.message : String(e);
+        return res.status(500).json({ success: false, error: msg });
+      }
+    });
+    routes_default = router15;
   }
 });
-router15.get("/form-config/list", async (req, res) => {
+
+// src/smartflow/core/engine/repository.ts
+var import_mxmdata31, SupabaseSmartflowRepository, smartflowRepository;
+var init_repository = __esm({
+  "src/smartflow/core/engine/repository.ts"() {
+    "use strict";
+    import_mxmdata31 = require("@mxmai/mxmdata");
+    SupabaseSmartflowRepository = class {
+      supabase = (0, import_mxmdata31.getSupabaseClient)();
+      async findById(id) {
+        const { data, error } = await this.supabase.from("smartflows").select("*").eq("id", id).single();
+        if (error) {
+          if (error.code === "PGRST116") return null;
+          throw new Error(`Failed to find smartflow: ${error.message}`);
+        }
+        return data ?? null;
+      }
+      async findAll(limit = 50, offset = 0) {
+        const { data, error } = await this.supabase.from("smartflows").select("*").order("updated_at", { ascending: false }).range(offset, offset + limit - 1);
+        if (error) throw new Error(`Failed to list smartflows: ${error.message}`);
+        return data ?? [];
+      }
+      async findPublic(limit = 50, offset = 0) {
+        const { data, error } = await this.supabase.from("smartflows").select("*").eq("is_public", true).eq("status", "active").order("updated_at", { ascending: false }).range(offset, offset + limit - 1);
+        if (error) throw new Error(`Failed to list public smartflows: ${error.message}`);
+        return data ?? [];
+      }
+      async findByUserId(userId, limit = 50, offset = 0) {
+        const { data, error } = await this.supabase.from("smartflows").select("*").eq("author_id", userId).order("updated_at", { ascending: false }).range(offset, offset + limit - 1);
+        if (error) throw new Error(`Failed to list smartflows by user: ${error.message}`);
+        return data ?? [];
+      }
+      async create(data) {
+        const now = (/* @__PURE__ */ new Date()).toISOString();
+        const payload = {
+          id: data.id || `sf-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          name: data.name,
+          description: data.description ?? null,
+          category: data.category ?? null,
+          icon: data.icon ?? null,
+          tags: data.tags ?? [],
+          schema: data.schema,
+          status: data.status ?? "draft",
+          version: data.version ?? "1.0.0",
+          author_id: data.author_id ?? null,
+          is_public: data.is_public ?? false,
+          created_at: now,
+          updated_at: now
+        };
+        const { data: created, error } = await this.supabase.from("smartflows").insert(payload).select("*").single();
+        if (error) throw new Error(`Failed to create smartflow: ${error.message}`);
+        return created;
+      }
+      async update(id, data) {
+        const updateData = { updated_at: (/* @__PURE__ */ new Date()).toISOString() };
+        if (data.name !== void 0) updateData.name = data.name;
+        if (data.description !== void 0) updateData.description = data.description ?? null;
+        if (data.category !== void 0) updateData.category = data.category ?? null;
+        if (data.icon !== void 0) updateData.icon = data.icon ?? null;
+        if (data.tags !== void 0) updateData.tags = data.tags ?? [];
+        if (data.schema !== void 0) updateData.schema = data.schema;
+        if (data.status !== void 0) updateData.status = data.status;
+        if (data.version !== void 0) updateData.version = data.version;
+        const { data: updated, error } = await this.supabase.from("smartflows").update(updateData).eq("id", id).select("*").single();
+        if (error) {
+          if (error.code === "PGRST116") throw new Error(`Smartflow not found: ${id}`);
+          throw new Error(`Failed to update smartflow: ${error.message}`);
+        }
+        return updated;
+      }
+      async delete(id) {
+        const { error } = await this.supabase.from("smartflows").delete().eq("id", id);
+        if (error) throw new Error(`Failed to delete smartflow: ${error.message}`);
+      }
+    };
+    smartflowRepository = new SupabaseSmartflowRepository();
+  }
+});
+
+// src/smartflow/core/engine/executionRepository.ts
+var import_mxmdata32, SupabaseSmartflowExecutionRepository, executionRepository;
+var init_executionRepository = __esm({
+  "src/smartflow/core/engine/executionRepository.ts"() {
+    "use strict";
+    import_mxmdata32 = require("@mxmai/mxmdata");
+    SupabaseSmartflowExecutionRepository = class {
+      supabase = (0, import_mxmdata32.getSupabaseClient)();
+      async create(data) {
+        const now = (/* @__PURE__ */ new Date()).toISOString();
+        const payload = {
+          id: `exec-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          smartflow_id: data.smartflow_id,
+          conversation_id: data.conversation_id ?? null,
+          user_id: data.user_id,
+          status: "pending",
+          progress: 0,
+          input_data: data.input_data ?? {},
+          flow_chain: [],
+          created_at: now,
+          updated_at: now
+        };
+        const { data: created, error } = await this.supabase.from("smartflow_executions").insert(payload).select("*").single();
+        if (error) throw new Error(`Failed to create execution: ${error.message}`);
+        return created;
+      }
+      async findById(id) {
+        const { data, error } = await this.supabase.from("smartflow_executions").select("*").eq("id", id).single();
+        if (error) {
+          if (error.code === "PGRST116") return null;
+          throw new Error(`Failed to find execution: ${error.message}`);
+        }
+        return data ?? null;
+      }
+      async findByUserId(userId, limit = 50, offset = 0) {
+        const { data, error } = await this.supabase.from("smartflow_executions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+        if (error) throw new Error(`Failed to list executions by user: ${error.message}`);
+        return data ?? [];
+      }
+      async findBySmartflowId(smartflowId, limit = 50, offset = 0) {
+        const { data, error } = await this.supabase.from("smartflow_executions").select("*").eq("smartflow_id", smartflowId).order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+        if (error) throw new Error(`Failed to list executions by smartflow: ${error.message}`);
+        return data ?? [];
+      }
+      async updateStatus(id, status) {
+        const patch = {
+          status,
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        };
+        if (status === "running") patch.started_at = (/* @__PURE__ */ new Date()).toISOString();
+        if (status === "completed" || status === "failed" || status === "cancelled") {
+          patch.completed_at = (/* @__PURE__ */ new Date()).toISOString();
+        }
+        const { error } = await this.supabase.from("smartflow_executions").update(patch).eq("id", id);
+        if (error) throw new Error(`Failed to update execution status: ${error.message}`);
+      }
+      async updateOutput(id, output) {
+        const { error } = await this.supabase.from("smartflow_executions").update({ output_data: output, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", id);
+        if (error) throw new Error(`Failed to update execution output: ${error.message}`);
+      }
+      async updateError(id, errorMsg) {
+        const { error } = await this.supabase.from("smartflow_executions").update({ error_message: errorMsg, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", id);
+        if (error) throw new Error(`Failed to update execution error: ${error.message}`);
+      }
+      async appendFlowChain(id, node) {
+        const current = await this.findById(id);
+        if (!current) throw new Error(`Execution not found: ${id}`);
+        const chain = Array.isArray(current.flow_chain) ? current.flow_chain : [];
+        chain.push(node);
+        const { error } = await this.supabase.from("smartflow_executions").update({ flow_chain: chain, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", id);
+        if (error) throw new Error(`Failed to append flow_chain: ${error.message}`);
+      }
+    };
+    executionRepository = new SupabaseSmartflowExecutionRepository();
+  }
+});
+
+// src/smartflow/core/executors/base.ts
+var BaseExecutor;
+var init_base = __esm({
+  "src/smartflow/core/executors/base.ts"() {
+    "use strict";
+    BaseExecutor = class {
+      createSuccessResult(output) {
+        return { success: true, output };
+      }
+      createErrorResult(error) {
+        return { success: false, error };
+      }
+    };
+  }
+});
+
+// src/smartflow/core/executors/startExecutor.ts
+var StartExecutor;
+var init_startExecutor = __esm({
+  "src/smartflow/core/executors/startExecutor.ts"() {
+    "use strict";
+    init_base();
+    StartExecutor = class extends BaseExecutor {
+      async execute(node, context) {
+        try {
+          const inputData = {};
+          if (node.input && Array.isArray(node.input)) {
+            for (const inputItem of node.input) {
+              const name = inputItem.name || "input";
+              inputData[name] = {
+                content: inputItem.content,
+                type: inputItem.type
+              };
+            }
+          }
+          context.variables.input = context.execution.input_data || {};
+          context.variables.expected_outputs = node.expected_outputs || [];
+          context.variables.smartflow_name = node.smartflow_name || "";
+          return this.createSuccessResult({
+            input: context.variables.input,
+            expected_outputs: node.expected_outputs || [],
+            smartflow_name: node.smartflow_name,
+            trigger_words: node.trigger_words || []
+          });
+        } catch (error) {
+          return this.createErrorResult(`Start executor error: ${error.message}`);
+        }
+      }
+    };
+  }
+});
+
+// src/smartflow/core/variables/resolver.ts
+var VariableResolver;
+var init_resolver2 = __esm({
+  "src/smartflow/core/variables/resolver.ts"() {
+    "use strict";
+    VariableResolver = class {
+      /**
+       * 解析包含变量的字符串
+       */
+      static resolve(template, context) {
+        if (!template || typeof template !== "string") {
+          return template;
+        }
+        const pattern = /\{\{([^}]+)\}\}/g;
+        return template.replace(pattern, (match, varPath) => {
+          const value = this.resolvePath(varPath.trim(), context);
+          if (value === void 0 || value === null) {
+            return match;
+          }
+          if (typeof value === "object") {
+            return JSON.stringify(value);
+          }
+          return String(value);
+        });
+      }
+      /**
+       * 解析变量路径
+       */
+      static resolvePath(path2, context) {
+        const parts = path2.split(".");
+        const scope = parts[0];
+        switch (scope) {
+          case "input":
+            return this.getNestedValue(context.variables.input || {}, parts.slice(1));
+          case "variables":
+            return this.getNestedValue(context.variables, parts.slice(1));
+          default:
+            if (context.nodeOutputs[scope] !== void 0) {
+              return context.nodeOutputs[scope];
+            }
+            if (parts.length >= 2 && context.nodeOutputs[parts[0]]) {
+              return this.getNestedValue(context.nodeOutputs[parts[0]], parts.slice(1));
+            }
+            return void 0;
+        }
+      }
+      static getNestedValue(obj, path2) {
+        if (!obj || path2.length === 0) return obj;
+        let current = obj;
+        for (const key of path2) {
+          if (current === void 0 || current === null) return void 0;
+          current = current[key];
+        }
+        return current;
+      }
+      /**
+       * 评估条件表达式
+       */
+      static evaluateCondition(condition, context) {
+        const resolved = this.resolve(condition, context);
+        const safeCondition = resolved.replace(/[^><=!&|0-9a-zA-Z_. ]/g, "");
+        try {
+          const func = new Function(`return ${safeCondition}`);
+          return !!func();
+        } catch {
+          return false;
+        }
+      }
+      static hasVariables(template) {
+        return /\{\{[^}]+\}\}/.test(template);
+      }
+      static extractVariables(template) {
+        const pattern = /\{\{([^}]+)\}\}/g;
+        const variables = [];
+        let match;
+        while ((match = pattern.exec(template)) !== null) {
+          variables.push(match[1].trim());
+        }
+        return variables;
+      }
+    };
+  }
+});
+
+// src/smartflow/services/httpClient.ts
+var MXMCGI_URL, MxmCGIHttpClient, mxmCGIHttpClient;
+var init_httpClient = __esm({
+  "src/smartflow/services/httpClient.ts"() {
+    "use strict";
+    MXMCGI_URL = process.env.MXMCGI_URL || "http://localhost:4003";
+    MxmCGIHttpClient = class {
+      baseUrl;
+      constructor(baseUrl = MXMCGI_URL) {
+        this.baseUrl = baseUrl;
+      }
+      async request(path2, options = {}) {
+        const { method = "GET", headers = {}, body, timeout = 6e4 } = options;
+        const url = `${this.baseUrl}${path2}`;
+        const requestHeaders = {
+          "Content-Type": "application/json",
+          ...headers
+        };
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        try {
+          const response = await fetch(url, {
+            method,
+            headers: requestHeaders,
+            body: body ? JSON.stringify(body) : void 0,
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => "Unknown error");
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+          return await response.json();
+        } catch (error) {
+          clearTimeout(timeoutId);
+          if (error.name === "AbortError") {
+            throw new Error(`Request timeout after ${timeout}ms`);
+          }
+          throw error;
+        }
+      }
+      // ==================== CGI 兼容方法（保留） ====================
+      async textGeneration(model, prompt, params = {}) {
+        return this.request(`/cgi/text/${model}`, {
+          method: "POST",
+          body: { prompt, ...params }
+        });
+      }
+      async imageGeneration(model, prompt, params = {}) {
+        return this.request(`/cgi/image/${model}`, {
+          method: "POST",
+          body: { prompt, ...params }
+        });
+      }
+      async embeddingGeneration(model, input, params = {}) {
+        return this.request(`/cgi/embedding/${model}`, {
+          method: "POST",
+          body: { input, ...params }
+        });
+      }
+      // ==================== Business v2 方法 ====================
+      // 统一的动态业务架构：scope + taskKey + subtype + params
+      /**
+       * GET /api/v2/tasks/form-config/list?scope=xxx
+       * 获取指定 scope 下所有 taskKey 列表
+       */
+      async listFormConfigs(scope) {
+        return this.request(`/api/v2/tasks/form-config/list?scope=${encodeURIComponent(scope)}`, {
+          method: "GET"
+        });
+      }
+      /**
+       * GET /api/v2/tasks/form-config?scope=xxx&taskKey=yyy&subtype=zzz
+       * 获取指定业务的表单配置（用于前端渲染参数表单）
+       */
+      async getFormConfig(scope, taskKey, subtype) {
+        const params = new URLSearchParams({ scope, taskKey });
+        if (subtype) params.set("subtype", subtype);
+        return this.request(`/api/v2/tasks/form-config?${params.toString()}`, {
+          method: "GET"
+        });
+      }
+      /**
+       * POST /api/v2/tasks/run
+       * 执行动态业务任务（business 节点统一调用此方法）
+       */
+      async runTask(scope, taskKey, params, userId, options) {
+        return this.request(`/api/v2/tasks/run`, {
+          method: "POST",
+          headers: {
+            "X-User-Id": userId,
+            ...options?.conversationId ? { "X-Conversation-Id": options.conversationId } : {}
+          },
+          body: {
+            scope,
+            taskKey,
+            subtype: options?.subtype ?? null,
+            params
+          }
+        });
+      }
+      // ==================== Legacy Business 方法（保留兼容） ====================
+      // 以下方法保留用于旧版兼容，新开发应使用 runTask v2 方法
+      async writingCompletion(modelName, params, userId) {
+        return this.request(`/writing/completion/${modelName}`, {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async writingOutline(params, userId) {
+        return this.request("/writing/outline", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async writingGenerate(params, userId) {
+        return this.request("/writing/generate", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async graphPhotograph(params, userId) {
+        return this.request("/graph/photograph", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async graphDesign(params, userId) {
+        return this.request("/graph/design", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async graphPainting(params, userId) {
+        return this.request("/graph/painting", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async graphImage(modelName, params, userId) {
+        return this.request(`/graph/${modelName}`, {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async videoGenerate(params, userId) {
+        return this.request("/video/generate", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async audioTTS(params, userId) {
+        return this.request("/audio", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+    };
+    mxmCGIHttpClient = new MxmCGIHttpClient();
+  }
+});
+
+// src/smartflow/core/executors/businessExecutor.ts
+var BusinessExecutor;
+var init_businessExecutor = __esm({
+  "src/smartflow/core/executors/businessExecutor.ts"() {
+    "use strict";
+    init_base();
+    init_resolver2();
+    init_httpClient();
+    BusinessExecutor = class extends BaseExecutor {
+      async execute(node, context) {
+        try {
+          const { business_scope, taskKey, subtype, params = {} } = node;
+          if (!business_scope) {
+            return this.createErrorResult("Business node requires business_scope");
+          }
+          if (!taskKey) {
+            return this.createErrorResult("Business node requires taskKey");
+          }
+          const userId = context.execution?.user_id;
+          if (!userId) {
+            return this.createErrorResult("Business node execution requires user_id in context");
+          }
+          const resolvedParams = this.resolveParams(params, context);
+          const result = await mxmCGIHttpClient.runTask(
+            business_scope,
+            taskKey,
+            resolvedParams,
+            userId,
+            { subtype: subtype ?? null }
+          );
+          return this.createSuccessResult(result);
+        } catch (error) {
+          return this.createErrorResult(`Business executor error: ${error.message}`);
+        }
+      }
+      /**
+       * 解析 params 中的变量引用
+       * 支持 {{input.xxx}}、{{nodeId.output.xxx}} 等变量语法
+       */
+      resolveParams(params, context) {
+        const resolved = {};
+        for (const [key, value] of Object.entries(params)) {
+          if (typeof value === "string") {
+            resolved[key] = VariableResolver.resolve(value, context);
+          } else if (Array.isArray(value)) {
+            resolved[key] = value.map(
+              (v) => typeof v === "string" ? VariableResolver.resolve(v, context) : v
+            );
+          } else {
+            resolved[key] = value;
+          }
+        }
+        return resolved;
+      }
+    };
+  }
+});
+
+// src/smartflow/core/executors/conditionExecutor.ts
+var ConditionExecutor;
+var init_conditionExecutor = __esm({
+  "src/smartflow/core/executors/conditionExecutor.ts"() {
+    "use strict";
+    init_base();
+    init_resolver2();
+    ConditionExecutor = class extends BaseExecutor {
+      async execute(node, context) {
+        try {
+          const { if: ifCondition, then, else_if = [], else: elseBranch } = node;
+          if (!ifCondition || !then) {
+            return this.createErrorResult("Condition node requires if and then fields");
+          }
+          const ifResult = VariableResolver.evaluateCondition(ifCondition, context);
+          let nextNodeId = "";
+          let conditionMet = "";
+          if (ifResult) {
+            nextNodeId = then;
+            conditionMet = ifCondition;
+          } else {
+            let foundElseIf = false;
+            for (const elseIf of else_if) {
+              const elseIfResult = VariableResolver.evaluateCondition(elseIf.condition, context);
+              if (elseIfResult) {
+                nextNodeId = elseIf.then;
+                conditionMet = elseIf.condition;
+                foundElseIf = true;
+                break;
+              }
+            }
+            if (!foundElseIf) {
+              if (!elseBranch) {
+                return this.createErrorResult("No condition matched and no else branch defined");
+              }
+              nextNodeId = elseBranch;
+              conditionMet = "else";
+            }
+          }
+          return this.createSuccessResult({
+            next_node: nextNodeId,
+            condition_met: conditionMet,
+            if_result: ifResult
+          });
+        } catch (error) {
+          return this.createErrorResult(`Condition executor error: ${error.message}`);
+        }
+      }
+    };
+  }
+});
+
+// src/smartflow/core/executors/endExecutor.ts
+var EndExecutor;
+var init_endExecutor = __esm({
+  "src/smartflow/core/executors/endExecutor.ts"() {
+    "use strict";
+    init_base();
+    init_resolver2();
+    EndExecutor = class extends BaseExecutor {
+      async execute(node, context) {
+        try {
+          const {
+            output_mapping = {},
+            nullable_outputs = [],
+            validate_outputs = true
+          } = node;
+          const expectedOutputs = context.variables.expected_outputs || [];
+          const requiredOutputs = expectedOutputs.filter((out) => out.required).map((out) => out.name);
+          const finalOutput = {};
+          for (const [outputName, sourceRef] of Object.entries(output_mapping)) {
+            const resolved = VariableResolver.resolve(sourceRef, context);
+            finalOutput[outputName] = resolved;
+          }
+          if (validate_outputs) {
+            for (const required of requiredOutputs) {
+              if (!(required in finalOutput) || finalOutput[required] === void 0 || finalOutput[required] === null) {
+                if (!nullable_outputs.includes(required)) {
+                  return this.createErrorResult(`Required output "${required}" is missing or null`);
+                }
+              }
+            }
+          }
+          return this.createSuccessResult({
+            outputs: finalOutput,
+            validation_passed: true
+          });
+        } catch (error) {
+          return this.createErrorResult(`End executor error: ${error.message}`);
+        }
+      }
+    };
+  }
+});
+
+// src/smartflow/core/executors/variableExecutor.ts
+var VariableExecutor;
+var init_variableExecutor = __esm({
+  "src/smartflow/core/executors/variableExecutor.ts"() {
+    "use strict";
+    init_base();
+    init_resolver2();
+    VariableExecutor = class extends BaseExecutor {
+      async execute(node, context) {
+        try {
+          const {
+            operation = "assign",
+            source_node,
+            source_path,
+            output_name,
+            default_value,
+            iterable,
+            initial_value
+          } = node;
+          const expression = node.expression;
+          let result;
+          switch (operation) {
+            case "select":
+              result = this.executeSelect(source_node, source_path, context, default_value);
+              break;
+            case "assign":
+              result = this.executeAssign(source_node, source_path, expression, context, default_value);
+              break;
+            case "map":
+              result = this.executeMap(source_node, source_path, expression, context);
+              break;
+            case "filter":
+              result = this.executeFilter(source_node, source_path, expression, context);
+              break;
+            case "reduce":
+              result = this.executeReduce(source_node, source_path, expression, context, initial_value);
+              break;
+            case "merge":
+              result = this.executeMerge(source_node, source_path, iterable, context);
+              break;
+            default:
+              return this.createErrorResult(`Unknown operation: ${operation}`);
+          }
+          const outputKey = output_name || "output";
+          return this.createSuccessResult({
+            [outputKey]: result
+          });
+        } catch (error) {
+          return this.createErrorResult(`Variable executor error: ${error.message}`);
+        }
+      }
+      /**
+       * select: 从上游节点输出中提取字段
+       */
+      executeSelect(sourceNode, sourcePath, context, defaultValue) {
+        if (!sourceNode || !sourcePath) {
+          return defaultValue ?? null;
+        }
+        const resolvedPath = VariableResolver.resolve(`{{${sourceNode}.${sourcePath}}}`, context);
+        if (resolvedPath && resolvedPath !== `{{${sourceNode}.${sourcePath}}}`) {
+          try {
+            return JSON.parse(resolvedPath);
+          } catch {
+            return resolvedPath;
+          }
+        }
+        const value = VariableResolver.resolvePath(sourcePath, context);
+        return value !== void 0 ? value : defaultValue ?? null;
+      }
+      /**
+       * assign: 直接赋值，支持默认值
+       */
+      executeAssign(sourceNode, sourcePath, expression, context, defaultValue) {
+        if (expression) {
+          const resolved = VariableResolver.resolve(expression, context);
+          try {
+            const func = new Function(`return ${resolved}`);
+            return func();
+          } catch {
+            return resolved;
+          }
+        }
+        if (sourceNode && sourcePath) {
+          return this.executeSelect(sourceNode, sourcePath, context, defaultValue);
+        }
+        return defaultValue ?? null;
+      }
+      /**
+       * map: 对数组每个元素执行表达式映射
+       */
+      executeMap(sourceNode, sourcePath, expression, context) {
+        if (!expression) {
+          return [];
+        }
+        let array = [];
+        if (sourceNode && sourcePath) {
+          const resolved = VariableResolver.resolve(`{{${sourceNode}.${sourcePath}}}`, context);
+          try {
+            array = JSON.parse(resolved);
+          } catch {
+            const value = VariableResolver.resolvePath(sourcePath, context);
+            array = Array.isArray(value) ? value : [];
+          }
+        } else if (sourcePath) {
+          const value = VariableResolver.resolvePath(sourcePath, context);
+          array = Array.isArray(value) ? value : [];
+        }
+        const resolvedExpr = VariableResolver.resolve(expression, context);
+        return array.map((item, index) => {
+          try {
+            const func = new Function("item", "index", `return ${resolvedExpr}`);
+            return func(item, index);
+          } catch (error) {
+            return { _map_error: error.message, item, index };
+          }
+        });
+      }
+      /**
+       * filter: 对数组过滤
+       */
+      executeFilter(sourceNode, sourcePath, expression, context) {
+        if (!expression) {
+          return [];
+        }
+        let array = [];
+        if (sourceNode && sourcePath) {
+          const resolved = VariableResolver.resolve(`{{${sourceNode}.${sourcePath}}}`, context);
+          try {
+            array = JSON.parse(resolved);
+          } catch {
+            const value = VariableResolver.resolvePath(sourcePath, context);
+            array = Array.isArray(value) ? value : [];
+          }
+        } else if (sourcePath) {
+          const value = VariableResolver.resolvePath(sourcePath, context);
+          array = Array.isArray(value) ? value : [];
+        }
+        const resolvedExpr = VariableResolver.resolve(expression, context);
+        return array.filter((item, index) => {
+          try {
+            const func = new Function("item", "index", `return ${resolvedExpr}`);
+            return !!func(item, index);
+          } catch {
+            return false;
+          }
+        });
+      }
+      /**
+       * reduce: 对数组进行累积操作
+       */
+      executeReduce(sourceNode, sourcePath, expression, context, initialValue) {
+        if (!expression) {
+          return initialValue ?? null;
+        }
+        let array = [];
+        if (sourceNode && sourcePath) {
+          const resolved = VariableResolver.resolve(`{{${sourceNode}.${sourcePath}}}`, context);
+          try {
+            array = JSON.parse(resolved);
+          } catch {
+            const value = VariableResolver.resolvePath(sourcePath, context);
+            array = Array.isArray(value) ? value : [];
+          }
+        } else if (sourcePath) {
+          const value = VariableResolver.resolvePath(sourcePath, context);
+          array = Array.isArray(value) ? value : [];
+        }
+        const resolvedExpr = VariableResolver.resolve(expression, context);
+        let accumulator = initialValue;
+        for (let index = 0; index < array.length; index++) {
+          const item = array[index];
+          try {
+            const func = new Function("accumulator", "item", "index", `return ${resolvedExpr}`);
+            accumulator = func(accumulator, item, index);
+          } catch (error) {
+            return { _reduce_error: error.message, accumulator, item, index };
+          }
+        }
+        return accumulator;
+      }
+      /**
+       * merge: 合并多个源的数据
+       */
+      executeMerge(sourceNode, sourcePath, iterable, context) {
+        const merged = {};
+        if (sourceNode) {
+          const nodeOutput = context.nodeOutputs[sourceNode];
+          if (nodeOutput) {
+            Object.assign(merged, nodeOutput);
+          }
+        }
+        if (sourcePath) {
+          const value = VariableResolver.resolvePath(sourcePath, context);
+          if (value && typeof value === "object") {
+            Object.assign(merged, value);
+          }
+        }
+        if (iterable) {
+          const resolved = VariableResolver.resolve(iterable, context);
+          try {
+            const list = JSON.parse(resolved);
+            if (Array.isArray(list)) {
+              list.forEach((item, index) => {
+                if (item && typeof item === "object") {
+                  Object.assign(merged, item);
+                }
+              });
+            }
+          } catch {
+          }
+        }
+        return merged;
+      }
+    };
+  }
+});
+
+// src/smartflow/core/executors/loopExecutor.ts
+var LoopExecutor;
+var init_loopExecutor = __esm({
+  "src/smartflow/core/executors/loopExecutor.ts"() {
+    "use strict";
+    init_base();
+    init_resolver2();
+    init_executors();
+    LoopExecutor = class extends BaseExecutor {
+      async execute(node, context) {
+        try {
+          const {
+            loop_mode = "iteration",
+            iterable,
+            condition,
+            item_variable = "item",
+            index_variable = "index",
+            max_iterations = 100,
+            collect_output = true,
+            output_variable = "output",
+            break_condition,
+            loop_nodes = [],
+            initial_value
+          } = node;
+          switch (loop_mode) {
+            case "iteration":
+              return this.executeIteration(
+                node,
+                context,
+                iterable,
+                item_variable,
+                index_variable,
+                collect_output,
+                output_variable,
+                break_condition,
+                loop_nodes
+              );
+            case "loop":
+              return this.executeLoop(
+                node,
+                context,
+                condition,
+                item_variable,
+                index_variable,
+                max_iterations,
+                collect_output,
+                output_variable,
+                break_condition,
+                loop_nodes,
+                initial_value
+              );
+            default:
+              return this.createErrorResult(`Unknown loop mode: ${loop_mode}`);
+          }
+        } catch (error) {
+          return this.createErrorResult(`Loop executor error: ${error.message}`);
+        }
+      }
+      /**
+       * iteration 模式: for item in list
+       */
+      async executeIteration(node, context, iterable, itemVariable, indexVariable, collectOutput, outputVariable, breakCondition, loopNodes) {
+        if (!iterable) {
+          return this.createErrorResult("Iteration mode requires iterable");
+        }
+        const resolvedIterable = VariableResolver.resolve(iterable, context);
+        let items;
+        try {
+          items = JSON.parse(resolvedIterable);
+        } catch {
+          const value = VariableResolver.resolvePath(iterable.replace(/\{\{|\}\}/g, "").trim(), context);
+          items = Array.isArray(value) ? value : [];
+        }
+        if (!Array.isArray(items)) {
+          return this.createErrorResult(`Iterable is not an array: ${typeof items}`);
+        }
+        const collected = [];
+        for (let i = 0; i < items.length; i++) {
+          context.variables[itemVariable] = items[i];
+          context.variables[indexVariable] = i;
+          if (breakCondition) {
+            const resolvedBreak = VariableResolver.resolve(breakCondition, context);
+            try {
+              const shouldBreak = new Function(`return ${resolvedBreak}`)();
+              if (shouldBreak) break;
+            } catch {
+            }
+          }
+          const iterationResult = await this.executeSubGraph(loopNodes, context);
+          if (iterationResult.success && collectOutput) {
+            collected.push(iterationResult.output);
+          }
+        }
+        return this.createSuccessResult({
+          [outputVariable]: collectOutput ? collected : null,
+          count: collected.length,
+          total_items: items.length,
+          loop_mode: "iteration"
+        });
+      }
+      /**
+       * loop 模式: while condition
+       */
+      async executeLoop(node, context, condition, itemVariable, indexVariable, maxIterations, collectOutput, outputVariable, breakCondition, loopNodes, initialValue) {
+        if (!condition) {
+          return this.createErrorResult("Loop mode requires condition");
+        }
+        const collected = [];
+        let accumulator = initialValue;
+        let iteration = 0;
+        while (iteration < maxIterations) {
+          const resolvedCondition = VariableResolver.resolve(condition, context);
+          let shouldContinue;
+          try {
+            shouldContinue = !!new Function(`return ${resolvedCondition}`)();
+          } catch {
+            return this.createErrorResult(`Failed to evaluate loop condition: ${resolvedCondition}`);
+          }
+          if (!shouldContinue) break;
+          context.variables[itemVariable] = accumulator;
+          context.variables[indexVariable] = iteration;
+          if (breakCondition) {
+            const resolvedBreak = VariableResolver.resolve(breakCondition, context);
+            try {
+              const shouldBreak = new Function(`return ${resolvedBreak}`)();
+              if (shouldBreak) break;
+            } catch {
+            }
+          }
+          const loopResult = await this.executeSubGraph(loopNodes, context);
+          if (loopResult.success) {
+            accumulator = loopResult.output;
+            if (collectOutput) {
+              collected.push(loopResult.output);
+            }
+          } else {
+            console.warn(`[LoopExecutor] Sub-graph iteration ${iteration} failed: ${loopResult.error}`);
+          }
+          iteration++;
+        }
+        return this.createSuccessResult({
+          [outputVariable]: collectOutput ? collected : accumulator,
+          final_value: accumulator,
+          iterations: iteration,
+          max_iterations: maxIterations,
+          loop_mode: "loop"
+        });
+      }
+      /**
+       * 执行子图中的节点
+       */
+      async executeSubGraph(loopNodes, context) {
+        if (loopNodes.length === 0) {
+          return this.createSuccessResult(null);
+        }
+        const { nodes, edges } = context.smartflow.schema;
+        const nodeMap = /* @__PURE__ */ new Map();
+        nodes.forEach((n) => nodeMap.set(n.id, n));
+        const subNodeSet = new Set(loopNodes);
+        const adjacencyList = /* @__PURE__ */ new Map();
+        for (const edge of edges) {
+          if (subNodeSet.has(edge.from) && subNodeSet.has(edge.to)) {
+            if (!adjacencyList.has(edge.from)) {
+              adjacencyList.set(edge.from, []);
+            }
+            adjacencyList.get(edge.from).push(edge.to);
+          }
+        }
+        let lastOutput = null;
+        for (const nodeId of loopNodes) {
+          const subNode = nodeMap.get(nodeId);
+          if (!subNode) {
+            console.warn(`[LoopExecutor] Sub-graph node not found: ${nodeId}, skipping`);
+            continue;
+          }
+          const result = await ExecutorFactory.execute(
+            subNode.type,
+            subNode,
+            context
+          );
+          if (!result.success) {
+            return result;
+          }
+          if (result.output !== void 0) {
+            context.nodeOutputs[nodeId] = result.output;
+            lastOutput = result.output;
+          }
+        }
+        return this.createSuccessResult(lastOutput);
+      }
+    };
+  }
+});
+
+// src/smartflow/core/executors/toolsExecutor.ts
+var ToolsExecutor;
+var init_toolsExecutor = __esm({
+  "src/smartflow/core/executors/toolsExecutor.ts"() {
+    "use strict";
+    init_base();
+    init_resolver2();
+    init_httpClient();
+    ToolsExecutor = class extends BaseExecutor {
+      async execute(node, context) {
+        try {
+          const { tool_type = "web_search", tool_params = {} } = node;
+          const resolvedParams = this.resolveParams(tool_params, context);
+          switch (tool_type) {
+            case "web_search":
+              return await this.executeWebSearch(resolvedParams, context);
+            case "web_scraper":
+              return await this.executeWebScraper(resolvedParams, context);
+            case "embedding":
+              return await this.executeEmbedding(resolvedParams, context);
+            case "http_request":
+              return await this.executeHttpRequest(resolvedParams, context);
+            case "code_executor":
+              return await this.executeCode(resolvedParams, context);
+            default:
+              return this.createErrorResult(`Unknown tool type: ${tool_type}`);
+          }
+        } catch (error) {
+          return this.createErrorResult(`Tools executor error: ${error.message}`);
+        }
+      }
+      resolveParams(params, context) {
+        const resolved = {};
+        for (const [key, value] of Object.entries(params)) {
+          if (typeof value === "string") {
+            resolved[key] = VariableResolver.resolve(value, context);
+          } else if (Array.isArray(value)) {
+            resolved[key] = value.map((v) => typeof v === "string" ? VariableResolver.resolve(v, context) : v);
+          } else {
+            resolved[key] = value;
+          }
+        }
+        return resolved;
+      }
+      async executeWebSearch(params, context) {
+        const { query, search_type = "web", num_results = 5 } = params;
+        if (!query) return this.createErrorResult("web_search requires query");
+        try {
+          let results = [];
+          try {
+            const response = await mxmCGIHttpClient.textGeneration("search", query, { num_results });
+            results = typeof response === "string" ? [{ title: response, url: "", snippet: "" }] : response.data?.results || [];
+          } catch {
+            results = [
+              {
+                title: `\u641C\u7D22\u7ED3\u679C: ${query}`,
+                url: `https://example.com/search?q=${encodeURIComponent(query)}`,
+                snippet: `\u5173\u4E8E\u300C${query}\u300D\u7684\u641C\u7D22\u6458\u8981...`
+              }
+            ];
+          }
+          return this.createSuccessResult({ results, query, count: results.length });
+        } catch (error) {
+          return this.createErrorResult(`Web search failed: ${error.message}`);
+        }
+      }
+      async executeWebScraper(params, context) {
+        const { url, selectors = ["body"], extract_strategy = "text" } = params;
+        if (!url) return this.createErrorResult("web_scraper requires url");
+        try {
+          let content = "";
+          try {
+            const response = await fetch(url, { signal: AbortSignal.timeout(1e4) });
+            const html = await response.text();
+            if (extract_strategy === "text") {
+              content = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+            } else if (extract_strategy === "links") {
+              const matches = html.match(/href="(https?:\/\/[^"]+)"/g) || [];
+              content = matches.slice(0, 20).map((m) => m.replace('href="', "").replace('"', ""));
+            } else {
+              content = html.substring(0, 5e3);
+            }
+          } catch {
+            content = `[\u6A21\u62DF\u722C\u53D6\u5185\u5BB9] \u4ECE ${url} \u722C\u53D6\u7684\u6587\u672C\u5185\u5BB9...`;
+          }
+          return this.createSuccessResult({ content, url, extract_strategy });
+        } catch (error) {
+          return this.createErrorResult(`Web scraper failed: ${error.message}`);
+        }
+      }
+      async executeEmbedding(params, context) {
+        const { text, model = "embedding-3" } = params;
+        if (!text) return this.createErrorResult("embedding requires text");
+        try {
+          const response = await mxmCGIHttpClient.embeddingGeneration(model, text, {});
+          return this.createSuccessResult({
+            embedding: response.data?.embedding || response.embedding || null,
+            model,
+            text_length: text.length
+          });
+        } catch (error) {
+          return this.createErrorResult(`Embedding failed: ${error.message}`);
+        }
+      }
+      async executeHttpRequest(params, context) {
+        const { method = "GET", url, headers = {}, body } = params;
+        if (!url) return this.createErrorResult("http_request requires url");
+        try {
+          const options = {
+            method,
+            headers: { "Content-Type": "application/json", ...headers }
+          };
+          if (body && ["POST", "PUT", "PATCH"].includes(method)) {
+            options.body = typeof body === "string" ? body : JSON.stringify(body);
+          }
+          const response = await fetch(url, { signal: AbortSignal.timeout(15e3), ...options });
+          const data = await response.text();
+          return this.createSuccessResult({
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries()),
+            body: data.substring(0, 1e4)
+          });
+        } catch (error) {
+          return this.createErrorResult(`HTTP request failed: ${error.message}`);
+        }
+      }
+      async executeCode(params, context) {
+        const { language = "nodejs", code, timeout = 5e3 } = params;
+        if (!code) return this.createErrorResult("code_executor requires code");
+        try {
+          if (language === "nodejs") {
+            const vm = require("vm");
+            const sandbox = {
+              console: { log: (...args) => {
+              }, error: (...args) => {
+              } },
+              result: void 0
+            };
+            vm.createContext(sandbox);
+            const script = new vm.Script(code);
+            script.runInContext(sandbox, { timeout: Math.min(timeout, 1e4) });
+            return this.createSuccessResult({ output: sandbox.result, language });
+          } else if (language === "python") {
+            return this.createErrorResult("Python code execution requires a Python runtime (not available in Node.js environment)");
+          }
+          return this.createErrorResult(`Unsupported language: ${language}`);
+        } catch (error) {
+          return this.createErrorResult(`Code execution failed: ${error.message}`);
+        }
+      }
+    };
+  }
+});
+
+// src/smartflow/core/executors/index.ts
+var executors, ExecutorFactory;
+var init_executors = __esm({
+  "src/smartflow/core/executors/index.ts"() {
+    "use strict";
+    init_startExecutor();
+    init_businessExecutor();
+    init_conditionExecutor();
+    init_endExecutor();
+    init_variableExecutor();
+    init_loopExecutor();
+    init_toolsExecutor();
+    init_base();
+    executors = {
+      start: new StartExecutor(),
+      business: new BusinessExecutor(),
+      variable: new VariableExecutor(),
+      condition: new ConditionExecutor(),
+      loop: new LoopExecutor(),
+      end: new EndExecutor(),
+      tools: new ToolsExecutor()
+    };
+    ExecutorFactory = class {
+      static getExecutor(type) {
+        const executor = executors[type];
+        if (!executor) {
+          throw new Error(`No executor found for node type: ${type}`);
+        }
+        return executor;
+      }
+      static async execute(type, node, context) {
+        const executor = this.getExecutor(type);
+        return executor.execute(node, context);
+      }
+    };
+  }
+});
+
+// src/smartflow/core/engine/engine.ts
+var SmartflowEngine;
+var init_engine = __esm({
+  "src/smartflow/core/engine/engine.ts"() {
+    "use strict";
+    init_executors();
+    init_resolver2();
+    SmartflowEngine = class {
+      smartflowRepo;
+      executionRepo;
+      constructor(smartflowRepo, executionRepo) {
+        this.smartflowRepo = smartflowRepo;
+        this.executionRepo = executionRepo;
+      }
+      /**
+       * 创建并执行 Smartflow
+       */
+      async execute(smartflowId, dto) {
+        const smartflow = await this.smartflowRepo.findById(smartflowId);
+        if (!smartflow) {
+          return {
+            success: false,
+            execution: null,
+            error: `Smartflow not found: ${smartflowId}`
+          };
+        }
+        const execution = await this.executionRepo.create({
+          smartflow_id: smartflowId,
+          user_id: dto.user_id,
+          conversation_id: dto.conversation_id,
+          input_data: dto.input_data
+        });
+        const context = {
+          execution,
+          smartflow,
+          nodeOutputs: {},
+          variables: {
+            input: dto.input_data,
+            smartflow: {
+              id: smartflow.id,
+              name: smartflow.name
+            }
+          }
+        };
+        await this.executionRepo.updateStatus(execution.id, "running");
+        context.execution.status = "running";
+        try {
+          const result = await this.executeFlow(smartflow, context);
+          const finalExecution = context.execution;
+          if (result.success) {
+            await this.executionRepo.updateStatus(finalExecution.id, "completed");
+            await this.executionRepo.updateOutput(finalExecution.id, result.output_data || {});
+          } else {
+            await this.executionRepo.updateStatus(finalExecution.id, "failed");
+            await this.executionRepo.updateError(finalExecution.id, result.error || "Unknown error");
+          }
+          return { success: result.success, execution: context.execution, error: result.error };
+        } catch (error) {
+          await this.executionRepo.updateStatus(execution.id, "failed");
+          await this.executionRepo.updateError(execution.id, error.message);
+          return {
+            success: false,
+            execution: context.execution,
+            error: error.message
+          };
+        }
+      }
+      /**
+       * 执行工作流图
+       */
+      async executeFlow(smartflow, context) {
+        const { nodes, edges } = smartflow.schema;
+        const nodeMap = /* @__PURE__ */ new Map();
+        nodes.forEach((node) => nodeMap.set(node.id, node));
+        const adjacencyList = /* @__PURE__ */ new Map();
+        const conditionEdges = [];
+        for (const edge of edges) {
+          if (!adjacencyList.has(edge.from)) {
+            adjacencyList.set(edge.from, []);
+          }
+          if (edge.when) {
+            conditionEdges.push({ edge, condition: edge.when });
+          } else {
+            adjacencyList.get(edge.from).push(edge.to);
+          }
+        }
+        const startNode = nodes.find((n) => n.type === "start");
+        if (!startNode) {
+          return { success: false, error: "No start node found" };
+        }
+        const endNode = nodes.find((n) => n.type === "end");
+        if (!endNode) {
+          return { success: false, error: "No end node found" };
+        }
+        let currentNodeId = startNode.id;
+        const visited = /* @__PURE__ */ new Set();
+        while (currentNodeId && currentNodeId !== endNode.id) {
+          if (visited.has(currentNodeId)) {
+            return { success: false, error: `Circular dependency detected at node: ${currentNodeId}` };
+          }
+          visited.add(currentNodeId);
+          const node = nodeMap.get(currentNodeId);
+          if (!node) {
+            return { success: false, error: `Node not found: ${currentNodeId}` };
+          }
+          const flowChainNode = {
+            node_id: node.id,
+            node_name: node.name || node.id,
+            node_type: node.type,
+            state: "processing",
+            timestamp: Date.now()
+          };
+          const startTime = Date.now();
+          const result = await ExecutorFactory.execute(node.type, node, context);
+          const duration = Date.now() - startTime;
+          flowChainNode.duration = duration;
+          if (!result.success) {
+            flowChainNode.state = "failed";
+            flowChainNode.error = result.error;
+            context.execution.flow_chain?.push(flowChainNode);
+            return {
+              success: false,
+              error: `Node ${node.id} failed: ${result.error}`
+            };
+          }
+          if (result.output) {
+            context.nodeOutputs[node.id] = result.output;
+            flowChainNode.output = result.output;
+          }
+          flowChainNode.state = "completed";
+          context.execution.flow_chain?.push(flowChainNode);
+          context.execution.progress = Math.round(visited.size / nodes.length * 100);
+          currentNodeId = this.getNextNode(
+            node.id,
+            node.type,
+            result.output,
+            adjacencyList,
+            conditionEdges,
+            context
+          ) ?? null;
+        }
+        if (currentNodeId === endNode.id) {
+          const endResult = await ExecutorFactory.execute("end", endNode, context);
+          if (!endResult.success) {
+            return {
+              success: false,
+              error: `End node failed: ${endResult.error}`
+            };
+          }
+          return {
+            success: true,
+            output_data: endResult.output?.outputs || {}
+          };
+        }
+        return { success: false, error: "Workflow ended unexpectedly" };
+      }
+      /**
+       * 获取下一个节点
+       */
+      getNextNode(currentNodeId, nodeType, nodeOutput, adjacencyList, conditionEdges, context) {
+        if (nodeType === "condition" && nodeOutput?.next_node) {
+          return nodeOutput.next_node;
+        }
+        for (const { edge, condition } of conditionEdges) {
+          if (edge.from === currentNodeId) {
+            if (VariableResolver.evaluateCondition(condition, context)) {
+              return edge.to;
+            }
+          }
+        }
+        const nextNodes = adjacencyList.get(currentNodeId);
+        return nextNodes && nextNodes.length > 0 ? nextNodes[0] : null;
+      }
+    };
+  }
+});
+
+// src/smartflow/core/photographyV2.ts
+var photographyAnalysisV2, PREDEFINED_SMARTFLOWS;
+var init_photographyV2 = __esm({
+  "src/smartflow/core/photographyV2.ts"() {
+    "use strict";
+    photographyAnalysisV2 = {
+      id: "photography-analysis-v2",
+      name: "\u6444\u5F71\u98CE\u683C\u5206\u6790\u4E0EPrompt\u751F\u6210 V2",
+      description: "\u6839\u636E\u7528\u6237\u6240\u5728\u5730\u3001\u6587\u5316\u80CC\u666F\u3001\u6444\u5F71\u7C7B\u578B\u3001\u98CE\u683C\u548C\u8272\u8C03\u8981\u6C42\uFF0C\u5206\u6790\u5E76\u751F\u6210\u4E13\u4E1A\u7684\u6444\u5F71Prompt",
+      category: "photography",
+      tags: ["photography", "portrait", "classical", "warm-tone", "analysis", "prompt-generator"],
+      status: "active",
+      version: "2.0.0",
+      is_public: true,
+      schema: {
+        version: "2.0.0",
+        nodes: [
+          {
+            id: "start",
+            type: "start",
+            name: "\u5F00\u59CB",
+            input: [
+              { name: "photography_type", type: "text", content: "" },
+              { name: "style", type: "text", content: "classical" },
+              { name: "tone", type: "text", content: "warm" },
+              { name: "location", type: "text", content: "" },
+              { name: "cultural_background", type: "text", content: "" },
+              { name: "subject", type: "text", content: "" }
+            ],
+            expected_outputs: [
+              { type: "text", name: "cultural_style_analysis", required: true },
+              { type: "text", name: "similar_photographers", required: true },
+              { type: "text", name: "composition_analysis", required: true },
+              { type: "text", name: "final_prompt", required: true }
+            ],
+            smartflow_name: "\u6444\u5F71\u98CE\u683C\u5206\u6790\u4E0EPrompt\u751F\u6210 V2"
+          },
+          {
+            id: "analyze_cultural_style",
+            type: "model",
+            name: "\u5206\u6790\u53E4\u5178\u98CE\u683C",
+            model_type: "text",
+            model: "gpt-5-nano",
+            prompt: `\u4F60\u662F\u4E00\u4F4D\u4E13\u4E1A\u7684\u6444\u5F71\u827A\u672F\u53F2\u5B66\u5BB6\u3002\u8BF7\u5206\u6790\u4EE5\u4E0B\u4FE1\u606F\uFF0C\u5E76\u8BE6\u7EC6\u63CF\u8FF0\u7B26\u5408\u8BE5\u6587\u5316\u80CC\u666F\u7684\u53E4\u5178\u6444\u5F71\u98CE\u683C\uFF1A
+
+\u7528\u6237\u6240\u5728\u5730\uFF1A{{input.location}}
+\u6587\u5316\u80CC\u666F\uFF1A{{input.cultural_background}}
+\u6444\u5F71\u7C7B\u578B\uFF1A{{input.photography_type}}
+\u98CE\u683C\u8981\u6C42\uFF1A{{input.style}}
+\u8272\u8C03\u8981\u6C42\uFF1A{{input.tone}}
+
+\u8BF7\u63D0\u4F9B\u4EE5\u4E0B\u5206\u6790\uFF1A
+1. \u8BE5\u6587\u5316\u80CC\u666F\u4E0B"\u53E4\u5178\u98CE\u683C"\u7684\u5B9A\u4E49\u548C\u7279\u5F81
+2. \u53E4\u5178\u98CE\u683C\u6444\u5F71\u7684\u5178\u578B\u5143\u7D20\uFF1A\u6784\u56FE\u3001\u5149\u7EBF\u3001\u8272\u5F69\u3001\u9898\u6750
+3. \u8FD9\u79CD\u98CE\u683C\u7684\u5386\u53F2\u6E0A\u6E90\u548C\u4EE3\u8868\u4F5C\u54C1
+4. \u4E0E\u73B0\u4EE3\u6444\u5F71\u7684\u533A\u522B`,
+            params: { temperature: 0.7, max_tokens: 1500 }
+          },
+          {
+            id: "find_similar_photographers",
+            type: "model",
+            name: "\u5206\u6790\u7C7B\u4F3C\u6444\u5F71\u5E08",
+            model_type: "text",
+            model: "gpt-5-nano",
+            prompt: `\u57FA\u4E8E\u4EE5\u4E0B\u4FE1\u606F\uFF0C\u627E\u51FA\u5728\u53E4\u5178\u98CE\u683C\u65B9\u9762\u6709\u7C7B\u4F3C\u4F5C\u54C1\u6216\u98CE\u683C\u7684\u6444\u5F71\u5E08\uFF1A
+
+\u6444\u5F71\u7C7B\u578B\uFF1A{{input.photography_type}}
+\u98CE\u683C\u8981\u6C42\uFF1A{{input.style}}
+\u8272\u8C03\u8981\u6C42\uFF1A{{input.tone}}
+\u6587\u5316\u80CC\u666F\uFF1A{{input.cultural_background}}
+
+\u8BF7\u5206\u6790\uFF1A
+1. 3-5\u4F4D\u6700\u7B26\u5408\u8FD9\u79CD\u98CE\u683C\u8981\u6C42\u7684\u77E5\u540D\u6444\u5F71\u5E08
+2. \u6BCF\u4F4D\u6444\u5F71\u5E08\u7684\u4F5C\u54C1\u7279\u70B9\u3001\u4EE3\u8868\u4F5C\u54C1
+3. \u8FD9\u4E9B\u6444\u5F71\u5E08\u7684\u98CE\u683C\u4E0E\u7528\u6237\u9700\u6C42\u7684\u5339\u914D\u5EA6`,
+            params: { temperature: 0.6, max_tokens: 1200 }
+          },
+          {
+            id: "analyze_warm_portrait",
+            type: "model",
+            name: "\u5206\u6790\u6696\u8272\u8C03\u4EBA\u50CF",
+            model_type: "text",
+            model: "gpt-5-nano",
+            prompt: `\u4F5C\u4E3A\u4E00\u4F4D\u4E13\u4E1A\u7684\u4EBA\u50CF\u6444\u5F71\u5E08\uFF0C\u8BF7\u8BE6\u7EC6\u5206\u6790\u6696\u8272\u8C03\u4EBA\u50CF\u6444\u5F71\u7684\u6784\u56FE\u548C\u5143\u7D20\u98CE\u683C\uFF1A
+
+\u6444\u5F71\u5E08\u53C2\u8003\uFF1A{{find_similar_photographers.output.text}}
+\u6444\u5F71\u7C7B\u578B\uFF1A{{input.photography_type}}
+\u8272\u8C03\u8981\u6C42\uFF1A{{input.tone}}
+\u6587\u5316\u80CC\u666F\uFF1A{{input.cultural_background}}
+
+\u8BF7\u4ECE\u4EE5\u4E0B\u51E0\u4E2A\u65B9\u9762\u5206\u6790\uFF1A
+1. **\u6784\u56FE\u65B9\u5F0F**\uFF1A\u5982\u4F55\u5B89\u6392\u4EBA\u7269\u5728\u753B\u9762\u4E2D\u7684\u4F4D\u7F6E
+2. **\u5149\u7EBF\u8FD0\u7528**\uFF1A\u6696\u8272\u8C03\u5982\u4F55\u5B9E\u73B0
+3. **\u80CC\u666F\u5904\u7406**\uFF1A\u80CC\u666F\u7684\u9009\u62E9\u3001\u4E0E\u4E3B\u4F53\u7684\u5173\u7CFB
+4. **\u8272\u5F69\u642D\u914D**\uFF1A\u6696\u8272\u8C03\u7684\u5177\u4F53\u8272\u7CFB
+5. **\u60C5\u7EEA\u8868\u8FBE**\uFF1A\u6696\u8272\u8C03\u5982\u4F55\u4F20\u9012\u60C5\u611F
+6. **\u7EC6\u8282\u5143\u7D20**\uFF1A\u670D\u9970\u3001\u9053\u5177\u3001\u5986\u9762\u7B49`,
+            params: { temperature: 0.7, max_tokens: 1500 }
+          },
+          {
+            id: "generate_final_prompt",
+            type: "model",
+            name: "\u751F\u6210Prompt",
+            model_type: "text",
+            model: "gpt-5-nano",
+            prompt: `\u57FA\u4E8E\u4EE5\u4E0B\u6240\u6709\u5206\u6790\uFF0C\u8BF7\u751F\u6210\u4E00\u4E2A\u4E13\u4E1A\u3001\u8BE6\u7EC6\u7684\u6444\u5F71Prompt\uFF0C\u7528\u4E8EAI\u56FE\u50CF\u751F\u6210\uFF1A
+
+\u4E3B\u9898\uFF1A{{input.subject}}
+\u6444\u5F71\u7C7B\u578B\uFF1A{{input.photography_type}}
+\u98CE\u683C\uFF1A{{input.style}}
+\u8272\u8C03\uFF1A{{input.tone}}
+\u6587\u5316\u80CC\u666F\uFF1A{{input.cultural_background}}
+
+\u98CE\u683C\u5206\u6790\uFF1A{{analyze_cultural_style.output.text}}
+\u6444\u5F71\u5E08\u53C2\u8003\uFF1A{{find_similar_photographers.output.text}}
+\u6784\u56FE\u5206\u6790\uFF1A{{analyze_warm_portrait.output.text}}
+
+\u8BF7\u751F\u6210\u4E00\u4E2A\u9AD8\u8D28\u91CF\u7684AI\u6444\u5F71Prompt\uFF0C\u5305\u542B\uFF1A
+1. **\u4E3B\u4F53\u63CF\u8FF0**\uFF1A\u4EBA\u7269\u7684\u5916\u8C8C\u7279\u5F81\u3001\u59FF\u6001\u3001\u8868\u60C5
+2. **\u73AF\u5883\u8BBE\u7F6E**\uFF1A\u80CC\u666F\u3001\u573A\u666F\u5E03\u7F6E\u3001\u5149\u7EBF
+3. **\u98CE\u683C\u8981\u7D20**\uFF1A\u6784\u56FE\u65B9\u5F0F\u3001\u8272\u5F69\u98CE\u683C\u3001\u6C1B\u56F4
+4. **\u6280\u672F\u53C2\u6570**\uFF1A\u666F\u6DF1\u3001\u8FD0\u52A8\u611F\u3001\u8D28\u611F\u8981\u6C42
+
+Prompt\u8981\u6C42\uFF1A\u82F1\u6587\u64B0\u5199\u3001\u7EC6\u8282\u4E30\u5BCC\u3001\u4E13\u4E1A\u6444\u5F71\u672F\u8BED\u51C6\u786E\u3002`,
+            params: { temperature: 0.8, max_tokens: 800 }
+          },
+          {
+            id: "end",
+            type: "end",
+            name: "\u7ED3\u675F",
+            output_mapping: {
+              cultural_style_analysis: "{{analyze_cultural_style.output.text}}",
+              similar_photographers: "{{find_similar_photographers.output.text}}",
+              composition_analysis: "{{analyze_warm_portrait.output.text}}",
+              final_prompt: "{{generate_final_prompt.output.text}}",
+              metadata: "{{start.output}}"
+            },
+            validate_outputs: true
+          }
+        ],
+        edges: [
+          { from: "start", to: "analyze_cultural_style" },
+          { from: "start", to: "find_similar_photographers" },
+          { from: "find_similar_photographers", to: "analyze_warm_portrait" },
+          { from: "analyze_cultural_style", to: "analyze_warm_portrait" },
+          { from: "analyze_warm_portrait", to: "generate_final_prompt" },
+          { from: "generate_final_prompt", to: "end" }
+        ],
+        settings: {
+          timeout: 120,
+          retry_count: 1,
+          error_handling: "continue"
+        }
+      }
+    };
+    PREDEFINED_SMARTFLOWS = [
+      photographyAnalysisV2
+    ];
+  }
+});
+
+// src/smartflow/routes/smartflow.ts
+var smartflow_exports = {};
+__export(smartflow_exports, {
+  default: () => smartflow_default
+});
+function validateSmartflowSchema(schema) {
+  if (!schema || typeof schema !== "object") return { ok: false, message: "schema \u5FC5\u987B\u662F\u5BF9\u8C61" };
+  const nodes = schema.nodes;
+  const edges = schema.edges;
+  if (!Array.isArray(nodes) || !Array.isArray(edges)) {
+    return { ok: false, message: "schema \u5FC5\u987B\u5305\u542B nodes / edges \u6570\u7EC4" };
+  }
+  const ids = /* @__PURE__ */ new Set();
+  let hasStart = false;
+  let hasEnd = false;
+  for (const n of nodes) {
+    if (!n || typeof n !== "object") return { ok: false, message: "nodes \u4E2D\u5B58\u5728\u975E\u5BF9\u8C61\u8282\u70B9" };
+    if (typeof n.id !== "string" || !n.id.trim()) return { ok: false, message: "\u8282\u70B9 id \u5FC5\u987B\u662F\u975E\u7A7A\u5B57\u7B26\u4E32" };
+    if (ids.has(n.id)) return { ok: false, message: `\u8282\u70B9 id \u91CD\u590D: ${n.id}` };
+    ids.add(n.id);
+    const t = String(n.type ?? "");
+    if (!ALLOWED_NODE_TYPES.has(t)) {
+      return { ok: false, message: `\u4E0D\u652F\u6301\u7684\u8282\u70B9\u7C7B\u578B: ${t}\uFF08\u4EC5\u5141\u8BB8 ${Array.from(ALLOWED_NODE_TYPES).join(", ")}\uFF09` };
+    }
+    if (t === "start") hasStart = true;
+    if (t === "end") hasEnd = true;
+  }
+  if (!hasStart) return { ok: false, message: "schema \u5FC5\u987B\u5305\u542B start \u8282\u70B9" };
+  if (!hasEnd) return { ok: false, message: "schema \u5FC5\u987B\u5305\u542B end \u8282\u70B9" };
+  for (const e of edges) {
+    if (!e || typeof e !== "object") return { ok: false, message: "edges \u4E2D\u5B58\u5728\u975E\u5BF9\u8C61\u8FB9" };
+    const from = String(e.from ?? "");
+    const to = String(e.to ?? "");
+    if (!from || !to) return { ok: false, message: "edge \u5FC5\u987B\u5305\u542B from/to" };
+    if (!ids.has(from)) return { ok: false, message: `edge.from \u4E0D\u5B58\u5728: ${from}` };
+    if (!ids.has(to)) return { ok: false, message: `edge.to \u4E0D\u5B58\u5728: ${to}` };
+  }
+  return { ok: true };
+}
+async function initPredefinedSmartflows() {
+  for (const sf of PREDEFINED_SMARTFLOWS) {
+    const existing = await smartflowRepository.findById(sf.id);
+    if (!existing) {
+      await smartflowRepository.create(sf);
+      console.log(`[mxmcgi/smartflow] Created predefined smartflow: ${sf.id}`);
+    }
+  }
+}
+var import_express16, router16, engine, ALLOWED_NODE_TYPES, smartflow_default;
+var init_smartflow = __esm({
+  "src/smartflow/routes/smartflow.ts"() {
+    "use strict";
+    import_express16 = require("express");
+    init_repository();
+    init_executionRepository();
+    init_engine();
+    init_photographyV2();
+    router16 = (0, import_express16.Router)();
+    engine = new SmartflowEngine(smartflowRepository, executionRepository);
+    ALLOWED_NODE_TYPES = /* @__PURE__ */ new Set([
+      "start",
+      "end",
+      "model",
+      // 业务
+      "tools",
+      "condition",
+      "variable",
+      "loop"
+    ]);
+    initPredefinedSmartflows();
+    router16.get("/", async (req, res) => {
+      try {
+        const { public: isPublic, userId, limit = "50", offset = "0" } = req.query;
+        let smartflows;
+        if (isPublic === "true") {
+          smartflows = await smartflowRepository.findPublic(Number(limit), Number(offset));
+        } else if (userId) {
+          smartflows = await smartflowRepository.findByUserId(userId, Number(limit), Number(offset));
+        } else {
+          smartflows = await smartflowRepository.findAll(Number(limit), Number(offset));
+        }
+        res.json({
+          success: true,
+          data: smartflows,
+          count: smartflows.length
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: { code: "INTERNAL_ERROR", message: error.message }
+        });
+      }
+    });
+    router16.get("/:id", async (req, res) => {
+      try {
+        const smartflow = await smartflowRepository.findById(req.params.id);
+        if (!smartflow) {
+          return res.status(404).json({
+            success: false,
+            error: { code: "NOT_FOUND", message: `Smartflow not found: ${req.params.id}` }
+          });
+        }
+        res.json({
+          success: true,
+          data: smartflow
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: { code: "INTERNAL_ERROR", message: error.message }
+        });
+      }
+    });
+    router16.post("/", async (req, res) => {
+      try {
+        const dto = req.body;
+        if (!dto.name || !dto.schema) {
+          return res.status(400).json({
+            success: false,
+            error: { code: "VALIDATION_ERROR", message: "name and schema are required" }
+          });
+        }
+        const schemaCheck = validateSmartflowSchema(dto.schema);
+        if (!schemaCheck.ok) {
+          return res.status(400).json({
+            success: false,
+            error: { code: "VALIDATION_ERROR", message: schemaCheck.message }
+          });
+        }
+        const authorId = dto.author_id || req.headers["x-user-id"];
+        if (authorId) {
+          dto.author_id = authorId;
+        }
+        const smartflow = await smartflowRepository.create(dto);
+        res.status(201).json({
+          success: true,
+          data: smartflow
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: { code: "INTERNAL_ERROR", message: error.message }
+        });
+      }
+    });
+    router16.put("/:id", async (req, res) => {
+      try {
+        const dto = req.body;
+        if (dto.schema) {
+          const schemaCheck = validateSmartflowSchema(dto.schema);
+          if (!schemaCheck.ok) {
+            return res.status(400).json({
+              success: false,
+              error: { code: "VALIDATION_ERROR", message: schemaCheck.message }
+            });
+          }
+        }
+        const smartflow = await smartflowRepository.update(req.params.id, dto);
+        res.json({
+          success: true,
+          data: smartflow
+        });
+      } catch (error) {
+        if (error.message.includes("not found")) {
+          return res.status(404).json({
+            success: false,
+            error: { code: "NOT_FOUND", message: error.message }
+          });
+        }
+        res.status(500).json({
+          success: false,
+          error: { code: "INTERNAL_ERROR", message: error.message }
+        });
+      }
+    });
+    router16.delete("/:id", async (req, res) => {
+      try {
+        await smartflowRepository.delete(req.params.id);
+        res.json({
+          success: true,
+          message: "Smartflow deleted successfully"
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: { code: "INTERNAL_ERROR", message: error.message }
+        });
+      }
+    });
+    router16.post("/:id/execute", async (req, res) => {
+      try {
+        const { input_data, conversation_id, mode = "run" } = req.body;
+        const userId = req.headers["x-user-id"] || req.body.user_id || "anonymous";
+        if (!input_data) {
+          return res.status(400).json({
+            success: false,
+            error: { code: "VALIDATION_ERROR", message: "input_data is required" }
+          });
+        }
+        const executionDto = {
+          smartflow_id: req.params.id,
+          user_id: userId,
+          conversation_id,
+          input_data,
+          mode
+        };
+        const result = await engine.execute(req.params.id, executionDto);
+        if (!result.success) {
+          return res.status(400).json({
+            success: false,
+            error: { code: "EXECUTION_ERROR", message: result.error },
+            data: result.execution
+          });
+        }
+        res.json({
+          success: true,
+          data: result.execution
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: { code: "INTERNAL_ERROR", message: error.message }
+        });
+      }
+    });
+    smartflow_default = router16;
+  }
+});
+
+// src/smartflow/routes/tasks.ts
+var tasks_exports = {};
+__export(tasks_exports, {
+  default: () => tasks_default
+});
+var import_express17, router17, tasks_default;
+var init_tasks = __esm({
+  "src/smartflow/routes/tasks.ts"() {
+    "use strict";
+    import_express17 = require("express");
+    init_executionRepository();
+    router17 = (0, import_express17.Router)();
+    router17.get("/", async (req, res) => {
+      try {
+        const userId = req.headers["x-user-id"];
+        if (!userId) {
+          return res.status(401).json({
+            success: false,
+            error: { code: "UNAUTHORIZED", message: "x-user-id header is required" }
+          });
+        }
+        const { smartflowId, limit = "50", offset = "0" } = req.query;
+        let executions;
+        if (smartflowId) {
+          executions = await executionRepository.findBySmartflowId(smartflowId, Number(limit), Number(offset));
+        } else {
+          executions = await executionRepository.findByUserId(userId, Number(limit), Number(offset));
+        }
+        res.json({
+          success: true,
+          data: executions,
+          count: executions.length
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: { code: "INTERNAL_ERROR", message: error.message }
+        });
+      }
+    });
+    router17.get("/:id", async (req, res) => {
+      try {
+        const execution = await executionRepository.findById(req.params.id);
+        if (!execution) {
+          return res.status(404).json({
+            success: false,
+            error: { code: "NOT_FOUND", message: `Task not found: ${req.params.id}` }
+          });
+        }
+        res.json({
+          success: true,
+          data: execution
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: { code: "INTERNAL_ERROR", message: error.message }
+        });
+      }
+    });
+    router17.post("/:id/cancel", async (req, res) => {
+      try {
+        await executionRepository.updateStatus(req.params.id, "cancelled");
+        res.json({
+          success: true,
+          message: "Task cancelled successfully"
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: { code: "INTERNAL_ERROR", message: error.message }
+        });
+      }
+    });
+    tasks_default = router17;
+  }
+});
+
+// src/smartflow/routes/demo.ts
+var demo_exports = {};
+__export(demo_exports, {
+  default: () => demo_default
+});
+var import_express18, router18, demo_default;
+var init_demo = __esm({
+  "src/smartflow/routes/demo.ts"() {
+    "use strict";
+    import_express18 = require("express");
+    router18 = (0, import_express18.Router)();
+    router18.post("/photography-analysis-v2", async (req, res) => {
+      try {
+        const {
+          photography_type = "portrait",
+          style = "classical",
+          tone = "warm",
+          location = "\u4E2D\u56FD",
+          cultural_background = "\u4E2D\u56FD\u53E4\u5178\u6587\u5316",
+          subject = "\u4E00\u4F4D\u7A7F\u7740\u6C49\u670D\u7684\u5E74\u8F7B\u5973\u5B50\u5728\u53E4\u5178\u56ED\u6797\u4E2D"
+        } = req.body;
+        await new Promise((resolve2) => setTimeout(resolve2, 100));
+        const executionId = `demo-${Date.now()}`;
+        const result = {
+          success: true,
+          execution_id: executionId,
+          output_data: {
+            cultural_style_analysis: {
+              title: "\u{1F3AD} \u4E2D\u56FD\u53E4\u5178\u98CE\u683C\u6444\u5F71\u5206\u6790",
+              content: `\u57FA\u4E8E\u60A8\u7684\u6587\u5316\u80CC\u666F\uFF08\u4E2D\u56FD\u53E4\u5178\u6587\u5316\uFF09\uFF0C\u6211\u4EEC\u4E3A\u60A8\u6DF1\u5165\u5206\u6790\u53E4\u5178\u98CE\u683C\u6444\u5F71\u7684\u7279\u5F81\uFF1A
+
+**\u4E00\u3001\u53E4\u5178\u98CE\u683C\u7684\u5B9A\u4E49**
+\u4E2D\u56FD\u53E4\u5178\u98CE\u683C\u6444\u5F71\u878D\u5408\u4E86\u4F20\u7EDF\u7ED8\u753B\u7F8E\u5B66\u4E0E\u6444\u5F71\u6280\u672F\uFF0C\u5F3A\u8C03\u610F\u5883\u3001\u7559\u767D\u4E0E\u542B\u84C4\u4E4B\u7F8E\u3002
+
+**\u4E8C\u3001\u5178\u578B\u5143\u7D20\u5206\u6790**
+- **\u6784\u56FE**\uFF1A\u9075\u5FAA\u4E2D\u56FD\u4F20\u7EDF\u7ED8\u753B\u7684"\u4E09\u8FDC\u6CD5"\uFF08\u9AD8\u8FDC\u3001\u5E73\u8FDC\u3001\u6DF1\u8FDC\uFF09
+- **\u5149\u7EBF**\uFF1A\u504F\u597D\u81EA\u7136\u5149\u7684\u67D4\u548C\u8FD0\u7528\uFF0C\u907F\u514D\u5F3A\u70C8\u76F4\u5C04\u5149
+- **\u8272\u5F69**\uFF1A\u4EE5\u4F4E\u9971\u548C\u5EA6\u7684\u6696\u8272\u8C03\u4E3A\u4E3B
+- **\u9898\u6750**\uFF1A\u4EBA\u7269\u3001\u56ED\u6797\u3001\u5EFA\u7B51\u3001\u6587\u7269\u7B49\u5177\u6709\u5386\u53F2\u6587\u5316\u5185\u6DB5\u7684\u5143\u7D20`
+            },
+            similar_photographers: {
+              title: "\u{1F4F7} \u7C7B\u4F3C\u98CE\u683C\u7684\u6444\u5F71\u5E08\u63A8\u8350",
+              content: `**1. \u8096\u5168 (Xiao Quan)** - \u4E2D\u56FD\u6700\u597D\u7684\u4EBA\u50CF\u6444\u5F71\u5E08\uFF0C\u8272\u8C03\u6E29\u6696\uFF0C\u6784\u56FE\u5178\u96C5\u3002\u5339\u914D\u5EA6\uFF1A\u2605\u2605\u2605\u2605\u2605
+
+**2. \u90CE\u9759\u5C71 (Lang Jingshan)** - \u4E2D\u56FD\u6444\u5F71\u827A\u672F\u5148\u9A71\uFF0C\u5C06\u6C34\u58A8\u753B\u610F\u5883\u878D\u5165\u6444\u5F71\u3002\u5339\u914D\u5EA6\uFF1A\u2605\u2605\u2605\u2605\u2606
+
+**3. \u5B59\u90E1 (unco)** - \u5F53\u4EE3\u4E2D\u56FD\u65F6\u5C1A\u6444\u5F71\u5E08\uFF0C\u5C06\u5DE5\u7B14\u753B\u4E0E\u73B0\u4EE3\u6444\u5F71\u7ED3\u5408\u3002\u5339\u914D\u5EA6\uFF1A\u2605\u2605\u2605\u2605\u2605
+
+**4. \u51AF\u65B9\u5B87 (Feng Fangyu)** - \u72EC\u7279\u7684\u4E2D\u56FD\u53E4\u5178\u56ED\u6797\u4EBA\u50CF\uFF0C\u753B\u9762\u7A7A\u7075\u3002\u5339\u914D\u5EA6\uFF1A\u2605\u2605\u2605\u2605\u2606`
+            },
+            composition_analysis: {
+              title: "\u{1F5BC}\uFE0F \u6696\u8272\u8C03\u4EBA\u50CF\u6784\u56FE\u4E0E\u5143\u7D20\u5206\u6790",
+              content: `**1. \u6784\u56FE\u65B9\u5F0F**
+- \u7ECF\u5178\u4E09\u5206\u6CD5\uFF0C\u4EBA\u7269\u7F6E\u4E8E\u753B\u9762\u4E09\u5206\u7EBF\u5904
+- \u6846\u67B6\u6784\u56FE\uFF0C\u5229\u7528\u95E8\u7A97\u3001\u6811\u679D\u7B49\u5F15\u5BFC\u89C6\u7EBF
+- \u7559\u767D\u6CD5\u5219\uFF0C\u501F\u9274\u4E2D\u56FD\u753B\u7406\u5FF5
+
+**2. \u5149\u7EBF\u8FD0\u7528**
+- \u9EC4\u91D1\u65F6\u6BB5\uFF1A\u6E05\u6668\u6216\u508D\u665A\u7684\u67D4\u548C\u9633\u5149
+- \u7A97\u6237\u5149\uFF1A\u5229\u7528\u82B1\u7A97\u5F15\u5165\u6563\u5C04\u5149
+- \u8865\u5149\u6280\u5DE7\uFF1A\u4F7F\u7528\u53CD\u5149\u677F\u8865\u8DB3\u9634\u5F71
+
+**3. \u8272\u5F69\u642D\u914D**
+- \u4E3B\u8272\u8C03\uFF1A\u6696\u6A59\u3001\u7C73\u9EC4\u3001\u8D6D\u77F3
+- \u8F85\u52A9\u8272\uFF1A\u6D45\u9752\u3001\u58A8\u7EFF\uFF08\u70B9\u7F00\uFF09`
+            },
+            final_prompt: {
+              title: "\u2728 \u751F\u6210\u7684AI\u6444\u5F71Prompt",
+              content: `**Professional Classical Chinese Portrait Photography Prompt**
+
+A beautiful young woman in traditional Hanfu, standing gracefully in a classical Chinese garden with elegant pavilions and flowing water. The composition follows classical Chinese painting principles with careful attention to negative space. Soft warm golden hour sunlight filtering through ancient maple trees, creating a dreamy, ethereal atmosphere.
+
+**Subject Details:**
+- Young East Asian woman with serene, contemplative expression
+- Traditional Chinese Hanfu in warm burgundy and gold tones
+- Subtle traditional makeup enhancing natural beauty
+- Hair styled with delicate traditional ornaments
+
+**Environment Setting:**
+- Classical Chinese garden with moon gate, stone bridges, and lotus ponds
+- Aged stone walls covered with climbing vines
+- Soft morning mist adding depth and mystery
+
+**Style Elements:**
+- Shot on medium format digital, 85mm f/1.4 lens
+- Shallow depth of field with creamy bokeh
+- Warm color palette: amber, ochre, soft orange
+- Low contrast, high key lighting with soft shadows`
+            }
+          },
+          metadata: {
+            photography_type,
+            style,
+            tone,
+            location,
+            cultural_background,
+            subject,
+            generated_at: (/* @__PURE__ */ new Date()).toISOString(),
+            workflow_version: "2.0.0"
+          }
+        };
+        res.json({
+          success: true,
+          data: result
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: { code: "DEMO_ERROR", message: error.message }
+        });
+      }
+    });
+    demo_default = router18;
+  }
+});
+
+// src/agents/intent-detector.ts
+var intent_detector_exports = {};
+__export(intent_detector_exports, {
+  businessNodes: () => businessNodes,
+  detectIntent: () => detectIntent,
+  getBusinessNode: () => getBusinessNode,
+  getNextFieldToAsk: () => getNextFieldToAsk,
+  getSystemPromptForIntent: () => getSystemPromptForIntent
+});
+function extractParamsFromMessage(message, node) {
+  const params = {};
+  if (!node.extractors) return params;
+  for (const extractor of node.extractors) {
+    for (const pattern of extractor.patterns) {
+      const match = message.match(pattern);
+      if (match && match[1]) {
+        params[extractor.field] = match[1].trim();
+        break;
+      }
+    }
+  }
+  return params;
+}
+function matchBusinessNodes(message) {
+  const lowerMessage = message.toLowerCase();
+  const results = [];
+  for (const [nodeType, node] of Object.entries(businessNodes)) {
+    let score = 0;
+    const matchedKeywords = [];
+    for (const keyword of node.keywords) {
+      if (lowerMessage.includes(keyword.toLowerCase())) {
+        score += keyword.length;
+        matchedKeywords.push(keyword);
+      }
+    }
+    if (score > 0) {
+      results.push({ nodeType, node, score, matchedKeywords });
+    }
+  }
+  results.sort((a, b) => b.score - a.score);
+  return results;
+}
+function detectIntent(message) {
+  const lowerMessage = message.toLowerCase().trim();
+  const nodeMatches = matchBusinessNodes(message);
+  if (nodeMatches.length > 0) {
+    const best = nodeMatches[0];
+    const extractedParams = extractParamsFromMessage(message, best.node);
+    const allParams = { ...best.node.defaultParams, ...extractedParams };
+    const missingFields = best.node.fields.filter((f) => f.required && !allParams[f.key]).map((f) => f.key);
+    let confidenceLevel;
+    const coverage = 1 - missingFields.length / best.node.fields.filter((f) => f.required).length;
+    if (coverage >= 0.75 && missingFields.length <= 1) {
+      confidenceLevel = "high";
+    } else if (coverage >= 0.4) {
+      confidenceLevel = "medium";
+    } else {
+      confidenceLevel = "low";
+    }
+    const businessNode = {
+      nodeType: best.nodeType,
+      nodeName: best.node.name,
+      matchedKeywords: best.matchedKeywords,
+      extractedParams: allParams,
+      missingFields,
+      confidenceLevel
+    };
+    const confidence2 = Math.min(0.5 + coverage * 0.5, 1);
+    return {
+      intent: best.nodeType,
+      confidence: confidence2,
+      businessNode,
+      params: allParams
+    };
+  }
+  const scores = /* @__PURE__ */ new Map();
+  for (const pattern of GENERAL_PATTERNS) {
+    for (const keyword of pattern.keywords) {
+      if (lowerMessage.includes(keyword.toLowerCase())) {
+        const currentScore = scores.get(pattern.intent) || 0;
+        scores.set(pattern.intent, currentScore + pattern.weight);
+      }
+    }
+  }
+  let bestIntent = "general";
+  let bestScore = 0;
+  for (const [intent, score] of scores) {
+    if (score > bestScore) {
+      bestScore = score;
+      bestIntent = intent;
+    }
+  }
+  if (bestScore === 0) {
+    return { intent: "general", confidence: 0.5 };
+  }
+  const confidence = Math.min(bestScore / 2, 1);
+  const matchedPattern = GENERAL_PATTERNS.find((p) => p.intent === bestIntent);
+  const params = matchedPattern?.extractParams?.(message);
+  return {
+    intent: bestIntent,
+    confidence,
+    params
+  };
+}
+function getSystemPromptForIntent(intent) {
+  if (businessNodes[intent]) {
+    const node = businessNodes[intent];
+    return `\u4F60\u662F\u4E00\u4E2A\u4E13\u4E1A\u7684\u300C${node.name}\u300D\u4EFB\u52A1\u52A9\u624B\u3002
+\u5F53\u7528\u6237\u8868\u8FBE\u7684\u9700\u6C42\u6D89\u53CA ${node.name} \u65F6\uFF0C\u4F60\u5E94\u8BE5\uFF1A
+1. \u5148\u786E\u8BA4\u4F60\u7406\u89E3\u7684\u9700\u6C42\u662F\u5426\u6B63\u786E\uFF08\u8BF4\u51FA\u4F60\u7406\u89E3\u7684\u5185\u5BB9\uFF09
+2. \u5982\u679C\u7F3A\u5C11\u5FC5\u8981\u53C2\u6570\uFF0C\u5411\u7528\u6237\u63D0\u95EE\u83B7\u53D6
+3. \u6536\u96C6\u5B8C\u6240\u6709\u5FC5\u8981\u53C2\u6570\u540E\uFF0C\u7528\u81EA\u7136\u8BED\u8A00\u603B\u7ED3\u786E\u8BA4\u5355
+4. \u83B7\u5F97\u7528\u6237\u786E\u8BA4\u540E\u624D\u6267\u884C\u4EFB\u52A1
+\u6CE8\u610F\uFF1A\u59CB\u7EC8\u7AD9\u5728\u7528\u6237\u89D2\u5EA6\uFF0C\u7528\u7B80\u6D01\u81EA\u7136\u7684\u8BED\u8A00\u4EA4\u6D41\u3002`;
+  }
+  const prompts = {
+    greeting: "\u4F60\u662F\u4E00\u4E2A\u53CB\u597D\u7684 AI \u52A9\u624B\uFF0C\u8BF7\u7528\u8F7B\u677E\u7684\u65B9\u5F0F\u4E0E\u7528\u6237\u4EA4\u6D41\u3002",
+    weather: "\u4F60\u662F\u4E00\u4E2A\u5929\u6C14\u52A9\u624B\uFF0C\u8BF7\u6839\u636E\u7528\u6237\u8BE2\u95EE\u63D0\u4F9B\u51C6\u786E\u7684\u5929\u6C14\u4FE1\u606F\u3002",
+    search: "\u4F60\u662F\u4E00\u4E2A\u641C\u7D22\u52A9\u624B\uFF0C\u8BF7\u6839\u636E\u7528\u6237\u7684\u641C\u7D22\u9700\u6C42\u63D0\u4F9B\u76F8\u5173\u4FE1\u606F\u3002",
+    code: "\u4F60\u662F\u4E00\u4E2A\u7F16\u7A0B\u52A9\u624B\uFF0C\u8BF7\u63D0\u4F9B\u6E05\u6670\u3001\u6B63\u786E\u7684\u4EE3\u7801\u793A\u4F8B\u548C\u89E3\u91CA\u3002",
+    translate: "\u4F60\u662F\u4E00\u4E2A\u7FFB\u8BD1\u52A9\u624B\uFF0C\u8BF7\u63D0\u4F9B\u51C6\u786E\u3001\u81EA\u7136\u7684\u7FFB\u8BD1\u7ED3\u679C\u3002",
+    summary: "\u4F60\u662F\u4E00\u4E2A\u6587\u672C\u603B\u7ED3\u52A9\u624B\uFF0C\u8BF7\u7B80\u6D01\u5730\u6982\u62EC\u8981\u70B9\u3002",
+    question: "\u4F60\u662F\u4E00\u4E2A\u77E5\u8BC6\u95EE\u7B54\u52A9\u624B\uFF0C\u8BF7\u51C6\u786E\u56DE\u7B54\u7528\u6237\u7684\u95EE\u9898\u3002",
+    help: "\u4F60\u662F\u4E00\u4E2A AI \u52A9\u624B\uFF0C\u53EF\u4EE5\u5E2E\u52A9\u7528\u6237\u5B8C\u6210\u56FE\u50CF\u751F\u6210\u3001\u89C6\u9891\u5236\u4F5C\u3001\u97F3\u4E50\u521B\u4F5C\u3001\u6587\u6848\u5199\u4F5C\u7B49\u4EFB\u52A1\u3002\u8BF7\u8BE2\u95EE\u7528\u6237\u60F3\u505A\u4EC0\u4E48\u3002",
+    general: "\u4F60\u662F\u4E00\u4E2A\u667A\u80FD AI \u52A9\u624B\uFF0C\u8BF7\u4E0E\u7528\u6237\u53CB\u597D\u5730\u4EA4\u6D41\uFF0C\u5E76\u5C3D\u53EF\u80FD\u5E2E\u52A9\u7528\u6237\u89E3\u51B3\u95EE\u9898\u3002"
+  };
+  return prompts[intent] || prompts["general"];
+}
+function getBusinessNode(nodeType) {
+  return businessNodes[nodeType];
+}
+function getNextFieldToAsk(nodeType, currentParams) {
+  const node = businessNodes[nodeType];
+  if (!node) return null;
+  for (const field of node.fields) {
+    if (field.required && currentParams[field.key] === void 0) {
+      return field;
+    }
+  }
+  return null;
+}
+var businessNodes, GENERAL_PATTERNS;
+var init_intent_detector = __esm({
+  "src/agents/intent-detector.ts"() {
+    "use strict";
+    businessNodes = {
+      "graph/photograph": {
+        name: "\u6DD8\u5B9D\u5973\u88C5\u6444\u5F71",
+        keywords: ["\u6DD8\u5B9D\u5973\u88C5\u6444\u5F71", "\u68DA\u62CD", "\u6A21\u7279\u56FE", "\u5973\u88C5\u68DA\u62CD", "\u7535\u5546\u4E3B\u56FE", "\u670D\u88C5\u6444\u5F71", "\u6A21\u7279\u62CD\u6444", "\u5973\u88C5\u62CD\u6444", "\u6DD8\u5B9D\u68DA\u62CD", "\u6625\u88C5\u68DA\u62CD", "\u590F\u88C5\u68DA\u62CD", "\u79CB\u88C5\u68DA\u62CD", "\u51AC\u88C5\u68DA\u62CD"],
+        fields: [
+          { key: "count", label: "\u6570\u91CF", type: "select", options: ["2", "4", "6", "8"], defaultValue: "4", required: true },
+          { key: "ratio", label: "\u6BD4\u4F8B", type: "select", options: ["3:4", "1:1", "16:9"], defaultValue: "3:4", required: true },
+          { key: "style", label: "\u98CE\u683C", type: "select", options: ["\u97E9\u7CFB\u6E05\u65B0", "\u97E9\u7CFB\u6E05\u51B7", "\u6B27\u7F8E\u9AD8\u7EA7", "\u65E5\u7CFB\u81EA\u7136", "\u6CD5\u5F0F\u6175\u61D2", "\u4E2D\u6027\u6781\u7B80"], defaultValue: "\u97E9\u7CFB\u6E05\u65B0", required: true },
+          { key: "hasRef", label: "\u662F\u5426\u6709\u53C2\u8003\u56FE", type: "boolean", defaultValue: false }
+        ],
+        confirmTemplate: (params) => `\u751F\u6210 ${params.count} \u5F20${params.ratio}\u6DD8\u5B9D\u5973\u88C5\u68DA\u62CD\u56FE\uFF0C\u98CE\u683C\u300C${params.style}\u300D${params.hasRef === true || params.hasRef === "true" ? "\uFF0C\u6709\u53C2\u8003\u56FE" : "\uFF0C\u65E0\u53C2\u8003\u56FE"}\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "count", patterns: [/(\d+)张/, /(\d+)张图/, /数量(\d+)/] },
+          { field: "ratio", patterns: [/(\d+:\d+)/, /比例(\d+:\d+)/] },
+          {
+            field: "style",
+            patterns: [/([韩欧美日法中性]+系[\w]+)/, /风格"?([^"\n，,]+)"?/]
+          }
+        ]
+      },
+      "graph/design": {
+        name: "\u8BBE\u8BA1\u6D77\u62A5",
+        keywords: ["\u6D77\u62A5", "\u8BBE\u8BA1\u56FE", "\u5BA3\u4F20\u56FE", "\u4E3B\u89C6\u89C9", "KV", "key visual", "Banner", "banner", "\u5E7F\u544A\u56FE", "\u6D3B\u52A8\u6D77\u62A5", "\u8282\u65E5\u6D77\u62A5", "\u4FC3\u9500\u6D77\u62A5", "\u5C01\u9762\u56FE", "\u914D\u56FE"],
+        fields: [
+          { key: "width", label: "\u5BBD\u5EA6(px)", type: "string", defaultValue: "1080" },
+          { key: "height", label: "\u9AD8\u5EA6(px)", type: "string", defaultValue: "1920" },
+          { key: "theme", label: "\u4E3B\u9898", type: "string", required: true },
+          { key: "style", label: "\u98CE\u683C", type: "select", options: ["\u79D1\u6280\u611F", "\u7B80\u7EA6", "\u590D\u53E4", "\u53EF\u7231", "\u9AD8\u7EA7\u611F", "\u56FD\u6F6E", "\u8D5B\u535A\u670B\u514B"], defaultValue: "\u7B80\u7EA6" },
+          { key: "hasText", label: "\u662F\u5426\u9700\u8981\u6587\u5B57", type: "boolean", defaultValue: true }
+        ],
+        confirmTemplate: (params) => `\u751F\u6210\u4E00\u5F20${params.width}x${params.height}\u300C${params.theme}\u300D\u4E3B\u9898\u6D77\u62A5\uFF0C\u98CE\u683C\u300C${params.style}\u300D\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "width", patterns: [/(\d+)x\d+/, /宽(\d+)/] },
+          { field: "height", patterns: [/\d+x(\d+)/, /高(\d+)/] },
+          { field: "theme", patterns: [/主题"?([^"\n，,]+)"?/, /做一张([^张\n]+)海报/] }
+        ]
+      },
+      "video/generate": {
+        name: "\u89C6\u9891\u751F\u6210",
+        keywords: ["\u77ED\u89C6\u9891", "\u89C6\u9891", "30\u79D2\u89C6\u9891", "\u4EA7\u54C1\u89C6\u9891", "\u79CD\u8349\u89C6\u9891", "\u5E7F\u544A\u89C6\u9891", "\u5BA3\u4F20\u89C6\u9891", "\u526A\u8F91", "\u5206\u955C", "\u811A\u672C\u751F\u6210\u89C6\u9891", "\u53E3\u64AD\u89C6\u9891", "\u5546\u54C1\u89C6\u9891", "\u6A21\u7279\u89C6\u9891"],
+        fields: [
+          { key: "duration", label: "\u65F6\u957F", type: "select", options: ["15\u79D2", "30\u79D2", "60\u79D2", "90\u79D2", "120\u79D2"], defaultValue: "30\u79D2", required: true },
+          { key: "content", label: "\u5185\u5BB9\u63CF\u8FF0", type: "string", required: true },
+          { key: "hasScript", label: "\u662F\u5426\u9700\u8981\u5206\u955C\u811A\u672C", type: "boolean", defaultValue: true },
+          { key: "aspectRatio", label: "\u6BD4\u4F8B", type: "select", options: ["9:16", "16:9", "1:1", "3:4"], defaultValue: "9:16" }
+        ],
+        confirmTemplate: (params) => `\u751F\u6210\u4E00\u6761${params.duration}\u300C${params.content}\u300D${params.aspectRatio}\u89C6\u9891\uFF0C${params.hasScript ? "\u5305\u542B\u5206\u955C\u811A\u672C" : "\u76F4\u63A5\u751F\u6210\u89C6\u9891"}\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "duration", patterns: [/(\d+)[秒秒]+/, /时长(\d+)/] },
+          { field: "content", patterns: [/做.*?([^"\n，,]+)视频/, /视频.*?([^"\n，,]+)/] },
+          { field: "aspectRatio", patterns: [/(\d+:\d+)/] }
+        ]
+      },
+      "audio/tts": {
+        name: "TTS\u914D\u97F3",
+        keywords: ["\u914D\u97F3", "\u53E3\u64AD\u7A3F", "\u6587\u5B57\u8F6C\u8BED\u97F3", "TTS", "\u8BED\u97F3\u5408\u6210", "\u5F55\u97F3", "\u914D\u97F3\u751F\u6210", "\u6587\u5B57\u914D\u97F3", "\u65C1\u767D", "\u6717\u8BFB"],
+        fields: [
+          { key: "text", label: "\u914D\u97F3\u6587\u672C", type: "string", required: true },
+          { key: "voice", label: "\u97F3\u8272", type: "select", options: ["\u5973\u58F0\u6E29\u67D4", "\u5973\u58F0\u6D3B\u6CFC", "\u7537\u58F0\u78C1\u6027", "\u7537\u58F0\u6C89\u7A33", "\u7AE5\u58F0"], defaultValue: "\u5973\u58F0\u6E29\u67D4" },
+          { key: "speed", label: "\u8BED\u901F", type: "select", options: ["\u6162", "\u6B63\u5E38", "\u5FEB"], defaultValue: "\u6B63\u5E38" }
+        ],
+        confirmTemplate: (params) => `\u5C06\u4EE5\u4E0B\u6587\u6848\u8F6C\u4E3A\u8BED\u97F3\uFF1A${String(params.text).slice(0, 30)}...\uFF08\u97F3\u8272\uFF1A${params.voice}\uFF0C\u8BED\u901F\uFF1A${params.speed}\uFF09\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "text", patterns: [/(.+)/] }
+        ]
+      },
+      "audio/music": {
+        name: "\u97F3\u4E50\u751F\u6210",
+        keywords: ["\u97F3\u4E50", "\u5199\u9996\u6B4C", "\u751F\u6210\u97F3\u4E50", "\u4F5C\u66F2", "\u914D\u4E50", "\u80CC\u666F\u97F3\u4E50", "BGM", "\u6B4C\u66F2", "\u7F16\u66F2"],
+        fields: [
+          { key: "genre", label: "\u98CE\u683C", type: "select", options: ["\u6D41\u884C", "\u7535\u5B50", "\u6C11\u8C23", "\u6447\u6EDA", "\u53E4\u5178", "\u7235\u58EB", "\u563B\u54C8", "\u8F7B\u97F3\u4E50"], defaultValue: "\u6D41\u884C", required: true },
+          { key: "mood", label: "\u60C5\u7EEA", type: "select", options: ["\u6B22\u5FEB", "\u8212\u7F13", "\u60B2\u4F24", "\u52B1\u5FD7", "\u6D6A\u6F2B", "\u795E\u79D8"], defaultValue: "\u8212\u7F13", required: true },
+          { key: "duration", label: "\u65F6\u957F", type: "select", options: ["30\u79D2", "60\u79D2", "90\u79D2", "120\u79D2"], defaultValue: "60\u79D2", required: true },
+          { key: "hasLyrics", label: "\u662F\u5426\u9700\u8981\u6B4C\u8BCD", type: "boolean", defaultValue: false }
+        ],
+        confirmTemplate: (params) => `\u751F\u6210\u4E00\u6BB5${params.duration}${params.genre}\u98CE\u683C\u300C${params.mood}\u300D\u97F3\u4E50${params.hasLyrics ? "\uFF08\u542B\u6B4C\u8BCD\uFF09" : "\uFF08\u7EAF\u97F3\u4E50\uFF09"}\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "genre", patterns: [/([\w]+)风格/, /风格"?([^"\n，,]+)"?/] },
+          { field: "mood", patterns: [/情绪"?([^"\n，,]+)"?/, /(\w+)的/] },
+          { field: "duration", patterns: [/(\d+)[秒秒]+/] }
+        ]
+      },
+      "writing/script": {
+        name: "\u5199\u4F5C\u811A\u672C",
+        keywords: ["\u811A\u672C", "\u5206\u955C", "\u5206\u955C\u811A\u672C", "\u53E3\u64AD\u7A3F", "\u6587\u6848", "\u5267\u672C", "\u77ED\u89C6\u9891\u811A\u672C", "\u76F4\u64AD\u811A\u672C", "\u53F0\u8BCD"],
+        fields: [
+          { key: "type", label: "\u811A\u672C\u7C7B\u578B", type: "select", options: ["\u53E3\u64AD\u811A\u672C", "\u5206\u955C\u811A\u672C", "\u76F4\u64AD\u8BDD\u672F", "\u5E7F\u544A\u6587\u6848", "\u4EA7\u54C1\u4ECB\u7ECD"], defaultValue: "\u53E3\u64AD\u811A\u672C", required: true },
+          { key: "product", label: "\u4EA7\u54C1/\u4E3B\u9898", type: "string", required: true },
+          { key: "duration", label: "\u65F6\u957F(\u79D2)", type: "string", defaultValue: "60" },
+          { key: "tone", label: "\u8BED\u6C14\u98CE\u683C", type: "select", options: ["\u4E13\u4E1A", "\u4EB2\u5207", "\u5E7D\u9ED8", "\u611F\u6027", "\u786C\u6838"], defaultValue: "\u4EB2\u5207" }
+        ],
+        confirmTemplate: (params) => `\u64B0\u5199\u4E00\u4E2A${params.type}\uFF1A\u4E3B\u9898\u300C${params.product}\u300D\uFF0C\u65F6\u957F\u7EA6${params.duration}\u79D2\uFF0C\u8BED\u6C14\u300C${params.tone}\u300D\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "product", patterns: [/主题"?([^"\n，,]+)"?/, /产品"?([^"\n，,]+)"?/] },
+          { field: "duration", patterns: [/(\d+)[秒秒]+/] }
+        ]
+      },
+      "writing/article": {
+        name: "\u6587\u7AE0\u5199\u4F5C",
+        keywords: ["\u6587\u7AE0", "\u5199\u4F5C", "\u6587\u6848", "\u535A\u5BA2", "\u5C0F\u7EA2\u4E66", "\u516C\u4F17\u53F7", "\u63A8\u6587", "\u7B14\u8BB0", "\u8F6F\u6587", "\u79CD\u8349\u6587", "\u8BC4\u6D4B", "\u653B\u7565"],
+        fields: [
+          { key: "platform", label: "\u5E73\u53F0", type: "select", options: ["\u5C0F\u7EA2\u4E66", "\u5FAE\u4FE1\u516C\u4F17\u53F7", "\u5FAE\u535A", "\u77E5\u4E4E", "\u6296\u97F3", "\u5FEB\u624B", "B\u7AD9"], defaultValue: "\u5C0F\u7EA2\u4E66", required: true },
+          { key: "topic", label: "\u4E3B\u9898", type: "string", required: true },
+          { key: "length", label: "\u7BC7\u5E45", type: "select", options: ["\u77ED(300\u5B57\u5185)", "\u4E2D(500-800\u5B57)", "\u957F(1000\u5B57\u4EE5\u4E0A)"], defaultValue: "\u4E2D(500-800\u5B57)" },
+          { key: "tone", label: "\u6587\u98CE", type: "select", options: ["\u79CD\u8349\u5B89\u5229", "\u5BA2\u89C2\u8BC4\u6D4B", "\u5E72\u8D27\u5206\u4EAB", "\u60C5\u611F\u5171\u9E23", "\u5E7D\u9ED8\u641E\u7B11"], defaultValue: "\u79CD\u8349\u5B89\u5229" }
+        ],
+        confirmTemplate: (params) => `\u64B0\u5199\u4E00\u7BC7${params.platform}${params.length}\u300C${params.topic}\u300D\u4E3B\u9898\u6587\u7AE0\uFF0C\u6587\u98CE\u300C${params.tone}\u300D\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "topic", patterns: [/主题"?([^"\n，,]+)"?/, /关于([^"\n，,]+)/] },
+          { field: "platform", patterns: [/小红书|微信公众号|微博|知乎|抖音|B站/] }
+        ]
+      }
+    };
+    GENERAL_PATTERNS = [
+      {
+        intent: "greeting",
+        keywords: ["\u4F60\u597D", "hello", "hi", "\u55E8", "\u60A8\u597D", "hey", "\u65E9\u4E0A\u597D", "\u665A\u4E0A\u597D", "\u5348\u5B89"],
+        weight: 1
+      },
+      {
+        intent: "weather",
+        keywords: ["\u5929\u6C14", "weather", "\u6E29\u5EA6", "\u4E0B\u96E8", "\u6674\u5929", "\u6C14\u6E29"],
+        weight: 0.9
+      },
+      {
+        intent: "search",
+        keywords: ["\u641C\u7D22", "\u67E5\u627E", "\u627E\u4E00\u4E0B", "search", "\u5E2E\u6211\u627E", "\u67E5\u4E00\u4E0B", "\u6709\u6CA1\u6709"],
+        weight: 0.8
+      },
+      {
+        intent: "code",
+        keywords: ["\u4EE3\u7801", "code", "\u7F16\u7A0B", "\u5199\u7A0B\u5E8F", "\u51FD\u6570", "class", "\u5199\u4E2A", "\u5F00\u53D1"],
+        weight: 0.9
+      },
+      {
+        intent: "translate",
+        keywords: ["\u7FFB\u8BD1", "translate", "\u82F1\u6587", "\u4E2D\u6587", "\u8BD1\u6210", "\u7FFB\u8BD1\u6210"],
+        weight: 0.85
+      },
+      {
+        intent: "summary",
+        keywords: ["\u603B\u7ED3", "summarize", "\u6982\u62EC", "\u8981\u70B9", "\u6C47\u603B", "\u6458\u8981"],
+        weight: 0.8
+      },
+      {
+        intent: "question",
+        keywords: ["\u4EC0\u4E48\u662F", "\u600E\u4E48", "\u5982\u4F55", "\u4E3A\u4EC0\u4E48", "who", "what", "how", "why", "\uFF1F", "?"],
+        weight: 0.7
+      },
+      {
+        intent: "help",
+        keywords: ["\u5E2E\u52A9", "help", "\u5E2E\u5FD9", "\u4F60\u80FD\u505A\u4EC0\u4E48", "\u529F\u80FD", "\u6709\u4EC0\u4E48"],
+        weight: 0.8
+      }
+    ];
+  }
+});
+
+// src/agents/chat.ts
+function getOrCreateSession(sessionId) {
+  if (sessionId && sessions.has(sessionId)) {
+    const session2 = sessions.get(sessionId);
+    session2.lastActiveAt = Date.now();
+    return session2;
+  }
+  const id = sessionId || import_crypto3.default.randomUUID();
+  const session = { id, messages: [], createdAt: Date.now(), lastActiveAt: Date.now() };
+  sessions.set(id, session);
+  return session;
+}
+function addMessageToSession(session, role, content) {
+  session.messages.push({ role, content, timestamp: Date.now() });
+  if (session.messages.length > SESSION_MAX_MESSAGES) {
+    session.messages = session.messages.slice(-SESSION_MAX_MESSAGES);
+  }
+}
+function cleanExpiredSessions() {
+  const now = Date.now();
+  for (const [id, session] of sessions) {
+    if (now - session.lastActiveAt > SESSION_TTL_MS) {
+      sessions.delete(id);
+    }
+  }
+}
+function getDefaultTextModel() {
+  const models = listEnabledModelKeysByScope("text");
+  const fastModel = models.find(
+    (m) => m.toLowerCase().includes("mini") || m.toLowerCase().includes("fast") || m.toLowerCase().includes("quick")
+  );
+  return fastModel || models[0] || "text-base";
+}
+function getAvailableTextModels() {
+  return listEnabledModelKeysByScope("text");
+}
+function buildChatPrompt(session, currentMessage, systemPrompt) {
+  const parts = [];
+  if (systemPrompt) parts.push(`[\u7CFB\u7EDF\u8BBE\u5B9A] ${systemPrompt}`);
+  if (session.messages.length > 0) {
+    const recent = session.messages.slice(-6);
+    parts.push(`[\u5BF9\u8BDD\u5386\u53F2]
+${recent.map((m) => `[${m.role === "user" ? "\u7528\u6237" : "\u52A9\u624B"}] ${m.content}`).join("\n")}`);
+  }
+  parts.push(`[\u5F53\u524D\u6D88\u606F] ${currentMessage}`);
+  parts.push("[\u52A9\u624B] ");
+  return parts.join("\n\n");
+}
+function emit(res, event) {
+  res.write(`data: ${JSON.stringify(event)}
+
+`);
+}
+function generateTaskId() {
+  return `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+async function* simulateTaskExecution(nodeType, params, taskId) {
+  const steps = [
+    { progress: 20, text: "\u6B63\u5728\u521B\u5EFA\u4EFB\u52A1\u2026" },
+    { progress: 50, text: "\u6B63\u5728\u751F\u6210\u5185\u5BB9\u2026" },
+    { progress: 80, text: "\u6B63\u5728\u5904\u7406\u7ED3\u679C\u2026" },
+    { progress: 100, text: "\u751F\u6210\u5B8C\u6210\uFF01" }
+  ];
+  for (const step of steps) {
+    await new Promise((resolve2) => setTimeout(resolve2, 600));
+    yield {
+      type: "task_progress",
+      task: {
+        taskId,
+        nodeType,
+        nodeName: businessNodes[nodeType]?.name || nodeType,
+        status: step.progress === 100 ? "done" : "progress",
+        progress: step.progress,
+        text: step.text
+      }
+    };
+  }
+  const mockUrls = [
+    "https://picsum.photos/400/600?random=" + taskId,
+    "https://picsum.photos/400/600?random=" + taskId + "2"
+  ];
+  yield {
+    type: "task_done",
+    task: {
+      taskId,
+      nodeType,
+      nodeName: businessNodes[nodeType]?.name || nodeType,
+      status: "done",
+      progress: 100,
+      resultUrls: mockUrls,
+      text: "\u751F\u6210\u5B8C\u6210\uFF01"
+    }
+  };
+}
+async function handleAgentChat(req, res, providerOverride) {
+  const body = req.body;
+  const { message, sessionId } = body;
+  if (!message || typeof message !== "string" || message.trim().length === 0) {
+    res.status(400).json({ success: false, error: "Missing or invalid field: message" });
+    return;
+  }
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.setHeader("Transfer-Encoding", "chunked");
+  res.write(":\n\n");
+  const session = getOrCreateSession(sessionId);
   try {
-    const scope = asScope(req.query.scope);
-    if (!scope) return res.status(400).json({ success: false, error: "scope is required" });
-    const repo = import_mxmdata30.RepositoryFactory.createPromptEngineeringConfigRepository();
-    const list = await repo.list({ scope, limit: 500, offset: 0 });
-    const items = (list.items || []).filter((r) => r && r.is_active !== false).map((r) => ({
-      taskKey: String(r.type),
-      subtype: r.subtype ?? null,
-      updated_at: r.updated_at
-    }));
-    return res.json({ success: true, data: { scope, items } });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
+    addMessageToSession(session, "user", message);
+    emit(res, { type: "text", sessionId: session.id, content: "" });
+    const requestedModelKey = req.body?.modelKey;
+    const requestedProvider = req.body?.provider;
+    const modelKey = requestedModelKey || getDefaultTextModel();
+    const provider = requestedProvider || providerOverride || "deer";
+    const pendingNode = session.pendingNode;
+    if (pendingNode) {
+      const node = getBusinessNode(pendingNode.nodeType);
+      if (!node) {
+        session.pendingNode = void 0;
+        await handleGeneralChat(res, session, message, modelKey, provider);
+        return;
+      }
+      const newParams = parseUserReplyAsParams(message, pendingNode.params, node);
+      const nextField = getNextFieldToAsk(pendingNode.nodeType, newParams);
+      if (nextField) {
+        session.pendingNode = {
+          ...pendingNode,
+          params: newParams,
+          nextFieldToAsk: nextField.key
+        };
+        session.lastActiveAt = Date.now();
+        emit(res, {
+          type: "confirm",
+          confirm: {
+            confirmType: "params",
+            nodeType: pendingNode.nodeType,
+            nodeName: pendingNode.nodeName,
+            params: newParams,
+            askingField: nextField.key,
+            options: nextField.type === "select" ? nextField.options : void 0,
+            text: `\u8BF7\u95EE\u300C${nextField.label}\u300D\u662F\uFF1F\uFF08${nextField.type === "select" && nextField.options ? nextField.options.join("\u3001") : "\u8BF7\u63CF\u8FF0"})`
+          }
+        });
+      } else {
+        session.pendingNode = {
+          ...pendingNode,
+          params: newParams,
+          confirmStep: "final"
+        };
+        session.lastActiveAt = Date.now();
+        const confirmText = node.confirmTemplate(newParams);
+        emit(res, {
+          type: "confirm",
+          confirm: {
+            confirmType: "final",
+            nodeType: pendingNode.nodeType,
+            nodeName: pendingNode.nodeName,
+            params: newParams,
+            text: confirmText
+          }
+        });
+      }
+      res.end();
+      return;
+    }
+    const intentResult = detectIntent(message);
+    if (intentResult.businessNode) {
+      const { nodeType, nodeName, extractedParams, missingFields, confidenceLevel } = intentResult.businessNode;
+      const node = getBusinessNode(nodeType);
+      if (confidenceLevel === "high" && missingFields.length === 0) {
+        session.pendingNode = {
+          nodeType,
+          nodeName,
+          params: extractedParams,
+          confirmStep: "final"
+        };
+        session.lastActiveAt = Date.now();
+        const confirmText = node.confirmTemplate(extractedParams);
+        emit(res, {
+          type: "confirm",
+          confirm: {
+            confirmType: "final",
+            nodeType,
+            nodeName,
+            params: extractedParams,
+            text: confirmText
+          }
+        });
+        res.end();
+        return;
+      }
+      if (confidenceLevel === "high" && missingFields.length > 0) {
+        session.pendingNode = {
+          nodeType,
+          nodeName,
+          params: extractedParams,
+          confirmStep: "node"
+        };
+        session.lastActiveAt = Date.now();
+        emit(res, {
+          type: "confirm",
+          confirm: {
+            confirmType: "node",
+            nodeType,
+            nodeName,
+            params: extractedParams,
+            text: `\u6211\u7406\u89E3\u4F60\u60F3\u505A\u300C${nodeName}\u300D\uFF0C\u5BF9\u5417\uFF1F`
+          }
+        });
+        res.end();
+        return;
+      }
+      session.pendingNode = {
+        nodeType,
+        nodeName,
+        params: extractedParams,
+        confirmStep: "node"
+      };
+      session.lastActiveAt = Date.now();
+      emit(res, {
+        type: "confirm",
+        confirm: {
+          confirmType: "node",
+          nodeType,
+          nodeName,
+          params: extractedParams,
+          text: `\u4F60\u662F\u60F3\u505A\u300C${nodeName}\u300D\u5417\uFF1F\uFF08${intentResult.confidence < 0.5 ? "\u4E0D\u592A\u786E\u5B9A" : "\u7A0D\u5FAE\u6709\u70B9\u4E0D\u786E\u5B9A"}\uFF0C\u8BF7\u786E\u8BA4\uFF09`
+        }
+      });
+      res.end();
+      return;
+    }
+    await handleGeneralChat(res, session, message, modelKey, provider);
+  } catch (error) {
+    console.error("[AgentChat] \u5904\u7406\u6D88\u606F\u5931\u8D25:", error);
+    emit(res, {
+      type: "error",
+      error: error instanceof Error ? error.message : String(error)
+    });
+    res.end();
+  }
+}
+async function handleGeneralChat(res, session, message, modelKey, provider) {
+  const { getSystemPromptForIntent: getSystemPromptForIntent2 } = await Promise.resolve().then(() => (init_intent_detector(), intent_detector_exports));
+  const intentResult = detectIntent(message);
+  const systemPrompt = getSystemPromptForIntent2(intentResult.intent);
+  addMessageToSession(session, "user", message);
+  const combinedPrompt = buildChatPrompt(session, message, systemPrompt);
+  const result = await runByModelKey(
+    "text",
+    modelKey,
+    { prompt: combinedPrompt, outputFormat: "stream" },
+    { providerOverride: provider }
+  );
+  let assistantMessage = "";
+  if (result.stream) {
+    for await (const chunk of result.stream) {
+      const text = typeof chunk === "string" ? chunk : chunk.content || chunk.text || "";
+      if (text) {
+        assistantMessage += text;
+        emit(res, { type: "text", content: text });
+      }
+    }
+  } else if (result.streamString) {
+    for await (const text of result.streamString) {
+      assistantMessage += text;
+      emit(res, { type: "text", content: text });
+    }
+  }
+  if (assistantMessage) {
+    addMessageToSession(session, "assistant", assistantMessage);
+  }
+  emit(res, { type: "done" });
+  res.end();
+}
+async function handleUserConfirmation(req, res) {
+  const body = req.body;
+  const { sessionId, confirmed, params: userParams } = body;
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.write(":\n\n");
+  const session = sessions.get(sessionId);
+  if (!session || !session.pendingNode) {
+    emit(res, { type: "error", error: "\u4F1A\u8BDD\u4E0D\u5B58\u5728\u6216\u65E0\u5F85\u786E\u8BA4\u4EFB\u52A1" });
+    res.end();
+    return;
+  }
+  const pending = session.pendingNode;
+  if (!confirmed) {
+    session.pendingNode = void 0;
+    session.lastActiveAt = Date.now();
+    emit(res, { type: "text", content: "\u597D\u7684\uFF0C\u5DF2\u53D6\u6D88\u3002\u6709\u5176\u4ED6\u9700\u8981\u5E2E\u52A9\u7684\u5417\uFF1F" });
+    emit(res, { type: "done" });
+    res.end();
+    return;
+  }
+  if (pending.confirmStep === "node") {
+    const node = getBusinessNode(pending.nodeType);
+    if (!node) {
+      emit(res, { type: "error", error: "\u672A\u77E5\u8282\u70B9\u7C7B\u578B" });
+      res.end();
+      return;
+    }
+    const mergedParams = { ...pending.params, ...userParams || {} };
+    const nextField = getNextFieldToAsk(pending.nodeType, mergedParams);
+    if (nextField) {
+      session.pendingNode = {
+        ...pending,
+        params: mergedParams,
+        confirmStep: "params",
+        nextFieldToAsk: nextField.key
+      };
+      session.lastActiveAt = Date.now();
+      emit(res, {
+        type: "confirm",
+        confirm: {
+          confirmType: "params",
+          nodeType: pending.nodeType,
+          nodeName: pending.nodeName,
+          params: mergedParams,
+          askingField: nextField.key,
+          options: nextField.type === "select" ? nextField.options : void 0,
+          text: `\u8BF7\u95EE\u300C${nextField.label}\u300D\u662F\uFF1F\uFF08${nextField.type === "select" && nextField.options ? nextField.options.join("\u3001") : "\u8BF7\u63CF\u8FF0"}\uFF09`
+        }
+      });
+    } else {
+      session.pendingNode = { ...pending, params: mergedParams, confirmStep: "final" };
+      session.lastActiveAt = Date.now();
+      const confirmText = node.confirmTemplate(mergedParams);
+      emit(res, {
+        type: "confirm",
+        confirm: {
+          confirmType: "final",
+          nodeType: pending.nodeType,
+          nodeName: pending.nodeName,
+          params: mergedParams,
+          text: confirmText
+        }
+      });
+    }
+    res.end();
+    return;
+  }
+  if (pending.confirmStep === "final") {
+    const taskId = generateTaskId();
+    const nodeType = pending.nodeType;
+    const nodeParams = { ...pending.params, ...userParams || {} };
+    session.pendingNode = void 0;
+    session.lastActiveAt = Date.now();
+    emit(res, {
+      type: "task_created",
+      task: {
+        taskId,
+        nodeType,
+        nodeName: pending.nodeName,
+        status: "created",
+        progress: 0,
+        text: `\u4EFB\u52A1\u5DF2\u63D0\u4EA4\uFF0C\u6B63\u5728\u51C6\u5907\u751F\u6210\u2026`
+      }
+    });
+    for await (const event of simulateTaskExecution(nodeType, nodeParams, taskId)) {
+      emit(res, event);
+    }
+    emit(res, { type: "done" });
+    res.end();
+    return;
+  }
+  if (pending.confirmStep === "params" && userParams) {
+    const node = getBusinessNode(pending.nodeType);
+    if (!node) {
+      emit(res, { type: "error", error: "\u672A\u77E5\u8282\u70B9\u7C7B\u578B" });
+      res.end();
+      return;
+    }
+    const mergedParams = { ...pending.params, ...userParams };
+    const nextField = getNextFieldToAsk(pending.nodeType, mergedParams);
+    if (nextField) {
+      session.pendingNode = {
+        ...pending,
+        params: mergedParams,
+        nextFieldToAsk: nextField.key
+      };
+      session.lastActiveAt = Date.now();
+      emit(res, {
+        type: "confirm",
+        confirm: {
+          confirmType: "params",
+          nodeType: pending.nodeType,
+          nodeName: pending.nodeName,
+          params: mergedParams,
+          askingField: nextField.key,
+          options: nextField.type === "select" ? nextField.options : void 0,
+          text: `\u8BF7\u95EE\u300C${nextField.label}\u300D\u662F\uFF1F\uFF08${nextField.type === "select" && nextField.options ? nextField.options.join("\u3001") : "\u8BF7\u63CF\u8FF0"}\uFF09`
+        }
+      });
+    } else {
+      session.pendingNode = { ...pending, params: mergedParams, confirmStep: "final" };
+      session.lastActiveAt = Date.now();
+      const confirmText = node.confirmTemplate(mergedParams);
+      emit(res, {
+        type: "confirm",
+        confirm: {
+          confirmType: "final",
+          nodeType: pending.nodeType,
+          nodeName: pending.nodeName,
+          params: mergedParams,
+          text: confirmText
+        }
+      });
+    }
+    res.end();
+    return;
+  }
+  emit(res, { type: "done" });
+  res.end();
+}
+function parseUserReplyAsParams(message, currentParams, node) {
+  if (!node) return currentParams;
+  const params = { ...currentParams };
+  const lowerMsg = message.toLowerCase();
+  for (const field of node.fields) {
+    if (params[field.key] !== void 0) continue;
+    if (field.type === "boolean") {
+      if (["\u662F", "\u6709", "\u8981", "yes", "true", "\u5BF9", "\u597D", "\u6CA1\u9519"].some((w) => lowerMsg.includes(w))) {
+        params[field.key] = true;
+      } else if (["\u6CA1\u6709", "\u65E0", "\u5426", "\u4E0D", "no", "false", "\u4E0D\u7528"].some((w) => lowerMsg.includes(w))) {
+        params[field.key] = false;
+      }
+    } else if (field.type === "select" && field.options) {
+      for (const opt of field.options) {
+        if (lowerMsg.includes(opt.toLowerCase())) {
+          params[field.key] = opt;
+          break;
+        }
+      }
+      if (params[field.key] === void 0 && message.trim() && !["\u662F", "\u6709", "\u8981", "\u5BF9", "\u597D", "\u6CA1\u6709", "\u65E0", "\u4E0D", "\u4E0D\u7528", "\u786E\u8BA4", "\u5F00\u59CB", "\u53D6\u6D88"].includes(message.trim())) {
+        const matchedOpt = field.options.find(
+          (opt) => lowerMsg.includes(opt.toLowerCase()) || opt.toLowerCase().includes(lowerMsg.trim())
+        );
+        if (matchedOpt) {
+          params[field.key] = matchedOpt;
+        }
+      }
+    } else if (field.type === "string" || field.type === "number") {
+      for (const extractor of node.extractors || []) {
+        if (extractor.field !== field.key) continue;
+        for (const pattern of extractor.patterns) {
+          const match = message.match(pattern);
+          if (match && match[1]) {
+            params[field.key] = field.type === "number" ? Number(match[1]) : match[1].trim();
+            break;
+          }
+        }
+      }
+    }
+  }
+  return params;
+}
+var import_crypto3, sessions, SESSION_MAX_MESSAGES, SESSION_TTL_MS;
+var init_chat = __esm({
+  "src/agents/chat.ts"() {
+    "use strict";
+    init_intent_detector();
+    init_run();
+    init_provider_model_catalog();
+    import_crypto3 = __toESM(require("crypto"));
+    sessions = /* @__PURE__ */ new Map();
+    SESSION_MAX_MESSAGES = 20;
+    SESSION_TTL_MS = 30 * 60 * 1e3;
+    if (typeof setInterval !== "undefined") {
+      setInterval(cleanExpiredSessions, 5 * 60 * 1e3);
+    }
   }
 });
-router15.post("/run", async (req, res) => {
-  try {
-    const body = req.body;
-    const scope = asScope(body?.scope);
-    const taskKey = typeof body?.taskKey === "string" ? body.taskKey : "";
-    const subtype = body?.subtype != null ? String(body.subtype) : null;
-    const params = body?.params && typeof body.params === "object" ? body.params : null;
-    if (!scope || !taskKey || !params) {
-      return res.status(400).json({ success: false, error: "scope/taskKey/params are required" });
-    }
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(401).json({ success: false, error: "Missing x-user-id header" });
-    }
-    const result = await runTaskV2(
-      { scope, taskKey, subtype, params, options: body?.options },
-      userId
-    );
-    return res.json(result);
-  } catch (e) {
-    const err = e;
-    if (err instanceof ValidationError) {
-      return res.status(400).json({ success: false, code: err.code, error: err.message, details: err.details ?? null });
-    }
-    if (err instanceof ConfigurationError) {
-      return res.status(404).json({ success: false, code: err.code, error: err.message });
-    }
-    if (err?.code === "INSUFFICIENT_BALANCE") {
-      return res.status(402).json({ success: false, code: "INSUFFICIENT_BALANCE", error: err.message });
-    }
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
+
+// src/agents/index.ts
+var agents_exports = {};
+__export(agents_exports, {
+  default: () => agents_default
+});
+var import_express19, router19, agents_default;
+var init_agents = __esm({
+  "src/agents/index.ts"() {
+    "use strict";
+    import_express19 = require("express");
+    init_chat();
+    router19 = (0, import_express19.Router)();
+    router19.post("/message", async (req, res) => {
+      const provider = req.query.provider;
+      await handleAgentChat(req, res, provider);
+    });
+    router19.post("/confirm", async (req, res) => {
+      await handleUserConfirmation(req, res);
+    });
+    router19.get("/models", (_req, res) => {
+      const models = getAvailableTextModels();
+      res.json({ success: true, models: models.map((name) => ({ name })) });
+    });
+    router19.get("/health", (_req, res) => {
+      res.json({ success: true, status: "healthy", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+    });
+    agents_default = router19;
   }
 });
-var routes_default = router15;
 
 // src/index.ts
+var import_express20 = __toESM(require("express"));
+var import_dotenv = __toESM(require("dotenv"));
+var path = __toESM(require("path"));
+var fs = __toESM(require("fs"));
 process.env.DOTENV_CONFIG_DEBUG = "false";
 var currentFileDir = __dirname;
 var mxmcgiDir = path.resolve(currentFileDir, "..");
@@ -34174,8 +36710,10 @@ var envPaths = [
   // 当前工作目录/.env
   path.resolve(mxmcgiDir, ".env"),
   // mxmcgi/.env（后加载，不覆盖已存在的变量）
-  path.resolve(process.cwd(), "mxmcgi", ".env")
+  path.resolve(process.cwd(), "mxmcgi", ".env"),
   // 当前工作目录/mxmcgi/.env
+  path.resolve(projectRoot, "mxmdata", ".env")
+  // 数据层集中配置（含部分 API Key；override: false 仅补缺）
 ];
 var envLoaded = false;
 var loadedEnvPaths = [];
@@ -34202,52 +36740,92 @@ if (process.env.DEFAULT_PROVIDER) {
 } else {
   console.warn(`[mxmcgi] \u26A0\uFE0F  DEFAULT_PROVIDER \u672A\u8BBE\u7F6E\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4\u503C: replicate`);
 }
-import_mxmdata31.RepositoryFactory.init();
-var app = (0, import_express16.default)();
 var port = process.env.PORT ? Number(process.env.PORT) : 4003;
-app.use((req, res, next) => {
-  if (req.headers["content-type"] === "text/plain" && req.method === "POST") {
-    req.headers["content-type"] = "application/json";
-  }
-  next();
-});
-app.use(import_express16.default.json({
-  limit: "20mb",
-  // 支持大文件上传（base64 图片等）
-  type: ["application/json", "text/plain"]
-  // 同时支持两种 Content-Type
-}));
-app.use(import_express16.default.urlencoded({ extended: true, limit: "20mb" }));
-app.use("/", health_default);
-app.use("/graph", graph_default);
-app.use("/audio", audio_default);
-app.use("/video", video_default);
-app.use("/upload", upload_default);
-app.use("/api/v1/cgi-tasks", cgi_tasks_default);
-app.use("/system", system_default);
-app.use("/media", media_default);
-app.use("/knowledge", knowledge_default);
-app.use("/writing", writing_default);
-app.use("/api/v1/characters", character_default);
-app.use("/api/v2/tasks", routes_default);
-app.use((err, _req, res, _next) => {
-  if (res.headersSent) return;
-  const msg = err?.message ?? String(err);
-  const isAborted = err?.code === "ECONNABORTED" || /request aborted|aborted/i.test(msg);
-  if (isAborted) {
+async function start() {
+  const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
+  RepositoryFactory23.init();
+  const [
+    { default: healthRouter },
+    { default: graphRouter },
+    { default: audioRouter },
+    { default: videoRouter },
+    { default: uploadRouter },
+    { default: cgiTasksRouter },
+    { default: systemRouter },
+    { default: mediaRouter },
+    { default: knowledgeRouter },
+    { default: writingRouter },
+    { default: characterRouter },
+    { default: tasksV2Router },
+    { default: smartflowRouter },
+    { default: smartflowTaskRouter },
+    { default: smartflowDemoRouter },
+    { default: agentsRouter }
+  ] = await Promise.all([
+    Promise.resolve().then(() => (init_health(), health_exports)),
+    Promise.resolve().then(() => (init_graph2(), graph_exports)),
+    Promise.resolve().then(() => (init_audio(), audio_exports)),
+    Promise.resolve().then(() => (init_video(), video_exports)),
+    Promise.resolve().then(() => (init_upload(), upload_exports)),
+    Promise.resolve().then(() => (init_cgi_tasks(), cgi_tasks_exports)),
+    Promise.resolve().then(() => (init_system(), system_exports)),
+    Promise.resolve().then(() => (init_media(), media_exports)),
+    Promise.resolve().then(() => (init_knowledge(), knowledge_exports)),
+    Promise.resolve().then(() => (init_writing2(), writing_exports)),
+    Promise.resolve().then(() => (init_character(), character_exports)),
+    Promise.resolve().then(() => (init_routes(), routes_exports)),
+    Promise.resolve().then(() => (init_smartflow(), smartflow_exports)),
+    Promise.resolve().then(() => (init_tasks(), tasks_exports)),
+    Promise.resolve().then(() => (init_demo(), demo_exports)),
+    Promise.resolve().then(() => (init_agents(), agents_exports))
+  ]);
+  const app = (0, import_express20.default)();
+  app.use((req, res, next) => {
+    if (req.headers["content-type"] === "text/plain" && req.method === "POST") {
+      req.headers["content-type"] = "application/json";
+    }
+    next();
+  });
+  app.use(import_express20.default.json({
+    limit: "20mb",
+    // 支持大文件上传（base64 图片等）
+    type: ["application/json", "text/plain"]
+    // 同时支持两种 Content-Type
+  }));
+  app.use(import_express20.default.urlencoded({ extended: true, limit: "20mb" }));
+  app.use("/", healthRouter);
+  app.use("/graph", graphRouter);
+  app.use("/audio", audioRouter);
+  app.use("/video", videoRouter);
+  app.use("/upload", uploadRouter);
+  app.use("/api/v1/cgi-tasks", cgiTasksRouter);
+  app.use("/system", systemRouter);
+  app.use("/media", mediaRouter);
+  app.use("/knowledge", knowledgeRouter);
+  app.use("/writing", writingRouter);
+  app.use("/api/v1/characters", characterRouter);
+  app.use("/api/v2/tasks", tasksV2Router);
+  app.use("/api/v1/smartflows", smartflowRouter);
+  app.use("/api/v1/smartflow-tasks", smartflowTaskRouter);
+  app.use("/demo", smartflowDemoRouter);
+  app.use("/api/v1/agents", agentsRouter);
+  app.use((err, _req, res, _next) => {
+    if (res.headersSent) return;
+    const msg = err?.message ?? String(err);
+    const isAborted = err?.code === "ECONNABORTED" || /request aborted|aborted/i.test(msg);
+    if (isAborted) {
+      try {
+        if (!res.writableEnded) res.status(499).json({ success: false, error: "Client closed request" });
+      } catch {
+      }
+      return;
+    }
+    console.error("[mxmcgi] Unhandled error:", err);
     try {
-      if (!res.writableEnded) res.status(499).json({ success: false, error: "Client closed request" });
+      res.status(500).json({ success: false, error: msg });
     } catch {
     }
-    return;
-  }
-  console.error("[mxmcgi] Unhandled error:", err);
-  try {
-    res.status(500).json({ success: false, error: msg });
-  } catch {
-  }
-});
-async function start() {
+  });
   try {
     const { providerFactory: providerFactory2 } = await Promise.resolve().then(() => (init_providers(), providers_exports));
     await providerFactory2.loadProviderCatalog();
@@ -34257,9 +36835,9 @@ async function start() {
   app.listen(port, async () => {
     console.log("mxmcgi service listening on port " + port);
     try {
-      const { getSupabaseClient: getSupabaseClient12 } = await import("@mxmai/mxmdata");
+      const { getSupabaseClient: getSupabaseClient14 } = await import("@mxmai/mxmdata");
       const { setRoutingOverride: setRoutingOverride2 } = await Promise.resolve().then(() => (init_providers2(), providers_exports2));
-      const supabase = getSupabaseClient12();
+      const supabase = getSupabaseClient14();
       const { data: rows, error } = await supabase.from("model_routing_overrides").select("logical_model, provider, model");
       if (!error && rows && rows.length > 0) {
         for (const r of rows) {

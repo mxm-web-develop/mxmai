@@ -13,6 +13,72 @@ import { mxmCGIHttpClient } from '../smartflow/services/httpClient';
 import { taskExecutor } from '../task/task-executor';
 import crypto from 'crypto';
 
+// ==================== Admin Model Config ====================
+
+interface AdminModelConfig {
+  model_key: string;
+  temperature: number;
+  max_tokens: number | null;
+  top_p: number | null;
+  frequency_penalty: number | null;
+  presence_penalty: number | null;
+}
+
+/**
+ * 从 DB 读取 Admin 模型配置（带内存缓存，避免每次请求都查 DB）
+ * 缓存 TTL: 30 秒
+ */
+let _cachedAdminConfig: AdminModelConfig | null = null;
+let _cacheTimestamp = 0;
+const ADMIN_CONFIG_CACHE_TTL_MS = 30_000;
+
+async function getAdminModelConfig(): Promise<AdminModelConfig> {
+  const now = Date.now();
+  if (_cachedAdminConfig && now - _cacheTimestamp < ADMIN_CONFIG_CACHE_TTL_MS) {
+    return _cachedAdminConfig;
+  }
+
+  try {
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+    const repo = RepositoryFactory.createModelConfigRepository();
+    const cfg = await repo.getConfig();
+
+    _cachedAdminConfig = {
+      model_key: cfg.model_key,
+      temperature: cfg.temperature,
+      max_tokens: cfg.max_tokens ?? null,
+      top_p: cfg.top_p ?? null,
+      frequency_penalty: cfg.frequency_penalty ?? null,
+      presence_penalty: cfg.presence_penalty ?? null,
+    };
+    _cacheTimestamp = now;
+    return _cachedAdminConfig;
+  } catch (err) {
+    console.error('[AgentChat] Failed to load admin model config, using defaults:', err);
+    // Fallback to defaults
+    if (!_cachedAdminConfig) {
+      _cachedAdminConfig = {
+        model_key: getDefaultTextModel(),
+        temperature: 0.7,
+        max_tokens: null,
+        top_p: null,
+        frequency_penalty: null,
+        presence_penalty: null,
+      };
+      _cacheTimestamp = now;
+    }
+    return _cachedAdminConfig;
+  }
+}
+
+/**
+ * 清除 Admin 模型配置缓存（配置更新后调用）
+ */
+export function clearAdminModelConfigCache(): void {
+  _cachedAdminConfig = null;
+  _cacheTimestamp = 0;
+}
+
 // ==================== Session Store ====================
 
 const sessions: Map<string, SessionContext> = new Map();
@@ -333,10 +399,10 @@ export async function handleAgentChat(
     // 首次连接：立即发送 sessionId
     emit(res, { type: 'text', sessionId: session.id, content: '' });
 
-    const requestedModelKey = (req.body as { modelKey?: string })?.modelKey;
-    const requestedProvider = (req.body as { provider?: string })?.provider;
-    const modelKey = requestedModelKey || getDefaultTextModel();
-    const provider = (requestedProvider || providerOverride || 'deer') as ProviderType;
+    // 所有用户统一使用 Admin 配置（不再接受前端传递的 modelKey/provider）
+    const adminConfig = await getAdminModelConfig();
+    const modelKey = adminConfig.model_key || getDefaultTextModel();
+    const provider = (providerOverride || 'deer') as ProviderType;
 
     // === 流程状态机 ===
     const pendingNode = session.pendingNode;

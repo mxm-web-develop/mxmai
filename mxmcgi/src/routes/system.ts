@@ -10,6 +10,7 @@ import promptConfigRouter from './prompt-config';
 import providersAdminRouter from './providers';
 import sensitiveWordsAdminRouter from './sensitive-words';
 import { getSupabaseClient } from '@mxmai/mxmdata';
+import { clearAdminModelConfigCache } from '../agents/chat';
 
 const router = Router();
 
@@ -1016,6 +1017,106 @@ router.delete('/admin/pricing/business/:id', async (req: Request, res: Response)
     return res.status(500).json({
       success: false,
       error: 'Failed to delete business_pricing',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
+ * Admin 专用：模型配置（Agent Chat 全局配置）
+ * GET /system/admin/model-config  — 获取当前配置
+ * PUT /system/admin/model-config  — 更新配置
+ */
+router.get('/admin/model-config', async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await isAdminUser(req);
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+    const repo = RepositoryFactory.createModelConfigRepository();
+    const config = await repo.getConfig();
+
+    return res.json({
+      success: true,
+      data: {
+        model_key: config.model_key,
+        temperature: config.temperature,
+        max_tokens: config.max_tokens,
+        top_p: config.top_p,
+        frequency_penalty: config.frequency_penalty,
+        presence_penalty: config.presence_penalty,
+        updated_at: config.updated_at,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get model config',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+router.put('/admin/model-config', async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await isAdminUser(req);
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const {
+      model_key,
+      temperature,
+      max_tokens,
+      top_p,
+      frequency_penalty,
+      presence_penalty,
+    } = req.body as {
+      model_key: string;
+      temperature?: number;
+      max_tokens?: number | null;
+      top_p?: number | null;
+      frequency_penalty?: number | null;
+      presence_penalty?: number | null;
+    };
+
+    if (!model_key || typeof model_key !== 'string' || model_key.trim() === '') {
+      return res.status(400).json({ success: false, error: 'model_key is required' });
+    }
+
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+    const repo = RepositoryFactory.createModelConfigRepository();
+    const config = await repo.upsertConfig({
+      id: 'default',
+      model_key: model_key.trim(),
+      temperature: temperature ?? 0.7,
+      max_tokens: max_tokens ?? null,
+      top_p: top_p ?? null,
+      frequency_penalty: frequency_penalty ?? null,
+      presence_penalty: presence_penalty ?? null,
+    });
+
+    // 清除 AgentChat 的缓存，使下次请求立即生效
+    clearAdminModelConfigCache();
+
+    return res.json({
+      success: true,
+      data: {
+        model_key: config.model_key,
+        temperature: config.temperature,
+        max_tokens: config.max_tokens,
+        top_p: config.top_p,
+        frequency_penalty: config.frequency_penalty,
+        presence_penalty: config.presence_penalty,
+        updated_at: config.updated_at,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to update model config',
       message: error instanceof Error ? error.message : String(error),
     });
   }
