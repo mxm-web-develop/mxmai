@@ -1024,9 +1024,38 @@ router.delete('/admin/pricing/business/:id', async (req: Request, res: Response)
 
 /**
  * Admin 专用：模型配置（Agent Chat 全局配置）
+ * GET /system/admin/model-config/options  — 获取可选模型列表
  * GET /system/admin/model-config  — 获取当前配置
  * PUT /system/admin/model-config  — 更新配置
  */
+router.get('/admin/model-config/options', async (req: Request, res: Response) => {
+  try {
+    const isAdmin = await isAdminUser(req);
+    if (!isAdmin) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+    const repo = RepositoryFactory.createProviderModelRepository();
+    const textModels = await repo.list({ scope: 'text', onlyEnabled: true });
+    const writingModels = await repo.list({ scope: 'writing', onlyEnabled: true });
+
+    // 去重，按 model_key 合并
+    const seen = new Set<string>();
+    const allModels: Array<{ provider: string; scope: string; model_key: string; display_name?: string }> = [];
+    for (const m of [...textModels, ...writingModels]) {
+      if (!seen.has(m.model_key)) {
+        seen.add(m.model_key);
+        allModels.push({ provider: m.provider, scope: m.scope, model_key: m.model_key, display_name: m.display_name ?? undefined });
+      }
+    }
+
+    return res.json({ success: true, data: allModels });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Failed to list model options', message: error instanceof Error ? error.message : String(error) });
+  }
+});
+
 router.get('/admin/model-config', async (req: Request, res: Response) => {
   try {
     const isAdmin = await isAdminUser(req);

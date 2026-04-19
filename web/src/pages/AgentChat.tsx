@@ -4,9 +4,9 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Spin, notification, Button, Space, Modal, InputNumber, message } from 'antd';
+import { Spin, notification, Button, Space, Modal, InputNumber, message, Select } from 'antd';
 import { SendOutlined, ClearOutlined, RobotOutlined, CheckOutlined, CloseOutlined, SettingOutlined } from '@ant-design/icons';
-import { getAdminModelConfig, putAdminModelConfig, type AdminModelConfigData } from '../api/client';
+import { getAdminModelConfig, putAdminModelConfig, getAdminModelOptions, type AdminModelConfigData, type ModelOption } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 // ==================== Types ====================
@@ -78,7 +78,7 @@ const WELCOME_MESSAGES = [
   { icon: '🖼', label: '图像生成', desc: '帮我做淘宝女装棚拍图' },
   { icon: '🎬', label: '视频生成', desc: '做一个30秒短视频' },
   { icon: '✏️', label: '文案创作', desc: '写一段口播稿' },
-  { icon: '🎵', label: '音乐生成', desc: '生成分镜脚本' },
+  { icon: '🎵', label: '音乐生成', desc: '做一首原创歌曲' },
 ];
 
 // ==================== Styles ====================
@@ -143,6 +143,7 @@ export default function AgentChat() {
   const [adminConfig, setAdminConfig] = useState<AdminModelConfigData | null>(null);
   const [adminConfigModalVisible, setAdminConfigModalVisible] = useState(false);
   const [adminConfigSaving, setAdminConfigSaving] = useState(false);
+  const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -613,6 +614,12 @@ export default function AgentChat() {
 
   const handleOpenAdminConfig = () => {
     void loadAdminConfig();
+    void (async () => {
+      try {
+        const res = await getAdminModelOptions();
+        if (res.data?.data) setModelOptions(res.data.data);
+      } catch (e) { console.warn('[AgentChat] Failed to load model options', e); }
+    })();
     setAdminConfigModalVisible(true);
   };
 
@@ -737,11 +744,15 @@ export default function AgentChat() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '8px 0' }}>
             <div>
               <div style={{ fontSize: 13, color: TOKENS.textSecondary, marginBottom: 6 }}>模型名称</div>
-              <InputNumber
+              <Select
                 style={{ width: '100%' }}
                 value={adminConfig.model_key}
                 onChange={v => setAdminConfig(prev => prev ? { ...prev, model_key: String(v || '') } : prev)}
-                placeholder="如 deer/glm-5-turbo"
+                placeholder="选择模型"
+                options={modelOptions.map(m => ({
+                  value: m.model_key,
+                  label: `${m.display_name || m.model_key} (${m.provider}/${m.scope})`,
+                }))}
               />
             </div>
             <div>

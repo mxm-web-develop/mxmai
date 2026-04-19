@@ -803,6 +803,11 @@ export async function putAdminModelConfig(data: Partial<AdminModelConfigData> & 
   });
 }
 
+export type ModelOption = { provider: string; scope: string; model_key: string; display_name?: string };
+export async function getAdminModelOptions() {
+  return request<{ success?: boolean; data?: ModelOption[] }>('/api/v1/system/admin/model-config/options');
+}
+
 // ---------- Admin：Provider 路由与监控（仅 Admin 可访问）----------
 export type ProviderRoutingEntry = { provider: string; model: string; overridden?: boolean };
 export type ProvidersRoutingResponse = { success?: boolean; data?: Record<string, ProviderRoutingEntry> };
