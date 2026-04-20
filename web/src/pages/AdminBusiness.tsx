@@ -89,6 +89,7 @@ export default function AdminBusiness() {
   const [list, setList] = useState<PromptConfigRow[]>([]);
   const [scopeFilter, setScopeFilter] = useState<Scope>('writing');
   const [search, setSearch] = useState('');
+  const [textBusinessOptions, setTextBusinessOptions] = useState<PromptConfigRow[]>([]);
 
   const [selected, setSelected] = useState<PromptConfigRow | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -195,6 +196,20 @@ export default function AdminBusiness() {
   useEffect(() => {
     void loadList();
   }, [loadList]);
+
+  // Fetch text business options when scope is graph
+  useEffect(() => {
+    if (scopeFilter !== 'graph') {
+      setTextBusinessOptions([]);
+      return;
+    }
+    void (async () => {
+      const res = await listPromptConfig({ scope: 'text', type: undefined });
+      const raw = res.data as { data?: { items?: PromptConfigRow[] } } | undefined;
+      const items = raw?.data?.items as PromptConfigRow[] | undefined;
+      setTextBusinessOptions(Array.isArray(items) ? items : []);
+    })();
+  }, [scopeFilter]);
 
   // ---------------------------------------------------------------------------
   // Derived state
@@ -1145,6 +1160,7 @@ export default function AdminBusiness() {
                         promptMarkupGetterRef={promptMarkupGetterRef}
                         missingSchemaVars={missingSchemaVars}
                         promptTextTaskKey={promptTextTaskKey}
+                        textBusinessOptions={textBusinessOptions}
                         onPromptVarSearchChange={setPromptVarSearch}
                         onUnifiedTemplateMarkupChange={setUnifiedTemplateMarkup}
                         onAddMissingVarsToSchema={handleAddMissingVarsToSchema}

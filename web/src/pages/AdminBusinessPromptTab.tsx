@@ -6,6 +6,7 @@ import {
   Divider,
   Form,
   Input,
+  Select,
   Space,
   Tag,
   Tooltip,
@@ -14,6 +15,7 @@ import { CopyOutlined } from '@ant-design/icons';
 import { PromptTempDesigner } from '@mxmweb/rtext';
 import type {
   JsonSchema,
+  PromptConfigRow,
   SchemaFieldRow,
   Scope,
   TaskTemplateDraft,
@@ -35,6 +37,7 @@ export interface AdminBusinessPromptTabProps {
   promptMarkupGetterRef: React.MutableRefObject<((format: 'pure_string' | 'string' | 'markdown' | 'html') => string) | null>;
   missingSchemaVars: string[];
   promptTextTaskKey?: string;
+  textBusinessOptions: PromptConfigRow[];
   onPromptVarSearchChange: (v: string) => void;
   onUnifiedTemplateMarkupChange: (v: string) => void;
   onAddMissingVarsToSchema: () => void;
@@ -52,6 +55,7 @@ export function AdminBusinessPromptTab({
   promptMarkupGetterRef,
   missingSchemaVars,
   promptTextTaskKey,
+  textBusinessOptions,
   onPromptVarSearchChange,
   onUnifiedTemplateMarkupChange,
   onAddMissingVarsToSchema,
@@ -105,13 +109,22 @@ export function AdminBusinessPromptTab({
       {scopeFilter === 'graph' && (
         <Form.Item
           label="Text Format Task Key"
-          tooltip="指定用于解析/转换 graph prompt 的 text 业务 taskKey，例如 text-nano-banana-format"
+          tooltip="指定用于解析/转换 graph prompt 的 text 业务"
           style={{ marginTop: 8, marginBottom: 0 }}
         >
-          <Input
-            value={promptTextTaskKey ?? ''}
-            onChange={(e) => onPromptTextTaskKeyChange(e.target.value.trim())}
-            placeholder="例如：text-nano-banana-format"
+          <Select
+            style={{ width: '100%' }}
+            value={promptTextTaskKey || undefined}
+            onChange={onPromptTextTaskKeyChange}
+            placeholder="请选择 text 业务"
+            allowClear
+            options={[
+              { value: '', label: '不使用（直接传入用户 prompt）' },
+              ...textBusinessOptions.map((opt) => ({
+                value: `${opt.scope}/${opt.type}`,
+                label: `${opt.scope}/${opt.type}`,
+              })),
+            ]}
           />
         </Form.Item>
       )}
