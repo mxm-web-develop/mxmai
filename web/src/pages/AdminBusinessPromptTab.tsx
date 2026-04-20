@@ -120,10 +120,16 @@ export function AdminBusinessPromptTab({
             allowClear
             options={[
               { value: '', label: '不使用（直接传入用户 prompt）' },
-              ...textBusinessOptions.map((opt) => ({
-                value: `${opt.scope}/${opt.type}`,
-                label: `${opt.scope}/${opt.type}`,
-              })),
+              ...textBusinessOptions.map((opt) => {
+                // 唯一标识：用 scope + type + subtype（避免同 type 不同 subtype 合并）
+                const fullKey = opt.subtype
+                  ? `${opt.scope}/${opt.type}/${opt.subtype}`
+                  : `${opt.scope}/${opt.type}`;
+                const label = opt.subtype
+                  ? `${opt.scope}/${opt.type} (${opt.subtype})`
+                  : `${opt.scope}/${opt.type}`;
+                return { value: fullKey, label };
+              }),
             ]}
           />
         </Form.Item>
