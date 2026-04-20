@@ -73,6 +73,11 @@ export interface PromptFullConfig {
    * 生图前「text 阶段」模式：目前仅实现 basic；其它值预留，将由 Smartflow 等承接
    */
   prompt_text_mode?: string;
+  /**
+   * graph 业务关联的 text 业务 taskKey（extra.promptTextTaskKey）
+   * 若配置，则 generateGraphPrompt 将调用 runTaskV2(scope=text, taskKey) 生成 prompt
+   */
+  promptTextTaskKey?: string;
 }
 
 /**
@@ -102,6 +107,10 @@ export async function getPromptFullConfig(
       storyboard_output_format_template_zh: extra.storyboard_output_format_template_zh as string | undefined,
       prompt_text_mode:
         typeof extra.prompt_text_mode === 'string' ? extra.prompt_text_mode : undefined,
+      promptTextTaskKey:
+        typeof extra.promptTextTaskKey === 'string' && extra.promptTextTaskKey.trim()
+          ? extra.promptTextTaskKey.trim()
+          : undefined,
     };
   } catch (_) {
     return null;

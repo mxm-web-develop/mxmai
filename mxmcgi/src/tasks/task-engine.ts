@@ -187,24 +187,25 @@ export async function runTaskV2(req: TaskRunV2Request, userId?: string): Promise
       return undefined;
     };
 
-    const finalMetadata: Record<string, unknown> = {
-      ...(result.metadata || {}),
-      model: result.metadata?.model ?? resolved.model,
-      provider: result.metadata?.provider ?? resolved.provider,
-      text: extractText(result),
-      taskType: 'text',
-    };
-
     const { costUsd } = await UsageService.logProviderUsage({
       taskId: syncId,
       userId,
       logicalModel: routingKey,
       result: {
         ...result,
-        metadata: finalMetadata as GenerateResult['metadata'],
+        metadata: result.metadata,
       },
-      providerOverride: finalMetadata.provider as any,
+      providerOverride: resolved.provider as any,
     });
+
+    const finalMetadata: Record<string, unknown> = {
+      ...(result.metadata || {}),
+      model: result.metadata?.model ?? resolved.model,
+      provider: result.metadata?.provider ?? resolved.provider,
+      text: extractText(result),
+      taskType: 'text',
+      costUsd,
+    };
 
     const usageMeta = finalMetadata as Record<string, any>;
     const inferredScope = UsageService.inferScopePublic(routingKey, usageMeta);

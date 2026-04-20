@@ -35,7 +35,9 @@ import {
   compressImage,
   extractBase64FromDataUri,
 } from './reference-image';
-import { runBasicText } from '../text/basic-text';
+import { runBasicText, type RunBasicTextResult } from '../text/basic-text';
+import { runTaskV2 } from '../../tasks/task-engine';
+import type { TaskRunV2Request } from '../../tasks/types';
 import { assertSupportedGraphPromptTextMode, resolveGraphPromptTextMode } from './graph-prompt-text';
 
 type OutputLanguage = 'zh' | 'en';
@@ -1247,21 +1249,63 @@ export async function generateGraphPrompt(
   console.log(`[GraphService] 业务参数:`, businessParams);
   console.log(`[GraphService] 提示词生成请求前缀: ${promptGenerationRequest.substring(0, 500)}${promptGenerationRequest.length > 500 ? '...' : ''}`);
 
-  // 4. 调用 BasicText 生成提示词（与写作内压缩等统一用 writing-basic-text）
-  const finalProvider = provider ?? providerFactory.getDefaultProvider();
-  console.log(
-    `[GraphService] 使用 BasicText 生成提示词: logicalModel=writing-basic-text, providerOverride=${finalProvider}`
-  );
+  // 4. 调用 text scope 生成提示词
+  const promptTextTaskKey = promptConfig?.promptTextTaskKey;
 
-  const basicTextResult = await runBasicText('writing-basic-text', promptGenerationRequest, {
-    userId,
-    parentTaskId,
-    providerOverride: finalProvider,
-  });
+  let generatedPrompt: string;
+  let promptGenerationUsage: RunBasicTextResult['usage'] | undefined;
+  let promptGenerationCostUsd: number | undefined;
 
-  const generatedPrompt = basicTextResult.text;
-  const promptGenerationUsage = basicTextResult.usage;
-  const promptGenerationCostUsd = basicTextResult.costUsd;
+  if (promptTextTaskKey) {
+    // 动态调用 text scope
+    console.log(
+      `[GraphService] 使用 text scope 生成提示词: taskKey=${promptTextTaskKey}, userId=${userId || 'anonymous'}`
+    );
+
+    if (!userId) {
+      throw new Error(
+        `graph 业务 (${graphType}/${type}) 配置了 promptTextTaskKey=${promptTextTaskKey}，但缺少 userId。` +
+          `text scope 调用需要 userId 来进行余额预检和用量记录。请确保 graph-task 有有效的 userId。`
+      );
+    }
+
+    const textTaskRequest: TaskRunV2Request = {
+      scope: 'text',
+      taskKey: promptTextTaskKey,
+      params: { prompt: promptGenerationRequest },
+    };
+
+    const textTaskResult = await runTaskV2(textTaskRequest, userId);
+
+    if (!textTaskResult.success) {
+      throw new Error(
+        `text scope 调用失败：taskKey=${promptTextTaskKey}, graph业务=${graphType}/${type}。` +
+          `请检查该 text 业务是否已正确配置（task definitions + model routing）。`
+      );
+    }
+
+    if (!textTaskResult.syncResult) {
+      throw new Error(
+        `text scope 返回结构异常：taskKey=${promptTextTaskKey}, graph业务=${graphType}/${type}。` +
+          `期望 syncResult 存在，但返回：${JSON.stringify(textTaskResult)}`
+      );
+    }
+
+    const textResultMetadata = textTaskResult.syncResult.metadata ?? {};
+    generatedPrompt = textTaskResult.syncResult.text ?? '';
+    promptGenerationUsage = (textResultMetadata.usage ?? textResultMetadata.usageMeta) as typeof promptGenerationUsage;
+    promptGenerationCostUsd = typeof textResultMetadata.costUsd === 'number' ? textResultMetadata.costUsd : undefined;
+
+    console.log(
+      `[GraphService] text scope 生成完成: taskKey=${promptTextTaskKey}, prompt长度=${generatedPrompt.length}, costUsd=${promptGenerationCostUsd}`
+    );
+  } else {
+    // 未配置 promptTextTaskKey，显式报错（不走旧写死逻辑）
+    throw new Error(
+      `graph 业务 (${graphType}/${type}) 未配置 promptTextTaskKey，无法生成 prompt。` +
+        `请在 Admin「基础配置」Tab 中填写该 graph 业务关联的 text 业务 taskKey（如 text-nano-banana-format）。`
+    );
+  }
 
   console.log(`[GraphService] 生成的提示词前缀: ${generatedPrompt.substring(0, 220)}${generatedPrompt.length > 220 ? '...' : ''}`);
 

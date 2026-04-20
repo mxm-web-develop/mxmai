@@ -118,6 +118,8 @@ export default function AdminBusiness() {
     return d && typeof d === 'object' ? (d as BusinessDisplayConfig) : {};
   }, [extraDraft]);
 
+  const promptTextTaskKey = (extraDraft as Record<string, unknown>)?.promptTextTaskKey as string | undefined;
+
   const [saving, setSaving] = useState(false);
 
   // 路由与定价
@@ -1200,6 +1202,7 @@ export default function AdminBusiness() {
                         sensitiveLoading={sensitiveLoading}
                         sensitiveHint={sensitiveHint}
                         scopeFilter={scopeFilter}
+                        promptTextTaskKey={promptTextTaskKey}
                         onDisplayConfigChange={(d) =>
                           setExtraDraft((prev) => ({
                             ...(prev ?? {}),
@@ -1209,6 +1212,12 @@ export default function AdminBusiness() {
                         onDraftChange={setDraft}
                         onSensitiveListIdsChange={setSensitiveSelectedListIds}
                         onSaveSensitiveBinding={() => void handleSensitiveSave()}
+                        onPromptTextTaskKeyChange={(v) =>
+                          setExtraDraft((prev) => ({
+                            ...(prev ?? {}),
+                            promptTextTaskKey: v || undefined,
+                          }))
+                        }
                       />
                     ),
                   },
