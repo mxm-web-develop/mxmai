@@ -21,6 +21,7 @@ const envPaths = [
   path.resolve(process.cwd(), '.env'),      // 当前工作目录/.env
   path.resolve(mxmcgiDir, '.env'),          // mxmcgi/.env（后加载，不覆盖已存在的变量）
   path.resolve(process.cwd(), 'mxmcgi', '.env'), // 当前工作目录/mxmcgi/.env
+  path.resolve(projectRoot, 'mxmdata', '.env'), // 数据层集中配置（含部分 API Key；override: false 仅补缺）
 ];
 
 // 尝试加载 .env 文件（按优先级顺序）
@@ -57,80 +58,100 @@ if (process.env.DEFAULT_PROVIDER) {
   console.warn(`[mxmcgi] ⚠️  DEFAULT_PROVIDER 未设置，将使用默认值: replicate`);
 }
 
-// 初始化 RepositoryFactory（必须在导入路由之前）
-import { RepositoryFactory } from '@mxmai/mxmdata';
-RepositoryFactory.init();
-
-// 加载模型注册（video、audio、graph、writing 按 provider 拆分）
-import './models/deerapi/video';
-import './models/deerapi/audio';
-import './models/deerapi/writing';
-import './models/replicate/writing';
-import './models/deerapi/graph';
-import './models/volc/graph';
-import './models/replicate/graph';
-import './models/ppio/audio';
-import './models/minimax/audio';
-import './models/openai';
-
-// 导入路由（在 dotenv.config() 之后，确保环境变量已加载）
-import healthRouter from './routes/health';
-import graphRouter from './routes/graph';
-import audioRouter from './routes/audio';
-import videoRouter from './routes/video';
-import uploadRouter from './routes/upload';
-import cgiTasksRouter from './routes/cgi-tasks';
-import systemRouter from './routes/system';
-import mediaRouter from './routes/media';
-import knowledgeRouter from './routes/knowledge';
-import writingRouter from './routes/writing';
-import characterRouter from './routes/character';
-import tasksV2Router from './tasks/routes';
-
-const app = express();
 const port = process.env.PORT ? Number(process.env.PORT) : 4003;
 
-// 支持 application/json 和 text/plain（Postman 等工具可能发送 text/plain）
-app.use((req, res, next) => {
-  // 如果 Content-Type 是 text/plain 但内容是 JSON，转换为 application/json
-  if (req.headers['content-type'] === 'text/plain' && req.method === 'POST') {
-    req.headers['content-type'] = 'application/json';
-  }
-  next();
-});
-
-app.use(express.json({ 
-  limit: '20mb', // 支持大文件上传（base64 图片等）
-  type: ['application/json', 'text/plain'], // 同时支持两种 Content-Type
-}));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
-app.use('/', healthRouter);
-app.use('/graph', graphRouter);
-app.use('/audio', audioRouter);
-app.use('/video', videoRouter);
-app.use('/upload', uploadRouter);
-app.use('/api/v1/cgi-tasks', cgiTasksRouter);
-app.use('/system', systemRouter);
-app.use('/media', mediaRouter);
-app.use('/knowledge', knowledgeRouter);
-app.use('/writing', writingRouter);
-app.use('/api/v1/characters', characterRouter);
-app.use('/api/v2/tasks', tasksV2Router);
-
-// 全局错误处理：客户端/网关提前关闭连接会导致 raw-body 抛出 request aborted，避免未处理异常刷屏
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (res.headersSent) return;
-  const msg = err?.message ?? String(err);
-  const isAborted = err?.code === 'ECONNABORTED' || /request aborted|aborted/i.test(msg);
-  if (isAborted) {
-    try { if (!res.writableEnded) res.status(499).json({ success: false, error: 'Client closed request' }); } catch { /* 连接已关闭 */ }
-    return;
-  }
-  console.error('[mxmcgi] Unhandled error:', err);
-  try { res.status(500).json({ success: false, error: msg }); } catch { /* ignore */ }
-});
-
 async function start(): Promise<void> {
+  // 初始化 RepositoryFactory（必须在导入任何依赖 Supabase 的模块之前）
+  // 注意：ESM import 会被提升；用动态 import 确保 dotenv 加载完再初始化
+  const { RepositoryFactory } = await import('@mxmai/mxmdata');
+  RepositoryFactory.init();
+
+  // 纯动态模式：不再加载任何静态模型注册（模型完全由 provider_models 驱动）
+
+  // 导入路由（在 dotenv + RepositoryFactory.init() 之后，避免 Supabase 未初始化）
+  const [
+    { default: healthRouter },
+    { default: graphRouter },
+    { default: audioRouter },
+    { default: videoRouter },
+    { default: uploadRouter },
+    { default: cgiTasksRouter },
+    { default: systemRouter },
+    { default: mediaRouter },
+    { default: knowledgeRouter },
+    { default: writingRouter },
+    { default: characterRouter },
+    { default: tasksV2Router },
+    { default: smartflowRouter },
+    { default: smartflowTaskRouter },
+    { default: smartflowDemoRouter },
+    { default: agentsRouter },
+  ] = await Promise.all([
+    import('./routes/health'),
+    import('./routes/graph'),
+    import('./routes/audio'),
+    import('./routes/video'),
+    import('./routes/upload'),
+    import('./routes/cgi-tasks'),
+    import('./routes/system'),
+    import('./routes/media'),
+    import('./routes/knowledge'),
+    import('./routes/writing'),
+    import('./routes/character'),
+    import('./tasks/routes'),
+    import('./smartflow/routes/smartflow'),
+    import('./smartflow/routes/tasks'),
+    import('./smartflow/routes/demo'),
+    import('./agents'),
+  ]);
+
+  const app = express();
+
+  // 支持 application/json 和 text/plain（Postman 等工具可能发送 text/plain）
+  app.use((req, res, next) => {
+    // 如果 Content-Type 是 text/plain 但内容是 JSON，转换为 application/json
+    if (req.headers['content-type'] === 'text/plain' && req.method === 'POST') {
+      req.headers['content-type'] = 'application/json';
+    }
+    next();
+  });
+
+  app.use(express.json({
+    limit: '20mb', // 支持大文件上传（base64 图片等）
+    type: ['application/json', 'text/plain'], // 同时支持两种 Content-Type
+  }));
+  app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
+  app.use('/', healthRouter);
+  app.use('/graph', graphRouter);
+  app.use('/audio', audioRouter);
+  app.use('/video', videoRouter);
+  app.use('/upload', uploadRouter);
+  app.use('/api/v1/cgi-tasks', cgiTasksRouter);
+  app.use('/system', systemRouter);
+  app.use('/media', mediaRouter);
+  app.use('/knowledge', knowledgeRouter);
+  app.use('/writing', writingRouter);
+  app.use('/api/v1/characters', characterRouter);
+  app.use('/api/v2/tasks', tasksV2Router);
+  app.use('/api/v1/smartflows', smartflowRouter);
+  app.use('/api/v1/smartflow-tasks', smartflowTaskRouter);
+  app.use('/demo', smartflowDemoRouter);
+  app.use('/api/v1/agents', agentsRouter);
+
+  // 全局错误处理：客户端/网关提前关闭连接会导致 raw-body 抛出 request aborted，避免未处理异常刷屏
+  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    if (res.headersSent) return;
+    const msg = err?.message ?? String(err);
+    const isAborted = err?.code === 'ECONNABORTED' || /request aborted|aborted/i.test(msg);
+    if (isAborted) {
+      try { if (!res.writableEnded) res.status(499).json({ success: false, error: 'Client closed request' }); } catch { /* 连接已关闭 */ }
+      return;
+    }
+    console.error('[mxmcgi] Unhandled error:', err);
+    try { res.status(500).json({ success: false, error: msg }); } catch { /* ignore */ }
+  });
+
   // 在启动前加载 provider_models 目录，合并 DB 模型到路由
   try {
     const { providerFactory } = await import('./core/providers');

@@ -727,18 +727,7 @@ router.put('/writing/:taskId', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * 通过 CGI Task ID 访问音频内容
- *
- * 路径示例：
- *   GET /media/audio/:taskId
- *
- * 访问约定：
- *   - Gateway 会在请求头中注入 x-user-id（已通过 JWT 认证）
- *   - 这里只做简单的"只能访问自己的任务"校验
- *   - 文件真实位置由 Task.result.storageInfo 中的 bucket + key 决定
- */
-router.get('/audio/:taskId', async (req: Request, res: Response) => {
+async function serveAudioLike(req: Request, res: Response) {
   try {
     const userId = (req.headers['x-user-id'] as string | undefined) || undefined;
     if (!userId) {
@@ -789,12 +778,12 @@ router.get('/audio/:taskId', async (req: Request, res: Response) => {
       (key.endsWith('.mp3')
         ? 'audio/mpeg'
         : key.endsWith('.wav')
-        ? 'audio/wav'
-        : key.endsWith('.flac')
-        ? 'audio/flac'
-        : key.endsWith('.pcm')
-        ? 'audio/pcm'
-        : 'application/octet-stream');
+          ? 'audio/wav'
+          : key.endsWith('.flac')
+            ? 'audio/flac'
+            : key.endsWith('.pcm')
+              ? 'audio/pcm'
+              : 'application/octet-stream');
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', fileBuffer.length.toString());
@@ -809,7 +798,7 @@ router.get('/audio/:taskId', async (req: Request, res: Response) => {
     }
 
     // 检查是否是 MinIO 连接错误
-    const isConnectionError = 
+    const isConnectionError =
       error?.code === 'CONNECTION_ERROR' ||
       error?.originalError?.code === 'ECONNREFUSED' ||
       error?.message?.includes('connection') ||
@@ -831,7 +820,23 @@ router.get('/audio/:taskId', async (req: Request, res: Response) => {
       error: error instanceof Error ? error.message : String(error),
     });
   }
-});
+}
+
+/**
+ * 通过 CGI Task ID 访问音频内容
+ *
+ * 路径示例：
+ *   GET /media/audio/:taskId
+ */
+router.get('/audio/:taskId', serveAudioLike);
+
+/**
+ * 通过 CGI Task ID 访问音乐内容（与音频相同的媒体形态，独立路由便于业务区分）
+ *
+ * 路径示例：
+ *   GET /media/music/:taskId
+ */
+router.get('/music/:taskId', serveAudioLike);
 
 export default router;
 

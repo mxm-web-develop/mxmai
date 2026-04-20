@@ -3,8 +3,8 @@
 # 清理所有模块使用的端口
 # 用于在启动 dev:all 之前清理可能被占用的端口
 
-PORTS=(4001 4002 4003 4004 4005 3000)
-MODULES=("mxmauth" "mxmpay" "mxmcgi" "mxmagent" "mxmnotify" "gateway")
+PORTS=(4001 4002 4003 4005 3000)
+MODULES=("mxmauth" "mxmpay" "mxmcgi" "mxmnotify" "gateway")
 
 echo "🔍 检查并清理端口..."
 

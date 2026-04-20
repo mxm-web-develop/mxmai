@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Table, Card, Button, Input, InputNumber, Modal, Form, Space, Tag, message } from 'antd';
+import { App, Table, Card, Button, Input, InputNumber, Modal, Form, Space, Tag } from 'antd';
 import { useAuth } from '../context/AuthContext';
 import {
   getAdminUsers,
@@ -17,6 +17,7 @@ interface UserWithBalance extends AdminUserItem {
 }
 
 export default function AdminPayment({ embedded }: { embedded?: boolean } = {}) {
+  const { message } = App.useApp();
   const { isLoggedIn, isAdmin } = useAuth();
   const [users, setUsers] = useState<UserWithBalance[]>([]);
   const [total, setTotal] = useState(0);
@@ -218,7 +219,7 @@ export default function AdminPayment({ embedded }: { embedded?: boolean } = {}) 
         }}
         okText="确认充值"
         cancelText="取消"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={depositForm} layout="vertical">
           <Form.Item

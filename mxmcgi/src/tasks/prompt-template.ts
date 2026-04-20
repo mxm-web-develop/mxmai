@@ -30,6 +30,32 @@ export function interpolateTemplate(
   });
 }
 
+/**
+ * 将旧版 system / user / output 三段模板（未插值）合并为单段 unifiedTemplate，
+ * 与原先 `renderPromptFromTemplate` 的拼接规则一致。
+ */
+export function composeLegacyPromptToUnified(p: {
+  systemTemplate?: string;
+  userTemplate?: string;
+  outputFormatTemplate?: string;
+  /** 来自 prompt_engineering_config.rules_i18n 的兜底 */
+  rulesFallback?: string;
+  /** 来自 prompt_engineering_config.output_format_i18n 的兜底 */
+  outputFormatFallback?: string;
+}): string {
+  const sys = (p.systemTemplate || p.rulesFallback || '').trim();
+  const userTpl =
+    p.userTemplate != null && String(p.userTemplate).trim() !== ''
+      ? String(p.userTemplate).trim()
+      : '${prompt}';
+  const out = (p.outputFormatTemplate || p.outputFormatFallback || '').trim();
+  const parts: string[] = [];
+  if (sys) parts.push(sys);
+  parts.push(`【用户需求】\n${userTpl}`);
+  if (out) parts.push(`【输出要求】\n${out}`);
+  return parts.join('\n\n').trim();
+}
+
 export function assertTemplateVarsAllowed(paramsSchema: JsonSchemaV2, varsUsed: string[], allowList: string[] = []): void {
   const props = (paramsSchema as any)?.properties as Record<string, unknown> | undefined;
   const allowed = new Set<string>([...Object.keys(props || {}), ...allowList]);
@@ -50,24 +76,18 @@ export function renderPromptFromTemplate(args: {
   const { prompt, paramsSchema, params, contextVars } = args;
   const vars = { ...(contextVars || {}), ...(params || {}) } as Record<string, unknown>;
 
-  const systemVars = collectTemplateVars(prompt.systemTemplate || '');
-  const userVars = collectTemplateVars(prompt.userTemplate || '');
-  const outVars = collectTemplateVars(prompt.outputFormatTemplate || '');
-  const varsUsed = Array.from(new Set([...systemVars, ...userVars, ...outVars]));
+  let body = (prompt.unifiedTemplate || '').trim();
+  if (!body) {
+    body = composeLegacyPromptToUnified({
+      systemTemplate: prompt.systemTemplate,
+      userTemplate: prompt.userTemplate,
+      outputFormatTemplate: prompt.outputFormatTemplate,
+    });
+  }
 
-  // 允许少量运行时上下文变量：userId/taskId/date/timestamp/uuid
-  assertTemplateVarsAllowed(paramsSchema, varsUsed, ['userId', 'taskId', 'date', 'timestamp', 'uuid']);
-
-  const system = interpolateTemplate(prompt.systemTemplate || '', vars).trim();
-  const user = (prompt.userTemplate ? interpolateTemplate(prompt.userTemplate, vars) : String(params.prompt ?? '')).trim();
-  const output = interpolateTemplate(prompt.outputFormatTemplate || '', vars).trim();
-
-  const parts = [
-    system,
-    user ? `【用户需求】\n${user}` : '',
-    output ? `【输出要求】\n${output}` : '',
-  ].filter(Boolean);
-
-  return { finalPrompt: parts.join('\n\n').trim(), varsUsed };
+  const uniVars = collectTemplateVars(body);
+  assertTemplateVarsAllowed(paramsSchema, uniVars, ['userId', 'taskId', 'date', 'timestamp', 'uuid']);
+  const finalPrompt = interpolateTemplate(body, vars).trim();
+  return { finalPrompt, varsUsed: uniVars };
 }
 

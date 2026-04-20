@@ -831,7 +831,7 @@ export function createProxyRouter(): Router {
     createProxyMiddleware(createProxyConfig(services.agents))
   );
 
-  // Smartflow 服务路由 (/api/v1/smartflows)
+  // Smartflow 服务路由 (/api/v1/smartflows) - mxmcgi 实现
   // 列表和详情不需要认证，创建、更新、删除、执行需要认证
   router.use(
     '/smartflows',
@@ -851,7 +851,74 @@ export function createProxyRouter(): Router {
       // 其他操作（POST, PUT, DELETE）需要认证
       return authMiddleware(req as AuthRequest, res, next);
     },
-    createProxyMiddleware(createProxyConfig(services.agents))
+    createProxyMiddleware({
+      target: services.generation,  // mxmcgi (port 4003)
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = (req as Request).originalUrl || path;
+        return originalPath.replace('/api/v1/smartflows', '/api/v1/smartflows');
+      },
+      on: {
+        proxyReq: (proxyReq, req: Request) => {
+          const authReq = req as AuthRequest;
+          if (authReq.user) {
+            proxyReq.setHeader('x-user-id', authReq.user.userId);
+            proxyReq.setHeader('x-username', authReq.user.username);
+          }
+          fixRequestBody(proxyReq as any, req);
+        },
+        error: (err: Error, req: Request, res: any) => {
+          logger.error(`[Smartflow Proxy] Error: ${req.method} ${req.path}`, {
+            message: err.message,
+            code: (err as any).code,
+            target: services.generation,
+          });
+          if (res && typeof res.status === 'function' && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: { code: 'PROXY_ERROR', message: `Smartflow service unavailable: ${err.message}` },
+            });
+          }
+        },
+      },
+    })
+  );
+
+  // Smartflow Task 服务路由 (/api/v1/smartflow-tasks) - mxmcgi 实现
+  router.use(
+    '/smartflow-tasks',
+    authMiddleware,
+    createProxyMiddleware({
+      target: services.generation,  // mxmcgi (port 4003)
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = (req as Request).originalUrl || path;
+        return originalPath.replace('/api/v1/smartflow-tasks', '/api/v1/smartflow-tasks');
+      },
+      on: {
+        proxyReq: (proxyReq, req: Request) => {
+          const authReq = req as AuthRequest;
+          if (authReq.user) {
+            proxyReq.setHeader('x-user-id', authReq.user.userId);
+            proxyReq.setHeader('x-username', authReq.user.username);
+          }
+          fixRequestBody(proxyReq as any, req);
+        },
+        error: (err: Error, req: Request, res: any) => {
+          logger.error(`[Smartflow Tasks Proxy] Error: ${req.method} ${req.path}`, {
+            message: err.message,
+            code: (err as any).code,
+            target: services.generation,
+          });
+          if (res && typeof res.status === 'function' && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: { code: 'PROXY_ERROR', message: `Smartflow tasks service unavailable: ${err.message}` },
+            });
+          }
+        },
+      },
+    })
   );
 
   // mxmcgi 写作服务路由 (/api/v1/writing) - 需要认证
@@ -1078,67 +1145,6 @@ export function createProxyRouter(): Router {
       return authMiddleware(req as AuthRequest, res, next);
     },
     createProxyMiddleware(createProxyConfig(services.agents))
-  );
-
-  // Smartflow Task 服务路由 (/api/v1/smartflow-tasks) - 需要认证
-  // 将 /api/v1/smartflow-tasks/* 代理到 mxmagent 的 /api/v1/tasks/*
-  // 注意：避免与 mxmnotify 的 /api/v1/tasks 冲突
-  router.use(
-    '/smartflow-tasks',
-    authMiddleware,
-    createProxyMiddleware({
-      target: services.agents,
-      changeOrigin: true,
-      pathRewrite: (path, req) => {
-        // 将 /api/v1/smartflow-tasks 替换为 /api/v1/tasks
-        const originalPath = (req as Request).originalUrl || path;
-        return originalPath.replace('/api/v1/smartflow-tasks', '/api/v1/tasks');
-      },
-      on: {
-        proxyReq: (proxyReq, req: Request) => {
-          // 转发原始请求头
-          if (req.headers['x-forwarded-for']) {
-            proxyReq.setHeader('x-forwarded-for', req.headers['x-forwarded-for']);
-          }
-          if (req.headers['x-real-ip']) {
-            proxyReq.setHeader('x-real-ip', req.headers['x-real-ip']);
-          }
-          // 转发用户信息（如果已认证）
-          const authReq = req as AuthRequest;
-          if (authReq.user) {
-            proxyReq.setHeader('x-user-id', authReq.user.userId);
-            proxyReq.setHeader('x-username', authReq.user.username);
-          }
-
-          // 如果请求体已经被解析，需要重新写入到代理请求
-          if (
-            req.body &&
-            Object.keys(req.body).length > 0 &&
-            req.headers['content-type'] &&
-            req.headers['content-type'].includes('application/json')
-          ) {
-            const bodyData = JSON.stringify(req.body);
-            proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
-            proxyReq.write(bodyData);
-          }
-        },
-        proxyRes: (proxyRes: any, req: Request, res: Response) => {
-          logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
-        },
-        error: (err: Error, req: Request, res: any) => {
-          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
-          if (res && typeof res.status === 'function' && !res.headersSent) {
-            res.status(502).json({
-              success: false,
-              error: {
-                code: 'PROXY_ERROR',
-                message: 'Service unavailable',
-              },
-            });
-          }
-        },
-      },
-    })
   );
 
 

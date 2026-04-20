@@ -265,15 +265,19 @@ export interface DeerAPIConfig {
           if (attempt >= maxRetries) break;
           const jitter = Math.floor(Math.random() * 200);
           const delay = baseDelayMs * Math.pow(2, attempt) + jitter;
+          const causeCode = (e as any)?.cause?.code ? String((e as any).cause.code) : '';
+          const extra = causeCode ? `, cause=${causeCode}` : '';
           console.warn(
-            `[DeerAPIClient] ${label} 请求异常，准备重试（${attempt + 1}/${maxRetries}），等待 ${delay}ms。错误: ${
-              e instanceof Error ? e.message : String(e)
-            }`
+            `[DeerAPIClient] ${label} 请求异常，准备重试（${attempt + 1}/${maxRetries}），等待 ${delay}ms。` +
+              ` url=${url} 错误: ${e instanceof Error ? e.message : String(e)}${extra}`
           );
           await new Promise((r) => setTimeout(r, delay));
         }
       }
-      throw lastError instanceof Error ? lastError : new Error(`${label} 请求失败: ${String(lastError)}`);
+      const causeCode = (lastError as any)?.cause?.code ? String((lastError as any).cause.code) : '';
+      const extra = causeCode ? ` (cause=${causeCode})` : '';
+      const msg = lastError instanceof Error ? lastError.message : String(lastError);
+      throw new Error(`${label} 请求失败: ${msg}${extra} url=${url}`);
     }
   
     /**

@@ -644,6 +644,7 @@ export class TaskExecutor {
           image: '{userId}/graph/{timestamp}-{randomId}.{ext}',
           video: '{userId}/video/{timestamp}-{randomId}.{ext}',
           audio: '{userId}/audio/{timestamp}-{randomId}.{ext}',
+          music: '{userId}/music/{timestamp}-{randomId}.{ext}',
           text: '{userId}/text/{timestamp}-{randomId}.{ext}',
           writing: '{userId}/writing/{timestamp}-{randomId}.{ext}',
           outlines: '{userId}/outlines/{timestamp}-{randomId}.{ext}',
@@ -685,6 +686,8 @@ export class TaskExecutor {
             ? 'video'
             : taskType === 'audio'
             ? 'audio'
+            : taskType === 'music'
+            ? 'music'
             : taskType === 'image'
             ? 'graph'
             : 'graph';
@@ -802,7 +805,7 @@ export class TaskExecutor {
             outputTokens: Number((usageMetadata.usage as any)?.completion_tokens ?? (usageMetadata.usage as any)?.output_tokens ?? 0),
             totalTokens: Number((usageMetadata.usage as any)?.total_tokens ?? 0),
             imageCount: scope === 'graph' ? mediaCount : 0,
-            audioSeconds: scope === 'audio' ? duration : 0,
+            audioSeconds: scope === 'audio' || scope === 'music' ? duration : 0,
             videoSeconds: scope === 'video' ? duration : 0,
             requestCount: 1,
             providerCostUsd: costUsd,
@@ -921,46 +924,15 @@ export class TaskExecutor {
    * 与 text 路由逻辑一致：使用模型文件的 generate() 函数，内部自动选择 provider
    * 如果默认 provider 不支持该模型，会自动选择支持的 provider
    */
-  private async callModelGenerate(
+  /** 供 Task v2（如 scope=text 同步执行）复用，与异步任务内调用路径一致 */
+  async callModelGenerate(
     modelName: string,
     params: Record<string, any>,
     provider?: ProviderType
   ): Promise<GenerateResult> {
-    // 单轨：优先从 models/registry 解析并执行（video → graph → audio → writing）
-    try {
-      const taskParams = { ...params, enableProgress: true };
-      return await runByModelKeyAnyScope(modelName, taskParams, { providerOverride: provider });
-    } catch (registryError) {
-      // 未在 registry 中找到该 modelKey，回退到直接调用 provider
-      console.warn(
-        `[TaskExecutor] 未在 registry 中找到模型 ${modelName}，使用直接 provider 调用:`,
-        registryError instanceof Error ? registryError.message : String(registryError)
-      );
-    }
-
-    const modelProvider = providerFactory.getProviderForModel(modelName, provider);
-    const generateParams: GenerateParams = {
-      prompt: params.prompt || params.text || '',
-      parameters: {
-        voice_setting: params.voice_setting,
-        audio_setting: params.audio_setting,
-        pronunciation_dict: params.pronunciation_dict,
-        timbre_weights: params.timbre_weights,
-        stream: params.stream,
-        stream_options: params.stream_options,
-        language_boost: params.language_boost,
-        output_format: params.output_format,
-        voice_modify: params.voice_modify,
-        seconds: params.seconds,
-        size: params.size,
-        input_reference: params.input_reference,
-        character_url: params.character_url,
-        character_timestamps: params.character_timestamps,
-      },
-      enableProgress: true,
-      outputFormat: 'json' as const,
-    };
-    return await modelProvider.generate(modelName, generateParams);
+    // 纯动态：仅从 provider_models 查找并执行（video → graph → audio → writing）
+    const taskParams = { ...params, enableProgress: true };
+    return await runByModelKeyAnyScope(modelName, taskParams, { providerOverride: provider });
   }
 
   /**

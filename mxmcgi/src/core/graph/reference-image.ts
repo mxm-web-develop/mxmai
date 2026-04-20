@@ -163,6 +163,15 @@ export type ReferenceImageType =
 export interface ReferenceImage {
   content: string; // URL 或 base64 数据（支持 data URI 格式）
   type: ReferenceImageType;
+  /**
+   * 可选：这张参考图的用途说明（给人类看的语义标签）。
+   * 例如：`主图模特脸+发型一致`、`衣服面料/版型细节`、`场景光线氛围`。
+   */
+  purpose?: string;
+  /**
+   * 可选：业务侧标记（GraphService 内部可能写入 subject/background），不影响提示词构建。
+   */
+  role?: string;
 }
 
 /**
@@ -216,10 +225,11 @@ export function buildReferenceImagePrompt(
   referenceImages.forEach((ref, index) => {
     const imageNum = index + 1;
     const description = descriptions[ref.type];
+    const purpose = typeof ref.purpose === 'string' ? ref.purpose.trim() : '';
     if (language === 'en') {
-      lines.push(`- Image ${imageNum}: ${description}`);
+      lines.push(`- Image ${imageNum}: ${description}${purpose ? ` (Purpose: ${purpose})` : ''}`);
     } else {
-      lines.push(`- 图片 ${imageNum}：${description}`);
+      lines.push(`- 图片 ${imageNum}：${description}${purpose ? `（用途：${purpose}）` : ''}`);
     }
   });
 

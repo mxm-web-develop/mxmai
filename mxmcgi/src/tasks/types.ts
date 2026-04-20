@@ -1,6 +1,6 @@
 import type { JSONSchema7 } from 'json-schema';
 
-export type TaskScope = 'writing' | 'outline' | 'graph' | 'audio' | 'video' | 'text';
+export type TaskScope = 'writing' | 'outline' | 'graph' | 'audio' | 'music' | 'video' | 'text';
 
 export interface TaskContext {
   scope: string;
@@ -25,20 +25,27 @@ export interface PipelineStep {
 }
 
 export interface PromptTemplateConfig {
-  /** 系统提示词模版，可包含 ${var} 占位符 */
-  systemTemplate: string;
-  /** 对用户输入的包装，可选（默认使用 params.prompt） */
-  userTemplate?: string;
-  /** 输出结构/格式要求模版，可包含 ${var} 占位符 */
-  outputFormatTemplate: string;
+  /**
+   * 唯一执行模板：整段作为 `finalPrompt`（仅 `${var}` 插值）。
+   * 旧库可能仅存 system/user/output，由 `loadTaskDefinition` / `composeLegacyPromptToUnified` 合并后写入。
+   */
+  unifiedTemplate?: string;
+  /** Admin 可视化 Markup；可选，缺失时用纯文本 unifiedTemplate */
+  unifiedTemplateMarkup?: string;
 
   /**
-   * 仅供「业务管理」/可视化编辑器使用的 rtext Markup 源码：
-   * - 执行端不会直接使用这些字段；
-   * - Admin 端通过解析 <template ...> 节点生成上面的 ${var} 模板文本。
+   * @deprecated 已合并为 unifiedTemplate，仅存于未迁移的旧 extra JSON
    */
+  systemTemplate?: string;
+  /** @deprecated */
+  userTemplate?: string;
+  /** @deprecated */
+  outputFormatTemplate?: string;
+  /** @deprecated */
   systemTemplateMarkup?: string;
+  /** @deprecated */
   userTemplateMarkup?: string;
+  /** @deprecated */
   outputFormatTemplateMarkup?: string;
 }
 
@@ -70,8 +77,10 @@ export interface VideoStorageConfig extends BaseStorageConfig {
 export type TaskStorageConfig =
   | ({ scope: 'writing' } & WritingStorageConfig)
   | ({ scope: 'outline' } & WritingStorageConfig)
+  | ({ scope: 'text' } & WritingStorageConfig)
   | ({ scope: 'graph' } & GraphStorageConfig)
   | ({ scope: 'audio' } & AudioStorageConfig)
+  | ({ scope: 'music' } & AudioStorageConfig)
   | ({ scope: 'video' } & VideoStorageConfig);
 
 export interface KnowledgeConfig {
@@ -92,13 +101,30 @@ export interface TaskTemplate {
   prompt: PromptTemplateConfig;
 
   knowledge?: KnowledgeConfig;
+
+  /**
+   * @deprecated Task v2 已改为固定前置链（见 task-v2-prelude），配置项不再生效。保留字段仅为兼容旧 JSON。
+   */
   inputPipeline?: PipelineStep[];
+  /**
+   * @deprecated 未接入执行路径；保留仅为兼容旧 JSON。
+   */
   outputPipeline?: PipelineStep[];
 
   storage?: TaskStorageConfig;
 
   /** 预留：各模态特有配置 */
-  extra?: Record<string, unknown>;
+  extra?: Record<string, unknown> & {
+    /**
+     * 业务默认生成参数（若请求未显式传入，则自动补齐）。
+     * 常用于在 Admin 按业务控制 temperature/maxTokens/topP。
+     */
+    generateParams?: {
+      temperature?: number;
+      maxTokens?: number;
+      topP?: number;
+    };
+  };
 }
 
 export interface TaskDefinitionRow {
@@ -137,5 +163,12 @@ export interface TaskRunV2Response {
   subtype?: string | null;
   /** 与 cgi_tasks.status 对齐：pending/queued/processing/completed/failed/cancelled */
   status: string;
+  /**
+   * scope=text 时为同步执行，不落 cgi_tasks；此处返回模型输出，供调用方直接展示
+   */
+  syncResult?: {
+    text?: string;
+    metadata?: Record<string, unknown>;
+  };
 }
 

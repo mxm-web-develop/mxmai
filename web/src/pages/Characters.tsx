@@ -924,10 +924,10 @@ export default function Characters() {
       <Drawer
         title="新建角色"
         placement="right"
-        width={520}
+        size={520}
         open={createDrawerOpen}
         onClose={() => setCreateDrawerOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         {renderCreateForm()}
       </Drawer>

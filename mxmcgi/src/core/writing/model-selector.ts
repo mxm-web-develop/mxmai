@@ -10,7 +10,7 @@
  * 【配置来源】优先按业务 key 从 model-routing 解析 (provider, model)；未命中时用 WRITING_MODEL_SELECTION。
  */
 
-import { providerFactory, getResolvedRouting, type ProviderType } from '../../models/providers';
+import { getResolvedRouting, type ProviderType } from '../../models/providers';
 import { WRITING_MODEL_SELECTION, type TaskType } from './wtconfigs/writing-models';
 
 export type { TaskType };
@@ -18,34 +18,16 @@ export type { TaskType };
 const MODEL_SELECTION = WRITING_MODEL_SELECTION;
 
 /**
- * 检查模型是否可用
- */
-function isModelAvailable(modelName: string): boolean {
-  try {
-    const provider = providerFactory.getProviderForModel(modelName);
-    return !!provider;
-  } catch (error) {
-    return false;
-  }
-}
-
-/**
- * 根据任务类型选择模型（仅返回模型名，兼容旧调用）
- * @param taskType 任务类型
- * @returns 模型名称
+ * 兼容旧调用：过去按 taskType 在代码内选择候选模型。
+ * 纯动态模式下不再允许静态候选兜底；请在 Admin/DB 配置对应业务 key 的模型路由。
  */
 export function selectModel(taskType: TaskType): string {
-  const candidates = MODEL_SELECTION[taskType];
-
-  for (const model of candidates) {
-    if (isModelAvailable(model)) {
-      console.log(`[ModelSelector] 为任务类型 "${taskType}" 选择模型: ${model}`);
-      return model;
-    }
-  }
-
-  console.warn(`[ModelSelector] 警告：任务类型 "${taskType}" 的所有候选模型都不可用，使用默认: ${candidates[0]}`);
-  return candidates[0];
+  const candidates = MODEL_SELECTION[taskType] ?? [];
+  throw new Error(
+    `[ModelSelector] 纯动态模式下禁止 selectModel(taskType=${taskType}) 静态选模` +
+      (candidates.length ? `，历史候选: ${candidates.join(', ')}` : '') +
+      `。请在 Admin 配置模型路由（model_routing_overrides）`
+  );
 }
 
 export interface ResolvedModel {
@@ -84,14 +66,12 @@ export function selectModelWithRouting(
       fromRouting: true,
     };
   }
-  const modelName = selectModel(taskType);
-  const prov = providerFactory.getProviderForModel(modelName, preferredProvider);
-  return {
-    provider: prov.provider,
-    model: modelName,
-    modelName,
-    fromRouting: false,
-  };
+  // 纯动态模式：不再允许代码内候选模型兜底（必须在 Admin/DB 配置路由）
+  const fallbackCandidates = MODEL_SELECTION[taskType];
+  throw new Error(
+    `[ModelSelector] 未配置模型路由: routingKey=${routingKey}（taskType=${taskType}）` +
+      (fallbackCandidates?.length ? `，历史候选: ${fallbackCandidates.join(', ')}` : '')
+  );
 }
 
 /**

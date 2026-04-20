@@ -12,7 +12,17 @@ function getUserId(req: Request): string | undefined {
 }
 
 function asScope(v: unknown): TaskScope | null {
-  if (v === 'writing' || v === 'outline' || v === 'graph' || v === 'audio' || v === 'video') return v;
+  if (
+    v === 'writing' ||
+    v === 'outline' ||
+    v === 'graph' ||
+    v === 'audio' ||
+    v === 'music' ||
+    v === 'video' ||
+    v === 'text'
+  ) {
+    return v;
+  }
   return null;
 }
 
@@ -60,11 +70,19 @@ router.get('/form-config/list', async (req: Request, res: Response) => {
     const list = await repo.list({ scope, limit: 500, offset: 0 });
     const items = (list.items || [])
       .filter((r: any) => r && r.is_active !== false)
-      .map((r: any) => ({
-        taskKey: String(r.type),
-        subtype: r.subtype ?? null,
-        updated_at: r.updated_at,
-      }));
+      .map((r: any) => {
+        const extra = r.extra && typeof r.extra === 'object' ? r.extra : null;
+        const display = extra && typeof (extra as any).display === 'object' ? (extra as any).display : null;
+        const taskLabel = display && typeof display.taskLabel === 'string' ? display.taskLabel : null;
+        const subtypeLabel = display && typeof display.subtypeLabel === 'string' ? display.subtypeLabel : null;
+        return {
+          taskKey: String(r.type),
+          subtype: r.subtype ?? null,
+          taskLabel,
+          subtypeLabel,
+          updated_at: r.updated_at,
+        };
+      });
 
     return res.json({ success: true, data: { scope, items } });
   } catch (e) {

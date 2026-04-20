@@ -18,6 +18,8 @@ const VALID_PROVIDERS: ProviderType[] = [
   'qwen',
   'volc',
   'minimax',
+  'atlascloud',
+  'maxplan',
 ];
 
 function isProviderType(s: string): s is ProviderType {
@@ -93,6 +95,56 @@ export function getUpstreamModel(provider: ProviderType, modelKey: string): stri
  */
 export function listByProvider(provider: ProviderType): ProviderModel[] {
   return cache.get(provider) ?? [];
+}
+
+/**
+ * 扁平列出所有启用的 provider_models（来自 DB 缓存）
+ */
+export function listAllEnabled(): ProviderModel[] {
+  const all: ProviderModel[] = [];
+  for (const list of cache.values()) {
+    all.push(...list);
+  }
+  return all;
+}
+
+/**
+ * 按 scope 列出启用的 model_key（跨 provider 去重）
+ */
+export function listEnabledModelKeysByScope(scope: string): string[] {
+  const want = String(scope).toLowerCase();
+  const keys = new Set<string>();
+  for (const m of listAllEnabled()) {
+    const s = String((m as any).scope ?? '').toLowerCase();
+    if (s === want) {
+      keys.add(m.model_key);
+    }
+  }
+  return Array.from(keys);
+}
+
+/**
+ * 查询某个 model_key 在 DB 中是否存在（可选限定 scope/provider）
+ */
+export function findEnabledModel(filter: {
+  modelKey: string;
+  scope?: string;
+  provider?: ProviderType;
+}): ProviderModel | null {
+  const modelKey = filter.modelKey;
+  const wantScope = filter.scope != null ? String(filter.scope).toLowerCase() : null;
+  const wantProvider = filter.provider ?? null;
+
+  const list = wantProvider ? listByProvider(wantProvider) : listAllEnabled();
+  for (const m of list) {
+    if (m.model_key !== modelKey && m.upstream_model !== modelKey) continue;
+    if (wantScope) {
+      const s = String((m as any).scope ?? '').toLowerCase();
+      if (s !== wantScope) continue;
+    }
+    return m;
+  }
+  return null;
 }
 
 /**

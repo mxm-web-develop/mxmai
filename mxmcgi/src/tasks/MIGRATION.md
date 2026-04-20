@@ -40,7 +40,7 @@
 1. **TaskTemplate**
    - 该业务在 DB 中有对应 `prompt_engineering_config`，`extra.taskTemplate` 含：
      - `formSchema`、`prompt.systemTemplate` / `userTemplate` / `outputFormatTemplate`（或 *Markup）；
-     - 按需配置 `inputPipeline`（如 `sensitiveCheck`、`knowledgeRetrieve`）。
+     - Task v2 前置链已固定（敏感词 → `template.knowledge` 知识库 → 模板），不再使用可配置 `inputPipeline`。
 
 2. **task-engine**
    - 该 scope 在 `runTaskV2` 中创建任务时：
@@ -54,7 +54,7 @@
 4. **业务 service**
    - 对应的 `generateXxx`（如 `generateOutline`）在收到 **`params.useConfiguredPrompt === true`** 时：
      - **仅用 `params.prompt`** 调 LLM，不做自建 prompt 拼接；
-     - 不在此处再做知识库检索（v2 的 inputPipeline 已执行）；
+     - 不在此处再做知识库检索（v2 固定前置链已执行）；
    - 否则保留原逻辑，兼容老 API（如 `POST /api/v1/writing/outline`）。
 
 **大纲示例**：v2 大纲请求 → task-engine（routingKey + useConfiguredPrompt）→ task-executor → startWritingTask → generateOutline（useConfiguredPrompt 时用 params.prompt）→ 同一套 JSON 解析与落库，前端用 metadata.outline / metadata.text 展示。

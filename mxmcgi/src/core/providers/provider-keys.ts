@@ -4,7 +4,18 @@
  * 安全：key_value 仅在此模块内部使用，禁止写入日志或返回给前端
  */
 
-export type ProviderKeyKind = 'deer' | 'replicate' | 'ppio' | 'openai' | 'google' | 'anthropic' | 'qwen' | 'volc' | 'minimax';
+export type ProviderKeyKind =
+  | 'deer'
+  | 'replicate'
+  | 'ppio'
+  | 'openai'
+  | 'google'
+  | 'anthropic'
+  | 'qwen'
+  | 'volc'
+  | 'minimax'
+  | 'atlascloud'
+  | 'maxplan';
 export type OfficialService = 'openai' | 'google' | 'anthropic' | 'minimax' | 'qwen' | 'volc';
 
 const ENV_MAP: Record<string, { single: string; multi: string }> = {
@@ -17,6 +28,8 @@ const ENV_MAP: Record<string, { single: string; multi: string }> = {
   minimax: { single: 'MINIMAX_API_KEY', multi: 'MINIMAX_API_KEYS' },
   qwen: { single: 'QWEN_API_KEY', multi: 'QWEN_API_KEYS' },
   volc: { single: 'VOLC_API_KEY', multi: 'VOLC_API_KEYS' },
+  atlascloud: { single: 'ATLASCLOUD_API_KEY', multi: 'ATLASCLOUD_API_KEYS' },
+  maxplan: { single: 'MAXPLAN_API_KEY', multi: 'MAXPLAN_API_KEYS' },
 };
 
 function parseEnvKeys(singleVar: string, multiVar: string): string[] {
@@ -51,7 +64,12 @@ export async function getProviderKeys(provider: ProviderKeyKind, service?: Offic
     const { RepositoryFactory } = await import('@mxmai/mxmdata');
     const repo = RepositoryFactory.createProviderApiKeyRepository();
     const serviceNorm = service ? String(service).toLowerCase() : null;
-    const dbKeys = await repo.listKeysForProvider(provider, serviceNorm ?? undefined);
+    let dbKeys = await repo.listKeysForProvider(provider, serviceNorm ?? undefined);
+    // replicate / ppio 无子 service：listKeysForProvider(undefined) 只匹配 service 为空；
+    // Admin 若误填了 Service 字段会查不到，此处再按 provider 全量兜底。
+    if ((!dbKeys || dbKeys.length === 0) && !serviceNorm && (provider === 'replicate' || provider === 'ppio')) {
+      dbKeys = await repo.listAllActiveKeysForProvider(provider);
+    }
     if (dbKeys && dbKeys.length > 0) {
       return dbKeys.map((r: { key_value: string }) => r.key_value);
     }

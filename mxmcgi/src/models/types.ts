@@ -9,7 +9,7 @@
 
 import type { GenerateResult, GenerateParams } from './providers';
 
-export type ModelScope = 'graph' | 'writing' | 'audio' | 'video';
+export type ModelScope = 'text' | 'graph' | 'writing' | 'audio' | 'video';
 
 export interface ModelContext {
   userId?: string;

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
+  App,
   Table,
   Button,
   Select,
@@ -15,7 +16,6 @@ import {
   Steps,
   Alert,
   Typography,
-  message,
 } from 'antd';
 import {
   getProvidersOptions,
@@ -57,6 +57,7 @@ const WINDOW_OPTIONS = [
 const KEY_PROVIDER_OPTIONS = [
   { value: '', label: '全部' },
   { value: 'deer', label: 'deer' },
+  { value: 'atlascloud', label: 'atlascloud' },
   { value: 'replicate', label: 'replicate' },
   { value: 'ppio', label: 'ppio' },
   { value: 'openai', label: 'openai' },
@@ -65,10 +66,12 @@ const KEY_PROVIDER_OPTIONS = [
   { value: 'qwen', label: 'qwen' },
   { value: 'volc', label: 'volc' },
   { value: 'minimax', label: 'minimax' },
+  { value: 'maxplan', label: 'maxplan' },
 ];
 
 const PROVIDER_OPTIONS = [
   { value: 'deer', label: 'deer' },
+  { value: 'atlascloud', label: 'atlascloud' },
   { value: 'replicate', label: 'replicate' },
   { value: 'ppio', label: 'ppio' },
   { value: 'openai', label: 'openai' },
@@ -77,6 +80,7 @@ const PROVIDER_OPTIONS = [
   { value: 'qwen', label: 'qwen' },
   { value: 'volc', label: 'volc' },
   { value: 'minimax', label: 'minimax' },
+  { value: 'maxplan', label: 'maxplan' },
 ];
 
 const CURRENCY_OPTIONS = [
@@ -86,12 +90,90 @@ const CURRENCY_OPTIONS = [
 ];
 
 const CHARGE_MODE_OPTIONS = [
-  { value: 'token_based', label: 'token_based（按千 Token 计量）' },
+  {
+    value: 'token_based',
+    label: 'token_based（按 Token；输入/输出可分别选「每千」或「每百万」）',
+  },
   { value: 'per_request', label: 'per_request（按请求次数）' },
   { value: 'per_image', label: 'per_image（按图片张数）' },
   { value: 'per_second_audio', label: 'per_second_audio（按音频秒数）' },
   { value: 'per_second_video', label: 'per_second_video（按视频秒数）' },
 ];
+
+/** 与后端计费一致：库内始终存「每千 Token」单价；每百万报价在保存时除以 1000 */
+type TokenPriceBasis = 'per_1k' | 'per_1m';
+
+const TOKEN_BASIS_OPTIONS: { value: TokenPriceBasis; label: string }[] = [
+  { value: 'per_1k', label: '每千 Token' },
+  { value: 'per_1m', label: '每百万 Token' },
+];
+
+function toPer1kStored(price: number, basis: TokenPriceBasis): number {
+  if (!Number.isFinite(price)) return 0;
+  return basis === 'per_1m' ? price / 1000 : price;
+}
+
+function fromPer1kStored(
+  stored: number | null | undefined,
+  basis: TokenPriceBasis
+): number | undefined {
+  if (stored == null) return undefined;
+  const n = Number(stored);
+  if (!Number.isFinite(n)) return undefined;
+  return basis === 'per_1m' ? n * 1000 : n;
+}
+
+function readTokenBasis(meta: Record<string, unknown> | null | undefined): {
+  input: TokenPriceBasis;
+  output: TokenPriceBasis;
+  combined: TokenPriceBasis;
+} {
+  const raw = meta?.token_price_basis as Record<string, unknown> | undefined;
+  const pick = (k: string): TokenPriceBasis =>
+    raw?.[k] === 'per_1m' ? 'per_1m' : 'per_1k';
+  return {
+    input: pick('input'),
+    output: pick('output'),
+    combined: pick('combined'),
+  };
+}
+
+/** 保存时写入 DB：单价列始终为「每千 Token」；metadata.token_price_basis 记录表单所选单位便于回显 */
+function computeStoredTokenPrices(values: Record<string, unknown>, chargeMode: string) {
+  const ib = (values.input_token_basis as TokenPriceBasis) ?? 'per_1k';
+  const ob = (values.output_token_basis as TokenPriceBasis) ?? 'per_1k';
+  const cb = (values.combined_token_basis as TokenPriceBasis) ?? 'per_1k';
+  const tokenBasisMeta = { input: ib, output: ob, combined: cb };
+
+  if (chargeMode !== 'token_based') {
+    return {
+      unit_price: Number(values.unit_price ?? 0),
+      input_unit_price: null,
+      output_unit_price: null,
+      tokenBasisMeta,
+    };
+  }
+
+  const inp =
+    values.input_unit_price != null && values.input_unit_price !== ''
+      ? toPer1kStored(Number(values.input_unit_price), ib)
+      : null;
+  const out =
+    values.output_unit_price != null && values.output_unit_price !== ''
+      ? toPer1kStored(Number(values.output_unit_price), ob)
+      : null;
+  const combined =
+    values.unit_price != null && values.unit_price !== ''
+      ? toPer1kStored(Number(values.unit_price), cb)
+      : 0;
+
+  return {
+    unit_price: combined,
+    input_unit_price: inp,
+    output_unit_price: out,
+    tokenBasisMeta,
+  };
+}
 
 const SCOPE_OPTIONS = [
   { value: 'writing', label: 'writing（写作）' },
@@ -152,6 +234,9 @@ type ProviderModelFormValues = Partial<ProviderModelRow> & {
   input_unit_price?: number | null;
   output_unit_price?: number | null;
   currency?: string;
+  input_token_basis?: TokenPriceBasis;
+  output_token_basis?: TokenPriceBasis;
+  combined_token_basis?: TokenPriceBasis;
 };
 
 type ProviderModelTestStep = {
@@ -181,6 +266,7 @@ type ProviderModelTestResult = {
 };
 
 export default function ProviderRoutes() {
+  const { message } = App.useApp();
   const { isLoggedIn, isAdmin } = useAuth();
   // const [routing, setRouting] = useState<Record<string, ProviderRoutingEntry>>({});
   // const [modelsByProvider, setModelsByProvider] = useState<Record<string, string[]>>({});
@@ -201,6 +287,7 @@ export default function ProviderRoutes() {
     service?: string;
     key_value: string;
     priority?: number;
+    is_active?: boolean;
   }>();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   // const [editModalOpen, setEditModalOpen] = useState(false);
@@ -229,6 +316,8 @@ export default function ProviderRoutes() {
   const [providerModelTestModalOpen, setProviderModelTestModalOpen] = useState(false);
   const [providerModelTestLoading, setProviderModelTestLoading] = useState<string | null>(null);
   const [providerModelTestHistory, setProviderModelTestHistory] = useState<ProviderModelTestRunRow[]>([]);
+  /** 编辑定价时合并 metadata（避免覆盖官方链接等扩展字段） */
+  const providerPricingMetadataRef = useRef<Record<string, unknown>>({});
 
   const visibleKeysList = useMemo(() => {
     const sorted = [...keysList].sort((a, b) => a.priority - b.priority);
@@ -387,6 +476,7 @@ export default function ProviderRoutes() {
       service: v.service?.trim() || null,
       key_value: v.key_value.trim(),
       priority: v.priority ?? 0,
+      is_active: v.is_active !== false,
     });
     if (res.error) {
       setError(res.error);
@@ -412,11 +502,15 @@ export default function ProviderRoutes() {
     fetchKeys();
   };
 
-  const handleToggleActive = async (id: string, current: boolean) => {
+  const handleKeyActiveChange = async (id: string, next: boolean) => {
     setActionLoading(id);
-    const res = await putProviderKey(id, { is_active: !current });
+    const res = await putProviderKey(id, { is_active: next });
     setActionLoading(null);
-    if (!res.error) fetchKeys();
+    if (res.error) {
+      message.error(res.error);
+      return;
+    }
+    fetchKeys();
   };
 
   const handleDeleteKey = async (id: string) => {
@@ -448,28 +542,56 @@ export default function ProviderRoutes() {
         ? pricingList.find((p) => p.model_key === row.model_key)
         : null;
       if (pricing) {
-        providerModelForm.setFieldsValue({
-          charge_mode: pricing.charge_mode,
-          unit_price: pricing.unit_price,
-          input_unit_price: pricing.input_unit_price,
-          output_unit_price: pricing.output_unit_price,
-          currency: pricing.currency,
-          pricing_id: pricing.id,
-        });
+        providerPricingMetadataRef.current =
+          (pricing.metadata as Record<string, unknown> | null | undefined) ?? {};
+        const basis = readTokenBasis(providerPricingMetadataRef.current);
+        if (pricing.charge_mode === 'token_based') {
+          providerModelForm.setFieldsValue({
+            charge_mode: pricing.charge_mode,
+            unit_price: fromPer1kStored(pricing.unit_price, basis.combined),
+            input_unit_price: fromPer1kStored(pricing.input_unit_price ?? undefined, basis.input),
+            output_unit_price: fromPer1kStored(pricing.output_unit_price ?? undefined, basis.output),
+            input_token_basis: basis.input,
+            output_token_basis: basis.output,
+            combined_token_basis: basis.combined,
+            currency: pricing.currency,
+            pricing_id: pricing.id,
+          });
+        } else {
+          providerModelForm.setFieldsValue({
+            charge_mode: pricing.charge_mode,
+            unit_price: pricing.unit_price,
+            input_unit_price: pricing.input_unit_price ?? undefined,
+            output_unit_price: pricing.output_unit_price ?? undefined,
+            input_token_basis: 'per_1k',
+            output_token_basis: 'per_1k',
+            combined_token_basis: 'per_1k',
+            currency: pricing.currency,
+            pricing_id: pricing.id,
+          });
+        }
       } else {
+        providerPricingMetadataRef.current = {};
         providerModelForm.setFieldsValue({
           charge_mode: 'token_based',
           unit_price: 0,
           currency: 'USD',
           pricing_id: undefined,
+          input_token_basis: 'per_1k',
+          output_token_basis: 'per_1k',
+          combined_token_basis: 'per_1k',
         });
       }
     } else {
       providerModelForm.resetFields();
+      providerPricingMetadataRef.current = {};
       providerModelForm.setFieldsValue({
         is_enabled: true,
         charge_mode: 'token_based',
         currency: 'USD',
+        input_token_basis: 'per_1k',
+        output_token_basis: 'per_1k',
+        combined_token_basis: 'per_1k',
       });
     }
     setProviderModelModalOpen(true);
@@ -503,16 +625,24 @@ export default function ProviderRoutes() {
           }
           const scopeChanged = values.scope !== editingProviderModel.scope;
           const merged = envelope?.merged;
+          const chargeMode = values.charge_mode ?? 'token_based';
+          const stored = computeStoredTokenPrices(values as Record<string, unknown>, chargeMode);
           const pricingBody: UpsertProviderPricingBody = {
             id: merged || scopeChanged ? undefined : values.pricing_id,
             provider: values.provider!,
             scope: values.scope!,
             model_key: values.model_key!,
-            charge_mode: values.charge_mode ?? 'token_based',
-            unit_price: values.unit_price ?? 0,
-            input_unit_price: values.input_unit_price,
-            output_unit_price: values.output_unit_price,
+            charge_mode: chargeMode,
+            unit_price: stored.unit_price,
+            input_unit_price: stored.input_unit_price,
+            output_unit_price: stored.output_unit_price,
             currency: values.currency ?? 'USD',
+            metadata: {
+              ...providerPricingMetadataRef.current,
+              ...(chargeMode === 'token_based'
+                ? { token_price_basis: stored.tokenBasisMeta }
+                : {}),
+            },
           };
           await upsertProviderPricing(pricingBody);
           setProviderModelModalOpen(false);
@@ -537,15 +667,23 @@ export default function ProviderRoutes() {
           is_enabled: values.is_enabled ?? true,
         });
         if (!res.error) {
+          const chargeMode = values.charge_mode ?? 'token_based';
+          const stored = computeStoredTokenPrices(values as Record<string, unknown>, chargeMode);
           const pricingBody: UpsertProviderPricingBody = {
             provider: values.provider!,
             scope: values.scope!,
             model_key: values.model_key!,
-            charge_mode: values.charge_mode ?? 'token_based',
-            unit_price: values.unit_price ?? 0,
-            input_unit_price: values.input_unit_price,
-            output_unit_price: values.output_unit_price,
+            charge_mode: chargeMode,
+            unit_price: stored.unit_price,
+            input_unit_price: stored.input_unit_price,
+            output_unit_price: stored.output_unit_price,
             currency: values.currency ?? 'USD',
+            metadata: {
+              ...providerPricingMetadataRef.current,
+              ...(chargeMode === 'token_based'
+                ? { token_price_basis: stored.tokenBasisMeta }
+                : {}),
+            },
           };
           await upsertProviderPricing(pricingBody);
           setProviderModelModalOpen(false);
@@ -608,12 +746,13 @@ export default function ProviderRoutes() {
       { key: 'done', title: '测试完成', status: 'pending', at: now },
     ]);
     void getProviderModelTests(row.id, { limit: 20 }).then((res) => {
-      if ((res as any).error) {
+      if (res.error) {
         message.warning('未能读取测试历史（可能尚未执行测试记录表迁移）');
         return;
       }
-      const data = (res.data as any)?.data ?? (res.data as any);
-      if (Array.isArray(data)) setProviderModelTestHistory(data as ProviderModelTestRunRow[]);
+      const raw = res.data as { data?: ProviderModelTestRunRow[] } | ProviderModelTestRunRow[] | undefined;
+      const data = Array.isArray(raw) ? raw : raw?.data;
+      if (Array.isArray(data)) setProviderModelTestHistory(data);
     });
   };
 
@@ -675,7 +814,7 @@ export default function ProviderRoutes() {
         setProviderModels((prev) =>
           prev.map((m) =>
             m.id === row.id
-              ? ({
+              ? {
                   ...m,
                   latest_test: {
                     success: !!payload.success,
@@ -683,13 +822,13 @@ export default function ProviderRoutes() {
                     error_message: payload.error ?? null,
                     created_at: optimisticCreatedAt,
                   },
-                } as any)
+                }
               : m
           )
         );
 
         void getProviderModelTests(row.id, { limit: 20 }).then((r) => {
-          if ((r as any).error) {
+          if (r.error) {
             // DB 读不到时，将本次结果塞入历史列表
             setProviderModelTestHistory((prev) => {
               const run: ProviderModelTestRunRow = {
@@ -703,17 +842,18 @@ export default function ProviderRoutes() {
                 latency_ms: payload.latencyMs,
                 error_message: payload.error ?? null,
                 created_at: optimisticCreatedAt,
-                request_payload: (payload.requestPayload as any) ?? null,
-                response_meta: (payload.responseMeta as any) ?? null,
-                steps: payload.steps as any,
+                request_payload: payload.requestPayload ?? null,
+                response_meta: payload.responseMeta ?? null,
+                steps: payload.steps,
               };
               return [run, ...prev].slice(0, 20);
             });
             message.info('已在前端显示本次测试结果；如需持久化历史记录，请先执行测试记录表迁移');
             return;
           }
-          const data = (r.data as any)?.data ?? (r.data as any);
-          if (Array.isArray(data)) setProviderModelTestHistory(data as ProviderModelTestRunRow[]);
+          const raw = r.data as { data?: ProviderModelTestRunRow[] } | ProviderModelTestRunRow[] | undefined;
+          const data = Array.isArray(raw) ? raw : raw?.data;
+          if (Array.isArray(data)) setProviderModelTestHistory(data);
         });
 
         fetchProviderModels();
@@ -1172,20 +1312,14 @@ export default function ProviderRoutes() {
                               title: '启用',
                               dataIndex: 'is_active',
                               key: 'is_active',
-                              width: 64,
+                              width: 88,
                               render: (v: boolean, r) => (
-                                <button
-                                  type="button"
-                                  className={[
-                                    'admin-business-status-dot',
-                                    v ? 'is-on' : 'is-off',
-                                    actionLoading !== null ? 'is-disabled' : '',
-                                  ]
-                                    .filter(Boolean)
-                                    .join(' ')}
-                                  aria-label={v ? 'enabled' : 'disabled'}
-                                  disabled={actionLoading !== null}
-                                  onClick={() => handleToggleActive(r.id, v)}
+                                <Switch
+                                  size="small"
+                                  checked={!!v}
+                                  loading={actionLoading === r.id}
+                                  disabled={actionLoading !== null && actionLoading !== r.id}
+                                  onChange={(checked) => void handleKeyActiveChange(r.id, checked)}
                                 />
                               ),
                             },
@@ -1390,10 +1524,7 @@ export default function ProviderRoutes() {
                               key: 'latest_test',
                               width: 150,
                               render: (_, row) => {
-                                const t = (row as any).latest_test as
-                                  | { success: boolean; created_at: string; error_message?: string | null }
-                                  | null
-                                  | undefined;
+                                const t = row.latest_test;
                                 if (!t) return <Typography.Text type="secondary">—</Typography.Text>;
                                 return (
                                   <div style={{ lineHeight: 1.1 }}>
@@ -1497,17 +1628,24 @@ export default function ProviderRoutes() {
         }}
         okText="确定"
         cancelText="取消"
-        destroyOnClose
+        destroyOnHidden
       >
-        <Form form={addForm} layout="vertical" initialValues={{ priority: 0 }}>
+        <Form form={addForm} layout="vertical" initialValues={{ priority: 0, is_active: true }}>
           <Form.Item name="provider" label="Provider" rules={[{ required: true }]}>
             <Select
               options={KEY_PROVIDER_OPTIONS.filter((o) => o.value)}
               placeholder="选择 Provider"
             />
           </Form.Item>
-          <Form.Item name="service" label="Service（可选）">
-            <Input placeholder="如 openai, minimax" />
+          <Form.Item
+            name="service"
+            label="Service（可选）"
+            extra="Deer 等多通道时填写子服务名。replicate / ppio 请留空；若填写非空，旧版服务端可能无法命中（已在新版兜底）。"
+          >
+            <Input placeholder="如 openai, minimax；replicate 请留空" />
+          </Form.Item>
+          <Form.Item name="is_active" label="创建后启用" valuePropName="checked">
+            <Switch checkedChildren="启用" unCheckedChildren="停用" />
           </Form.Item>
           <Form.Item name="key_value" label="Key 值" rules={[{ required: true }]}>
             <Input.Password placeholder="API Key 明文" autoComplete="off" />
@@ -1550,7 +1688,7 @@ export default function ProviderRoutes() {
           setProviderModelTestModalOpen(false);
         }}
         width={700}
-        destroyOnClose={false}
+        destroyOnHidden={false}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {providerModelTestingRow && (
@@ -1679,7 +1817,7 @@ export default function ProviderRoutes() {
         }}
         okText="保存"
         cancelText="取消"
-        destroyOnClose
+        destroyOnHidden
         width={560}
       >
         <div
@@ -1698,7 +1836,14 @@ export default function ProviderRoutes() {
         <Form
           form={providerModelForm}
           layout="vertical"
-          initialValues={{ is_enabled: true, charge_mode: 'token_based', currency: 'USD' }}
+          initialValues={{
+            is_enabled: true,
+            charge_mode: 'token_based',
+            currency: 'USD',
+            input_token_basis: 'per_1k',
+            output_token_basis: 'per_1k',
+            combined_token_basis: 'per_1k',
+          }}
         >
           <Form.Item name="provider" label="Provider" rules={[{ required: true }]}>
             <Select
@@ -1774,10 +1919,20 @@ export default function ProviderRoutes() {
                         }
                         return (
                           <>
+                            <div
+                              style={{
+                                marginBottom: 12,
+                                fontSize: 12,
+                                color: 'rgba(148, 163, 184, 0.9)',
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              以下为「报价」单位：可选每千或每百万 Token。保存时服务端会统一换算为<strong>每千
+                              Token</strong>（与现有扣费逻辑一致），并在 metadata 中记录所选单位以便下次打开。
+                            </div>
                             <Form.Item
-                              name="input_unit_price"
-                              label="输入单价（每千 Token，USD）"
-                              extra="与输出单价同时填写时按输入/输出分别计费"
+                              label="输入 Token 成本（USD）"
+                              extra="与输出同时填时按输入/输出分别计费"
                               rules={[
                                 {
                                   validator: (_, value) => {
@@ -1792,15 +1947,21 @@ export default function ProviderRoutes() {
                                 },
                               ]}
                             >
-                              <InputNumber
-                                min={0}
-                                style={{ width: '100%' }}
-                                placeholder="如 0.0003"
-                              />
+                              <div style={{ display: 'flex', gap: 8, width: '100%', alignItems: 'center' }}>
+                                <Form.Item name="input_unit_price" noStyle style={{ flex: 1, minWidth: 0 }}>
+                                  <InputNumber
+                                    min={0}
+                                    style={{ width: '100%' }}
+                                    placeholder="如 3.75 或 0.0003"
+                                  />
+                                </Form.Item>
+                                <Form.Item name="input_token_basis" noStyle>
+                                  <Select options={TOKEN_BASIS_OPTIONS} style={{ width: 132 }} />
+                                </Form.Item>
+                              </div>
                             </Form.Item>
                             <Form.Item
-                              name="output_unit_price"
-                              label="输出单价（每千 Token，USD）"
+                              label="输出 Token 成本（USD）"
                               rules={[
                                 {
                                   validator: (_, value) => {
@@ -1814,15 +1975,22 @@ export default function ProviderRoutes() {
                                 },
                               ]}
                             >
-                              <InputNumber
-                                min={0}
-                                style={{ width: '100%' }}
-                                placeholder="如 0.0012"
-                              />
+                              <div style={{ display: 'flex', gap: 8, width: '100%', alignItems: 'center' }}>
+                                <Form.Item name="output_unit_price" noStyle style={{ flex: 1, minWidth: 0 }}>
+                                  <InputNumber
+                                    min={0}
+                                    style={{ width: '100%' }}
+                                    placeholder="如 0.01 或 12"
+                                  />
+                                </Form.Item>
+                                <Form.Item name="output_token_basis" noStyle>
+                                  <Select options={TOKEN_BASIS_OPTIONS} style={{ width: 132 }} />
+                                </Form.Item>
+                              </div>
                             </Form.Item>
                             <Form.Item
-                              name="unit_price"
-                              label="通用单价（每千 Token，兜底）"
+                              label="通用单价（USD，兜底）"
+                              extra="未区分输入/输出时使用；可与「输入/输出」二选一或组合"
                               rules={[
                                 {
                                   validator: (_, value) => {
@@ -1837,11 +2005,18 @@ export default function ProviderRoutes() {
                                 },
                               ]}
                             >
-                              <InputNumber
-                                min={0}
-                                style={{ width: '100%' }}
-                                placeholder="输入输出不区分时填写"
-                              />
+                              <div style={{ display: 'flex', gap: 8, width: '100%', alignItems: 'center' }}>
+                                <Form.Item name="unit_price" noStyle style={{ flex: 1, minWidth: 0 }}>
+                                  <InputNumber
+                                    min={0}
+                                    style={{ width: '100%' }}
+                                    placeholder="输入输出不区分时填写"
+                                  />
+                                </Form.Item>
+                                <Form.Item name="combined_token_basis" noStyle>
+                                  <Select options={TOKEN_BASIS_OPTIONS} style={{ width: 132 }} />
+                                </Form.Item>
+                              </div>
                             </Form.Item>
                           </>
                         );

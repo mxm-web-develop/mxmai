@@ -11,6 +11,63 @@ import dotenv from 'dotenv';
 import { join } from 'path';
 import { RepositoryFactory } from '@mxmai/mxmdata';
 import { STRUCTURE_TYPE_CONFIGS } from '../core/writing/outline-structure-types';
+import { composeLegacyPromptToUnified } from '../tasks/prompt-template';
+
+/** 与 composeLegacyPromptToUnified 拼接规则对应的逆操作，供本脚本在仅存有 unified 时继续编辑 system/user/output 段 */
+function splitUnifiedToLegacy(u: string): {
+  systemTemplate: string;
+  userTemplate: string;
+  outputFormatTemplate: string;
+} {
+  const s = u.trim();
+  const U_MARKER = '\n\n【用户需求】\n';
+  const O_MARKER = '\n\n【输出要求】\n';
+
+  if (s.startsWith('【用户需求】\n')) {
+    const rest = s.slice('【用户需求】\n'.length);
+    const oi = rest.indexOf(O_MARKER);
+    if (oi < 0) {
+      return { systemTemplate: '', userTemplate: rest.trim(), outputFormatTemplate: '' };
+    }
+    return {
+      systemTemplate: '',
+      userTemplate: rest.slice(0, oi).trim(),
+      outputFormatTemplate: rest.slice(oi + O_MARKER.length).trim(),
+    };
+  }
+
+  const ui = s.indexOf(U_MARKER);
+  if (ui < 0) {
+    return { systemTemplate: s, userTemplate: '${prompt}', outputFormatTemplate: '' };
+  }
+  const systemTemplate = s.slice(0, ui).trim();
+  const rest = s.slice(ui + U_MARKER.length);
+  const oi = rest.indexOf(O_MARKER);
+  if (oi < 0) {
+    return { systemTemplate, userTemplate: rest.trim(), outputFormatTemplate: '' };
+  }
+  return {
+    systemTemplate,
+    userTemplate: rest.slice(0, oi).trim(),
+    outputFormatTemplate: rest.slice(oi + O_MARKER.length).trim(),
+  };
+}
+
+function composeLegacyMarkupToUnified(m: {
+  systemTemplateMarkup?: string;
+  userTemplateMarkup?: string;
+  outputFormatTemplateMarkup?: string;
+}): string {
+  const sys = String(m.systemTemplateMarkup ?? '').trim();
+  const rawUser = m.userTemplateMarkup != null ? String(m.userTemplateMarkup).trim() : '';
+  const userTpl = rawUser !== '' ? rawUser : '${prompt}';
+  const out = String(m.outputFormatTemplateMarkup ?? '').trim();
+  const parts: string[] = [];
+  if (sys) parts.push(sys);
+  parts.push(`【用户需求】\n${userTpl}`);
+  if (out) parts.push(`【输出要求】\n${out}`);
+  return parts.join('\n\n').trim();
+}
 
 const MXMCGI_ROOT = process.cwd();
 
@@ -287,15 +344,23 @@ async function main() {
 
   taskTemplate.formSchema = formSchema;
 
-  // v2 输入管线：先敏感词，再知识库召回（可按需在 Admin 中调整）
-  taskTemplate.inputPipeline = [
-    { step: 'sensitiveCheck', params: { paths: ['prompt'] } },
-    // 默认先不启用 KB；如果你已经有知识库 id，可在 step.params.knowledgeBaseIds 填入
-    // { step: 'knowledgeRetrieve', params: { knowledgeBaseIds: ['<kbId1>', '<kbId2>'], limit: 5 } },
-  ];
-  taskTemplate.outputPipeline = taskTemplate.outputPipeline && Array.isArray(taskTemplate.outputPipeline)
-    ? taskTemplate.outputPipeline
-    : [{ step: 'noop' }];
+  // Task v2 前置链已固定（task-v2-prelude）：敏感词 → template.knowledge 知识库 → 模板渲染；不再写入 inputPipeline/outputPipeline
+  delete (taskTemplate as Record<string, unknown>).inputPipeline;
+  delete (taskTemplate as Record<string, unknown>).outputPipeline;
+
+  // 若 DB 已是 unified-only，先拆回三段供下方逻辑编辑，最后再写回 unifiedTemplate
+  {
+    const promptAny = (taskTemplate.prompt ?? {}) as Record<string, any>;
+    if (!String(promptAny.systemTemplate || '').trim() && String(promptAny.unifiedTemplate || '').trim()) {
+      const split = splitUnifiedToLegacy(String(promptAny.unifiedTemplate));
+      promptAny.systemTemplate = split.systemTemplate;
+      promptAny.userTemplate = split.userTemplate;
+      promptAny.outputFormatTemplate = split.outputFormatTemplate;
+      delete promptAny.unifiedTemplate;
+      delete promptAny.unifiedTemplateMarkup;
+      taskTemplate.prompt = promptAny;
+    }
+  }
 
   // 如果旧模板里引用了 ${styles}（之前临时加的字段），这里顺手移除，避免变量校验失败
   if (taskTemplate.prompt?.systemTemplate && typeof taskTemplate.prompt.systemTemplate === 'string') {
@@ -440,7 +505,26 @@ async function main() {
   if (!promptCfg.outputFormatTemplateMarkup && typeof promptCfg.outputFormatTemplate === 'string') {
     promptCfg.outputFormatTemplateMarkup = buildMarkupFromTemplate(promptCfg.outputFormatTemplate, formSchema);
   }
-  taskTemplate.prompt = promptCfg;
+
+  const rulesZh = row.rules_i18n?.zh ?? '';
+  const outZh = row.output_format_i18n?.zh ?? '';
+  const unifiedTemplate = composeLegacyPromptToUnified({
+    systemTemplate: typeof promptCfg.systemTemplate === 'string' ? promptCfg.systemTemplate : undefined,
+    userTemplate: typeof promptCfg.userTemplate === 'string' ? promptCfg.userTemplate : undefined,
+    outputFormatTemplate: typeof promptCfg.outputFormatTemplate === 'string' ? promptCfg.outputFormatTemplate : undefined,
+    rulesFallback: rulesZh,
+    outputFormatFallback: outZh,
+  });
+  const unifiedTemplateMarkup = composeLegacyMarkupToUnified({
+    systemTemplateMarkup: typeof promptCfg.systemTemplateMarkup === 'string' ? promptCfg.systemTemplateMarkup : undefined,
+    userTemplateMarkup: typeof promptCfg.userTemplateMarkup === 'string' ? promptCfg.userTemplateMarkup : undefined,
+    outputFormatTemplateMarkup: typeof promptCfg.outputFormatTemplateMarkup === 'string' ? promptCfg.outputFormatTemplateMarkup : undefined,
+  });
+
+  taskTemplate.prompt = {
+    unifiedTemplate,
+    unifiedTemplateMarkup,
+  };
 
   extra.taskTemplate = taskTemplate;
 
@@ -451,6 +535,7 @@ async function main() {
     subtype: row.subtype ?? null,
     rules_i18n: row.rules_i18n,
     output_format_i18n: row.output_format_i18n,
+    form_options_i18n: row.form_options_i18n,
     extra,
     is_active: row.is_active ?? true,
   });

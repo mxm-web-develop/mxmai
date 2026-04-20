@@ -6,13 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development (from repo root)
 ```bash
-pnpm dev:all          # 启动所有服务（并发）
+pnpm dev:all          # 启动所有服务（并发）— 注意：不包含 mxmagent!
 pnpm dev:mxmcgi       # 仅启动 mxmcgi
 pnpm dev:mxmauth      # 仅启动 mxmauth
 pnpm dev:gateway      # 仅启动 gateway
 pnpm dev:mxmpay       # 仅启动 mxmpay
 pnpm dev:mxmnotify    # 仅启动 mxmnotify
+pnpm dev:mxmagent     # 仅启动 mxmagent（Agent Chat 后端，端口 4004）
 pnpm dev:mxmdata      # 启动 Docker（数据层）
+pnpm dev:all-with-web  # 完整后端 + 前端
 ```
 
 ### Build
@@ -113,3 +115,29 @@ mxmcgi/src/
 - `/generation`, `/cgi/*`, `/system`, `/knowledge`, `/characters` -> mxmcgi
 - `/agents`, `/smartflows` -> mxmagent
 - `/notifications`, `/tasks`, `/sse`, `/task-events` -> mxmnotify
+
+---
+
+## 排查与已知问题
+
+### Agent Chat 502 Bad Gateway
+- **现象**：前端 `/agent-chat` 页面报错 `HTTP 502`
+- **原因**：mxmagent（端口 4004）未启动。`pnpm dev:all` 不包含此服务。
+- **解决**：单独启动
+  ```bash
+  pnpm dev:mxmagent
+  ```
+
+### 模型下拉空数据
+- **现象**：Admin 页面的模型下拉显示"暂无数据"
+- **原因1**：当前用户不是 admin（`/api/v1/system/admin/providers/models` 需要 admin 权限）
+- **原因2**：`provider_models` 表为空（需通过 Admin 页面添加模型）
+
+### 服务端口状态
+```bash
+# 检查所有服务
+for port in 3000 4001 4002 4003 4004 4005; do
+  result=$(lsof -i :$port 2>/dev/null | grep LISTEN | grep -v grep)
+  echo ":$port - ${result:-(not running)}"
+done
+```

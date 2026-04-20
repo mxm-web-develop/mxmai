@@ -110,6 +110,7 @@ export default function Dashboard() {
               <p className="dashboard-hero-subtitle">
                 从角色设定 → 大纲 → 写作 → 图片/音频/视频，一站式调试与生产。
               </p>
+              {/* TODO(P1): hero input/CTA 已禁用 — 等待后端 API 对接后启用
               <div className="dashboard-hero-inputRow">
                 <input
                   className="dashboard-hero-input"
@@ -120,7 +121,7 @@ export default function Dashboard() {
                   开始
                   <ArrowRight size={16} />
                 </button>
-              </div>
+              </div> */}
               <div className="dashboard-hero-meta">
                 <span className="dashboard-hero-pill">已登录 {user?.username ?? ''}</span>
                 <span className="dashboard-hero-pill">{isAdmin ? 'Admin' : '普通用户'}</span>

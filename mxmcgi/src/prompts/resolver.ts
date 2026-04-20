@@ -69,6 +69,10 @@ export interface PromptFullConfig {
   knowledge_template_i18n?: Record<string, string>;
   /** 分镜脚本：JSON 输出格式模板（含占位符），运行时替换后使用 */
   storyboard_output_format_template_zh?: string;
+  /**
+   * 生图前「text 阶段」模式：目前仅实现 basic；其它值预留，将由 Smartflow 等承接
+   */
+  prompt_text_mode?: string;
 }
 
 /**
@@ -96,6 +100,8 @@ export async function getPromptFullConfig(
       task_template_i18n: extra.task_template_i18n as Record<string, string> | undefined,
       knowledge_template_i18n: extra.knowledge_template_i18n as Record<string, string> | undefined,
       storyboard_output_format_template_zh: extra.storyboard_output_format_template_zh as string | undefined,
+      prompt_text_mode:
+        typeof extra.prompt_text_mode === 'string' ? extra.prompt_text_mode : undefined,
     };
   } catch (_) {
     return null;

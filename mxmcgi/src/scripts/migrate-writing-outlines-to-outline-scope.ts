@@ -32,13 +32,26 @@ async function main() {
   const targetType = 'default';
   const targetScope = 'outline';
 
+  // 复制一份 extra，并将 storage.scope 纠正为 outline（旧模板常写为 writing）
+  const nextExtra = (source.extra && typeof source.extra === 'object')
+    ? JSON.parse(JSON.stringify(source.extra))
+    : undefined;
+  try {
+    const storage = nextExtra?.taskTemplate?.storage;
+    if (storage && typeof storage === 'object') {
+      storage.scope = targetScope;
+    }
+  } catch {
+    // ignore
+  }
+
   await repo.upsert({
     scope: targetScope,
     type: targetType,
     subtype: null,
     rules_i18n: source.rules_i18n ?? undefined,
     output_format_i18n: source.output_format_i18n ?? undefined,
-    extra: source.extra ?? undefined,
+    extra: nextExtra ?? undefined,
     is_active: true,
   });
 

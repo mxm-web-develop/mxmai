@@ -18,8 +18,8 @@ export function toRelativeMediaUrl(url: string): string {
   const m = url.match(/^(https?:\/\/[^/]+)(\/api\/v1\/media\/.+)/);
   if (m) {
     const path = m[2];
-    // 开发时使用相对路径，走 Vite proxy
-    if (typeof window !== 'undefined' && window.location.port === '5173') {
+    // 开发时（任意 Vite dev 端口，非写死 5173）使用相对路径，走 Vite proxy
+    if (import.meta.env.DEV && typeof window !== 'undefined') {
       return path;
     }
   }

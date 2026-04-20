@@ -5,13 +5,13 @@ import enUS from 'antd/locale/en_US';
 import {
   AudioLines,
   BookOpenText,
-  Database,
   FileText,
   Gauge,
   Globe,
   ImageIcon,
   LayoutDashboard,
   Menu,
+  MessageSquare,
   Moon,
   Sun,
   Network,
@@ -21,6 +21,7 @@ import {
   UserCircle2,
   Users2,
   Video as VideoIcon,
+  Workflow,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -32,12 +33,14 @@ import Writing from './pages/Writing';
 import Video from './pages/Video';
 import Graph from './pages/Graph';
 import Audio from './pages/Audio';
-import Knowledge from './pages/Knowledge';
+import Music from './pages/Music';
+import Smartflow from './pages/Smartflow';
 import VirtualFolder from './pages/VirtualFolder';
 import Account from './pages/Account';
 import AdminOps from './pages/AdminOps';
 import ProviderRoutes from './pages/ProviderRoutes';
 import AdminBusiness from './pages/AdminBusiness';
+import AgentChat from './pages/AgentChat';
 import './App.css';
 
 type PageId =
@@ -52,11 +55,12 @@ type PageId =
   | 'video'
   | 'graph'
   | 'audio'
-  | 'knowledge'
+  | 'music'
+  | 'smartflow'
   | 'virtualFolder'
   | 'account'
-  | 'adminSensitiveWords'
-  | 'adminKnowledge';
+  | 'agentChat'
+  | 'adminSensitiveWords';
 
 // 生成任务
 const TASK_GROUP = {
@@ -67,7 +71,10 @@ const TASK_GROUP = {
     { id: 'writing' as PageId, labelKey: 'nav.items.writing' },
     { id: 'graph' as PageId, labelKey: 'nav.items.graph' },
     { id: 'audio' as PageId, labelKey: 'nav.items.audio' },
+    { id: 'music' as PageId, labelKey: 'nav.items.music' },
     { id: 'video' as PageId, labelKey: 'nav.items.video' },
+    { id: 'smartflow' as PageId, labelKey: 'nav.items.smartflow' },
+    { id: 'agentChat' as PageId, labelKey: 'nav.items.agentChat' },
   ],
 };
 
@@ -75,7 +82,6 @@ const TASK_GROUP = {
 const ASSET_GROUP = {
   id: 'assets',
   items: [
-    { id: 'knowledge' as PageId, labelKey: 'nav.items.knowledge' },
     { id: 'virtualFolder' as PageId, labelKey: 'nav.items.virtualFolder' },
     { id: 'account' as PageId, labelKey: 'nav.items.account' },
   ],
@@ -99,8 +105,10 @@ function applyHtmlClass(isDark: boolean) {
   const root = document.documentElement;
   if (isDark) {
     root.classList.add('dark');
+    root.classList.remove('light');
   } else {
     root.classList.remove('dark');
+    root.classList.add('light');
   }
 }
 
@@ -172,16 +180,17 @@ function AppContent({ mode, isDark, setMode }: AppContentProps) {
       writing: <FileText size={16} />,
       graph: <ImageIcon size={16} />,
       audio: <AudioLines size={16} />,
+      music: <AudioLines size={16} />,
       video: <VideoIcon size={16} />,
-      knowledge: <Database size={16} />,
+      smartflow: <Workflow size={16} />,
       virtualFolder: <Network size={16} />,
       account: <ShieldCheck size={16} />,
+      agentChat: <MessageSquare size={16} />,
       users: <Users2 size={16} />,
       adminOps: <Gauge size={16} />,
       adminProviders: <Settings2 size={16} />,
       adminBusiness: <Settings2 size={16} />,
       adminSensitiveWords: <ShieldCheck size={16} />,
-      adminKnowledge: <Database size={16} />,
     }),
     []
   );
@@ -212,7 +221,6 @@ function AppContent({ mode, isDark, setMode }: AppContentProps) {
     'adminOps',
     'users',
     'adminSensitiveWords',
-    'adminKnowledge',
   ];
   const renderPage = () => {
     if (!isLoggedIn) {
@@ -244,15 +252,17 @@ function AppContent({ mode, isDark, setMode }: AppContentProps) {
         return <Graph />;
       case 'audio':
         return <Audio />;
-      case 'knowledge':
-        return <Knowledge />;
+      case 'music':
+        return <Music />;
+      case 'smartflow':
+        return <Smartflow />;
       case 'virtualFolder':
         return <VirtualFolder />;
       case 'account':
         return <Account />;
+      case 'agentChat':
+        return <AgentChat />;
       case 'adminSensitiveWords':
-        return <AdminBusiness />;
-      case 'adminKnowledge':
         return <AdminBusiness />;
       default:
         return <Dashboard />;
@@ -273,15 +283,16 @@ function AppContent({ mode, isDark, setMode }: AppContentProps) {
               case 'video':
               case 'graph':
               case 'audio':
-              case 'knowledge':
+              case 'music':
+              case 'smartflow':
               case 'virtualFolder':
               case 'account':
+              case 'agentChat':
               case 'users':
               case 'adminOps':
               case 'adminProviders':
               case 'adminBusiness':
               case 'adminSensitiveWords':
-              case 'adminKnowledge':
                 return `nav.items.${page}`;
               default:
                 return page;
@@ -410,7 +421,7 @@ export default function App() {
         colorBorderSecondary: isDark ? 'rgba(148,163,184,0.18)' : '#f3f4f6',
         colorText: isDark ? '#F8FAFC' : '#0f172a',
         colorTextSecondary: isDark ? 'rgba(248,250,252,0.72)' : '#475569',
-        colorPrimary: '#22C55E',
+        colorPrimary: '#002FA7', // Klein Blue
         colorSuccess: isDark ? '#4ade80' : '#16a34a',
         colorWarning: isDark ? '#facc15' : '#eab308',
         colorError: isDark ? '#f87171' : '#dc2626',

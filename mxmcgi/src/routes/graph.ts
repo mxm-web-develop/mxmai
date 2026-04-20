@@ -3,24 +3,23 @@ import type { ProviderType } from '../models/providers';
 import { taskExecutor } from '../task/task-executor';
 import type { PhotographParams, DesignParams, PaintingParams } from '../core/graph/type';
 import { getGraphTypeOptions, getFormOptionsForType } from '../clientServer/graph';
-import { listModels, getModelsByKey } from '../models/registry';
 import { getResolvedRouting } from '../models/providers';
 import { resolveGraphModel } from '../core/graph/graph-model-routing';
 import { BillingService } from '../statistics/billing-service';
+import { findEnabledModel, listEnabledModelKeysByScope } from '../models/provider-model-catalog';
 
-// 模型列表与存在性检查：仅通过 registry（单轨）
-const GRAPH_MODELS = listModels({ scope: 'graph' });
-const SUPPORTED_MODELS: string[] = Array.from(new Set(GRAPH_MODELS.map(d => d.modelKey)));
+// 模型列表与存在性检查：仅通过 DB 的 provider_models（纯动态）
+const SUPPORTED_MODELS: string[] = listEnabledModelKeysByScope('graph');
 
 function isGraphModelSupported(modelName: string): boolean {
-  return getModelsByKey('graph', modelName).length > 0;
+  return findEnabledModel({ modelKey: modelName, scope: 'graph' }) !== null;
 }
 
 const router = Router();
 
 // 获取所有可用的图模型列表（来自 registry）
 router.get('/models', (_req: Request, res: Response) => {
-  const models = SUPPORTED_MODELS.map(modelName => ({ name: modelName }));
+  const models = listEnabledModelKeysByScope('graph').map(modelName => ({ name: modelName }));
   res.json({ models });
 });
 

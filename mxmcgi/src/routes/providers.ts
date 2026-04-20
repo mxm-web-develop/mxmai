@@ -15,7 +15,6 @@ import {
   type ProviderType,
   type RoutingEntry,
 } from '../models/providers';
-import { listModels } from '../models/registry';
 import { getSupabaseClient } from '@mxmai/mxmdata';
 import {
   resolveInferedModalityForConnectivityTest,
@@ -105,20 +104,7 @@ router.get('/options', async (_req: Request, res: Response) => {
       // 忽略 DB 错误，继续使用静态模型
     }
 
-    // 2. 合并 registry 中的静态模型（补充 DB 中未覆盖的）
-    const allModels = listModels();
-    for (const def of allModels) {
-      const provider = def.provider;
-      const scope = def.scope;
-      const key = def.modelKey;
-      if (!modelsByProvider[provider]) modelsByProvider[provider] = [];
-      if (!modelsByProvider[provider].includes(key)) modelsByProvider[provider].push(key);
-      if (!modelsByProviderByScope[provider]) modelsByProviderByScope[provider] = {};
-      if (!modelsByProviderByScope[provider][scope]) modelsByProviderByScope[provider][scope] = [];
-      if (!modelsByProviderByScope[provider][scope].includes(key)) {
-        modelsByProviderByScope[provider][scope].push(key);
-      }
-    }
+    // 纯动态模式：不再合并 registry 静态模型
 
     // 排序，保证下拉稳定
     for (const p of Object.keys(modelsByProvider)) {
@@ -397,24 +383,14 @@ router.get('/costs', async (req: Request, res: Response) => {
     const from = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
     const fromIso = from.toISOString();
 
-    // 1. 按 provider + model_key 聚合 usage
-    const { data: usageAgg, error: usageError } = await supabase
+    // 1. 拉取时间窗内 usage 行，在内存中按 provider + model_key 聚合
+    // （supabase-js / PostgREST 客户端不支持 .group()，原实现会在运行时抛错导致 500）
+    const { data: usageRaw, error: usageError } = await supabase
       .from('provider_usage_records')
       .select(
-        `
-        provider,
-        model_key,
-        input_tokens:sum(input_tokens),
-        output_tokens:sum(output_tokens),
-        total_tokens:sum(total_tokens),
-        image_count:sum(image_count),
-        audio_seconds:sum(audio_seconds),
-        video_seconds:sum(video_seconds),
-        request_count:count(*)
-      `,
+        'provider, model_key, input_tokens, output_tokens, total_tokens, image_count, audio_seconds, video_seconds, request_count',
       )
-      .gte('created_at', fromIso)
-      .group('provider, model_key');
+      .gte('created_at', fromIso);
 
     if (usageError) {
       res.status(500).json({
@@ -425,7 +401,56 @@ router.get('/costs', async (req: Request, res: Response) => {
       return;
     }
 
-    const rows = (usageAgg || []) as Array<{
+    type UsageAggRow = {
+      provider: string;
+      model_key: string;
+      input_tokens: number;
+      output_tokens: number;
+      total_tokens: number;
+      image_count: number;
+      audio_seconds: number;
+      video_seconds: number;
+      request_count: number;
+    };
+
+    const aggByPair = new Map<string, UsageAggRow>();
+    for (const r of usageRaw ?? []) {
+      const row = r as Record<string, unknown>;
+      const provider = String(row.provider ?? '');
+      const modelKey = String(row.model_key ?? '');
+      const key = `${provider}::${modelKey}`;
+      const prev = aggByPair.get(key);
+      const it = Number(row.input_tokens ?? 0) || 0;
+      const ot = Number(row.output_tokens ?? 0) || 0;
+      const tt = Number(row.total_tokens ?? 0) || 0;
+      const ic = Number(row.image_count ?? 0) || 0;
+      const asec = Number(row.audio_seconds ?? 0) || 0;
+      const vsec = Number(row.video_seconds ?? 0) || 0;
+      const rc = Number(row.request_count ?? 0) || 0;
+      if (!prev) {
+        aggByPair.set(key, {
+          provider,
+          model_key: modelKey,
+          input_tokens: it,
+          output_tokens: ot,
+          total_tokens: tt,
+          image_count: ic,
+          audio_seconds: asec,
+          video_seconds: vsec,
+          request_count: rc,
+        });
+      } else {
+        prev.input_tokens += it;
+        prev.output_tokens += ot;
+        prev.total_tokens += tt;
+        prev.image_count += ic;
+        prev.audio_seconds += asec;
+        prev.video_seconds += vsec;
+        prev.request_count += rc;
+      }
+    }
+
+    const rows: Array<{
       provider: string;
       model_key: string;
       input_tokens: number | null;
@@ -435,7 +460,17 @@ router.get('/costs', async (req: Request, res: Response) => {
       audio_seconds: number | null;
       video_seconds: number | null;
       request_count: number | null;
-    }>;
+    }> = Array.from(aggByPair.values()).map((u) => ({
+      provider: u.provider,
+      model_key: u.model_key,
+      input_tokens: u.input_tokens,
+      output_tokens: u.output_tokens,
+      total_tokens: u.total_tokens,
+      image_count: u.image_count,
+      audio_seconds: u.audio_seconds,
+      video_seconds: u.video_seconds,
+      request_count: u.request_count,
+    }));
 
     if (rows.length === 0) {
       res.json({
@@ -649,11 +684,13 @@ router.get('/keys', async (req: Request, res: Response) => {
 router.post('/keys', async (req: Request, res: Response) => {
   try {
     const userId = req.headers['x-user-id'] as string | undefined;
-    const { provider, service, key_value, priority } = req.body as {
+    const { provider, service, key_value, priority, is_active } = req.body as {
       provider?: string;
       service?: string | null;
       key_value?: string;
       priority?: number;
+      /** 默认启用；仅当显式传 false 时创建为停用 */
+      is_active?: boolean;
     };
     if (!provider || !key_value || typeof key_value !== 'string') {
       res.status(400).json({ success: false, error: 'Missing provider or key_value' });
@@ -666,6 +703,7 @@ router.post('/keys', async (req: Request, res: Response) => {
       service: service ?? null,
       key_value,
       priority,
+      is_active: typeof is_active === 'boolean' ? is_active : true,
       updated_by: userId ?? null,
     });
     res.json({

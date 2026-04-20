@@ -1,471 +1,89 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  listPromptConfig,
-  getPromptConfigByKey,
   deletePromptConfig,
+  deleteProvidersRouting,
+  getBusinessPricing,
+  getPromptConfigByKey,
+  getProviderPricing,
+  getProvidersOptions,
+  getProvidersRouting,
+  listPromptConfig,
+  listSensitiveWordBindings,
+  listSensitiveWordLists,
+  postProvidersRouting,
+  setSensitiveWordBindingsForSlot,
+  upsertBusinessPricing,
   upsertPromptConfig,
   type PromptConfigBody,
-  getProvidersRouting,
-  getProvidersOptions,
-  postProvidersRouting,
-  deleteProvidersRouting,
-  getProviderPricing,
-  getBusinessPricing,
-  upsertBusinessPricing,
   type ProviderRoutingEntry,
   type ProviderPricingRow,
   type BusinessPricingRow,
 } from '../api/client';
-import { Alert, Button, Divider, Drawer, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Segmented, Space, Switch, Tabs, Table, Tag, Tooltip, Typography, message } from 'antd';
-import { CopyOutlined } from '@ant-design/icons';
-import { PromptTempDesigner } from '@mxmweb/rtext';
+import {
+  App,
+  Button,
+  Drawer,
+  Form,
+  Input,
+  Popconfirm,
+  Select,
+  Space,
+  Switch,
+  Tabs,
+  Table,
+  Tag,
+  Typography,
+} from 'antd';
+import { DeleteOutlined, EditOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { AdminBusinessTestModal } from '../components/AdminBusinessTestModal';
 import AdminSensitiveWords from './AdminSensitiveWords';
-import AdminKnowledgeDefaults from './AdminKnowledgeDefaults';
 import AdminPayment from './AdminPayment';
 
-type Scope = 'writing' | 'outline' | 'graph' | 'audio' | 'video';
+import type { Scope } from './AdminBusiness.types';
+import type {
+  BusinessDisplayConfig,
+  BusinessPricingView,
+  JsonSchema,
+  PromptConfigRow,
+  SchemaFieldRow,
+  TaskTemplateDraft,
+  TemplateVarMeta,
+} from './AdminBusiness.types';
+import {
+  allowedModelScopesForBusiness,
+  buildMarkupFromTemplate,
+  computeRecommendedTokensFromProviderCost,
+  COST_TO_MXM_TOKEN_RATE_DEFAULT,
+  DEFAULT_MARGIN,
+  ensureTaskTemplate,
+  extractTemplateVars,
+  fieldRowsToSchema,
+  getMetaNumber,
+  getBusinessTypeForPromptRow,
+  mergeGenerateParams,
+  parseTemplateMarkup,
+  prettyJson,
+  readGenerateParams,
+  RECOMMENDED_GENERATE_PARAMS,
+  safeJsonParse,
+  schemaPropsToFieldRows,
+  stripSystemSchemaFields,
+} from './AdminBusiness.utils';
 
-type PromptConfigRow = {
-  id: string;
-  scope: string;
-  type: string;
-  subtype: string | null;
-  extra?: Record<string, unknown> | null;
-  is_active: boolean;
-  updated_at?: string;
-};
-
-type BusinessPricingView = {
-  businessType: string;
-  subtype: string | null;
-  chargeMetric: string;
-  resolved?: { provider: string; model_key: string; overridden?: boolean };
-  providerCost?: ProviderPricingRow;
-  costTokens?: { unit?: number; input?: number; output?: number };
-  recommendedTokens?: { unit?: number; input?: number; output?: number };
-  configured?: BusinessPricingRow | null;
-};
-
-type JsonSchema = {
-  $schema?: string;
-  type?: string;
-  properties?: Record<string, unknown>;
-  required?: string[];
-  [k: string]: unknown;
-};
-
-type PipelineStep = { step: string; params?: Record<string, unknown> };
-
-type SchemaFieldRow = {
-  key: string;
-  name: string;
-  type: string;
-  title?: string;
-  description?: string;
-  required: boolean;
-  enumText: string;
-  /** 枚举展示名（与 enum 一一对应），对应 schema 的 x-enum-labels，每行一个 */
-  enumLabelsText: string;
-  defaultText: string;
-};
-
-type TaskTemplateDraft = {
-  formSchema: JsonSchema;
-  prompt: {
-    systemTemplate: string;
-    userTemplate?: string;
-    outputFormatTemplate: string;
-    systemTemplateMarkup?: string;
-    userTemplateMarkup?: string;
-    outputFormatTemplateMarkup?: string;
-  };
-  inputPipeline?: PipelineStep[];
-  outputPipeline?: PipelineStep[];
-  knowledge?: {
-    useKnowledge: boolean;
-    defaultKnowledgeBaseIds?: string[];
-    strategy?: 'global' | 'per_section' | 'none';
-  };
-  storage?: {
-    scope: Scope;
-    extension: string;
-    mime?: string;
-    bucket?: string;
-    pathTemplate?: string;
-    filenameTemplate?: string;
-  };
-  uiSchema?: Record<string, unknown>;
-  extra?: Record<string, unknown>;
-};
-
-function safeJsonParse<T>(text: string): { ok: true; value: T } | { ok: false; error: string } {
-  try {
-    return { ok: true, value: JSON.parse(text) as T };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
-  }
-}
-
-// 成本折算系数：将 Provider 成本（内部币种）折算为 MXM-TOKEN
-const COST_TO_MXM_TOKEN_RATE_DEFAULT = 1000;
-const DEFAULT_MARGIN = 0.2;
-
-function getBusinessTypeForPromptRow(r: Pick<PromptConfigRow, 'scope' | 'type'>): string {
-  if (r.scope === 'writing') {
-    const map: Record<string, string> = {
-      outlines: 'writing-outlines',
-      articles: 'writing-articles',
-      lyrics: 'writing-lyrics',
-      'suno-lyrics': 'writing-lyrics',
-      'voice-scripts': 'writing-voice-scripts',
-      'storyboard-scripts': 'writing-storyboard-scripts',
-      'media-post': 'writing-media-post',
-      reviews: 'writing-reviews',
-      resumes: 'writing-resumes',
-    };
-    return map[r.type] ?? `writing-${r.type}`;
-  }
-  return `${r.scope}-${r.type}`;
-}
+import { AdminBusinessSchemaTab } from './AdminBusinessSchemaTab';
+import { AdminBusinessPromptTab } from './AdminBusinessPromptTab';
+import { AdminBusinessPricingTab } from './AdminBusinessPricingTab';
+import { AdminBusinessConfigTab } from './AdminBusinessConfigTab';
+import { AdminBusinessCreateModal } from './AdminBusinessCreateModal';
 
 function toNum(v: unknown): number | undefined {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
   return Number.isFinite(n) ? n : undefined;
 }
 
-function getMetaNumber(meta: Record<string, unknown> | null | undefined, key: string): number | undefined {
-  if (!meta) return undefined;
-  return toNum(meta[key]);
-}
-
-function computeRecommendedTokensFromProviderCost(
-  p: ProviderPricingRow,
-  costToMxmTokenRate = COST_TO_MXM_TOKEN_RATE_DEFAULT,
-  margin = DEFAULT_MARGIN
-) {
-  const costTokens: { unit?: number; input?: number; output?: number } = {};
-  const recommendedTokens: { unit?: number; input?: number; output?: number } = {};
-  if (p.charge_mode === 'token_based') {
-    const inUsd = p.input_unit_price ?? undefined;
-    const outUsd = p.output_unit_price ?? undefined;
-    if (inUsd != null) costTokens.input = Number(inUsd) * costToMxmTokenRate;
-    if (outUsd != null) costTokens.output = Number(outUsd) * costToMxmTokenRate;
-    if (costTokens.input != null) recommendedTokens.input = costTokens.input * (1 + margin);
-    if (costTokens.output != null) recommendedTokens.output = costTokens.output * (1 + margin);
-  } else {
-    const uUsd = p.unit_price;
-    costTokens.unit = Number(uUsd) * costToMxmTokenRate;
-    recommendedTokens.unit = costTokens.unit * (1 + margin);
-  }
-  return { costTokens, recommendedTokens };
-}
-
-function allowedModelScopesForBusiness(scope: Scope): string[] {
-  if (scope === 'graph') return ['graph'];
-  if (scope === 'audio') return ['audio'];
-  if (scope === 'video') return ['video'];
-  if (scope === 'outline') return ['outline', 'writing', 'text', 'default'];
-  // writing
-  return ['writing', 'text', 'default'];
-}
-
-function prettyJson(v: unknown): string {
-  try {
-    return JSON.stringify(v ?? {}, null, 2);
-  } catch {
-    return '{}';
-  }
-}
-
-function ensureTaskTemplate(tpl: unknown): TaskTemplateDraft {
-  const formSchema: JsonSchema =
-    (tpl as Record<string, unknown> | null)?.formSchema && typeof (tpl as Record<string, unknown>).formSchema === 'object'
-      ? ((tpl as Record<string, unknown>).formSchema as JsonSchema)
-      : { $schema: 'http://json-schema.org/draft-07/schema#', type: 'object', properties: {}, required: [] };
-  const prompt = (tpl as Record<string, unknown> | null)?.prompt && typeof (tpl as Record<string, unknown>).prompt === 'object'
-    ? ((tpl as Record<string, unknown>).prompt as Record<string, unknown>)
-    : {};
-  const knowledge = (tpl as Record<string, unknown> | null)?.knowledge && typeof (tpl as Record<string, unknown>).knowledge === 'object' ? ((tpl as Record<string, unknown>).knowledge as Record<string, unknown>) : null;
-  const strategyRaw = knowledge?.strategy;
-  const strategy: 'global' | 'per_section' | 'none' =
-    strategyRaw === 'per_section' || strategyRaw === 'none' || strategyRaw === 'global' ? strategyRaw : 'global';
-  return {
-    formSchema,
-    prompt: {
-      systemTemplate: String(prompt.systemTemplate ?? '').trim(),
-      userTemplate: prompt.userTemplate != null ? String(prompt.userTemplate) : undefined,
-      outputFormatTemplate: String(prompt.outputFormatTemplate ?? '').trim(),
-      systemTemplateMarkup:
-        typeof prompt.systemTemplateMarkup === 'string'
-          ? String(prompt.systemTemplateMarkup)
-          : String(prompt.systemTemplate ?? '').trim(),
-      userTemplateMarkup:
-        typeof prompt.userTemplateMarkup === 'string'
-          ? String(prompt.userTemplateMarkup)
-          : prompt.userTemplate != null
-          ? String(prompt.userTemplate)
-          : '',
-      outputFormatTemplateMarkup:
-        typeof prompt.outputFormatTemplateMarkup === 'string'
-          ? String(prompt.outputFormatTemplateMarkup)
-          : String(prompt.outputFormatTemplate ?? '').trim(),
-    },
-    inputPipeline: Array.isArray((tpl as Record<string, unknown> | null)?.inputPipeline) ? (((tpl as Record<string, unknown>).inputPipeline as unknown) as PipelineStep[]) : [{ step: 'noop' }],
-    outputPipeline: Array.isArray((tpl as Record<string, unknown> | null)?.outputPipeline) ? (((tpl as Record<string, unknown>).outputPipeline as unknown) as PipelineStep[]) : [{ step: 'noop' }],
-    knowledge: (tpl as Record<string, unknown> | null)?.knowledge && typeof (tpl as Record<string, unknown>).knowledge === 'object'
-      ? {
-          useKnowledge: !!(knowledge as Record<string, unknown>).useKnowledge,
-          defaultKnowledgeBaseIds: Array.isArray((knowledge as Record<string, unknown>).defaultKnowledgeBaseIds)
-            ? ((knowledge as Record<string, unknown>).defaultKnowledgeBaseIds as unknown[]).map(String)
-            : [],
-          strategy,
-        }
-      : { useKnowledge: false, defaultKnowledgeBaseIds: [], strategy: 'global' },
-    storage: (() => {
-      const storage = (tpl as Record<string, unknown> | null)?.storage;
-      if (!storage || typeof storage !== 'object') return undefined;
-      const s = storage as Record<string, unknown>;
-      return {
-        scope: (s.scope as Scope) ?? 'writing',
-        extension: String(s.extension ?? 'json'),
-        mime: s.mime != null ? String(s.mime) : undefined,
-        bucket: s.bucket != null ? String(s.bucket) : undefined,
-        pathTemplate: s.pathTemplate != null ? String(s.pathTemplate) : undefined,
-        filenameTemplate: s.filenameTemplate != null ? String(s.filenameTemplate) : undefined,
-      };
-    })(),
-    uiSchema: (() => {
-      const uiSchema = (tpl as Record<string, unknown> | null)?.uiSchema;
-      return uiSchema && typeof uiSchema === 'object' ? (uiSchema as Record<string, unknown>) : undefined;
-    })(),
-    extra: (() => {
-      const extra = (tpl as Record<string, unknown> | null)?.extra;
-      return extra && typeof extra === 'object' ? (extra as Record<string, unknown>) : undefined;
-    })(),
-  };
-}
-
-/** 前端组件用的 UI 类型，便于渲染 input/textarea/number/select */
-const UI_TYPES = ['text', 'string', 'number', 'selection'] as const;
-type UiType = (typeof UI_TYPES)[number];
-
-function schemaTypeToUiType(d: Record<string, unknown>): string {
-  const xUi = d['x-ui-type'];
-  if (xUi === 'text' || xUi === 'string' || xUi === 'number' || xUi === 'selection') return xUi;
-  const t = String(d.type ?? 'string');
-  if (t === 'number' || t === 'integer') return 'number';
-  if (Array.isArray(d.enum) && d.enum.length > 0) return 'selection';
-  if (t === 'string') return 'string';
-  return 'string';
-}
-
-function schemaPropsToFieldRows(schema: JsonSchema): SchemaFieldRow[] {
-  const props = (schema.properties ?? {}) as Record<string, unknown>;
-  const requiredSet = new Set<string>((schema.required ?? []).map(String));
-  return Object.entries(props).map(([name, def]) => {
-    const d = def && typeof def === 'object' ? (def as Record<string, unknown>) : {};
-    const enumArr = Array.isArray(d.enum) ? d.enum : undefined;
-    const enumText = enumArr ? enumArr.map((x) => String(x)).join('\n') : '';
-    const enumLabels = Array.isArray(d['x-enum-labels']) ? (d['x-enum-labels'] as string[]) : undefined;
-    const enumLabelsText = enumLabels ? enumLabels.map((x) => String(x)).join('\n') : '';
-    const defaultText = d.default != null ? String(d.default) : '';
-    const type = schemaTypeToUiType(d);
-    return {
-      key: name,
-      name,
-      type,
-      title: d.title != null ? String(d.title) : undefined,
-      description: d.description != null ? String(d.description) : undefined,
-      required: requiredSet.has(name),
-      enumText: enumText ?? '',
-      enumLabelsText: enumLabelsText ?? '',
-      defaultText: defaultText ?? '',
-    };
-  });
-}
-
-function fieldRowsToSchema(
-  base: JsonSchema,
-  rows: SchemaFieldRow[]
-): JsonSchema {
-  const next: JsonSchema = { ...base, type: base.type ?? 'object' };
-  const props: Record<string, Record<string, unknown>> = {};
-  const required: string[] = [];
-  for (const r of rows) {
-    const name = String(r.name || '').trim();
-    if (!name) continue;
-    const def: Record<string, unknown> = {};
-    const uiType = UI_TYPES.includes(r.type as UiType) ? (r.type as UiType) : 'string';
-    if (uiType === 'number') {
-      def.type = 'number';
-      def['x-ui-type'] = 'number';
-    } else if (uiType === 'selection') {
-      def.type = 'string';
-      def['x-ui-type'] = 'selection';
-    } else if (uiType === 'text') {
-      def.type = 'string';
-      def['x-ui-type'] = 'text';
-    } else {
-      def.type = 'string';
-      def['x-ui-type'] = 'string';
-    }
-    if (r.title) def.title = String(r.title);
-    if (r.description) def.description = String(r.description);
-    const enumLines = String(r.enumText || '')
-      .split('\n')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (enumLines.length > 0) def.enum = enumLines;
-    const labelLines = String(r.enumLabelsText || '')
-      .split('\n')
-      .map((s) => s.trim());
-    if (labelLines.length > 0) def['x-enum-labels'] = labelLines.slice(0, enumLines.length);
-    if (r.defaultText != null && String(r.defaultText).trim() !== '') {
-      const dt = String(r.defaultText).trim();
-      def.default = uiType === 'number' ? Number(dt) : dt;
-    }
-    props[name] = def;
-    if (r.required) required.push(name);
-  }
-  next.properties = props;
-  next.required = required;
-  if (!next.$schema) next.$schema = 'http://json-schema.org/draft-07/schema#';
-  return next;
-}
-
-function stepListToText(steps: PipelineStep[] | undefined): string {
-  return prettyJson(steps ?? []);
-}
-
-function textToStepList(text: string): PipelineStep[] {
-  const parsed = safeJsonParse<unknown>(text);
-  if (!parsed.ok) throw new Error(parsed.error);
-  if (!Array.isArray(parsed.value)) throw new Error('必须是 JSON 数组');
-  return (parsed.value as unknown[]).map((x) => {
-    if (!x || typeof x !== 'object') return { step: 'noop' };
-    const obj = x as Record<string, unknown>;
-    const step = typeof obj.step === 'string' ? obj.step : 'noop';
-    const params = obj.params && typeof obj.params === 'object' ? (obj.params as Record<string, unknown>) : undefined;
-    return { step, params };
-  });
-}
-
-function extractTemplateVars(text: string): string[] {
-  const out: string[] = [];
-  const re = /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g;
-  let m: RegExpExecArray | null = null;
-  while ((m = re.exec(text)) !== null) out.push(m[1]);
-  return Array.from(new Set(out));
-}
-
-function escapeAttr(value: string): string {
-  return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-}
-
-function buildMarkupFromTemplate(template: string, schema: JsonSchema): string {
-  if (!template) return '';
-  const props = (schema.properties ?? {}) as Record<string, unknown>;
-  const requiredArr = Array.isArray(schema.required) ? schema.required.map(String) : [];
-  const requiredSet = new Set<string>(requiredArr);
-
-  const re = /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g;
-  let lastIndex = 0;
-  let out = '';
-  let m: RegExpExecArray | null;
-
-  while ((m = re.exec(template)) !== null) {
-    const varName = m[1];
-    out += template.slice(lastIndex, m.index);
-    const defRaw = props[varName];
-    const def =
-      defRaw && typeof defRaw === 'object'
-        ? (defRaw as Record<string, unknown>)
-        : {};
-    const type = typeof def.type === 'string' ? String(def.type) : 'string';
-    const label = typeof def.title === 'string' ? String(def.title) : varName;
-    const defValueRaw = (def as { default?: unknown }).default;
-    const required = requiredSet.has(varName);
-    const attrParts: string[] = [
-      `name="${escapeAttr(varName)}"`,
-      `type="${escapeAttr(type)}"`,
-      `label="${escapeAttr(label)}"`,
-      `required="${required ? 'true' : 'false'}"`,
-    ];
-    if (defValueRaw !== undefined && defValueRaw !== null && String(defValueRaw) !== '') {
-      attrParts.push(`defaultValue="${escapeAttr(String(defValueRaw))}"`);
-    }
-    out += `<template ${attrParts.join(' ')}>${varName}</template>`;
-    lastIndex = re.lastIndex;
-  }
-
-  out += template.slice(lastIndex);
-  return out;
-}
-
-type TemplateVarMeta = {
-  name: string;
-  type?: string;
-  label?: string;
-  defaultValue?: string;
-  required?: boolean;
-};
-
-type ParsedTemplateMarkup = {
-  text: string;
-  vars: TemplateVarMeta[];
-};
-
-function parseTemplateMarkup(markup: string): ParsedTemplateMarkup {
-  if (!markup) return { text: '', vars: [] };
-  const vars: TemplateVarMeta[] = [];
-  const re = /<template\b([^>]*)>([\s\S]*?)<\/template>/gi;
-  let lastIndex = 0;
-  let out = '';
-  let m: RegExpExecArray | null;
-
-  function parseAttrs(attrStr: string): Record<string, string> {
-    const attrs: Record<string, string> = {};
-    const attrRe = /([a-zA-Z_:][a-zA-Z0-9_:.-]*)\s*=\s*"([^"]*)"/g;
-    let am: RegExpExecArray | null;
-    while ((am = attrRe.exec(attrStr)) !== null) {
-      attrs[am[1]] = am[2];
-    }
-    return attrs;
-  }
-
-  while ((m = re.exec(markup)) !== null) {
-    const full = m[0];
-    const attrStr = m[1] ?? '';
-    const inner = m[2] ?? '';
-    out += markup.slice(lastIndex, m.index);
-    const attrs = parseAttrs(attrStr);
-    const innerText = String(inner).trim();
-    const name = attrs.name || innerText.replace(/[^a-zA-Z0-9_]/g, '').trim();
-    if (!name) {
-      lastIndex = re.lastIndex;
-      out += full;
-      continue;
-    }
-    const meta: TemplateVarMeta = {
-      name,
-      type: attrs.type,
-      label: attrs.label,
-      defaultValue: attrs.defaultValue,
-      required: attrs.required === 'true',
-    };
-    vars.push(meta);
-    out += `\${${name}}`;
-    lastIndex = re.lastIndex;
-  }
-  out += markup.slice(lastIndex);
-  return { text: out, vars };
-}
-
-const SYSTEM_SCHEMA_FIELDS = ['uid', 'label', 'prompt', 'language'] as const;
-const SYSTEM_SCHEMA_FIELD_SET = new Set<string>(SYSTEM_SCHEMA_FIELDS as unknown as string[]);
-
 export default function AdminBusiness() {
+  const { message } = App.useApp();
   const { isLoggedIn, isAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [list, setList] = useState<PromptConfigRow[]>([]);
@@ -478,24 +96,31 @@ export default function AdminBusiness() {
   const [extraDraft, setExtraDraft] = useState<Record<string, unknown>>({});
   const [isActive, setIsActive] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [systemTemplateMarkup, setSystemTemplateMarkup] = useState('');
-  const [userTemplateMarkup, setUserTemplateMarkup] = useState('');
-  const [outputFormatMarkup, setOutputFormatMarkup] = useState('');
+  const [unifiedTemplateMarkup, setUnifiedTemplateMarkup] = useState('');
+  /** PromptTempDesigner 对 onChange 有 ~400ms 防抖；保存前必须用 onGetData 拉取最新串，否则会写入旧模板 */
+  const promptMarkupGetterRef = useRef<((format: 'pure_string' | 'string' | 'markdown' | 'html') => string) | null>(null);
 
   const [schemaMode, setSchemaMode] = useState<'guided' | 'json'>('guided');
   const [schemaRows, setSchemaRows] = useState<SchemaFieldRow[]>(() => schemaPropsToFieldRows({ type: 'object', properties: {}, required: [] }));
   const [schemaJson, setSchemaJson] = useState('{}');
   const [promptVarSearch, setPromptVarSearch] = useState('');
-  /** Prompt 页内当前编辑的类型，三种 prompt 可切换设置 */
-  const [activePromptType, setActivePromptType] = useState<'system' | 'user' | 'outputFormat'>('system');
-  /** Drawer 内当前 Tab：schema | prompt | pipelines | knowledge_storage */
+  /** Drawer 内当前 Tab：schema | prompt | knowledge_storage(基础配置) | model_pricing */
   const [drawerTabKey, setDrawerTabKey] = useState<string>('schema');
 
-  const [inputPipelineText, setInputPipelineText] = useState(stepListToText([{ step: 'noop' }]));
-  const [outputPipelineText, setOutputPipelineText] = useState(stepListToText([{ step: 'noop' }]));
+  // 敏感词库
+  const [sensitiveLists, setSensitiveLists] = useState<{ id: string; name: string; description?: string | null; is_active: boolean }[]>([]);
+  const [sensitiveSelectedListIds, setSensitiveSelectedListIds] = useState<string[]>([]);
+  const [sensitiveLoading, setSensitiveLoading] = useState(false);
+  const [sensitiveHint, setSensitiveHint] = useState<string | null>(null);
+
+  const displayConfig = useMemo<BusinessDisplayConfig>(() => {
+    const d = (extraDraft as Record<string, unknown>)?.display;
+    return d && typeof d === 'object' ? (d as BusinessDisplayConfig) : {};
+  }, [extraDraft]);
 
   const [saving, setSaving] = useState(false);
 
+  // 路由与定价
   const [routing, setRouting] = useState<Record<string, ProviderRoutingEntry>>({});
   const [modelsByProviderByScope, setModelsByProviderByScope] = useState<Record<string, Record<string, string[]>>>({});
   const [providerPricing, setProviderPricing] = useState<ProviderPricingRow[]>([]);
@@ -520,11 +145,19 @@ export default function AdminBusiness() {
   const [routeModel, setRouteModel] = useState<string>('');
   const [routeSaving, setRouteSaving] = useState(false);
 
-  // create
+  // 新建
   const [createOpen, setCreateOpen] = useState(false);
   const [createScope, setCreateScope] = useState<Scope>('writing');
   const [createTaskKey, setCreateTaskKey] = useState('');
   const [createSubtype, setCreateSubtype] = useState('');
+
+  // 测试
+  const [testOpen, setTestOpen] = useState(false);
+  const [testRow, setTestRow] = useState<PromptConfigRow | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // Data loading
+  // ---------------------------------------------------------------------------
 
   const loadList = useCallback(async () => {
     if (!isLoggedIn || !isAdmin) return;
@@ -560,6 +193,10 @@ export default function AdminBusiness() {
   useEffect(() => {
     void loadList();
   }, [loadList]);
+
+  // ---------------------------------------------------------------------------
+  // Derived state
+  // ---------------------------------------------------------------------------
 
   const visibleList = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -622,6 +259,67 @@ export default function AdminBusiness() {
     return result;
   }, [visibleList, routing, providerPricingIndex, businessPricingIndex]);
 
+  const templateVars = useMemo(() => {
+    const props = draft?.formSchema?.properties ?? {};
+    return Object.keys(props);
+  }, [draft?.formSchema]);
+
+  const promptVarsUsed = useMemo(() => {
+    if (!draft) return [];
+    return extractTemplateVars(draft.prompt.unifiedTemplate ?? '');
+  }, [draft]);
+
+  const missingSchemaVars = useMemo(() => {
+    const schemaVars = new Set(templateVars);
+    return promptVarsUsed.filter((v) => !schemaVars.has(v));
+  }, [promptVarsUsed, templateVars]);
+
+  const routeDirty = useMemo(() => {
+    if (!selected) return false;
+    const businessType = getBusinessTypeForPromptRow(selected);
+    const resolved = routing[businessType];
+    const currentProvider = resolved?.provider ?? '';
+    const currentModel = resolved?.model ?? '';
+    return routeProvider !== currentProvider || routeModel !== currentModel;
+  }, [selected, routing, routeProvider, routeModel]);
+
+  const currentRoutableModels = useMemo(() => {
+    if (!selected || !routeProvider) return [];
+    const allowedScopes = allowedModelScopesForBusiness(selected.scope as Scope);
+    const modelSet = new Set<string>();
+    for (const s of allowedScopes) {
+      const arr = modelsByProviderByScope?.[routeProvider]?.[s] ?? [];
+      for (const m of arr) modelSet.add(m);
+    }
+    const withPrice: Array<{ value: string; label: string }> = [];
+    for (const m of modelSet) {
+      let matchedScope: string | null = null;
+      let pricing: ProviderPricingRow | undefined;
+      for (const s of allowedScopes) {
+        const p = providerPricingIndex.get(`${routeProvider}||${s}||${m}`);
+        if (p) {
+          matchedScope = s;
+          pricing = p;
+          break;
+        }
+      }
+      if (!pricing) continue;
+      const costLabel =
+        pricing.charge_mode === 'token_based'
+          ? `in:${pricing.input_unit_price ?? '-'} / out:${pricing.output_unit_price ?? '-'} ${pricing.currency ?? 'USD'}`
+          : `${pricing.unit_price ?? 0} ${pricing.currency ?? 'USD'}`;
+      withPrice.push({
+        value: m,
+        label: `${m} · ${matchedScope ?? 'default'} · ${costLabel}`,
+      });
+    }
+    return withPrice.sort((a, b) => a.value.localeCompare(b.value));
+  }, [selected, routeProvider, modelsByProviderByScope, providerPricingIndex]);
+
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
+
   const hydratePricingFormByRow = useCallback((row: PromptConfigRow) => {
     const view = pricingViewsById.get(row.id);
     const marginFromMeta = toNum(view?.configured?.metadata?.margin);
@@ -635,7 +333,6 @@ export default function AdminBusiness() {
     const configuredIn = inputFromMeta;
     const configuredOut = outputFromMeta;
 
-    // margin 优先取 metadata；否则按“已配置收费 / 成本折算”反推；再否则默认 20%
     let margin = marginFromMeta != null ? marginFromMeta : undefined;
     if (margin == null && view?.chargeMetric === 'token_based') {
       const parts: number[] = [];
@@ -665,9 +362,7 @@ export default function AdminBusiness() {
     setPricingSaving(true);
     try {
       const margin = Number(values.margin) / 100;
-      const payload: Record<string, unknown> = {
-        margin,
-      };
+      const payload: Record<string, unknown> = { margin };
       if (view.chargeMetric === 'token_based') {
         payload.input_price_in_tokens = values.input ?? null;
         payload.output_price_in_tokens = values.output ?? null;
@@ -699,9 +394,7 @@ export default function AdminBusiness() {
     }
   };
 
-  // 双向联动（编辑页“模型与定价”Tab）：
-  // - 改收益%：按成本自动算 MXM-TOKEN 并回填
-  // - 改 MXM-TOKEN：反向算收益% 并回填
+  // 双向联动（编辑页"模型与定价"Tab）
   useEffect(() => {
     if (!drawerOpen || !selected) return;
     const view = pricingViewsById.get(selected.id);
@@ -712,7 +405,6 @@ export default function AdminBusiness() {
     const marginPct = typeof pricingMarginPct === 'number' && Number.isFinite(pricingMarginPct) ? pricingMarginPct : 20;
     const margin = marginPct / 100;
 
-    // 1) margin 驱动 price
     if (pricingSyncRef.current.source === 'margin') {
       const { recommendedTokens } = computeRecommendedTokensFromProviderCost(pp, COST_TO_MXM_TOKEN_RATE_DEFAULT, margin);
       if (view.chargeMetric === 'token_based') {
@@ -729,7 +421,6 @@ export default function AdminBusiness() {
       return;
     }
 
-    // 2) price 驱动 margin
     if (pricingSyncRef.current.source === 'price') {
       const parts: number[] = [];
       if (view.chargeMetric === 'token_based') {
@@ -756,24 +447,6 @@ export default function AdminBusiness() {
     pricingOutput,
   ]);
 
-  const templateVars = useMemo(() => {
-    const props = draft?.formSchema?.properties ?? {};
-    return Object.keys(props);
-  }, [draft?.formSchema]);
-
-  const promptVarsUsed = useMemo(() => {
-    if (!draft) return [];
-    const sys = draft.prompt.systemTemplate ?? '';
-    const usr = draft.prompt.userTemplate ?? '';
-    const out = draft.prompt.outputFormatTemplate ?? '';
-    return Array.from(new Set([...extractTemplateVars(sys), ...extractTemplateVars(usr), ...extractTemplateVars(out)]));
-  }, [draft]);
-
-  const missingSchemaVars = useMemo(() => {
-    const schemaVars = new Set(templateVars);
-    return promptVarsUsed.filter((v) => !schemaVars.has(v));
-  }, [promptVarsUsed, templateVars]);
-
   const openRow = useCallback(async (row: PromptConfigRow) => {
     setSelected(row);
     setDraft(null);
@@ -795,41 +468,78 @@ export default function AdminBusiness() {
     }
     const extra = (data.extra ?? row.extra ?? {}) as Record<string, unknown>;
     const taskTemplate = (extra as Record<string, unknown>)?.taskTemplate;
-    const tpl = ensureTaskTemplate(taskTemplate);
-    setDraft(tpl);
+    const rulesZh = (data.rules_i18n as Record<string, string> | undefined)?.zh ?? '';
+    const outZh = (data.output_format_i18n as Record<string, string> | undefined)?.zh ?? '';
+    const tpl = ensureTaskTemplate(taskTemplate, { rules: rulesZh, outputFormat: outZh });
+    const hasAnyGp = readGenerateParams(tpl.extra) !== null;
+    setDraft(
+      hasAnyGp
+        ? tpl
+        : {
+            ...tpl,
+            extra: { ...((tpl.extra ?? {}) as Record<string, unknown>), generateParams: { temperature: 0.5, maxTokens: 1600, topP: 0.95 } },
+          }
+    );
     setExtraDraft(extra);
     setIsActive(data.is_active ?? row.is_active ?? true);
 
-    const sysRaw = tpl.prompt.systemTemplateMarkup ?? tpl.prompt.systemTemplate ?? '';
-    const usrRaw = tpl.prompt.userTemplateMarkup ?? tpl.prompt.userTemplate ?? '';
-    const outRaw = tpl.prompt.outputFormatTemplateMarkup ?? tpl.prompt.outputFormatTemplate ?? '';
-
-    const sysMarkup = sysRaw.includes('<template')
-      ? sysRaw
-      : buildMarkupFromTemplate(sysRaw, tpl.formSchema);
-    const usrMarkup = usrRaw.includes('<template')
-      ? usrRaw
-      : buildMarkupFromTemplate(usrRaw, tpl.formSchema);
-    const outMarkup = outRaw.includes('<template')
-      ? outRaw
-      : buildMarkupFromTemplate(outRaw, tpl.formSchema);
-
-    setSystemTemplateMarkup(sysMarkup);
-    setUserTemplateMarkup(usrMarkup);
-    setOutputFormatMarkup(outMarkup);
+    const uniRaw = tpl.prompt.unifiedTemplateMarkup ?? tpl.prompt.unifiedTemplate ?? '';
+    const uniMarkup = uniRaw.includes('<template')
+      ? uniRaw
+      : buildMarkupFromTemplate(uniRaw, tpl.formSchema);
+    setUnifiedTemplateMarkup(uniMarkup);
 
     setSchemaMode('guided');
-    setSchemaRows(schemaPropsToFieldRows(tpl.formSchema));
-    setSchemaJson(prettyJson(tpl.formSchema));
-    setInputPipelineText(stepListToText(tpl.inputPipeline));
-    setOutputPipelineText(stepListToText(tpl.outputPipeline));
+    const sanitizedSchema = stripSystemSchemaFields(tpl.formSchema);
+    setSchemaRows(schemaPropsToFieldRows(sanitizedSchema));
+    setSchemaJson(prettyJson(sanitizedSchema));
     hydratePricingFormByRow(row);
     const businessType = getBusinessTypeForPromptRow(row);
     const resolved = routing[businessType];
     setRouteProvider(resolved?.provider ?? '');
     setRouteModel(resolved?.model ?? '');
     setDrawerTabKey('schema');
-  }, [hydratePricingFormByRow, routing]);
+  }, [hydratePricingFormByRow, routing, message]);
+
+  // 敏感词库加载
+  useEffect(() => {
+    if (!drawerOpen || !selected) return;
+    let cancelled = false;
+    (async () => {
+      setSensitiveLoading(true);
+      setSensitiveHint(null);
+      try {
+        const [listsRes, bindingsRes] = await Promise.all([
+          listSensitiveWordLists(),
+          listSensitiveWordBindings({
+            scope: selected.scope,
+            type: selected.type,
+            subtype: selected.subtype ?? '',
+          }),
+        ]);
+        const listItems =
+          (listsRes.data as { data?: { items?: typeof sensitiveLists }; meta?: { hint?: string } } | undefined)?.data
+            ?.items ?? [];
+        const metaHint = (listsRes.data as { meta?: { hint?: string } } | undefined)?.meta?.hint;
+        const bindItems =
+          (bindingsRes.data as { data?: { items?: { id: string; list_id: string }[] } } | undefined)?.data?.items ?? [];
+        if (cancelled) return;
+        setSensitiveLists(Array.isArray(listItems) ? listItems : []);
+        if (metaHint) setSensitiveHint(String(metaHint));
+        setSensitiveSelectedListIds(Array.isArray(bindItems) ? bindItems.map((b) => String(b.list_id)) : []);
+      } catch {
+        if (!cancelled) {
+          setSensitiveLists([]);
+          setSensitiveSelectedListIds([]);
+        }
+      } finally {
+        if (!cancelled) setSensitiveLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [drawerOpen, selected]);
 
   const saveBusinessRouteForSelected = async () => {
     if (!selected || !routeProvider || !routeModel) {
@@ -875,48 +585,6 @@ export default function AdminBusiness() {
     }
   };
 
-  const currentRoutableModels = useMemo(() => {
-    if (!selected || !routeProvider) return [];
-    const allowedScopes = allowedModelScopesForBusiness(selected.scope as Scope);
-    const modelSet = new Set<string>();
-    for (const s of allowedScopes) {
-      const arr = modelsByProviderByScope?.[routeProvider]?.[s] ?? [];
-      for (const m of arr) modelSet.add(m);
-    }
-    const withPrice: Array<{ value: string; label: string }> = [];
-    for (const m of modelSet) {
-      let matchedScope: string | null = null;
-      let pricing: ProviderPricingRow | undefined;
-      for (const s of allowedScopes) {
-        const p = providerPricingIndex.get(`${routeProvider}||${s}||${m}`);
-        if (p) {
-          matchedScope = s;
-          pricing = p;
-          break;
-        }
-      }
-      if (!pricing) continue;
-      const costLabel =
-        pricing.charge_mode === 'token_based'
-          ? `in:${pricing.input_unit_price ?? '-'} / out:${pricing.output_unit_price ?? '-'} ${pricing.currency ?? 'USD'}`
-          : `${pricing.unit_price ?? 0} ${pricing.currency ?? 'USD'}`;
-      withPrice.push({
-        value: m,
-        label: `${m} · ${matchedScope ?? 'default'} · ${costLabel}`,
-      });
-    }
-    return withPrice.sort((a, b) => a.value.localeCompare(b.value));
-  }, [selected, routeProvider, modelsByProviderByScope, providerPricingIndex]);
-
-  const routeDirty = useMemo(() => {
-    if (!selected) return false;
-    const businessType = getBusinessTypeForPromptRow(selected);
-    const resolved = routing[businessType];
-    const currentProvider = resolved?.provider ?? '';
-    const currentModel = resolved?.model ?? '';
-    return routeProvider !== currentProvider || routeModel !== currentModel;
-  }, [selected, routing, routeProvider, routeModel]);
-
   const handleCreate = async () => {
     const taskKey = createTaskKey.trim();
     const subtype = createSubtype.trim();
@@ -930,17 +598,10 @@ export default function AdminBusiness() {
         type: 'object',
         properties: {
           prompt: { type: 'string', title: '写作需求', minLength: 1 },
-          uid: { type: 'string', title: '任务 UID', description: '前端生成的唯一 ID，用于调试/追踪' },
         },
-        required: ['prompt', 'uid'],
+        required: ['prompt'],
       },
-      prompt: {
-        systemTemplate: '',
-        userTemplate: '【用户需求】\n${prompt}',
-        outputFormatTemplate: '',
-      },
-      inputPipeline: [{ step: 'noop' }],
-      outputPipeline: [{ step: 'noop' }],
+      prompt: {},
     });
     const row: PromptConfigRow = {
       id: `new:${createScope}/${taskKey}/${subtype || '-'}`,
@@ -956,16 +617,15 @@ export default function AdminBusiness() {
     setExtraDraft({ taskTemplate: initial });
     setIsActive(true);
     setDrawerOpen(true);
-    setSystemTemplateMarkup(initial.prompt.systemTemplateMarkup ?? initial.prompt.systemTemplate ?? '');
-    setUserTemplateMarkup(initial.prompt.userTemplateMarkup ?? initial.prompt.userTemplate ?? '');
-    setOutputFormatMarkup(
-      initial.prompt.outputFormatTemplateMarkup ?? initial.prompt.outputFormatTemplate ?? ''
-    );
+    const uniRawNew = initial.prompt.unifiedTemplateMarkup ?? initial.prompt.unifiedTemplate ?? '';
+    const uniMarkupNew = uniRawNew.includes('<template')
+      ? uniRawNew
+      : buildMarkupFromTemplate(uniRawNew, initial.formSchema);
+    setUnifiedTemplateMarkup(uniMarkupNew);
     setSchemaMode('guided');
-    setSchemaRows(schemaPropsToFieldRows(initial.formSchema));
-    setSchemaJson(prettyJson(initial.formSchema));
-    setInputPipelineText(stepListToText(initial.inputPipeline));
-    setOutputPipelineText(stepListToText(initial.outputPipeline));
+    const sanitizedSchema = stripSystemSchemaFields(initial.formSchema);
+    setSchemaRows(schemaPropsToFieldRows(sanitizedSchema));
+    setSchemaJson(prettyJson(sanitizedSchema));
     setDrawerTabKey('schema');
   };
 
@@ -1013,44 +673,32 @@ export default function AdminBusiness() {
     await loadList();
   };
 
-  const buildTaskTemplateFromUi = (): TaskTemplateDraft => {
+  const buildTaskTemplateFromUi = (markupOverride?: string): TaskTemplateDraft => {
     if (!draft) throw new Error('draft is null');
     const next = { ...draft };
+    const effectiveMarkup = markupOverride !== undefined ? markupOverride : unifiedTemplateMarkup;
 
-    // schema
     if (schemaMode === 'guided') {
       next.formSchema = fieldRowsToSchema(next.formSchema, schemaRows);
     } else {
       const parsed = safeJsonParse<JsonSchema>(schemaJson);
       if (!parsed.ok) throw new Error(`Schema JSON 无效: ${parsed.error}`);
-      next.formSchema = parsed.value;
+      next.formSchema = stripSystemSchemaFields(parsed.value);
     }
 
-    // pipelines
-    next.inputPipeline = textToStepList(inputPipelineText);
-    next.outputPipeline = textToStepList(outputPipelineText);
-
-    // prompt：从 rtext Markup 解析 <template>，生成执行端 `${var}` 模板，同时保留 *Markup
-    const parsedSys = parseTemplateMarkup(systemTemplateMarkup);
-    const parsedUser = parseTemplateMarkup(userTemplateMarkup);
-    const parsedOut = parseTemplateMarkup(outputFormatMarkup);
-
+    const parsedUnified = parseTemplateMarkup(effectiveMarkup);
+    const unifiedText = parsedUnified.text.trim();
+    if (!unifiedText) {
+      throw new Error('unifiedTemplate 不能为空');
+    }
     next.prompt = {
-      ...next.prompt,
-      systemTemplate: parsedSys.text.trim(),
-      userTemplate: (() => {
-        const t = parsedUser.text.trim();
-        return t ? t : undefined;
-      })(),
-      outputFormatTemplate: parsedOut.text.trim(),
-      systemTemplateMarkup,
-      userTemplateMarkup,
-      outputFormatTemplateMarkup: outputFormatMarkup,
+      unifiedTemplate: unifiedText,
+      unifiedTemplateMarkup: effectiveMarkup,
     };
 
-    // 根据模板中的变量元信息，自动补全 Schema 中缺失的字段定义
     const allVarsMetaMap = new Map<string, TemplateVarMeta>();
-    for (const meta of [...parsedSys.vars, ...parsedUser.vars, ...parsedOut.vars]) {
+    const varSources = parsedUnified.vars;
+    for (const meta of varSources) {
       const prev = allVarsMetaMap.get(meta.name) ?? ({} as TemplateVarMeta);
       allVarsMetaMap.set(meta.name, {
         name: meta.name,
@@ -1086,6 +734,11 @@ export default function AdminBusiness() {
     next.formSchema.properties = props;
     next.formSchema.required = Array.from(requiredSet);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (next as any).inputPipeline;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (next as any).outputPipeline;
+
     return next;
   };
 
@@ -1093,14 +746,18 @@ export default function AdminBusiness() {
     if (!selected || !draft) return;
     setSaving(true);
     try {
-      const tpl = buildTaskTemplateFromUi();
-      if (!tpl.prompt.systemTemplate.trim()) throw new Error('Prompt.systemTemplate 不能为空');
-      if (!tpl.prompt.outputFormatTemplate.trim()) throw new Error('Prompt.outputFormatTemplate 不能为空');
+      const flushedMarkup =
+        typeof promptMarkupGetterRef.current === 'function'
+          ? promptMarkupGetterRef.current('string')
+          : unifiedTemplateMarkup;
+      setUnifiedTemplateMarkup(flushedMarkup);
+      const tpl = buildTaskTemplateFromUi(flushedMarkup);
+      if (!tpl.prompt.unifiedTemplate?.trim()) throw new Error('unifiedTemplate 不能为空');
       if (!tpl.formSchema || typeof tpl.formSchema !== 'object') throw new Error('formSchema 无效');
       if ((tpl.formSchema.type ?? 'object') !== 'object') throw new Error('formSchema.type 必须为 object');
-      const missingVars = extractTemplateVars(
-        `${tpl.prompt.systemTemplate ?? ''}\n${tpl.prompt.userTemplate ?? ''}\n${tpl.prompt.outputFormatTemplate ?? ''}`
-      ).filter((v) => !(tpl.formSchema.properties && Object.prototype.hasOwnProperty.call(tpl.formSchema.properties, v)));
+      const missingVars = extractTemplateVars(tpl.prompt.unifiedTemplate).filter(
+        (v) => !(tpl.formSchema.properties && Object.prototype.hasOwnProperty.call(tpl.formSchema.properties, v))
+      );
       if (missingVars.length > 0) {
         throw new Error(`Prompt 使用了未在 Schema 定义的变量：${missingVars.join(', ')}`);
       }
@@ -1118,7 +775,6 @@ export default function AdminBusiness() {
 
       message.success('已保存');
       await loadList();
-      // reload selected row from list
       const refreshed = await getPromptConfigByKey({
         scope: selected.scope,
         type: selected.type,
@@ -1137,6 +793,53 @@ export default function AdminBusiness() {
       setSaving(false);
     }
   };
+
+  const handleSensitiveSave = async () => {
+    if (!selected) return;
+    setSensitiveLoading(true);
+    try {
+      const res = await setSensitiveWordBindingsForSlot({
+        scope: selected.scope,
+        type: selected.type,
+        subtype: selected.subtype ?? null,
+        list_ids: sensitiveSelectedListIds,
+      });
+      if (res.error) throw new Error(res.error);
+      message.success('已保存敏感词挂载');
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSensitiveLoading(false);
+    }
+  };
+
+  const handleAddMissingVarsToSchema = () => {
+    setSchemaMode('guided');
+    setSchemaRows((prev) => {
+      const exists = new Set(prev.map((x) => x.name));
+      const next = [...prev];
+      for (const v of missingSchemaVars) {
+        if (exists.has(v)) continue;
+        next.push({
+          key: v,
+          name: v,
+          type: 'string',
+          required: false,
+          userVisible: true,
+          enumText: '',
+          enumLabelsText: '',
+          defaultText: '',
+        });
+      }
+      return next;
+    });
+    setDrawerTabKey('schema');
+    message.info('已把缺失变量补到 Schema，已切换到 Schema 页');
+  };
+
+  // ---------------------------------------------------------------------------
+  // Render helpers
+  // ---------------------------------------------------------------------------
 
   if (!isLoggedIn || !isAdmin) {
     return (
@@ -1171,7 +874,9 @@ export default function AdminBusiness() {
                             { value: 'outline', label: '大纲 (outline)' },
                             { value: 'graph', label: '图文 (graph)' },
                             { value: 'audio', label: '音频 (audio)' },
+                            { value: 'music', label: '音乐 (music)' },
                             { value: 'video', label: '视频 (video)' },
+                            { value: 'text', label: '纯文本 (text)' },
                           ]}
                         />
                         <Input
@@ -1181,7 +886,7 @@ export default function AdminBusiness() {
                           style={{ width: 300, maxWidth: '100%' }}
                           allowClear
                         />
-                        <Button onClick={() => loadList()} loading={loading}>
+                        <Button onClick={() => void loadList()} loading={loading}>
                           刷新
                         </Button>
                         <Button
@@ -1213,11 +918,12 @@ export default function AdminBusiness() {
                           size="small"
                           rowKey="id"
                           dataSource={visibleList}
-                          loading={loading}
+                          // 纯前端分页：翻页不应出现“假 loading”。
+                          // 仅在首次无数据时显示 loading，后台刷新不遮罩表格/分页交互。
+                          loading={loading && visibleList.length === 0}
                           tableLayout="fixed"
                           pagination={{ pageSize: 10, showSizeChanger: false }}
                           columns={[
-                            
                             { title: 'taskKey', dataIndex: 'type', ellipsis: true },
                             {
                               title: '启用',
@@ -1238,201 +944,151 @@ export default function AdminBusiness() {
                               title: '当前物理模型',
                               width: 220,
                               render: (_: unknown, r: PromptConfigRow) => {
-                                const v = pricingViewsById.get(r.id);
-                                if (!v?.resolved) return '—';
+                                const view = pricingViewsById.get(r.id);
+                                if (!view?.resolved) return <span className="muted">—</span>;
                                 return (
-                                  <Space size={6}>
-                                    <Tag color={v.resolved.overridden ? 'gold' : 'blue'}>
-                                      {v.resolved.provider}/{v.resolved.model_key}
-                                    </Tag>
-                                    {v.resolved.overridden ? <span className="muted">覆盖</span> : null}
+                                  <Space size={4} wrap>
+                                    <Tag color="purple">{view.resolved.provider}</Tag>
+                                    <Typography.Text style={{ fontSize: 12 }}>{view.resolved.model_key}</Typography.Text>
+                                    {view.resolved.overridden ? (
+                                      <Tag color="orange" style={{ fontSize: 10 }}>覆盖</Tag>
+                                    ) : null}
                                   </Space>
                                 );
                               },
                             },
                             {
-                              title: '业务收费(MXM-TOKEN)',
-                              width: 180,
+                              title: 'MXM-TOKEN 定价',
+                              width: 160,
                               render: (_: unknown, r: PromptConfigRow) => {
-                                const v = pricingViewsById.get(r.id);
-                                if (!v) return '—';
-                                const tip = (
-                                  <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-                                    <div>
-                                      <strong>路由</strong>：{v.resolved ? `${v.resolved.provider}/${v.resolved.model_key}` : '—'}
-                                      {v.resolved?.overridden ? '（已覆盖）' : ''}
-                                    </div>
-                                    <div>
-                                      <strong>成本(折算)</strong>：
-                                      {v.chargeMetric === 'token_based'
-                                        ? ` in:${v.costTokens?.input != null ? v.costTokens.input.toFixed(2) : '—'} / out:${v.costTokens?.output != null ? v.costTokens.output.toFixed(2) : '—'}`
-                                        : v.costTokens?.unit != null
-                                          ? ` ${v.costTokens.unit.toFixed(2)}`
-                                          : ' —'}
-                                      {' '}MXM-TOKEN
-                                    </div>
-                                    <div>
-                                      <strong>建议收费</strong>：
-                                      {v.chargeMetric === 'token_based'
-                                        ? ` in:${v.recommendedTokens?.input != null ? v.recommendedTokens.input.toFixed(2) : '—'} / out:${v.recommendedTokens?.output != null ? v.recommendedTokens.output.toFixed(2) : '—'}`
-                                        : v.recommendedTokens?.unit != null
-                                          ? ` ${v.recommendedTokens.unit.toFixed(2)}`
-                                          : ' —'}
-                                      {' '}MXM-TOKEN
-                                    </div>
-                                  </div>
-                                );
-                                if (v.chargeMetric === 'token_based') {
-                                  const meta = v.configured?.metadata ?? {};
-                                  const inP = getMetaNumber(meta, 'input_price_in_tokens');
-                                  const outP = getMetaNumber(meta, 'output_price_in_tokens');
-                                  const rec = v.recommendedTokens;
-                                  const displayIn = inP ?? (rec?.input != null ? Number(rec.input.toFixed(2)) : undefined);
-                                  const displayOut = outP ?? (rec?.output != null ? Number(rec.output.toFixed(2)) : undefined);
-                                  if (displayIn == null && displayOut == null) return '—';
-                                  return (
-                                    <Tooltip title={tip}>
-                                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-                                        in:{displayIn ?? '—'} / out:{displayOut ?? '—'}
-                                      </span>
-                                    </Tooltip>
-                                  );
-                                }
-                                const unit =
-                                  v.configured?.price_in_tokens ??
-                                  (v.recommendedTokens?.unit != null ? Number(v.recommendedTokens.unit.toFixed(2)) : undefined);
-                                return unit != null ? (
-                                  <Tooltip title={tip}>
-                                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{unit}</span>
-                                  </Tooltip>
-                                ) : (
-                                  '—'
+                                const view = pricingViewsById.get(r.id);
+                                if (!view?.configured) return <span className="muted">未配置</span>;
+                                const margin = view.configured.metadata?.margin;
+                                return (
+                                  <Typography.Text style={{ fontSize: 12 }}>
+                                    {view.chargeMetric === 'token_based'
+                                      ? `in:${view.configured.metadata?.input_price_in_tokens ?? '-'} / out:${view.configured.metadata?.output_price_in_tokens ?? '-'}`
+                                      : `${view.configured.price_in_tokens} / 单位`}
+                                    {margin != null ? <span className="muted"> 利润率:{Math.round(Number(margin) * 100)}%</span> : null}
+                                  </Typography.Text>
                                 );
                               },
                             },
-                            { title: '更新时间', dataIndex: 'updated_at', width: 176, render: (v: string) => (v ? new Date(v).toLocaleString() : '-') },
                             {
                               title: '操作',
-                              width: 240,
-                              render: (_: unknown, r: PromptConfigRow) => (
-                                <Space size={6}>
-                                  <Button type="link" size="small" onClick={() => void openRow(r)}>
-                                    编辑
-                                  </Button>
-                                  {r.is_active ? (
-                                    <Popconfirm
-                                      title="确定停用该业务？停用后不会对外提供该业务能力。"
-                                      onConfirm={() => void handleToggleBusinessActive(r, false)}
-                                    >
-                                      <Button type="link" size="small" danger>
-                                        停用
-                                      </Button>
-                                    </Popconfirm>
-                                  ) : (
+                              width: 160,
+                              render: (_: unknown, r: PromptConfigRow) => {
+                                return (
+                                  <Space size={4}>
                                     <Button
-                                      type="link"
                                       size="small"
-                                      style={{ color: '#52c41a' }}
-                                      onClick={() => void handleToggleBusinessActive(r, true)}
+                                      icon={<EditOutlined />}
+                                      onClick={() => void openRow(r)}
                                     >
-                                      启用
+                                      编辑
                                     </Button>
-                                  )}
-                                  <Popconfirm
-                                    title="确定删除该业务配置？此操作不可恢复。"
-                                    onConfirm={() => void handleDeleteBusiness(r)}
-                                  >
-                                    <Button type="link" size="small" danger>
-                                      删除
-                                    </Button>
-                                  </Popconfirm>
-                                </Space>
-                              ),
+                                    <Popconfirm
+                                      title={`${r.is_active ? '停用' : '启用'}该业务？`}
+                                      onConfirm={() => void handleToggleBusinessActive(r, !r.is_active)}
+                                    >
+                                      <Button size="small" icon={r.is_active ? <StopOutlined /> : <PlayCircleOutlined />} />
+                                    </Popconfirm>
+                                    <Popconfirm
+                                      title="删除该业务？"
+                                      onConfirm={() => void handleDeleteBusiness(r)}
+                                    >
+                                      <Button danger size="small" icon={<DeleteOutlined />} />
+                                    </Popconfirm>
+                                  </Space>
+                                );
+                              },
+                            },
+                            {
+                              title: '更新时间',
+                              dataIndex: 'updated_at',
+                              width: 176,
+                              render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
                             },
                           ]}
-                          scroll={{ x: 'max-content', y: 'calc(80vh - 280px)' }}
+                        onRow={(r) => ({
+                          onDoubleClick: () => void openRow(r),
+                          style: { cursor: 'pointer' },
+                        })}
                         />
-                        {!loading && visibleList.length === 0 ? (
-                          <div style={{ padding: 24 }}>
-                            <Empty description="暂无业务配置（可点击“新建业务”创建）" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                          </div>
-                        ) : null}
                       </div>
                     </div>
                   </>
                 ),
               },
               {
-                key: 'wallet',
-                label: '充值 / 币种',
-                children: <AdminPayment embedded />,
+                key: 'sensitiveWords',
+                label: '敏感词库',
+                children: <AdminSensitiveWords />,
               },
               {
-                key: 'sensitive',
-                label: '敏感词',
-                children: <AdminSensitiveWords embedded />,
-              },
-              {
-                key: 'knowledge',
-                label: '系统知识库',
-                children: <AdminKnowledgeDefaults embedded />,
+                key: 'payment',
+                label: '收款配置',
+                children: <AdminPayment />,
               },
             ]}
           />
         </div>
       </div>
 
+      {/* 详情 Drawer */}
       <Drawer
-        open={drawerOpen}
-        width={880}
-        destroyOnClose={false}
-        onClose={() => { setDrawerOpen(false); setPromptVarSearch(''); }}
-        styles={{ body: { padding: 0 } }}
         title={
-          selected ? (
-            <div className="admin-business-drawer-title">
-              <div className="admin-business-editor-path">
-                <span className="mono">{selected.scope}</span>
-                <span className="sep">/</span>
-                <span className="mono">{selected.type}</span>
-                {selected.subtype ? (
-                  <>
-                    <span className="sep">/</span>
-                    <span className="mono">{selected.subtype}</span>
-                  </>
-                ) : null}
-              </div>
-              {/* <div className="admin-business-editor-vars">
-                可用变量：
-                <span className="mono">
-                  {templateVars.length ? templateVars.map((v) => `\${${v}}`).join('  ') : '（从 Schema properties 推导）'}
-                </span>
-              </div> */}
-            </div>
-          ) : (
-            '业务编辑器'
-          )
+          selected
+            ? `编辑业务：${selected.scope} / ${selected.type}${selected.subtype ? ` / ${selected.subtype}` : ''}`
+            : '编辑业务'
         }
-        extra={
-          <Space size={10}>
-            <div className="admin-business-active">
-              <Switch checked={isActive} onChange={setIsActive} />
-              <span>启用</span>
-            </div>
-            <Button type="primary" onClick={handleSave} loading={saving} disabled={detailLoading || !draft}>
-              保存发布
-            </Button>
-          </Space>
-        }
+        open={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelected(null);
+          setDraft(null);
+          setExtraDraft({});
+          setSensitiveLists([]);
+          setSensitiveSelectedListIds([]);
+          pricingForm.resetFields();
+        }}
+        size={780}
+        styles={{ body: { padding: '12px 20px' } }}
       >
-        <div className="admin-business-drawer-body">
-          {!selected ? (
-            <div style={{ padding: 18 }}>
-              <Empty description="请选择一个业务，或点击“新建业务”。" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            </div>
-          ) : detailLoading || !draft ? (
-            <div style={{ padding: 18 }} className="muted">
-              加载中...
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* 顶部操作栏 */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <Space size={8}>
+              <Switch
+                checked={isActive}
+                onChange={(v) => setIsActive(v)}
+                checkedChildren="启用"
+                unCheckedChildren="停用"
+              />
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {selected?.id?.startsWith('new:') ? '【新建】' : selected?.id}
+              </Typography.Text>
+            </Space>
+            <Space size={8}>
+              <Button
+                size="small"
+                onClick={() => {
+                  setTestRow(selected);
+                  setTestOpen(true);
+                }}
+                disabled={!selected || detailLoading}
+              >
+                调试
+              </Button>
+              <Button type="primary" loading={saving} onClick={() => void handleSave()}>
+                保存全部
+              </Button>
+            </Space>
+          </div>
+
+          {detailLoading ? (
+            <div style={{ padding: 24, textAlign: 'center' }}>
+              <Typography.Text type="secondary">加载中…</Typography.Text>
             </div>
           ) : (
             <div className="admin-business-editorBodyInner">
@@ -1444,656 +1100,116 @@ export default function AdminBusiness() {
                     key: 'schema',
                     label: 'Schema',
                     children: (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <span className="muted">编辑模式：</span>
-                          <Select
-                            value={schemaMode}
-                            onChange={(v) => setSchemaMode(v)}
-                            style={{ width: 180 }}
-                            options={[
-                              { value: 'guided', label: '可视化（字段列表）' },
-                              { value: 'json', label: '高级（JSON）' },
-                            ]}
-                          />
-                          <Button
-                            onClick={() => {
-                              const parsed = safeJsonParse<JsonSchema>(schemaJson);
-                              const nextSchema =
-                                schemaMode === 'guided'
-                                  ? fieldRowsToSchema(draft.formSchema, schemaRows)
-                                  : parsed.ok
-                                  ? parsed.value
-                                  : draft.formSchema;
-                              setSchemaJson(prettyJson(nextSchema));
-                            }}
-                          >
-                            同步到 JSON
-                          </Button>
-                          {schemaMode === 'guided' && (
-                            <Button
-                              type="primary"
-                              onClick={() => {
-                                setSchemaRows((prev) => [
-                                  ...prev,
-                                  { key: `field_${Date.now()}`, name: '', type: 'string', required: false, enumText: '', enumLabelsText: '', defaultText: '' },
-                                ]);
-                              }}
-                            >
-                              新增字段
-                            </Button>
-                          )}
-                        </div>
-
-                        {schemaMode === 'guided' ? (
-                          <div>
-                            <div style={{ marginTop: 8, minHeight: 460, overflow: 'hidden' }} className="schema-table-wrap">
-                              <Table
-                                size="small"
-                                rowKey="key"
-                                pagination={false}
-                                dataSource={schemaRows}
-                                tableLayout="fixed"
-                                scroll={{ x: 'max-content', y: 'calc(80vh - 260px)' }}
-                                columns={[
-                                  {
-                                    title: '字段名',
-                                    dataIndex: 'name',
-                                    width: 96,
-                                    ellipsis: true,
-                                    render: (_: unknown, r: SchemaFieldRow, idx: number) => (
-                                      <Input
-                                        size="small"
-                                        value={r.name}
-                                        disabled={SYSTEM_SCHEMA_FIELD_SET.has(String(r.name || '').trim())}
-                                        onChange={(e) => {
-                                          const v = e.target.value;
-                                          setSchemaRows((prev) => prev.map((x, i) => (i === idx ? { ...x, name: v } : x)));
-                                        }}
-                                        style={{ width: '100%', minWidth: 0 }}
-                                      />
-                                    ),
-                                  },
-                                  {
-                                    title: '类型',
-                                    dataIndex: 'type',
-                                    width: 110,
-                                    render: (_: unknown, r: SchemaFieldRow, idx: number) => (
-                                      <Select
-                                        size="small"
-                                        value={r.type}
-                                        disabled={SYSTEM_SCHEMA_FIELD_SET.has(String(r.name || '').trim())}
-                                        onChange={(v) => setSchemaRows((prev) => prev.map((x, i) => (i === idx ? { ...x, type: v } : x)))}
-                                        options={[
-                                          { value: 'text', label: 'text（多行）' },
-                                          { value: 'string', label: 'string（单行）' },
-                                          { value: 'number', label: 'number（数字）' },
-                                          { value: 'selection', label: 'selection（下拉）' },
-                                        ]}
-                                        style={{ width: '100%' }}
-                                      />
-                                    ),
-                                  },
-                                  {
-                                    title: '标题',
-                                    dataIndex: 'title',
-                                    width: 100,
-                                    ellipsis: true,
-                                    render: (_: unknown, r: SchemaFieldRow, idx: number) => (
-                                      <Input
-                                        size="small"
-                                        value={r.title}
-                                        disabled={SYSTEM_SCHEMA_FIELD_SET.has(String(r.name || '').trim())}
-                                        onChange={(e) => setSchemaRows((prev) => prev.map((x, i) => (i === idx ? { ...x, title: e.target.value } : x)))}
-                                        style={{ width: '100%', minWidth: 0 }}
-                                      />
-                                    ),
-                                  },
-                                  {
-                                    title: '必填',
-                                    dataIndex: 'required',
-                                    width: 52,
-                                    render: (_: unknown, r: SchemaFieldRow, idx: number) => (
-                                      <Switch
-                                        size="small"
-                                        checked={SYSTEM_SCHEMA_FIELD_SET.has(String(r.name || '').trim()) ? true : !!r.required}
-                                        disabled={SYSTEM_SCHEMA_FIELD_SET.has(String(r.name || '').trim())}
-                                        onChange={(v) => setSchemaRows((prev) => prev.map((x, i) => (i === idx ? { ...x, required: v } : x)))}
-                                      />
-                                    ),
-                                  },
-                                  {
-                                    title: '枚举',
-                                    dataIndex: 'enumText',
-                                    width: 120,
-                                    render: (_: unknown, r: SchemaFieldRow, idx: number) => (
-                                      <Input.TextArea
-                                        value={r.enumText}
-                                        disabled={SYSTEM_SCHEMA_FIELD_SET.has(String(r.name || '').trim())}
-                                        onChange={(e) => setSchemaRows((prev) => prev.map((x, i) => (i === idx ? { ...x, enumText: e.target.value } : x)))}
-                                        rows={1}
-                                        autoSize={{ minRows: 1, maxRows: 3 }}
-                                        style={{ width: '100%', minWidth: 0, resize: 'none' }}
-                                      />
-                                    ),
-                                  },
-                                  {
-                                    title: '枚举展示名',
-                                    dataIndex: 'enumLabelsText',
-                                    width: 120,
-                                    render: (_: unknown, r: SchemaFieldRow, idx: number) => (
-                                      <Input.TextArea
-                                        value={r.enumLabelsText}
-                                        disabled={SYSTEM_SCHEMA_FIELD_SET.has(String(r.name || '').trim())}
-                                        placeholder="如：文章、口播稿"
-                                        onChange={(e) => setSchemaRows((prev) => prev.map((x, i) => (i === idx ? { ...x, enumLabelsText: e.target.value } : x)))}
-                                        rows={1}
-                                        autoSize={{ minRows: 1, maxRows: 3 }}
-                                        style={{ width: '100%', minWidth: 0, resize: 'none' }}
-                                      />
-                                    ),
-                                  },
-                                  {
-                                    title: '默认值',
-                                    dataIndex: 'defaultText',
-                                    width: 80,
-                                    render: (_: unknown, r: SchemaFieldRow, idx: number) => (
-                                      <Input
-                                        size="small"
-                                        value={r.defaultText}
-                                        disabled={SYSTEM_SCHEMA_FIELD_SET.has(String(r.name || '').trim())}
-                                        onChange={(e) => setSchemaRows((prev) => prev.map((x, i) => (i === idx ? { ...x, defaultText: e.target.value } : x)))}
-                                        style={{ width: '100%', minWidth: 0 }}
-                                      />
-                                    ),
-                                  },
-                                  {
-                                    title: '操作',
-                                    width: 80,
-                                    render: (_: unknown, __: unknown, idx: number) => (
-                                      <Button
-                                        danger
-                                        size="small"
-                                        disabled={SYSTEM_SCHEMA_FIELD_SET.has(String(schemaRows[idx]?.name || '').trim())}
-                                        onClick={() => setSchemaRows((prev) => prev.filter((_, i) => i !== idx))}
-                                      >
-                                        删除
-                                      </Button>
-                                    ),
-                                  },
-                                ]}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            <Alert
-                              type="info"
-                              showIcon
-                              message="提示：系统 Schema 字段（uid/label）不可编辑"
-                              description="高级 JSON 模式可编辑复杂 x-* 扩展，但保存时会校验系统字段未被修改。"
-                            />
-                            <Input.TextArea
-                              value={schemaJson}
-                              onChange={(e) => setSchemaJson(e.target.value)}
-                              rows={18}
-                              style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
-                            />
-                          </div>
-                        )}
-                      </div>
+                      <AdminBusinessSchemaTab
+                        draft={draft}
+                        schemaMode={schemaMode}
+                        schemaRows={schemaRows}
+                        schemaJson={schemaJson}
+                        promptVarSearch={promptVarSearch}
+                        unifiedTemplateMarkup={unifiedTemplateMarkup}
+                        promptMarkupGetterRef={promptMarkupGetterRef}
+                        missingSchemaVars={missingSchemaVars}
+                        onSchemaModeChange={setSchemaMode}
+                        onSchemaRowsChange={setSchemaRows}
+                        onSchemaJsonChange={setSchemaJson}
+                        onPromptVarSearchChange={setPromptVarSearch}
+                        onSyncToJson={() => {
+                          const parsed = safeJsonParse<JsonSchema>(schemaJson);
+                          const nextSchema =
+                            schemaMode === 'guided'
+                              ? fieldRowsToSchema(draft?.formSchema ?? { type: 'object', properties: {}, required: [] }, schemaRows)
+                              : parsed.ok
+                              ? parsed.value
+                              : (draft?.formSchema ?? { type: 'object', properties: {}, required: [] });
+                          setSchemaJson(prettyJson(nextSchema));
+                        }}
+                        onUnifiedTemplateMarkupChange={setUnifiedTemplateMarkup}
+                        onAddMissingVarsToSchema={handleAddMissingVarsToSchema}
+                      />
                     ),
                   },
                   {
                     key: 'prompt',
                     label: 'Prompt',
                     children: (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <div style={{ fontWeight: 700 }}>Prompt（模板变量与 Schema 联动）</div>
-                        <div style={{ fontSize: 12, opacity: 0.8 }}>
-                          使用下方「可用变量」可复制 <code>{'<template ...>'}</code> 片段到剪贴板；三种 prompt 可切换设置，均可使用此联动功能。
-                        </div>
-                        <div style={{ marginTop: 8, padding: 8, borderRadius: 8, border: '1px dashed rgba(148,163,184,0.4)' }}>
-                          <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 600 }}>可用变量（来自 Schema）</span>
-                            <Input
-                              allowClear
-                              size="small"
-                              placeholder="搜索变量名或标题…"
-                              value={promptVarSearch}
-                              onChange={(e) => setPromptVarSearch(e.target.value)}
-                              style={{ width: 180 }}
-                            />
-                          </div>
-                          <Space size={[6, 6]} wrap>
-                              {Object.entries(
-                                ((
-                                  schemaMode === 'guided' && draft
-                                    ? fieldRowsToSchema(draft.formSchema, schemaRows)
-                                    : draft?.formSchema
-                                )?.properties ?? {}) as Record<string, unknown>
-                              )
-                                .filter(([name, defRaw]) => {
-                                  if (!promptVarSearch.trim()) return true;
-                                  const def =
-                                    defRaw && typeof defRaw === 'object'
-                                      ? (defRaw as Record<string, unknown>)
-                                      : {};
-                                  const title = def.title != null ? String(def.title) : name;
-                                  const q = promptVarSearch.trim().toLowerCase();
-                                  return (
-                                    name.toLowerCase().includes(q) ||
-                                    String(title).toLowerCase().includes(q)
-                                  );
-                                })
-                                .map(([name, defRaw]) => {
-                                  const def =
-                                    defRaw && typeof defRaw === 'object'
-                                      ? (defRaw as Record<string, unknown>)
-                                      : {};
-                                  const title = def.title != null ? String(def.title) : name;
-                                  const effectiveSchema =
-                                    schemaMode === 'guided' && draft
-                                      ? fieldRowsToSchema(draft.formSchema, schemaRows)
-                                      : draft?.formSchema;
-                                  const requiredSet = new Set<string>(
-                                    (effectiveSchema?.required ?? []).map((x) => String(x))
-                                  );
-                                  const isRequired = requiredSet.has(name);
-                                  const isSystem = SYSTEM_SCHEMA_FIELD_SET.has(name);
-                                  const label = isSystem ? `${name}（系统）` : name;
-                                  const type = def.type != null ? String(def.type) : 'string';
-                                  const defaultValue =
-                                    def.default !== undefined && def.default !== null
-                                      ? String(def.default)
-                                      : '';
-                                  const snippetAttrs = [
-                                    `name="${name}"`,
-                                    `type="${type}"`,
-                                    `label="${title}"`,
-                                    `required="${isRequired ? 'true' : 'false'}"`,
-                                  ];
-                                  if (defaultValue) {
-                                    snippetAttrs.push(`defaultValue="${defaultValue}"`);
-                                  }
-                                  const snippet = `<template ${snippetAttrs.join(' ')}>${name}</template>`;
-                                  return (
-                                    <Space key={name} size={4} align="center">
-                                      <Tag color={isSystem ? 'gold' : 'blue'}>{label}</Tag>
-                                      <Tooltip title="复制 &lt;template&gt; 片段">
-                                        <Button
-                                          type="text"
-                                          size="small"
-                                          icon={<CopyOutlined />}
-                                          style={{ padding: '0 4px', color: 'inherit', opacity: 0.7 }}
-                                          onClick={() => {
-                                            if (navigator.clipboard?.writeText) {
-                                              void navigator.clipboard.writeText(snippet);
-                                              message.success('已复制，请在光标处粘贴');
-                                            } else {
-                                              message.info('请手动复制：' + snippet);
-                                            }
-                                          }}
-                                        />
-                                      </Tooltip>
-                                    </Space>
-                                  );
-                                })}
-                            </Space>
-                          </div>
-                          {missingSchemaVars.length > 0 ? (
-                            <Alert
-                              type="warning"
-                              showIcon
-                              message="Prompt 模板变量未在 Schema 定义"
-                              description={
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                  <div className="mono">{missingSchemaVars.map((v) => `\${${v}}`).join('  ')}</div>
-                                  <Space wrap>
-                                    <Button
-                                      size="small"
-                                      onClick={() => {
-                                        setSchemaMode('guided');
-                                        setSchemaRows((prev) => {
-                                          const exists = new Set(prev.map((x) => x.name));
-                                          const next = [...prev];
-                                          for (const v of missingSchemaVars) {
-                                            if (exists.has(v)) continue;
-                                            next.push({
-                                              key: v,
-                                              name: v,
-                                              type: 'string',
-                                              required: false,
-                                              enumText: '',
-                                              enumLabelsText: '',
-                                              defaultText: '',
-                                            });
-                                          }
-                                          return next;
-                                        });
-                                        setDrawerTabKey('schema');
-                                        message.info('已把缺失变量补到 Schema，已切换到 Schema 页');
-                                      }}
-                                    >
-                                      一键补到 Schema
-                                    </Button>
-                                  </Space>
-                                </div>
-                              }
-                            />
-                          ) : null}
-
-                        <div style={{ marginTop: 12 }}>
-                          <div style={{ marginBottom: 8, fontWeight: 600 }}>当前编辑</div>
-                          <Segmented
-                            value={activePromptType}
-                            onChange={(v) => setActivePromptType(v as 'system' | 'user' | 'outputFormat')}
-                            options={[
-                              { value: 'system', label: 'systemTemplate' },
-                              { value: 'user', label: 'userTemplate（可选）' },
-                              { value: 'outputFormat', label: 'outputFormatTemplate' },
-                            ]}
-                          />
-                          <div style={{ marginTop: 12, border: '1px solid rgba(148, 163, 184, 0.22)', borderRadius: 12, padding: 12 }}>
-                            {activePromptType === 'system' && (
-                              <PromptTempDesigner
-                                data={systemTemplateMarkup}
-                                onChange={(v: string) => setSystemTemplateMarkup(v)}
-                                styles={{
-                                  templateField: {
-                                    backgroundColor: 'rgba(34, 197, 94, 0.16)',
-                                    borderColor: 'rgba(34, 197, 94, 0.55)',
-                                    textColor: '#bbf7d0',
-                                    minWidth: '64px',
-                                    maxWidth: '520px',
-                                  },
-                                }}
-                              />
-                            )}
-                            {activePromptType === 'user' && (
-                              <PromptTempDesigner
-                                data={userTemplateMarkup}
-                                onChange={(v: string) => setUserTemplateMarkup(v)}
-                                styles={{
-                                  templateField: {
-                                    backgroundColor: 'rgba(56, 189, 248, 0.14)',
-                                    borderColor: 'rgba(56, 189, 248, 0.55)',
-                                    textColor: '#bae6fd',
-                                    minWidth: '64px',
-                                    maxWidth: '520px',
-                                  },
-                                }}
-                              />
-                            )}
-                            {activePromptType === 'outputFormat' && (
-                              <PromptTempDesigner
-                                data={outputFormatMarkup}
-                                onChange={(v: string) => setOutputFormatMarkup(v)}
-                                styles={{
-                                  templateField: {
-                                    backgroundColor: 'rgba(99, 102, 241, 0.18)',
-                                    borderColor: 'rgba(99, 102, 241, 0.55)',
-                                    textColor: '#c7d2fe',
-                                    minWidth: '64px',
-                                    maxWidth: '520px',
-                                  },
-                                }}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: 'pipelines',
-                    label: 'Pipelines',
-                    children: (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <div className="muted" style={{ fontSize: 12 }}>
-                          这里直接编辑 steps JSON 数组（第一版）。每个 step 形如：{'{ "step": "sensitiveCheck", "params": {"paths": ["prompt"]} }'}
-                        </div>
-                        <Divider style={{ margin: '8px 0' }} />
-                        <div>
-                          <div style={{ fontWeight: 600, marginBottom: 6 }}>inputPipeline</div>
-                          <Input.TextArea
-                            value={inputPipelineText}
-                            onChange={(e) => setInputPipelineText(e.target.value)}
-                            rows={8}
-                            style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
-                          />
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 600, marginBottom: 6 }}>outputPipeline</div>
-                          <Input.TextArea
-                            value={outputPipelineText}
-                            onChange={(e) => setOutputPipelineText(e.target.value)}
-                            rows={6}
-                            style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
-                          />
-                        </div>
-                      </div>
+                      <AdminBusinessPromptTab
+                        draft={draft}
+                        schemaMode={schemaMode}
+                        schemaRows={schemaRows}
+                        schemaJson={schemaJson}
+                        promptVarSearch={promptVarSearch}
+                        unifiedTemplateMarkup={unifiedTemplateMarkup}
+                        promptMarkupGetterRef={promptMarkupGetterRef}
+                        missingSchemaVars={missingSchemaVars}
+                        onPromptVarSearchChange={setPromptVarSearch}
+                        onUnifiedTemplateMarkupChange={setUnifiedTemplateMarkup}
+                        onAddMissingVarsToSchema={handleAddMissingVarsToSchema}
+                      />
                     ),
                   },
                   {
                     key: 'model_pricing',
                     label: '模型与定价',
-                    children: selected ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <Alert
-                          type="info"
-                          showIcon
-                          message="业务模型绑定 + MXM-TOKEN 定价"
-                          description="仅展示当前业务类别允许的模型（并且已启用且已配置 Provider 成本）。默认按 20% 收益自动换算，可手工调整。"
-                        />
-                        {routeDirty ? (
-                          <Alert
-                            type="warning"
-                            showIcon
-                            message="有未保存的模型路由变更"
-                            description="你已修改 provider/model，但尚未点击“保存模型”，离开当前业务后这次变更不会生效。"
-                          />
-                        ) : null}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10 }}>
-                          <Select
-                            value={routeProvider || undefined}
-                            onChange={(v) => {
-                              setRouteProvider(v);
-                              setRouteModel('');
-                            }}
-                            placeholder="选择 Provider"
-                            options={Object.keys(modelsByProviderByScope).map((p) => ({ value: p, label: p }))}
-                          />
-                          <Select
-                            value={routeModel || undefined}
-                            onChange={setRouteModel}
-                            placeholder="选择物理模型（已启用+有价格）"
-                            options={currentRoutableModels}
-                            disabled={!routeProvider}
-                            showSearch
-                          />
-                          <Button type="primary" loading={routeSaving} onClick={saveBusinessRouteForSelected}>
-                            保存模型
-                          </Button>
-                        </div>
-                        <Space>
-                          <Button onClick={clearBusinessRouteOverrideForSelected} loading={routeSaving}>
-                            恢复默认路由
-                          </Button>
-                          <Typography.Text type="secondary">
-                            business key: {getBusinessTypeForPromptRow(selected)}
-                          </Typography.Text>
-                        </Space>
-
-                        <Divider style={{ margin: '6px 0' }} />
-
-                        <Form
-                          form={pricingForm}
-                          layout="vertical"
-                          initialValues={{ margin: 20, min_charge_tokens: 0 }}
-                          onValuesChange={(changed) => {
-                            if ('margin' in changed) pricingSyncRef.current.source = 'margin';
-                            if ('unit' in changed || 'input' in changed || 'output' in changed) pricingSyncRef.current.source = 'price';
-                          }}
-                        >
-                          <Form.Item name="margin" label="默认收益（%）" rules={[{ required: true, type: 'number', min: 0, max: 500 }]}>
-                            <InputNumber style={{ width: '100%' }} addonAfter="%" />
-                          </Form.Item>
-
-                          {(() => {
-                            const view = pricingViewsById.get(selected.id);
-                            if (!view) return null;
-                            if (view.chargeMetric === 'token_based') {
-                              return (
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                                  <Form.Item name="input" label="输入（每千 token）收费" rules={[{ required: false, type: 'number', min: 0 }]}>
-                                    <InputNumber style={{ width: '100%' }} />
-                                  </Form.Item>
-                                  <Form.Item name="output" label="输出（每千 token）收费" rules={[{ required: false, type: 'number', min: 0 }]}>
-                                    <InputNumber style={{ width: '100%' }} />
-                                  </Form.Item>
-                                </div>
-                              );
-                            }
-                            return (
-                              <Form.Item name="unit" label="单价（按 charge_mode 解释）" rules={[{ required: true, type: 'number', min: 0 }]}>
-                                <InputNumber style={{ width: '100%' }} />
-                              </Form.Item>
-                            );
-                          })()}
-
-                          <Form.Item name="min_charge_tokens" label="最低收费（MXM-TOKEN）" rules={[{ required: true, type: 'number', min: 0 }]}>
-                            <InputNumber style={{ width: '100%' }} />
-                          </Form.Item>
-                        </Form>
-                        <Space>
-                          <Button type="primary" loading={pricingSaving} onClick={saveBusinessPricingForSelected}>
-                            保存业务价格
-                          </Button>
-                        </Space>
-                      </div>
-                    ) : null,
+                    children: (
+                      <AdminBusinessPricingTab
+                        selected={selected}
+                        routeProvider={routeProvider}
+                        routeModel={routeModel}
+                        routeSaving={routeSaving}
+                        routeDirty={routeDirty}
+                        draft={draft}
+                        pricingForm={pricingForm}
+                        pricingSaving={pricingSaving}
+                        currentRoutableModels={currentRoutableModels}
+                        modelsByProviderByScope={modelsByProviderByScope}
+                        onRouteProviderChange={(v) => {
+                          setRouteProvider(v);
+                          setRouteModel('');
+                        }}
+                        onRouteModelChange={setRouteModel}
+                        onSaveRoute={() => void saveBusinessRouteForSelected()}
+                        onClearRoute={() => void clearBusinessRouteOverrideForSelected()}
+                        onResetGenerateParams={() => {
+                          setDraft((prev) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              extra: mergeGenerateParams(
+                                (prev.extra ?? {}) as Record<string, unknown>,
+                                RECOMMENDED_GENERATE_PARAMS
+                              ),
+                            };
+                          });
+                          message.success('已重置为推荐默认值');
+                        }}
+                        onDraftChange={setDraft}
+                        onSavePricing={() => void saveBusinessPricingForSelected()}
+                      />
+                    ),
                   },
                   {
                     key: 'knowledge_storage',
-                    label: 'Knowledge & Storage',
+                    label: '基础配置',
                     children: (
-                      <Form layout="vertical">
-                        <Form.Item label="knowledge.useKnowledge">
-                          <Switch
-                            checked={!!draft.knowledge?.useKnowledge}
-                            onChange={(v) =>
-                              setDraft((prev) => (prev ? { ...prev, knowledge: { ...(prev.knowledge ?? { useKnowledge: false }), useKnowledge: v } } : prev))
-                            }
-                          />
-                        </Form.Item>
-                        <Form.Item label="knowledge.strategy">
-                          <Select
-                            value={draft.knowledge?.strategy ?? 'global'}
-                            onChange={(v) =>
-                              setDraft((prev) =>
-                                prev
-                                  ? {
-                                      ...prev,
-                                      knowledge: {
-                                        ...(prev.knowledge ?? { useKnowledge: false, defaultKnowledgeBaseIds: [], strategy: 'global' }),
-                                        strategy: v,
-                                      },
-                                    }
-                                  : prev
-                              )
-                            }
-                            options={[
-                              { value: 'global', label: 'global' },
-                              { value: 'per_section', label: 'per_section' },
-                              { value: 'none', label: 'none' },
-                            ]}
-                            style={{ width: 240 }}
-                          />
-                        </Form.Item>
-                        <Form.Item label="knowledge.defaultKnowledgeBaseIds（逗号分隔）">
-                          <Input
-                            value={(draft.knowledge?.defaultKnowledgeBaseIds ?? []).join(',')}
-                            onChange={(e) =>
-                              setDraft((prev) => {
-                                if (!prev) return prev;
-                                const ids = e.target.value
-                                  .split(',')
-                                  .map((s) => s.trim())
-                                  .filter(Boolean);
-                                return { ...prev, knowledge: { ...(prev.knowledge ?? { useKnowledge: false }), defaultKnowledgeBaseIds: ids } };
-                              })
-                            }
-                            placeholder="kbId1,kbId2"
-                          />
-                        </Form.Item>
-
-                        <Divider />
-                        <Form.Item label="storage（可选）">
-                          <Switch
-                            checked={!!draft.storage}
-                            onChange={(v) =>
-                              setDraft((prev) => {
-                                if (!prev) return prev;
-                                if (!v) return { ...prev, storage: undefined };
-                                return {
-                                  ...prev,
-                                  storage: {
-                                    scope: scopeFilter,
-                                    extension: 'json',
-                                    bucket: '',
-                                    pathTemplate: '',
-                                    filenameTemplate: '',
-                                    mime: '',
-                                  },
-                                };
-                              })
-                            }
-                          />
-                        </Form.Item>
-                        {draft.storage && (
-                          <>
-                            <Form.Item label="storage.extension">
-                              <Input
-                                value={draft.storage.extension}
-                                onChange={(e) =>
-                                  setDraft((prev) => (prev && prev.storage ? { ...prev, storage: { ...prev.storage, extension: e.target.value } } : prev))
-                                }
-                              />
-                            </Form.Item>
-                            <Form.Item label="storage.bucket">
-                              <Input
-                                value={draft.storage.bucket ?? ''}
-                                disabled
-                                readOnly
-                              />
-                            </Form.Item>
-                            <Form.Item label="storage.pathTemplate">
-                              <Input
-                                value={draft.storage.pathTemplate ?? ''}
-                                disabled
-                                readOnly
-                                placeholder="outlines/${userId}/${date}/"
-                              />
-                            </Form.Item>
-                            <Form.Item label="storage.filenameTemplate">
-                              <Input
-                                value={draft.storage.filenameTemplate ?? ''}
-                                disabled
-                                readOnly
-                                placeholder="outline_${taskId}_${uuid}.json"
-                              />
-                            </Form.Item>
-                            <Form.Item label="storage.mime">
-                              <Input
-                                value={draft.storage.mime ?? ''}
-                                disabled
-                                readOnly
-                              />
-                            </Form.Item>
-                          </>
-                        )}
-                      </Form>
+                      <AdminBusinessConfigTab
+                        selected={selected}
+                        displayConfig={displayConfig}
+                        draft={draft}
+                        sensitiveLists={sensitiveLists}
+                        sensitiveSelectedListIds={sensitiveSelectedListIds}
+                        sensitiveLoading={sensitiveLoading}
+                        sensitiveHint={sensitiveHint}
+                        scopeFilter={scopeFilter}
+                        onDisplayConfigChange={(d) =>
+                          setExtraDraft((prev) => ({
+                            ...(prev ?? {}),
+                            display: d,
+                          }))
+                        }
+                        onDraftChange={setDraft}
+                        onSensitiveListIdsChange={setSensitiveSelectedListIds}
+                        onSaveSensitiveBinding={() => void handleSensitiveSave()}
+                      />
                     ),
                   },
                 ]}
@@ -2103,36 +1219,28 @@ export default function AdminBusiness() {
         </div>
       </Drawer>
 
-      <Modal
-        title="新建业务（TaskTemplate）"
+      {/* 测试 Modal */}
+      <AdminBusinessTestModal
+        open={testOpen}
+        onClose={() => {
+          setTestOpen(false);
+          setTestRow(null);
+        }}
+        row={testRow}
+      />
+
+      {/* 新建 Modal */}
+      <AdminBusinessCreateModal
         open={createOpen}
-        onCancel={() => setCreateOpen(false)}
-        onOk={handleCreate}
-        okText="创建"
-      >
-        <Form layout="vertical">
-          <Form.Item label="scope" required>
-            <Select<Scope>
-              value={createScope}
-              onChange={(v) => setCreateScope(v)}
-              options={[
-                { value: 'writing', label: 'writing' },
-                { value: 'outline', label: 'outline' },
-                { value: 'graph', label: 'graph' },
-                { value: 'audio', label: 'audio' },
-                { value: 'video', label: 'video' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="taskKey" required>
-            <Input value={createTaskKey} onChange={(e) => setCreateTaskKey(e.target.value)} placeholder="例如：outlines" />
-          </Form.Item>
-          <Form.Item label="subtype（可选）">
-            <Input value={createSubtype} onChange={(e) => setCreateSubtype(e.target.value)} placeholder="例如：tech-article" />
-          </Form.Item>
-        </Form>
-      </Modal>
+        createScope={createScope}
+        createTaskKey={createTaskKey}
+        createSubtype={createSubtype}
+        onOpenChange={setCreateOpen}
+        onScopeChange={setCreateScope}
+        onTaskKeyChange={setCreateTaskKey}
+        onSubtypeChange={setCreateSubtype}
+        onConfirm={() => void handleCreate()}
+      />
     </div>
   );
 }
-

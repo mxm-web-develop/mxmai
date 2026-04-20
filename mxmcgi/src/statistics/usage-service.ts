@@ -96,7 +96,7 @@ export class UsageService {
         undefined;
       const duration = typeof durationRaw === 'number' ? durationRaw : Number(durationRaw) || 0;
       if (duration > 0) {
-        if (scope === 'audio') {
+        if (scope === 'audio' || scope === 'music') {
           audioSeconds = duration;
         } else if (scope === 'video') {
           videoSeconds = duration;
@@ -191,7 +191,9 @@ export class UsageService {
     if (modelKey.startsWith('outline-')) return 'outline';
     if (modelKey.startsWith('graph-') || modelKey.startsWith('image-')) return 'graph';
     if (modelKey.startsWith('audio-')) return 'audio';
+    if (modelKey.startsWith('music-')) return 'music';
     if (modelKey.startsWith('video-')) return 'video';
+    if (modelKey.startsWith('text-')) return 'text';
 
     const taskType = metadata.taskType || metadata.task_type;
     if (typeof taskType === 'string') {
@@ -199,7 +201,9 @@ export class UsageService {
       if (taskType === 'outline') return 'outline';
       if (taskType === 'graph') return 'graph';
       if (taskType === 'audio') return 'audio';
+      if (taskType === 'music') return 'music';
       if (taskType === 'video') return 'video';
+      if (taskType === 'text') return 'text';
     }
 
     return 'text';

@@ -36,6 +36,7 @@ import {
   extractBase64FromDataUri,
 } from './reference-image';
 import { runBasicText } from '../text/basic-text';
+import { assertSupportedGraphPromptTextMode, resolveGraphPromptTextMode } from './graph-prompt-text';
 
 type OutputLanguage = 'zh' | 'en';
 
@@ -1055,6 +1056,8 @@ export async function generateGraphPrompt(
 
   // 2. 知识库召回：仅当 prompt_engineering_config 中 use_knowledge=true 时执行
   const promptConfig = await getPromptFullConfig('graph', graphType, type, lang);
+  const graphPromptTextMode = resolveGraphPromptTextMode(promptConfig);
+  assertSupportedGraphPromptTextMode(graphPromptTextMode);
   let knowledgeContext = '';
   let knowledgeRecallMetadata: KnowledgeRecallMetadata | null = null;
   if (promptConfig?.use_knowledge === true) {
@@ -1579,6 +1582,147 @@ export async function generateGraphImage(
           imageParams.image = imageInputs[0];
         } else if (imageInputs.length > 1) {
           imageParams.image_base64s = imageInputs;
+        }
+      } else if (modelName === 'nano-banana-2' || modelName === 'nano-banana-2-pro') {
+        // nano-banana-2：同一个 modelKey 可能被路由到不同 provider（由 Admin 动态配置决定）。
+        // - 若 resolvedProvider=deer：走 DeerAPI Gemini（仅支持 base64/data-uri，不支持 URL）
+        // - 若 resolvedProvider=atlascloud：走 AtlasCloud prediction（要求 images 为云端可访问 URL）
+
+        if (resolvedProvider === 'deer') {
+          // DeerAPI：将 URL（含内网 asset 代理）统一转为 data URI；最终走 image / image_base64s
+          const storageRepo = RepositoryFactory.createStorageRepository();
+          const toDataUriFromUrl = async (u: string): Promise<string> => {
+            try {
+              const parsed = new URL(u);
+              if (parsed.pathname.endsWith('/api/v1/media/asset') || parsed.pathname.endsWith('/media/asset')) {
+                const bucket = parsed.searchParams.get('bucket') || '';
+                const key = parsed.searchParams.get('key') || '';
+                if (bucket && key) {
+                  const buf = await storageRepo.downloadFile(bucket, key);
+                  const meta = await storageRepo.getFileMetadata(bucket, key);
+                  const ct =
+                    meta?.contentType ||
+                    (key.endsWith('.png')
+                      ? 'image/png'
+                      : key.endsWith('.webp')
+                      ? 'image/webp'
+                      : key.endsWith('.gif')
+                      ? 'image/gif'
+                      : 'image/jpeg');
+                  const b64 = Buffer.from(buf).toString('base64');
+                  return `data:${ct};base64,${b64}`;
+                }
+              }
+            } catch {
+              // ignore
+            }
+            const resp = await fetch(u);
+            if (!resp.ok) throw new Error(`下载参考图失败: ${resp.status} ${resp.statusText}`);
+            const ct = resp.headers.get('content-type') || 'image/jpeg';
+            const ab = await resp.arrayBuffer();
+            const b64 = Buffer.from(ab).toString('base64');
+            return `data:${ct};base64,${b64}`;
+          };
+
+          const imageInputs: string[] = [];
+          for (const ref of processedReferenceImages) {
+            const c = ref.content;
+            if (isBase64(c)) {
+              imageInputs.push(c);
+              continue;
+            }
+            if (isUrl(c)) {
+              const dataUri = await toDataUriFromUrl(c);
+              const base64Data = extractBase64FromDataUri(dataUri);
+              const sizeMB = base64Data.length / 1024 / 1024;
+              if (sizeMB > 2) {
+                const compressed = await compressImage(dataUri, 2, 2048, 2048, 85);
+                imageInputs.push(compressed.compressed);
+              } else {
+                imageInputs.push(dataUri);
+              }
+            }
+          }
+          if (imageInputs.length === 1) imageParams.image = imageInputs[0];
+          else if (imageInputs.length > 1) imageParams.image_base64s = imageInputs;
+        } else if (resolvedProvider === 'atlascloud') {
+          // AtlasCloud：把 base64/内网 URL 上传到 AtlasCloud，换成 download_url，再传 images[]
+          const { getFirstProviderKey } = await import('../providers');
+          const apiKey = (await getFirstProviderKey('atlascloud')) ?? process.env.ATLASCLOUD_API_KEY;
+          const base = String(process.env.ATLASCLOUD_BASE_URL || 'https://api.atlascloud.ai').replace(/\/+$/, '');
+          if (!apiKey) throw new Error('AtlasCloud API Key 未配置：provider=atlascloud 或 ATLASCLOUD_API_KEY');
+
+          const storageRepo = RepositoryFactory.createStorageRepository();
+          const uploadToAtlasCloud = async (buf: Buffer, filename: string, contentType: string): Promise<string> => {
+            const form = new FormData();
+            const blob = new Blob([buf], { type: contentType });
+            form.append('file', blob, filename);
+            const resp = await fetch(`${base}/api/v1/model/uploadMedia`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${apiKey}` },
+              body: form as any,
+            });
+            const text = await resp.text().catch(() => '');
+            let json: any = {};
+            try { json = text ? JSON.parse(text) : {}; } catch { json = { raw: text }; }
+            if (!resp.ok) {
+              throw new Error(
+                `AtlasCloud uploadMedia 失败: ${resp.status} ${resp.statusText} ${(json?.message || json?.error || json?.raw || '').toString()}`.trim()
+              );
+            }
+            const url = json?.data?.download_url ?? json?.download_url;
+            if (!url || typeof url !== 'string') throw new Error('AtlasCloud uploadMedia 未返回 download_url');
+            return url;
+          };
+
+          const isInternalAssetProxy = (u: string): { bucket: string; key: string } | null => {
+            try {
+              const parsed = new URL(u, 'http://local');
+              const path = parsed.pathname || '';
+              if (path.endsWith('/api/v1/media/asset') || path.endsWith('/media/asset')) {
+                const bucket = parsed.searchParams.get('bucket') || '';
+                const key = parsed.searchParams.get('key') || '';
+                if (bucket && key) return { bucket, key };
+              }
+            } catch {
+              // ignore
+            }
+            return null;
+          };
+
+          const toAtlasUrl = async (ref: ReferenceImage): Promise<string> => {
+            const c = ref.content;
+            if (isBase64(c)) {
+              const b64 = extractBase64FromDataUri(c);
+              const buf = Buffer.from(b64, 'base64');
+              const ct =
+                c.startsWith('data:image/png') ? 'image/png'
+                : c.startsWith('data:image/webp') ? 'image/webp'
+                : c.startsWith('data:image/gif') ? 'image/gif'
+                : 'image/jpeg';
+              return uploadToAtlasCloud(buf, `ref_${ref.type || 'image'}.jpg`, ct);
+            }
+            if (isUrl(c)) {
+              const hit = isInternalAssetProxy(c);
+              if (hit) {
+                const bufAny = await storageRepo.downloadFile(hit.bucket, hit.key);
+                const meta = await storageRepo.getFileMetadata(hit.bucket, hit.key);
+                const ct =
+                  meta?.contentType ||
+                  (hit.key.endsWith('.png') ? 'image/png' : hit.key.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
+                const buf = Buffer.isBuffer(bufAny) ? bufAny : Buffer.from(bufAny as any);
+                return uploadToAtlasCloud(buf, `ref_${ref.type || 'image'}`, ct);
+              }
+              return c;
+            }
+            return String(c);
+          };
+
+          const atlasUrls: string[] = [];
+          for (const ref of processedReferenceImages) atlasUrls.push(await toAtlasUrl(ref));
+          if (atlasUrls.length > 0) imageParams.images = atlasUrls.slice(0, 14);
+        } else {
+          // 其他 provider：不做特殊处理（保持现有逻辑）；用户可切换 provider 或改用 Base64
         }
       } else {
         // seedream-4/5 使用 image_input 数组（支持 URL 和 base64）

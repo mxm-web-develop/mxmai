@@ -12,8 +12,9 @@ import { AnthropicProvider } from '../../models/anthropic/provider';
 import { QwenProvider } from '../../models/qwen/provider';
 import { VolcProvider } from '../../models/volc/provider';
 import { MinimaxProvider } from '../../models/minimax/provider';
+import { AtlasCloudProvider } from '../../models/atlascloud/provider';
+import { MaxplanProvider } from '../../models/maxplan/provider';
 import { getResolvedRouting } from './model-routing';
-import { listModels } from '../../models/registry';
 import {
   loadProviderModelCatalog,
   getEnabledForMerge,
@@ -26,31 +27,9 @@ import {
 type ModelProviderMap = Record<string, ProviderType[]>;
 
 /**
- * 基于 models/registry 构建「逻辑模型名 -> 支持的 ProviderType 列表」映射。
+ * 纯动态模式：modelProviderMap 的权威来源是 DB 的 provider_models。
+ * 启动后由 ProviderFactory.loadProviderCatalog() 合并 DB 模型。
  */
-function buildModelProviderMap(providerTypes: ProviderType[]): ModelProviderMap {
-  const map: ModelProviderMap = {};
-
-  // 从 registry 读取所有已注册模型定义
-  const allModels = listModels();
-
-  for (const def of allModels) {
-    const provider = def.provider as ProviderType;
-    const modelKey = def.modelKey;
-
-    // 仅收集我们关心的 providerType
-    if (!providerTypes.includes(provider)) continue;
-
-    if (!map[modelKey]) {
-      map[modelKey] = [];
-    }
-    if (!map[modelKey].includes(provider)) {
-      map[modelKey].push(provider);
-    }
-  }
-
-  return map;
-}
 
 export class ProviderFactory {
   private providers: Map<ProviderType, ModelProvider> = new Map();
@@ -133,19 +112,25 @@ export class ProviderFactory {
         throw new Error(`MinimaxProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
+
+    this.providerInitializers.set('atlascloud', () => {
+      try {
+        return new AtlasCloudProvider();
+      } catch (error) {
+        throw new Error(`AtlasCloudProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+
+    this.providerInitializers.set('maxplan', () => {
+      try {
+        return new MaxplanProvider();
+      } catch (error) {
+        throw new Error(`MaxplanProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
     
-    // 构建模型到提供商的映射表（全部真实 ProviderType）
-    this.modelProviderMap = buildModelProviderMap([
-      'replicate',
-      'ppio',
-      'deer',
-      'openai',
-      'google',
-      'anthropic',
-      'qwen',
-      'volc',
-      'minimax',
-    ]);
+    // 纯动态模式：初始为空，启动后 loadProviderCatalog() 从 DB 合并
+    this.modelProviderMap = {};
     
     // 从环境变量读取默认提供商
     const envDefaultProvider = process.env.DEFAULT_PROVIDER?.toLowerCase();
@@ -169,7 +154,9 @@ export class ProviderFactory {
       envDefaultProvider === 'anthropic' ||
       envDefaultProvider === 'qwen' ||
       envDefaultProvider === 'volc' ||
-      envDefaultProvider === 'minimax'
+      envDefaultProvider === 'minimax' ||
+      envDefaultProvider === 'atlascloud' ||
+      envDefaultProvider === 'maxplan'
     ) {
       this.defaultProvider = envDefaultProvider;
       console.log(`[ProviderFactory] ✅ 使用环境变量中的 provider: ${envDefaultProvider}`);
@@ -236,7 +223,8 @@ export class ProviderFactory {
       }
       // 路由指向的 provider 不支持该 model，回退为按物理模型选择
     }
-    const provider = this.getProviderForModel(resolved.model, resolved.provider);
+    // 未命中路由：logicalOrPhysicalName 视为物理模型名，provider 仅由调用方 preferredProvider 决定
+    const provider = this.getProviderForModel(resolved.model, preferredProvider);
     return { provider, model: resolved.model };
   }
 

@@ -1,41 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
-import { notification, Drawer } from 'antd';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { notification, Drawer, Button, Select } from 'antd';
 import {
-  postAudioModel,
   listCgiTasks,
   deleteTask,
   fetchMediaBlobUrl,
+  runTaskV2,
   type WritingTaskItem,
   type WritingTaskListResponse,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { AudioViewerModal } from '../components/AudioViewerModal';
+import { useTaskV2FormConfig, formatTaskSelectionKey, parseTaskSelectionKey, TaskV2SchemaForm } from '../task-v2';
 
-const AUDIO_TYPE_OPTIONS = [
-  { value: 'voice', label: '配音' },
-  { value: 'music', label: '音乐' },
-];
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
+}
 
-const VOICE_MODEL = 'minimax-speech-2.8-hd';
-const MUSIC_MODEL = 'suno-music';
-
-const VOICE_OPTIONS = [
-  { value: 'female-shaonv', label: '少女音色' },
-  { value: 'female-yujie', label: '御姐音色' },
-  { value: 'female-chengshu', label: '成熟女性' },
-  { value: 'female-tianmei', label: '甜美女性' },
-  { value: 'male-qn-jingying', label: '精英青年' },
-  { value: 'male-qn-badao', label: '霸道青年' },
-  { value: 'presenter_male', label: '男性主持人' },
-  { value: 'presenter_female', label: '女性主持人' },
-];
-
-const EMOTION_OPTIONS = [
-  { value: 'neutral', label: '中性' },
-  { value: 'happy', label: '开心' },
-  { value: 'sad', label: '悲伤' },
-  { value: 'angry', label: '愤怒' },
-];
+function pickTaskIdFromRunTaskV2Response(raw: unknown): string | null {
+  if (!isRecord(raw)) return null;
+  const inner = isRecord(raw.data) ? raw.data : raw;
+  const tid = inner.taskId;
+  return typeof tid === 'string' && tid.trim() ? tid : null;
+}
 
 const STATUS_MAP: Record<string, string> = {
   pending: '等待中',
@@ -45,11 +31,6 @@ const STATUS_MAP: Record<string, string> = {
   failed: '失败',
   cancelled: '已取消',
 };
-
-function getAudioTypeFromTask(t: WritingTaskItem): 'voice' | 'music' {
-  const model = (t.metadata?.model as string) || '';
-  return model === 'suno-music' ? 'music' : 'voice';
-}
 
 function getTaskTitle(t: WritingTaskItem): string {
   const labelVal = (t.metadata?.label as string)?.trim();
@@ -69,16 +50,38 @@ export default function Audio() {
   const [tasks, setTasks] = useState<WritingTaskItem[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
-  const [audioType, setAudioType] = useState<'voice' | 'music'>('voice');
-  const [text, setText] = useState('');
-  const [voiceId, setVoiceId] = useState('female-shaonv');
-  const [emotion, setEmotion] = useState('neutral');
-  const [musicPrompt, setMusicPrompt] = useState('');
-  const [musicTitle, setMusicTitle] = useState('');
-  const [musicTags, setMusicTags] = useState('');
-  const [label, setLabel] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [filterAudioType, setFilterAudioType] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const {
+    taskKey,
+    setTaskKey,
+    subtype,
+    setSubtype,
+    clearPendingForm,
+    taskOptions,
+    formConfig,
+    formValues,
+    setFormValues,
+    resetFormValues,
+    configLoading,
+    listLoading,
+  } = useTaskV2FormConfig({ scope: 'audio', enabled: isLoggedIn });
+
+  const selectedValue = useMemo(() => formatTaskSelectionKey(taskKey, subtype), [taskKey, subtype]);
+  const audioSelectOptions = useMemo(
+    () =>
+      taskOptions.map((it) => ({
+        label: (() => {
+          const tk = (it.taskLabel ?? '').trim() || it.taskKey;
+          if (!it.subtype) return tk;
+          const st = (it.subtypeLabel ?? '').trim() || it.subtype;
+          return `${tk} / ${st}`;
+        })(),
+        value: formatTaskSelectionKey(it.taskKey, it.subtype),
+      })),
+    [taskOptions]
+  );
+
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -113,10 +116,6 @@ export default function Audio() {
 
   const filteredTasks = tasks
     .filter((t) => {
-      if (filterAudioType) {
-        const at = getAudioTypeFromTask(t);
-        if (filterAudioType !== at) return false;
-      }
       if (filterStatus && t.status !== filterStatus) return false;
       return true;
     })
@@ -126,86 +125,41 @@ export default function Audio() {
       return bTime - aTime;
     });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!isLoggedIn) {
       notification.warning({ message: '请先登录', placement: 'top' });
       return;
     }
-
-    if (audioType === 'voice') {
-      if (!text.trim()) {
-        notification.warning({ message: '请输入要合成的文本', placement: 'top' });
-        return;
-      }
-    } else {
-      if (!musicPrompt.trim()) {
-        notification.warning({ message: '请输入歌词内容', placement: 'top' });
-        return;
-      }
+    if (!taskOptions.length) {
+      notification.warning({ message: '暂无可用的音频业务配置', placement: 'top' });
+      return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
-      const model = audioType === 'voice' ? VOICE_MODEL : MUSIC_MODEL;
-      const body: Record<string, unknown> = {
-        metadata: { label: label.trim() || (audioType === 'voice' ? '配音' : '音乐') },
-      };
-
-      if (audioType === 'voice') {
-        (body as any).text = text.trim();
-        (body as any).voice_setting = {
-          voice_id: voiceId,
-          emotion,
-          speed: 1,
-          vol: 1,
-          pitch: 0,
-        };
-        (body as any).timbre_weights = [{ voice_id: voiceId, weight: 100 }];
-      } else {
-        (body as any).prompt = musicPrompt.trim();
-        if (musicTitle.trim()) (body as any).title = musicTitle.trim();
-        if (musicTags.trim()) (body as any).tags = musicTags.trim();
-      }
-
-      const result = await postAudioModel(model, { ...body, storeToMinio: true });
-      const bodyRes = (result.data as Record<string, unknown>) ?? {};
-      const innerData = bodyRes.data as Record<string, unknown> | undefined;
-      const taskId = (innerData?.taskId ?? bodyRes.taskId) as string | undefined;
-
-      if (result.error || bodyRes.error) {
-        notification.error({
-          message: '提交失败',
-          description: (bodyRes.error as string) || result.error || '请稍后重试',
-          placement: 'top',
-        });
-        return;
-      }
-      if (taskId) {
-        notification.success({
-          message: '任务已创建',
-          description: `${taskId}\n可在左侧任务列表中查看进度。`,
-          placement: 'top',
-        });
-        setText('');
-        setMusicPrompt('');
-        setLabel('');
-        loadTasks();
-      } else {
-        notification.info({
-          message: '响应异常',
-          description: '未获取到 taskId，请查看控制台',
-          placement: 'top',
-        });
-      }
-    } catch (err) {
+      const res = await runTaskV2({
+        scope: 'audio',
+        taskKey,
+        subtype,
+        params: formValues,
+      });
+      const taskId = pickTaskIdFromRunTaskV2Response(res.data);
+      notification.success({
+        message: '任务已创建',
+        description: taskId ? `${taskId}\n可在左侧任务列表中查看进度。` : '可在左侧任务列表中查看进度。',
+        placement: 'top',
+      });
+      setFormOpen(false);
+      resetFormValues();
+      loadTasks();
+    } catch (e) {
       notification.error({
         message: '提交失败',
-        description: err instanceof Error ? err.message : String(err),
+        description: e instanceof Error ? e.message : String(e),
         placement: 'top',
       });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -249,105 +203,31 @@ export default function Audio() {
   };
 
   const renderForm = () => (
-    <form onSubmit={handleSubmit} className="form-group audio-form">
-      <div className="form-row">
-        <label>类型</label>
-        <select
-          value={audioType}
-          onChange={(e) => setAudioType(e.target.value as 'voice' | 'music')}
-        >
-          {AUDIO_TYPE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {audioType === 'voice' ? (
-        <>
-          <div className="form-row">
-            <label>文本内容 *</label>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="请输入要合成的文本..."
-              rows={5}
-              required
-            />
-          </div>
-          <div className="form-row-group">
-            <div className="form-row">
-              <label>音色</label>
-              <select value={voiceId} onChange={(e) => setVoiceId(e.target.value)}>
-                {VOICE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-row">
-              <label>情感</label>
-              <select value={emotion} onChange={(e) => setEmotion(e.target.value)}>
-                {EMOTION_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="form-row">
-            <label>歌词内容 *</label>
-            <textarea
-              value={musicPrompt}
-              onChange={(e) => setMusicPrompt(e.target.value)}
-              placeholder="输入歌词或描述..."
-              rows={5}
-              required
-            />
-          </div>
-          <div className="form-row-group">
-            <div className="form-row">
-              <label>标题</label>
-              <input
-                type="text"
-                value={musicTitle}
-                onChange={(e) => setMusicTitle(e.target.value)}
-                placeholder="可选"
-              />
-            </div>
-            <div className="form-row">
-              <label>标签</label>
-              <input
-                type="text"
-                value={musicTags}
-                onChange={(e) => setMusicTags(e.target.value)}
-                placeholder="可选，逗号分隔"
-              />
-            </div>
-          </div>
-        </>
-      )}
-
-      <div className="form-row">
-        <label>任务名称</label>
-        <input
-          type="text"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="可选，用于列表展示"
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <Select
+          style={{ minWidth: 260 }}
+          placeholder="选择业务（taskKey / subtype）"
+          value={taskOptions.length > 0 ? selectedValue : undefined}
+          options={audioSelectOptions}
+          onChange={(v) => {
+            const p = parseTaskSelectionKey(String(v));
+            setTaskKey(p.taskKey);
+            setSubtype(p.subtype);
+            clearPendingForm();
+          }}
         />
+        <Button type="primary" loading={submitting} disabled={!formConfig?.schema} onClick={() => void handleSubmit()}>
+          生成
+        </Button>
       </div>
-
-      <button type="submit" className="btn-primary" disabled={loading}>
-        {loading ? '提交中...' : audioType === 'voice' ? '生成配音' : '生成音乐'}
-      </button>
-    </form>
+      <TaskV2SchemaForm
+        formConfig={formConfig}
+        formValues={formValues}
+        onChange={setFormValues}
+        loading={configLoading || listLoading}
+      />
+    </div>
   );
 
   return (
@@ -355,18 +235,6 @@ export default function Audio() {
       <div className="audio-header">
         <div className="audio-header-main">
           <div className="audio-filters">
-            <select
-              value={filterAudioType}
-              onChange={(e) => setFilterAudioType(e.target.value)}
-              className="audio-filter-select"
-            >
-              <option value="">全部类型</option>
-              {AUDIO_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -439,10 +307,6 @@ export default function Audio() {
                   </span>
                 </div>
                 <div className="audio-task-meta">
-                  <span className="audio-task-subtype">
-                    {AUDIO_TYPE_OPTIONS.find((o) => o.value === getAudioTypeFromTask(t))?.label ??
-                      getAudioTypeFromTask(t)}
-                  </span>
                   <code className="audio-task-id">{t.id}</code>
                   {t.progress?.progress != null && (
                     <span className="audio-task-progress">{t.progress.progress}%</span>
@@ -473,10 +337,10 @@ export default function Audio() {
       <Drawer
         title="新建音频任务"
         placement="right"
-        width={520}
+        size={520}
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         {renderForm()}
       </Drawer>

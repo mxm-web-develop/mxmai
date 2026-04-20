@@ -1,16 +1,27 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Drawer, notification } from 'antd';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Button, Drawer, Select, notification } from 'antd';
 import {
-  createWriting,
   listWritingTasks,
-  getTask,
   deleteTask,
   getMediaWriting,
+  runTaskV2,
   type WritingTaskItem,
   type WritingTaskListResponse,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { WritingViewerModal } from '../components/WritingViewerModal';
+import { useTaskV2FormConfig, formatTaskSelectionKey, parseTaskSelectionKey, TaskV2SchemaForm } from '../task-v2';
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
+function pickTaskIdFromRunTaskV2Response(raw: unknown): string | null {
+  if (!isRecord(raw)) return null;
+  const inner = isRecord(raw.data) ? raw.data : raw;
+  const tid = inner.taskId;
+  return typeof tid === 'string' && tid.trim() ? tid : null;
+}
 
 // 写作类型选项（排除 outlines，与 mobile 对齐）
 const WRITING_TYPE_OPTIONS = [
@@ -105,18 +116,38 @@ export default function Writing() {
   const [filterWritingType, setFilterWritingType] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
 
-  const [writingType, setWritingType] = useState('articles');
-  const [outlineType, setOutlineType] = useState('');
-  const [prompt, setPrompt] = useState('');
-  const [label, setLabel] = useState('');
-  const [selectedOutlineId, setSelectedOutlineId] = useState<string>('');
-  const [outlineTasks, setOutlineTasks] = useState<WritingTaskItem[]>([]);
-  const [outlines, setOutlines] = useState<unknown[]>([]);
-  const [language, setLanguage] = useState<'zh' | 'en'>('zh');
-  const [storyboardChunkSeconds, setStoryboardChunkSeconds] = useState('10');
-  const [storyboardTotalDurationSeconds, setStoryboardTotalDurationSeconds] = useState('');
-  const [totalTextCount, setTotalTextCount] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const {
+    taskKey,
+    setTaskKey,
+    subtype,
+    setSubtype,
+    clearPendingForm,
+    taskOptions,
+    formConfig,
+    formValues,
+    setFormValues,
+    resetFormValues,
+    configLoading,
+    listLoading,
+  } = useTaskV2FormConfig({ scope: 'writing', enabled: isLoggedIn });
+
+  const selectedValue = useMemo(() => formatTaskSelectionKey(taskKey, subtype), [taskKey, subtype]);
+  const writingSelectOptions = useMemo(
+    () =>
+      taskOptions.map((it) => ({
+        label: (() => {
+          const tk = (it.taskLabel ?? '').trim() || it.taskKey;
+          if (!it.subtype) return tk;
+          const st = (it.subtypeLabel ?? '').trim() || it.subtype;
+          return `${tk} / ${st}`;
+        })(),
+        value: formatTaskSelectionKey(it.taskKey, it.subtype),
+      })),
+    [taskOptions]
+  );
+
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -138,20 +169,10 @@ export default function Writing() {
       const res = await listWritingTasks({ limit: 200, offset: 0 });
       const body = res.data as WritingTaskListResponse | undefined;
       const list = body?.data?.tasks ?? [];
-      const writingTasks = list.filter((t) => {
-        const rp = t.requestParams as Record<string, unknown> | undefined;
-        return rp?.taskType !== 'outline';
-      });
-      const outlineOnly = list.filter((t) => {
-        const rp = t.requestParams as Record<string, unknown> | undefined;
-        return rp?.taskType === 'outline';
-      });
-      setAllTasks(writingTasks);
-      setOutlineTasks(outlineOnly);
+      setAllTasks(list);
     } catch (e) {
       console.error('加载写作任务失败:', e);
       setAllTasks([]);
-      setOutlineTasks([]);
     } finally {
       hasInitialLoadedRef.current = true;
       setLoadingTasks(false);
@@ -177,220 +198,62 @@ export default function Writing() {
     });
 
   const renderForm = () => (
-    <form onSubmit={handleSubmit} className="form-group writing-form">
-      <div className="form-row">
-        <label>写作类型</label>
-        <select
-          value={writingType}
-          onChange={(e) => {
-            setWritingType(e.target.value);
-            setOutlineType('');
-          }}
-        >
-          {WRITING_TYPE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {writingType === 'articles' && (
-        <div className="form-row">
-          <label>总字数</label>
-          <input
-            type="number"
-            value={totalTextCount}
-            onChange={(e) => setTotalTextCount(e.target.value)}
-            placeholder="可选，100-100000"
-            min={0}
-          />
-        </div>
-      )}
-
-      {(writingType === 'articles' || writingType === 'voice-scripts' || writingType === 'storyboard-scripts') &&
-        OUTLINE_TYPE_OPTIONS[writingType] && (
-          <div className="form-row">
-            <label>细分类型</label>
-            <select
-              value={outlineType}
-              onChange={(e) => setOutlineType(e.target.value)}
-            >
-              <option value="">请选择</option>
-              {OUTLINE_TYPE_OPTIONS[writingType].map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-      {writingType === 'storyboard-scripts' && (
-        <div className="form-row-group">
-          <div className="form-row">
-            <label>每段时长（秒）</label>
-            <select
-              value={storyboardChunkSeconds}
-              onChange={(e) => setStoryboardChunkSeconds(e.target.value)}
-            >
-              {[4, 5, 8, 10, 15, 20, 25].map((n) => (
-                <option key={n} value={n}>
-                  {n} 秒
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-row">
-            <label>期望总时长（秒）</label>
-            <input
-              type="number"
-              value={storyboardTotalDurationSeconds}
-              onChange={(e) => setStoryboardTotalDurationSeconds(e.target.value)}
-              placeholder="可选"
-              min={0}
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="form-row">
-        <label>使用大纲</label>
-        <select
-          value={selectedOutlineId}
-          onChange={(e) => setSelectedOutlineId(e.target.value)}
-        >
-          <option value="">不使用大纲</option>
-          {outlineTasks.map((ot) => (
-            <option key={ot.id} value={ot.id}>
-              {getTaskTitle(ot)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="form-row">
-        <label>提示词 *</label>
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="请输入写作内容需求，或根据大纲生成时填「根据大纲进行生成」..."
-          rows={4}
-          required
-        />
-      </div>
-
-      <div className="form-row-group">
-        <div className="form-row">
-          <label>语言</label>
-          <select value={language} onChange={(e) => setLanguage(e.target.value as 'zh' | 'en')}>
-            <option value="zh">中文</option>
-            <option value="en">English</option>
-          </select>
-        </div>
-        <div className="form-row">
-          <label>任务名称</label>
-          <input
-            type="text"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="可选，用于列表展示"
-          />
-        </div>
-      </div>
-
-      <button type="submit" className="btn-primary" disabled={loading}>
-        {loading ? '提交中...' : '生成'}
-      </button>
-    </form>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Select
+        style={{ width: '100%' }}
+        placeholder="选择业务（taskKey / subtype）"
+        value={taskOptions.length > 0 ? selectedValue : undefined}
+        options={writingSelectOptions}
+        onChange={(v) => {
+          const p = parseTaskSelectionKey(String(v));
+          setTaskKey(p.taskKey);
+          setSubtype(p.subtype);
+          clearPendingForm();
+        }}
+      />
+      <TaskV2SchemaForm
+        formConfig={formConfig}
+        formValues={formValues}
+        onChange={setFormValues}
+        loading={configLoading || listLoading}
+      />
+      <Button
+        type="primary"
+        loading={submitting}
+        disabled={!formConfig?.schema}
+        onClick={() => void handleSubmit()}
+      >
+        生成
+      </Button>
+    </div>
   );
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!isLoggedIn) {
       notification.warning({ message: '请先登录', placement: 'top' });
       return;
     }
-    if (!prompt.trim()) {
-      notification.warning({ message: '请输入提示词', placement: 'top' });
+    if (!taskOptions.length) {
+      notification.warning({ message: '暂无可用的写作业务配置', placement: 'top' });
       return;
     }
-
-    setLoading(true);
-
+    setSubmitting(true);
     try {
-      let finalOutlines = outlines;
-      if (selectedOutlineId && outlineTasks.some((t) => t.id === selectedOutlineId)) {
-        const taskRes = await getTask(selectedOutlineId);
-        const taskBody = taskRes.data as Record<string, unknown> | undefined;
-        const task = (taskBody?.data ?? taskBody) as Record<string, unknown>;
-        const result = task?.result as Record<string, unknown> | undefined;
-        const metadata = result?.metadata as Record<string, unknown> | undefined;
-        const outline = metadata?.outline;
-        if (outline) {
-          finalOutlines = Array.isArray(outline) ? outline : [outline];
-        }
-      }
-
-      const body: Record<string, unknown> = {
-        prompt: prompt.trim(),
-        writing_type: writingType,
-        outline_type: outlineType || undefined,
-        total_textcount:
-          writingType === 'articles' && totalTextCount ? parseInt(totalTextCount, 10) : undefined,
-        outlines: finalOutlines?.length ? finalOutlines : undefined,
-        outputFormat: 'json',
-        storeToMinio: true,
-        language,
-        metadata: {
-          writing_type_label: WRITING_TYPE_OPTIONS.find((o) => o.value === writingType)?.label ?? writingType,
-          label: label.trim() || undefined,
-        },
-      };
-      if (writingType === 'voice-scripts') {
-        (body as any).storage_form = 'txt';
-        (body as any).format = 'tts';
-      }
-      if (writingType === 'lyrics') {
-        (body as any).format = 'suno';
-        (body as any).storage_form = 'txt';
-      }
-      if (writingType === 'storyboard-scripts') {
-        if (storyboardChunkSeconds) (body as any).storyboard_chunk_seconds = parseInt(storyboardChunkSeconds, 10);
-        if (storyboardTotalDurationSeconds)
-          (body as any).storyboard_total_duration_seconds = parseInt(storyboardTotalDurationSeconds, 10);
-      }
-
-      const result = await createWriting(body);
-      const bodyRes = (result.data as Record<string, unknown>) ?? {};
-      if (result.error || bodyRes.error) {
-        notification.error({
-          message: '提交失败',
-          description: (bodyRes.error as string) || result.error || '请稍后重试',
-          placement: 'top',
-        });
-        return;
-      }
-      const innerData = bodyRes.data as Record<string, unknown> | undefined;
-      const taskId = (innerData?.taskId ?? bodyRes.taskId) as string | undefined;
-      if (taskId) {
-        notification.success({
-          message: '任务已创建',
-          description: `${taskId}\n可在下方任务列表中查看进度。`,
-          placement: 'top',
-        });
-        setPrompt('');
-        setLabel('');
-        setSelectedOutlineId('');
-        setOutlines([]);
-        loadTasks();
-      } else {
-        notification.info({
-          message: '响应异常',
-          description: '未获取到 taskId，请查看控制台',
-          placement: 'top',
-        });
-      }
+      const res = await runTaskV2({
+        scope: 'writing',
+        taskKey,
+        subtype,
+        params: formValues,
+      });
+      const taskId = pickTaskIdFromRunTaskV2Response(res.data);
+      notification.success({
+        message: '任务已创建',
+        description: taskId ? `${taskId}\n可在下方任务列表中查看进度。` : '可在下方任务列表中查看进度。',
+        placement: 'top',
+      });
+      setFormOpen(false);
+      resetFormValues();
+      loadTasks();
     } catch (err) {
       notification.error({
         message: '提交失败',
@@ -398,7 +261,7 @@ export default function Writing() {
         placement: 'top',
       });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -576,10 +439,10 @@ export default function Writing() {
       <Drawer
         title="新建写作任务"
         placement="right"
-        width={520}
+        size={520}
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         {renderForm()}
       </Drawer>

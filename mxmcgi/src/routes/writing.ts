@@ -20,34 +20,39 @@ import type {
 import { DeerAPIClient } from '../models/deerapi/client';
 import { getWritingFormOptionsForType } from '../clientServer/writing';
 import { getWritingBusinessKey, getWritingBusinessKeyFromParams } from '../core/writing/business-key';
-import { listModels, getModelsByKey } from '../models/registry';
 import { runByModelKey } from '../models/run';
+import { findEnabledModel, listEnabledModelKeysByScope } from '../models/provider-model-catalog';
 
 const router = Router();
 
 // ---------- 按模型名调 LLM（原 text 路由逻辑，统一到 writing） ----------
-const WRITING_MODELS = listModels({ scope: 'writing' });
-const WRITING_MODEL_KEYS: string[] = Array.from(new Set(WRITING_MODELS.map(d => d.modelKey)));
+const WRITING_MODEL_KEYS: string[] = listEnabledModelKeysByScope('writing');
 
 function isWritingModelSupported(modelName: string): boolean {
-  return getModelsByKey('writing', modelName).length > 0;
+  return findEnabledModel({ modelKey: modelName, scope: 'writing' }) !== null;
 }
 
-/** 兼容 graph-service、character-service 等：由 registry 驱动 */
-export const MODEL_MAP: Record<string, { generate: (params: any, provider?: ProviderType) => Promise<any> }> = (() => {
-  const map: Record<string, { generate: (params: any, provider?: ProviderType) => Promise<any> }> = {};
-  for (const modelKey of WRITING_MODEL_KEYS) {
-    map[modelKey] = {
-      generate: (params: any, provider?: ProviderType) =>
-        runByModelKey('writing', modelKey, params, { providerOverride: provider }),
-    };
+/** 兼容 graph-service、character-service 等：纯动态（按需直接调用 runByModelKey） */
+export const MODEL_MAP: Record<
+  string,
+  { generate: (params: any, provider?: ProviderType) => Promise<any> }
+> = new Proxy(
+  {},
+  {
+    get: (_target, prop) => {
+      const modelKey = String(prop);
+      return {
+        generate: (params: any, provider?: ProviderType) =>
+          runByModelKey('writing', modelKey, params, { providerOverride: provider }),
+      };
+    },
   }
-  return map;
-})();
+);
 
 /** GET /writing/models - 可用写作/LLM 模型列表 */
 router.get('/models', (_req: Request, res: Response) => {
-  res.json({ models: WRITING_MODEL_KEYS.map(name => ({ name })) });
+  const keys = listEnabledModelKeysByScope('writing');
+  res.json({ models: keys.map(name => ({ name })) });
 });
 
 /** POST /writing/completion/:modelName - 按模型名直接生成（原 POST /text/:modelName） */

@@ -4,21 +4,20 @@ import { taskExecutor } from '../task/task-executor';
 import { processReferenceImage } from '../clientServer/graph/utils/image-processor';
 import { getVideoFormOptions } from '../clientServer/video/formOptions';
 import { generate as videoGenerate } from '../core/video/video-service';
-import { listModels, getModelsByKey } from '../models/registry';
+import { findEnabledModel, listEnabledModelKeysByScope } from '../models/provider-model-catalog';
 
-// 模型列表与存在性：仅通过 registry（单轨）
-const VIDEO_MODELS = listModels({ scope: 'video' });
-const SUPPORTED_MODELS: string[] = Array.from(new Set(VIDEO_MODELS.map(d => d.modelKey)));
+// 模型列表与存在性：仅通过 DB 的 provider_models（纯动态）
+const SUPPORTED_MODELS: string[] = listEnabledModelKeysByScope('video');
 
 function isVideoModelSupported(modelName: string): boolean {
-  return getModelsByKey('video', modelName).length > 0;
+  return findEnabledModel({ modelKey: modelName, scope: 'video' }) !== null;
 }
 
 const router = Router();
 
 // 获取所有可用的视频模型列表（来自 registry）
 router.get('/models', (_req: Request, res: Response) => {
-  const models = SUPPORTED_MODELS.map(modelName => ({ name: modelName }));
+  const models = listEnabledModelKeysByScope('video').map(modelName => ({ name: modelName }));
   res.json({ models });
 });
 

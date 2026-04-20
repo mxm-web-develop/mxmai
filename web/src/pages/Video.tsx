@@ -1,24 +1,27 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Drawer, notification } from 'antd';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Button, Drawer, Select, notification } from 'antd';
 import {
-  createVideo,
   listCgiTasks,
-  getTask,
   deleteTask,
   fetchMediaBlobUrl,
-  getVideoFormOptions,
+  runTaskV2,
   type WritingTaskItem,
   type WritingTaskListResponse,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { VideoViewerModal } from '../components/VideoViewerModal';
+import { useTaskV2FormConfig, formatTaskSelectionKey, parseTaskSelectionKey, TaskV2SchemaForm } from '../task-v2';
 
-const VIDEO_MODEL_OPTIONS = [
-  { value: 'sora-2', label: 'sora-2（4/8/12 秒）' },
-  { value: 'sora-2-pro', label: 'sora-2-pro（4/8/12 秒）' },
-  { value: 'sora-2-deer', label: 'sora-2-deer（10/15 秒）' },
-  { value: 'sora-2-deer-pro', label: 'sora-2-deer-pro（10/15/25 秒）' },
-];
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
+function pickTaskIdFromRunTaskV2Response(raw: unknown): string | null {
+  if (!isRecord(raw)) return null;
+  const inner = isRecord(raw.data) ? raw.data : raw;
+  const tid = inner.taskId;
+  return typeof tid === 'string' && tid.trim() ? tid : null;
+}
 
 const SCRIPT_TYPE_OPTIONS = [
   { value: 'short-video-storyboard', label: '短视频分镜' },
@@ -31,22 +34,6 @@ const SCRIPT_TYPE_OPTIONS = [
   { value: 'educational-storyboard', label: '教育片分镜' },
   { value: 'game-cg-storyboard', label: '游戏CG分镜' },
 ];
-
-const ORIENTATION_OPTIONS = [
-  { value: 'landscape', label: '横屏（16:9）' },
-  { value: 'portrait', label: '竖屏（9:16）' },
-];
-
-const DEFAULT_CHUNKS_JSON = `[
-  {
-    "index": 1,
-    "chunk_seconds": 10,
-    "prompt": "清晨山谷，薄雾缭绕。喵小游背着小包沿山路缓行，远处溪水与鸟鸣。",
-    "video_description": "清晨山谷，薄雾缭绕。喵小游背着小包沿山路缓行。",
-    "characters_in_shot": ["喵小游"],
-    "reference_image_url": ""
-  }
-]`;
 
 const STATUS_MAP: Record<string, string> = {
   pending: '等待中',
@@ -75,15 +62,40 @@ export default function Video() {
   const [tasks, setTasks] = useState<WritingTaskItem[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
-  const [scriptType, setScriptType] = useState('short-video-storyboard');
-  const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
-  const [chunksJson, setChunksJson] = useState(DEFAULT_CHUNKS_JSON);
-  const [label, setLabel] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const {
+    taskKey,
+    setTaskKey,
+    subtype,
+    setSubtype,
+    clearPendingForm,
+    taskOptions,
+    formConfig,
+    formValues,
+    setFormValues,
+    resetFormValues,
+    configLoading,
+    listLoading,
+  } = useTaskV2FormConfig({ scope: 'video', enabled: isLoggedIn });
+
+  const selectedValue = useMemo(() => formatTaskSelectionKey(taskKey, subtype), [taskKey, subtype]);
+  const videoSelectOptions = useMemo(
+    () =>
+      taskOptions.map((it) => ({
+        label: (() => {
+          const tk = (it.taskLabel ?? '').trim() || it.taskKey;
+          if (!it.subtype) return tk;
+          const st = (it.subtypeLabel ?? '').trim() || it.subtype;
+          return `${tk} / ${st}`;
+        })(),
+        value: formatTaskSelectionKey(it.taskKey, it.subtype),
+      })),
+    [taskOptions]
+  );
+
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [secondsOptions, setSecondsOptions] = useState<number[]>([]);
-  const [videoModel, setVideoModel] = useState<string>('sora-2');
 
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerTask, setViewerTask] = useState<WritingTaskItem | null>(null);
@@ -120,19 +132,6 @@ export default function Video() {
     return () => clearInterval(interval);
   }, [loadTasks]);
 
-  useEffect(() => {
-    const isDeer = videoModel === 'sora-2-deer' || videoModel === 'sora-2-deer-pro' || videoModel === 'sora-2-all';
-    const mode = isDeer ? 'sora-2-deer' : 'sora-2';
-    getVideoFormOptions({ lang: 'zh', mode }).then((res) => {
-      const raw = res.data as any;
-      const opts = raw?.data?.seconds ?? raw?.seconds ?? [];
-      const numbers = opts
-        .map((o: any) => parseInt(String(o?.value ?? ''), 10))
-        .filter((n: number) => Number.isFinite(n));
-      if (numbers.length > 0) setSecondsOptions(numbers);
-    }).catch(() => {});
-  }, [videoModel]);
-
   const filteredTasks = tasks
     .filter((t) => !filterStatus || t.status === filterStatus)
     .sort((a, b) => {
@@ -142,135 +141,58 @@ export default function Video() {
     });
 
   const renderForm = () => (
-    <form onSubmit={handleSubmit} className="form-group video-form">
-      <p className="video-form-hint">
-        chunks 可从写作任务 result.metadata 取得，按 characters 填 reference_image_url。可选时长：{secondsOptions.length ? secondsOptions.join(' / ') : '10'} 秒。
-      </p>
-      <div className="form-row-group">
-        <div className="form-row">
-          <label>脚本类型</label>
-          <select value={scriptType} onChange={(e) => setScriptType(e.target.value)}>
-            {SCRIPT_TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-row">
-          <label>画幅</label>
-          <select
-            value={orientation}
-            onChange={(e) => setOrientation(e.target.value as 'landscape' | 'portrait')}
-          >
-            {ORIENTATION_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-row">
-          <label>视频模型</label>
-          <select value={videoModel} onChange={(e) => setVideoModel(e.target.value)}>
-            {VIDEO_MODEL_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="form-row">
-        <label>任务名称</label>
-        <input
-          type="text"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="可选，用于列表展示"
-        />
-      </div>
-
-      <div className="form-row">
-        <label>分镜 chunks（JSON 数组）*</label>
-        <textarea
-          value={chunksJson}
-          onChange={(e) => setChunksJson(e.target.value)}
-          placeholder='[{"index":1,"chunk_seconds":10,"prompt":"...","video_description":"...","characters_in_shot":[],"reference_image_url":""}]'
-          rows={14}
-          spellCheck={false}
-          required
-        />
-      </div>
-
-      <button type="submit" className="btn-primary" disabled={loading}>
-        {loading ? '提交中...' : '生成视频'}
-      </button>
-    </form>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Select
+        style={{ width: '100%' }}
+        placeholder="选择业务（taskKey / subtype）"
+        value={taskOptions.length > 0 ? selectedValue : undefined}
+        options={videoSelectOptions}
+        onChange={(v) => {
+          const p = parseTaskSelectionKey(String(v));
+          setTaskKey(p.taskKey);
+          setSubtype(p.subtype);
+          clearPendingForm();
+        }}
+      />
+      <TaskV2SchemaForm
+        formConfig={formConfig}
+        formValues={formValues}
+        onChange={setFormValues}
+        loading={configLoading || listLoading}
+      />
+      <Button type="primary" loading={submitting} disabled={!formConfig?.schema} onClick={() => void handleSubmit()}>
+        生成
+      </Button>
+    </div>
   );
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!isLoggedIn) {
       notification.warning({ message: '请先登录', placement: 'top' });
       return;
     }
-
-    let chunks: unknown[];
-    try {
-      const parsed = JSON.parse(chunksJson.trim());
-      chunks = Array.isArray(parsed) ? parsed : parsed?.chunks;
-      if (!Array.isArray(chunks) || chunks.length === 0) {
-        notification.warning({ message: '请至少添加一个分镜段（chunks 数组）', placement: 'top' });
-        return;
-      }
-    } catch {
-      notification.warning({ message: 'chunks 不是合法 JSON 或格式错误', placement: 'top' });
+    if (!taskOptions.length) {
+      notification.warning({ message: '暂无可用的视频业务配置', placement: 'top' });
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
-      const body: Record<string, unknown> = {
-        chunks,
-        scriptType,
-        orientation,
-        storeToMinio: true,
-      };
-      if (label.trim()) body.label = label.trim();
-
-      const result = await createVideo(body);
-      const bodyRes = (result.data as Record<string, unknown>) ?? {};
-      if (result.error || bodyRes.error) {
-        notification.error({
-          message: '提交失败',
-          description: (bodyRes.error as string) || result.error || '请稍后重试',
-          placement: 'top',
-        });
-        return;
-      }
-
-      const innerData = bodyRes.data as Record<string, unknown> | undefined;
-      const taskId = (innerData?.taskId ?? bodyRes.taskId) as string | undefined;
-      const tasksList = (innerData?.tasks ?? bodyRes.tasks) as Array<{ taskId?: string }> | undefined;
-      const count = tasksList?.length ?? (taskId ? 1 : 0);
-
-      if (taskId || (tasksList && tasksList.length > 0)) {
-        notification.success({
-          message: '任务已创建',
-          description: count > 1 ? `已创建 ${count} 个视频任务` : `${taskId}\n可在左侧任务列表中查看进度。`,
-          placement: 'top',
-        });
-        setLabel('');
-        loadTasks();
-      } else {
-        notification.info({
-          message: '响应异常',
-          description: '未获取到 taskId，请查看控制台',
-          placement: 'top',
-        });
-      }
+      const res = await runTaskV2({
+        scope: 'video',
+        taskKey,
+        subtype,
+        params: formValues,
+      });
+      const taskId = pickTaskIdFromRunTaskV2Response(res.data);
+      notification.success({
+        message: '任务已创建',
+        description: taskId ? `${taskId}\n可在左侧任务列表中查看进度。` : '可在左侧任务列表中查看进度。',
+        placement: 'top',
+      });
+      setFormOpen(false);
+      resetFormValues();
+      loadTasks();
     } catch (err) {
       notification.error({
         message: '提交失败',
@@ -278,7 +200,7 @@ export default function Video() {
         placement: 'top',
       });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -306,27 +228,12 @@ export default function Video() {
     setViewerError(null);
     setViewerLoading(true);
     try {
-      const res = await getTask(t.id);
-      const body = res.data as Record<string, unknown> | undefined;
-      const taskData = (body?.data ?? body) as Record<string, unknown>;
-      if (res.error) {
-        setViewerError(res.error || '获取任务失败');
-        return;
+      if (t.status === 'completed') {
+        const blobUrl = await fetchMediaBlobUrl(t.id, 'video');
+        setViewerVideoUrl(blobUrl);
+      } else {
+        setViewerVideoUrl(null);
       }
-      const result = taskData?.result as Record<string, unknown> | undefined;
-      const mediaUrls = (result?.mediaUrls as string[] | undefined) ?? [];
-      const storageUrls = (result?.storageInfo as Record<string, unknown> | undefined)?.urls as string[] | undefined;
-      let url = mediaUrls[0] ?? storageUrls?.[0];
-
-      if (!url && t.status === 'completed') {
-        try {
-          url = await fetchMediaBlobUrl(t.id, 'video');
-        } catch (e) {
-          setViewerError(e instanceof Error ? e.message : String(e));
-          return;
-        }
-      }
-      setViewerVideoUrl(url || null);
     } catch (e) {
       setViewerError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -393,9 +300,7 @@ export default function Video() {
               >
                 <div className="video-thumb">
                   <div className="video-thumb-play" />
-                  <span className="video-thumb-orientation">
-                    {orientation === 'portrait' ? '9:16' : '16:9'}
-                  </span>
+                  <span className="video-thumb-orientation">—</span>
                 </div>
                 <div className="video-task-main">
                   <span className="video-task-title" title={getTaskTitle(t)}>
@@ -447,10 +352,10 @@ export default function Video() {
       <Drawer
         title="新建视频任务"
         placement="right"
-        width={520}
+        size={520}
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        destroyOnClose
+        destroyOnHidden
       >
         {renderForm()}
       </Drawer>

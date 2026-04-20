@@ -2,7 +2,18 @@
  * Provider 类型定义
  */
 
-export type ProviderType = 'replicate' | 'ppio' | 'deer' | 'openai' | 'google' | 'anthropic' | 'qwen' | 'volc' | 'minimax';
+export type ProviderType =
+  | 'replicate'
+  | 'ppio'
+  | 'deer'
+  | 'openai'
+  | 'google'
+  | 'anthropic'
+  | 'qwen'
+  | 'volc'
+  | 'minimax'
+  | 'atlascloud'
+  | 'maxplan';
 
 export interface ModelConfig {
   provider?: ProviderType;

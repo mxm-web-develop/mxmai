@@ -36,6 +36,8 @@ export interface CreateProviderApiKeyDto {
   service?: ProviderApiKeyService;
   key_value: string;
   priority?: number;
+  /** 默认 true；仅当显式传 false 时创建为停用 */
+  is_active?: boolean;
   updated_by?: string | null;
 }
 

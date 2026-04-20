@@ -73,6 +73,23 @@ export class SupabaseProviderApiKeyRepository implements IProviderApiKeyReposito
     }
   }
 
+  async listAllActiveKeysForProvider(provider: string): Promise<ProviderApiKey[]> {
+    try {
+      const { data, error } = await this.client
+        .from('provider_api_keys')
+        .select('*')
+        .eq('provider', provider)
+        .eq('is_active', true)
+        .order('priority', { ascending: true });
+
+      if (error) throw new DataAccessError(`listAllActiveKeysForProvider failed: ${error.message}`, 'QUERY_ERROR', error);
+      return (data || []).map(fromRow);
+    } catch (e) {
+      if (e instanceof DataAccessError) throw e;
+      throw new DataAccessError(String(e), 'UNKNOWN_ERROR', e instanceof Error ? e : new Error(String(e)));
+    }
+  }
+
   async listMasked(options?: { provider?: string; service?: string | null }): Promise<ProviderApiKeyMasked[]> {
     try {
       let query = this.client.from('provider_api_keys').select('*');
@@ -110,7 +127,7 @@ export class SupabaseProviderApiKeyRepository implements IProviderApiKeyReposito
       service: serviceNorm,
       key_value: dto.key_value,
       priority: dto.priority ?? 0,
-      is_active: true,
+      is_active: dto.is_active !== false,
       updated_by: dto.updated_by ?? null,
       created_at: now,
       updated_at: now,

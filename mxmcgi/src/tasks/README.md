@@ -1,5 +1,7 @@
 ## mxmcgi Task v2：业务任务动态工程化总览
 
+> **固定前置链实现说明**（与代码一致）：见 [`README_TASK_V2_FIXED.md`](./README_TASK_V2_FIXED.md)。
+
 > 本文是「单一 Task 层」的设计文档，目标：  
 > - 把 **提示词模版 + 业务表单 + 知识库 + 输入/输出处理 + 存储格式** 完整统一到一个可配置体系中；  
 > - 支持 Admin 在提示词中使用 `${styles}` 这类占位符，由表单驱动传参；  
@@ -54,26 +56,13 @@ interface TaskTemplate {
     strategy?: 'global' | 'per_section' | 'none';
   };
 
-  // 4）输入拼接流水线（Prompt 前处理）
-  inputPipeline?: PipelineStep[];
-
-  // 5）输出处理流水线（结果解析/校验）
-  outputPipeline?: PipelineStep[];
-
-  // 6）存储格式（单 Task 级）
+  // 4）存储格式（单 Task 级）
   storage?: TaskStorageConfig;    // 写作/图像/音频/视频各自有专门的 extension union
 }
 ```
 
-其中：
-
-```ts
-interface PipelineStep {
-  step: string;                  // 如 'merge_prompt', 'apply_template', 'extract_json'
-  when?: Record<string, any>;    // 条件（可选）
-  params?: Record<string, any>;  // 运行参数
-}
-```
+**Task v2 固定前置链**（见 `task-v2-prelude.ts`，不再使用可配置 `inputPipeline` / `outputPipeline`）：  
+schema 校验 → 敏感词（`prompt`）→ 若 `knowledge.useKnowledge` 且配置了 `defaultKnowledgeBaseIds` 则召回并合并进 `params.prompt` → `renderPromptFromTemplate` → 余额 → 创建并执行任务。
 
 **注意**：这里的「TaskTemplate」是**单任务级别**的，不是 Smartflow。多 Task 串联仍由 Smartflow/Smartchain 另行设计。
 
@@ -175,25 +164,16 @@ const template: TaskTemplate = parseTaskTemplate(definition.extra);
 
 validateWithJsonSchema(template.formSchema, params); // 直接用 schema 校验
 
-// 1）执行 inputPipeline 组装上下文
-let ctx = { scope, taskType, subtype, params, userId, template };
-for (const step of template.inputPipeline ?? []) {
-  ctx = await runInputStep(step, ctx);
-}
+// 1）固定前置链（敏感词、知识库），见 runFixedTaskV2Prelude
+let ctx = await runFixedTaskV2Prelude({ scope, taskKey, subtype, params, userId, state: {} }, template);
 
-// 2）基于模版 + 参数生成最终 Prompt
-const finalPrompt = renderPromptFromTemplate(template.prompt, ctx);
+// 2）基于模版 + 参数生成最终 Prompt（若 state.finalPrompt 已设则优先）
+const { finalPrompt } = renderPromptFromTemplate({ ... });
+const finalPromptEnhanced = ctx.state.finalPrompt?.trim() ? ctx.state.finalPrompt : finalPrompt;
 
-// 3）调用对应领域的 Task 执行器（写作 / 生图 / 音频 / 视频）
-const rawResult = await runTaskCore(scope, { finalPrompt, ctx });
-
-// 4）执行 outputPipeline 解析结果
-let processed = rawResult;
-for (const step of template.outputPipeline ?? []) {
-  processed = await runOutputStep(step, processed, ctx);
-}
-
-// 5）根据 storage 保存文件，返回任务结果
+// 3）余额预检 → 创建任务 → executeTask（写作大纲等）
+// 4）outputPipeline 未接入执行路径；结果处理由各 Task 执行器负责
+// 5）storage 等后续扩展
 const storageInfo = await saveTaskOutput(template.storage, processed, ctx);
 
 return { taskId, result: processed, storage: storageInfo };
@@ -283,15 +263,6 @@ const output = interpolate(template.outputFormatTemplate, vars);
       "defaultKnowledgeBaseIds": ["kb_tech_base"]
     },
 
-    "inputPipeline": [
-      { "step": "normalize_outline_params" }      // 兼容旧参数名 -> 统一结构
-    ],
-
-    "outputPipeline": [
-      { "step": "parse_outline_to_tree" },       // 从纯文本或 JSON 解析为树
-      { "step": "fill_missing_uids" }
-    ],
-
     "storage": {
       "extension": "json",
       "mime": "application/json",
@@ -346,7 +317,7 @@ const output = interpolate(template.outputFormatTemplate, vars);
 ...（编号/层级规则）
 ```
 
-模型输出的大纲文本再经过 `outputPipeline` 解析，最终保存为 `.json` 文件并返回结构化结果。
+模型输出的大纲由现有 `generateOutline` / 任务执行器解析为结构并落库；可配置 `outputPipeline` 未接入。
 
 ---
 
@@ -365,9 +336,9 @@ const output = interpolate(template.outputFormatTemplate, vars);
    - Task 引擎不会凭空引入新的字段名，确保 Admin/前端/后端三方对参数集合完全一致。
 
 4. **后续扩展到 graph/audio/video**：  
-   - graph：`formSchema` 定义风格/尺寸/9 宫格等选项，`prompt.systemTemplate` 用 `${style}` 等占位符拼接最终图片提示词；输出/存储通过 `outputPipeline + storage` 控制 jpg/png/webp；  
+   - graph：`formSchema` 定义风格/尺寸/9 宫格等选项；生图主链路仍见 `graph-service`，与 Task v2 模板化可逐步对齐；  
    - audio：`formSchema` 定义 TTS 参数、情感、节奏；`prompt.systemTemplate`/TTS 特殊规则统一放 Template 中；  
-   - video：`formSchema` 定义分镜来源（taskId）、目标分辨率等；`inputPipeline` 负责从 JSON 提取字段，`prompt` 负责全局风格说明，`storage` 决定 mp4/webm。
+   - video：`formSchema` 定义分镜来源（taskId）、目标分辨率等；`prompt` 负责全局风格说明，`storage` 决定 mp4/webm。
 
 本 README 只描述 **Task v2 抽象与大纲业务的完整样例**，后续其他业务可以在此基础上逐一迁移。 
 

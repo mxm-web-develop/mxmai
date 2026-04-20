@@ -12,7 +12,6 @@ import type { ModelProvider, GenerateParams, GenerateResult } from '../models/pr
 import type { ProviderType } from '../core/providers/types';
 import type { ModelScope } from '../models/types';
 import { listByProvider } from '../models/provider-model-catalog';
-import { getModel } from '../models/registry';
 import { runDeerImageConnectivityTest } from './deer-image-connectivity-test';
 
 function isProviderType(s: string): s is ProviderType {
@@ -20,24 +19,7 @@ function isProviderType(s: string): s is ProviderType {
 }
 
 /**
- * 代码注册表（registry）中的 scope → 连通性模态。
- * 用于纠正 provider_models 里 scope=default、modality=text 但实为图生/音/视频的条目。
- */
-function inferModalityFromRegistry(provider: string, modelKey: string): 'image' | 'audio' | 'video' | null {
-  if (!isProviderType(provider)) return null;
-  const scopes: Array<{ scope: ModelScope; modality: 'image' | 'audio' | 'video' }> = [
-    { scope: 'graph', modality: 'image' },
-    { scope: 'audio', modality: 'audio' },
-    { scope: 'video', modality: 'video' },
-  ];
-  for (const { scope, modality } of scopes) {
-    if (getModel(provider, scope, modelKey)) return modality;
-  }
-  return null;
-}
-
-/**
- * 解析连通性测试用的模态：优先 provider_models（DB），再代码 registry，最后过渡静态表。
+ * 解析连通性测试用的模态：纯动态，仅基于 provider_models（DB）。
  */
 export function resolveInferedModalityForConnectivityTest(
   provider: string,
@@ -47,12 +29,14 @@ export function resolveInferedModalityForConnectivityTest(
 ): 'text' | 'image' | 'audio' | 'video' {
   if (scope === 'graph') return 'image';
   if (scope === 'audio') return 'audio';
+  if (scope === 'music') return 'audio';
   if (scope === 'video') return 'video';
 
   if (isProviderType(provider)) {
     const rows = listByProvider(provider).filter((m) => m.model_key === modelKey);
     if (rows.some((r) => r.scope === 'graph' || r.modality === 'image')) return 'image';
     if (rows.some((r) => r.scope === 'audio' || r.modality === 'audio')) return 'audio';
+    if (rows.some((r) => r.scope === 'music' || r.modality === 'music')) return 'audio';
     if (rows.some((r) => r.scope === 'video' || r.modality === 'video')) return 'video';
     if (
       rows.some((r) =>
@@ -64,15 +48,12 @@ export function resolveInferedModalityForConnectivityTest(
     }
   }
 
-  const fromRegistry = inferModalityFromRegistry(provider, modelKey);
-  if (fromRegistry) return fromRegistry;
-
   if (modalityFromRow === 'image' || modalityFromRow === 'audio' || modalityFromRow === 'video') {
     return modalityFromRow;
   }
   if (modalityFromRow === 'text') return 'text';
 
-  return scope === 'audio' ? 'audio' : scope === 'video' ? 'video' : 'text';
+  return scope === 'audio' || scope === 'music' ? 'audio' : scope === 'video' ? 'video' : 'text';
 }
 
 export type ConnectivityRequestPayload = {
@@ -105,6 +86,43 @@ export function buildMinConnectivityGenerateParams(
   modality: 'text' | 'image' | 'audio' | 'video'
 ): { params: GenerateParams; strategy: string } {
   switch (provider) {
+    case 'atlascloud':
+      if (modality === 'video') {
+        return {
+          params: {
+            prompt: PROMPT.video,
+            outputFormat: 'json',
+            parameters: {
+              width: 512,
+              height: 512,
+              // 注意：不同 T2V 模型对 duration/fps 支持差异很大（有的只接受固定档位或字段名不同）。
+              // 连通性测试只验证“能创建 prediction + 可轮询”，避免因参数差异导致误判。
+              // 避免测试接口阻塞太久导致网关/Vite 代理断链
+              max_wait_ms: 12_000,
+              poll_interval_ms: 2_000,
+            },
+          },
+          strategy: 'atlascloud:generateVideo + prediction 轮询（去掉 duration/fps，max_wait_ms 12s）',
+        };
+      }
+      if (modality === 'image') {
+        return {
+          params: {
+            prompt: PROMPT.image,
+            outputFormat: 'json',
+            parameters: {
+              aspect_ratio: '1:1',
+              // 同上：限制测试等待时长
+              max_wait_ms: 10_000,
+              poll_interval_ms: 2_000,
+            },
+          },
+          strategy: 'atlascloud:generateImage + prediction 轮询（max_wait_ms 10s）',
+        };
+      }
+      // 其余按通用兜底（目前 atlascloud:chat 已在 provider 内兼容）
+      break;
+
     case 'deer':
       if (modality === 'text') {
         return {

@@ -8,14 +8,18 @@ import {
   listOutlineTasks,
   getTask,
   deleteTask,
-  getTaskFormConfig,
   type WritingTaskItem,
   type WritingTaskListResponse,
-  type TaskFormConfig,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { OutlineViewerModal } from '../components/OutlineViewerModal';
 import type { OutlineNode, CharacterProfile } from '../components/OutlineViewerModal';
+import {
+  useTaskV2FormConfig,
+  formatTaskSelectionKey,
+  parseTaskSelectionKey,
+  TaskV2SchemaForm,
+} from '../task-v2';
 
 const STATUS_MAP: Record<string, string> = {
   pending: '等待中',
@@ -109,22 +113,6 @@ const FormField = styled.div`
   min-width: 0;
 `;
 
-const FormFieldRow = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0.875rem;
-  & > * {
-    min-width: 0;
-  }
-`;
-
-const FormLabel = styled.label`
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #e2e8f0;
-  letter-spacing: 0.01em;
-`;
-
 const FormLabelOptional = styled.label`
   font-size: 0.8125rem;
   font-weight: 500;
@@ -156,16 +144,6 @@ const formControlBase = `
     opacity: 0.6;
     cursor: not-allowed;
   }
-`;
-
-const FormInput = styled.input`
-  ${formControlBase}
-`;
-
-const FormTextarea = styled.textarea`
-  ${formControlBase}
-  min-height: 108px;
-  resize: vertical;
 `;
 
 const FormSelect = styled.select`
@@ -213,11 +191,6 @@ const FormPrimaryButton = styled.button`
   }
 `;
 
-const FormRequiredMark = styled.span`
-  color: #f59e0b;
-  margin-left: 0.125rem;
-`;
-
 function tryParseOutlineFromText(text: string): OutlineNode | OutlineNode[] | null {
   if (!text) return null;
   let cleaned = text.trim();
@@ -253,16 +226,6 @@ export default function Outline() {
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState('');
 
-  const [prompt, setPrompt] = useState('');
-  const [applyTo, setApplyTo] = useState('');
-  const [outlineType, setOutlineType] = useState('');
-  const [outlineStructureType, setOutlineStructureType] = useState('');
-  const [maxDepth, setMaxDepth] = useState('3');
-  const [expectedNodes, setExpectedNodes] = useState('');
-  const [totalTextCount, setTotalTextCount] = useState('');
-  const [totalDurationSeconds, setTotalDurationSeconds] = useState('');
-  const [language, setLanguage] = useState<'zh' | 'en'>('zh');
-  const [label, setLabel] = useState('');
   const [loading, setLoading] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerData, setViewerData] = useState<{
@@ -274,19 +237,24 @@ export default function Outline() {
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Task v2 form schema 衍生的选项
-  const [applyOptions, setApplyOptions] = useState<Array<{ value: string; label: string }>>([]);
-  const [outlineTypeOptionsByApplyto, setOutlineTypeOptionsByApplyto] = useState<
-    Record<string, Array<{ value: string; label: string }>>
-  >({});
-  const [structureOptions, setStructureOptions] = useState<Array<{ value: string; label: string }>>(
-    []
-  );
-  const [structureDescription, setStructureDescription] = useState<string | null>(null);
-  /** 表单配置 schema，用于动态渲染 Schema 中除固定字段外的额外字段 */
-  const [formSchema, setFormSchema] = useState<TaskFormConfig['schema'] | null>(null);
-  /** 动态字段（Schema 中非固定字段）的值，会一并提交并参与 prompt 渲染 */
-  const [dynamicParams, setDynamicParams] = useState<Record<string, unknown>>({});
+  const {
+    taskKey,
+    setTaskKey,
+    subtype,
+    setSubtype,
+    clearPendingForm,
+    taskOptions,
+    formConfig,
+    formValues,
+    setFormValues,
+    resetFormValues,
+    configLoading,
+    listLoading,
+  } = useTaskV2FormConfig({
+    scope: 'outline',
+    enabled: isLoggedIn,
+    buildDefaultsOptions: { fallbackUid: () => `outline_${Date.now()}` },
+  });
 
   // 仅首次进入页面时展示整体 loading，后续轮询静默更新，避免列表反复“闪一下”
   const hasInitialLoadedRef = useRef(false);
@@ -327,138 +295,6 @@ export default function Outline() {
 
   // 大纲结构类型不做过滤，用户可选任意结构类型
 
-  // 加载 Task v2 表单配置（仅 outlines），用于 styles 等动态选项
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    (async () => {
-      try {
-        const res = await getTaskFormConfig({ scope: 'outline', taskKey: 'default' });
-        const data =
-          (res.data as { data?: TaskFormConfig })?.data ?? (res.data as TaskFormConfig | undefined);
-        if (!res.error && data) {
-          const props = data.schema?.properties ?? {};
-
-          // applyto（应用于）：优先用配置的 x-enum-labels，无则用中文兜底，避免直接展示业务 key
-          const APPLYTO_LABELS_ZH: Record<string, string> = {
-            articles: '文章',
-            'voice-scripts': '口播稿',
-            'storyboard-scripts': '分镜脚本',
-          };
-          const applySchema = props.applyto as Record<string, unknown> | undefined;
-          if (applySchema && Array.isArray(applySchema.enum)) {
-            const enums = applySchema.enum as string[];
-            const labels = (applySchema['x-enum-labels'] as string[] | undefined) ?? [];
-            setApplyOptions(
-              enums.map((v, i) => ({
-                value: v,
-                label: (labels[i] && String(labels[i]).trim()) || APPLYTO_LABELS_ZH[v] || v,
-              }))
-            );
-            if (typeof applySchema.default === 'string') {
-              setApplyTo(applySchema.default);
-            }
-          }
-          // outline_type（细分类型）+ x-options-by-applyto
-          const outlineTypeSchema = props.outline_type as Record<string, unknown> | undefined;
-          if (outlineTypeSchema && Array.isArray(outlineTypeSchema.enum)) {
-            const enums = outlineTypeSchema.enum as string[];
-            const labels = (outlineTypeSchema['x-enum-labels'] as string[] | undefined) ?? [];
-            const byApply =
-              (outlineTypeSchema['x-options-by-applyto'] as Record<string, string[]> | undefined) ??
-              {};
-            const map: Record<string, Array<{ value: string; label: string }>> = {};
-            Object.entries(byApply).forEach(([applyKey, typeKeys]) => {
-              map[applyKey] = typeKeys.map((val) => {
-                const idx = enums.indexOf(val);
-                return {
-                  value: val,
-                  label: idx >= 0 ? labels[idx] || val : val,
-                };
-              });
-            });
-            setOutlineTypeOptionsByApplyto(map);
-            if (typeof outlineTypeSchema.default === 'string') {
-              setOutlineType(outlineTypeSchema.default);
-            }
-          }
-
-          // outline_structure_type（大纲结构类型）+ x-available-when
-          const structSchema = props.outline_structure_type as Record<string, unknown> | undefined;
-          if (structSchema && Array.isArray(structSchema.enum)) {
-            const enums = structSchema.enum as string[];
-            const labels = (structSchema['x-enum-labels'] as string[] | undefined) ?? [];
-            setStructureOptions(
-              enums.map((v, i) => ({
-                value: v,
-                label: labels[i] || v,
-              }))
-            );
-            if (typeof structSchema.description === 'string' && structSchema.description.trim()) {
-              setStructureDescription(structSchema.description.trim());
-            } else {
-              setStructureDescription(null);
-            }
-            if (typeof structSchema.default === 'string') {
-              setOutlineStructureType(structSchema.default);
-            }
-          }
-
-          const maxDepthSchema = props.maxDepth as Record<string, unknown> | undefined;
-          if (maxDepthSchema && typeof maxDepthSchema.default === 'number') {
-            setMaxDepth(String(maxDepthSchema.default));
-          }
-
-          const expectedNodesSchema = props.expectedNodes as Record<string, unknown> | undefined;
-          if (expectedNodesSchema && typeof expectedNodesSchema.default === 'number') {
-            setExpectedNodes(String(expectedNodesSchema.default));
-          }
-
-          const totalTextSchema = props.total_textcount as Record<string, unknown> | undefined;
-          if (totalTextSchema && typeof totalTextSchema.default === 'number') {
-            setTotalTextCount(String(totalTextSchema.default));
-          }
-
-          const totalDurationSchema = props.total_duration_seconds as
-            | Record<string, unknown>
-            | undefined;
-          if (totalDurationSchema && typeof totalDurationSchema.default === 'number') {
-            setTotalDurationSeconds(String(totalDurationSchema.default));
-          }
-
-          const languageSchema = props.language as Record<string, unknown> | undefined;
-          if (languageSchema && typeof languageSchema.default === 'string') {
-            setLanguage(languageSchema.default as 'zh' | 'en');
-          }
-
-          setFormSchema(data.schema);
-          const fixedKeys = new Set([
-            'prompt',
-            'applyto',
-            'outline_type',
-            'outline_structure_type',
-            'maxDepth',
-            'expectedNodes',
-            'total_textcount',
-            'total_duration_seconds',
-            'language',
-            'label',
-            'uid',
-          ]);
-          const next: Record<string, unknown> = {};
-          Object.entries(props).forEach(([k, def]) => {
-            if (fixedKeys.has(k)) return;
-            const d = def && typeof def === 'object' ? (def as Record<string, unknown>) : {};
-            next[k] = d.default ?? (Array.isArray(d.enum) ? '' : '');
-          });
-          setDynamicParams(next);
-        }
-      } catch (e) {
-        // schema 拉取失败不阻塞页面，只使用现有写死表单
-        console.warn('加载 Task 表单配置失败（outlines）:', e);
-      }
-    })();
-  }, [isLoggedIn]);
-
   useEffect(() => {
     loadOutlineTasks();
     const interval = setInterval(loadOutlineTasks, 8000);
@@ -471,7 +307,8 @@ export default function Outline() {
       notification.warning({ message: '请先登录', placement: 'top' });
       return;
     }
-    if (!prompt.trim()) {
+    const promptVal = String(formValues.prompt ?? '').trim();
+    if (!promptVal) {
       notification.warning({ message: '请输入提示词', placement: 'top' });
       return;
     }
@@ -479,27 +316,17 @@ export default function Outline() {
     setLoading(true);
 
     try {
-      const body: Record<string, unknown> = {
-        uid: `outline_${Date.now()}`,
-        prompt: prompt.trim(),
-        maxDepth: maxDepth ? parseInt(maxDepth, 10) : undefined,
-        expectedNodes: expectedNodes ? parseInt(expectedNodes, 10) : undefined,
-        total_textcount:
-          applyTo === 'articles' && totalTextCount ? parseInt(totalTextCount, 10) : undefined,
-        total_duration_seconds:
-          (applyTo === 'voice-scripts' || applyTo === 'storyboard-scripts') && totalDurationSeconds
-            ? parseInt(totalDurationSeconds, 10)
-            : undefined,
-        applyto: applyTo || undefined,
-        outline_type: outlineType || undefined,
-        outline_structure_type: outlineStructureType || undefined,
-        language,
-        outputFormat: 'json',
-        metadata: label.trim() ? { label: label.trim() } : undefined,
-        ...dynamicParams,
-      };
+      const body: Record<string, unknown> = { ...formValues, outputFormat: 'json' };
+      body.prompt = promptVal;
+      const uidRaw = String(body.uid ?? '').trim();
+      body.uid = uidRaw || `outline_${Date.now()}`;
+      const labelRaw = body.label;
+      if (typeof labelRaw === 'string' && labelRaw.trim()) {
+        body.metadata = { label: labelRaw.trim() };
+      }
+      delete body.label;
 
-      const result = await createOutline(body);
+      const result = await createOutline(body, { scope: 'outline', taskKey, subtype });
       const bodyRes = (result.data as Record<string, unknown>) ?? {};
       if (result.error || bodyRes.error) {
         const msg = (bodyRes.error as string) || result.error || '请稍后重试';
@@ -522,7 +349,7 @@ export default function Outline() {
           description: `${taskId}\n可在下方任务列表中查看进度。`,
           placement: 'top',
         });
-        setPrompt('');
+        resetFormValues();
         loadOutlineTasks();
         setFormOpen(false);
       } else {
@@ -615,258 +442,45 @@ export default function Outline() {
 
   const renderForm = () => (
     <OutlineForm onSubmit={handleSubmit}>
-      <FormField>
-        <FormLabel>
-          提示词 <FormRequiredMark>*</FormRequiredMark>
-        </FormLabel>
-        <FormTextarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="简述大纲主题或写作方向..."
-        />
-      </FormField>
-
-      <FormField>
-        <FormLabelOptional>应用于</FormLabelOptional>
-        <FormSelect
-          value={applyTo || ''}
-          onChange={(e) => {
-            const v = e.target.value || '';
-            setApplyTo(v);
-            setOutlineType('');
-            setOutlineStructureType('');
-          }}
-        >
-          <option value="">请选择</option>
-          {applyOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </FormSelect>
-      </FormField>
-
-      {applyTo && outlineTypeOptionsByApplyto[applyTo] && (
+      {taskOptions.length > 0 ? (
         <FormField>
-          <FormLabelOptional>细分类型</FormLabelOptional>
+          <FormLabelOptional>类别 / 细分</FormLabelOptional>
           <FormSelect
-            value={outlineType || ''}
+            value={formatTaskSelectionKey(taskKey, subtype)}
             onChange={(e) => {
-              const v = e.target.value || '';
-              setOutlineType(v);
-              setOutlineStructureType('');
+              const { taskKey: k, subtype: st } = parseTaskSelectionKey(e.target.value || '');
+              setTaskKey(k);
+              setSubtype(st);
+              clearPendingForm();
             }}
           >
-            <option value="">请选择</option>
-            {outlineTypeOptionsByApplyto[applyTo].map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
+            {taskOptions.map((it) => {
+              const key = `${it.taskKey}::${it.subtype ?? ''}`;
+              const label = (() => {
+                const tk = (it.taskLabel ?? '').trim() || it.taskKey;
+                if (!it.subtype) return tk;
+                const st = (it.subtypeLabel ?? '').trim() || it.subtype;
+                return `${tk} / ${st}`;
+              })();
+              return (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              );
+            })}
           </FormSelect>
         </FormField>
-      )}
+      ) : null}
 
-      {applyTo && (
-        <FormField>
-          <FormLabelOptional>
-            大纲结构类型
-            {structureDescription && (
-              <span
-                title={structureDescription}
-                style={{
-                  marginLeft: 6,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 16,
-                  height: 16,
-                  borderRadius: '50%',
-                  border: '1px solid #475569',
-                  background: 'rgba(51, 65, 85, 0.5)',
-                  fontSize: 10,
-                  color: '#94a3b8',
-                  cursor: 'help',
-                }}
-              >
-                ?
-              </span>
-            )}
-          </FormLabelOptional>
-          <FormSelect
-            value={outlineStructureType || ''}
-            onChange={(e) => setOutlineStructureType(e.target.value || '')}
-          >
-            <option value="">请选择</option>
-            {structureOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </FormSelect>
-        </FormField>
-      )}
+      <TaskV2SchemaForm
+        formConfig={formConfig}
+        formValues={formValues}
+        onChange={setFormValues}
+        loading={configLoading || listLoading}
+        surface="panel"
+      />
 
-      <FormFieldRow>
-        {applyTo !== 'storyboard-scripts' && (
-          <FormField>
-            <FormLabelOptional>大纲深度</FormLabelOptional>
-            <FormInput
-              type="number"
-              value={maxDepth}
-              onChange={(e) => setMaxDepth(e.target.value)}
-              placeholder="3"
-              min={1}
-              max={6}
-            />
-          </FormField>
-        )}
-        <FormField>
-          <FormLabelOptional>期望节点数</FormLabelOptional>
-          <FormInput
-            type="number"
-            value={expectedNodes}
-            onChange={(e) => setExpectedNodes(e.target.value)}
-            placeholder="可选"
-            min={0}
-          />
-        </FormField>
-      </FormFieldRow>
-
-      {applyTo === 'articles' && (
-        <FormField>
-          <FormLabelOptional>总字数</FormLabelOptional>
-          <FormInput
-            type="number"
-            value={totalTextCount}
-            onChange={(e) => setTotalTextCount(e.target.value)}
-            placeholder="可选，100–100000"
-            min={0}
-          />
-        </FormField>
-      )}
-
-      {(applyTo === 'voice-scripts' || applyTo === 'storyboard-scripts') && (
-        <FormField>
-          <FormLabelOptional>总时长（秒）</FormLabelOptional>
-          <FormInput
-            type="number"
-            value={totalDurationSeconds}
-            onChange={(e) => setTotalDurationSeconds(e.target.value)}
-            placeholder="可选，例如 300"
-            min={0}
-          />
-        </FormField>
-      )}
-
-      <FormFieldRow>
-        <FormField>
-          <FormLabelOptional>语言</FormLabelOptional>
-          <FormSelect value={language} onChange={(e) => setLanguage(e.target.value as 'zh' | 'en')}>
-            <option value="zh">中文</option>
-            <option value="en">English</option>
-          </FormSelect>
-        </FormField>
-        <FormField>
-          <FormLabelOptional>任务名称</FormLabelOptional>
-          <FormInput
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="用于列表展示"
-          />
-        </FormField>
-      </FormFieldRow>
-
-      {formSchema?.properties &&
-        Object.entries(formSchema.properties)
-          .filter(
-            ([k]) =>
-              ![
-                'prompt',
-                'applyto',
-                'outline_type',
-                'outline_structure_type',
-                'maxDepth',
-                'expectedNodes',
-                'total_textcount',
-                'total_duration_seconds',
-                'language',
-                'label',
-                'uid',
-              ].includes(k)
-          )
-          .map(([key, def]) => {
-            const d = def && typeof def === 'object' ? (def as Record<string, unknown>) : {};
-            const title = (d.title as string) || key;
-            const uiType =
-              (d['x-ui-type'] as string) ||
-              (Array.isArray(d.enum) && d.enum.length > 0
-                ? 'selection'
-                : d.type === 'number'
-                  ? 'number'
-                  : 'string');
-            const value = dynamicParams[key] ?? '';
-            const setValue = (v: unknown) => setDynamicParams((prev) => ({ ...prev, [key]: v }));
-
-            if (uiType === 'text') {
-              return (
-                <FormField key={key}>
-                  <FormLabelOptional>{title}</FormLabelOptional>
-                  <FormTextarea
-                    value={typeof value === 'string' ? value : ''}
-                    onChange={(e) => setValue(e.target.value)}
-                    placeholder={(d.description as string) || ''}
-                  />
-                </FormField>
-              );
-            }
-            if (uiType === 'number') {
-              return (
-                <FormField key={key}>
-                  <FormLabelOptional>{title}</FormLabelOptional>
-                  <FormInput
-                    type="number"
-                    value={
-                      typeof value === 'number' ? value : value === '' ? '' : Number(value) || ''
-                    }
-                    onChange={(e) => setValue(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder={(d.description as string) || ''}
-                  />
-                </FormField>
-              );
-            }
-            if (uiType === 'selection' && Array.isArray(d.enum)) {
-              const labels = (d['x-enum-labels'] as string[] | undefined) ?? [];
-              return (
-                <FormField key={key}>
-                  <FormLabelOptional>{title}</FormLabelOptional>
-                  <FormSelect
-                    value={typeof value === 'string' ? value : ''}
-                    onChange={(e) => setValue(e.target.value)}
-                  >
-                    <option value="">请选择</option>
-                    {d.enum.map((v: unknown, i: number) => (
-                      <option key={String(v)} value={String(v)}>
-                        {labels[i] && String(labels[i]).trim() ? labels[i] : String(v)}
-                      </option>
-                    ))}
-                  </FormSelect>
-                </FormField>
-              );
-            }
-            return (
-              <FormField key={key}>
-                <FormLabelOptional>{title}</FormLabelOptional>
-                <FormInput
-                  value={typeof value === 'string' ? value : value != null ? String(value) : ''}
-                  onChange={(e) => setValue(e.target.value)}
-                  placeholder={(d.description as string) || ''}
-                />
-              </FormField>
-            );
-          })}
-
-      <FormPrimaryButton type="submit" disabled={loading}>
+      <FormPrimaryButton type="submit" disabled={loading || !formConfig?.schema}>
         {loading ? '生成中…' : '生成大纲'}
       </FormPrimaryButton>
     </OutlineForm>

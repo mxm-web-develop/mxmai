@@ -49,6 +49,22 @@ export function AdminBusinessPromptTab({
   onAddMissingVarsToSchema,
 }: AdminBusinessPromptTabProps) {
   const { message } = App.useApp();
+  // 检测暗色主题
+  const [isDarkTheme, setIsDarkTheme] = React.useState(() => {
+    return document.documentElement.classList.contains('dark') ||
+           document.documentElement.classList.contains('dark-mode');
+  });
+  React.useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkTheme(
+        document.documentElement.classList.contains('dark') ||
+        document.documentElement.classList.contains('dark-mode')
+      );
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   const effectiveSchema: JsonSchema | undefined =
     schemaMode === 'guided' && draft
       ? fieldRowsToSchema(draft.formSchema, schemaRows)
@@ -179,11 +195,16 @@ export function AdminBusinessPromptTab({
             onGetData={(getData) => {
               promptMarkupGetterRef.current = getData;
             }}
+            // 亮色主题：蓝色；暗色主题：暖橙色
             styles={{
               templateField: {
-                backgroundColor: 'rgba(251, 191, 36, 0.14)',
-                borderColor: 'rgba(251, 191, 36, 0.55)',
-                textColor: '#fde68a',
+                backgroundColor: isDarkTheme
+                  ? 'rgba(251, 191, 36, 0.14)'
+                  : 'rgba(59, 130, 246, 0.15)',
+                borderColor: isDarkTheme
+                  ? 'rgba(251, 191, 36, 0.55)'
+                  : 'rgba(59, 130, 246, 0.4)',
+                textColor: isDarkTheme ? '#fde68a' : '#3b82f6',
                 minWidth: '64px',
                 maxWidth: '520px',
               },

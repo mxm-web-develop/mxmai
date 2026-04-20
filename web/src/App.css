@@ -9,7 +9,7 @@ html, body, #root {
   --color-background: #F3F4F6;
   --color-primary: #0F172A;
   --color-secondary: #E5E7EB;
-  --color-cta: #2274c5;
+  --color-cta: #002FA7;
   --color-text: #020617;
   --color-text-muted: #4B5563;
 
@@ -45,7 +45,7 @@ html.dark {
   --color-background: #0F172A;
   --color-primary: #1E293B;
   --color-secondary: #334155;
-  --color-cta: #2274c5;
+  --color-cta: #002FA7;
   --color-text: #F8FAFC;
   --color-text-muted: rgba(248, 250, 252, 0.72);
 
@@ -137,7 +137,7 @@ html:not(.dark) .page-card {
   right: 1.25rem;
   bottom: 0;
   height: 1px;
-  background: linear-gradient(90deg, rgba(34,197,94,0.85), rgba(56,189,248,0.65), rgba(34,197,94,0.85));
+  background: linear-gradient(90deg, rgba(0,47,167,0.85), rgba(56,189,248,0.65), rgba(0,47,167,0.85));
   opacity: 0.55;
 }
 
@@ -169,7 +169,7 @@ html:not(.dark) .page-card {
   width: 4px;
   height: 12px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(34,197,94,0.85), rgba(56,189,248,0.65));
+  background: linear-gradient(135deg, rgba(0,47,167,0.85), rgba(56,189,248,0.65));
   display: inline-block;
   box-shadow: 0 0 0 1px rgba(148,163,184,0.18);
 }
@@ -232,17 +232,17 @@ html:not(.dark) .page-card {
 }
 
 .nav-list button.active {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.16), rgba(34, 197, 94, 0.12));
+  background: linear-gradient(135deg, rgba(0, 47, 167, 0.20), rgba(0, 47, 167, 0.14));
   color: var(--color-primary);
-  border: 1px solid rgba(34, 197, 94, 0.55);
+  border: 1px solid rgba(0, 47, 167, 0.65);
   box-shadow: var(--shadow-md);
 }
 
 html.dark .nav-list button.active {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.45), rgba(34, 197, 94, 0.35));
-  color: #04130a;
-  border-color: rgba(74, 222, 128, 0.9);
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.4), var(--shadow-md);
+  background: linear-gradient(135deg, rgba(0, 47, 167, 0.55), rgba(0, 47, 167, 0.40));
+  color: #FFFFFF;
+  border-color: rgba(0, 47, 167, 0.9);
+  box-shadow: 0 0 0 1px rgba(0, 47, 167, 0.5), var(--shadow-md);
 }
 
 .main-wrap {
@@ -350,9 +350,9 @@ html.dark .header-search kbd {
 }
 
 .btn-logout {
-  padding: 0.35rem 0.75rem;
+  padding: 0.3rem 0.75rem;
   font-size: 0.8rem;
-  border-radius: 6px;
+  border-radius: 999px;
   border: 1px solid var(--page-border);
   background: var(--card-bg);
   color: var(--text-main);
@@ -370,6 +370,10 @@ html.dark .header-search kbd {
 }
 
 /* ---------- Global buttons (Tech style) ---------- */
+/* 统一按钮尺寸：最多两种 size
+   - Small (次要/工具栏):  padding 0.3rem 0.75rem, font-size 0.8rem
+   - Standard (主要 CTA): padding 0.5rem 1.1rem,  font-size 0.875rem
+*/
 .btn-primary,
 .btn-secondary,
 .btn-danger {
@@ -377,10 +381,10 @@ html.dark .header-search kbd {
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 500;
   border-radius: 999px;
-  padding: 0.45rem 0.95rem;
+  padding: 0.5rem 1.1rem;
   cursor: pointer;
   border-width: 1px;
   border-style: solid;
@@ -389,15 +393,15 @@ html.dark .header-search kbd {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, rgba(34,197,94,0.96), rgba(16,185,129,0.92));
-  border-color: rgba(34,197,94,0.85);
-  color: #02140a;
-  box-shadow: 0 10px 30px rgba(16,185,129,0.35);
+  background: linear-gradient(135deg, rgba(0,47,167,0.96), rgba(0,80,200,0.92));
+  border-color: rgba(0,47,167,0.85);
+  color: #FFFFFF;
+  box-shadow: 0 10px 30px rgba(0,47,167,0.35);
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 40px rgba(16,185,129,0.45);
+  box-shadow: 0 16px 40px rgba(0,47,167,0.45);
 }
 
 .btn-secondary {
@@ -425,12 +429,12 @@ html.dark .header-search kbd {
 }
 
 .btn-small {
-  padding: 0.25rem 0.6rem;
-  font-size: 0.75rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
 }
 
 .theme-toggle {
-  padding: 0.35rem 0.75rem;
+  padding: 0.3rem 0.75rem;
   font-size: 0.8rem;
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.30);
@@ -458,7 +462,7 @@ html.dark .theme-toggle {
 }
 
 .lang-toggle {
-  padding: 0.35rem 0.75rem;
+  padding: 0.3rem 0.75rem;
   font-size: 0.8rem;
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.30);
@@ -672,6 +676,134 @@ html.dark .lang-pill.active {
   flex-direction: column;
   overflow-x: hidden;
   overflow-y: hidden;
+}
+
+/* Smartflow：主区域左右分栏，右侧内容区单独滚动 */
+.page-smartflow {
+  flex: 1;
+  min-height: 0;
+  height: 100%;   /* 明确高度，撑起内部 flex 链 */
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 0 8px 16px 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-smartflow-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.page-smartflow-sidebar {
+  width: 160px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: var(--surface-1, rgba(15, 23, 42, 0.35));
+}
+
+.page-smartflow-sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-top: 8px;
+  padding-right: 4px;
+}
+
+/* Smartflow actions: fix button proportions (only this page) */
+.page-smartflow .sf-sidebar-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.page-smartflow .sf-action-btn.ant-btn,
+.page-smartflow .sf-action-btn.ant-btn-sm {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 30px;
+  border-radius: 10px;
+  font-weight: 650;
+}
+
+.page-smartflow .sf-action-btn.ant-btn > span {
+  line-height: 1;
+}
+
+.page-smartflow .sf-editor-actions .sf-action-btn.ant-btn,
+.page-smartflow .sf-editor-actions .sf-action-btn.ant-btn-sm {
+  height: 26px;
+}
+
+/* Smartflow sidebar items: compact + truncate */
+.page-smartflow-sidebar .sf-flow-item {
+  width: 100%;
+  text-align: left;
+  padding: 8px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.page-smartflow-sidebar .sf-flow-item:hover {
+  background: rgba(148, 163, 184, 0.10);
+  border-color: rgba(148, 163, 184, 0.32);
+}
+
+.page-smartflow-sidebar .sf-flow-item.is-active {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.55);
+}
+
+.page-smartflow-sidebar .sf-flow-title {
+  font-weight: 650;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-smartflow-sidebar .sf-flow-sub {
+  margin-top: 4px;
+  font-size: 10px;
+  opacity: 0.68;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-smartflow-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;     /* 明确高度，撑起 smartflow-designer-root */
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
 }
 
 /* ---------- Account page: inner scroll (page-card overflow is hidden) ---------- */
@@ -2145,18 +2277,19 @@ html.dark .lang-pill.active {
 }
 
 .dashboard-hero-input:focus {
-  border-color: rgba(34,197,94,0.55);
-  box-shadow: 0 0 0 3px rgba(34,197,94,0.16);
+  border-color: rgba(0,47,167,0.55);
+  box-shadow: 0 0 0 3px rgba(0,47,167,0.16);
   transform: translateY(-1px);
 }
 
 .dashboard-hero-cta {
-  padding: 0.7rem 0.95rem;
+  padding: 0.5rem 1.1rem;
   border-radius: 999px;
-  border: 1px solid rgba(34,197,94,0.55);
-  background: linear-gradient(135deg, rgba(34,197,94,0.95), rgba(34,197,94,0.80));
-  color: #061019;
+  border: 1px solid rgba(0,47,167,0.55);
+  background: linear-gradient(135deg, rgba(0,47,167,0.95), rgba(0,47,167,0.80));
+  color: #FFFFFF;
   font-weight: 700;
+  font-size: 0.875rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -2953,6 +3086,14 @@ html.dark .lang-pill.active {
   cursor: not-allowed;
 }
 
+/* API Key 表：启用列用 Switch（原 status-dot 样式在 .admin-business-page 下，本页无尺寸） */
+.admin-providers-page .admin-ux-tasktemplate .ant-table-tbody .ant-switch.ant-switch-checked {
+  background: #22c55e !important;
+}
+.admin-providers-page .admin-ux-tasktemplate .ant-table-tbody .ant-switch:not(.ant-switch-checked) {
+  background: rgba(148, 163, 184, 0.35) !important;
+}
+
 .admin-providers-page .admin-ux-tasktemplate .ant-table,
 .admin-providers-page .admin-ux-tasktemplate .ant-table-content,
 .admin-providers-page .admin-ux-tasktemplate .ant-pagination {
@@ -3150,6 +3291,19 @@ html.dark .admin-business-page .ant-drawer-close {
   overflow: auto;
 }
 
+/* rtext（PromptTempDesigner）在部分布局下会被父层交互样式影响，强制恢复可编辑行为 */
+.rtext-editor-fix,
+.rtext-editor-fix * {
+  pointer-events: auto;
+  padding: 0 !important;
+}
+
+.rtext-editor-fix [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
 /* antd in admin-business: dark contrast + hover */
 .admin-business-page .ant-table,
 .admin-business-page .ant-table-content,
@@ -3289,50 +3443,6 @@ html.dark .admin-business-page .ant-drawer-close {
 
 .admin-business-page .ant-divider {
   border-color: rgba(148, 163, 184, 0.16) !important;
-}
-
-/* ---------- 系统知识库管理（Admin）布局与用户管理一致、容器内滚动 ---------- */
-.admin-knowledge-defaults-page {
-  max-width: none;
-  width: 100%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-.admin-knowledge-defaults-page .admin-knowledge-defaults-table-wrap {
-  flex: 1;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.admin-knowledge-defaults-page .admin-knowledge-defaults-table-inner {
-  width: calc(100% - 16px);
-  max-width: calc(100% - 16px);
-  box-sizing: border-box;
-}
-
-.admin-knowledge-defaults-page .ant-table,
-.admin-knowledge-defaults-page .ant-table-content {
-  color: #e0e0e0;
-}
-
-.admin-knowledge-defaults-page .ant-table-thead > tr > th {
-  background: #262626 !important;
-  color: #c0c0c0 !important;
-  border-bottom: 1px solid #444 !important;
-}
-
-.admin-knowledge-defaults-page .ant-table-tbody > tr > td {
-  border-bottom: 1px solid #333 !important;
-  color: #e0e0e0 !important;
-}
-
-.admin-knowledge-defaults-page .ant-table-tbody > tr:hover > td {
-  background: #333 !important;
 }
 
 /* ---------- 表单选项（Admin）布局与用户管理一致、容器内滚动 ---------- */
@@ -3892,11 +4002,12 @@ html.dark .admin-business-page .ant-drawer-close {
 
 .form-group button {
   margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 1.1rem;
   border-radius: 999px;
   border: 1px solid rgba(148,163,184,0.3);
   background: rgba(15,23,42,0.9);
   color: var(--text-main);
+  font-size: 0.875rem;
   cursor: pointer;
   backdrop-filter: var(--glass-backdrop);
   box-shadow: var(--shadow-sm);
@@ -4108,4 +4219,1743 @@ html.dark .admin-business-page .ant-drawer-close {
   .dashboard-home .quick-links ul {
     color: #555;
   }
+}
+
+/* ─── Asset Center ─────────────────────────────────────────────────────────── */
+
+.asset-center {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100%;
+}
+
+.asset-center-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.asset-center-title-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.asset-center-title-row h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.asset-center-stats {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.asset-center-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.asset-selected-count {
+  font-size: 0.85rem;
+  color: var(--text-muted, #94a3b8);
+  padding: 0 0.5rem;
+}
+
+.btn-active {
+  background: rgba(99, 102, 241, 0.15) !important;
+  border-color: rgba(99, 102, 241, 0.5) !important;
+  color: #818cf8 !important;
+}
+
+/* Layout: sidebar + main */
+.asset-center-layout {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.asset-center-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  background: var(--glass-surface);
+  border: 1px solid rgba(148,163,184,0.25);
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.asset-sidebar-section {}
+
+.asset-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.5rem 0.5rem;
+  border-bottom: 1px solid rgba(148,163,184,0.2);
+  margin-bottom: 0.5rem;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #818cf8;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.btn-link:hover { text-decoration: underline; }
+
+.asset-folder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.asset-folder-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-main);
+  transition: background 150ms;
+}
+.asset-folder-item:hover { background: rgba(148,163,184,0.15); }
+.asset-folder-item.active {
+  background: rgba(99,102,241,0.15);
+  color: #818cf8;
+  font-weight: 500;
+}
+
+.asset-folder-icon { font-size: 0.9rem; }
+.asset-folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-folder-count { font-size: 0.75rem; color: var(--text-muted, #94a3b8); flex-shrink: 0; }
+
+.asset-folder-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.asset-folder-delete {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.asset-folder-item:hover .asset-folder-delete { opacity: 1; }
+
+.asset-folder-empty {
+  font-size: 0.8rem;
+  color: var(--text-muted, #94a3b8);
+  padding: 0.5rem 0.6rem;
+  text-align: center;
+}
+
+.asset-folder-select-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+}
+.asset-folder-select-item span:first-child { flex: 1; }
+
+/* Main area */
+.asset-center-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+.asset-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.asset-folder-info-bar {
+  font-size: 0.85rem;
+  color: var(--text-main);
+  background: rgba(99,102,241,0.08);
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  flex-shrink: 0;
+}
+
+.asset-center-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 200px;
+}
+
+/* ─── Asset Grid & Cards (Redesigned) ─────────────────────────────────────── */
+
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(192px, 1fr));
+  gap: 0.85rem;
+  overflow-y: auto;
+  flex: 1;
+  padding: 0.25rem 0;
+}
+
+/* Asset Card */
+.asset-card {
+  background: var(--glass-surface);
+  border: 1px solid rgba(148,163,184,0.28);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 220ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 220ms ease, border-color 200ms ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.asset-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.18), 0 0 0 1px rgba(148,163,184,0.35);
+  border-color: rgba(148,163,184,0.55);
+}
+.asset-card-selected {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.35), 0 8px 24px rgba(99,102,241,0.15);
+}
+.asset-card-in-folder {
+  border-color: rgba(16,185,129,0.45);
+}
+.asset-card-dragging {
+  box-shadow: 0 20px 48px rgba(0,0,0,0.28), 0 0 0 2px rgba(99,102,241,0.5) !important;
+  border-color: rgba(99,102,241,0.7) !important;
+  transform: scale(1.03) rotate(1deg) !important;
+}
+
+/* Thumbnail wrapper — theme-aware, not hardcoded dark */
+.asset-card-thumb-wrap {
+  width: 100%;
+  height: 130px;
+  overflow: hidden;
+  background: var(--color-surface, #f1f5f9);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.asset-card-thumb,
+.asset-card-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-muted, #94a3b8);
+}
+
+.asset-card-thumb-placeholder {
+  background: var(--color-surface, #f1f5f9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+}
+
+.asset-card-thumb-placeholder--rich {
+  gap: 6px;
+}
+
+.asset-card-placeholder-icon {
+  font-size: 2.2rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25));
+}
+
+.asset-card-placeholder-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.asset-card-placeholder-title {
+  font-size: 0.68rem;
+  color: var(--text-muted, #94a3b8);
+  text-align: center;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  margin-top: 2px;
+}
+
+/* Gradient overlay for text readability over thumbnail — theme-aware */
+.asset-card-thumb-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: linear-gradient(to top, rgba(0,0,0,0.12) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+html:not(.dark) .asset-card-thumb-overlay {
+  background: linear-gradient(to top, rgba(0,0,0,0.08) 0%, transparent 100%);
+}
+
+/* Floating type badge (top-left) */
+.asset-card-type-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.95;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* Drag handle (top-right, visible on hover) */
+.asset-card-drag-handle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(148,163,184,0.25);
+  color: rgba(226,232,240,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 180ms ease, background 150ms ease;
+  touch-action: none;
+}
+.asset-card:hover .asset-card-drag-handle { opacity: 1; }
+.asset-card-drag-handle:hover { background: rgba(99,102,241,0.5); border-color: rgba(99,102,241,0.5); color: #fff; }
+.asset-card-drag-handle:active { cursor: grabbing; }
+
+/* Processing shimmer bar at bottom of thumbnail */
+.asset-card-processing-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, #f59e0b 40%, #f59e0b 60%, transparent 100%);
+  background-size: 200% 100%;
+  animation: asset-card-shimmer 1.4s ease-in-out infinite;
+  border-radius: 0 0 2px 2px;
+}
+
+@keyframes asset-card-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Processing card subtle glow */
+.asset-card--processing {
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2), 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Selection mode checkbox */
+.asset-card-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  background: rgba(0,0,0,0.6);
+  border-radius: 6px;
+  padding: 3px;
+  backdrop-filter: blur(4px);
+}
+
+/* Card body */
+.asset-card-body {
+  padding: 0.6rem 0.7rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.asset-card-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+  min-height: 1.8em; /* ensure even 1-line titles have breathing room */
+}
+
+.asset-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-top: auto;
+}
+
+.asset-card-status {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted, #94a3b8);
+}
+
+.asset-card-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.asset-card-date {
+  font-size: 0.7rem;
+  color: var(--text-muted, #94a3b8);
+  flex-shrink: 0;
+}
+
+/* Actions menu (⋯ button, top-right) */
+.asset-card-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.asset-card:hover .asset-card-actions { opacity: 1; }
+
+.asset-card-menu-btn {
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(148,163,184,0.2);
+  color: rgba(226,232,240,0.9);
+  cursor: pointer;
+  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  backdrop-filter: blur(4px);
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.asset-card-menu-btn:hover {
+  background: rgba(99,102,241,0.5);
+  border-color: rgba(99,102,241,0.5);
+  color: #fff;
+}
+
+/* Preview Modal — theme-aware, no hardcoded dark */
+.asset-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.asset-preview-modal {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #e5e7eb);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-xl, 0 24px 64px rgba(0,0,0,0.2));
+}
+
+.asset-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--card-border, #e5e7eb);
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.asset-preview-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.asset-preview-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main, #111827);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.asset-preview-close {
+  background: none;
+  border: none;
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+}
+.asset-preview-close:hover { color: var(--text-main, #111827); background: rgba(0,0,0,0.06); }
+
+html:not(.dark) .asset-preview-overlay {
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+}
+
+.asset-preview-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.asset-preview-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.asset-preview-image-wrap,
+.asset-preview-video-wrap {
+  width: 100%;
+  max-height: 400px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.asset-preview-image {
+  width: 100%;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
+  border-radius: 8px;
+  display: block;
+}
+
+.asset-preview-video {
+  width: 100%;
+  max-height: 400px;
+  border-radius: 8px;
+  display: block;
+}
+
+.asset-preview-audio-wrap {
+  width: 100%;
+  padding: 1rem;
+}
+
+.asset-preview-audio {
+  width: 100%;
+}
+
+.asset-preview-text {
+  width: 100%;
+}
+.asset-preview-text pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-main, #111827);
+  background: var(--color-bg, #f9fafb);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* ============================================
+   Light mode overrides for admin pages
+   ============================================ */
+html:not(.dark) .admin-business-panel {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .admin-business-panel-head {
+  background: rgba(241, 245, 249, 0.8) !important;
+  border-bottom-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+html:not(.dark) .admin-business-panel-title {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-business-panel-subtitle {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-business-editor-head {
+  background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(56,189,248,0.06)), rgba(241, 245, 249, 0.8) !important;
+  border-bottom-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+/* Admin Providers page */
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate {
+  /* Keep container styles, only override inner panels */
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .admin-business-panel {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-head {
+  background: rgba(241, 245, 249, 0.8) !important;
+  border-bottom-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-title {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-subtitle {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .admin-business-toolbar {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Antd components in light mode admin pages */
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-table,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-table-content,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-pagination {
+  background: transparent !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-table-thead > tr > th {
+  background: rgba(241, 245, 249, 0.9) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.32) !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18) !important;
+  background: transparent !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-table-tbody > tr:hover > td {
+  background: rgba(241, 245, 249, 0.6) !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-input,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-input-affix-wrapper,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-input-textarea,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-select-selector {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.42) !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-select-selection-item,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-select-selection-placeholder,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Admin Ops page */
+html:not(.dark) .admin-ops-page .admin-ops-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .admin-ops-page .admin-ops-card .ant-card-head {
+  background: rgba(241, 245, 249, 0.8) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24) !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-ops-page .admin-ops-card .ant-card-body {
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-ops-page .admin-ops-kpi {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .admin-ops-page .admin-ops-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .admin-ops-page .admin-ops-loading {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-tabs-nav {
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-tabs-tab {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #2563eb !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-table-thead > tr > th {
+  background: rgba(241, 245, 249, 0.9) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.32) !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18) !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-table-tbody > tr:hover > td {
+  background: rgba(241, 245, 249, 0.6) !important;
+}
+
+/* Antd Select/Dropdown in light mode */
+html:not(.dark) .ant-select-dropdown,
+html:not(.dark) .ant-select-item {
+  background: #ffffff !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .ant-select-item-option-selected {
+  background: rgba(37, 99, 235, 0.1) !important;
+}
+
+/* Antd Modal in light mode */
+html:not(.dark) .ant-modal-content {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .ant-modal-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24) !important;
+}
+
+html:not(.dark) .ant-modal-title {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .ant-modal-close-x {
+  color: #64748b !important;
+}
+
+/* Antd Form items in light mode */
+html:not(.dark) .ant-form-item-label > label {
+  color: #334155 !important;
+}
+
+html:not(.dark) .ant-form-item-extra {
+  color: #64748b !important;
+}
+
+/* Antd Collapse in light mode */
+html:not(.dark) .ant-collapse-item {
+  border-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+html:not(.dark) .ant-collapse-header {
+  color: #334155 !important;
+  background: rgba(241, 245, 249, 0.6) !important;
+}
+
+html:not(.dark) .ant-collapse-content {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .ant-collapse-content-box {
+  color: #334155 !important;
+}
+
+/* Antd Steps in light mode */
+html:not(.dark) .ant-steps-item-title {
+  color: #334155 !important;
+}
+
+html:not(.dark) .ant-steps-item-description {
+  color: #64748b !important;
+}
+
+/* Antd Alert in light mode */
+html:not(.dark) .ant-alert {
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .ant-alert-info {
+  background: rgba(59, 130, 246, 0.08) !important;
+  color: #1e40af !important;
+}
+
+html:not(.dark) .ant-alert-success {
+  background: rgba(34, 197, 94, 0.08) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .ant-alert-warning {
+  background: rgba(250, 204, 21, 0.12) !important;
+  color: #854d0e !important;
+}
+
+html:not(.dark) .ant-alert-error {
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: #991b1b !important;
+}
+
+/* Antd Switch in light mode */
+html:not(.dark) .ant-switch-checked {
+  background: #22c55e !important;
+}
+
+/* Antd Popconfirm in light mode */
+html:not(.dark) .ant-popover-inner {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .ant-popconfirm-message-title {
+  color: #334155 !important;
+}
+
+/* TaskTemplate specific fixes */
+html:not(.dark) .task-item {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .task-item:hover {
+  background: rgba(241, 245, 249, 0.8) !important;
+  border-color: rgba(37, 99, 235, 0.5) !important;
+}
+
+
+
+/* --- admin-providers-page light overrides: missing pieces --- */
+/* Tabs (敏感词库 等导航标签) */
+html:not(.dark) .admin-providers-page .ant-tabs-nav { color: #334155 !important; }
+html:not(.dark) .admin-providers-page .ant-tabs-tab { color: #64748b !important; }
+html:not(.dark) .admin-providers-page .ant-tabs-tab:hover { color: #334155 !important; }
+html:not(.dark) .admin-providers-page .ant-tabs-tab-active .ant-tabs-tab-btn { color: #2563eb !important; }
+
+/* Pagination helper text */
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-pagination-total-text {
+  color: #64748b !important;
+}
+
+/* Edit/Delete buttons in table */
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-btn-default {
+  color: #334155 !important;
+  border-color: #d1d5db !important;
+  background: #ffffff !important;
+}
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-btn-default:hover {
+  color: #2563eb !important;
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+}
+
+/* ============================================
+   admin-business-page 业务管理亮色模式修复
+   ============================================ */
+
+/* Drawer 内的 Tabs 导航（敏感词库等） */
+html:not(.dark) .admin-business-page .ant-drawer-body .ant-tabs-nav {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-drawer-body .ant-tabs-nav::before {
+  border-bottom-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-tabs-nav {
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-tabs-tab {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-business-page .ant-tabs-tab:hover {
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #2563eb !important;
+}
+
+/* Drawer 本身亮色模式 */
+html:not(.dark) .admin-business-page .ant-drawer-content {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .admin-business-page .ant-drawer-body {
+  background: #ffffff !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-drawer-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-drawer-title,
+html:not(.dark) .admin-business-page .ant-drawer-close {
+  color: #1e293b !important;
+}
+
+/* admin-business-page 页面文字颜色 */
+html:not(.dark) .admin-business-page {
+  color: #334155 !important;
+}
+
+/* 表格相关 */
+html:not(.dark) .admin-business-page .ant-table,
+html:not(.dark) .admin-business-page .ant-table-content {
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-table-thead > tr > th {
+  background: #f1f5f9 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-business-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-table-tbody > tr:hover > td {
+  background: #f8fafc !important;
+}
+
+/* 输入框 */
+html:not(.dark) .admin-business-page .ant-input,
+html:not(.dark) .admin-business-page .ant-input-affix-wrapper {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-business-page .ant-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Select 下拉框 */
+html:not(.dark) .admin-business-page .ant-select-selector {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-select-selection-item,
+html:not(.dark) .admin-business-page .ant-select-selection-placeholder {
+  color: #64748b !important;
+}
+
+/* 分页 */
+html:not(.dark) .admin-business-page .ant-pagination-total-text,
+html:not(.dark) .admin-business-page .ant-pagination .ant-pagination-item {
+  color: #64748b !important;
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-pagination .ant-pagination-item-active {
+  border-color: #2563eb !important;
+}
+
+/* 按钮 */
+html:not(.dark) .admin-business-page .ant-btn-default {
+  color: #334155 !important;
+  border-color: #d1d5db !important;
+  background: #ffffff !important;
+}
+
+html:not(.dark) .admin-business-page .ant-btn-default:hover {
+  color: #2563eb !important;
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+}
+
+/* stat-dot 等状态指示 */
+html:not(.dark) .admin-business-page .admin-business-status-dot {
+  color: #64748b !important;
+}
+
+/* ============================================
+   admin 页面通用文字和组件亮色模式修复
+   ============================================ */
+
+/* 所有 admin 页面通用：确保数字/百分比清晰可见 */
+html:not(.dark) .admin-business-page .ant-typography,
+html:not(.dark) .admin-business-page .ant-typography.ant-typography-secondary {
+  color: #334155 !important;
+}
+
+/* 利润率百分比等数字 — 确保深色高对比度 */
+html:not(.dark) .admin-business-page span.muted,
+html:not(.dark) .admin-business-page .muted span,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate span.muted,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .muted span {
+  color: #64748b !important;
+}
+
+/* 确保表格内百分比数字清晰 — 用 ant-typography 的数字要有深色 */
+html:not(.dark) .admin-business-page .ant-table .ant-typography,
+html:not(.dark) .admin-business-page .ant-table .ant-typography.ant-typography-secondary {
+  color: #475569 !important;
+}
+
+/* Tag 组件修复 — "已完成"绿色标签在亮色模式下 */
+html:not(.dark) .ant-tag {
+  border-color: #d1d5db !important;
+}
+
+html:not(.dark) .ant-tag-green,
+html:not(.dark) .ant-tag.ant-tag-success {
+  color: #166534 !important;
+  background: rgba(34, 197, 94, 0.12) !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+}
+
+html:not(.dark) .ant-tag-red,
+html:not(.dark) .ant-tag.ant-tag-error {
+  color: #991b1b !important;
+  background: rgba(239, 68, 68, 0.10) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+html:not(.dark) .ant-tag-orange,
+html:not(.dark) .ant-tag.ant-tag-warning {
+  color: #9a3412 !important;
+  background: rgba(249, 115, 22, 0.10) !important;
+  border-color: rgba(249, 115, 22, 0.35) !important;
+}
+
+html:not(.dark) .ant-tag-purple,
+html:not(.dark) .ant-tag.ant-tag-processing {
+  color: #5b21b6 !important;
+  background: rgba(139, 92, 246, 0.10) !important;
+  border-color: rgba(139, 92, 246, 0.35) !important;
+}
+
+/* 删除按钮（粉色）- 确保边框可见 */
+html:not(.dark) .ant-btn-default.ant-btn-dangerous {
+  color: #dc2626 !important;
+  border-color: #fca5a5 !important;
+  background: rgba(239, 68, 68, 0.04) !important;
+}
+
+html:not(.dark) .ant-btn-default.ant-btn-dangerous:hover {
+  color: #b91c1c !important;
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.10) !important;
+}
+
+/* 业务列表卡片样式 — 确保卡片边框足够明显 */
+html:not(.dark) .admin-business-panel {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 表格行 hover 确保有视觉反馈 */
+html:not(.dark) .ant-table-tbody > tr.ant-table-row:hover > td {
+  background: #f8fafc !important;
+}
+
+/* 确保分页器数字清晰 */
+html:not(.dark) .ant-pagination .ant-pagination-item a {
+  color: #334155 !important;
+}
+
+html:not(.dark) .ant-pagination .ant-pagination-prev .ant-pagination-item-link,
+html:not(.dark) .ant-pagination .ant-pagination-next .ant-pagination-item-link {
+  color: #334155 !important;
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* 搜索框图标颜色 */
+html:not(.dark) .ant-input-prefix,
+html:not(.dark) .ant-input-suffix {
+  color: #94a3b8 !important;
+}
+
+/* Drawer 内部样式确保全局覆盖 */
+html:not(.dark) .ant-drawer .ant-drawer-content {
+  background: #ffffff !important;
+  color: #334155 !important;
+}
+
+/* Tooltip 在亮色模式下 */
+html:not(.dark) .ant-tooltip-inner {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+html:not(.dark) .ant-tooltip-arrow-content {
+  background: #1e293b !important;
+}
+
+/* ============================================
+   任务卡片组件亮色模式修复（graph/audio/music/outline/writing 通用）
+   ============================================ */
+
+/* --- graph-task-* 组件 --- */
+html:not(.dark) .graph-task-id {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .graph-task-subtype {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+}
+
+html:not(.dark) .graph-task-progress {
+  color: #1e40af !important;  /* 深蓝色，确保对比度 */
+}
+
+html:not(.dark) .graph-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .graph-task-thumb {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .graph-task-thumb-placeholder {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .graph-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .graph-task-status--failed,
+html:not(.dark) .graph-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .graph-task-status--processing,
+html:not(.dark) .graph-task-status--pending,
+html:not(.dark) .graph-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+html:not(.dark) .graph-task-status--paused {
+  background: rgba(250, 204, 21, 0.12) !important;
+  color: #854d0e !important;
+}
+
+/* --- audio-task-* 组件 --- */
+html:not(.dark) .audio-task-progress {
+  color: #1e40af !important;
+}
+
+html:not(.dark) .audio-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .audio-task-id {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .audio-task-subtype {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+}
+
+html:not(.dark) .audio-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .audio-task-status--failed,
+html:not(.dark) .audio-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .audio-task-status--processing,
+html:not(.dark) .audio-task-status--pending,
+html:not(.dark) .audio-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+/* --- outline-task-* 组件 --- */
+html:not(.dark) .outline-task-progress {
+  color: #1e40af !important;
+}
+
+html:not(.dark) .outline-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .outline-task-id {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .outline-task-subtype {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+}
+
+html:not(.dark) .outline-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .outline-task-status--failed,
+html:not(.dark) .outline-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .outline-task-status--processing,
+html:not(.dark) .outline-task-status--pending,
+html:not(.dark) .outline-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+/* --- writing-task-* 组件 --- */
+html:not(.dark) .writing-task-progress {
+  color: #1e40af !important;
+}
+
+html:not(.dark) .writing-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .writing-task-id {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .writing-task-subtype {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+}
+
+html:not(.dark) .writing-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .writing-task-status--failed,
+html:not(.dark) .writing-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .writing-task-status--processing,
+html:not(.dark) .writing-task-status--pending,
+html:not(.dark) .writing-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+/* --- 任务卡片容器背景修复（列表页） --- */
+html:not(.dark) .graph-list-scroll,
+html:not(.dark) .audio-list-scroll,
+html:not(.dark) .music-list-scroll,
+html:not(.dark) .outline-list-scroll,
+html:not(.dark) .writing-list-scroll,
+html:not(.dark) .video-list-scroll {
+  background: transparent !important;
+}
+
+/* --- 任务卡片整体 --- */
+html:not(.dark) .graph-task-item,
+html:not(.dark) .audio-task-item,
+html:not(.dark) .music-task-item,
+html:not(.dark) .outline-task-item,
+html:not(.dark) .writing-task-item,
+html:not(.dark) .video-task-item {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+html:not(.dark) .graph-task-item:hover,
+html:not(.dark) .audio-task-item:hover,
+html:not(.dark) .music-task-item:hover,
+html:not(.dark) .outline-task-item:hover,
+html:not(.dark) .writing-task-item:hover,
+html:not(.dark) .video-task-item:hover {
+  border-color: rgba(37, 99, 235, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10) !important;
+}
+
+/* --- graph-form 在亮色模式 --- */
+html:not(.dark) .graph-form .form-row input,
+html:not(.dark) .graph-form .form-row select,
+html:not(.dark) .graph-form .form-row textarea {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .graph-advanced {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* --- video-task-* 组件 --- */
+html:not(.dark) .video-task-id {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .video-task-progress {
+  color: #1e40af !important;
+}
+
+html:not(.dark) .video-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .video-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .video-task-status--failed,
+html:not(.dark) .video-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .video-task-status--processing,
+html:not(.dark) .video-task-status--pending,
+html:not(.dark) .video-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+html:not(.dark) .video-task-status--paused {
+  background: rgba(250, 204, 21, 0.12) !important;
+  color: #854d0e !important;
+}
+
+/* --- music-task-* 补充亮色覆盖 --- */
+html:not(.dark) .music-task-id {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .music-task-progress {
+  color: #1e40af !important;
+}
+
+html:not(.dark) .music-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .music-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .music-task-status--failed,
+html:not(.dark) .music-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .music-task-status--processing,
+html:not(.dark) .music-task-status--pending,
+html:not(.dark) .music-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+/* --- 任务卡片中的 muted 文字 --- */
+html:not(.dark) .graph-list-scroll .muted,
+html:not(.dark) .audio-list-scroll .muted,
+html:not(.dark) .music-list-scroll .muted,
+html:not(.dark) .outline-list-scroll .muted,
+html:not(.dark) .writing-list-scroll .muted,
+html:not(.dark) .video-list-scroll .muted {
+  color: #64748b !important;
+}
+
+/* --- 任务卡片的标题/元信息文字 --- */
+html:not(.dark) .graph-task-title,
+html:not(.dark) .audio-task-title,
+html:not(.dark) .music-task-title,
+html:not(.dark) .outline-task-title,
+html:not(.dark) .writing-task-title,
+html:not(.dark) .video-task-title {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .graph-task-meta,
+html:not(.dark) .audio-task-meta,
+html:not(.dark) .music-task-meta,
+html:not(.dark) .outline-task-meta,
+html:not(.dark) .writing-task-meta,
+html:not(.dark) .video-task-meta {
+  color: #64748b !important;
+}
+
+/* --- Dashboard 中任务概览卡片的深色背景 --- */
+html:not(.dark) .overview-card,
+html:not(.dark) .stat-card {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .overview-card .stat-number,
+html:not(.dark) .stat-card .stat-number {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .overview-card .stat-label,
+html:not(.dark) .stat-card .stat-label {
+  color: #64748b !important;
+}
+
+/* ============================================
+   Smartflow Designer 亮色模式修复
+   ============================================ */
+
+/* 工具栏背景 */
+html:not(.dark) .smartflow-designer-toolbar {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+/* 画布背景 */
+html:not(.dark) .smartflow-designer-canvas-wrap {
+  background: #f8fafc !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+/* ReactFlow 画布网格线在亮色模式下 */
+html:not(.dark) .react-flow__background {
+  --xy-background-color: #f1f5f9 !important;
+}
+
+/* Smartflow 节点样式 */
+html:not(.dark) .sf-canvas-node {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .sf-canvas-node.sf-canvas-node--selected {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
+}
+
+html:not(.dark) .sf-canvas-node.sf-canvas-node--start,
+html:not(.dark) .sf-canvas-node.sf-canvas-node--end {
+  background: rgba(37, 99, 235, 0.08) !important;
+  border-color: rgba(37, 99, 235, 0.4) !important;
+}
+
+/* Smartflow sidebar 左侧列表 */
+html:not(.dark) .page-smartflow-sidebar {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .page-smartflow-sidebar-scroll {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .sf-flow-item {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .sf-flow-item:hover {
+  background: #f8fafc !important;
+}
+
+html:not(.dark) .sf-flow-item.is-active {
+  background: rgba(37, 99, 235, 0.08) !important;
+  border-color: rgba(37, 99, 235, 0.4) !important;
+}
+
+html:not(.dark) .sf-flow-title {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .sf-flow-sub {
+  color: #64748b !important;
+}
+
+/* Smartflow 主区域 */
+html:not(.dark) .page-smartflow-main {
+  background: #f8fafc !important;
+}
+
+/* Smartflow Toolbar 内的文字 */
+html:not(.dark) .smartflow-designer-toolbar .ant-btn {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .smartflow-designer-toolbar .ant-btn:hover {
+  background: #eff6ff !important;
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+}
+
+html:not(.dark) .smartflow-designer-toolbar .ant-tabs-tab {
+  color: #64748b !important;
+}
+
+html:not(.dark) .smartflow-designer-toolbar .ant-tabs-tab:hover {
+  color: #334155 !important;
+}
+
+html:not(.dark) .smartflow-designer-toolbar .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #2563eb !important;
+}
+
+/* Smartflow 编辑器按钮 */
+html:not(.dark) .sf-action-btn {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .sf-action-btn:hover {
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+}
+
+/* Mini-map 亮色模式 */
+html:not(.dark) .react-flow__minimap {
+  background: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .react-flow__controls {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+html:not(.dark) .react-flow__controls-button {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .react-flow__controls-button:hover {
+  background: #f8fafc !important;
+}
+
+/* ============================================
+   Dashboard 首页亮色模式修复
+   ============================================ */
+
+/* Hero 区域 */
+html:not(.dark) .dashboard-hero {
+  background: linear-gradient(135deg, rgba(34,197,94,0.06), rgba(56,189,248,0.06)), #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .dashboard-hero::before {
+  background: radial-gradient(circle at 25% 30%, rgba(34,197,94,0.12) 0%, transparent 45%),
+              radial-gradient(circle at 70% 25%, rgba(56,189,248,0.10) 0%, transparent 42%) !important;
+}
+
+html:not(.dark) .dashboard-hero-kicker {
+  background: rgba(37, 99, 235, 0.08) !important;
+  border-color: rgba(37, 99, 235, 0.25) !important;
+  color: #1e40af !important;
+}
+
+html:not(.dark) .dashboard-hero-title {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .dashboard-hero-subtitle {
+  color: #475569 !important;
+}
+
+html:not(.dark) .dashboard-hero-pill {
+  background: rgba(241, 245, 249, 0.9) !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  color: #475569 !important;
+}
+
+/* Hero 右侧 miniCard */
+html:not(.dark) .dashboard-miniCard {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .dashboard-miniCard-label {
+  color: #64748b !important;
+}
+
+html:not(.dark) .dashboard-miniCard-value {
+  color: #1e293b !important;
+}
+
+/* 提示文字 */
+html:not(.dark) .hint {
+  color: #64748b !important;
+}
+
+/* Bento 卡片 */
+html:not(.dark) .bento-card {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .bento-card::before {
+  background: radial-gradient(circle at 20% 25%, rgba(56,189,248,0.08) 0%, transparent 55%),
+              radial-gradient(circle at 80% 70%, rgba(34,197,94,0.08) 0%, transparent 55%) !important;
+}
+
+html:not(.dark) .bento-title {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .bento-desc {
+  color: #64748b !important;
+}
+
+html:not(.dark) .bento-foot {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .bento-card:hover {
+  border-color: rgba(37, 99, 235, 0.35) !important;
+}
+
+/* Dashboard 首页标题 */
+html:not(.dark) .dashboard-bento h3 {
+  color: #1e293b !important;
+}
+
+/* 登录表单 */
+html:not(.dark) .login-form {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .login-form h3 {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .login-form label {
+  color: #475569 !important;
+}
+
+html:not(.dark) .login-form input {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .login-form button {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
 }

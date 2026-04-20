@@ -11,11 +11,13 @@ import {
   type PromptConfigBody,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { Button, Table, message, Modal, Select, Input, Switch, Tabs } from 'antd';
+import { App, Button, Table, Modal, Select, Input, Switch, Tabs } from 'antd';
 
 const SCOPE_OPTIONS = [
   { value: 'writing', label: '写作 (writing)' },
   { value: 'graph', label: '图文 (graph)' },
+  { value: 'audio', label: '音频 (audio)' },
+  { value: 'music', label: '音乐 (music)' },
   { value: 'video', label: '视频 (video)' },
 ];
 
@@ -63,6 +65,7 @@ export interface PromptConfigRow {
 }
 
 export default function PromptConfig() {
+  const { message } = App.useApp();
   const { isLoggedIn, isAdmin } = useAuth();
   const [lists, setLists] = useState<PromptConfigRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -77,7 +80,6 @@ export default function PromptConfig() {
   const [rulesEn, setRulesEn] = useState('');
   const [outputFormatZh, setOutputFormatZh] = useState('');
   const [outputFormatEn, setOutputFormatEn] = useState('');
-  const [useKnowledge, setUseKnowledge] = useState(false);
   const [extraJson, setExtraJson] = useState('{}');
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -112,7 +114,6 @@ export default function PromptConfig() {
     setOutputFormatZh((row.output_format_i18n as Record<string, string>)?.zh ?? '');
     setOutputFormatEn((row.output_format_i18n as Record<string, string>)?.en ?? '');
     const extra = (row.extra ?? {}) as Record<string, unknown>;
-    setUseKnowledge(!!extra.use_knowledge);
     setExtraJson(JSON.stringify(extra, null, 2));
     setIsActive(row.is_active);
 
@@ -132,7 +133,6 @@ export default function PromptConfig() {
       // 用 by-key 返回的完整 extra 覆盖列表项（避免列表未带全 extra 时保存误覆盖 DB）
       if (data.extra !== undefined) {
         const extra = (data.extra ?? {}) as Record<string, unknown>;
-        setUseKnowledge(!!extra.use_knowledge);
         setExtraJson(JSON.stringify(extra, null, 2));
         setCurrentRow((prev) => (prev ? { ...prev, extra: data.extra } : prev));
       }
@@ -149,7 +149,6 @@ export default function PromptConfig() {
       message.warning('扩展配置 JSON 格式无效，将使用原有值');
       extra = { ...((currentRow.extra ?? {}) as Record<string, unknown>) };
     }
-    extra = { ...extra, use_knowledge: useKnowledge };
     const body: PromptConfigBody = {
       scope: currentRow.scope,
       type: currentRow.type,
@@ -344,15 +343,6 @@ export default function PromptConfig() {
                 label: '扩展配置',
                 children: (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {modalMode === 'edit' && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Switch checked={useKnowledge} onChange={setUseKnowledge} />
-                        <span>启用知识库（use_knowledge）</span>
-                      </div>
-                    )}
-                    {modalMode === 'view' && (
-                      <div>use_knowledge: {(currentRow.extra as Record<string, unknown>)?.use_knowledge ? '是' : '否'}</div>
-                    )}
                     <div>
                       <label>扩展配置（extra，JSON）</label>
                       <Input.TextArea

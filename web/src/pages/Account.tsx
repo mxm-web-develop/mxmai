@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   Alert,
+  App,
   Button,
   Card,
   Descriptions,
@@ -14,7 +15,6 @@ import {
   Table,
   Tag,
   Typography,
-  message,
 } from 'antd';
 import { DeleteOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
@@ -48,6 +48,7 @@ type WalletTxMetadata = {
 };
 
 export default function Account() {
+  const { message } = App.useApp();
   const { user, isLoggedIn, logout } = useAuth();
   const [wallet, setWallet] = useState<WalletItem | null>(null);
   const [txs, setTxs] = useState<WalletTransaction[]>([]);

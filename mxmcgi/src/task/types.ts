@@ -22,6 +22,7 @@ export type TaskType =
   | 'image'
   | 'video'
   | 'audio'
+  | 'music'
   | 'writing'
   | 'outline'
   | 'graph'

@@ -138,8 +138,8 @@ function isProviderType(s) {
 }
 async function loadProviderModelCatalog() {
   try {
-    const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory23.createProviderModelRepository();
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderModelRepository();
     const all = await repo.list({ onlyEnabled: true });
     const byProvider = /* @__PURE__ */ new Map();
     for (const m of all) {
@@ -6203,8 +6203,8 @@ function getEnvKeysFallback(provider, _service) {
 }
 async function getProviderKeys(provider, service) {
   try {
-    const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-    const repo = RepositoryFactory23.createProviderApiKeyRepository();
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createProviderApiKeyRepository();
     const serviceNorm = service ? String(service).toLowerCase() : null;
     let dbKeys = await repo.listKeysForProvider(provider, serviceNorm ?? void 0);
     if ((!dbKeys || dbKeys.length === 0) && !serviceNorm && (provider === "replicate" || provider === "ppio")) {
@@ -28815,8 +28815,8 @@ async function isAdminUser(req) {
       return false;
     }
     try {
-      const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-      const userRepo = RepositoryFactory23.createUserRepository();
+      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+      const userRepo = RepositoryFactory24.createUserRepository();
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
         return true;
@@ -28947,8 +28947,8 @@ var init_cgi_tasks = __esm({
         const userIds = [...new Set(response.tasks.map((t) => t.metadata?.userId).filter(Boolean))];
         const userIdToName = /* @__PURE__ */ new Map();
         try {
-          const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-          const userRepo = RepositoryFactory23.createUserRepository();
+          const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+          const userRepo = RepositoryFactory24.createUserRepository();
           for (const uid6 of userIds) {
             const user = await userRepo.findById(uid6);
             userIdToName.set(uid6, user?.username ?? uid6);
@@ -30014,8 +30014,8 @@ async function requireAdmin(req, res, next) {
       res.status(403).json({ success: false, error: "Admin access required" });
       return;
     }
-    const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-    const userRepo = RepositoryFactory23.createUserRepository();
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const userRepo = RepositoryFactory24.createUserRepository();
     const user = await userRepo.findById(userId);
     if (user && user.role === "admin") {
       next();
@@ -30064,8 +30064,8 @@ var init_providers4 = __esm({
         const modelsByProvider = {};
         const modelsByProviderByScope = {};
         try {
-          const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-          const repo = RepositoryFactory23.createProviderModelRepository();
+          const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+          const repo = RepositoryFactory24.createProviderModelRepository();
           const dbModels = await repo.list({ onlyEnabled: true });
           for (const m of dbModels) {
             const provider = m.provider;
@@ -30488,8 +30488,8 @@ var init_providers4 = __esm({
     });
     router9.get("/keys", async (req, res) => {
       try {
-        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-        const repo = RepositoryFactory23.createProviderApiKeyRepository();
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createProviderApiKeyRepository();
         const provider = req.query.provider;
         const service = req.query.service;
         const list = await repo.listMasked({ provider, service: service ?? null });
@@ -30509,8 +30509,8 @@ var init_providers4 = __esm({
           res.status(400).json({ success: false, error: "Missing provider or key_value" });
           return;
         }
-        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-        const repo = RepositoryFactory23.createProviderApiKeyRepository();
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createProviderApiKeyRepository();
         const created = await repo.create({
           provider,
           service: service ?? null,
@@ -30541,8 +30541,8 @@ var init_providers4 = __esm({
       try {
         const userId = req.headers["x-user-id"];
         const { priority, is_active } = req.body;
-        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-        const repo = RepositoryFactory23.createProviderApiKeyRepository();
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createProviderApiKeyRepository();
         const updated = await repo.update(req.params.id, { priority, is_active, updated_by: userId ?? null });
         res.json({
           success: true,
@@ -30564,8 +30564,8 @@ var init_providers4 = __esm({
     });
     router9.delete("/keys/:id", async (req, res) => {
       try {
-        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-        const repo = RepositoryFactory23.createProviderApiKeyRepository();
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createProviderApiKeyRepository();
         await repo.delete(req.params.id);
         res.json({ success: true });
       } catch (e) {
@@ -30582,8 +30582,8 @@ var init_providers4 = __esm({
         const onlyEnabled = req.query.onlyEnabled === "true" || req.query.onlyEnabled === "1";
         const page = Math.max(1, parseInt(String(req.query.page || 1), 10));
         const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize || 20), 10)));
-        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-        const repo = RepositoryFactory23.createProviderModelRepository();
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createProviderModelRepository();
         let list = await repo.list({ provider, scope, onlyEnabled: onlyEnabled || void 0 });
         list = list.map((m) => ({
           ...m,
@@ -30640,8 +30640,8 @@ var init_providers4 = __esm({
           res.status(400).json({ success: false, error: "Missing provider, scope, or model_key" });
           return;
         }
-        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-        const repo = RepositoryFactory23.createProviderModelRepository();
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createProviderModelRepository();
         const created = await repo.upsert({
           provider: body.provider,
           scope: body.scope,
@@ -30672,8 +30672,8 @@ var init_providers4 = __esm({
       try {
         const id = req.params.id;
         const body = req.body;
-        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-        const repo = RepositoryFactory23.createProviderModelRepository();
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createProviderModelRepository();
         const existing = await repo.findById(id);
         if (!existing) {
           res.status(404).json({ success: false, error: "Model not found" });
@@ -30753,8 +30753,8 @@ var init_providers4 = __esm({
     router9.delete("/models/:id", async (req, res) => {
       try {
         const id = req.params.id;
-        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-        const repo = RepositoryFactory23.createProviderModelRepository();
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createProviderModelRepository();
         const existing = await repo.findById(id);
         if (!existing) {
           res.status(404).json({ success: false, error: "Model not found" });
@@ -30792,8 +30792,8 @@ var init_providers4 = __esm({
         };
         let providerModelId = null;
         if (body.provider_model_id) {
-          const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-          const repo = RepositoryFactory23.createProviderModelRepository();
+          const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+          const repo = RepositoryFactory24.createProviderModelRepository();
           const m = await repo.findById(body.provider_model_id);
           if (!m) {
             res.status(404).json({ success: false, error: "Provider model not found" });
@@ -30810,8 +30810,8 @@ var init_providers4 = __esm({
           scope = body.scope;
           modality = null;
           try {
-            const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-            const repo = RepositoryFactory23.createProviderModelRepository();
+            const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+            const repo = RepositoryFactory24.createProviderModelRepository();
             const m = await repo.findByKey({ provider, scope, model_key: modelKey });
             providerModelId = m?.id ?? null;
           } catch {
@@ -31196,6 +31196,1325 @@ var init_sensitive_words = __esm({
   }
 });
 
+// src/agents/intent-detector.ts
+var intent_detector_exports = {};
+__export(intent_detector_exports, {
+  businessNodes: () => businessNodes,
+  detectIntent: () => detectIntent,
+  detectIntentEnhanced: () => detectIntentEnhanced,
+  getBusinessNode: () => getBusinessNode,
+  getNextFieldToAsk: () => getNextFieldToAsk,
+  getSystemPromptForIntent: () => getSystemPromptForIntent,
+  matchBusinessNodeByLLM: () => matchBusinessNodeByLLM
+});
+function normalizeAgentRule(value) {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value.trim();
+  }
+  return null;
+}
+function normalizeAgentKeywords(value) {
+  if (Array.isArray(value)) {
+    const normalized = value.map((k) => typeof k === "string" ? k.trim() : "").filter((k) => k.length > 0);
+    return normalized.length > 0 ? normalized : null;
+  }
+  return null;
+}
+function mapPromptConfigToBusinessNodeKey(scope, type) {
+  const key = `${scope}/${type}`;
+  return DEFAULT_BUSINESS_NODES[key] ? key : null;
+}
+async function loadBusinessNodesFromDB() {
+  const now = Date.now();
+  if (businessNodesCache && businessNodesCache.expiresAt > now) {
+    return businessNodesCache.data;
+  }
+  const merged = { ...DEFAULT_BUSINESS_NODES };
+  try {
+    const repo = import_mxmdata26.RepositoryFactory.createPromptEngineeringConfigRepository();
+    const result = await repo.list({ limit: 500 });
+    for (const row of result.items ?? []) {
+      if (row.subtype !== null) continue;
+      if (!row.is_active) continue;
+      const nodeKey = mapPromptConfigToBusinessNodeKey(row.scope, row.type);
+      if (!nodeKey || !merged[nodeKey]) continue;
+      const extra = row.extra ?? {};
+      const rule = normalizeAgentRule(extra.agent_rule);
+      const keywords = normalizeAgentKeywords(extra.agent_keywords);
+      if (rule !== null || keywords !== null) {
+        merged[nodeKey] = {
+          ...merged[nodeKey],
+          agent_rule: rule ?? merged[nodeKey].agent_rule,
+          keywords: keywords ?? merged[nodeKey].keywords
+        };
+      }
+    }
+  } catch (err) {
+    console.error("[intent-detector] loadBusinessNodesFromDB failed, using defaults:", err);
+    return DEFAULT_BUSINESS_NODES;
+  }
+  businessNodesCache = {
+    expiresAt: now + 5 * 60 * 1e3,
+    data: merged
+  };
+  return merged;
+}
+function extractParamsFromMessage(message, node) {
+  const params = {};
+  if (!node.extractors) return params;
+  for (const extractor of node.extractors) {
+    for (const pattern of extractor.patterns) {
+      const match = message.match(pattern);
+      if (match && match[1]) {
+        params[extractor.field] = match[1].trim();
+        break;
+      }
+    }
+  }
+  return params;
+}
+function matchBusinessNodes(message, nodes) {
+  const lowerMessage = message.toLowerCase();
+  const results = [];
+  const nodeMap = nodes ?? businessNodes;
+  for (const [nodeType, node] of Object.entries(nodeMap)) {
+    let score = 0;
+    const matchedKeywords = [];
+    for (const keyword of node.keywords) {
+      if (lowerMessage.includes(keyword.toLowerCase())) {
+        score += keyword.length;
+        matchedKeywords.push(keyword);
+      }
+    }
+    if (score > 0) {
+      results.push({ nodeType, node, score, matchedKeywords });
+    }
+  }
+  results.sort((a, b) => b.score - a.score);
+  return results;
+}
+function detectIntent(message) {
+  const lowerMessage = message.toLowerCase().trim();
+  const nodeMatches = matchBusinessNodes(message);
+  if (nodeMatches.length > 0) {
+    const best = nodeMatches[0];
+    const extractedParams = extractParamsFromMessage(message, best.node);
+    const allParams = { ...best.node.defaultParams, ...extractedParams };
+    const missingFields = best.node.fields.filter((f) => f.required && !allParams[f.key]).map((f) => f.key);
+    let confidenceLevel;
+    const coverage = 1 - missingFields.length / best.node.fields.filter((f) => f.required).length;
+    if (coverage >= 0.75 && missingFields.length <= 1) {
+      confidenceLevel = "high";
+    } else if (coverage >= 0.4) {
+      confidenceLevel = "medium";
+    } else {
+      confidenceLevel = "low";
+    }
+    const businessNode = {
+      nodeType: best.nodeType,
+      nodeName: best.node.name,
+      matchedKeywords: best.matchedKeywords,
+      extractedParams: allParams,
+      missingFields,
+      confidenceLevel
+    };
+    const confidence2 = Math.min(0.5 + coverage * 0.5, 1);
+    return {
+      intent: best.nodeType,
+      confidence: confidence2,
+      businessNode,
+      params: allParams
+    };
+  }
+  const scores = /* @__PURE__ */ new Map();
+  for (const pattern of GENERAL_PATTERNS) {
+    for (const keyword of pattern.keywords) {
+      if (lowerMessage.includes(keyword.toLowerCase())) {
+        const currentScore = scores.get(pattern.intent) || 0;
+        scores.set(pattern.intent, currentScore + pattern.weight);
+      }
+    }
+  }
+  let bestIntent = "general";
+  let bestScore = 0;
+  for (const [intent, score] of scores) {
+    if (score > bestScore) {
+      bestScore = score;
+      bestIntent = intent;
+    }
+  }
+  if (bestScore === 0) {
+    return { intent: "general", confidence: 0.5 };
+  }
+  const confidence = Math.min(bestScore / 2, 1);
+  const matchedPattern = GENERAL_PATTERNS.find((p) => p.intent === bestIntent);
+  const params = matchedPattern?.extractParams?.(message);
+  return {
+    intent: bestIntent,
+    confidence,
+    params
+  };
+}
+function getSystemPromptForIntent(intent) {
+  if (businessNodes[intent]) {
+    const node = businessNodes[intent];
+    return `\u4F60\u662F\u4E00\u4E2A\u4E13\u4E1A\u7684\u300C${node.name}\u300D\u4EFB\u52A1\u52A9\u624B\u3002
+\u5F53\u7528\u6237\u8868\u8FBE\u7684\u9700\u6C42\u6D89\u53CA ${node.name} \u65F6\uFF0C\u4F60\u5E94\u8BE5\uFF1A
+1. \u5148\u786E\u8BA4\u4F60\u7406\u89E3\u7684\u9700\u6C42\u662F\u5426\u6B63\u786E\uFF08\u8BF4\u51FA\u4F60\u7406\u89E3\u7684\u5185\u5BB9\uFF09
+2. \u5982\u679C\u7F3A\u5C11\u5FC5\u8981\u53C2\u6570\uFF0C\u5411\u7528\u6237\u63D0\u95EE\u83B7\u53D6
+3. \u6536\u96C6\u5B8C\u6240\u6709\u5FC5\u8981\u53C2\u6570\u540E\uFF0C\u7528\u81EA\u7136\u8BED\u8A00\u603B\u7ED3\u786E\u8BA4\u5355
+4. \u83B7\u5F97\u7528\u6237\u786E\u8BA4\u540E\u624D\u6267\u884C\u4EFB\u52A1
+\u6CE8\u610F\uFF1A\u59CB\u7EC8\u7AD9\u5728\u7528\u6237\u89D2\u5EA6\uFF0C\u7528\u7B80\u6D01\u81EA\u7136\u7684\u8BED\u8A00\u4EA4\u6D41\u3002`;
+  }
+  const prompts = {
+    greeting: "\u4F60\u662F\u4E00\u4E2A\u53CB\u597D\u7684 AI \u52A9\u624B\uFF0C\u8BF7\u7528\u8F7B\u677E\u7684\u65B9\u5F0F\u4E0E\u7528\u6237\u4EA4\u6D41\u3002",
+    weather: "\u4F60\u662F\u4E00\u4E2A\u5929\u6C14\u52A9\u624B\uFF0C\u8BF7\u6839\u636E\u7528\u6237\u8BE2\u95EE\u63D0\u4F9B\u51C6\u786E\u7684\u5929\u6C14\u4FE1\u606F\u3002",
+    search: "\u4F60\u662F\u4E00\u4E2A\u641C\u7D22\u52A9\u624B\uFF0C\u8BF7\u6839\u636E\u7528\u6237\u7684\u641C\u7D22\u9700\u6C42\u63D0\u4F9B\u76F8\u5173\u4FE1\u606F\u3002",
+    code: "\u4F60\u662F\u4E00\u4E2A\u7F16\u7A0B\u52A9\u624B\uFF0C\u8BF7\u63D0\u4F9B\u6E05\u6670\u3001\u6B63\u786E\u7684\u4EE3\u7801\u793A\u4F8B\u548C\u89E3\u91CA\u3002",
+    translate: "\u4F60\u662F\u4E00\u4E2A\u7FFB\u8BD1\u52A9\u624B\uFF0C\u8BF7\u63D0\u4F9B\u51C6\u786E\u3001\u81EA\u7136\u7684\u7FFB\u8BD1\u7ED3\u679C\u3002",
+    summary: "\u4F60\u662F\u4E00\u4E2A\u6587\u672C\u603B\u7ED3\u52A9\u624B\uFF0C\u8BF7\u7B80\u6D01\u5730\u6982\u62EC\u8981\u70B9\u3002",
+    question: "\u4F60\u662F\u4E00\u4E2A\u77E5\u8BC6\u95EE\u7B54\u52A9\u624B\uFF0C\u8BF7\u51C6\u786E\u56DE\u7B54\u7528\u6237\u7684\u95EE\u9898\u3002",
+    help: "\u4F60\u662F\u4E00\u4E2A AI \u52A9\u624B\uFF0C\u53EF\u4EE5\u5E2E\u52A9\u7528\u6237\u5B8C\u6210\u56FE\u50CF\u751F\u6210\u3001\u89C6\u9891\u5236\u4F5C\u3001\u97F3\u4E50\u521B\u4F5C\u3001\u6587\u6848\u5199\u4F5C\u7B49\u4EFB\u52A1\u3002\u8BF7\u8BE2\u95EE\u7528\u6237\u60F3\u505A\u4EC0\u4E48\u3002",
+    general: "\u4F60\u662F\u4E00\u4E2A\u667A\u80FD AI \u52A9\u624B\uFF0C\u8BF7\u4E0E\u7528\u6237\u53CB\u597D\u5730\u4EA4\u6D41\uFF0C\u5E76\u5C3D\u53EF\u80FD\u5E2E\u52A9\u7528\u6237\u89E3\u51B3\u95EE\u9898\u3002"
+  };
+  return prompts[intent] || prompts["general"];
+}
+function getBusinessNode(nodeType) {
+  return businessNodes[nodeType];
+}
+function getNextFieldToAsk(nodeType, currentParams) {
+  const node = businessNodes[nodeType];
+  if (!node) return null;
+  for (const field of node.fields) {
+    if (field.required && currentParams[field.key] === void 0) {
+      return field;
+    }
+  }
+  return null;
+}
+function getDefaultTextModel() {
+  const models = listEnabledModelKeysByScope("text");
+  const fastModel = models.find(
+    (m) => m.toLowerCase().includes("mini") || m.toLowerCase().includes("fast") || m.toLowerCase().includes("quick")
+  );
+  return fastModel || models[0] || "GLM-5-Turbo";
+}
+async function matchBusinessNodeByLLM(message, runtimeNodes) {
+  try {
+    const modelKey = getDefaultTextModel();
+    const nodeMap = runtimeNodes ?? businessNodes;
+    const nodeList = Object.entries(nodeMap).map(([nodeType, node]) => `- ${nodeType}: ${node.name}
+  \u89C4\u5219: ${node.agent_rule}`).join("\n\n");
+    const prompt = `\u4F60\u662F\u4E1A\u52A1\u8DEF\u7531\u5668\uFF0C\u53EA\u80FD\u4ECE\u4EE5\u4E0B\u5DF2\u6CE8\u518C\u8282\u70B9\u4E2D\u9009\u4E00\u4E2A\u5339\u914D\u7528\u6237\u9700\u6C42\uFF0C\u65E0\u6CD5\u786E\u5B9A\u65F6\u8FD4\u56DE unmatched\u3002
+
+\u7528\u6237\u6D88\u606F\uFF1A\u300C${message}\u300D
+
+\u5DF2\u6CE8\u518C\u4E1A\u52A1\u8282\u70B9\uFF1A
+${nodeList}
+
+\u8BF7\u6839\u636E\u7528\u6237\u6D88\u606F\u7684\u8BED\u4E49\uFF0C\u5339\u914D\u6700\u5408\u9002\u7684\u4E00\u4E2A\u4E1A\u52A1\u8282\u70B9\u3002
+
+\u8F93\u51FA\u683C\u5F0F\uFF08\u5FC5\u987B\u4E3A\u6709\u6548 JSON\uFF09\uFF1A
+{
+  "matched": true\u6216false,
+  "nodeType": "\u5339\u914D\u7684\u8282\u70B9\u7C7B\u578B\uFF0C\u5982 graph/photograph\uFF0C\u4E0D\u5339\u914D\u65F6\u53EF\u4E0D\u8FD4\u56DE",
+  "confidence": 0\u52301\u4E4B\u95F4\u7684\u6570\u503C\uFF0C\u8868\u793A\u5339\u914D\u7F6E\u4FE1\u5EA6\uFF0Cunmatched \u65F6\u53EF\u4E0D\u8FD4\u56DE,
+  "reason": "\u7B80\u8981\u8BF4\u660E\u5339\u914D\u6216\u672A\u5339\u914D\u7684\u7406\u7531"
+}
+`;
+    const result = await runByModelKey(
+      "text",
+      modelKey,
+      { prompt, outputFormat: "json" },
+      { providerOverride: "deer" }
+    );
+    const raw = result?.text;
+    if (!raw) return null;
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[1].trim());
+        } catch {
+          return null;
+        }
+      } else {
+        return null;
+      }
+    }
+    if (parsed.matched && parsed.nodeType) {
+      if (!nodeMap[parsed.nodeType]) {
+        return { matched: false, reason: `LLM \u8FD4\u56DE\u4E86\u672A\u77E5\u8282\u70B9\u7C7B\u578B: ${parsed.nodeType}` };
+      }
+      return parsed;
+    }
+    return { matched: false, reason: parsed.reason || "\u672A\u5339\u914D\u5230\u660E\u786E\u4E1A\u52A1\u8282\u70B9" };
+  } catch (err) {
+    console.error("[matchBusinessNodeByLLM] LLM \u8C03\u7528\u5931\u8D25:", err);
+    return null;
+  }
+}
+async function detectIntentEnhanced(message) {
+  const runtimeNodes = await loadBusinessNodesFromDB();
+  const nodeMatches = matchBusinessNodes(message, runtimeNodes);
+  if (nodeMatches.length > 0) {
+    const best = nodeMatches[0];
+    const extractedParams = extractParamsFromMessage(message, best.node);
+    const allParams = { ...best.node.defaultParams, ...extractedParams };
+    const missingFields = best.node.fields.filter((f) => f.required && !allParams[f.key]).map((f) => f.key);
+    const coverage = 1 - missingFields.length / best.node.fields.filter((f) => f.required).length;
+    let confidenceLevel;
+    if (coverage >= 0.75 && missingFields.length <= 1) {
+      confidenceLevel = "high";
+    } else if (coverage >= 0.4) {
+      confidenceLevel = "medium";
+    } else {
+      confidenceLevel = "low";
+    }
+    const businessNode = {
+      nodeType: best.nodeType,
+      nodeName: best.node.name,
+      matchedKeywords: best.matchedKeywords,
+      extractedParams: allParams,
+      missingFields,
+      confidenceLevel,
+      matchSource: "keyword"
+    };
+    const confidence = Math.min(0.5 + coverage * 0.5, 1);
+    return { intent: best.nodeType, confidence, businessNode, params: allParams };
+  }
+  const llmResult = await matchBusinessNodeByLLM(message, runtimeNodes);
+  if (llmResult && llmResult.matched && llmResult.nodeType) {
+    const node = runtimeNodes[llmResult.nodeType];
+    if (!node) {
+      return detectIntent(message);
+    }
+    const extractedParams = extractParamsFromMessage(message, node);
+    const allParams = { ...node.defaultParams, ...extractedParams };
+    const missingFields = node.fields.filter((f) => f.required && !allParams[f.key]).map((f) => f.key);
+    const confidenceLevel = llmResult.confidence && llmResult.confidence >= 0.8 ? "medium" : "low";
+    const businessNode = {
+      nodeType: llmResult.nodeType,
+      nodeName: node.name,
+      matchedKeywords: [],
+      extractedParams: allParams,
+      missingFields,
+      confidenceLevel,
+      matchSource: "llm"
+    };
+    const confidence = llmResult.confidence ?? 0.6;
+    return { intent: llmResult.nodeType, confidence, businessNode, params: allParams };
+  }
+  return detectIntent(message);
+}
+var import_mxmdata26, businessNodes, businessNodesCache, DEFAULT_BUSINESS_NODES, GENERAL_PATTERNS;
+var init_intent_detector = __esm({
+  "src/agents/intent-detector.ts"() {
+    "use strict";
+    init_run();
+    init_provider_model_catalog();
+    import_mxmdata26 = require("@mxmai/mxmdata");
+    businessNodes = {
+      "graph/photograph": {
+        name: "\u6DD8\u5B9D\u5973\u88C5\u6444\u5F71",
+        agent_rule: '\u5F53\u7528\u6237\u60F3\u8981\u751F\u6210\u7535\u5546\u4EA7\u54C1\u56FE\u7247\u3001\u6A21\u7279\u56FE\u3001\u5546\u4E1A\u6444\u5F71\u65F6\u89E6\u53D1\uFF0C\u4F8B\u5982"\u751F\u6210\u6DD8\u5B9D\u5973\u88C5\u56FE""\u68DA\u62CD\u4E00\u5957""\u62CD\u7535\u5546\u4E3B\u56FE""\u505A\u4E00\u5957\u6A21\u7279\u4E0A\u8EAB\u56FE""\u5973\u88C5\u68DA\u62CD"\u7B49\uFF0C\u6D89\u53CA\u5546\u54C1\u5C55\u793A\u3001\u6A21\u7279\u62CD\u6444\u3001\u7535\u5546\u4E3B\u56FE\u7B49\u9700\u6C42',
+        keywords: ["\u6DD8\u5B9D\u5973\u88C5\u6444\u5F71", "\u68DA\u62CD", "\u6A21\u7279\u56FE", "\u5973\u88C5\u68DA\u62CD", "\u7535\u5546\u4E3B\u56FE", "\u670D\u88C5\u6444\u5F71", "\u6A21\u7279\u62CD\u6444", "\u5973\u88C5\u62CD\u6444", "\u6DD8\u5B9D\u68DA\u62CD", "\u6625\u88C5\u68DA\u62CD", "\u590F\u88C5\u68DA\u62CD", "\u79CB\u88C5\u68DA\u62CD", "\u51AC\u88C5\u68DA\u62CD"],
+        fields: [
+          { key: "count", label: "\u6570\u91CF", type: "select", options: ["2", "4", "6", "8"], defaultValue: "4", required: true },
+          { key: "ratio", label: "\u6BD4\u4F8B", type: "select", options: ["3:4", "1:1", "16:9"], defaultValue: "3:4", required: true },
+          { key: "style", label: "\u98CE\u683C", type: "select", options: ["\u97E9\u7CFB\u6E05\u65B0", "\u97E9\u7CFB\u6E05\u51B7", "\u6B27\u7F8E\u9AD8\u7EA7", "\u65E5\u7CFB\u81EA\u7136", "\u6CD5\u5F0F\u6175\u61D2", "\u4E2D\u6027\u6781\u7B80"], defaultValue: "\u97E9\u7CFB\u6E05\u65B0", required: true },
+          { key: "hasRef", label: "\u662F\u5426\u6709\u53C2\u8003\u56FE", type: "boolean", defaultValue: false }
+        ],
+        confirmTemplate: (params) => `\u751F\u6210 ${params.count} \u5F20${params.ratio}\u6DD8\u5B9D\u5973\u88C5\u68DA\u62CD\u56FE\uFF0C\u98CE\u683C\u300C${params.style}\u300D${params.hasRef === true || params.hasRef === "true" ? "\uFF0C\u6709\u53C2\u8003\u56FE" : "\uFF0C\u65E0\u53C2\u8003\u56FE"}\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "count", patterns: [/(\d+)张/, /(\d+)张图/, /数量(\d+)/] },
+          { field: "ratio", patterns: [/(\d+:\d+)/, /比例(\d+:\d+)/] },
+          {
+            field: "style",
+            patterns: [/([韩欧美日法中性]+系[\w]+)/, /风格"?([^"\n，,]+)"?/]
+          }
+        ]
+      },
+      "graph/design": {
+        name: "\u8BBE\u8BA1\u6D77\u62A5",
+        agent_rule: '\u5F53\u7528\u6237\u60F3\u8981\u5236\u4F5C\u6D77\u62A5\u3001\u5BA3\u4F20\u56FE\u3001\u5E7F\u544A\u56FE\u3001\u4E3B\u89C6\u89C9\uFF08KV\uFF09\u3001Banner\u3001\u6D3B\u52A8\u5C01\u9762\u7B49\u5E73\u9762\u8BBE\u8BA1\u4F5C\u54C1\u65F6\u89E6\u53D1\uFF0C\u4F8B\u5982"\u5E2E\u6211\u505A\u4E00\u5F20\u6D77\u62A5""\u8BBE\u8BA1\u6D3B\u52A8\u4E3B\u89C6\u89C9""\u505A\u4E2A\u5BA3\u4F20\u56FE""\u8282\u65E5\u6D77\u62A5""\u5E7F\u544ABanner"\u7B49',
+        keywords: ["\u6D77\u62A5", "\u8BBE\u8BA1\u56FE", "\u5BA3\u4F20\u56FE", "\u4E3B\u89C6\u89C9", "KV", "key visual", "Banner", "banner", "\u5E7F\u544A\u56FE", "\u6D3B\u52A8\u6D77\u62A5", "\u8282\u65E5\u6D77\u62A5", "\u4FC3\u9500\u6D77\u62A5", "\u5C01\u9762\u56FE", "\u914D\u56FE"],
+        fields: [
+          { key: "width", label: "\u5BBD\u5EA6(px)", type: "string", defaultValue: "1080" },
+          { key: "height", label: "\u9AD8\u5EA6(px)", type: "string", defaultValue: "1920" },
+          { key: "theme", label: "\u4E3B\u9898", type: "string", required: true },
+          { key: "style", label: "\u98CE\u683C", type: "select", options: ["\u79D1\u6280\u611F", "\u7B80\u7EA6", "\u590D\u53E4", "\u53EF\u7231", "\u9AD8\u7EA7\u611F", "\u56FD\u6F6E", "\u8D5B\u535A\u670B\u514B"], defaultValue: "\u7B80\u7EA6" },
+          { key: "hasText", label: "\u662F\u5426\u9700\u8981\u6587\u5B57", type: "boolean", defaultValue: true }
+        ],
+        confirmTemplate: (params) => `\u751F\u6210\u4E00\u5F20${params.width}x${params.height}\u300C${params.theme}\u300D\u4E3B\u9898\u6D77\u62A5\uFF0C\u98CE\u683C\u300C${params.style}\u300D\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "width", patterns: [/(\d+)x\d+/, /宽(\d+)/] },
+          { field: "height", patterns: [/\d+x(\d+)/, /高(\d+)/] },
+          { field: "theme", patterns: [/主题"?([^"\n，,]+)"?/, /做一张([^张\n]+)海报/] }
+        ]
+      },
+      "video/generate": {
+        name: "\u89C6\u9891\u751F\u6210",
+        agent_rule: '\u5F53\u7528\u6237\u60F3\u8981\u751F\u6210\u77ED\u89C6\u9891\u3001\u5E7F\u544A\u89C6\u9891\u3001\u4EA7\u54C1\u89C6\u9891\u3001\u79CD\u8349\u89C6\u9891\u3001\u53E3\u64AD\u89C6\u9891\u3001\u6A21\u7279\u5C55\u793A\u89C6\u9891\u7B49\u89C6\u9891\u5185\u5BB9\u65F6\u89E6\u53D1\uFF0C\u4F8B\u5982"\u751F\u6210\u4E00\u4E2A\u77ED\u89C6\u9891""\u505A\u4E2A30\u79D2\u5E7F\u544A""\u62CD\u4EA7\u54C1\u89C6\u9891""\u79CD\u8349\u89C6\u9891""\u53E3\u64AD\u89C6\u9891""\u89C6\u9891\u526A\u8F91"\u7B49',
+        keywords: ["\u77ED\u89C6\u9891", "\u89C6\u9891", "30\u79D2\u89C6\u9891", "\u4EA7\u54C1\u89C6\u9891", "\u79CD\u8349\u89C6\u9891", "\u5E7F\u544A\u89C6\u9891", "\u5BA3\u4F20\u89C6\u9891", "\u526A\u8F91", "\u5206\u955C", "\u811A\u672C\u751F\u6210\u89C6\u9891", "\u53E3\u64AD\u89C6\u9891", "\u5546\u54C1\u89C6\u9891", "\u6A21\u7279\u89C6\u9891"],
+        fields: [
+          { key: "duration", label: "\u65F6\u957F", type: "select", options: ["15\u79D2", "30\u79D2", "60\u79D2", "90\u79D2", "120\u79D2"], defaultValue: "30\u79D2", required: true },
+          { key: "content", label: "\u5185\u5BB9\u63CF\u8FF0", type: "string", required: true },
+          { key: "hasScript", label: "\u662F\u5426\u9700\u8981\u5206\u955C\u811A\u672C", type: "boolean", defaultValue: true },
+          { key: "aspectRatio", label: "\u6BD4\u4F8B", type: "select", options: ["9:16", "16:9", "1:1", "3:4"], defaultValue: "9:16" }
+        ],
+        confirmTemplate: (params) => `\u751F\u6210\u4E00\u6761${params.duration}\u300C${params.content}\u300D${params.aspectRatio}\u89C6\u9891\uFF0C${params.hasScript ? "\u5305\u542B\u5206\u955C\u811A\u672C" : "\u76F4\u63A5\u751F\u6210\u89C6\u9891"}\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "duration", patterns: [/(\d+)[秒秒]+/, /时长(\d+)/] },
+          { field: "content", patterns: [/做.*?([^"\n，,]+)视频/, /视频.*?([^"\n，,]+)/] },
+          { field: "aspectRatio", patterns: [/(\d+:\d+)/] }
+        ]
+      },
+      "audio/tts": {
+        name: "TTS\u914D\u97F3",
+        agent_rule: '\u5F53\u7528\u6237\u60F3\u628A\u6587\u5B57\u8F6C\u6210\u8BED\u97F3\u3001\u9700\u8981\u914D\u97F3\u670D\u52A1\u3001\u5236\u4F5C\u53E3\u64AD\u65C1\u767D\u3001\u8BED\u97F3\u5408\u6210\u65F6\u89E6\u53D1\uFF0C\u4F8B\u5982"\u628A\u8FD9\u6BB5\u6587\u5B57\u914D\u97F3""\u751F\u6210\u8BED\u97F3""TTS""\u6587\u5B57\u8F6C\u8BED\u97F3""\u6717\u8BFB\u8FD9\u6BB5\u8BDD""\u505A\u4E2A\u65C1\u767D"\u7B49',
+        keywords: ["\u914D\u97F3", "\u53E3\u64AD\u7A3F", "\u6587\u5B57\u8F6C\u8BED\u97F3", "TTS", "\u8BED\u97F3\u5408\u6210", "\u5F55\u97F3", "\u914D\u97F3\u751F\u6210", "\u6587\u5B57\u914D\u97F3", "\u65C1\u767D", "\u6717\u8BFB"],
+        fields: [
+          { key: "text", label: "\u914D\u97F3\u6587\u672C", type: "string", required: true },
+          { key: "voice", label: "\u97F3\u8272", type: "select", options: ["\u5973\u58F0\u6E29\u67D4", "\u5973\u58F0\u6D3B\u6CFC", "\u7537\u58F0\u78C1\u6027", "\u7537\u58F0\u6C89\u7A33", "\u7AE5\u58F0"], defaultValue: "\u5973\u58F0\u6E29\u67D4" },
+          { key: "speed", label: "\u8BED\u901F", type: "select", options: ["\u6162", "\u6B63\u5E38", "\u5FEB"], defaultValue: "\u6B63\u5E38" }
+        ],
+        confirmTemplate: (params) => `\u5C06\u4EE5\u4E0B\u6587\u6848\u8F6C\u4E3A\u8BED\u97F3\uFF1A${String(params.text).slice(0, 30)}...\uFF08\u97F3\u8272\uFF1A${params.voice}\uFF0C\u8BED\u901F\uFF1A${params.speed}\uFF09\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "text", patterns: [/(.+)/] }
+        ]
+      },
+      "audio/music": {
+        name: "\u97F3\u4E50\u751F\u6210",
+        agent_rule: '\u5F53\u7528\u6237\u60F3\u8981\u751F\u6210\u97F3\u4E50\u3001\u521B\u4F5C\u6B4C\u66F2\u3001\u5236\u4F5C\u80CC\u666F\u97F3\u4E50/BGM\u3001\u4F5C\u66F2\u7F16\u66F2\u65F6\u89E6\u53D1\uFF0C\u4F8B\u5982"\u751F\u6210\u4E00\u6BB5\u80CC\u666F\u97F3\u4E50""\u5199\u9996\u6B4C""\u505A\u4E2ABGM""\u4F5C\u66F2""\u914D\u4E50""\u751F\u6210\u97F3\u4E50"\u7B49',
+        keywords: ["\u97F3\u4E50", "\u5199\u9996\u6B4C", "\u751F\u6210\u97F3\u4E50", "\u4F5C\u66F2", "\u914D\u4E50", "\u80CC\u666F\u97F3\u4E50", "BGM", "\u6B4C\u66F2", "\u7F16\u66F2"],
+        fields: [
+          { key: "genre", label: "\u98CE\u683C", type: "select", options: ["\u6D41\u884C", "\u7535\u5B50", "\u6C11\u8C23", "\u6447\u6EDA", "\u53E4\u5178", "\u7235\u58EB", "\u563B\u54C8", "\u8F7B\u97F3\u4E50"], defaultValue: "\u6D41\u884C", required: true },
+          { key: "mood", label: "\u60C5\u7EEA", type: "select", options: ["\u6B22\u5FEB", "\u8212\u7F13", "\u60B2\u4F24", "\u52B1\u5FD7", "\u6D6A\u6F2B", "\u795E\u79D8"], defaultValue: "\u8212\u7F13", required: true },
+          { key: "duration", label: "\u65F6\u957F", type: "select", options: ["30\u79D2", "60\u79D2", "90\u79D2", "120\u79D2"], defaultValue: "60\u79D2", required: true },
+          { key: "hasLyrics", label: "\u662F\u5426\u9700\u8981\u6B4C\u8BCD", type: "boolean", defaultValue: false }
+        ],
+        confirmTemplate: (params) => `\u751F\u6210\u4E00\u6BB5${params.duration}${params.genre}\u98CE\u683C\u300C${params.mood}\u300D\u97F3\u4E50${params.hasLyrics ? "\uFF08\u542B\u6B4C\u8BCD\uFF09" : "\uFF08\u7EAF\u97F3\u4E50\uFF09"}\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "genre", patterns: [/([\w]+)风格/, /风格"?([^"\n，,]+)"?/] },
+          { field: "mood", patterns: [/情绪"?([^"\n，,]+)"?/, /(\w+)的/] },
+          { field: "duration", patterns: [/(\d+)[秒秒]+/] }
+        ]
+      },
+      "writing/script": {
+        name: "\u5199\u4F5C\u811A\u672C",
+        agent_rule: '\u5F53\u7528\u6237\u9700\u8981\u64B0\u5199\u77ED\u89C6\u9891\u811A\u672C\u3001\u53E3\u64AD\u7A3F\u3001\u76F4\u64AD\u8BDD\u672F\u3001\u5E7F\u544A\u6587\u6848\u3001\u5206\u955C\u811A\u672C\u65F6\u89E6\u53D1\uFF0C\u4F8B\u5982"\u5199\u4E2A\u53E3\u64AD\u811A\u672C""\u5E2E\u6211\u5199\u5206\u955C""\u76F4\u64AD\u811A\u672C\u600E\u4E48\u5199""\u77ED\u89C6\u9891\u811A\u672C""\u5E7F\u544A\u6587\u6848""\u53F0\u8BCD"\u7B49',
+        keywords: ["\u811A\u672C", "\u5206\u955C", "\u5206\u955C\u811A\u672C", "\u53E3\u64AD\u7A3F", "\u6587\u6848", "\u5267\u672C", "\u77ED\u89C6\u9891\u811A\u672C", "\u76F4\u64AD\u811A\u672C", "\u53F0\u8BCD"],
+        fields: [
+          { key: "type", label: "\u811A\u672C\u7C7B\u578B", type: "select", options: ["\u53E3\u64AD\u811A\u672C", "\u5206\u955C\u811A\u672C", "\u76F4\u64AD\u8BDD\u672F", "\u5E7F\u544A\u6587\u6848", "\u4EA7\u54C1\u4ECB\u7ECD"], defaultValue: "\u53E3\u64AD\u811A\u672C", required: true },
+          { key: "product", label: "\u4EA7\u54C1/\u4E3B\u9898", type: "string", required: true },
+          { key: "duration", label: "\u65F6\u957F(\u79D2)", type: "string", defaultValue: "60" },
+          { key: "tone", label: "\u8BED\u6C14\u98CE\u683C", type: "select", options: ["\u4E13\u4E1A", "\u4EB2\u5207", "\u5E7D\u9ED8", "\u611F\u6027", "\u786C\u6838"], defaultValue: "\u4EB2\u5207" }
+        ],
+        confirmTemplate: (params) => `\u64B0\u5199\u4E00\u4E2A${params.type}\uFF1A\u4E3B\u9898\u300C${params.product}\u300D\uFF0C\u65F6\u957F\u7EA6${params.duration}\u79D2\uFF0C\u8BED\u6C14\u300C${params.tone}\u300D\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "product", patterns: [/主题"?([^"\n，,]+)"?/, /产品"?([^"\n，,]+)"?/] },
+          { field: "duration", patterns: [/(\d+)[秒秒]+/] }
+        ]
+      },
+      "writing/article": {
+        name: "\u6587\u7AE0\u5199\u4F5C",
+        agent_rule: '\u5F53\u7528\u6237\u60F3\u8981\u5199\u6587\u7AE0\u3001\u535A\u5BA2\u3001\u5C0F\u7EA2\u4E66\u7B14\u8BB0\u3001\u516C\u4F17\u53F7\u63A8\u6587\u3001\u79CD\u8349\u6587\u6848\u3001\u8BC4\u6D4B\u6587\u7AE0\u3001\u653B\u7565\u7B49\u5185\u5BB9\u65F6\u89E6\u53D1\uFF0C\u4F8B\u5982"\u5199\u4E00\u7BC7\u5C0F\u7EA2\u4E66""\u5E2E\u6211\u5199\u7BC7\u6587\u7AE0""\u516C\u4F17\u53F7\u6587\u6848""\u79CD\u8349\u6587""\u5199\u4E2A\u8BC4\u6D4B""\u653B\u7565"\u7B49',
+        keywords: ["\u6587\u7AE0", "\u5199\u4F5C", "\u6587\u6848", "\u535A\u5BA2", "\u5C0F\u7EA2\u4E66", "\u516C\u4F17\u53F7", "\u63A8\u6587", "\u7B14\u8BB0", "\u8F6F\u6587", "\u79CD\u8349\u6587", "\u8BC4\u6D4B", "\u653B\u7565"],
+        fields: [
+          { key: "platform", label: "\u5E73\u53F0", type: "select", options: ["\u5C0F\u7EA2\u4E66", "\u5FAE\u4FE1\u516C\u4F17\u53F7", "\u5FAE\u535A", "\u77E5\u4E4E", "\u6296\u97F3", "\u5FEB\u624B", "B\u7AD9"], defaultValue: "\u5C0F\u7EA2\u4E66", required: true },
+          { key: "topic", label: "\u4E3B\u9898", type: "string", required: true },
+          { key: "length", label: "\u7BC7\u5E45", type: "select", options: ["\u77ED(300\u5B57\u5185)", "\u4E2D(500-800\u5B57)", "\u957F(1000\u5B57\u4EE5\u4E0A)"], defaultValue: "\u4E2D(500-800\u5B57)" },
+          { key: "tone", label: "\u6587\u98CE", type: "select", options: ["\u79CD\u8349\u5B89\u5229", "\u5BA2\u89C2\u8BC4\u6D4B", "\u5E72\u8D27\u5206\u4EAB", "\u60C5\u611F\u5171\u9E23", "\u5E7D\u9ED8\u641E\u7B11"], defaultValue: "\u79CD\u8349\u5B89\u5229" }
+        ],
+        confirmTemplate: (params) => `\u64B0\u5199\u4E00\u7BC7${params.platform}${params.length}\u300C${params.topic}\u300D\u4E3B\u9898\u6587\u7AE0\uFF0C\u6587\u98CE\u300C${params.tone}\u300D\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
+        extractors: [
+          { field: "topic", patterns: [/主题"?([^"\n，,]+)"?/, /关于([^"\n，,]+)/] },
+          { field: "platform", patterns: [/小红书|微信公众号|微博|知乎|抖音|B站/] }
+        ]
+      }
+    };
+    businessNodesCache = null;
+    DEFAULT_BUSINESS_NODES = { ...businessNodes };
+    GENERAL_PATTERNS = [
+      {
+        intent: "greeting",
+        keywords: ["\u4F60\u597D", "hello", "hi", "\u55E8", "\u60A8\u597D", "hey", "\u65E9\u4E0A\u597D", "\u665A\u4E0A\u597D", "\u5348\u5B89"],
+        weight: 1
+      },
+      {
+        intent: "weather",
+        keywords: ["\u5929\u6C14", "weather", "\u6E29\u5EA6", "\u4E0B\u96E8", "\u6674\u5929", "\u6C14\u6E29"],
+        weight: 0.9
+      },
+      {
+        intent: "search",
+        keywords: ["\u641C\u7D22", "\u67E5\u627E", "\u627E\u4E00\u4E0B", "search", "\u5E2E\u6211\u627E", "\u67E5\u4E00\u4E0B", "\u6709\u6CA1\u6709"],
+        weight: 0.8
+      },
+      {
+        intent: "code",
+        keywords: ["\u4EE3\u7801", "code", "\u7F16\u7A0B", "\u5199\u7A0B\u5E8F", "\u51FD\u6570", "class", "\u5199\u4E2A", "\u5F00\u53D1"],
+        weight: 0.9
+      },
+      {
+        intent: "translate",
+        keywords: ["\u7FFB\u8BD1", "translate", "\u82F1\u6587", "\u4E2D\u6587", "\u8BD1\u6210", "\u7FFB\u8BD1\u6210"],
+        weight: 0.85
+      },
+      {
+        intent: "summary",
+        keywords: ["\u603B\u7ED3", "summarize", "\u6982\u62EC", "\u8981\u70B9", "\u6C47\u603B", "\u6458\u8981"],
+        weight: 0.8
+      },
+      {
+        intent: "question",
+        keywords: ["\u4EC0\u4E48\u662F", "\u600E\u4E48", "\u5982\u4F55", "\u4E3A\u4EC0\u4E48", "who", "what", "how", "why", "\uFF1F", "?"],
+        weight: 0.7
+      },
+      {
+        intent: "help",
+        keywords: ["\u5E2E\u52A9", "help", "\u5E2E\u5FD9", "\u4F60\u80FD\u505A\u4EC0\u4E48", "\u529F\u80FD", "\u6709\u4EC0\u4E48"],
+        weight: 0.8
+      }
+    ];
+  }
+});
+
+// src/smartflow/services/httpClient.ts
+var MXMCGI_URL, MxmCGIHttpClient, mxmCGIHttpClient;
+var init_httpClient = __esm({
+  "src/smartflow/services/httpClient.ts"() {
+    "use strict";
+    MXMCGI_URL = process.env.MXMCGI_URL || "http://localhost:4003";
+    MxmCGIHttpClient = class {
+      baseUrl;
+      constructor(baseUrl = MXMCGI_URL) {
+        this.baseUrl = baseUrl;
+      }
+      async request(path2, options = {}) {
+        const { method = "GET", headers = {}, body, timeout = 6e4 } = options;
+        const url = `${this.baseUrl}${path2}`;
+        const requestHeaders = {
+          "Content-Type": "application/json",
+          ...headers
+        };
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        try {
+          const response = await fetch(url, {
+            method,
+            headers: requestHeaders,
+            body: body ? JSON.stringify(body) : void 0,
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => "Unknown error");
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+          return await response.json();
+        } catch (error) {
+          clearTimeout(timeoutId);
+          if (error.name === "AbortError") {
+            throw new Error(`Request timeout after ${timeout}ms`);
+          }
+          throw error;
+        }
+      }
+      // ==================== CGI 兼容方法（保留） ====================
+      async textGeneration(model, prompt, params = {}) {
+        return this.request(`/cgi/text/${model}`, {
+          method: "POST",
+          body: { prompt, ...params }
+        });
+      }
+      async imageGeneration(model, prompt, params = {}) {
+        return this.request(`/cgi/image/${model}`, {
+          method: "POST",
+          body: { prompt, ...params }
+        });
+      }
+      async embeddingGeneration(model, input, params = {}) {
+        return this.request(`/cgi/embedding/${model}`, {
+          method: "POST",
+          body: { input, ...params }
+        });
+      }
+      // ==================== Business v2 方法 ====================
+      // 统一的动态业务架构：scope + taskKey + subtype + params
+      /**
+       * GET /api/v2/tasks/form-config/list?scope=xxx
+       * 获取指定 scope 下所有 taskKey 列表
+       */
+      async listFormConfigs(scope) {
+        return this.request(`/api/v2/tasks/form-config/list?scope=${encodeURIComponent(scope)}`, {
+          method: "GET"
+        });
+      }
+      /**
+       * GET /api/v2/tasks/form-config?scope=xxx&taskKey=yyy&subtype=zzz
+       * 获取指定业务的表单配置（用于前端渲染参数表单）
+       */
+      async getFormConfig(scope, taskKey, subtype) {
+        const params = new URLSearchParams({ scope, taskKey });
+        if (subtype) params.set("subtype", subtype);
+        return this.request(`/api/v2/tasks/form-config?${params.toString()}`, {
+          method: "GET"
+        });
+      }
+      /**
+       * POST /api/v2/tasks/run
+       * 执行动态业务任务（business 节点统一调用此方法）
+       */
+      async runTask(scope, taskKey, params, userId, options) {
+        return this.request(`/api/v2/tasks/run`, {
+          method: "POST",
+          headers: {
+            "X-User-Id": userId,
+            ...options?.conversationId ? { "X-Conversation-Id": options.conversationId } : {}
+          },
+          body: {
+            scope,
+            taskKey,
+            subtype: options?.subtype ?? null,
+            params
+          }
+        });
+      }
+      // ==================== Legacy Business 方法（保留兼容） ====================
+      // 以下方法保留用于旧版兼容，新开发应使用 runTask v2 方法
+      async writingCompletion(modelName, params, userId) {
+        return this.request(`/writing/completion/${modelName}`, {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async writingOutline(params, userId) {
+        return this.request("/writing/outline", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async writingGenerate(params, userId) {
+        return this.request("/writing/generate", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async graphPhotograph(params, userId) {
+        return this.request("/graph/photograph", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async graphDesign(params, userId) {
+        return this.request("/graph/design", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async graphPainting(params, userId) {
+        return this.request("/graph/painting", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async graphImage(modelName, params, userId) {
+        return this.request(`/graph/${modelName}`, {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async videoGenerate(params, userId) {
+        return this.request("/video/generate", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+      async audioTTS(params, userId) {
+        return this.request("/audio", {
+          method: "POST",
+          headers: { "X-User-Id": userId },
+          body: params
+        });
+      }
+    };
+    mxmCGIHttpClient = new MxmCGIHttpClient();
+  }
+});
+
+// src/agents/chat.ts
+async function getAdminModelConfig() {
+  const now = Date.now();
+  if (_cachedAdminConfig && now - _cacheTimestamp < ADMIN_CONFIG_CACHE_TTL_MS) {
+    return _cachedAdminConfig;
+  }
+  try {
+    const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+    const repo = RepositoryFactory24.createModelConfigRepository();
+    const cfg = await repo.getConfig();
+    _cachedAdminConfig = {
+      model_key: cfg.model_key,
+      temperature: cfg.temperature,
+      max_tokens: cfg.max_tokens ?? null,
+      top_p: cfg.top_p ?? null,
+      frequency_penalty: cfg.frequency_penalty ?? null,
+      presence_penalty: cfg.presence_penalty ?? null
+    };
+    _cacheTimestamp = now;
+    return _cachedAdminConfig;
+  } catch (err) {
+    console.error("[AgentChat] Failed to load admin model config, using defaults:", err);
+    if (!_cachedAdminConfig) {
+      _cachedAdminConfig = {
+        model_key: getDefaultTextModel2(),
+        temperature: 0.7,
+        max_tokens: null,
+        top_p: null,
+        frequency_penalty: null,
+        presence_penalty: null
+      };
+      _cacheTimestamp = now;
+    }
+    return _cachedAdminConfig;
+  }
+}
+function clearAdminModelConfigCache() {
+  _cachedAdminConfig = null;
+  _cacheTimestamp = 0;
+}
+function getOrCreateSession(sessionId) {
+  if (sessionId && sessions.has(sessionId)) {
+    const session2 = sessions.get(sessionId);
+    session2.lastActiveAt = Date.now();
+    return session2;
+  }
+  const id = sessionId || import_crypto3.default.randomUUID();
+  const session = { id, messages: [], createdAt: Date.now(), lastActiveAt: Date.now() };
+  sessions.set(id, session);
+  return session;
+}
+function addMessageToSession(session, role, content) {
+  session.messages.push({ role, content, timestamp: Date.now() });
+  if (session.messages.length > SESSION_MAX_MESSAGES) {
+    session.messages = session.messages.slice(-SESSION_MAX_MESSAGES);
+  }
+}
+function cleanExpiredSessions() {
+  const now = Date.now();
+  for (const [id, session] of sessions) {
+    if (now - session.lastActiveAt > SESSION_TTL_MS) {
+      sessions.delete(id);
+    }
+  }
+}
+function getDefaultTextModel2() {
+  const models = listEnabledModelKeysByScope("text");
+  const fastModel = models.find(
+    (m) => m.toLowerCase().includes("mini") || m.toLowerCase().includes("fast") || m.toLowerCase().includes("quick")
+  );
+  return fastModel || models[0] || "GLM-5-Turbo";
+}
+function getAvailableTextModels() {
+  return listEnabledModelKeysByScope("text");
+}
+function detectTaskModifyIntent(message) {
+  const lowerMsg = message.toLowerCase();
+  const indexMatch = message.match(/第(\d+)[张条个幅份]/);
+  const targetIndex = indexMatch ? parseInt(indexMatch[1], 10) : void 0;
+  const modifyVerbs = ["\u6362", "\u6539", "\u8C03\u6574", "\u8C03", "\u53D8", "\u6539\u4E0B", "\u6362\u4E0B", "\u8C03\u4E0B", "\u6539\u4E00\u4E0B", "\u6362\u4E00\u4E0B", "\u8C03\u4E00\u4E0B"];
+  const hasModifyVerb = modifyVerbs.some((v) => lowerMsg.includes(v));
+  const fieldMap = [
+    { pattern: /色[调温]?/i, field: "color", valueExtractor: (msg) => {
+      const warmMatch = msg.match(/暖色/i);
+      const coolMatch = msg.match(/冷色/i);
+      const colorMatch = msg.match(/(#[0-9a-fA-F]{6}|rgb\([^)]+\)|\w+色)/);
+      if (warmMatch) return "\u6696\u8272\u8C03";
+      if (coolMatch) return "\u51B7\u8272\u8C03";
+      return colorMatch ? colorMatch[1] : void 0;
+    } },
+    { pattern: /风格|风/i, field: "style", valueExtractor: (msg) => {
+      const styles = ["\u97E9\u7CFB\u6E05\u51B7", "\u65E5\u7CFB\u751C\u7F8E", "\u6B27\u7F8E\u5143\u7D20", "\u590D\u53E4", "\u73B0\u4EE3", "\u7B80\u7EA6", "ins\u98CE", "\u5C0F\u6E05\u65B0"];
+      for (const s of styles) {
+        if (msg.includes(s)) return s;
+      }
+      return void 0;
+    } },
+    { pattern: /数量|张/i, field: "count", valueExtractor: (msg) => {
+      const countMatch = msg.match(/(\d+)[张条个幅份]/);
+      return countMatch ? countMatch[1] : void 0;
+    } },
+    { pattern: /比例|横竖|宽高/i, field: "aspectRatio", valueExtractor: (msg) => {
+      if (msg.includes("3:4") || msg.includes("\u7AD6")) return "3:4";
+      if (msg.includes("4:3") || msg.includes("\u6A2A")) return "4:3";
+      if (msg.includes("1:1") || msg.includes("\u65B9\u5F62")) return "1:1";
+      if (msg.includes("16:9")) return "16:9";
+      return void 0;
+    } },
+    { pattern: /尺寸|大[小片图]|分?辨率/i, field: "size", valueExtractor: () => void 0 }
+  ];
+  if (hasModifyVerb || targetIndex !== void 0) {
+    let field;
+    let value;
+    for (const { pattern, field: f, valueExtractor } of fieldMap) {
+      if (pattern.test(message)) {
+        field = f;
+        value = valueExtractor(message);
+        break;
+      }
+    }
+    if (field === void 0 && hasModifyVerb) {
+      field = "general";
+      value = message;
+    }
+    return { targetIndex, field, value, rawMessage: message };
+  }
+  return null;
+}
+function buildChatPrompt(session, currentMessage, systemPrompt) {
+  const parts = [];
+  if (systemPrompt) parts.push(`[\u7CFB\u7EDF\u8BBE\u5B9A] ${systemPrompt}`);
+  if (session.messages.length > 0) {
+    const recent = session.messages.slice(-6);
+    parts.push(`[\u5BF9\u8BDD\u5386\u53F2]
+${recent.map((m) => `[${m.role === "user" ? "\u7528\u6237" : "\u52A9\u624B"}] ${m.content}`).join("\n")}`);
+  }
+  parts.push(`[\u5F53\u524D\u6D88\u606F] ${currentMessage}`);
+  parts.push("[\u52A9\u624B] ");
+  return parts.join("\n\n");
+}
+function emit(res, event) {
+  res.write(`data: ${JSON.stringify(event)}
+
+`);
+}
+function generateTaskId() {
+  return `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+async function* simulateTaskExecution(nodeType, params, taskId, userId) {
+  const parts = nodeType.split("/");
+  const scope = parts[0];
+  const taskKey = parts[1] || nodeType;
+  const nodeName = businessNodes[nodeType]?.name || nodeType;
+  yield {
+    type: "task_progress",
+    task: { taskId, nodeType, nodeName, status: "progress", progress: 10, text: "\u6B63\u5728\u521B\u5EFA\u4EFB\u52A1\u2026" }
+  };
+  let runResult;
+  try {
+    runResult = await mxmCGIHttpClient.runTask(scope, taskKey, params, userId);
+  } catch (err) {
+    yield {
+      type: "task_done",
+      task: {
+        taskId,
+        nodeType,
+        nodeName,
+        status: "error",
+        progress: 0,
+        resultUrls: [],
+        text: `\u4EFB\u52A1\u521B\u5EFA\u5931\u8D25: ${err.message}`
+      }
+    };
+    return;
+  }
+  if (runResult.syncResult) {
+    yield {
+      type: "task_progress",
+      task: { taskId, nodeType, nodeName, status: "progress", progress: 90, text: "\u6B63\u5728\u5904\u7406\u7ED3\u679C\u2026" }
+    };
+    const text = runResult.syncResult.text || "";
+    yield {
+      type: "task_done",
+      task: {
+        taskId,
+        nodeType,
+        nodeName,
+        status: "done",
+        progress: 100,
+        resultUrls: [],
+        text: text || "\u751F\u6210\u5B8C\u6210\uFF01"
+      }
+    };
+    return;
+  }
+  const realTaskId = runResult.taskId;
+  const maxPolls = 60;
+  let pollCount = 0;
+  yield {
+    type: "task_progress",
+    task: { taskId: realTaskId, nodeType, nodeName, status: "progress", progress: 20, text: "\u4EFB\u52A1\u5DF2\u521B\u5EFA\uFF0C\u6B63\u5728\u6392\u961F\u2026" }
+  };
+  while (pollCount < maxPolls) {
+    await new Promise((resolve2) => setTimeout(resolve2, 2e3));
+    pollCount++;
+    const taskManager2 = taskExecutor.getTaskManager();
+    const { task } = await taskManager2.getTask(realTaskId);
+    if (!task) {
+      yield {
+        type: "task_done",
+        task: { taskId: realTaskId, nodeType, nodeName, status: "error", progress: 0, resultUrls: [], text: "\u4EFB\u52A1\u4E0D\u5B58\u5728" }
+      };
+      return;
+    }
+    const progress = Math.min(90, 20 + Math.floor(pollCount / maxPolls * 70));
+    const statusText = task.status === "queued" ? "\u4EFB\u52A1\u6392\u961F\u4E2D\u2026" : task.status === "processing" ? "\u6B63\u5728\u751F\u6210\u5185\u5BB9\u2026" : task.status === "completed" ? "\u751F\u6210\u5B8C\u6210\uFF01" : task.status === "failed" ? "\u751F\u6210\u5931\u8D25" : `\u5904\u7406\u4E2D (${task.status})`;
+    yield {
+      type: "task_progress",
+      task: { taskId: realTaskId, nodeType, nodeName, status: task.status === "completed" ? "done" : "progress", progress, text: statusText }
+    };
+    if (task.status === "completed" || task.status === "failed" || task.status === "cancelled") {
+      const resultUrls = task.result?.mediaUrls || [];
+      yield {
+        type: "task_done",
+        task: {
+          taskId: realTaskId,
+          nodeType,
+          nodeName,
+          status: task.status === "completed" ? "done" : task.status === "failed" ? "error" : task.status === "cancelled" ? "cancelled" : "error",
+          progress: task.status === "completed" ? 100 : progress,
+          resultUrls,
+          text: task.status === "completed" ? resultUrls.length > 0 ? "\u751F\u6210\u5B8C\u6210\uFF01" : "\u751F\u6210\u5B8C\u6210\uFF08\u65E0\u7ED3\u679C\uFF09" : `\u751F\u6210${task.status === "failed" ? "\u5931\u8D25" : "\u53D6\u6D88"}`
+        }
+      };
+      return;
+    }
+  }
+  yield {
+    type: "task_done",
+    task: { taskId: realTaskId, nodeType, nodeName, status: "error", progress: 0, resultUrls: [], text: "\u4EFB\u52A1\u8D85\u65F6\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5" }
+  };
+}
+async function handleAgentChat(req, res, providerOverride) {
+  const body = req.body;
+  const { message, sessionId } = body;
+  if (!message || typeof message !== "string" || message.trim().length === 0) {
+    res.status(400).json({ success: false, error: "Missing or invalid field: message" });
+    return;
+  }
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.setHeader("Transfer-Encoding", "chunked");
+  res.write(":\n\n");
+  const session = getOrCreateSession(sessionId);
+  try {
+    addMessageToSession(session, "user", message);
+    emit(res, { type: "text", sessionId: session.id, content: "" });
+    const adminConfig = await getAdminModelConfig();
+    const modelKey = adminConfig.model_key || getDefaultTextModel2();
+    const provider = providerOverride || "deer";
+    const pendingNode = session.pendingNode;
+    if (pendingNode) {
+      const node = getBusinessNode(pendingNode.nodeType);
+      if (!node) {
+        session.pendingNode = void 0;
+        await handleGeneralChat(res, session, message, modelKey, provider);
+        return;
+      }
+      const newParams = parseUserReplyAsParams(message, pendingNode.params, node);
+      const nextField = getNextFieldToAsk(pendingNode.nodeType, newParams);
+      if (nextField) {
+        session.pendingNode = {
+          ...pendingNode,
+          params: newParams,
+          nextFieldToAsk: nextField.key
+        };
+        session.lastActiveAt = Date.now();
+        emit(res, {
+          type: "confirm",
+          confirm: {
+            confirmType: "params",
+            nodeType: pendingNode.nodeType,
+            nodeName: pendingNode.nodeName,
+            params: newParams,
+            askingField: nextField.key,
+            options: nextField.type === "select" ? nextField.options : void 0,
+            text: `\u8BF7\u95EE\u300C${nextField.label}\u300D\u662F\uFF1F\uFF08${nextField.type === "select" && nextField.options ? nextField.options.join("\u3001") : "\u8BF7\u63CF\u8FF0"})`
+          }
+        });
+      } else {
+        session.pendingNode = {
+          ...pendingNode,
+          params: newParams,
+          confirmStep: "final"
+        };
+        session.lastActiveAt = Date.now();
+        const confirmText = node.confirmTemplate(newParams);
+        emit(res, {
+          type: "confirm",
+          confirm: {
+            confirmType: "final",
+            nodeType: pendingNode.nodeType,
+            nodeName: pendingNode.nodeName,
+            params: newParams,
+            text: confirmText
+          }
+        });
+      }
+      res.end();
+      return;
+    }
+    const intentResult = await detectIntentEnhanced(message);
+    if (intentResult.businessNode) {
+      const { nodeType, nodeName, extractedParams, missingFields, confidenceLevel } = intentResult.businessNode;
+      const node = getBusinessNode(nodeType);
+      if (confidenceLevel === "high" && missingFields.length === 0) {
+        session.pendingNode = {
+          nodeType,
+          nodeName,
+          params: extractedParams,
+          confirmStep: "final"
+        };
+        session.lastActiveAt = Date.now();
+        const confirmText = node.confirmTemplate(extractedParams);
+        emit(res, {
+          type: "confirm",
+          confirm: {
+            confirmType: "final",
+            nodeType,
+            nodeName,
+            params: extractedParams,
+            text: confirmText
+          }
+        });
+        res.end();
+        return;
+      }
+      if (confidenceLevel === "high" && missingFields.length > 0) {
+        session.pendingNode = {
+          nodeType,
+          nodeName,
+          params: extractedParams,
+          confirmStep: "node"
+        };
+        session.lastActiveAt = Date.now();
+        emit(res, {
+          type: "confirm",
+          confirm: {
+            confirmType: "node",
+            nodeType,
+            nodeName,
+            params: extractedParams,
+            text: `\u6211\u7406\u89E3\u4F60\u60F3\u505A\u300C${nodeName}\u300D\uFF0C\u5BF9\u5417\uFF1F`
+          }
+        });
+        res.end();
+        return;
+      }
+      session.pendingNode = {
+        nodeType,
+        nodeName,
+        params: extractedParams,
+        confirmStep: "node"
+      };
+      session.lastActiveAt = Date.now();
+      emit(res, {
+        type: "confirm",
+        confirm: {
+          confirmType: "node",
+          nodeType,
+          nodeName,
+          params: extractedParams,
+          text: `\u4F60\u662F\u60F3\u505A\u300C${nodeName}\u300D\u5417\uFF1F\uFF08${intentResult.confidence < 0.5 ? "\u4E0D\u592A\u786E\u5B9A" : "\u7A0D\u5FAE\u6709\u70B9\u4E0D\u786E\u5B9A"}\uFF0C\u8BF7\u786E\u8BA4\uFF09`
+        }
+      });
+      res.end();
+      return;
+    }
+    if (session.currentTaskId) {
+      const modifyMatch = detectTaskModifyIntent(message);
+      if (modifyMatch) {
+        session.pendingNode = {
+          nodeType: session.currentNodeType || "unknown",
+          nodeName: "\u4EFB\u52A1\u4FEE\u6539",
+          params: {
+            ...modifyMatch,
+            taskId: session.currentTaskId
+          },
+          confirmStep: "final"
+        };
+        session.lastActiveAt = Date.now();
+        emit(res, {
+          type: "confirm",
+          confirm: {
+            confirmType: "final",
+            nodeType: session.currentNodeType || "unknown",
+            nodeName: "\u4EFB\u52A1\u4FEE\u6539",
+            params: { taskId: session.currentTaskId, ...modifyMatch },
+            text: `\u6211\u6765\u5E2E\u4F60\u4FEE\u6539\u4EFB\u52A1\u300C\u7B2C${modifyMatch.targetIndex || "?"}\u5F20\u300D\uFF1A\u5C06${modifyMatch.field || "\u5C5E\u6027"}\u8C03\u6574\u4E3A\u300C${modifyMatch.value || modifyMatch.rawMessage}\u300D\uFF0C\u53EF\u4EE5\u5417\uFF1F`
+          }
+        });
+        res.end();
+        return;
+      }
+    }
+    await handleGeneralChat(res, session, message, modelKey, provider);
+  } catch (error) {
+    console.error("[AgentChat] \u5904\u7406\u6D88\u606F\u5931\u8D25:", error);
+    emit(res, {
+      type: "error",
+      error: error instanceof Error ? error.message : String(error)
+    });
+    res.end();
+  }
+}
+async function handleGeneralChat(res, session, message, modelKey, provider) {
+  const { getSystemPromptForIntent: getSystemPromptForIntent2 } = await Promise.resolve().then(() => (init_intent_detector(), intent_detector_exports));
+  const intentResult = detectIntent(message);
+  const systemPrompt = getSystemPromptForIntent2(intentResult.intent);
+  addMessageToSession(session, "user", message);
+  const combinedPrompt = buildChatPrompt(session, message, systemPrompt);
+  const result = await runByModelKey(
+    "text",
+    modelKey,
+    { prompt: combinedPrompt, outputFormat: "stream" },
+    { providerOverride: provider }
+  );
+  let assistantMessage = "";
+  if (result.stream) {
+    for await (const chunk of result.stream) {
+      const text = typeof chunk === "string" ? chunk : chunk.chunk || "";
+      if (text) {
+        assistantMessage += text;
+        emit(res, { type: "text", content: text });
+      }
+    }
+  } else if (result.streamString) {
+    for await (const text of result.streamString) {
+      assistantMessage += text;
+      emit(res, { type: "text", content: text });
+    }
+  }
+  if (assistantMessage) {
+    addMessageToSession(session, "assistant", assistantMessage);
+  }
+  emit(res, { type: "done" });
+  res.end();
+}
+async function handleUserConfirmation(req, res) {
+  const body = req.body;
+  const { sessionId, confirmed, params: userParams } = body;
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.write(":\n\n");
+  const session = sessions.get(sessionId);
+  if (!session || !session.pendingNode) {
+    emit(res, { type: "error", error: "\u4F1A\u8BDD\u4E0D\u5B58\u5728\u6216\u65E0\u5F85\u786E\u8BA4\u4EFB\u52A1" });
+    res.end();
+    return;
+  }
+  const pending = session.pendingNode;
+  if (!confirmed) {
+    session.pendingNode = void 0;
+    session.lastActiveAt = Date.now();
+    emit(res, { type: "text", content: "\u597D\u7684\uFF0C\u5DF2\u53D6\u6D88\u3002\u6709\u5176\u4ED6\u9700\u8981\u5E2E\u52A9\u7684\u5417\uFF1F" });
+    emit(res, { type: "done" });
+    res.end();
+    return;
+  }
+  if (pending.confirmStep === "node") {
+    const node = getBusinessNode(pending.nodeType);
+    if (!node) {
+      emit(res, { type: "error", error: "\u672A\u77E5\u8282\u70B9\u7C7B\u578B" });
+      res.end();
+      return;
+    }
+    const mergedParams = { ...pending.params, ...userParams || {} };
+    const nextField = getNextFieldToAsk(pending.nodeType, mergedParams);
+    if (nextField) {
+      session.pendingNode = {
+        ...pending,
+        params: mergedParams,
+        confirmStep: "params",
+        nextFieldToAsk: nextField.key
+      };
+      session.lastActiveAt = Date.now();
+      emit(res, {
+        type: "confirm",
+        confirm: {
+          confirmType: "params",
+          nodeType: pending.nodeType,
+          nodeName: pending.nodeName,
+          params: mergedParams,
+          askingField: nextField.key,
+          options: nextField.type === "select" ? nextField.options : void 0,
+          text: `\u8BF7\u95EE\u300C${nextField.label}\u300D\u662F\uFF1F\uFF08${nextField.type === "select" && nextField.options ? nextField.options.join("\u3001") : "\u8BF7\u63CF\u8FF0"}\uFF09`
+        }
+      });
+    } else {
+      session.pendingNode = { ...pending, params: mergedParams, confirmStep: "final" };
+      session.lastActiveAt = Date.now();
+      const confirmText = node.confirmTemplate(mergedParams);
+      emit(res, {
+        type: "confirm",
+        confirm: {
+          confirmType: "final",
+          nodeType: pending.nodeType,
+          nodeName: pending.nodeName,
+          params: mergedParams,
+          text: confirmText
+        }
+      });
+    }
+    res.end();
+    return;
+  }
+  if (pending.confirmStep === "final") {
+    const taskId = generateTaskId();
+    const nodeType = pending.nodeType;
+    const nodeParams = { ...pending.params, ...userParams || {} };
+    session.pendingNode = void 0;
+    session.currentTaskId = taskId;
+    session.currentNodeType = nodeType;
+    session.lastActiveAt = Date.now();
+    emit(res, {
+      type: "task_created",
+      task: {
+        taskId,
+        nodeType,
+        nodeName: pending.nodeName,
+        status: "created",
+        progress: 0,
+        text: `\u4EFB\u52A1\u5DF2\u63D0\u4EA4\uFF0C\u6B63\u5728\u51C6\u5907\u751F\u6210\u2026`
+      }
+    });
+    const userId = req.headers["x-user-id"] || "anonymous";
+    for await (const event of simulateTaskExecution(nodeType, nodeParams, taskId, userId)) {
+      emit(res, event);
+    }
+    emit(res, { type: "done" });
+    res.end();
+    return;
+  }
+  if (pending.confirmStep === "params" && userParams) {
+    const node = getBusinessNode(pending.nodeType);
+    if (!node) {
+      emit(res, { type: "error", error: "\u672A\u77E5\u8282\u70B9\u7C7B\u578B" });
+      res.end();
+      return;
+    }
+    const mergedParams = { ...pending.params, ...userParams };
+    const nextField = getNextFieldToAsk(pending.nodeType, mergedParams);
+    if (nextField) {
+      session.pendingNode = {
+        ...pending,
+        params: mergedParams,
+        nextFieldToAsk: nextField.key
+      };
+      session.lastActiveAt = Date.now();
+      emit(res, {
+        type: "confirm",
+        confirm: {
+          confirmType: "params",
+          nodeType: pending.nodeType,
+          nodeName: pending.nodeName,
+          params: mergedParams,
+          askingField: nextField.key,
+          options: nextField.type === "select" ? nextField.options : void 0,
+          text: `\u8BF7\u95EE\u300C${nextField.label}\u300D\u662F\uFF1F\uFF08${nextField.type === "select" && nextField.options ? nextField.options.join("\u3001") : "\u8BF7\u63CF\u8FF0"}\uFF09`
+        }
+      });
+    } else {
+      session.pendingNode = { ...pending, params: mergedParams, confirmStep: "final" };
+      session.lastActiveAt = Date.now();
+      const confirmText = node.confirmTemplate(mergedParams);
+      emit(res, {
+        type: "confirm",
+        confirm: {
+          confirmType: "final",
+          nodeType: pending.nodeType,
+          nodeName: pending.nodeName,
+          params: mergedParams,
+          text: confirmText
+        }
+      });
+    }
+    res.end();
+    return;
+  }
+  emit(res, { type: "done" });
+  res.end();
+}
+function parseUserReplyAsParams(message, currentParams, node) {
+  if (!node) return currentParams;
+  const params = { ...currentParams };
+  const lowerMsg = message.toLowerCase();
+  for (const field of node.fields) {
+    if (params[field.key] !== void 0) continue;
+    if (field.type === "boolean") {
+      if (["\u662F", "\u6709", "\u8981", "yes", "true", "\u5BF9", "\u597D", "\u6CA1\u9519"].some((w) => lowerMsg.includes(w))) {
+        params[field.key] = true;
+      } else if (["\u6CA1\u6709", "\u65E0", "\u5426", "\u4E0D", "no", "false", "\u4E0D\u7528"].some((w) => lowerMsg.includes(w))) {
+        params[field.key] = false;
+      }
+    } else if (field.type === "select" && field.options) {
+      for (const opt of field.options) {
+        if (lowerMsg.includes(opt.toLowerCase())) {
+          params[field.key] = opt;
+          break;
+        }
+      }
+      if (params[field.key] === void 0 && message.trim() && !["\u662F", "\u6709", "\u8981", "\u5BF9", "\u597D", "\u6CA1\u6709", "\u65E0", "\u4E0D", "\u4E0D\u7528", "\u786E\u8BA4", "\u5F00\u59CB", "\u53D6\u6D88"].includes(message.trim())) {
+        const matchedOpt = field.options.find(
+          (opt) => lowerMsg.includes(opt.toLowerCase()) || opt.toLowerCase().includes(lowerMsg.trim())
+        );
+        if (matchedOpt) {
+          params[field.key] = matchedOpt;
+        }
+      }
+    } else if (field.type === "string" || field.type === "number") {
+      for (const extractor of node.extractors || []) {
+        if (extractor.field !== field.key) continue;
+        for (const pattern of extractor.patterns) {
+          const match = message.match(pattern);
+          if (match && match[1]) {
+            params[field.key] = field.type === "number" ? Number(match[1]) : match[1].trim();
+            break;
+          }
+        }
+      }
+    }
+  }
+  return params;
+}
+var import_crypto3, _cachedAdminConfig, _cacheTimestamp, ADMIN_CONFIG_CACHE_TTL_MS, sessions, SESSION_MAX_MESSAGES, SESSION_TTL_MS;
+var init_chat = __esm({
+  "src/agents/chat.ts"() {
+    "use strict";
+    init_intent_detector();
+    init_run();
+    init_provider_model_catalog();
+    init_httpClient();
+    init_task_executor();
+    import_crypto3 = __toESM(require("crypto"));
+    _cachedAdminConfig = null;
+    _cacheTimestamp = 0;
+    ADMIN_CONFIG_CACHE_TTL_MS = 3e4;
+    sessions = /* @__PURE__ */ new Map();
+    SESSION_MAX_MESSAGES = 20;
+    SESSION_TTL_MS = 30 * 60 * 1e3;
+    if (typeof setInterval !== "undefined") {
+      setInterval(cleanExpiredSessions, 5 * 60 * 1e3);
+    }
+  }
+});
+
 // src/routes/system.ts
 var system_exports = {};
 __export(system_exports, {
@@ -31212,8 +32531,8 @@ async function isAdminUser4(req) {
       return false;
     }
     try {
-      const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-      const userRepo = RepositoryFactory23.createUserRepository();
+      const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+      const userRepo = RepositoryFactory24.createUserRepository();
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
         return true;
@@ -31261,10 +32580,10 @@ function normalizeChargeMode(raw) {
   return "per_change_mode" /* per_change_mode */;
 }
 async function loadModelsTreeFromDatabase(isAdmin) {
-  const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-  const repo = RepositoryFactory23.createProviderModelRepository();
+  const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+  const repo = RepositoryFactory24.createProviderModelRepository();
   const models = await repo.list({ onlyEnabled: true });
-  const supabase = (0, import_mxmdata26.getSupabaseClient)();
+  const supabase = (0, import_mxmdata27.getSupabaseClient)();
   const { data: pricingRows, error } = await supabase.from("provider_pricing").select("*");
   if (error) {
     console.warn("[System Route] provider_pricing \u67E5\u8BE2\u5931\u8D25:", error.message);
@@ -31291,7 +32610,7 @@ async function loadModelsTreeFromDatabase(isAdmin) {
   }
   return result;
 }
-var import_express11, import_mxmdata26, router11, system_default;
+var import_express11, import_mxmdata27, router11, system_default;
 var init_system = __esm({
   "src/routes/system.ts"() {
     "use strict";
@@ -31301,7 +32620,8 @@ var init_system = __esm({
     init_prompt_config();
     init_providers4();
     init_sensitive_words();
-    import_mxmdata26 = require("@mxmai/mxmdata");
+    import_mxmdata27 = require("@mxmai/mxmdata");
+    init_chat();
     router11 = (0, import_express11.Router)();
     router11.use("/prompt-config", prompt_config_default);
     router11.use("/admin/providers", providers_default);
@@ -31315,7 +32635,7 @@ var init_system = __esm({
             error: "Admin access required"
           });
         }
-        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const supabase = (0, import_mxmdata27.getSupabaseClient)();
         const days = Math.min(Math.max(parseInt(req.query.days) || 30, 7), 90);
         const topLimit = Math.min(Math.max(parseInt(req.query.topLimit) || 10, 5), 50);
         const [
@@ -31635,7 +32955,7 @@ var init_system = __esm({
         if (!isAdmin) {
           return res.status(403).json({ success: false, error: "Admin access required" });
         }
-        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const supabase = (0, import_mxmdata27.getSupabaseClient)();
         const { provider, scope } = req.query;
         let query = supabase.from("provider_pricing").select("*");
         if (provider) {
@@ -31707,7 +33027,7 @@ var init_system = __esm({
           platform_min_charge: platform_min_charge ?? null,
           metadata: metadata ?? null
         };
-        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const supabase = (0, import_mxmdata27.getSupabaseClient)();
         if (id) {
           const { data: data2, error: error2 } = await supabase.from("provider_pricing").update(pricingPayload).eq("id", id).select("*").maybeSingle();
           if (error2) {
@@ -31746,7 +33066,7 @@ var init_system = __esm({
         if (!id) {
           return res.status(400).json({ success: false, error: "Missing id" });
         }
-        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const supabase = (0, import_mxmdata27.getSupabaseClient)();
         const { error } = await supabase.from("provider_pricing").delete().eq("id", id);
         if (error) {
           return res.status(500).json({
@@ -31770,7 +33090,7 @@ var init_system = __esm({
         if (!isAdmin) {
           return res.status(403).json({ success: false, error: "Admin access required" });
         }
-        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const supabase = (0, import_mxmdata27.getSupabaseClient)();
         const { business_type } = req.query;
         let query = supabase.from("business_pricing").select("*");
         if (business_type) {
@@ -31817,7 +33137,7 @@ var init_system = __esm({
             error: "Missing required fields: business_type, charge_metric, price_in_tokens"
           });
         }
-        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const supabase = (0, import_mxmdata27.getSupabaseClient)();
         if (id) {
           const { data: data2, error: error2 } = await supabase.from("business_pricing").update({
             business_type,
@@ -31874,7 +33194,7 @@ var init_system = __esm({
         if (!id) {
           return res.status(400).json({ success: false, error: "Missing id" });
         }
-        const supabase = (0, import_mxmdata26.getSupabaseClient)();
+        const supabase = (0, import_mxmdata27.getSupabaseClient)();
         const { error } = await supabase.from("business_pricing").delete().eq("id", id);
         if (error) {
           return res.status(500).json({
@@ -31888,6 +33208,107 @@ var init_system = __esm({
         return res.status(500).json({
           success: false,
           error: "Failed to delete business_pricing",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router11.get("/admin/model-config/options", async (req, res) => {
+      try {
+        const isAdmin = await isAdminUser4(req);
+        if (!isAdmin) {
+          return res.status(403).json({ success: false, error: "Admin access required" });
+        }
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createProviderModelRepository();
+        const textModels = await repo.list({ scope: "text", onlyEnabled: true });
+        const writingModels = await repo.list({ scope: "writing", onlyEnabled: true });
+        const seen = /* @__PURE__ */ new Set();
+        const allModels = [];
+        for (const m of [...textModels, ...writingModels]) {
+          if (!seen.has(m.model_key)) {
+            seen.add(m.model_key);
+            allModels.push({ provider: m.provider, scope: m.scope, model_key: m.model_key, display_name: m.display_name ?? void 0 });
+          }
+        }
+        return res.json({ success: true, data: allModels });
+      } catch (error) {
+        return res.status(500).json({ success: false, error: "Failed to list model options", message: error instanceof Error ? error.message : String(error) });
+      }
+    });
+    router11.get("/admin/model-config", async (req, res) => {
+      try {
+        const isAdmin = await isAdminUser4(req);
+        if (!isAdmin) {
+          return res.status(403).json({ success: false, error: "Admin access required" });
+        }
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createModelConfigRepository();
+        const config = await repo.getConfig();
+        return res.json({
+          success: true,
+          data: {
+            model_key: config.model_key,
+            temperature: config.temperature,
+            max_tokens: config.max_tokens,
+            top_p: config.top_p,
+            frequency_penalty: config.frequency_penalty,
+            presence_penalty: config.presence_penalty,
+            updated_at: config.updated_at
+          }
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: "Failed to get model config",
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router11.put("/admin/model-config", async (req, res) => {
+      try {
+        const isAdmin = await isAdminUser4(req);
+        if (!isAdmin) {
+          return res.status(403).json({ success: false, error: "Admin access required" });
+        }
+        const {
+          model_key,
+          temperature,
+          max_tokens,
+          top_p,
+          frequency_penalty,
+          presence_penalty
+        } = req.body;
+        if (!model_key || typeof model_key !== "string" || model_key.trim() === "") {
+          return res.status(400).json({ success: false, error: "model_key is required" });
+        }
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const repo = RepositoryFactory24.createModelConfigRepository();
+        const config = await repo.upsertConfig({
+          id: "default",
+          model_key: model_key.trim(),
+          temperature: temperature ?? 0.7,
+          max_tokens: max_tokens ?? null,
+          top_p: top_p ?? null,
+          frequency_penalty: frequency_penalty ?? null,
+          presence_penalty: presence_penalty ?? null
+        });
+        clearAdminModelConfigCache();
+        return res.json({
+          success: true,
+          data: {
+            model_key: config.model_key,
+            temperature: config.temperature,
+            max_tokens: config.max_tokens,
+            top_p: config.top_p,
+            frequency_penalty: config.frequency_penalty,
+            presence_penalty: config.presence_penalty,
+            updated_at: config.updated_at
+          }
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: "Failed to update model config",
           message: error instanceof Error ? error.message : String(error)
         });
       }
@@ -31933,7 +33354,7 @@ async function serveAudioLike(req, res) {
     }
     const bucket = storageInfo.bucket;
     const key = storageInfo.keys[0];
-    const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata28.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(bucket, key);
     const metadata = await storageRepo.getFileMetadata(bucket, key);
     const contentType = metadata?.contentType || (key.endsWith(".mp3") ? "audio/mpeg" : key.endsWith(".wav") ? "audio/wav" : key.endsWith(".flac") ? "audio/flac" : key.endsWith(".pcm") ? "audio/pcm" : "application/octet-stream");
@@ -31963,13 +33384,13 @@ async function serveAudioLike(req, res) {
     });
   }
 }
-var import_express12, import_mxmdata27, router12, media_default;
+var import_express12, import_mxmdata28, router12, media_default;
 var init_media = __esm({
   "src/routes/media.ts"() {
     "use strict";
     import_express12 = require("express");
     init_task_manager();
-    import_mxmdata27 = require("@mxmai/mxmdata");
+    import_mxmdata28 = require("@mxmai/mxmdata");
     router12 = (0, import_express12.Router)();
     router12.get("/graph/:taskId", async (req, res) => {
       try {
@@ -32003,7 +33424,7 @@ var init_media = __esm({
         }
         const bucket = storageInfo.bucket;
         const key = storageInfo.keys[0];
-        const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+        const storageRepo = import_mxmdata28.RepositoryFactory.createStorageRepository();
         const fileBuffer = await storageRepo.downloadFile(bucket, key);
         const metadata = await storageRepo.getFileMetadata(bucket, key);
         const contentType = metadata?.contentType || (key.endsWith(".png") ? "image/png" : key.endsWith(".jpg") || key.endsWith(".jpeg") ? "image/jpeg" : key.endsWith(".webp") ? "image/webp" : "application/octet-stream");
@@ -32056,7 +33477,7 @@ var init_media = __esm({
             error: "Forbidden: You can only access your own uploads"
           });
         }
-        const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+        const storageRepo = import_mxmdata28.RepositoryFactory.createStorageRepository();
         const fileBuffer = await storageRepo.downloadFile(bucket, key);
         const metadata = await storageRepo.getFileMetadata(bucket, key);
         const contentType = metadata?.contentType || (key.endsWith(".png") ? "image/png" : key.endsWith(".jpg") || key.endsWith(".jpeg") ? "image/jpeg" : key.endsWith(".webp") ? "image/webp" : key.endsWith(".gif") ? "image/gif" : "application/octet-stream");
@@ -32117,7 +33538,7 @@ var init_media = __esm({
         }
         const bucket = storageInfo.bucket;
         const key = storageInfo.keys[0];
-        const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+        const storageRepo = import_mxmdata28.RepositoryFactory.createStorageRepository();
         const fileBuffer = await storageRepo.downloadFile(bucket, key);
         const metadata = await storageRepo.getFileMetadata(bucket, key);
         const contentType = metadata?.contentType || (key.endsWith(".mp4") ? "video/mp4" : key.endsWith(".webm") ? "video/webm" : key.endsWith(".mov") ? "video/quicktime" : key.endsWith(".avi") ? "video/x-msvideo" : "application/octet-stream");
@@ -32185,7 +33606,7 @@ var init_media = __esm({
           if (key) {
             const bucket = storageInfo.bucket;
             filename = key.split("/").pop() || "content";
-            const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+            const storageRepo = import_mxmdata28.RepositoryFactory.createStorageRepository();
             try {
               const fileBuffer = await storageRepo.downloadFile(bucket, key);
               const fileMetadata = await storageRepo.getFileMetadata(bucket, key);
@@ -32350,7 +33771,7 @@ var init_media = __esm({
             });
           }
           const bucket = storageInfo.bucket;
-          const storageRepo = import_mxmdata27.RepositoryFactory.createStorageRepository();
+          const storageRepo = import_mxmdata28.RepositoryFactory.createStorageRepository();
           const contentType = normalizedFormat === "markdown" ? "text/markdown; charset=utf-8" : normalizedFormat === "txt" ? "text/plain; charset=utf-8" : "application/pdf";
           const buffer = Buffer.from(content, "utf-8");
           await storageRepo.uploadFile(bucket, key, buffer, {
@@ -32441,7 +33862,7 @@ async function startKnowledgeImportTask(taskId) {
       logs: ["\u5F00\u59CB\u4ECE\u5B58\u50A8\u4E0B\u8F7D\u6587\u4EF6"],
       startedAt: /* @__PURE__ */ new Date()
     });
-    const storageRepo = import_mxmdata28.RepositoryFactory.createStorageRepository();
+    const storageRepo = import_mxmdata29.RepositoryFactory.createStorageRepository();
     const fileBuffer = await storageRepo.downloadFile(params.fileBucket, params.fileKey);
     await taskManager2.updateTaskProgress(taskId, {
       progress: 20,
@@ -32491,12 +33912,12 @@ async function startKnowledgeImportTask(taskId) {
     );
   }
 }
-var import_mxmdata28;
+var import_mxmdata29;
 var init_knowledge_task = __esm({
   "src/knowledge/knowledge-task.ts"() {
     "use strict";
     init_task_executor();
-    import_mxmdata28 = require("@mxmai/mxmdata");
+    import_mxmdata29 = require("@mxmai/mxmdata");
     init_knowledge_service();
   }
 });
@@ -32520,7 +33941,7 @@ async function isAdminUser5(req) {
       return true;
     }
     try {
-      const userRepo = import_mxmdata29.RepositoryFactory.createUserRepository();
+      const userRepo = import_mxmdata30.RepositoryFactory.createUserRepository();
       const user = await userRepo.findById(userId);
       if (user && user.role === "admin") {
         return true;
@@ -32545,7 +33966,7 @@ function getKnowledgeService() {
   }
   return knowledgeServiceInstance;
 }
-var import_express13, import_uid5, import_multer2, import_mxmdata29, router13, upload2, knowledgeServiceInstance, knowledge_default;
+var import_express13, import_uid5, import_multer2, import_mxmdata30, router13, upload2, knowledgeServiceInstance, knowledge_default;
 var init_knowledge = __esm({
   "src/routes/knowledge.ts"() {
     "use strict";
@@ -32553,7 +33974,7 @@ var init_knowledge = __esm({
     import_uid5 = require("uid");
     import_multer2 = __toESM(require("multer"));
     init_knowledge_service();
-    import_mxmdata29 = require("@mxmai/mxmdata");
+    import_mxmdata30 = require("@mxmai/mxmdata");
     init_task_executor();
     init_knowledge_task();
     router13 = (0, import_express13.Router)();
@@ -32734,7 +34155,7 @@ var init_knowledge = __esm({
           return res.status(403).json({ success: false, error: "Admin only" });
         }
         const { scope } = req.query;
-        const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+        const repo = import_mxmdata30.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
         const list = await repo.listDefaults(scope);
         return res.json({ success: true, data: { defaults: list } });
       } catch (error) {
@@ -32757,7 +34178,7 @@ var init_knowledge = __esm({
             error: "Missing required fields: scope, category, sub_type, knowledge_base_id"
           });
         }
-        const kbRepo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseRepository();
+        const kbRepo = import_mxmdata30.RepositoryFactory.createKnowledgeBaseRepository();
         const kb = await kbRepo.findKnowledgeBaseById(knowledge_base_id);
         if (!kb) {
           return res.status(404).json({
@@ -32765,7 +34186,7 @@ var init_knowledge = __esm({
             error: `Knowledge base "${knowledge_base_id}" not found`
           });
         }
-        const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+        const repo = import_mxmdata30.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
         const def = await repo.setDefault({
           scope,
           category,
@@ -32787,7 +34208,7 @@ var init_knowledge = __esm({
           return res.status(403).json({ success: false, error: "Admin only" });
         }
         const { scope, category, subType } = req.params;
-        const repo = import_mxmdata29.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
+        const repo = import_mxmdata30.RepositoryFactory.createKnowledgeBaseDefaultsRepository();
         await repo.removeDefault(scope, category, subType);
         return res.json({ success: true, message: "Default removed" });
       } catch (error) {
@@ -33077,7 +34498,7 @@ var init_knowledge = __esm({
           const chunkSize = chunk_size ? Number(chunk_size) : void 0;
           const chunkOverlap = chunk_overlap ? Number(chunk_overlap) : void 0;
           const maxChunkSize = max_chunk_size ? Number(max_chunk_size) : void 0;
-          const storageRepo = import_mxmdata29.RepositoryFactory.createStorageRepository();
+          const storageRepo = import_mxmdata30.RepositoryFactory.createStorageRepository();
           const bucket = process.env.KNOWLEDGE_STORAGE_BUCKET || process.env.CGI_STORAGE_BUCKET || "user-media";
           const originalName = multerReq.file.originalname;
           const ext = (originalName.split(".").pop() || "txt").toLowerCase();
@@ -33323,8 +34744,8 @@ var init_knowledge = __esm({
           return res.status(401).json({ success: false, error: "Missing x-user-id header" });
         }
         const { id } = req.params;
-        const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-        const kbRepo = RepositoryFactory23.createKnowledgeBaseRepository();
+        const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+        const kbRepo = RepositoryFactory24.createKnowledgeBaseRepository();
         const doc = await kbRepo.findDocumentById(id);
         if (!doc) {
           return res.status(404).json({
@@ -33804,7 +35225,7 @@ function asScope(v) {
   }
   return null;
 }
-var import_express15, import_mxmdata30, router15, routes_default;
+var import_express15, import_mxmdata31, router15, routes_default;
 var init_routes = __esm({
   "src/tasks/routes.ts"() {
     "use strict";
@@ -33812,7 +35233,7 @@ var init_routes = __esm({
     init_task_definition();
     init_task_engine();
     init_errors();
-    import_mxmdata30 = require("@mxmai/mxmdata");
+    import_mxmdata31 = require("@mxmai/mxmdata");
     router15 = (0, import_express15.Router)();
     router15.get("/form-config", async (req, res) => {
       try {
@@ -33844,7 +35265,7 @@ var init_routes = __esm({
       try {
         const scope = asScope(req.query.scope);
         if (!scope) return res.status(400).json({ success: false, error: "scope is required" });
-        const repo = import_mxmdata30.RepositoryFactory.createPromptEngineeringConfigRepository();
+        const repo = import_mxmdata31.RepositoryFactory.createPromptEngineeringConfigRepository();
         const list = await repo.list({ scope, limit: 500, offset: 0 });
         const items = (list.items || []).filter((r) => r && r.is_active !== false).map((r) => {
           const extra = r.extra && typeof r.extra === "object" ? r.extra : null;
@@ -33904,13 +35325,13 @@ var init_routes = __esm({
 });
 
 // src/smartflow/core/engine/repository.ts
-var import_mxmdata31, SupabaseSmartflowRepository, smartflowRepository;
+var import_mxmdata32, SupabaseSmartflowRepository, smartflowRepository;
 var init_repository = __esm({
   "src/smartflow/core/engine/repository.ts"() {
     "use strict";
-    import_mxmdata31 = require("@mxmai/mxmdata");
+    import_mxmdata32 = require("@mxmai/mxmdata");
     SupabaseSmartflowRepository = class {
-      supabase = (0, import_mxmdata31.getSupabaseClient)();
+      supabase = (0, import_mxmdata32.getSupabaseClient)();
       async findById(id) {
         const { data, error } = await this.supabase.from("smartflows").select("*").eq("id", id).single();
         if (error) {
@@ -33982,13 +35403,13 @@ var init_repository = __esm({
 });
 
 // src/smartflow/core/engine/executionRepository.ts
-var import_mxmdata32, SupabaseSmartflowExecutionRepository, executionRepository;
+var import_mxmdata33, SupabaseSmartflowExecutionRepository, executionRepository;
 var init_executionRepository = __esm({
   "src/smartflow/core/engine/executionRepository.ts"() {
     "use strict";
-    import_mxmdata32 = require("@mxmai/mxmdata");
+    import_mxmdata33 = require("@mxmai/mxmdata");
     SupabaseSmartflowExecutionRepository = class {
-      supabase = (0, import_mxmdata32.getSupabaseClient)();
+      supabase = (0, import_mxmdata33.getSupabaseClient)();
       async create(data) {
         const now = (/* @__PURE__ */ new Date()).toISOString();
         const payload = {
@@ -34191,177 +35612,6 @@ var init_resolver2 = __esm({
         return variables;
       }
     };
-  }
-});
-
-// src/smartflow/services/httpClient.ts
-var MXMCGI_URL, MxmCGIHttpClient, mxmCGIHttpClient;
-var init_httpClient = __esm({
-  "src/smartflow/services/httpClient.ts"() {
-    "use strict";
-    MXMCGI_URL = process.env.MXMCGI_URL || "http://localhost:4003";
-    MxmCGIHttpClient = class {
-      baseUrl;
-      constructor(baseUrl = MXMCGI_URL) {
-        this.baseUrl = baseUrl;
-      }
-      async request(path2, options = {}) {
-        const { method = "GET", headers = {}, body, timeout = 6e4 } = options;
-        const url = `${this.baseUrl}${path2}`;
-        const requestHeaders = {
-          "Content-Type": "application/json",
-          ...headers
-        };
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-        try {
-          const response = await fetch(url, {
-            method,
-            headers: requestHeaders,
-            body: body ? JSON.stringify(body) : void 0,
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => "Unknown error");
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
-          }
-          return await response.json();
-        } catch (error) {
-          clearTimeout(timeoutId);
-          if (error.name === "AbortError") {
-            throw new Error(`Request timeout after ${timeout}ms`);
-          }
-          throw error;
-        }
-      }
-      // ==================== CGI 兼容方法（保留） ====================
-      async textGeneration(model, prompt, params = {}) {
-        return this.request(`/cgi/text/${model}`, {
-          method: "POST",
-          body: { prompt, ...params }
-        });
-      }
-      async imageGeneration(model, prompt, params = {}) {
-        return this.request(`/cgi/image/${model}`, {
-          method: "POST",
-          body: { prompt, ...params }
-        });
-      }
-      async embeddingGeneration(model, input, params = {}) {
-        return this.request(`/cgi/embedding/${model}`, {
-          method: "POST",
-          body: { input, ...params }
-        });
-      }
-      // ==================== Business v2 方法 ====================
-      // 统一的动态业务架构：scope + taskKey + subtype + params
-      /**
-       * GET /api/v2/tasks/form-config/list?scope=xxx
-       * 获取指定 scope 下所有 taskKey 列表
-       */
-      async listFormConfigs(scope) {
-        return this.request(`/api/v2/tasks/form-config/list?scope=${encodeURIComponent(scope)}`, {
-          method: "GET"
-        });
-      }
-      /**
-       * GET /api/v2/tasks/form-config?scope=xxx&taskKey=yyy&subtype=zzz
-       * 获取指定业务的表单配置（用于前端渲染参数表单）
-       */
-      async getFormConfig(scope, taskKey, subtype) {
-        const params = new URLSearchParams({ scope, taskKey });
-        if (subtype) params.set("subtype", subtype);
-        return this.request(`/api/v2/tasks/form-config?${params.toString()}`, {
-          method: "GET"
-        });
-      }
-      /**
-       * POST /api/v2/tasks/run
-       * 执行动态业务任务（business 节点统一调用此方法）
-       */
-      async runTask(scope, taskKey, params, userId, options) {
-        return this.request(`/api/v2/tasks/run`, {
-          method: "POST",
-          headers: {
-            "X-User-Id": userId,
-            ...options?.conversationId ? { "X-Conversation-Id": options.conversationId } : {}
-          },
-          body: {
-            scope,
-            taskKey,
-            subtype: options?.subtype ?? null,
-            params
-          }
-        });
-      }
-      // ==================== Legacy Business 方法（保留兼容） ====================
-      // 以下方法保留用于旧版兼容，新开发应使用 runTask v2 方法
-      async writingCompletion(modelName, params, userId) {
-        return this.request(`/writing/completion/${modelName}`, {
-          method: "POST",
-          headers: { "X-User-Id": userId },
-          body: params
-        });
-      }
-      async writingOutline(params, userId) {
-        return this.request("/writing/outline", {
-          method: "POST",
-          headers: { "X-User-Id": userId },
-          body: params
-        });
-      }
-      async writingGenerate(params, userId) {
-        return this.request("/writing/generate", {
-          method: "POST",
-          headers: { "X-User-Id": userId },
-          body: params
-        });
-      }
-      async graphPhotograph(params, userId) {
-        return this.request("/graph/photograph", {
-          method: "POST",
-          headers: { "X-User-Id": userId },
-          body: params
-        });
-      }
-      async graphDesign(params, userId) {
-        return this.request("/graph/design", {
-          method: "POST",
-          headers: { "X-User-Id": userId },
-          body: params
-        });
-      }
-      async graphPainting(params, userId) {
-        return this.request("/graph/painting", {
-          method: "POST",
-          headers: { "X-User-Id": userId },
-          body: params
-        });
-      }
-      async graphImage(modelName, params, userId) {
-        return this.request(`/graph/${modelName}`, {
-          method: "POST",
-          headers: { "X-User-Id": userId },
-          body: params
-        });
-      }
-      async videoGenerate(params, userId) {
-        return this.request("/video/generate", {
-          method: "POST",
-          headers: { "X-User-Id": userId },
-          body: params
-        });
-      }
-      async audioTTS(params, userId) {
-        return this.request("/audio", {
-          method: "POST",
-          headers: { "X-User-Id": userId },
-          body: params
-        });
-      }
-    };
-    mxmCGIHttpClient = new MxmCGIHttpClient();
   }
 });
 
@@ -35883,787 +37133,6 @@ A beautiful young woman in traditional Hanfu, standing gracefully in a classical
   }
 });
 
-// src/agents/intent-detector.ts
-var intent_detector_exports = {};
-__export(intent_detector_exports, {
-  businessNodes: () => businessNodes,
-  detectIntent: () => detectIntent,
-  getBusinessNode: () => getBusinessNode,
-  getNextFieldToAsk: () => getNextFieldToAsk,
-  getSystemPromptForIntent: () => getSystemPromptForIntent
-});
-function extractParamsFromMessage(message, node) {
-  const params = {};
-  if (!node.extractors) return params;
-  for (const extractor of node.extractors) {
-    for (const pattern of extractor.patterns) {
-      const match = message.match(pattern);
-      if (match && match[1]) {
-        params[extractor.field] = match[1].trim();
-        break;
-      }
-    }
-  }
-  return params;
-}
-function matchBusinessNodes(message) {
-  const lowerMessage = message.toLowerCase();
-  const results = [];
-  for (const [nodeType, node] of Object.entries(businessNodes)) {
-    let score = 0;
-    const matchedKeywords = [];
-    for (const keyword of node.keywords) {
-      if (lowerMessage.includes(keyword.toLowerCase())) {
-        score += keyword.length;
-        matchedKeywords.push(keyword);
-      }
-    }
-    if (score > 0) {
-      results.push({ nodeType, node, score, matchedKeywords });
-    }
-  }
-  results.sort((a, b) => b.score - a.score);
-  return results;
-}
-function detectIntent(message) {
-  const lowerMessage = message.toLowerCase().trim();
-  const nodeMatches = matchBusinessNodes(message);
-  if (nodeMatches.length > 0) {
-    const best = nodeMatches[0];
-    const extractedParams = extractParamsFromMessage(message, best.node);
-    const allParams = { ...best.node.defaultParams, ...extractedParams };
-    const missingFields = best.node.fields.filter((f) => f.required && !allParams[f.key]).map((f) => f.key);
-    let confidenceLevel;
-    const coverage = 1 - missingFields.length / best.node.fields.filter((f) => f.required).length;
-    if (coverage >= 0.75 && missingFields.length <= 1) {
-      confidenceLevel = "high";
-    } else if (coverage >= 0.4) {
-      confidenceLevel = "medium";
-    } else {
-      confidenceLevel = "low";
-    }
-    const businessNode = {
-      nodeType: best.nodeType,
-      nodeName: best.node.name,
-      matchedKeywords: best.matchedKeywords,
-      extractedParams: allParams,
-      missingFields,
-      confidenceLevel
-    };
-    const confidence2 = Math.min(0.5 + coverage * 0.5, 1);
-    return {
-      intent: best.nodeType,
-      confidence: confidence2,
-      businessNode,
-      params: allParams
-    };
-  }
-  const scores = /* @__PURE__ */ new Map();
-  for (const pattern of GENERAL_PATTERNS) {
-    for (const keyword of pattern.keywords) {
-      if (lowerMessage.includes(keyword.toLowerCase())) {
-        const currentScore = scores.get(pattern.intent) || 0;
-        scores.set(pattern.intent, currentScore + pattern.weight);
-      }
-    }
-  }
-  let bestIntent = "general";
-  let bestScore = 0;
-  for (const [intent, score] of scores) {
-    if (score > bestScore) {
-      bestScore = score;
-      bestIntent = intent;
-    }
-  }
-  if (bestScore === 0) {
-    return { intent: "general", confidence: 0.5 };
-  }
-  const confidence = Math.min(bestScore / 2, 1);
-  const matchedPattern = GENERAL_PATTERNS.find((p) => p.intent === bestIntent);
-  const params = matchedPattern?.extractParams?.(message);
-  return {
-    intent: bestIntent,
-    confidence,
-    params
-  };
-}
-function getSystemPromptForIntent(intent) {
-  if (businessNodes[intent]) {
-    const node = businessNodes[intent];
-    return `\u4F60\u662F\u4E00\u4E2A\u4E13\u4E1A\u7684\u300C${node.name}\u300D\u4EFB\u52A1\u52A9\u624B\u3002
-\u5F53\u7528\u6237\u8868\u8FBE\u7684\u9700\u6C42\u6D89\u53CA ${node.name} \u65F6\uFF0C\u4F60\u5E94\u8BE5\uFF1A
-1. \u5148\u786E\u8BA4\u4F60\u7406\u89E3\u7684\u9700\u6C42\u662F\u5426\u6B63\u786E\uFF08\u8BF4\u51FA\u4F60\u7406\u89E3\u7684\u5185\u5BB9\uFF09
-2. \u5982\u679C\u7F3A\u5C11\u5FC5\u8981\u53C2\u6570\uFF0C\u5411\u7528\u6237\u63D0\u95EE\u83B7\u53D6
-3. \u6536\u96C6\u5B8C\u6240\u6709\u5FC5\u8981\u53C2\u6570\u540E\uFF0C\u7528\u81EA\u7136\u8BED\u8A00\u603B\u7ED3\u786E\u8BA4\u5355
-4. \u83B7\u5F97\u7528\u6237\u786E\u8BA4\u540E\u624D\u6267\u884C\u4EFB\u52A1
-\u6CE8\u610F\uFF1A\u59CB\u7EC8\u7AD9\u5728\u7528\u6237\u89D2\u5EA6\uFF0C\u7528\u7B80\u6D01\u81EA\u7136\u7684\u8BED\u8A00\u4EA4\u6D41\u3002`;
-  }
-  const prompts = {
-    greeting: "\u4F60\u662F\u4E00\u4E2A\u53CB\u597D\u7684 AI \u52A9\u624B\uFF0C\u8BF7\u7528\u8F7B\u677E\u7684\u65B9\u5F0F\u4E0E\u7528\u6237\u4EA4\u6D41\u3002",
-    weather: "\u4F60\u662F\u4E00\u4E2A\u5929\u6C14\u52A9\u624B\uFF0C\u8BF7\u6839\u636E\u7528\u6237\u8BE2\u95EE\u63D0\u4F9B\u51C6\u786E\u7684\u5929\u6C14\u4FE1\u606F\u3002",
-    search: "\u4F60\u662F\u4E00\u4E2A\u641C\u7D22\u52A9\u624B\uFF0C\u8BF7\u6839\u636E\u7528\u6237\u7684\u641C\u7D22\u9700\u6C42\u63D0\u4F9B\u76F8\u5173\u4FE1\u606F\u3002",
-    code: "\u4F60\u662F\u4E00\u4E2A\u7F16\u7A0B\u52A9\u624B\uFF0C\u8BF7\u63D0\u4F9B\u6E05\u6670\u3001\u6B63\u786E\u7684\u4EE3\u7801\u793A\u4F8B\u548C\u89E3\u91CA\u3002",
-    translate: "\u4F60\u662F\u4E00\u4E2A\u7FFB\u8BD1\u52A9\u624B\uFF0C\u8BF7\u63D0\u4F9B\u51C6\u786E\u3001\u81EA\u7136\u7684\u7FFB\u8BD1\u7ED3\u679C\u3002",
-    summary: "\u4F60\u662F\u4E00\u4E2A\u6587\u672C\u603B\u7ED3\u52A9\u624B\uFF0C\u8BF7\u7B80\u6D01\u5730\u6982\u62EC\u8981\u70B9\u3002",
-    question: "\u4F60\u662F\u4E00\u4E2A\u77E5\u8BC6\u95EE\u7B54\u52A9\u624B\uFF0C\u8BF7\u51C6\u786E\u56DE\u7B54\u7528\u6237\u7684\u95EE\u9898\u3002",
-    help: "\u4F60\u662F\u4E00\u4E2A AI \u52A9\u624B\uFF0C\u53EF\u4EE5\u5E2E\u52A9\u7528\u6237\u5B8C\u6210\u56FE\u50CF\u751F\u6210\u3001\u89C6\u9891\u5236\u4F5C\u3001\u97F3\u4E50\u521B\u4F5C\u3001\u6587\u6848\u5199\u4F5C\u7B49\u4EFB\u52A1\u3002\u8BF7\u8BE2\u95EE\u7528\u6237\u60F3\u505A\u4EC0\u4E48\u3002",
-    general: "\u4F60\u662F\u4E00\u4E2A\u667A\u80FD AI \u52A9\u624B\uFF0C\u8BF7\u4E0E\u7528\u6237\u53CB\u597D\u5730\u4EA4\u6D41\uFF0C\u5E76\u5C3D\u53EF\u80FD\u5E2E\u52A9\u7528\u6237\u89E3\u51B3\u95EE\u9898\u3002"
-  };
-  return prompts[intent] || prompts["general"];
-}
-function getBusinessNode(nodeType) {
-  return businessNodes[nodeType];
-}
-function getNextFieldToAsk(nodeType, currentParams) {
-  const node = businessNodes[nodeType];
-  if (!node) return null;
-  for (const field of node.fields) {
-    if (field.required && currentParams[field.key] === void 0) {
-      return field;
-    }
-  }
-  return null;
-}
-var businessNodes, GENERAL_PATTERNS;
-var init_intent_detector = __esm({
-  "src/agents/intent-detector.ts"() {
-    "use strict";
-    businessNodes = {
-      "graph/photograph": {
-        name: "\u6DD8\u5B9D\u5973\u88C5\u6444\u5F71",
-        keywords: ["\u6DD8\u5B9D\u5973\u88C5\u6444\u5F71", "\u68DA\u62CD", "\u6A21\u7279\u56FE", "\u5973\u88C5\u68DA\u62CD", "\u7535\u5546\u4E3B\u56FE", "\u670D\u88C5\u6444\u5F71", "\u6A21\u7279\u62CD\u6444", "\u5973\u88C5\u62CD\u6444", "\u6DD8\u5B9D\u68DA\u62CD", "\u6625\u88C5\u68DA\u62CD", "\u590F\u88C5\u68DA\u62CD", "\u79CB\u88C5\u68DA\u62CD", "\u51AC\u88C5\u68DA\u62CD"],
-        fields: [
-          { key: "count", label: "\u6570\u91CF", type: "select", options: ["2", "4", "6", "8"], defaultValue: "4", required: true },
-          { key: "ratio", label: "\u6BD4\u4F8B", type: "select", options: ["3:4", "1:1", "16:9"], defaultValue: "3:4", required: true },
-          { key: "style", label: "\u98CE\u683C", type: "select", options: ["\u97E9\u7CFB\u6E05\u65B0", "\u97E9\u7CFB\u6E05\u51B7", "\u6B27\u7F8E\u9AD8\u7EA7", "\u65E5\u7CFB\u81EA\u7136", "\u6CD5\u5F0F\u6175\u61D2", "\u4E2D\u6027\u6781\u7B80"], defaultValue: "\u97E9\u7CFB\u6E05\u65B0", required: true },
-          { key: "hasRef", label: "\u662F\u5426\u6709\u53C2\u8003\u56FE", type: "boolean", defaultValue: false }
-        ],
-        confirmTemplate: (params) => `\u751F\u6210 ${params.count} \u5F20${params.ratio}\u6DD8\u5B9D\u5973\u88C5\u68DA\u62CD\u56FE\uFF0C\u98CE\u683C\u300C${params.style}\u300D${params.hasRef === true || params.hasRef === "true" ? "\uFF0C\u6709\u53C2\u8003\u56FE" : "\uFF0C\u65E0\u53C2\u8003\u56FE"}\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
-        extractors: [
-          { field: "count", patterns: [/(\d+)张/, /(\d+)张图/, /数量(\d+)/] },
-          { field: "ratio", patterns: [/(\d+:\d+)/, /比例(\d+:\d+)/] },
-          {
-            field: "style",
-            patterns: [/([韩欧美日法中性]+系[\w]+)/, /风格"?([^"\n，,]+)"?/]
-          }
-        ]
-      },
-      "graph/design": {
-        name: "\u8BBE\u8BA1\u6D77\u62A5",
-        keywords: ["\u6D77\u62A5", "\u8BBE\u8BA1\u56FE", "\u5BA3\u4F20\u56FE", "\u4E3B\u89C6\u89C9", "KV", "key visual", "Banner", "banner", "\u5E7F\u544A\u56FE", "\u6D3B\u52A8\u6D77\u62A5", "\u8282\u65E5\u6D77\u62A5", "\u4FC3\u9500\u6D77\u62A5", "\u5C01\u9762\u56FE", "\u914D\u56FE"],
-        fields: [
-          { key: "width", label: "\u5BBD\u5EA6(px)", type: "string", defaultValue: "1080" },
-          { key: "height", label: "\u9AD8\u5EA6(px)", type: "string", defaultValue: "1920" },
-          { key: "theme", label: "\u4E3B\u9898", type: "string", required: true },
-          { key: "style", label: "\u98CE\u683C", type: "select", options: ["\u79D1\u6280\u611F", "\u7B80\u7EA6", "\u590D\u53E4", "\u53EF\u7231", "\u9AD8\u7EA7\u611F", "\u56FD\u6F6E", "\u8D5B\u535A\u670B\u514B"], defaultValue: "\u7B80\u7EA6" },
-          { key: "hasText", label: "\u662F\u5426\u9700\u8981\u6587\u5B57", type: "boolean", defaultValue: true }
-        ],
-        confirmTemplate: (params) => `\u751F\u6210\u4E00\u5F20${params.width}x${params.height}\u300C${params.theme}\u300D\u4E3B\u9898\u6D77\u62A5\uFF0C\u98CE\u683C\u300C${params.style}\u300D\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
-        extractors: [
-          { field: "width", patterns: [/(\d+)x\d+/, /宽(\d+)/] },
-          { field: "height", patterns: [/\d+x(\d+)/, /高(\d+)/] },
-          { field: "theme", patterns: [/主题"?([^"\n，,]+)"?/, /做一张([^张\n]+)海报/] }
-        ]
-      },
-      "video/generate": {
-        name: "\u89C6\u9891\u751F\u6210",
-        keywords: ["\u77ED\u89C6\u9891", "\u89C6\u9891", "30\u79D2\u89C6\u9891", "\u4EA7\u54C1\u89C6\u9891", "\u79CD\u8349\u89C6\u9891", "\u5E7F\u544A\u89C6\u9891", "\u5BA3\u4F20\u89C6\u9891", "\u526A\u8F91", "\u5206\u955C", "\u811A\u672C\u751F\u6210\u89C6\u9891", "\u53E3\u64AD\u89C6\u9891", "\u5546\u54C1\u89C6\u9891", "\u6A21\u7279\u89C6\u9891"],
-        fields: [
-          { key: "duration", label: "\u65F6\u957F", type: "select", options: ["15\u79D2", "30\u79D2", "60\u79D2", "90\u79D2", "120\u79D2"], defaultValue: "30\u79D2", required: true },
-          { key: "content", label: "\u5185\u5BB9\u63CF\u8FF0", type: "string", required: true },
-          { key: "hasScript", label: "\u662F\u5426\u9700\u8981\u5206\u955C\u811A\u672C", type: "boolean", defaultValue: true },
-          { key: "aspectRatio", label: "\u6BD4\u4F8B", type: "select", options: ["9:16", "16:9", "1:1", "3:4"], defaultValue: "9:16" }
-        ],
-        confirmTemplate: (params) => `\u751F\u6210\u4E00\u6761${params.duration}\u300C${params.content}\u300D${params.aspectRatio}\u89C6\u9891\uFF0C${params.hasScript ? "\u5305\u542B\u5206\u955C\u811A\u672C" : "\u76F4\u63A5\u751F\u6210\u89C6\u9891"}\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
-        extractors: [
-          { field: "duration", patterns: [/(\d+)[秒秒]+/, /时长(\d+)/] },
-          { field: "content", patterns: [/做.*?([^"\n，,]+)视频/, /视频.*?([^"\n，,]+)/] },
-          { field: "aspectRatio", patterns: [/(\d+:\d+)/] }
-        ]
-      },
-      "audio/tts": {
-        name: "TTS\u914D\u97F3",
-        keywords: ["\u914D\u97F3", "\u53E3\u64AD\u7A3F", "\u6587\u5B57\u8F6C\u8BED\u97F3", "TTS", "\u8BED\u97F3\u5408\u6210", "\u5F55\u97F3", "\u914D\u97F3\u751F\u6210", "\u6587\u5B57\u914D\u97F3", "\u65C1\u767D", "\u6717\u8BFB"],
-        fields: [
-          { key: "text", label: "\u914D\u97F3\u6587\u672C", type: "string", required: true },
-          { key: "voice", label: "\u97F3\u8272", type: "select", options: ["\u5973\u58F0\u6E29\u67D4", "\u5973\u58F0\u6D3B\u6CFC", "\u7537\u58F0\u78C1\u6027", "\u7537\u58F0\u6C89\u7A33", "\u7AE5\u58F0"], defaultValue: "\u5973\u58F0\u6E29\u67D4" },
-          { key: "speed", label: "\u8BED\u901F", type: "select", options: ["\u6162", "\u6B63\u5E38", "\u5FEB"], defaultValue: "\u6B63\u5E38" }
-        ],
-        confirmTemplate: (params) => `\u5C06\u4EE5\u4E0B\u6587\u6848\u8F6C\u4E3A\u8BED\u97F3\uFF1A${String(params.text).slice(0, 30)}...\uFF08\u97F3\u8272\uFF1A${params.voice}\uFF0C\u8BED\u901F\uFF1A${params.speed}\uFF09\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
-        extractors: [
-          { field: "text", patterns: [/(.+)/] }
-        ]
-      },
-      "audio/music": {
-        name: "\u97F3\u4E50\u751F\u6210",
-        keywords: ["\u97F3\u4E50", "\u5199\u9996\u6B4C", "\u751F\u6210\u97F3\u4E50", "\u4F5C\u66F2", "\u914D\u4E50", "\u80CC\u666F\u97F3\u4E50", "BGM", "\u6B4C\u66F2", "\u7F16\u66F2"],
-        fields: [
-          { key: "genre", label: "\u98CE\u683C", type: "select", options: ["\u6D41\u884C", "\u7535\u5B50", "\u6C11\u8C23", "\u6447\u6EDA", "\u53E4\u5178", "\u7235\u58EB", "\u563B\u54C8", "\u8F7B\u97F3\u4E50"], defaultValue: "\u6D41\u884C", required: true },
-          { key: "mood", label: "\u60C5\u7EEA", type: "select", options: ["\u6B22\u5FEB", "\u8212\u7F13", "\u60B2\u4F24", "\u52B1\u5FD7", "\u6D6A\u6F2B", "\u795E\u79D8"], defaultValue: "\u8212\u7F13", required: true },
-          { key: "duration", label: "\u65F6\u957F", type: "select", options: ["30\u79D2", "60\u79D2", "90\u79D2", "120\u79D2"], defaultValue: "60\u79D2", required: true },
-          { key: "hasLyrics", label: "\u662F\u5426\u9700\u8981\u6B4C\u8BCD", type: "boolean", defaultValue: false }
-        ],
-        confirmTemplate: (params) => `\u751F\u6210\u4E00\u6BB5${params.duration}${params.genre}\u98CE\u683C\u300C${params.mood}\u300D\u97F3\u4E50${params.hasLyrics ? "\uFF08\u542B\u6B4C\u8BCD\uFF09" : "\uFF08\u7EAF\u97F3\u4E50\uFF09"}\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
-        extractors: [
-          { field: "genre", patterns: [/([\w]+)风格/, /风格"?([^"\n，,]+)"?/] },
-          { field: "mood", patterns: [/情绪"?([^"\n，,]+)"?/, /(\w+)的/] },
-          { field: "duration", patterns: [/(\d+)[秒秒]+/] }
-        ]
-      },
-      "writing/script": {
-        name: "\u5199\u4F5C\u811A\u672C",
-        keywords: ["\u811A\u672C", "\u5206\u955C", "\u5206\u955C\u811A\u672C", "\u53E3\u64AD\u7A3F", "\u6587\u6848", "\u5267\u672C", "\u77ED\u89C6\u9891\u811A\u672C", "\u76F4\u64AD\u811A\u672C", "\u53F0\u8BCD"],
-        fields: [
-          { key: "type", label: "\u811A\u672C\u7C7B\u578B", type: "select", options: ["\u53E3\u64AD\u811A\u672C", "\u5206\u955C\u811A\u672C", "\u76F4\u64AD\u8BDD\u672F", "\u5E7F\u544A\u6587\u6848", "\u4EA7\u54C1\u4ECB\u7ECD"], defaultValue: "\u53E3\u64AD\u811A\u672C", required: true },
-          { key: "product", label: "\u4EA7\u54C1/\u4E3B\u9898", type: "string", required: true },
-          { key: "duration", label: "\u65F6\u957F(\u79D2)", type: "string", defaultValue: "60" },
-          { key: "tone", label: "\u8BED\u6C14\u98CE\u683C", type: "select", options: ["\u4E13\u4E1A", "\u4EB2\u5207", "\u5E7D\u9ED8", "\u611F\u6027", "\u786C\u6838"], defaultValue: "\u4EB2\u5207" }
-        ],
-        confirmTemplate: (params) => `\u64B0\u5199\u4E00\u4E2A${params.type}\uFF1A\u4E3B\u9898\u300C${params.product}\u300D\uFF0C\u65F6\u957F\u7EA6${params.duration}\u79D2\uFF0C\u8BED\u6C14\u300C${params.tone}\u300D\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
-        extractors: [
-          { field: "product", patterns: [/主题"?([^"\n，,]+)"?/, /产品"?([^"\n，,]+)"?/] },
-          { field: "duration", patterns: [/(\d+)[秒秒]+/] }
-        ]
-      },
-      "writing/article": {
-        name: "\u6587\u7AE0\u5199\u4F5C",
-        keywords: ["\u6587\u7AE0", "\u5199\u4F5C", "\u6587\u6848", "\u535A\u5BA2", "\u5C0F\u7EA2\u4E66", "\u516C\u4F17\u53F7", "\u63A8\u6587", "\u7B14\u8BB0", "\u8F6F\u6587", "\u79CD\u8349\u6587", "\u8BC4\u6D4B", "\u653B\u7565"],
-        fields: [
-          { key: "platform", label: "\u5E73\u53F0", type: "select", options: ["\u5C0F\u7EA2\u4E66", "\u5FAE\u4FE1\u516C\u4F17\u53F7", "\u5FAE\u535A", "\u77E5\u4E4E", "\u6296\u97F3", "\u5FEB\u624B", "B\u7AD9"], defaultValue: "\u5C0F\u7EA2\u4E66", required: true },
-          { key: "topic", label: "\u4E3B\u9898", type: "string", required: true },
-          { key: "length", label: "\u7BC7\u5E45", type: "select", options: ["\u77ED(300\u5B57\u5185)", "\u4E2D(500-800\u5B57)", "\u957F(1000\u5B57\u4EE5\u4E0A)"], defaultValue: "\u4E2D(500-800\u5B57)" },
-          { key: "tone", label: "\u6587\u98CE", type: "select", options: ["\u79CD\u8349\u5B89\u5229", "\u5BA2\u89C2\u8BC4\u6D4B", "\u5E72\u8D27\u5206\u4EAB", "\u60C5\u611F\u5171\u9E23", "\u5E7D\u9ED8\u641E\u7B11"], defaultValue: "\u79CD\u8349\u5B89\u5229" }
-        ],
-        confirmTemplate: (params) => `\u64B0\u5199\u4E00\u7BC7${params.platform}${params.length}\u300C${params.topic}\u300D\u4E3B\u9898\u6587\u7AE0\uFF0C\u6587\u98CE\u300C${params.tone}\u300D\uFF0C\u662F\u5426\u5F00\u59CB\uFF1F`,
-        extractors: [
-          { field: "topic", patterns: [/主题"?([^"\n，,]+)"?/, /关于([^"\n，,]+)/] },
-          { field: "platform", patterns: [/小红书|微信公众号|微博|知乎|抖音|B站/] }
-        ]
-      }
-    };
-    GENERAL_PATTERNS = [
-      {
-        intent: "greeting",
-        keywords: ["\u4F60\u597D", "hello", "hi", "\u55E8", "\u60A8\u597D", "hey", "\u65E9\u4E0A\u597D", "\u665A\u4E0A\u597D", "\u5348\u5B89"],
-        weight: 1
-      },
-      {
-        intent: "weather",
-        keywords: ["\u5929\u6C14", "weather", "\u6E29\u5EA6", "\u4E0B\u96E8", "\u6674\u5929", "\u6C14\u6E29"],
-        weight: 0.9
-      },
-      {
-        intent: "search",
-        keywords: ["\u641C\u7D22", "\u67E5\u627E", "\u627E\u4E00\u4E0B", "search", "\u5E2E\u6211\u627E", "\u67E5\u4E00\u4E0B", "\u6709\u6CA1\u6709"],
-        weight: 0.8
-      },
-      {
-        intent: "code",
-        keywords: ["\u4EE3\u7801", "code", "\u7F16\u7A0B", "\u5199\u7A0B\u5E8F", "\u51FD\u6570", "class", "\u5199\u4E2A", "\u5F00\u53D1"],
-        weight: 0.9
-      },
-      {
-        intent: "translate",
-        keywords: ["\u7FFB\u8BD1", "translate", "\u82F1\u6587", "\u4E2D\u6587", "\u8BD1\u6210", "\u7FFB\u8BD1\u6210"],
-        weight: 0.85
-      },
-      {
-        intent: "summary",
-        keywords: ["\u603B\u7ED3", "summarize", "\u6982\u62EC", "\u8981\u70B9", "\u6C47\u603B", "\u6458\u8981"],
-        weight: 0.8
-      },
-      {
-        intent: "question",
-        keywords: ["\u4EC0\u4E48\u662F", "\u600E\u4E48", "\u5982\u4F55", "\u4E3A\u4EC0\u4E48", "who", "what", "how", "why", "\uFF1F", "?"],
-        weight: 0.7
-      },
-      {
-        intent: "help",
-        keywords: ["\u5E2E\u52A9", "help", "\u5E2E\u5FD9", "\u4F60\u80FD\u505A\u4EC0\u4E48", "\u529F\u80FD", "\u6709\u4EC0\u4E48"],
-        weight: 0.8
-      }
-    ];
-  }
-});
-
-// src/agents/chat.ts
-function getOrCreateSession(sessionId) {
-  if (sessionId && sessions.has(sessionId)) {
-    const session2 = sessions.get(sessionId);
-    session2.lastActiveAt = Date.now();
-    return session2;
-  }
-  const id = sessionId || import_crypto3.default.randomUUID();
-  const session = { id, messages: [], createdAt: Date.now(), lastActiveAt: Date.now() };
-  sessions.set(id, session);
-  return session;
-}
-function addMessageToSession(session, role, content) {
-  session.messages.push({ role, content, timestamp: Date.now() });
-  if (session.messages.length > SESSION_MAX_MESSAGES) {
-    session.messages = session.messages.slice(-SESSION_MAX_MESSAGES);
-  }
-}
-function cleanExpiredSessions() {
-  const now = Date.now();
-  for (const [id, session] of sessions) {
-    if (now - session.lastActiveAt > SESSION_TTL_MS) {
-      sessions.delete(id);
-    }
-  }
-}
-function getDefaultTextModel() {
-  const models = listEnabledModelKeysByScope("text");
-  const fastModel = models.find(
-    (m) => m.toLowerCase().includes("mini") || m.toLowerCase().includes("fast") || m.toLowerCase().includes("quick")
-  );
-  return fastModel || models[0] || "text-base";
-}
-function getAvailableTextModels() {
-  return listEnabledModelKeysByScope("text");
-}
-function buildChatPrompt(session, currentMessage, systemPrompt) {
-  const parts = [];
-  if (systemPrompt) parts.push(`[\u7CFB\u7EDF\u8BBE\u5B9A] ${systemPrompt}`);
-  if (session.messages.length > 0) {
-    const recent = session.messages.slice(-6);
-    parts.push(`[\u5BF9\u8BDD\u5386\u53F2]
-${recent.map((m) => `[${m.role === "user" ? "\u7528\u6237" : "\u52A9\u624B"}] ${m.content}`).join("\n")}`);
-  }
-  parts.push(`[\u5F53\u524D\u6D88\u606F] ${currentMessage}`);
-  parts.push("[\u52A9\u624B] ");
-  return parts.join("\n\n");
-}
-function emit(res, event) {
-  res.write(`data: ${JSON.stringify(event)}
-
-`);
-}
-function generateTaskId() {
-  return `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-async function* simulateTaskExecution(nodeType, params, taskId) {
-  const steps = [
-    { progress: 20, text: "\u6B63\u5728\u521B\u5EFA\u4EFB\u52A1\u2026" },
-    { progress: 50, text: "\u6B63\u5728\u751F\u6210\u5185\u5BB9\u2026" },
-    { progress: 80, text: "\u6B63\u5728\u5904\u7406\u7ED3\u679C\u2026" },
-    { progress: 100, text: "\u751F\u6210\u5B8C\u6210\uFF01" }
-  ];
-  for (const step of steps) {
-    await new Promise((resolve2) => setTimeout(resolve2, 600));
-    yield {
-      type: "task_progress",
-      task: {
-        taskId,
-        nodeType,
-        nodeName: businessNodes[nodeType]?.name || nodeType,
-        status: step.progress === 100 ? "done" : "progress",
-        progress: step.progress,
-        text: step.text
-      }
-    };
-  }
-  const mockUrls = [
-    "https://picsum.photos/400/600?random=" + taskId,
-    "https://picsum.photos/400/600?random=" + taskId + "2"
-  ];
-  yield {
-    type: "task_done",
-    task: {
-      taskId,
-      nodeType,
-      nodeName: businessNodes[nodeType]?.name || nodeType,
-      status: "done",
-      progress: 100,
-      resultUrls: mockUrls,
-      text: "\u751F\u6210\u5B8C\u6210\uFF01"
-    }
-  };
-}
-async function handleAgentChat(req, res, providerOverride) {
-  const body = req.body;
-  const { message, sessionId } = body;
-  if (!message || typeof message !== "string" || message.trim().length === 0) {
-    res.status(400).json({ success: false, error: "Missing or invalid field: message" });
-    return;
-  }
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("X-Accel-Buffering", "no");
-  res.setHeader("Transfer-Encoding", "chunked");
-  res.write(":\n\n");
-  const session = getOrCreateSession(sessionId);
-  try {
-    addMessageToSession(session, "user", message);
-    emit(res, { type: "text", sessionId: session.id, content: "" });
-    const requestedModelKey = req.body?.modelKey;
-    const requestedProvider = req.body?.provider;
-    const modelKey = requestedModelKey || getDefaultTextModel();
-    const provider = requestedProvider || providerOverride || "deer";
-    const pendingNode = session.pendingNode;
-    if (pendingNode) {
-      const node = getBusinessNode(pendingNode.nodeType);
-      if (!node) {
-        session.pendingNode = void 0;
-        await handleGeneralChat(res, session, message, modelKey, provider);
-        return;
-      }
-      const newParams = parseUserReplyAsParams(message, pendingNode.params, node);
-      const nextField = getNextFieldToAsk(pendingNode.nodeType, newParams);
-      if (nextField) {
-        session.pendingNode = {
-          ...pendingNode,
-          params: newParams,
-          nextFieldToAsk: nextField.key
-        };
-        session.lastActiveAt = Date.now();
-        emit(res, {
-          type: "confirm",
-          confirm: {
-            confirmType: "params",
-            nodeType: pendingNode.nodeType,
-            nodeName: pendingNode.nodeName,
-            params: newParams,
-            askingField: nextField.key,
-            options: nextField.type === "select" ? nextField.options : void 0,
-            text: `\u8BF7\u95EE\u300C${nextField.label}\u300D\u662F\uFF1F\uFF08${nextField.type === "select" && nextField.options ? nextField.options.join("\u3001") : "\u8BF7\u63CF\u8FF0"})`
-          }
-        });
-      } else {
-        session.pendingNode = {
-          ...pendingNode,
-          params: newParams,
-          confirmStep: "final"
-        };
-        session.lastActiveAt = Date.now();
-        const confirmText = node.confirmTemplate(newParams);
-        emit(res, {
-          type: "confirm",
-          confirm: {
-            confirmType: "final",
-            nodeType: pendingNode.nodeType,
-            nodeName: pendingNode.nodeName,
-            params: newParams,
-            text: confirmText
-          }
-        });
-      }
-      res.end();
-      return;
-    }
-    const intentResult = detectIntent(message);
-    if (intentResult.businessNode) {
-      const { nodeType, nodeName, extractedParams, missingFields, confidenceLevel } = intentResult.businessNode;
-      const node = getBusinessNode(nodeType);
-      if (confidenceLevel === "high" && missingFields.length === 0) {
-        session.pendingNode = {
-          nodeType,
-          nodeName,
-          params: extractedParams,
-          confirmStep: "final"
-        };
-        session.lastActiveAt = Date.now();
-        const confirmText = node.confirmTemplate(extractedParams);
-        emit(res, {
-          type: "confirm",
-          confirm: {
-            confirmType: "final",
-            nodeType,
-            nodeName,
-            params: extractedParams,
-            text: confirmText
-          }
-        });
-        res.end();
-        return;
-      }
-      if (confidenceLevel === "high" && missingFields.length > 0) {
-        session.pendingNode = {
-          nodeType,
-          nodeName,
-          params: extractedParams,
-          confirmStep: "node"
-        };
-        session.lastActiveAt = Date.now();
-        emit(res, {
-          type: "confirm",
-          confirm: {
-            confirmType: "node",
-            nodeType,
-            nodeName,
-            params: extractedParams,
-            text: `\u6211\u7406\u89E3\u4F60\u60F3\u505A\u300C${nodeName}\u300D\uFF0C\u5BF9\u5417\uFF1F`
-          }
-        });
-        res.end();
-        return;
-      }
-      session.pendingNode = {
-        nodeType,
-        nodeName,
-        params: extractedParams,
-        confirmStep: "node"
-      };
-      session.lastActiveAt = Date.now();
-      emit(res, {
-        type: "confirm",
-        confirm: {
-          confirmType: "node",
-          nodeType,
-          nodeName,
-          params: extractedParams,
-          text: `\u4F60\u662F\u60F3\u505A\u300C${nodeName}\u300D\u5417\uFF1F\uFF08${intentResult.confidence < 0.5 ? "\u4E0D\u592A\u786E\u5B9A" : "\u7A0D\u5FAE\u6709\u70B9\u4E0D\u786E\u5B9A"}\uFF0C\u8BF7\u786E\u8BA4\uFF09`
-        }
-      });
-      res.end();
-      return;
-    }
-    await handleGeneralChat(res, session, message, modelKey, provider);
-  } catch (error) {
-    console.error("[AgentChat] \u5904\u7406\u6D88\u606F\u5931\u8D25:", error);
-    emit(res, {
-      type: "error",
-      error: error instanceof Error ? error.message : String(error)
-    });
-    res.end();
-  }
-}
-async function handleGeneralChat(res, session, message, modelKey, provider) {
-  const { getSystemPromptForIntent: getSystemPromptForIntent2 } = await Promise.resolve().then(() => (init_intent_detector(), intent_detector_exports));
-  const intentResult = detectIntent(message);
-  const systemPrompt = getSystemPromptForIntent2(intentResult.intent);
-  addMessageToSession(session, "user", message);
-  const combinedPrompt = buildChatPrompt(session, message, systemPrompt);
-  const result = await runByModelKey(
-    "text",
-    modelKey,
-    { prompt: combinedPrompt, outputFormat: "stream" },
-    { providerOverride: provider }
-  );
-  let assistantMessage = "";
-  if (result.stream) {
-    for await (const chunk of result.stream) {
-      const text = typeof chunk === "string" ? chunk : chunk.content || chunk.text || "";
-      if (text) {
-        assistantMessage += text;
-        emit(res, { type: "text", content: text });
-      }
-    }
-  } else if (result.streamString) {
-    for await (const text of result.streamString) {
-      assistantMessage += text;
-      emit(res, { type: "text", content: text });
-    }
-  }
-  if (assistantMessage) {
-    addMessageToSession(session, "assistant", assistantMessage);
-  }
-  emit(res, { type: "done" });
-  res.end();
-}
-async function handleUserConfirmation(req, res) {
-  const body = req.body;
-  const { sessionId, confirmed, params: userParams } = body;
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("X-Accel-Buffering", "no");
-  res.write(":\n\n");
-  const session = sessions.get(sessionId);
-  if (!session || !session.pendingNode) {
-    emit(res, { type: "error", error: "\u4F1A\u8BDD\u4E0D\u5B58\u5728\u6216\u65E0\u5F85\u786E\u8BA4\u4EFB\u52A1" });
-    res.end();
-    return;
-  }
-  const pending = session.pendingNode;
-  if (!confirmed) {
-    session.pendingNode = void 0;
-    session.lastActiveAt = Date.now();
-    emit(res, { type: "text", content: "\u597D\u7684\uFF0C\u5DF2\u53D6\u6D88\u3002\u6709\u5176\u4ED6\u9700\u8981\u5E2E\u52A9\u7684\u5417\uFF1F" });
-    emit(res, { type: "done" });
-    res.end();
-    return;
-  }
-  if (pending.confirmStep === "node") {
-    const node = getBusinessNode(pending.nodeType);
-    if (!node) {
-      emit(res, { type: "error", error: "\u672A\u77E5\u8282\u70B9\u7C7B\u578B" });
-      res.end();
-      return;
-    }
-    const mergedParams = { ...pending.params, ...userParams || {} };
-    const nextField = getNextFieldToAsk(pending.nodeType, mergedParams);
-    if (nextField) {
-      session.pendingNode = {
-        ...pending,
-        params: mergedParams,
-        confirmStep: "params",
-        nextFieldToAsk: nextField.key
-      };
-      session.lastActiveAt = Date.now();
-      emit(res, {
-        type: "confirm",
-        confirm: {
-          confirmType: "params",
-          nodeType: pending.nodeType,
-          nodeName: pending.nodeName,
-          params: mergedParams,
-          askingField: nextField.key,
-          options: nextField.type === "select" ? nextField.options : void 0,
-          text: `\u8BF7\u95EE\u300C${nextField.label}\u300D\u662F\uFF1F\uFF08${nextField.type === "select" && nextField.options ? nextField.options.join("\u3001") : "\u8BF7\u63CF\u8FF0"}\uFF09`
-        }
-      });
-    } else {
-      session.pendingNode = { ...pending, params: mergedParams, confirmStep: "final" };
-      session.lastActiveAt = Date.now();
-      const confirmText = node.confirmTemplate(mergedParams);
-      emit(res, {
-        type: "confirm",
-        confirm: {
-          confirmType: "final",
-          nodeType: pending.nodeType,
-          nodeName: pending.nodeName,
-          params: mergedParams,
-          text: confirmText
-        }
-      });
-    }
-    res.end();
-    return;
-  }
-  if (pending.confirmStep === "final") {
-    const taskId = generateTaskId();
-    const nodeType = pending.nodeType;
-    const nodeParams = { ...pending.params, ...userParams || {} };
-    session.pendingNode = void 0;
-    session.lastActiveAt = Date.now();
-    emit(res, {
-      type: "task_created",
-      task: {
-        taskId,
-        nodeType,
-        nodeName: pending.nodeName,
-        status: "created",
-        progress: 0,
-        text: `\u4EFB\u52A1\u5DF2\u63D0\u4EA4\uFF0C\u6B63\u5728\u51C6\u5907\u751F\u6210\u2026`
-      }
-    });
-    for await (const event of simulateTaskExecution(nodeType, nodeParams, taskId)) {
-      emit(res, event);
-    }
-    emit(res, { type: "done" });
-    res.end();
-    return;
-  }
-  if (pending.confirmStep === "params" && userParams) {
-    const node = getBusinessNode(pending.nodeType);
-    if (!node) {
-      emit(res, { type: "error", error: "\u672A\u77E5\u8282\u70B9\u7C7B\u578B" });
-      res.end();
-      return;
-    }
-    const mergedParams = { ...pending.params, ...userParams };
-    const nextField = getNextFieldToAsk(pending.nodeType, mergedParams);
-    if (nextField) {
-      session.pendingNode = {
-        ...pending,
-        params: mergedParams,
-        nextFieldToAsk: nextField.key
-      };
-      session.lastActiveAt = Date.now();
-      emit(res, {
-        type: "confirm",
-        confirm: {
-          confirmType: "params",
-          nodeType: pending.nodeType,
-          nodeName: pending.nodeName,
-          params: mergedParams,
-          askingField: nextField.key,
-          options: nextField.type === "select" ? nextField.options : void 0,
-          text: `\u8BF7\u95EE\u300C${nextField.label}\u300D\u662F\uFF1F\uFF08${nextField.type === "select" && nextField.options ? nextField.options.join("\u3001") : "\u8BF7\u63CF\u8FF0"}\uFF09`
-        }
-      });
-    } else {
-      session.pendingNode = { ...pending, params: mergedParams, confirmStep: "final" };
-      session.lastActiveAt = Date.now();
-      const confirmText = node.confirmTemplate(mergedParams);
-      emit(res, {
-        type: "confirm",
-        confirm: {
-          confirmType: "final",
-          nodeType: pending.nodeType,
-          nodeName: pending.nodeName,
-          params: mergedParams,
-          text: confirmText
-        }
-      });
-    }
-    res.end();
-    return;
-  }
-  emit(res, { type: "done" });
-  res.end();
-}
-function parseUserReplyAsParams(message, currentParams, node) {
-  if (!node) return currentParams;
-  const params = { ...currentParams };
-  const lowerMsg = message.toLowerCase();
-  for (const field of node.fields) {
-    if (params[field.key] !== void 0) continue;
-    if (field.type === "boolean") {
-      if (["\u662F", "\u6709", "\u8981", "yes", "true", "\u5BF9", "\u597D", "\u6CA1\u9519"].some((w) => lowerMsg.includes(w))) {
-        params[field.key] = true;
-      } else if (["\u6CA1\u6709", "\u65E0", "\u5426", "\u4E0D", "no", "false", "\u4E0D\u7528"].some((w) => lowerMsg.includes(w))) {
-        params[field.key] = false;
-      }
-    } else if (field.type === "select" && field.options) {
-      for (const opt of field.options) {
-        if (lowerMsg.includes(opt.toLowerCase())) {
-          params[field.key] = opt;
-          break;
-        }
-      }
-      if (params[field.key] === void 0 && message.trim() && !["\u662F", "\u6709", "\u8981", "\u5BF9", "\u597D", "\u6CA1\u6709", "\u65E0", "\u4E0D", "\u4E0D\u7528", "\u786E\u8BA4", "\u5F00\u59CB", "\u53D6\u6D88"].includes(message.trim())) {
-        const matchedOpt = field.options.find(
-          (opt) => lowerMsg.includes(opt.toLowerCase()) || opt.toLowerCase().includes(lowerMsg.trim())
-        );
-        if (matchedOpt) {
-          params[field.key] = matchedOpt;
-        }
-      }
-    } else if (field.type === "string" || field.type === "number") {
-      for (const extractor of node.extractors || []) {
-        if (extractor.field !== field.key) continue;
-        for (const pattern of extractor.patterns) {
-          const match = message.match(pattern);
-          if (match && match[1]) {
-            params[field.key] = field.type === "number" ? Number(match[1]) : match[1].trim();
-            break;
-          }
-        }
-      }
-    }
-  }
-  return params;
-}
-var import_crypto3, sessions, SESSION_MAX_MESSAGES, SESSION_TTL_MS;
-var init_chat = __esm({
-  "src/agents/chat.ts"() {
-    "use strict";
-    init_intent_detector();
-    init_run();
-    init_provider_model_catalog();
-    import_crypto3 = __toESM(require("crypto"));
-    sessions = /* @__PURE__ */ new Map();
-    SESSION_MAX_MESSAGES = 20;
-    SESSION_TTL_MS = 30 * 60 * 1e3;
-    if (typeof setInterval !== "undefined") {
-      setInterval(cleanExpiredSessions, 5 * 60 * 1e3);
-    }
-  }
-});
-
 // src/agents/index.ts
 var agents_exports = {};
 __export(agents_exports, {
@@ -36742,8 +37211,8 @@ if (process.env.DEFAULT_PROVIDER) {
 }
 var port = process.env.PORT ? Number(process.env.PORT) : 4003;
 async function start() {
-  const { RepositoryFactory: RepositoryFactory23 } = await import("@mxmai/mxmdata");
-  RepositoryFactory23.init();
+  const { RepositoryFactory: RepositoryFactory24 } = await import("@mxmai/mxmdata");
+  RepositoryFactory24.init();
   const [
     { default: healthRouter },
     { default: graphRouter },

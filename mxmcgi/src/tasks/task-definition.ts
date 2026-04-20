@@ -1,6 +1,7 @@
 import { RepositoryFactory } from '@mxmai/mxmdata';
 import type { TaskDefinitionRow, TaskScope, TaskTemplate } from './types';
 import { ConfigurationError } from './errors';
+import { composeLegacyPromptToUnified } from './prompt-template';
 
 function langFallback(i18n: Record<string, string> | undefined, lang: string): string {
   if (!i18n || typeof i18n !== 'object') return '';
@@ -38,24 +39,41 @@ export async function loadTaskDefinition(params: {
     throw new ConfigurationError(`TaskTemplate.prompt 缺失或无效：scope=${scope} taskKey=${taskKey}`);
   }
 
-  // 允许 Admin 只配置 rules/output_format：若 prompt 里缺字段，用表字段补齐（但仍要求最终必须存在）
   const rules = langFallback(row.rules_i18n, lang);
   const outFmt = langFallback(row.output_format_i18n, lang);
 
-  template.prompt.systemTemplate = (template.prompt.systemTemplate || rules || '').trim();
-  template.prompt.outputFormatTemplate = (template.prompt.outputFormatTemplate || outFmt || '').trim();
+  const unifiedTrim = (template.prompt.unifiedTemplate || '').trim();
+  if (unifiedTrim) {
+    template.prompt.unifiedTemplate = unifiedTrim;
+  } else {
+    template.prompt.unifiedTemplate = composeLegacyPromptToUnified({
+      systemTemplate: template.prompt.systemTemplate,
+      userTemplate: template.prompt.userTemplate,
+      outputFormatTemplate: template.prompt.outputFormatTemplate,
+      rulesFallback: rules,
+      outputFormatFallback: outFmt,
+    });
+  }
 
-  if (!template.prompt.systemTemplate) {
-    throw new ConfigurationError(`systemTemplate 为空：scope=${scope} taskKey=${taskKey}`);
+  if (!template.prompt.unifiedTemplate?.trim()) {
+    throw new ConfigurationError(`unifiedTemplate 为空（且无法从 rules/旧三段生成）：scope=${scope} taskKey=${taskKey}`);
   }
-  if (!template.prompt.outputFormatTemplate) {
-    throw new ConfigurationError(`outputFormatTemplate 为空：scope=${scope} taskKey=${taskKey}`);
-  }
+
+  const pr = template.prompt as Record<string, unknown>;
+  delete pr.systemTemplate;
+  delete pr.userTemplate;
+  delete pr.outputFormatTemplate;
+  delete pr.systemTemplateMarkup;
+  delete pr.userTemplateMarkup;
+  delete pr.outputFormatTemplateMarkup;
 
   // storage.scope 必须与任务 scope 一致（若配置了）
   if (template.storage) {
-    if ((template.storage as any).scope !== scope) {
-      throw new ConfigurationError(`storage.scope 必须与 task scope 一致：scope=${scope} taskKey=${taskKey}`);
+    const storageScope = (template.storage as any).scope;
+    // 兼容：历史 outlines TaskTemplate 常将 storage.scope 写为 writing，但在 Task v2 中 scope=outline
+    // 此处按请求 scope 纠正，避免因配置迁移遗漏导致任务无法运行。
+    if (typeof storageScope === 'string' && storageScope !== scope) {
+      (template.storage as any).scope = scope;
     }
   }
 

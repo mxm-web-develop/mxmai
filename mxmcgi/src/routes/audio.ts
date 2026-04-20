@@ -1,25 +1,21 @@
 import { Router, Request, Response } from 'express';
 import type { ProviderType } from '../models/providers';
 import { taskExecutor } from '../task/task-executor';
-import { listModels, getModelsByKey } from '../models/registry';
 import { runByModelKey } from '../models/run';
+import { findEnabledModel, listEnabledModelKeysByScope } from '../models/provider-model-catalog';
 
-// 模型列表与存在性：仅通过 registry（单轨）
-const AUDIO_MODELS = listModels({ scope: 'audio' });
-const SUPPORTED_MODELS: string[] = Array.from(new Set(AUDIO_MODELS.map(d => d.modelKey)));
+// 模型列表与存在性：仅通过 DB 的 provider_models（纯动态）
+const SUPPORTED_MODELS: string[] = listEnabledModelKeysByScope('audio');
 
 function isAudioModelSupported(modelName: string): boolean {
-  return getModelsByKey('audio', modelName).length > 0;
+  return findEnabledModel({ modelKey: modelName, scope: 'audio' }) !== null;
 }
-
-// 同步模型列表（直接返回结果，不创建任务）
-const SYNC_MODELS: string[] = ['minimax-speech-2.8-hd'];
 
 const router = Router();
 
 // 获取所有可用的音频模型列表（来自 registry）
 router.get('/models', (_req: Request, res: Response) => {
-  const models = SUPPORTED_MODELS.map(modelName => ({ name: modelName }));
+  const models = listEnabledModelKeysByScope('audio').map(modelName => ({ name: modelName }));
   res.json({ models });
 });
 
@@ -108,12 +104,16 @@ router.post('/:modelName', async (req: Request, res: Response) => {
     const defaultProvider = providerFactory.getDefaultProvider();
     console.log(`[Audio Route] 模型: ${modelName}, 指定 provider: ${provider || '(未指定，将使用默认: ' + defaultProvider + ')'}, 默认 provider: ${defaultProvider}`);
 
-    // 判断是否为同步模型
-    const isSyncModel = SYNC_MODELS.includes(modelName);
+    // 纯动态：是否走同步流式由请求决定（不再写死模型列表）
+    const useSyncStream =
+      !storeToMinio &&
+      (params.stream === true ||
+        (req.query.stream as string | undefined) === 'true' ||
+        (req.query.sync as string | undefined) === 'true');
 
-    // 1) 同步模型 + 不需要 MinIO：直接返回流数据
-    if (isSyncModel && !storeToMinio) {
-      console.log(`[Audio Route] 同步模型（不存储），直接返回流数据`);
+    // 1) 同步流式 + 不需要 MinIO：直接返回流数据
+    if (useSyncStream) {
+      console.log(`[Audio Route] 同步流式（不存储），直接返回流数据`);
       
       try {
         // 设置 SSE 响应头
@@ -174,9 +174,9 @@ router.post('/:modelName', async (req: Request, res: Response) => {
       return; // 确保不继续执行后续代码
     }
 
-    // 2) 其他情况（异步模型，或者同步模型但需要存储到 MinIO）：统一走任务系统
+    // 2) 其他情况：统一走任务系统
     console.log(
-      `[Audio Route] 使用任务系统执行（模型: ${modelName}, isSyncModel: ${isSyncModel}, storeToMinio: ${storeToMinio})`,
+      `[Audio Route] 使用任务系统执行（模型: ${modelName}, storeToMinio: ${storeToMinio})`,
     );
     
     const taskManager = taskExecutor.getTaskManager();

@@ -1,6 +1,6 @@
 /**
  * 逻辑模型到 { provider, physicalModel } 的路由配置
- * 基线：代码内默认映射；可选：admin 通过 API 覆盖（内存或 DB）
+ * 纯动态：仅允许 admin/DB 覆盖（内存或 DB），不再提供代码内默认映射
  */
 
 import { ProviderType } from './types';
@@ -10,39 +10,8 @@ export interface RoutingEntry {
   model: string;
 }
 
-/** 默认路由表：逻辑模型别名 -> { provider, model } */
-const defaultRouting: Record<string, RoutingEntry> = {
-  // 图文（仅业务接口：photograph / design / painting，不与模型名/子类型混用）
-  'graph-photograph': { provider: 'deer', model: 'nano-banana-pro' },
-  'graph-design': { provider: 'deer', model: 'nano-banana-pro' },
-  'graph-painting': { provider: 'deer', model: 'nano-banana-pro' },
-  // 写作（按业务类型，与 BUSINESS_INTERFACE_SPEC 一致）
-  'writing-outlines': { provider: 'deer', model: 'gemini-3-pro' },
-  'writing-articles': { provider: 'deer', model: 'gemini-2-5-flash' },
-  'writing-lyrics': { provider: 'deer', model: 'gemini-2-5-flash' },
-  'writing-voice-scripts': { provider: 'deer', model: 'gemini-2-5-flash' },
-  'writing-storyboard-scripts': { provider: 'deer', model: 'gemini-2-5-flash' },
-  'writing-media-post': { provider: 'deer', model: 'gemini-2-5-flash' },
-  'writing-reviews': { provider: 'deer', model: 'gemini-2-5-flash' },
-  'writing-resumes': { provider: 'deer', model: 'gemini-2-5-flash' },
-  // 兼容旧 task 中的 model 字段（可选）
-  'writing-article': { provider: 'deer', model: 'gemini-2-5-flash' },
-  // 基础文本能力（内部调用）：生图提示词、写作内压缩/摘要等，统一用此逻辑模型
-  'writing-basic-text': { provider: 'deer', model: 'gemini-3-pro' },
-  // 音频
-  'audio-speak': { provider: 'deer', model: 'minimax-speech-2.5-hd' },
-  'audio-music': { provider: 'deer', model: 'suno-music' },
-  // 视频（按业务类型，不使用模型名 sora/runway 作为 key）
-  'video-short': { provider: 'deer', model: 'sora-2' },
-  'video-movie': { provider: 'deer', model: 'sora-2' },
-  'video-animation': { provider: 'deer', model: 'sora-2' },
-  'video-music-video': { provider: 'deer', model: 'sora-2' },
-  'video-commercial': { provider: 'deer', model: 'sora-2' },
-  'video-documentary': { provider: 'deer', model: 'sora-2' },
-  'video-motion-graphics': { provider: 'deer', model: 'sora-2' },
-  'video-game-cg': { provider: 'deer', model: 'sora-2' },
-  'video-educational': { provider: 'deer', model: 'sora-2' },
-};
+/** 默认路由表：纯动态模式下为空（只保留 admin/DB 覆盖） */
+const defaultRouting: Record<string, RoutingEntry> = {};
 
 /** 内存覆盖（admin 通过 API 更新时写入，可选后续改为 DB） */
 const overrides: Record<string, RoutingEntry> = {};
@@ -79,7 +48,9 @@ export function getResolvedRouting(
   }
   // 未命中路由：视为物理模型名，provider 由 factory 根据 support list 决定
   return {
-    provider: preferredProvider ?? 'deer',
+    // 注意：当 fromRouting=false 时，provider 字段不应被用于强制选择；
+    // ProviderFactory.getProviderAndModel 会用调用方的 preferredProvider 决定是否限定。
+    provider: preferredProvider ?? 'replicate',
     model: logicalOrPhysicalName,
     fromRouting: false,
   };
@@ -91,17 +62,14 @@ export function getResolvedRouting(
  */
 export function getFullRoutingTable(): Record<string, RoutingEntry & { overridden?: boolean }> {
   const result: Record<string, RoutingEntry & { overridden?: boolean }> = {};
-  for (const [key, entry] of Object.entries(defaultRouting)) {
-    result[key] = { ...entry, overridden: key in overrides };
-  }
+  // 纯动态模式：默认路由为空，仅展示覆盖
   for (const [key, entry] of Object.entries(overrides)) {
     if (key === 'writing-outline') {
       // 旧数据：合并到 writing-outlines
       result['writing-outlines'] = { ...entry, overridden: true };
       continue;
     }
-    if (!(key in defaultRouting)) result[key] = { ...entry, overridden: true };
-    else result[key] = { ...entry, overridden: true };
+    result[key] = { ...entry, overridden: true };
   }
   return result;
 }

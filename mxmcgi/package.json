@@ -18,7 +18,9 @@
     "fix:kb-count": "tsx src/scripts/fix-kb-document-count.ts",
     "seed:prompt-config": "tsx src/scripts/seed-prompt-engineering-config.ts",
     "update:outlines-form-schema": "tsx src/scripts/update-outlines-form-schema.ts",
-    "migrate:static-models-to-provider-models": "tsx src/scripts/migrate-static-models-to-provider-models.ts"
+    "migrate:static-models-to-provider-models": "tsx src/scripts/migrate-static-models-to-provider-models.ts",
+    "migrate:prompt-unified": "tsx src/scripts/migrate-prompt-task-template-unified.ts",
+    "seed:task-v2-media": "tsx src/scripts/seed-task-v2-media-and-patch-templates.ts"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.1.3",
