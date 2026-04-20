@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { RepositoryFactory } from '@mxmai/mxmdata';
+import { uploadBase64ToR2 } from '../core/storage/r2-uploader';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -132,6 +133,41 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
     });
   } catch (error) {
     console.error('[Upload Route] assets upload failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
+ * 上传参考图到 R2，返回公开 URL
+ * 用于 graph 等业务中参考图的公开存储访问
+ *
+ * POST /upload/r2-reference
+ * Body: { base64: string, contentType?: string }
+ *
+ * 返回：{ success, data: { url, key } }
+ */
+router.post('/r2-reference', async (req: Request, res: Response) => {
+  try {
+    const { base64, contentType } = req.body as {
+      base64?: string;
+      contentType?: string;
+    };
+
+    if (!base64 || typeof base64 !== 'string') {
+      return res.status(400).json({ success: false, error: 'Missing or invalid base64 field' });
+    }
+
+    const result = await uploadBase64ToR2(base64, { contentType });
+
+    return res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error('[Upload Route] R2 reference upload failed:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : String(error),

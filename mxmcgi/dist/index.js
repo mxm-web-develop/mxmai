@@ -8033,8 +8033,8 @@ function nowIso() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
 function generateEventId() {
-  const crypto4 = require("crypto");
-  if (typeof crypto4.randomUUID === "function") return crypto4.randomUUID();
+  const crypto5 = require("crypto");
+  if (typeof crypto5.randomUUID === "function") return crypto5.randomUUID();
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 function buildTaskStatusChangedEvent(input) {
@@ -27813,6 +27813,86 @@ var init_video = __esm({
   }
 });
 
+// src/core/storage/r2-uploader.ts
+function getR2Config() {
+  return {
+    bucket: process.env.R2_BUCKET || "mxmtemimageref",
+    publicUrl: process.env.R2_PUBLIC_URL || "https://pub-63b3ac2159304aa2a96decc0ae78bde0.r2.dev",
+    endpoint: process.env.MINIO_ENDPOINT || "94c882e9a41e129c3f9d15c7a59d146c.r2.cloudflarestorage.com",
+    accessKeyId: process.env.MINIO_ACCESS_KEY || "",
+    secretAccessKey: process.env.MINIO_SECRET_KEY || "",
+    region: process.env.MINIO_REGION || "auto"
+  };
+}
+function getR2Client() {
+  if (r2Client) return r2Client;
+  const config = getR2Config();
+  r2Client = new import_client_s3.S3Client({
+    region: config.region,
+    endpoint: `https://${config.endpoint}`,
+    credentials: {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey
+    },
+    tls: true,
+    // 使用自定义 HTTP handler 支持 R2 的证书
+    requestHandler: new import_node_http_handler.NodeHttpHandler({
+      httpsAgent: {
+        keepAlive: true,
+        rejectUnauthorized: true
+      }
+    })
+  });
+  return r2Client;
+}
+async function uploadToR2(data, options = {}) {
+  const config = getR2Config();
+  const ext = options.fileExtension || "bin";
+  const key = `${Date.now()}-${import_crypto3.default.randomUUID().slice(0, 8)}.${ext}`;
+  const client = getR2Client();
+  await client.send(
+    new import_client_s3.PutObjectCommand({
+      Bucket: config.bucket,
+      Key: key,
+      Body: data,
+      ContentType: options.contentType || "application/octet-stream"
+      // R2 不需要 ACL 设置（使用 bucket 级别的 public access）
+    })
+  );
+  const publicUrl = `${config.publicUrl}/${config.bucket}/${key}`;
+  return { url: publicUrl, key };
+}
+async function uploadBase64ToR2(base64Data, options = {}) {
+  let mimeType = options.contentType || "image/jpeg";
+  let dataStr = base64Data;
+  if (base64Data.startsWith("data:")) {
+    const match = base64Data.match(/^data:([^;]+);base64,(.*)$/);
+    if (match) {
+      mimeType = match[1];
+      dataStr = match[2];
+    }
+  }
+  const extFromMime = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/gif": "gif",
+    "image/webp": "webp"
+  };
+  const ext = extFromMime[mimeType] || "bin";
+  const buffer = Buffer.from(dataStr, "base64");
+  return uploadToR2(buffer, { contentType: mimeType, fileExtension: ext });
+}
+var import_client_s3, import_node_http_handler, import_crypto3, r2Client;
+var init_r2_uploader = __esm({
+  "src/core/storage/r2-uploader.ts"() {
+    "use strict";
+    import_client_s3 = require("@aws-sdk/client-s3");
+    import_node_http_handler = require("@aws-sdk/node-http-handler");
+    import_crypto3 = __toESM(require("crypto"));
+    r2Client = null;
+  }
+});
+
 // src/routes/upload.ts
 var upload_exports = {};
 __export(upload_exports, {
@@ -27825,6 +27905,7 @@ var init_upload = __esm({
     import_express6 = require("express");
     import_multer = __toESM(require("multer"));
     import_mxmdata22 = require("@mxmai/mxmdata");
+    init_r2_uploader();
     router6 = (0, import_express6.Router)();
     upload = (0, import_multer.default)({ storage: import_multer.default.memoryStorage() });
     router6.post("/temp", upload.single("file"), async (req, res) => {
@@ -27912,6 +27993,25 @@ var init_upload = __esm({
         });
       } catch (error) {
         console.error("[Upload Route] assets upload failed:", error);
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    router6.post("/r2-reference", async (req, res) => {
+      try {
+        const { base64, contentType } = req.body;
+        if (!base64 || typeof base64 !== "string") {
+          return res.status(400).json({ success: false, error: "Missing or invalid base64 field" });
+        }
+        const result = await uploadBase64ToR2(base64, { contentType });
+        return res.json({
+          success: true,
+          data: result
+        });
+      } catch (error) {
+        console.error("[Upload Route] R2 reference upload failed:", error);
         return res.status(500).json({
           success: false,
           error: error instanceof Error ? error.message : String(error)
@@ -31941,7 +32041,7 @@ function getOrCreateSession(sessionId) {
     session2.lastActiveAt = Date.now();
     return session2;
   }
-  const id = sessionId || import_crypto3.default.randomUUID();
+  const id = sessionId || import_crypto4.default.randomUUID();
   const session = { id, messages: [], createdAt: Date.now(), lastActiveAt: Date.now() };
   sessions.set(id, session);
   return session;
@@ -32533,7 +32633,7 @@ function parseUserReplyAsParams(message, currentParams, node) {
   }
   return params;
 }
-var import_crypto3, _cachedAdminConfig, _cacheTimestamp, ADMIN_CONFIG_CACHE_TTL_MS, sessions, SESSION_MAX_MESSAGES, SESSION_TTL_MS;
+var import_crypto4, _cachedAdminConfig, _cacheTimestamp, ADMIN_CONFIG_CACHE_TTL_MS, sessions, SESSION_MAX_MESSAGES, SESSION_TTL_MS;
 var init_chat = __esm({
   "src/agents/chat.ts"() {
     "use strict";
@@ -32542,7 +32642,7 @@ var init_chat = __esm({
     init_provider_model_catalog();
     init_httpClient();
     init_task_executor();
-    import_crypto3 = __toESM(require("crypto"));
+    import_crypto4 = __toESM(require("crypto"));
     _cachedAdminConfig = null;
     _cacheTimestamp = 0;
     ADMIN_CONFIG_CACHE_TTL_MS = 3e4;

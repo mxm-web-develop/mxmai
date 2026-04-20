@@ -18,7 +18,7 @@ export default defineConfig({
   dts: isMxmdata ? {
     resolve: true,
   } : false,
-  external: ['@mxmai/mxmdata', 'bcrypt'], // 将内部包和原生模块标记为外部依赖
+  external: ['@mxmai/mxmdata', 'bcrypt', '@aws-sdk/client-s3', '@aws-sdk/node-http-handler', '@aws-sdk/smithy-client'], // 将内部包和原生模块标记为外部依赖
   env: {
     NODE_ENV: process.env.NODE_ENV || 'development'
   },
