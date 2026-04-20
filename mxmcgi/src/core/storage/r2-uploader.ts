@@ -1,13 +1,10 @@
 /**
- * Cloudflare R2 上传工具（S3 兼容）
- * 用于参考图等需要公开访问的文件存储
+ * Cloudflare R2 上传工具（Node.js 原生 https + AWS Signature V4）
+ * 参考 Python requests 验证过的正确签名流程
  */
 
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { NodeHttpHandler } from '@aws-sdk/node-http-handler';
 import crypto from 'crypto';
-
-let r2Client: S3Client | null = null;
+import https from 'https';
 
 function getR2Config() {
   return {
@@ -20,32 +17,118 @@ function getR2Config() {
   };
 }
 
-function getR2Client(): S3Client {
-  if (r2Client) return r2Client;
+function hmacSha256(key: string | Buffer, msg: string): Buffer {
+  return crypto.createHmac('sha256', key).update(msg).digest();
+}
 
-  const config = getR2Config();
-  r2Client = new S3Client({
-    region: config.region,
-    endpoint: `https://${config.endpoint}`,
-    credentials: {
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
-    },
-    tls: true,
-    // 使用自定义 HTTP handler 支持 R2 的证书
-    requestHandler: new NodeHttpHandler({
-      httpsAgent: {
-        keepAlive: true,
-        rejectUnauthorized: true,
-      },
-    }),
-  });
-
-  return r2Client;
+function sha256Hex(data: string): string {
+  return crypto.createHash('sha256').update(data, 'utf8').digest('hex');
 }
 
 /**
- * 上传 Buffer 到 R2，返回公开访问 URL
+ * 用 AWS Signature V4 签名 PUT 请求到 R2
+ */
+async function uploadViaPut(
+  data: Buffer,
+  key: string,
+  contentType: string
+): Promise<{ url: string; key: string }> {
+  const config = getR2Config();
+  const host = config.endpoint;
+  const region = config.region;
+  const service = 's3';
+
+  const t = new Date();
+  const dateStr = t.toISOString().replace(/[:-]|\.\d{3}/g, '').replace('T', 'T').replace('Z', 'Z');
+  const dateOnly = dateStr.slice(0, 8);
+
+  const method = 'PUT';
+  const canonicalUri = `/${config.bucket}/${key}`;
+  const canonicalQuerystring = '';
+  const payloadHash = crypto.createHash('sha256').update(data).digest('hex');
+
+  const canonicalHeaders = [
+    `content-type:${contentType}`,
+    `host:${host}`,
+    `x-amz-content-sha256:${payloadHash}`,
+    `x-amz-date:${dateStr}`,
+  ].join('\n') + '\n';
+
+  const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
+
+  const canonicalRequest = [
+    method, canonicalUri, canonicalQuerystring, canonicalHeaders, signedHeaders, payloadHash,
+  ].join('\n');
+
+  const credentialScope = `${dateOnly}/${region}/${service}/aws4_request`;
+  const hashedCanonicalRequest = sha256Hex(canonicalRequest);
+
+  const stringToSign = [
+    'AWS4-HMAC-SHA256',
+    dateStr,
+    credentialScope,
+    hashedCanonicalRequest,
+  ].join('\n');
+
+  // 计算签名密钥（和 Python 版本完全一致）
+  const kDate = hmacSha256(Buffer.from('AWS4' + config.secretAccessKey, 'utf8'), dateOnly);
+  const kRegion = hmacSha256(kDate, region);
+  const kService = hmacSha256(kRegion, service);
+  const kSigning = hmacSha256(kService, 'aws4_request');
+  const signature = hmacSha256(kSigning, stringToSign).toString('hex');
+
+  const authHeader = [
+    `AWS4-HMAC-SHA256 Credential=${config.accessKeyId}/${credentialScope}`,
+    `SignedHeaders=${signedHeaders}`,
+    `Signature=${signature}`,
+  ].join(', ');
+
+  const headers = {
+    'Host': host,
+    'Content-Type': contentType,
+    'x-amz-content-sha256': payloadHash,
+    'x-amz-date': dateStr,
+    'Authorization': authHeader,
+    'Content-Length': data.length,
+  };
+
+  console.log('[R2] Uploading to:', `https://${host}${canonicalUri}`);
+  console.log('[R2] Content-Length:', data.length);
+
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: host,
+      port: 443,
+      path: canonicalUri,
+      method: 'PUT',
+      headers,
+    }, (res) => {
+      let body = '';
+      res.on('data', (c: Buffer) => { body += c.toString(); });
+      res.on('end', () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          const publicUrl = `${config.publicUrl}/${config.bucket}/${key}`;
+          console.log('[R2] Success:', publicUrl);
+          resolve({ url: publicUrl, key });
+        } else {
+          console.error('[R2] Failed HTTP', res.statusCode, body.slice(0, 300));
+          reject(new Error(`R2 upload failed: HTTP ${res.statusCode} - ${body.slice(0, 200)}`));
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      console.error('[R2] Request error:', err.message);
+      reject(new Error(`R2 upload error: ${err.message}`));
+    });
+
+    req.write(data);
+    req.end();
+  });
+}
+
+/**
+ * 上传 Buffer 到 R2
  */
 export async function uploadToR2(
   data: Buffer,
@@ -54,32 +137,15 @@ export async function uploadToR2(
     fileExtension?: string;
   } = {}
 ): Promise<{ url: string; key: string }> {
-  const config = getR2Config();
   const ext = options.fileExtension || 'bin';
   const key = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+  const contentType = options.contentType || 'application/octet-stream';
 
-  const client = getR2Client();
-
-  await client.send(
-    new PutObjectCommand({
-      Bucket: config.bucket,
-      Key: key,
-      Body: data,
-      ContentType: options.contentType || 'application/octet-stream',
-      // R2 不需要 ACL 设置（使用 bucket 级别的 public access）
-    })
-  );
-
-  // 公开访问 URL
-  const publicUrl = `${config.publicUrl}/${config.bucket}/${key}`;
-
-  return { url: publicUrl, key };
+  return uploadViaPut(data, key, contentType);
 }
 
 /**
  * 将 base64 数据上传到 R2
- * @param base64Data base64 字符串（带或不带 data URI 前缀均可）
- * @param options.contentType MIME 类型（如 image/jpeg）
  */
 export async function uploadBase64ToR2(
   base64Data: string,
@@ -87,7 +153,6 @@ export async function uploadBase64ToR2(
     contentType?: string;
   } = {}
 ): Promise<{ url: string; key: string }> {
-  // 提取 MIME 类型和实际数据
   let mimeType = options.contentType || 'image/jpeg';
   let dataStr = base64Data;
 
@@ -99,7 +164,6 @@ export async function uploadBase64ToR2(
     }
   }
 
-  // 推断文件扩展名
   const extFromMime: Record<string, string> = {
     'image/jpeg': 'jpg',
     'image/png': 'png',
@@ -107,7 +171,7 @@ export async function uploadBase64ToR2(
     'image/webp': 'webp',
   };
   const ext = extFromMime[mimeType] || 'bin';
-
   const buffer = Buffer.from(dataStr, 'base64');
+
   return uploadToR2(buffer, { contentType: mimeType, fileExtension: ext });
 }
