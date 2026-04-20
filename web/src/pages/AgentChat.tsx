@@ -5,8 +5,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Spin, notification, Button, Space, Modal, InputNumber, message, Select } from 'antd';
-import { SendOutlined, ClearOutlined, RobotOutlined, CheckOutlined, CloseOutlined, SettingOutlined } from '@ant-design/icons';
-import { getAdminModelConfig, putAdminModelConfig, getAdminModelOptions, type AdminModelConfigData, type ModelOption } from '../api/client';
+import { SendOutlined, ClearOutlined, RobotOutlined, CheckOutlined, CloseOutlined, SettingOutlined, PictureOutlined } from '@ant-design/icons';
+import { getAdminModelConfig, putAdminModelConfig, getAdminModelOptions, uploadReferenceImageToR2, type AdminModelConfigData, type ModelOption } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 // ==================== Types ====================
@@ -127,6 +127,12 @@ const s = {
   taskImages: { display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' as const },
   taskImage: { width: 80, height: 80, borderRadius: 8, objectFit: 'cover' as const, cursor: 'pointer', border: `1px solid ${TOKENS.border}` },
   errorMsg: { color: TOKENS.error, fontSize: 13, padding: '8px 12px', background: 'rgba(255,69,58,0.1)', borderRadius: 8, border: `1px solid rgba(255,69,58,0.3)` },
+  imageUploadBtn: { background: 'transparent', border: `1px solid ${TOKENS.border}`, borderRadius: 12, color: TOKENS.textSecondary, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 18, transition: 'color 0.2s, border-color 0.2s' },
+  imagePreviewArea: { display: 'flex', gap: 8, flexWrap: 'wrap' as const, padding: '8px 12px', borderTop: `1px solid ${TOKENS.borderSubtle}`, background: TOKENS.surfaceElevated, borderRadius: '0 0 12px 12px' },
+  imageThumb: { position: 'relative' as const, width: 56, height: 56, borderRadius: 8, overflow: 'hidden' as const, border: `1px solid ${TOKENS.border}` },
+  imageThumbImg: { width: '100%', height: '100%', objectFit: 'cover' as const },
+  imageThumbRemove: { position: 'absolute' as const, top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, lineHeight: 1 },
+  imageUploadOverlay: { position: 'absolute' as const, inset: 0, borderRadius: 12, border: `2px dashed ${TOKENS.accent}`, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: TOKENS.accent, fontSize: 12, pointerEvents: 'none' as const },
 };
 
 // ==================== Component ====================
@@ -148,6 +154,12 @@ export default function AgentChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const inputAreaRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 图片上传相关状态
+  const [uploadedImages, setUploadedImages] = useState<Array<{ url: string; localUrl: string; uploading?: boolean }>>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // ==================== Load Admin Model Config ====================
 
@@ -463,10 +475,17 @@ export default function AgentChat() {
   // ==================== Actions ====================
 
   const handleSend = useCallback(() => {
-    if (inputValue.trim() && phase === 'idle') {
-      void sendMessage(inputValue.trim());
+    if ((inputValue.trim() || uploadedImages.length > 0) && phase === 'idle') {
+      // 传递图片 URL 列表到 extraParams
+      const extraParams: Record<string, string | number | boolean> = {};
+      if (uploadedImages.length > 0) {
+        extraParams.image_urls = uploadedImages.map(img => img.url) as unknown as string;
+      }
+      void sendMessage(inputValue.trim(), Object.keys(extraParams).length > 0 ? extraParams : undefined);
+      // 清空已上传图片
+      setUploadedImages([]);
     }
-  }, [inputValue, phase, sendMessage]);
+  }, [inputValue, phase, sendMessage, uploadedImages]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -478,6 +497,7 @@ export default function AgentChat() {
     setSessionId(null);
     setCurrentConfirm(null);
     setConfirmParams({});
+    setUploadedImages([]);
     setPhase('idle');
   }, []);
 
@@ -485,6 +505,74 @@ export default function AgentChat() {
     setInputValue(desc);
     textareaRef.current?.focus();
   }, []);
+
+  // ==================== Image Upload ====================
+
+  const handleImageUpload = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const fileArray = Array.from(files);
+
+    for (const file of fileArray) {
+      if (!file.type.startsWith('image/')) {
+        message.warning(`${file.name} 不是图片文件，已跳过`);
+        continue;
+      }
+      // 先显示本地预览（blob URL）
+      const localUrl = URL.createObjectURL(file);
+      const tempId = `temp-${Date.now()}-${Math.random()}`;
+      setUploadedImages(prev => [...prev, { url: localUrl, localUrl }]);
+
+      try {
+        // 上传到 R2
+        const result = await uploadReferenceImageToR2(file);
+        // 用 R2 URL 替换本地预览 URL
+        setUploadedImages(prev => prev.map(img =>
+          img.localUrl === localUrl ? { ...img, url: result.url } : img
+        ));
+        URL.revokeObjectURL(localUrl);
+        message.success(`图片 ${file.name} 已上传`);
+      } catch (e) {
+        // 上传失败，标记为失败但保留本地预览
+        setUploadedImages(prev => prev.map(img =>
+          img.localUrl === localUrl ? { ...img, url: localUrl } : img
+        ));
+        message.error(`图片 ${file.name} 上传失败: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+  }, []);
+
+  const handleRemoveImage = useCallback((localUrl: string) => {
+    setUploadedImages(prev => {
+      const img = prev.find(i => i.localUrl === localUrl);
+      if (img && img.localUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(img.localUrl);
+      }
+      return prev.filter(i => i.localUrl !== localUrl);
+    });
+  }, []);
+
+  // 拖拽相关 handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      void handleImageUpload(files);
+    }
+  }, [handleImageUpload]);
 
   // ==================== Render Helpers ====================
 
@@ -717,14 +805,84 @@ export default function AgentChat() {
       </div>
 
       {/* Input area */}
-      <div style={s.inputArea}>
-        <button className="agent-chat-clear" style={s.clearBtn} onClick={handleClear} title="清空对话" type="button" disabled={phase !== 'idle'}>
-          <ClearOutlined />
-        </button>
-        <textarea ref={textareaRef} className="agent-chat-textarea" style={s.input} value={inputValue} onChange={e => setInputValue(e.target.value)} onKeyDown={handleKeyDown} placeholder="说说你想做什么…（Enter 发送，Shift+Enter 换行）" rows={1} disabled={!isLoggedIn} />
-        <button className="agent-chat-send" style={{ ...s.sendBtn, opacity: !inputValue.trim() || phase !== 'idle' || !isLoggedIn ? 0.5 : 1, cursor: !inputValue.trim() || phase !== 'idle' || !isLoggedIn ? 'not-allowed' : 'pointer' }} onClick={handleSend} disabled={!inputValue.trim() || phase !== 'idle' || !isLoggedIn} title="发送" type="button">
-          {phase !== 'idle' ? <Spin size="small" /> : <SendOutlined />}
-        </button>
+      <div
+        ref={inputAreaRef}
+        style={{ ...s.inputArea, flexDirection: 'column', alignItems: 'stretch', position: 'relative' as const }}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* 拖拽提示 overlay */}
+        {isDragOver && (
+          <div style={s.imageUploadOverlay}>
+            释放图片上传
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, position: 'relative' as const }}>
+          <button className="agent-chat-clear" style={s.clearBtn} onClick={handleClear} title="清空对话" type="button" disabled={phase !== 'idle'}>
+            <ClearOutlined />
+          </button>
+
+          {/* 图片上传按钮 */}
+          <button
+            style={s.imageUploadBtn}
+            title="上传图片"
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!isLoggedIn}
+          >
+            <PictureOutlined />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display: 'none' }}
+            onChange={e => { void handleImageUpload(e.target.files); e.target.value = ''; }}
+          />
+
+          <textarea
+            ref={textareaRef}
+            className="agent-chat-textarea"
+            style={{ ...s.input, flex: 1 }}
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="说说你想做什么…（Enter 发送，Shift+Enter 换行，支持拖拽图片）"
+            rows={1}
+            disabled={!isLoggedIn}
+          />
+          <button
+            className="agent-chat-send"
+            style={{ ...s.sendBtn, opacity: (!inputValue.trim() && uploadedImages.length === 0) || phase !== 'idle' || !isLoggedIn ? 0.5 : 1, cursor: (!inputValue.trim() && uploadedImages.length === 0) || phase !== 'idle' || !isLoggedIn ? 'not-allowed' : 'pointer' }}
+            onClick={handleSend}
+            disabled={(!inputValue.trim() && uploadedImages.length === 0) || phase !== 'idle' || !isLoggedIn}
+            title="发送"
+            type="button"
+          >
+            {phase !== 'idle' ? <Spin size="small" /> : <SendOutlined />}
+          </button>
+        </div>
+
+        {/* 已上传图片预览 */}
+        {uploadedImages.length > 0 && (
+          <div style={s.imagePreviewArea}>
+            {uploadedImages.map((img, idx) => (
+              <div key={img.localUrl + idx} style={s.imageThumb}>
+                <img src={img.url} alt={`上传图片${idx + 1}`} style={s.imageThumbImg} />
+                <button
+                  style={s.imageThumbRemove}
+                  onClick={() => handleRemoveImage(img.localUrl)}
+                  title="移除图片"
+                  type="button"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Admin 模型配置弹窗 */}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { App, Button, Input, InputNumber, Select, Space, Switch, Typography } from 'antd';
 import type { TaskFormConfig } from '../api/client';
-import { uploadAssets } from '../api/client';
+import { uploadAssets, uploadReferenceImageToR2 } from '../api/client';
 import './SchemaForm.css';
 
 type JsonSchema = TaskFormConfig['schema'];
@@ -13,11 +13,11 @@ export type SchemaFormProps = {
   uiSchema?: Record<string, unknown> | null | undefined;
   value: SchemaFormValue;
   onChange: (next: SchemaFormValue) => void;
-  /** 若为 true：当 schema 变化时会补齐 default 值（不覆盖已有 value） */
+  /** 若为 true:当 schema 变化时会补齐 default 值(不覆盖已有 value) */
   hydrateDefaults?: boolean;
   /**
-   * `default`：跟随 `html.dark` 与 App 主题变量。
-   * `panel`：用于深色抽屉/浮层内嵌表单，强制浅色文字 + 深色输入（不依赖全局是否为 dark）。
+   * `default`:跟随 `html.dark` 与 App 主题变量。
+   * `panel`:用于深色抽屉/浮层内嵌表单,强制浅色文字 + 深色输入(不依赖全局是否为 dark)。
    */
   variant?: 'default' | 'panel';
 };
@@ -188,7 +188,7 @@ export function SchemaForm(props: SchemaFormProps) {
           if (i !== idx) return r;
           const cur = r as Record<string, unknown>;
           const updated: Record<string, unknown> = { ...cur, ...patch };
-          // 兼容：强制字段存在
+          // 兼容:强制字段存在
           if (typeof updated.type !== 'string' || !updated.type) updated.type = 'main-subject';
           if (typeof updated.content !== 'string') updated.content = '';
           if (updated.purpose != null && typeof updated.purpose !== 'string') updated.purpose = String(updated.purpose);
@@ -222,15 +222,23 @@ export function SchemaForm(props: SchemaFormProps) {
 
       const uploadIntoRow = async (idx: number, file: File) => {
         try {
-          const res = await uploadAssets(file);
-          if (res.error) throw new Error(res.error);
-          const body = res.data as unknown as { data?: { url?: string } } | { url?: string } | undefined;
-          const url = (body as any)?.data?.url ?? (body as any)?.url;
-          if (!url || typeof url !== 'string') throw new Error('上传成功但未返回 url');
-          updateRow(idx, { content: url });
-          message.success('参考图已上传（URL 模式）');
+          // 优先使用 R2 上传(公网可访问的公开 URL)
+          const r2Result = await uploadReferenceImageToR2(file);
+          updateRow(idx, { content: r2Result.url });
+          message.success('参考图已上传(R2 公网 URL)');
         } catch (e) {
-          message.error(e instanceof Error ? e.message : String(e));
+          // R2 上传失败时,fallback 到 MinIO 上传
+          try {
+            const res = await uploadAssets(file);
+            if (res.error) throw new Error(res.error);
+            const body = res.data as unknown as { data?: { url?: string } } | { url?: string } | undefined;
+            const url = (body as any)?.data?.url ?? (body as any)?.url;
+            if (!url || typeof url !== 'string') throw new Error('上传成功但未返回 url');
+            updateRow(idx, { content: url });
+            message.warning('R2 上传失败,已改用 MinIO URL');
+          } catch (e2) {
+            message.error(e instanceof Error ? e.message : String(e));
+          }
         }
       };
 
@@ -238,7 +246,7 @@ export function SchemaForm(props: SchemaFormProps) {
         try {
           const dataUri = await fileToDataUri(file);
           updateRow(idx, { content: dataUri });
-          message.success('参考图已写入 Base64（直传模式）');
+          message.success('参考图已写入 Base64(直传模式)');
         } catch (e) {
           message.error(e instanceof Error ? e.message : String(e));
         }
@@ -250,11 +258,11 @@ export function SchemaForm(props: SchemaFormProps) {
           {help}
           <Space direction="vertical" style={{ width: '100%' }} size={8}>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              提示：若下游模型为云接口且无法访问内网存储，请优先用“Base64 直传”；URL 模式用于未来存储上云/公网可达场景。
+              提示：URL 模式会上传到 Cloudflare R2（公网可访问）；若云端模型无法访问，再使用 Base64 直传。
             </Typography.Text>
             {rows.length === 0 ? (
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                暂无参考图，点击下方添加
+                暂无参考图,点击下方添加
               </Typography.Text>
             ) : null}
             {rows.map((r, idx) => {
@@ -275,7 +283,7 @@ export function SchemaForm(props: SchemaFormProps) {
                     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 160px', gap: 8 }}>
                       <Input
                         value={content}
-                        placeholder="粘贴图片 URL（或先上传自动填充）"
+                        placeholder="粘贴图片 URL(或先上传自动填充)"
                         onChange={(e) => updateRow(idx, { content: e.target.value })}
                       />
                       <Select
@@ -286,7 +294,7 @@ export function SchemaForm(props: SchemaFormProps) {
                     </div>
                     <Input
                       value={purpose}
-                      placeholder="用途说明（可选）：例如 主图模特/衣服面料细节/背景光线氛围"
+                      placeholder="用途说明(可选):例如 主图模特/衣服面料细节/背景光线氛围"
                       onChange={(e) => updateRow(idx, { purpose: e.target.value })}
                     />
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>

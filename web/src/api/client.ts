@@ -250,6 +250,64 @@ export async function uploadAssets(file: File) {
   );
 }
 
+// 上传参考图到 Cloudflare R2，返回公开 URL
+// 用于 graph/video 等业务中参考图的公开存储访问
+export async function uploadReferenceImageToR2(file: File): Promise<{ url: string; key: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('读取文件失败'));
+    reader.onload = async () => {
+      const res = reader.result;
+      if (typeof res !== 'string' || !res.startsWith('data:')) {
+        reject(new Error('无法转换为 Base64 data URI'));
+        return;
+      }
+      try {
+        const base64 = res;
+        // 使用与 request() 一致的 base URL 解析逻辑
+        // 优先用 api_base_url（指向 gateway:3000），否则走 Vite proxy（空字符串）
+        const storedBase = localStorage.getItem('api_base_url');
+        const hasExplicitBase = storedBase !== null && storedBase !== '';
+
+        // 构建请求 URL
+        let url: string;
+        if (hasExplicitBase) {
+          // 用户配置了 api_base_url，直接拼接
+          const base = storedBase.replace(/\/$/, '');
+          url = `${base}/api/v1/cgi/upload/r2-reference`;
+        } else {
+          // 无 api_base_url：走当前域名的 /api/v1/cgi/upload/r2-reference
+          // Vite dev proxy 会将其转发到 mxmcgi 的 /upload/r2-reference
+          const origin = window.location.origin;
+          url = `${origin}/api/v1/cgi/upload/r2-reference`;
+        }
+
+        const token = localStorage.getItem('api_token') || '';
+        const userId = localStorage.getItem('user_id') || '';
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(userId ? { 'x-user-id': userId } : {}),
+          },
+          body: JSON.stringify({ base64 }),
+        });
+        const json = await response.json();
+        if (json.success && json.data?.url) {
+          resolve({ url: json.data.url, key: json.data.key });
+        } else {
+          reject(new Error(json.error || 'R2 上传失败'));
+        }
+      } catch (e) {
+        reject(e instanceof Error ? e : new Error(String(e)));
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 // 关联图片任务到角色
 export async function linkCharacterImageTask(
   characterId: string,
