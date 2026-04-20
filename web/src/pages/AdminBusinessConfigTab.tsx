@@ -20,12 +20,10 @@ export interface AdminBusinessConfigTabProps {
   sensitiveLoading: boolean;
   sensitiveHint: string | null;
   scopeFilter: Scope;
-  promptTextTaskKey?: string;
   onDisplayConfigChange: (d: BusinessDisplayConfig) => void;
   onDraftChange: (v: TaskTemplateDraft | null | ((prev: TaskTemplateDraft | null) => TaskTemplateDraft | null)) => void;
   onSensitiveListIdsChange: (ids: string[]) => void;
   onSaveSensitiveBinding: () => void;
-  onPromptTextTaskKeyChange: (v: string) => void;
 }
 
 export function AdminBusinessConfigTab({
@@ -37,12 +35,10 @@ export function AdminBusinessConfigTab({
   sensitiveLoading,
   sensitiveHint,
   scopeFilter,
-  promptTextTaskKey,
   onDisplayConfigChange,
   onDraftChange,
   onSensitiveListIdsChange,
   onSaveSensitiveBinding,
-  onPromptTextTaskKeyChange,
 }: AdminBusinessConfigTabProps) {
   return (
     <Form layout="vertical">
@@ -174,31 +170,6 @@ export function AdminBusinessConfigTab({
           style={{ width: '100%' }}
         />
       </Form.Item>
-
-      <Divider style={{ margin: '10px 0' }} />
-
-      {/* graph 业务专属：关联 text 业务生成 prompt */}
-      {scopeFilter === 'graph' && (
-        <>
-          <Alert
-            type="info"
-            showIcon
-            message="Prompt 生成关联"
-            description="配置该 graph 业务生成图片 prompt 时调用的 text 业务。需先在 Admin 创建 scope=text 的业务。"
-          />
-          <Form.Item
-            label="Prompt Text Task Key"
-            tooltip="指定当前 graph 业务生成生图 prompt 时调用的 text 业务 key，例如 text-nano-banana-format"
-            style={{ marginTop: 12 }}
-          >
-            <Input
-              value={promptTextTaskKey ?? ''}
-              onChange={(e) => onPromptTextTaskKeyChange(e.target.value.trim())}
-              placeholder="例如：text-nano-banana-format"
-            />
-          </Form.Item>
-        </>
-      )}
 
       <Divider style={{ margin: '10px 0' }} />
       <Form.Item label="storage（可选）">

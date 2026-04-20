@@ -14716,7 +14716,8 @@ async function getPromptFullConfig(scope, type, subtype, lang = "zh") {
       task_template_i18n: extra.task_template_i18n,
       knowledge_template_i18n: extra.knowledge_template_i18n,
       storyboard_output_format_template_zh: extra.storyboard_output_format_template_zh,
-      prompt_text_mode: typeof extra.prompt_text_mode === "string" ? extra.prompt_text_mode : void 0
+      prompt_text_mode: typeof extra.prompt_text_mode === "string" ? extra.prompt_text_mode : void 0,
+      promptTextTaskKey: typeof extra.promptTextTaskKey === "string" && extra.promptTextTaskKey.trim() ? extra.promptTextTaskKey.trim() : void 0
     };
   } catch (_) {
     return null;
@@ -15531,23 +15532,24 @@ async function runTaskV2(req, userId) {
       }
       return void 0;
     };
-    const finalMetadata = {
-      ...result.metadata || {},
-      model: result.metadata?.model ?? resolved.model,
-      provider: result.metadata?.provider ?? resolved.provider,
-      text: extractText(result),
-      taskType: "text"
-    };
     const { costUsd } = await UsageService.logProviderUsage({
       taskId: syncId,
       userId,
       logicalModel: routingKey,
       result: {
         ...result,
-        metadata: finalMetadata
+        metadata: result.metadata
       },
-      providerOverride: finalMetadata.provider
+      providerOverride: resolved.provider
     });
+    const finalMetadata = {
+      ...result.metadata || {},
+      model: result.metadata?.model ?? resolved.model,
+      provider: result.metadata?.provider ?? resolved.provider,
+      text: extractText(result),
+      taskType: "text",
+      costUsd
+    };
     const usageMeta = finalMetadata;
     const inferredScope = UsageService.inferScopePublic(routingKey, usageMeta);
     try {
@@ -24255,18 +24257,47 @@ async function generateGraphPrompt(graphType, params, userId, provider, parentTa
   console.log(`[GraphService] \u4F7F\u7528\u89C4\u5219\u524D\u7F00: ${rules.substring(0, 180)}${rules.length > 180 ? "..." : ""}`);
   console.log(`[GraphService] \u4E1A\u52A1\u53C2\u6570:`, businessParams);
   console.log(`[GraphService] \u63D0\u793A\u8BCD\u751F\u6210\u8BF7\u6C42\u524D\u7F00: ${promptGenerationRequest.substring(0, 500)}${promptGenerationRequest.length > 500 ? "..." : ""}`);
-  const finalProvider = provider ?? providerFactory.getDefaultProvider();
-  console.log(
-    `[GraphService] \u4F7F\u7528 BasicText \u751F\u6210\u63D0\u793A\u8BCD: logicalModel=writing-basic-text, providerOverride=${finalProvider}`
-  );
-  const basicTextResult = await runBasicText("writing-basic-text", promptGenerationRequest, {
-    userId,
-    parentTaskId,
-    providerOverride: finalProvider
-  });
-  const generatedPrompt = basicTextResult.text;
-  const promptGenerationUsage = basicTextResult.usage;
-  const promptGenerationCostUsd = basicTextResult.costUsd;
+  const promptTextTaskKey = promptConfig?.promptTextTaskKey;
+  let generatedPrompt;
+  let promptGenerationUsage;
+  let promptGenerationCostUsd;
+  if (promptTextTaskKey) {
+    console.log(
+      `[GraphService] \u4F7F\u7528 text scope \u751F\u6210\u63D0\u793A\u8BCD: taskKey=${promptTextTaskKey}, userId=${userId || "anonymous"}`
+    );
+    if (!userId) {
+      throw new Error(
+        `graph \u4E1A\u52A1 (${graphType}/${type}) \u914D\u7F6E\u4E86 promptTextTaskKey=${promptTextTaskKey}\uFF0C\u4F46\u7F3A\u5C11 userId\u3002text scope \u8C03\u7528\u9700\u8981 userId \u6765\u8FDB\u884C\u4F59\u989D\u9884\u68C0\u548C\u7528\u91CF\u8BB0\u5F55\u3002\u8BF7\u786E\u4FDD graph-task \u6709\u6709\u6548\u7684 userId\u3002`
+      );
+    }
+    const textTaskRequest = {
+      scope: "text",
+      taskKey: promptTextTaskKey,
+      params: { prompt: promptGenerationRequest }
+    };
+    const textTaskResult = await runTaskV2(textTaskRequest, userId);
+    if (!textTaskResult.success) {
+      throw new Error(
+        `text scope \u8C03\u7528\u5931\u8D25\uFF1AtaskKey=${promptTextTaskKey}, graph\u4E1A\u52A1=${graphType}/${type}\u3002\u8BF7\u68C0\u67E5\u8BE5 text \u4E1A\u52A1\u662F\u5426\u5DF2\u6B63\u786E\u914D\u7F6E\uFF08task definitions + model routing\uFF09\u3002`
+      );
+    }
+    if (!textTaskResult.syncResult) {
+      throw new Error(
+        `text scope \u8FD4\u56DE\u7ED3\u6784\u5F02\u5E38\uFF1AtaskKey=${promptTextTaskKey}, graph\u4E1A\u52A1=${graphType}/${type}\u3002\u671F\u671B syncResult \u5B58\u5728\uFF0C\u4F46\u8FD4\u56DE\uFF1A${JSON.stringify(textTaskResult)}`
+      );
+    }
+    const textResultMetadata = textTaskResult.syncResult.metadata ?? {};
+    generatedPrompt = textTaskResult.syncResult.text ?? "";
+    promptGenerationUsage = textResultMetadata.usage ?? textResultMetadata.usageMeta;
+    promptGenerationCostUsd = typeof textResultMetadata.costUsd === "number" ? textResultMetadata.costUsd : void 0;
+    console.log(
+      `[GraphService] text scope \u751F\u6210\u5B8C\u6210: taskKey=${promptTextTaskKey}, prompt\u957F\u5EA6=${generatedPrompt.length}, costUsd=${promptGenerationCostUsd}`
+    );
+  } else {
+    throw new Error(
+      `graph \u4E1A\u52A1 (${graphType}/${type}) \u672A\u914D\u7F6E promptTextTaskKey\uFF0C\u65E0\u6CD5\u751F\u6210 prompt\u3002\u8BF7\u5728 Admin\u300C\u57FA\u7840\u914D\u7F6E\u300DTab \u4E2D\u586B\u5199\u8BE5 graph \u4E1A\u52A1\u5173\u8054\u7684 text \u4E1A\u52A1 taskKey\uFF08\u5982 text-nano-banana-format\uFF09\u3002`
+    );
+  }
   console.log(`[GraphService] \u751F\u6210\u7684\u63D0\u793A\u8BCD\u524D\u7F00: ${generatedPrompt.substring(0, 220)}${generatedPrompt.length > 220 ? "..." : ""}`);
   const cleanedPrompt = generatedPrompt.trim().replace(/^["']|["']$/g, "");
   let finalPrompt = cleanedPrompt;
@@ -24700,7 +24731,6 @@ var import_mxmdata18;
 var init_graph_service = __esm({
   "src/core/graph/graph-service.ts"() {
     "use strict";
-    init_providers2();
     init_prompts();
     init_graphconfigs();
     init_run();
@@ -24721,7 +24751,7 @@ var init_graph_service = __esm({
     import_mxmdata18 = require("@mxmai/mxmdata");
     init_graph_model_routing();
     init_reference_image2();
-    init_basic_text();
+    init_task_engine();
     init_graph_prompt_text();
   }
 });

@@ -84,8 +84,8 @@ const WELCOME_MESSAGES = [
 // ==================== Styles ====================
 
 const s = {
-  root: { display: 'flex', flexDirection: 'column' as const, height: '100%', background: TOKENS.bg, color: TOKENS.text, fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif" },
-  header: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${TOKENS.border}`, background: TOKENS.surface, flexShrink: 0 },
+  root: { display: 'flex', flexDirection: 'column' as const, height: '100%', background: 'transparent', color: TOKENS.text, fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif" },
+  header: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${TOKENS.border}`, background: 'transparent', flexShrink: 0 },
   headerTitle: { fontSize: 16, fontWeight: 600, color: TOKENS.text, display: 'flex', alignItems: 'center', gap: 8 },
   messagesWrap: { flex: 1, overflowY: 'auto' as const, padding: '20px', display: 'flex', flexDirection: 'column' as const, gap: 16, scrollBehavior: 'smooth' as const },
   emptyState: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', flex: 1, gap: 24, color: TOKENS.textSecondary },
@@ -661,10 +661,7 @@ export default function AgentChat() {
 
       {/* Header */}
       <div style={s.header}>
-        <span style={s.headerTitle}>
-          <RobotOutlined style={{ color: TOKENS.accent, fontSize: 20 }} />
-          AI 助手
-        </span>
+       
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           {isAdmin && (
             <Button

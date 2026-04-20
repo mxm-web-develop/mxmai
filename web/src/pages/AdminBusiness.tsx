@@ -1139,13 +1139,18 @@ export default function AdminBusiness() {
                         schemaMode={schemaMode}
                         schemaRows={schemaRows}
                         schemaJson={schemaJson}
+                        scopeFilter={scopeFilter}
                         promptVarSearch={promptVarSearch}
                         unifiedTemplateMarkup={unifiedTemplateMarkup}
                         promptMarkupGetterRef={promptMarkupGetterRef}
                         missingSchemaVars={missingSchemaVars}
+                        promptTextTaskKey={promptTextTaskKey}
                         onPromptVarSearchChange={setPromptVarSearch}
                         onUnifiedTemplateMarkupChange={setUnifiedTemplateMarkup}
                         onAddMissingVarsToSchema={handleAddMissingVarsToSchema}
+                        onPromptTextTaskKeyChange={(v) => {
+                          setExtraDraft((prev) => ({ ...(prev ?? {}), promptTextTaskKey: v || undefined }));
+                        }}
                       />
                     ),
                   },
@@ -1202,7 +1207,6 @@ export default function AdminBusiness() {
                         sensitiveLoading={sensitiveLoading}
                         sensitiveHint={sensitiveHint}
                         scopeFilter={scopeFilter}
-                        promptTextTaskKey={promptTextTaskKey}
                         onDisplayConfigChange={(d) =>
                           setExtraDraft((prev) => ({
                             ...(prev ?? {}),
@@ -1212,12 +1216,6 @@ export default function AdminBusiness() {
                         onDraftChange={setDraft}
                         onSensitiveListIdsChange={setSensitiveSelectedListIds}
                         onSaveSensitiveBinding={() => void handleSensitiveSave()}
-                        onPromptTextTaskKeyChange={(v) =>
-                          setExtraDraft((prev) => ({
-                            ...(prev ?? {}),
-                            promptTextTaskKey: v || undefined,
-                          }))
-                        }
                       />
                     ),
                   },

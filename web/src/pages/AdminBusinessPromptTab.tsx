@@ -3,6 +3,8 @@ import {
   Alert,
   App,
   Button,
+  Divider,
+  Form,
   Input,
   Space,
   Tag,
@@ -13,6 +15,7 @@ import { PromptTempDesigner } from '@mxmweb/rtext';
 import type {
   JsonSchema,
   SchemaFieldRow,
+  Scope,
   TaskTemplateDraft,
 } from './AdminBusiness.types';
 import {
@@ -26,13 +29,16 @@ export interface AdminBusinessPromptTabProps {
   schemaMode: 'guided' | 'json';
   schemaRows: SchemaFieldRow[];
   schemaJson: string;
+  scopeFilter: Scope;
   promptVarSearch: string;
   unifiedTemplateMarkup: string;
   promptMarkupGetterRef: React.MutableRefObject<((format: 'pure_string' | 'string' | 'markdown' | 'html') => string) | null>;
   missingSchemaVars: string[];
+  promptTextTaskKey?: string;
   onPromptVarSearchChange: (v: string) => void;
   onUnifiedTemplateMarkupChange: (v: string) => void;
   onAddMissingVarsToSchema: () => void;
+  onPromptTextTaskKeyChange: (v: string) => void;
 }
 
 export function AdminBusinessPromptTab({
@@ -40,13 +46,16 @@ export function AdminBusinessPromptTab({
   schemaMode,
   schemaRows,
   schemaJson,
+  scopeFilter,
   promptVarSearch,
   unifiedTemplateMarkup,
   promptMarkupGetterRef,
   missingSchemaVars,
+  promptTextTaskKey,
   onPromptVarSearchChange,
   onUnifiedTemplateMarkupChange,
   onAddMissingVarsToSchema,
+  onPromptTextTaskKeyChange,
 }: AdminBusinessPromptTabProps) {
   const { message } = App.useApp();
   // 检测暗色主题
@@ -83,6 +92,30 @@ export function AdminBusinessPromptTab({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ fontWeight: 700 }}>提示词配置</div>
+
+      {/* graph 业务专属：关联 text 业务解析/转换 prompt */}
+      {scopeFilter === 'graph' && (
+        <Alert
+          type="info"
+          showIcon
+          message="Prompt 格式解析"
+          description="指定一个 scope=text 的业务（如 text-nano-banana-format）来解析用户 prompt + schema，输出适合生图模型的 prompt。"
+        />
+      )}
+      {scopeFilter === 'graph' && (
+        <Form.Item
+          label="Text Format Task Key"
+          tooltip="指定用于解析/转换 graph prompt 的 text 业务 taskKey，例如 text-nano-banana-format"
+          style={{ marginTop: 8, marginBottom: 0 }}
+        >
+          <Input
+            value={promptTextTaskKey ?? ''}
+            onChange={(e) => onPromptTextTaskKeyChange(e.target.value.trim())}
+            placeholder="例如：text-nano-banana-format"
+          />
+        </Form.Item>
+      )}
+
       <div style={{ marginTop: 8, padding: 8, borderRadius: 8, border: '1px dashed rgba(148,163,184,0.4)' }}>
         <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600 }}>可用变量（来自 Schema）</span>
