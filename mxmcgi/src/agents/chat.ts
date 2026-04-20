@@ -6,7 +6,7 @@
 import type { Request, Response } from 'express';
 import type { ProviderType } from '../models/providers';
 import type { AgentChatRequest, AgentChatEvent, SessionContext } from './types';
-import { detectIntent, getBusinessNode, getNextFieldToAsk, businessNodes } from './intent-detector';
+import { detectIntent, detectIntentEnhanced, getBusinessNode, getNextFieldToAsk, businessNodes } from './intent-detector';
 import { runByModelKey } from '../models/run';
 import { listEnabledModelKeysByScope } from '../models/provider-model-catalog';
 import { mxmCGIHttpClient } from '../smartflow/services/httpClient';
@@ -469,8 +469,8 @@ export async function handleAgentChat(
       return;
     }
 
-    // === 非补问阶段：意图识别 ===
-    const intentResult = detectIntent(message);
+    // === 非补问阶段：意图识别（关键词优先 + LLM 兜底）===
+    const intentResult = await detectIntentEnhanced(message);
 
     if (intentResult.businessNode) {
       const { nodeType, nodeName, extractedParams, missingFields, confidenceLevel } = intentResult.businessNode;
