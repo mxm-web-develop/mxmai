@@ -6,6 +6,7 @@
 import type { IntentResult, BusinessNodeResult } from './types';
 import { runByModelKey } from '../models/run';
 import { listEnabledModelKeysByScope } from '../models/provider-model-catalog';
+import { RepositoryFactory } from '@mxmai/mxmdata';
 
 // ==================== Types ====================
 
@@ -175,6 +176,98 @@ export const businessNodes: Record<string, BusinessNode> = {
   },
 };
 
+// ==================== DB 覆盖层 ====================
+
+/** 内存缓存：5 分钟 TTL */
+let businessNodesCache: { expiresAt: number; data: Record<string, BusinessNode> } | null = null;
+
+/** 代码默认值快照（用于缓存未命中或 DB 异常时的回退） */
+const DEFAULT_BUSINESS_NODES: Record<string, BusinessNode> = { ...businessNodes };
+
+/**
+ * 将 extra.agent_rule 规范化为字符串，非法值返回 null
+ */
+function normalizeAgentRule(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value.trim();
+  }
+  return null;
+}
+
+/**
+ * 将 extra.agent_keywords 规范化为字符串数组，非法值返回 null
+ */
+function normalizeAgentKeywords(value: unknown): string[] | null {
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map((k) => (typeof k === 'string' ? k.trim() : ''))
+      .filter((k) => k.length > 0);
+    return normalized.length > 0 ? normalized : null;
+  }
+  return null;
+}
+
+/**
+ * 将 DB 配置行映射为 businessNodes key，只匹配 scope/type，忽略 subtype
+ * 返回 null 表示该行不参与业务节点覆盖
+ */
+function mapPromptConfigToBusinessNodeKey(scope: string, type: string): string | null {
+  const key = `${scope}/${type}`;
+  return DEFAULT_BUSINESS_NODES[key] ? key : null;
+}
+
+/**
+ * 从 DB 加载运行时业务节点配置（带 5 分钟内存缓存）
+ */
+async function loadBusinessNodesFromDB(): Promise<Record<string, BusinessNode>> {
+  const now = Date.now();
+
+  // 缓存命中
+  if (businessNodesCache && businessNodesCache.expiresAt > now) {
+    return businessNodesCache.data;
+  }
+
+  // 从代码默认值克隆一份，作为 merge 底稿
+  const merged: Record<string, BusinessNode> = { ...DEFAULT_BUSINESS_NODES };
+
+  try {
+    const repo = RepositoryFactory.createPromptEngineeringConfigRepository();
+    const result = await repo.list({ limit: 500 });
+
+    for (const row of result.items ?? []) {
+      // 本期只使用 subtype == null 的主配置行
+      if (row.subtype !== null) continue;
+      if (!row.is_active) continue;
+
+      const nodeKey = mapPromptConfigToBusinessNodeKey(row.scope, row.type);
+      if (!nodeKey || !merged[nodeKey]) continue;
+
+      const extra = (row.extra ?? {}) as Record<string, unknown>;
+      const rule = normalizeAgentRule(extra.agent_rule);
+      const keywords = normalizeAgentKeywords(extra.agent_keywords);
+
+      // 仅当 DB 有合法值时才覆盖对应字段
+      if (rule !== null || keywords !== null) {
+        merged[nodeKey] = {
+          ...merged[nodeKey],
+          agent_rule: rule ?? merged[nodeKey].agent_rule,
+          keywords: keywords ?? merged[nodeKey].keywords,
+        };
+      }
+    }
+  } catch (err) {
+    console.error('[intent-detector] loadBusinessNodesFromDB failed, using defaults:', err);
+    return DEFAULT_BUSINESS_NODES;
+  }
+
+  businessNodesCache = {
+    expiresAt: now + 5 * 60 * 1000,
+    data: merged,
+  };
+
+  return merged;
+}
+
 // ==================== 通用意图模式 ====================
 
 interface IntentPattern {
@@ -256,11 +349,12 @@ function extractParamsFromMessage(
 /**
  * 匹配关键词并返回命中的节点及其得分
  */
-function matchBusinessNodes(message: string): Array<{ nodeType: string; node: BusinessNode; score: number; matchedKeywords: string[] }> {
+function matchBusinessNodes(message: string, nodes?: Record<string, BusinessNode>): Array<{ nodeType: string; node: BusinessNode; score: number; matchedKeywords: string[] }> {
   const lowerMessage = message.toLowerCase();
   const results: Array<{ nodeType: string; node: BusinessNode; score: number; matchedKeywords: string[] }> = [];
+  const nodeMap = nodes ?? businessNodes;
 
-  for (const [nodeType, node] of Object.entries(businessNodes)) {
+  for (const [nodeType, node] of Object.entries(nodeMap)) {
     let score = 0;
     const matchedKeywords: string[] = [];
 
@@ -459,13 +553,15 @@ interface LLMMatchResult {
  * @returns 匹配结果，包含 nodeType、confidence、reason
  */
 export async function matchBusinessNodeByLLM(
-  message: string
+  message: string,
+  runtimeNodes?: Record<string, BusinessNode>
 ): Promise<LLMMatchResult | null> {
   try {
     const modelKey = getDefaultTextModel();
+    const nodeMap = runtimeNodes ?? businessNodes;
 
     // 构建节点列表供 LLM 参考
-    const nodeList = Object.entries(businessNodes)
+    const nodeList = Object.entries(nodeMap)
       .map(([nodeType, node]) => `- ${nodeType}: ${node.name}\n  规则: ${node.agent_rule}`)
       .join('\n\n');
 
@@ -517,7 +613,7 @@ ${nodeList}
 
     // 安全校验：matched=true 时必须返回合法的 nodeType
     if (parsed.matched && parsed.nodeType) {
-      if (!businessNodes[parsed.nodeType]) {
+      if (!nodeMap[parsed.nodeType]) {
         // 返回了未知节点，不匹配
         return { matched: false, reason: `LLM 返回了未知节点类型: ${parsed.nodeType}` };
       }
@@ -537,8 +633,11 @@ ${nodeList}
  * @returns 意图检测结果（businessNode.matchSource 标识命中来源）
  */
 export async function detectIntentEnhanced(message: string): Promise<IntentResult> {
+  // 加载 DB 覆盖后的运行时业务节点
+  const runtimeNodes = await loadBusinessNodesFromDB();
+
   // 1. 先尝试关键词快速匹配
-  const nodeMatches = matchBusinessNodes(message);
+  const nodeMatches = matchBusinessNodes(message, runtimeNodes);
 
   if (nodeMatches.length > 0) {
     const best = nodeMatches[0];
@@ -573,10 +672,10 @@ export async function detectIntentEnhanced(message: string): Promise<IntentResul
   }
 
   // 2. 关键词未命中 → LLM 兜底
-  const llmResult = await matchBusinessNodeByLLM(message);
+  const llmResult = await matchBusinessNodeByLLM(message, runtimeNodes);
 
   if (llmResult && llmResult.matched && llmResult.nodeType) {
-    const node = businessNodes[llmResult.nodeType];
+    const node = runtimeNodes[llmResult.nodeType];
     if (!node) {
       // 防御：LLM 返回了未知节点
       return detectIntent(message);

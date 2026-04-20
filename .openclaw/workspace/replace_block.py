@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+import re
+import sys
+
+# Read the file
+with open('/Users/mxm_pro/Desktop/codes/supermxmai/web/src/components/smartflow-designer/SmartflowProperties.tsx', 'r') as f:
+    content = f.read()
+
+# Find the model block using regex
+pattern = r'(\s*\{t === \'model\' && \(\n(?:.*?\n)*?\s*\)\})'
+match = re.search(pattern, content, re.DOTALL)
+if not match:
+    print("Model block not found")
+    sys.exit(1)
+
+old_text = match.group(0)
+
+# New business block
+new_text = """      {t === 'business' && (
+        <>
+          <div>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              业务服务 (service)
+            </Typography.Text>
+            <Select
+              size="small"
+              style={{ width: '100%', marginTop: 4 }}
+              value={(sf.service as string) ?? undefined}
+              options={BUSINESS_SERVICES}
+              onChange={(v) => {
+                setField('service', v ?? '');
+                // 重置 action 当 service 改变
+                if (v !== (sf.service as string)) {
+                  setField('action', '');
+                }
+              }}
+            />
+          </div>
+
+          {sf.service && (
+            <div style={{ marginTop: 8 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                业务动作 (action)
+              </Typography.Text>
+              <Select
+                size="small"
+                style={{ width: '100%', marginTop: 4 }}
+                value={(sf.action as string) ?? undefined}
+                options={SERVICE_ACTIONS[sf.service as string] || []}
+                onChange={(v) => setField('action', v ?? '')}
+              />
+            </div>
+          )}
+
+          {(sf.service && sf.action) && (
+            <div style={{ marginTop: 8 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                业务参数 (params) - JSON 格式
+              </Typography.Text>
+              <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: 6, marginBottom: 6 }}>
+                填写 JSON 对象，支持变量引用：<Typography.Text code>{{'{{input.xxx}}'}}</Typography.Text> /{' '}
+                <Typography.Text code>{{'{{nodeId.output.xxx}}'}}</Typography.Text>
+                <br />
+                <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                  根据选择的 service/action 填写对应参数，参考 mxmcgi 路由文档。
+                </Typography.Text>
+              </Typography.Paragraph>
+              <Input.TextArea
+                rows={6}
+                value={JSON.stringify(sf.params ?? {}, null, 2)}
+                onChange={(e) => {
+                  try {
+                    setField('params', JSON.parse(e.target.value || '{}'));
+                  } catch {
+                    /* ignore - 保持原样，用户可能正在编辑 */
+                  }
+                }}
+                style={{ marginTop: 4, fontFamily: 'ui-monospace, monospace', fontSize: 12 }}
+              />
+            </div>
+          )}
+        </>
+      )}"""
+
+# Replace
+new_content = content.replace(old_text, new_text)
+
+# Write back
+with open('/Users/mxm_pro/Desktop/codes/supermxmai/web/src/components/smartflow-designer/SmartflowProperties.tsx', 'w') as f:
+    f.write(new_content)
+
+print("Successfully replaced model block with business block")

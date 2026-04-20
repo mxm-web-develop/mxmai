@@ -1,0 +1,63 @@
+.smartflow-designer-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 500px;   /* 确保父容器有明确高度，支撑 canvas-wrap */
+  overflow: hidden;
+}
+
+/* 工具栏：横向排列在画布上方 */
+.smartflow-designer-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: var(--surface-1, rgba(15, 23, 42, 0.35));
+  flex-shrink: 0;
+  height: auto;
+  min-height: 44px;
+}
+
+.smartflow-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(148, 163, 184, 0.2);
+  flex-shrink: 0;
+}
+
+.smartflow-designer-canvas-wrap {
+  flex: 1;
+  min-height: 0;  /* 允许 flex 收缩 */
+  height: 100%;    /* 明确高度给 ReactFlow */
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  overflow: hidden;
+  background: var(--surface-0, rgba(15, 23, 42, 0.55));
+}
+
+.smartflow-designer-canvas-wrap .react-flow {
+  --xy-background-color: transparent;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .smartflow-designer-root {
+    min-height: 400px;
+    height: auto;
+  }
+
+  .smartflow-designer-canvas-wrap {
+    height: 50vh;
+    min-height: 320px;
+  }
+
+  .smartflow-toolbar-divider {
+    display: none;
+  }
+}

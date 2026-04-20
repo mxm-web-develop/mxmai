@@ -394,7 +394,7 @@ export async function listOutlineTasks(params?: {
 
 // 通用 CGI 任务列表（图片 type=image、音频 type=audio、视频 type=video）
 export async function listCgiTasks(params: {
-  type: 'image' | 'audio' | 'music' | 'video';
+  type: 'image' | 'audio' | 'music' | 'video' | 'graph';
   status?: string;
   model?: string;
   limit?: number;
@@ -797,7 +797,7 @@ export async function getAdminModelConfig() {
 }
 
 export async function putAdminModelConfig(data: Partial<AdminModelConfigData> & { model_key: string }) {
-  return request<{ success?: boolean; data?: AdminModelConfigData }>('/api/v1/system/admin/model-config', {
+  return request<{ success?: boolean; data?: AdminModelConfigData; error?: string }>('/api/v1/system/admin/model-config', {
     method: 'PUT',
     body: data,
   });

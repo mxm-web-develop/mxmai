@@ -1,0 +1,128 @@
+/* Task v2 动态表单：与 App.css 主题变量对齐，并修正 antd 在深色底上的对比度 */
+
+.schema-form {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--text-main, #0f172a);
+}
+
+.schema-form__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--text-main, #0f172a);
+  letter-spacing: 0.01em;
+}
+
+.schema-form__required {
+  color: #f97316;
+}
+
+.schema-form__help {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted, #64748b);
+}
+
+.schema-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* 数字类控件两列一行 */
+.schema-form__row-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 380px) {
+  .schema-form__row-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- 全局暗色主题（html.dark）：antd 控件与正文对比度 ---------- */
+html.dark .schema-form .ant-input,
+html.dark .schema-form .ant-input-affix-wrapper,
+html.dark .schema-form .ant-input-number,
+html.dark .schema-form .ant-input-number-input,
+html.dark .schema-form .ant-select .ant-select-selector {
+  background: rgba(30, 41, 59, 0.92) !important;
+  color: #f1f5f9 !important;
+  border-color: rgba(71, 85, 105, 0.85) !important;
+}
+
+html.dark .schema-form .ant-input::placeholder,
+html.dark .schema-form .ant-input-number-input::placeholder {
+  color: rgba(148, 163, 184, 0.85) !important;
+}
+
+html.dark .schema-form .ant-select-arrow,
+html.dark .schema-form .ant-select-selection-item {
+  color: #e2e8f0 !important;
+}
+
+html.dark .schema-form .ant-select-selection-placeholder {
+  color: rgba(148, 163, 184, 0.9) !important;
+}
+
+html.dark .schema-form .ant-switch {
+  background: rgba(71, 85, 105, 0.65);
+}
+
+/* ---------- 嵌入式深色面板（抽屉等，即使 html 为浅色也强制深色控件）---------- */
+.schema-form--panel {
+  color: #e2e8f0;
+}
+
+.schema-form--panel .schema-form__label {
+  color: #f1f5f9;
+}
+
+.schema-form--panel .schema-form__help {
+  color: rgba(148, 163, 184, 0.95);
+}
+
+.schema-form--panel .ant-input,
+.schema-form--panel .ant-input-affix-wrapper,
+.schema-form--panel .ant-input-number,
+.schema-form--panel .ant-input-number-input,
+.schema-form--panel .ant-select .ant-select-selector {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #475569 !important;
+}
+
+.schema-form--panel .ant-input::placeholder,
+.schema-form--panel .ant-input-number-input::placeholder {
+  color: rgba(148, 163, 184, 0.9) !important;
+}
+
+.schema-form--panel .ant-select-arrow,
+.schema-form--panel .ant-select-selection-item {
+  color: #e2e8f0 !important;
+}
+
+.schema-form--panel .ant-select-selection-placeholder {
+  color: rgba(148, 163, 184, 0.95) !important;
+}
+
+.schema-form--panel .ant-switch {
+  background: rgba(71, 85, 105, 0.75);
+}
+
+/* 下拉浮层在深色面板场景下更易读（antd 挂载到 body，用全局 dark 类时由 antd token 处理；此处仅保证选择器边框聚焦） */
+.schema-form--panel .ant-input:focus,
+.schema-form--panel .ant-input-number-focused,
+.schema-form--panel .ant-select-focused .ant-select-selector {
+  border-color: #34d399 !important;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.2) !important;
+}
