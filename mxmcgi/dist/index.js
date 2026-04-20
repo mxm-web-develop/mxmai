@@ -24262,17 +24262,27 @@ async function generateGraphPrompt(graphType, params, userId, provider, parentTa
   let promptGenerationUsage;
   let promptGenerationCostUsd;
   if (promptTextTaskKey) {
+    const textTaskKeyParts = (promptTextTaskKey || "").split("/");
+    const textScope = textTaskKeyParts[0] || "text";
+    const textTaskKey = textTaskKeyParts[1] || "";
+    const textSubtype = textTaskKeyParts.slice(2).join("/") || null;
     console.log(
-      `[GraphService] \u4F7F\u7528 text scope \u751F\u6210\u63D0\u793A\u8BCD: taskKey=${promptTextTaskKey}, userId=${userId || "anonymous"}`
+      `[GraphService] \u4F7F\u7528 text scope \u751F\u6210\u63D0\u793A\u8BCD: scope=${textScope}, taskKey=${textTaskKey}, subtype=${textSubtype}, userId=${userId || "anonymous"}`
     );
     if (!userId) {
       throw new Error(
         `graph \u4E1A\u52A1 (${graphType}/${type}) \u914D\u7F6E\u4E86 promptTextTaskKey=${promptTextTaskKey}\uFF0C\u4F46\u7F3A\u5C11 userId\u3002text scope \u8C03\u7528\u9700\u8981 userId \u6765\u8FDB\u884C\u4F59\u989D\u9884\u68C0\u548C\u7528\u91CF\u8BB0\u5F55\u3002\u8BF7\u786E\u4FDD graph-task \u6709\u6709\u6548\u7684 userId\u3002`
       );
     }
+    if (!textTaskKey) {
+      throw new Error(
+        `graph \u4E1A\u52A1 (${graphType}/${type}) \u914D\u7F6E\u7684 promptTextTaskKey=${promptTextTaskKey} \u683C\u5F0F\u65E0\u6548\uFF0C\u65E0\u6CD5\u89E3\u6790\u51FA taskKey\u3002`
+      );
+    }
     const textTaskRequest = {
-      scope: "text",
-      taskKey: promptTextTaskKey,
+      scope: textScope,
+      taskKey: textTaskKey,
+      subtype: textSubtype,
       params: { prompt: promptGenerationRequest }
     };
     const textTaskResult = await runTaskV2(textTaskRequest, userId);
@@ -24295,7 +24305,7 @@ async function generateGraphPrompt(graphType, params, userId, provider, parentTa
     );
   } else {
     throw new Error(
-      `graph \u4E1A\u52A1 (${graphType}/${type}) \u672A\u914D\u7F6E promptTextTaskKey\uFF0C\u65E0\u6CD5\u751F\u6210 prompt\u3002\u8BF7\u5728 Admin\u300C\u57FA\u7840\u914D\u7F6E\u300DTab \u4E2D\u586B\u5199\u8BE5 graph \u4E1A\u52A1\u5173\u8054\u7684 text \u4E1A\u52A1 taskKey\uFF08\u5982 text-nano-banana-format\uFF09\u3002`
+      `graph \u4E1A\u52A1 (${graphType}/${type}) \u672A\u914D\u7F6E promptTextTaskKey\uFF0C\u65E0\u6CD5\u751F\u6210 prompt\u3002\u8BF7\u5728 Admin\u300CPrompt\u300DTab \u4E2D\u9009\u62E9\u8BE5 graph \u4E1A\u52A1\u5173\u8054\u7684 text \u683C\u5F0F\u4E1A\u52A1\uFF08\u5982 text/format/nano-banana-format\uFF09\u3002`
     );
   }
   console.log(`[GraphService] \u751F\u6210\u7684\u63D0\u793A\u8BCD\u524D\u7F00: ${generatedPrompt.substring(0, 220)}${generatedPrompt.length > 220 ? "..." : ""}`);

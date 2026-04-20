@@ -1258,8 +1258,14 @@ export async function generateGraphPrompt(
 
   if (promptTextTaskKey) {
     // 动态调用 text scope
+    // promptTextTaskKey 格式: "text/format/nano-banana-format" -> scope=text, taskKey=format, subtype=nano-banana-format
+    const textTaskKeyParts = (promptTextTaskKey || '').split('/');
+    const textScope = textTaskKeyParts[0] || 'text';
+    const textTaskKey = textTaskKeyParts[1] || '';
+    const textSubtype = textTaskKeyParts.slice(2).join('/') || null;
+
     console.log(
-      `[GraphService] 使用 text scope 生成提示词: taskKey=${promptTextTaskKey}, userId=${userId || 'anonymous'}`
+      `[GraphService] 使用 text scope 生成提示词: scope=${textScope}, taskKey=${textTaskKey}, subtype=${textSubtype}, userId=${userId || 'anonymous'}`
     );
 
     if (!userId) {
@@ -1269,9 +1275,16 @@ export async function generateGraphPrompt(
       );
     }
 
+    if (!textTaskKey) {
+      throw new Error(
+        `graph 业务 (${graphType}/${type}) 配置的 promptTextTaskKey=${promptTextTaskKey} 格式无效，无法解析出 taskKey。`
+      );
+    }
+
     const textTaskRequest: TaskRunV2Request = {
-      scope: 'text',
-      taskKey: promptTextTaskKey,
+      scope: textScope as 'text',
+      taskKey: textTaskKey,
+      subtype: textSubtype,
       params: { prompt: promptGenerationRequest },
     };
 
@@ -1303,7 +1316,7 @@ export async function generateGraphPrompt(
     // 未配置 promptTextTaskKey，显式报错（不走旧写死逻辑）
     throw new Error(
       `graph 业务 (${graphType}/${type}) 未配置 promptTextTaskKey，无法生成 prompt。` +
-        `请在 Admin「基础配置」Tab 中填写该 graph 业务关联的 text 业务 taskKey（如 text-nano-banana-format）。`
+        `请在 Admin「Prompt」Tab 中选择该 graph 业务关联的 text 格式业务（如 text/format/nano-banana-format）。`
     );
   }
 

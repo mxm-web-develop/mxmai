@@ -197,14 +197,14 @@ export default function AdminBusiness() {
     void loadList();
   }, [loadList]);
 
-  // Fetch text business options when scope is graph
+  // Fetch text business options when scope is graph (only type=format)
   useEffect(() => {
     if (scopeFilter !== 'graph') {
       setTextBusinessOptions([]);
       return;
     }
     void (async () => {
-      const res = await listPromptConfig({ scope: 'text', type: undefined });
+      const res = await listPromptConfig({ scope: 'text', type: 'format' });
       const raw = res.data as { data?: { items?: PromptConfigRow[] } } | undefined;
       const items = raw?.data?.items as PromptConfigRow[] | undefined;
       setTextBusinessOptions(Array.isArray(items) ? items : []);
