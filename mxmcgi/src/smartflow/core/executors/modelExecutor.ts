@@ -10,7 +10,7 @@ import { mxmCGIHttpClient } from '../../services/httpClient';
 export class ModelExecutor extends BaseExecutor {
   async execute(node: SmartflowNode, context: ExecutionContext): Promise<ExecutorResult> {
     try {
-      const { model_type, model, prompt, params = {} } = node;
+      const { model_type, model, prompt, model_params: params = {} } = node;
 
       if (!model_type || !model || !prompt) {
         return this.createErrorResult('Model node requires model_type, model, and prompt');
@@ -32,8 +32,11 @@ export class ModelExecutor extends BaseExecutor {
           result = await this.executeEmbeddingModel(model, resolvedPrompt, params, context);
           break;
         case 'video':
+          result = await this.executeVideoModel(model, resolvedPrompt, params, context);
+          break;
         case 'sound':
-          return this.createErrorResult(`${model_type} model type not yet implemented`);
+          result = await this.executeSoundModel(model, resolvedPrompt, params, context);
+          break;
         default:
           return this.createErrorResult(`Unknown model type: ${model_type}`);
       }
@@ -108,8 +111,8 @@ export class ModelExecutor extends BaseExecutor {
   }
 
   private async executeEmbeddingModel(
-    model: string, 
-    input: string, 
+    model: string,
+    input: string,
     params: Record<string, any>,
     context: ExecutionContext
   ): Promise<any> {
@@ -130,6 +133,104 @@ export class ModelExecutor extends BaseExecutor {
         embedding: null,
         model,
         model_type: 'embedding',
+        error: error.message,
+        _mock: true,
+      };
+    }
+  }
+
+  private async executeVideoModel(
+    model: string,
+    prompt: string,
+    params: Record<string, any>,
+    context: ExecutionContext
+  ): Promise<any> {
+    const userId = context.variables?.user_id as string || 'system';
+
+    try {
+      const response = await mxmCGIHttpClient.videoGenerate({
+        prompt,
+        model,
+        duration: params.duration,
+        aspect_ratio: params.aspect_ratio,
+        ...params,
+      }, userId);
+
+      return {
+        video_url: response.data?.video_url || response.video_url || response.url,
+        video_base64: response.data?.video_base64 || response.video_base64,
+        model,
+        model_type: 'video',
+        task_id: response.task_id || response.data?.taskId,
+        revised_prompt: response.data?.revised_prompt,
+      };
+    } catch (error: any) {
+      console.warn(`[ModelExecutor] Video generation failed: ${error.message}`);
+      return {
+        video_url: null,
+        model,
+        model_type: 'video',
+        error: error.message,
+        _mock: true,
+      };
+    }
+  }
+
+  private async executeSoundModel(
+    model: string,
+    prompt: string,
+    params: Record<string, any>,
+    context: ExecutionContext
+  ): Promise<any> {
+    const userId = context.variables?.user_id as string || 'system';
+
+    // Determine sound type: tts for text-to-speech, music for music generation
+    const soundType = params.sound_type || 'tts';
+
+    try {
+      if (soundType === 'music') {
+        // Music generation
+        const response = await mxmCGIHttpClient.audioMusic({
+          prompt,
+          model,
+          duration: params.duration,
+          ...params,
+        }, userId);
+
+        return {
+          audio_url: response.data?.audio_url || response.audio_url || response.url,
+          audio_base64: response.data?.audio_base64 || response.audio_base64,
+          model,
+          model_type: 'sound',
+          sound_type: 'music',
+          task_id: response.task_id || response.data?.taskId,
+        };
+      } else {
+        // TTS (text-to-speech)
+        const response = await mxmCGIHttpClient.audioTTS({
+          text: prompt,
+          voice: params.voice,
+          speed: params.speed,
+          model,
+          ...params,
+        }, userId);
+
+        return {
+          audio_url: response.data?.audio_url || response.audio_url || response.url,
+          audio_base64: response.data?.audio_base64 || response.audio_base64,
+          model,
+          model_type: 'sound',
+          sound_type: 'tts',
+          task_id: response.task_id || response.data?.taskId,
+        };
+      }
+    } catch (error: any) {
+      console.warn(`[ModelExecutor] Sound generation failed: ${error.message}`);
+      return {
+        audio_url: null,
+        model,
+        model_type: 'sound',
+        sound_type: soundType,
         error: error.message,
         _mock: true,
       };

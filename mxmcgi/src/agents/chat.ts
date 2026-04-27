@@ -376,7 +376,7 @@ export async function handleAgentChat(
   providerOverride?: string
 ): Promise<void> {
   const body = req.body as AgentChatRequest;
-  const { message, sessionId } = body;
+  const { message, sessionId, images: imageUrls = [], imageBase64 = [] } = body;
 
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
     res.status(400).json({ success: false, error: 'Missing or invalid field: message' });
@@ -394,7 +394,28 @@ export async function handleAgentChat(
   const session = getOrCreateSession(sessionId);
 
   try {
-    addMessageToSession(session, 'user', message);
+    // 处理图片上传
+    let uploadedImages: string[] = [...imageUrls];
+
+    if (imageBase64.length > 0) {
+      for (const base64Data of imageBase64) {
+        try {
+          const result = await mxmCGIHttpClient.uploadR2Reference(base64Data);
+          if (result?.url) {
+            uploadedImages.push(result.url);
+          }
+        } catch (uploadErr) {
+          console.warn('[AgentChat] Image upload failed:', uploadErr);
+        }
+      }
+    }
+
+    // 构建带图片的消息内容
+    const messageWithImages = uploadedImages.length > 0
+      ? `${message}\n\n[用户上传了 ${uploadedImages.length} 张图片]\n${uploadedImages.map((url, i) => `图片${i + 1}: ${url}`).join('\n')}`
+      : message;
+
+    addMessageToSession(session, 'user', messageWithImages);
 
     // 首次连接：立即发送 sessionId
     emit(res, { type: 'text', sessionId: session.id, content: '' });

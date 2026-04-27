@@ -303,6 +303,47 @@ export class MxmCGIHttpClient {
       body: params,
     });
   }
+
+  async audioMusic(
+    params: {
+      prompt: string;
+      duration?: number;
+      [key: string]: any;
+    },
+    userId: string
+  ): Promise<any> {
+    return this.request('/audio/music', {
+      method: 'POST',
+      headers: { 'X-User-Id': userId },
+      body: params,
+    });
+  }
+
+  // ==================== 上传方法 ====================
+
+  /**
+   * 上传 base64 图片到 R2
+   * POST /upload/r2-reference
+   */
+  async uploadR2Reference(
+    base64: string,
+    options?: {
+      contentType?: string;
+      originalName?: string;
+      tag?: string;
+    }
+  ): Promise<{ url: string; key: string }> {
+    return this.request('/upload/r2-reference', {
+      method: 'POST',
+      headers: {
+        'X-User-Id': 'system',
+      },
+      body: {
+        base64,
+        ...options,
+      },
+    });
+  }
 }
 
 // 导出单例

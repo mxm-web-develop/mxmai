@@ -1,0 +1,41 @@
+=== 2026-04-27 ===
+
+## Smartflow 视频/音频模型节点
+[completed] 修复 modelExecutor.ts params vs model_params 命名不一致 bug
+[completed] 实现 video/sound model 节点完整调用链
+
+## Python 代码执行器
+[completed] 实现 Python child_process.spawn 执行
+[completed] 支持 timeout 和错误处理
+
+## 业务示例流程
+[completed] writing-article-default - 通用文章写作
+[completed] writing-script-default - 视频脚本写作
+[completed] design-poster-default - 海报设计生成
+[completed] video-generate-default - 视频生成完整流程
+[completed] audio-tts-default - 语音合成
+[completed] audio-music-default - 音乐生成
+[completed] smart-search-default - 智能搜索分析
+[completed] code-assistant-default - 代码助手
+
+## 网页爬虫工具
+[completed] 增强 extract_strategy 支持 (text/links/images/structured)
+[completed] 添加 User-Agent 和超时控制
+
+## Agent Chat 图片上传
+[completed] AgentChatRequest 支持 images/imageBase64
+[completed] 添加 uploadR2Reference 到 MxmCGIHttpClient
+[completed] handleAgentChat 处理图片上传逻辑
+
+## Bug 修复
+[completed] 修复 audioMusic 调用私有方法问题
+[completed] 添加 audioMusic 到 httpClient.ts
+
+## 构建验证
+[completed] pnpm build:mxmcgi - 成功
+[completed] pnpm build:web - 成功
+[completed] TypeScript 编译检查通过
+
+## 待验证
+[pending] 端到端测试（需要启动服务）
+[pending] 前端 Agent Chat 页面图片上传集成测试

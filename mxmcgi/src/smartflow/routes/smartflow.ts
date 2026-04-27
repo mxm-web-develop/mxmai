@@ -7,6 +7,7 @@ import { smartflowRepository, InMemorySmartflowRepository } from '../core/engine
 import { executionRepository } from '../core/engine/executionRepository';
 import { SmartflowEngine } from '../core/engine/engine';
 import { PREDEFINED_SMARTFLOWS } from '../core/photographyV2';
+import { PREDEFINED_EXAMPLE_FLOWS } from '../core/predefined-flows';
 import { CreateSmartflowDto, UpdateSmartflowDto } from '../core/models/types';
 
 const router = Router();
@@ -72,6 +73,13 @@ async function initPredefinedSmartflows() {
     if (!existing) {
       await smartflowRepository.create(sf as any);
       console.log(`[mxmcgi/smartflow] Created predefined smartflow: ${sf.id}`);
+    }
+  }
+  for (const sf of PREDEFINED_EXAMPLE_FLOWS) {
+    const existing = await smartflowRepository.findById(sf.id);
+    if (!existing) {
+      await smartflowRepository.create(sf as any);
+      console.log(`[mxmcgi/smartflow] Created example smartflow: ${sf.id}`);
     }
   }
 }

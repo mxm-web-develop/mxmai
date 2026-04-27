@@ -1,0 +1,74 @@
+{
+  "tasks": [
+    {
+      "id": "smartflow-video-sound-model",
+      "description": "Smartflow video/sound model 节点实现",
+      "steps": [
+        "修复 params vs model_params 命名不一致",
+        "实现 executeVideoModel",
+        "实现 executeSoundModel",
+        "添加 audioMusic 到 httpClient"
+      ],
+      "passes": true,
+      "priority": 1
+    },
+    {
+      "id": "python-code-executor",
+      "description": "Python 代码执行器",
+      "steps": [
+        "实现 child_process.spawn python3 执行",
+        "支持 timeout 和错误处理"
+      ],
+      "passes": true,
+      "priority": 1
+    },
+    {
+      "id": "example-flows",
+      "description": "创建业务示例流程",
+      "steps": [
+        "writing-article-default",
+        "writing-script-default",
+        "design-poster-default",
+        "video-generate-default",
+        "audio-tts-default",
+        "audio-music-default",
+        "smart-search-default",
+        "code-assistant-default"
+      ],
+      "passes": true,
+      "priority": 1
+    },
+    {
+      "id": "web-scraper-enhancement",
+      "description": "网页爬虫工具增强",
+      "steps": [
+        "增强 extract_strategy",
+        "添加 text/links/images/structured 支持"
+      ],
+      "passes": true,
+      "priority": 2
+    },
+    {
+      "id": "agent-chat-image-upload",
+      "description": "Agent Chat 图片上传对接",
+      "steps": [
+        "更新 AgentChatRequest 类型",
+        "添加 uploadR2Reference",
+        "处理 handleAgentChat 图片上传"
+      ],
+      "passes": true,
+      "priority": 2
+    },
+    {
+      "id": "e2e-testing",
+      "description": "端到端测试",
+      "steps": [
+        "启动服务验证",
+        "Smartflow 执行测试",
+        "Agent Chat 对话测试"
+      ],
+      "passes": false,
+      "priority": 3
+    }
+  ]
+}

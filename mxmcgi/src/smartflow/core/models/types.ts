@@ -6,6 +6,7 @@
 export type NodeType =
   | 'start'            // 开始节点
   | 'business'         // 业务节点（统一调用 v2 /api/v2/tasks 动态业务）
+  | 'model'            // 模型节点（AI 模型生成 text/image/video/sound/embedding）
   | 'tools'            // 工具节点
   | 'variable'         // 变量节点
   | 'condition'        // 条件节点
@@ -17,7 +18,7 @@ export type NodeType =
 export type BusinessScope = 'writing' | 'graph' | 'audio' | 'video' | 'character' | 'knowledge';
 
 // ============= 工具类型 =============
-export type ToolType = 'web_search' | 'web_scraper' | 'http_request' | 'embedding' | 'code_executor' | 'custom';
+export type ToolType = 'web_search' | 'web_scraper' | 'http_request' | 'embedding' | 'code_executor' | 'deep_search' | 'multi_dimension_search' | 'custom';
 
 // ============= Smartflow 节点 =============
 export interface SmartflowNode {
@@ -90,6 +91,12 @@ export interface SmartflowNode {
   output_mapping?: Record<string, string>;
   nullable_outputs?: string[];
   validate_outputs?: boolean;
+
+  // Model 节点配置（text/image/video/sound/embedding 生成）
+  model_type?: 'text' | 'image' | 'video' | 'sound' | 'embedding';
+  model?: string;
+  prompt?: string;
+  model_params?: Record<string, any>;
 
   // 扩展配置
   options?: Record<string, any>;

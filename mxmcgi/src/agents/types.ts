@@ -8,6 +8,10 @@ export interface AgentChatRequest {
   sessionId?: string;
   provider?: string;
   modelKey?: string;
+  /** 上传的图片 URL 列表（已上传到 R2 的参考图） */
+  images?: string[];
+  /** Base64 编码的图片数据（会自动上传到 R2） */
+  imageBase64?: string[];
 }
 
 /** Agent Chat SSE 事件类型 */
