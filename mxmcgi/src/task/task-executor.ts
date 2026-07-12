@@ -6,13 +6,39 @@
 import { TaskManager, type TaskStorage } from './task-manager';
 import { DatabaseTaskStorage } from './database-storage';
 import type { GenerateResult, ProgressEvent, GenerateParams, ProviderType } from '../models/providers';
-import { providerFactory, getResolvedRouting } from '../models/providers';
-import { runByModelKeyAnyScope } from '../models/run';
+import { providerFactory } from '../models/providers';
+import { runByModelKey, runByModelKeyAnyScope } from '../models/run';
+import type { ModelScope } from '../models/types';
 import { storeFromGenerateResult, type StorageConfig } from './data-store';
+import { getGeneratedBucket } from '../storage/generated-temp';
+import { isBase64 } from './reference-image';
 import type { TaskStatus } from './types';
-import { RepositoryFactory, type UploadOptions } from '@mxmai/mxmdata';
 import { UsageService } from '../statistics/usage-service';
+import { resolveUsageContextFromTaskMetadata } from '../statistics/usage-context';
 import { BillingService } from '../statistics/billing-service';
+import { maybeScheduleParallelChildRetry } from '../tasks/parallel-child-retry';
+
+/** 异步任务 executeTask 调用模型时限定 DB scope，避免同名物理键在 graph/text 等多 scope 并存时误命中错误能力 */
+function taskTypeToModelScope(taskType: string | undefined): ModelScope | undefined {
+  switch (taskType) {
+    case 'text':
+      return 'text';
+    case 'image':
+    case 'graph-grid9-parent':
+      return 'graph';
+    case 'video':
+    case 'video-batch-parent':
+      return 'video';
+    case 'task-v2-batch-parent':
+      return undefined;
+    case 'audio':
+      return 'audio';
+    case 'music':
+      return 'music';
+    default:
+      return undefined;
+  }
+}
 
 export interface ExecuteTaskOptions {
   taskId: string;
@@ -22,6 +48,8 @@ export interface ExecuteTaskOptions {
   userId?: string;
   storeToMinio?: boolean;
   storageConfig?: StorageConfig;
+  /** Admin 预览：等待进度流/落库完成后再 resolve（与默认「后台跑」行为相反） */
+  awaitFullCompletion?: boolean;
 }
 
 /**
@@ -56,7 +84,8 @@ export class TaskExecutor {
    * 统一处理同步和异步任务，通过进度流更新任务状态
    */
   async executeTask(options: ExecuteTaskOptions): Promise<void> {
-    const { taskId, modelName, provider, params, userId, storeToMinio, storageConfig } = options;
+    const { taskId, modelName, provider, params, userId, storeToMinio, storageConfig, awaitFullCompletion } = options;
+    const executeStarted = Date.now();
 
     try {
       // 如果任务已被取消，直接退出
@@ -66,40 +95,45 @@ export class TaskExecutor {
           console.warn(`[TaskExecutor] 任务已取消，跳过执行: ${taskId}`);
           return;
         }
+        if (
+          t?.task?.type === 'video-batch-parent' ||
+          t?.task?.type === 'task-v2-batch-parent'
+        ) {
+          console.log(`[TaskExecutor] 跳过批量父任务执行: ${taskId} (${t.task.type})`);
+          return;
+        }
       } catch {
         // ignore
       }
 
-      // 1. 更新任务状态为 queued
-      await this.taskManager.updateTaskStatus(taskId, 'queued', {
-        progress: 0,
-      });
-
-      // 2. 更新任务状态为 processing
+      // 1. 推进为 processing（claim RPC 可能已是 processing@0，勿再倒回 queued）
+      let entryProgress = 0;
+      try {
+        const t0 = await this.taskManager.getTask(taskId);
+        entryProgress = t0?.task?.progress?.progress ?? 0;
+      } catch {
+        // ignore
+      }
       await this.taskManager.updateTaskStatus(taskId, 'processing', {
-        progress: 10,
+        progress: Math.max(entryProgress, 10),
         startedAt: new Date(),
       });
 
-      // 2.1 解析实际使用的 provider + model 并写入任务 metadata，便于任务监控展示
-      // - outline 任务优先使用 modelName/routingKey（outline-*）走 Admin 路由配置
-      // - 兼容历史 writing + taskType=outline：仍回退到 writing-outlines
+      // 2.1 直接使用传入的 provider + modelName（物理模型）写入 metadata
+      let currentTask: Task | null = null;
       try {
         const taskResponse = await this.taskManager.getTask(taskId);
-        const currentTask = taskResponse?.task;
+        currentTask = taskResponse?.task ?? null;
         if (currentTask?.metadata) {
           const requestParams = currentTask.requestParams as {
             taskType?: string;
-            params?: { writing_type?: string };
+            params?: { writing_type?: string; logicalModel?: string };
             graphType?: string;
           } | undefined;
-          const isOutlineTask = currentTask.type === 'outline' || (currentTask.type === 'writing' && requestParams?.taskType === 'outline');
-          const routingKey = isOutlineTask ? (currentTask.type === 'outline' ? modelName : 'writing-outlines') : modelName;
-          const resolved = getResolvedRouting(routingKey, provider);
           const merged: Record<string, unknown> = {
             ...currentTask.metadata,
-            provider: resolved.provider,
-            model: resolved.model,
+            provider: provider ?? currentTask.metadata?.provider,
+            model: modelName,
           };
           if (currentTask.type === 'writing') {
             const writingType = requestParams?.params?.writing_type;
@@ -117,29 +151,136 @@ export class TaskExecutor {
         console.warn(`[TaskExecutor] 写入任务 provider/model 失败 (taskId: ${taskId}):`, err);
       }
 
-      // 3. 检查是否是 writing 任务
-      if (modelName.startsWith('outline-')) {
+      // 3. 根据 task.type（scope）分发；前置管线统一在 worker 内执行后再进入各 handler
+      const taskType = currentTask?.type ?? params?.taskType;
+      const deferredPipelineTypes = new Set([
+        'outline',
+        'writing',
+        'graph',
+        'video',
+        'audio',
+        'music',
+      ]);
+
+      let execParams = params;
+      if (deferredPipelineTypes.has(String(taskType))) {
+        if (taskType === 'graph' && userId) {
+          const root = execParams as Record<string, unknown>;
+          const inner = (root.params ?? root) as Record<string, unknown>;
+          const { hydrateReferenceImageParamsInPlace } = await import('../task/reference-image');
+          await hydrateReferenceImageParamsInPlace(inner, userId);
+          if (root.params && typeof root.params === 'object') {
+            root.params = inner;
+          }
+          console.log(`[TaskExecutor] graph 参考图已预加载, taskId=${taskId}`);
+        }
+
+        const { applyDeferredMediaPrePipeline } = await import('../tasks/deferred-media-pipeline');
+        execParams = await applyDeferredMediaPrePipeline({
+          taskId,
+          taskType: taskType as import('../tasks/deferred-media-pipeline').DeferredPrePipelineTaskType,
+          params,
+          userId,
+          onProgress: async (update) => {
+            await this.taskManager.updateTaskProgress(taskId, {
+              progress: update.progress,
+              logs: [update.message],
+            });
+          },
+        });
+
+        if ((execParams as Record<string, unknown>).__pauseForManualReview === true) {
+          const {
+            buildPersistedParamsForAwaitingReview,
+            buildTaskMetadataForAwaitingReview,
+          } = await import('../tasks/manual-review');
+          const { setManualReviewDraft } = await import('../tasks/manual-review-store');
+
+          const gate = (execParams as Record<string, unknown>).__manualReviewGate as
+            | import('../tasks/manual-review-types').ManualReviewGateInfo
+            | undefined;
+          const draft = (execParams as Record<string, unknown>).__manualReviewDraft as
+            | import('../tasks/manual-review-types').ReviewDraftPayload
+            | undefined;
+
+          if (gate && draft) {
+            await setManualReviewDraft(taskId, gate.gateId, draft);
+          }
+
+          const persisted = buildPersistedParamsForAwaitingReview(execParams as Record<string, any>);
+          await this.taskManager.updateTaskRequestParams(taskId, persisted);
+
+          try {
+            const snap = await this.taskManager.getTask(taskId);
+            const existingMeta = (snap?.task?.metadata ?? {}) as Record<string, unknown>;
+            const storage = (this.taskManager as any).storage;
+            if (storage && gate) {
+              await storage.update(taskId, {
+                metadata: buildTaskMetadataForAwaitingReview(existingMeta, gate),
+              });
+            }
+          } catch (metaErr) {
+            console.warn('[TaskExecutor] awaiting_review metadata 回写失败:', metaErr);
+          }
+
+          const gateLabel = gate?.label ?? '人工审核';
+          await this.taskManager.updateTaskStatus(taskId, 'awaiting_review', {
+            progress: gate?.phase === 'post' ? 85 : 35,
+            logs: [`${gateLabel}，等待人工审核`],
+          });
+          return;
+        }
+
+        if (taskType === 'audio') {
+          const { isVoiceOverPlaceholderPrompt } = await import('../tasks/deferred-media-pipeline');
+          const bps = (execParams.businessPipelineState ?? {}) as Record<string, unknown>;
+          const ttsText = String(
+            execParams.prompt ?? (execParams.parameters as { text?: string } | undefined)?.text ?? ''
+          );
+          if (
+            bps.businessPipelinePreDeferred === true &&
+            bps.businessPipelinePreDone !== true &&
+            isVoiceOverPlaceholderPrompt(ttsText)
+          ) {
+            const { ConfigurationError } = await import('../tasks/errors');
+            throw new ConfigurationError(
+              '口播前置 nestedText 未生效，仍为占位/Markdown 源文本，已阻止 TTS。请检查 Worker 日志与 Admin 执行管线（voice-script-draft / tts-markup）。'
+            );
+          }
+        }
+
+        if (taskType === 'outline' || taskType === 'writing' || taskType === 'video') {
+          await this.taskManager.updateTaskRequestParams(taskId, execParams as Record<string, any>);
+        }
+      }
+
+      if (taskType === 'outline') {
         const { startOutlineTask } = await import('../core/writing/writing-task');
         await startOutlineTask(taskId);
-        return; // outline 任务在 startOutlineTask 内部处理完成
+        return;
       }
-      if (modelName.startsWith('writing-')) {
-        // Writing 任务使用特殊的处理逻辑
+      if (taskType === 'writing') {
         const { startWritingTask } = await import('../core/writing/writing-task');
         await startWritingTask(taskId);
-        return; // Writing 任务在 startWritingTask 内部处理完成
+        return;
       }
-
-      // 4. 检查是否是 graph 任务
-      if (modelName.startsWith('graph-')) {
-        // Graph 任务使用特殊的处理逻辑
-        // 传入原始 params（包含完整的 base64），因为数据库中的 params 可能已被清理
+      if (taskType === 'video') {
+        const { startVideoTask } = await import('../core/video/video-task');
+        await startVideoTask(taskId, execParams);
+        return;
+      }
+      if (taskType === 'text') {
+        const { startTextTask } = await import('../core/text/text-task');
+        await startTextTask(taskId, execParams);
+        return;
+      }
+      if (taskType === 'graph') {
         const { startGraphTask } = await import('../core/graph/graph-task');
-        await startGraphTask(taskId, params);
-        return; // Graph 任务在 startGraphTask 内部处理完成
+        await startGraphTask(taskId, execParams);
+        return;
       }
 
-      // 4. 通过模型文件调用生成接口（与 text 路由逻辑一致）
+      // 4. 通过模型文件调用生成接口（audio / music 等）
       // 模型文件的 generate() 内部会使用 providerFactory.getProviderForModel() 自动选择支持的 provider
       // 如果默认 provider 不支持，会自动选择支持的 provider
       // 再次检查取消（queued/processing 期间用户可能点了取消）
@@ -152,79 +293,17 @@ export class TaskExecutor {
       } catch {
         // ignore
       }
-      const result = await this.callModelGenerate(modelName, params, provider);
-      
-      // 5. 更新任务的 metadata（从 result.metadata 中获取 provider 和 taskId，确保正确）
-      // 这确保即使任务创建时 provider 是 undefined，执行时也会正确设置
-      // 对于视频任务，还需要保存 DeerAPI 的 taskId（videoId）以便任务恢复服务使用
-      if (result.metadata) {
-        try {
-          const taskResponse = await this.taskManager.getTask(taskId);
-          if (taskResponse?.task && taskResponse.task.metadata) {
-            const needsUpdate = 
-              (result.metadata.provider && taskResponse.task.metadata.provider !== result.metadata.provider) ||
-              (result.metadata.taskId && taskResponse.task.metadata.taskId !== result.metadata.taskId);
-            
-            const hasModel = result.metadata.model && taskResponse.task.metadata?.model !== result.metadata.model;
-            if (needsUpdate || hasModel) {
-              // 通过 storage 直接更新 metadata（TaskManager 没有专门的 updateMetadata 方法）
-              const storage = (this.taskManager as any).storage;
-              if (storage) {
-                const updatedMetadata = {
-                  ...(taskResponse.task.metadata || {}),
-                  ...(result.metadata.provider && { provider: result.metadata.provider }),
-                  ...(result.metadata.model && { model: result.metadata.model }),
-                  ...(result.metadata.taskId && { taskId: result.metadata.taskId }),
-                };
-                await storage.update(taskId, {
-                  metadata: updatedMetadata,
-                });
-                console.log(`[TaskExecutor] ✅ 已更新任务 metadata (taskId: ${taskId}):`, {
-                  provider: result.metadata.provider,
-                  model: result.metadata.model,
-                  taskId: result.metadata.taskId,
-                });
-              }
-            }
-          }
-        } catch (error) {
-          // 如果更新 metadata 失败，记录警告但不影响任务执行
-          console.warn(`[TaskExecutor] 更新任务 metadata 失败 (taskId: ${taskId}):`, error);
-        }
-      }
-
-      // 6. 如果有进度流，监听进度更新（异步任务）
-      if (result.progress) {
-        // 异步处理进度流（不阻塞，在后台执行）
-        this.processProgressStream(taskId, result.progress, result, storeToMinio, storageConfig, userId, modelName, provider).catch(
-          (error) => {
-            console.error(`[TaskExecutor] ❌ 处理进度流失败 (taskId: ${taskId}):`, error);
-            console.error(`[TaskExecutor] 错误堆栈:`, error instanceof Error ? error.stack : String(error));
-            console.error(`[TaskExecutor] 模型: ${modelName}, Provider: ${provider || 'auto'}`);
-            this.taskManager.setTaskError(
-              taskId,
-              `处理进度流失败: ${error instanceof Error ? error.message : String(error)}`
-            );
-          }
-        );
-      } else {
-        // 没有进度流（同步返回，如 DeerAPI）
-        // 如果启用了 MinIO 存储，先更新进度为 90%（表示生成完成，正在存储）
-        if (storeToMinio && result.mediaUrls && result.mediaUrls.length > 0) {
-          await this.taskManager.updateTaskProgress(taskId, {
-            progress: 90,
-            logs: ['媒体生成完成，正在上传到存储...'],
-          });
-        } else {
-          // 如果没有存储需求，直接更新为 100%
-          await this.taskManager.updateTaskProgress(taskId, {
-            progress: 100,
-          });
-        }
-        
-        // 处理结果（包括 MinIO 存储）
-        await this.processResult(taskId, result, storeToMinio, storageConfig, userId, modelName, provider);
-      }
+      await this.executeMediaModelTask({
+        taskId,
+        modelName,
+        provider,
+        params: execParams,
+        userId,
+        storeToMinio,
+        storageConfig,
+        awaitFullCompletion,
+        scopeHint: taskTypeToModelScope(taskType),
+      });
     } catch (error) {
       // 统一兜底日志，确保 Admin 看到简单错误信息时，终端里有完整堆栈可排查
       console.error('[TaskExecutor] ❌ 任务执行失败', {
@@ -240,9 +319,28 @@ export class TaskExecutor {
               }
             : String(error),
       });
-      await this.taskManager.setTaskError(
-        taskId,
-        error instanceof Error ? error.message : String(error)
+      const errMsg = error instanceof Error ? error.message : String(error);
+      try {
+        const failedSnap = await this.taskManager.getTask(taskId);
+        if (failedSnap?.task && (await maybeScheduleParallelChildRetry(taskId, failedSnap.task, errMsg))) {
+          return;
+        }
+      } catch {
+        /* ignore retry scheduling errors */
+      }
+      try {
+        const failSnap = await this.taskManager.getTask(taskId);
+        if (failSnap?.task) {
+          const { buildPipelineFailureSnapshot } = await import('./pipeline-retry');
+          const snapshot = buildPipelineFailureSnapshot(failSnap.task);
+          await this.taskManager.updateTaskRequestParams(taskId, snapshot);
+        }
+      } catch (persistErr) {
+        console.warn('[TaskExecutor] pipeline failure snapshot persist failed:', persistErr);
+      }
+      await this.taskManager.setTaskError(taskId, errMsg);
+      console.log(
+        `[task_metric] event=terminal taskId=${taskId} status=failed executeMs=${Date.now() - executeStarted}`
       );
     }
   }
@@ -499,68 +597,8 @@ export class TaskExecutor {
             }
           }
 
-          // 如果是 Deer Sora 视频任务且还没有 mediaUrls，则在任务层主动拉取视频并上传到 MinIO
-          // 使用 finalResult.metadata 而不是 result.metadata，确保使用最新的 metadata
-          // 确保 metadata 存在后再访问 provider
-          const isDeerVideo =
-            finalResult.metadata &&
-            finalResult.metadata.provider === 'deer' &&
-            modelName &&
-            /^sora-2/.test(modelName) &&
-            typeof finalResult.metadata.taskId === 'string';
-
-          if (
-            isDeerVideo &&
-            storeToMinio &&
-            (!finalResult.mediaUrls || finalResult.mediaUrls.length === 0) &&
-            storageConfig
-          ) {
-            await this.taskManager.updateTaskProgress(taskId, {
-              progress: 90,
-              logs: ['视频生成完成，正在从 DeerAPI 下载并上传到存储...'],
-            });
-
-            const deerTaskId = finalResult.metadata?.taskId as string | undefined;
-            if (!deerTaskId) {
-              throw new Error('DeerAPI 视频结果缺少 taskId，无法下载视频内容');
-            }
-
-            const uploadResult = await this.downloadAndStoreDeerVideo(
-              deerTaskId,
-              storageConfig,
-              userId,
-              modelName,
-            );
-
-            finalResult = {
-              ...finalResult,
-              mediaUrls: [uploadResult.url],
-              metadata: finalResult.metadata || { model: modelName || 'unknown', provider: 'deer' },
-            };
-
-            // 直接设置任务结果并将进度更新为 100%
-            await this.taskManager.setTaskResult(taskId, {
-              mediaUrls: [uploadResult.url],
-              storageInfo: {
-                keys: [uploadResult.key],
-                bucket: uploadResult.bucket,
-                urls: [uploadResult.url],
-              },
-              metadata: finalResult.metadata || {
-                model: modelName || 'unknown',
-                provider: 'deer', // 这是 Deer Sora 视频任务，provider 应该是 'deer'
-              },
-            });
-
-            await this.taskManager.updateTaskProgress(taskId, {
-              progress: 100,
-              logs: ['视频已成功上传到存储'],
-            });
-            break;
-          }
-          
           // 检查是否有 Base64 数据，如果有则强制使用 MinIO
-          const hasBase64InProgress = finalResult.mediaUrls?.some(url => url.startsWith('data:'));
+          const hasBase64InProgress = finalResult.mediaUrls?.some((url) => typeof url === 'string' && isBase64(url));
           const shouldForceMinIOInProgress = hasBase64InProgress;
           
           // 如果启用了 MinIO 存储或检测到 Base64，先更新进度为 90%（表示生成完成，正在存储）
@@ -611,10 +649,10 @@ export class TaskExecutor {
 
       if (mediaUrls.length > 0) {
         for (const url of mediaUrls) {
-          if (url.startsWith('data:')) {
+          if (typeof url === 'string' && isBase64(url)) {
             hasBase64Data = true;
-            // 计算 Base64 数据大小（data URI 前缀 + Base64 数据）
-            const base64Size = Buffer.byteLength(url, 'utf8');
+            // 计算 Base64 数据大小（近似：字符串长度字节数）
+            const base64Size = Buffer.byteLength(String(url), 'utf8');
             totalBase64Size += base64Size;
           }
         }
@@ -638,8 +676,8 @@ export class TaskExecutor {
       const taskResponse = await this.taskManager.getTask(taskId);
       taskType = taskResponse?.task?.type || 'other';
       
-      if (shouldForceMinIO && !finalStorageConfig) {
-        // 根据任务类型自动生成存储路径模板
+      // storeToMinio 为 true 时（含 music 外链 URL），自动生成 MinIO 路径配置并转存
+      if ((storeToMinio || shouldForceMinIO) && !finalStorageConfig && mediaUrls.length > 0) {
         const pathTemplateMap: Record<string, string> = {
           image: '{userId}/graph/{timestamp}-{randomId}.{ext}',
           video: '{userId}/video/{timestamp}-{randomId}.{ext}',
@@ -650,13 +688,13 @@ export class TaskExecutor {
           outlines: '{userId}/outlines/{timestamp}-{randomId}.{ext}',
           other: '{userId}/other/{timestamp}-{randomId}.{ext}',
         };
-        
+
         finalStorageConfig = {
-          bucket: process.env.CGI_STORAGE_BUCKET || 'user-media',
+          bucket: getGeneratedBucket(),
           pathTemplate: pathTemplateMap[taskType] || pathTemplateMap.other,
         };
         console.log(
-          `[TaskExecutor] 自动生成存储配置 (taskId: ${taskId}, type: ${taskType})`
+          `[TaskExecutor] 自动生成存储配置 (taskId: ${taskId}, type: ${taskType}, storeToMinio=${!!storeToMinio})`,
         );
       }
 
@@ -721,12 +759,37 @@ export class TaskExecutor {
         }
       }
 
+      // Business Pipeline 后置步骤（text 改写 / post 阶段 context / 格式化 / manualReview）
+      let processedResult = result;
+      try {
+        const postOutcome = await this.applyBusinessPostPipeline(taskId, result, userId, taskType);
+        if (postOutcome === 'paused') {
+          return;
+        }
+        processedResult = postOutcome;
+      } catch (postErr) {
+        console.error(`[TaskExecutor] Business post pipeline failed (taskId: ${taskId}):`, postErr);
+        await this.taskManager.setTaskError(
+          taskId,
+          postErr instanceof Error ? postErr.message : String(postErr)
+        );
+        return;
+      }
+
+      const resultText =
+        typeof (processedResult as { text?: string }).text === 'string'
+          ? (processedResult as { text?: string }).text
+          : undefined;
+      if (resultText && resultText.trim()) {
+        mediaUrls = processedResult.mediaUrls || mediaUrls;
+      }
+
       // 设置任务结果
       // 确保 metadata 中包含正确的 provider（从 result.metadata 中获取，如果没有则保持原有值）
       // 注意：taskResponse 已经在上面获取过了（第 536 行），这里直接使用
       // 安全地合并 metadata，确保所有字段都存在
       const taskMetadata = taskResponse?.task?.metadata || {};
-      const resultMetadata = result.metadata || {};
+      const resultMetadata = processedResult.metadata || {};
       
       const finalMetadataBase = {
         userId: taskMetadata.userId || userId,
@@ -760,10 +823,10 @@ export class TaskExecutor {
 
       // 若生成结果包含纯文本（如 writing / outlines 的 JSON 文本），也一并挂到 metadata.text，方便前端回显/解析
       const finalMetadata =
-        typeof (result as any)?.text === 'string' && (result as any).text.trim()
+        typeof (processedResult as any)?.text === 'string' && (processedResult as any).text.trim()
           ? {
               ...finalMetadataBase,
-              text: (result as any).text as string,
+              text: (processedResult as any).text as string,
             }
           : finalMetadataBase;
       
@@ -774,16 +837,20 @@ export class TaskExecutor {
       });
 
       // 记录底层 Provider Usage 并按 provider_pricing 扣减余额（无定价/余额不足时抛错截断）
+      const taskSnapForUsage = await this.taskManager.getTask(taskId, true);
+      const metaForUsage = taskSnapForUsage?.task?.metadata as Record<string, unknown> | undefined;
       const { costUsd } = await UsageService.logProviderUsage({
         taskId,
         userId,
         logicalModel: modelName,
+        taskType: taskResponse?.task?.type,
         result: {
           ...result,
           mediaUrls,
           metadata: finalMetadata,
         },
         providerOverride: finalMetadata.provider as ProviderType | undefined,
+        usageContext: resolveUsageContextFromTaskMetadata(metaForUsage),
       });
 
       // 扣减用户 MXM-TOKEN（所有任务类型统一入口）
@@ -792,9 +859,14 @@ export class TaskExecutor {
         const mediaCount = Array.isArray(mediaUrls) ? mediaUrls.length : 0;
         const durationRaw = usageMetadata.duration ?? usageMetadata.duration_sec ?? usageMetadata.seconds;
         const duration = typeof durationRaw === 'number' ? durationRaw : Number(durationRaw) || 0;
-        const scope = UsageService.inferScopePublic(modelName || '', usageMetadata);
+        const scope = UsageService.inferScopePublic(
+          modelName || '',
+          usageMetadata,
+          taskResponse?.task?.type
+        );
 
         try {
+          const meta = metaForUsage;
           await BillingService.consumeForTask({
             taskId,
             userId,
@@ -809,6 +881,9 @@ export class TaskExecutor {
             videoSeconds: scope === 'video' ? duration : 0,
             requestCount: 1,
             providerCostUsd: costUsd,
+            publishedSlug: typeof meta?.publishedSlug === 'string' ? meta.publishedSlug : undefined,
+            publishedApiId: typeof meta?.publishedApiId === 'string' ? meta.publishedApiId : undefined,
+            openApiCallerId: typeof meta?.openApiCallerId === 'string' ? meta.openApiCallerId : undefined,
           });
         } catch (billingErr) {
           // 余额不足：记录日志但不影响已完成任务的结果落库
@@ -840,83 +915,131 @@ export class TaskExecutor {
   }
 
   /**
-   * Deer Sora 视频：从 DeerAPI 下载视频并上传到 MinIO
-   * 只在任务层处理，不改动通用存储工具
+   * 通用媒体模型调用：generate + 进度流 + MinIO + 计费（video-task 等复用）
    */
-  private async downloadAndStoreDeerVideo(
-    deerVideoId: string,
-    storageConfig: StorageConfig,
-    userId?: string,
-    modelName?: string,
-  ): Promise<{ key: string; bucket: string; url: string }> {
-    const baseUrl = process.env.DEERAPI_BASE_URL;
-    const apiKey = process.env.DEERAPI_API_KEY;
+  async executeMediaModelTask(
+    options: ExecuteTaskOptions & { scopeHint?: ModelScope },
+  ): Promise<void> {
+    const {
+      taskId,
+      modelName,
+      provider,
+      params,
+      userId,
+      storeToMinio,
+      storageConfig,
+      awaitFullCompletion,
+      scopeHint = 'video',
+    } = options;
 
-    if (!baseUrl || !apiKey) {
-      throw new Error('DEERAPI_BASE_URL 或 DEERAPI_API_KEY 未配置，无法下载 Deer 视频');
+    const pipelineState = (params.businessPipelineState ?? {}) as Record<string, unknown>;
+    if (pipelineState.businessPipelinePostDeferred === true && pipelineState.pendingPostResult) {
+      await this.resumeDeferredPostPipeline({
+        taskId,
+        pendingResult: pipelineState.pendingPostResult as GenerateResult,
+        params,
+        userId,
+        storeToMinio,
+        storageConfig,
+        modelName,
+        provider,
+        scopeHint,
+      });
+      return;
     }
 
-    const url = `${baseUrl}/v1/videos/${deerVideoId}/content`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: apiKey,
-      },
-    });
+    const result = await this.callModelGenerate(modelName, params, provider, scopeHint);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`DeerAPI 获取视频内容失败: ${response.status} ${response.statusText} - ${errorText}`);
+    if (result.metadata) {
+      try {
+        const taskResponse = await this.taskManager.getTask(taskId);
+        if (taskResponse?.task?.metadata) {
+          const needsUpdate =
+            (result.metadata.provider &&
+              taskResponse.task.metadata.provider !== result.metadata.provider) ||
+            (result.metadata.taskId &&
+              taskResponse.task.metadata.taskId !== result.metadata.taskId);
+          const hasModel =
+            result.metadata.model && taskResponse.task.metadata?.model !== result.metadata.model;
+          if (needsUpdate || hasModel) {
+            const storage = (this.taskManager as any).storage;
+            if (storage) {
+              await storage.update(taskId, {
+                metadata: {
+                  ...(taskResponse.task.metadata || {}),
+                  ...(result.metadata.provider && { provider: result.metadata.provider }),
+                  ...(result.metadata.model && { model: result.metadata.model }),
+                  ...(result.metadata.taskId && { taskId: result.metadata.taskId }),
+                },
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`[TaskExecutor] 更新任务 metadata 失败 (taskId: ${taskId}):`, error);
+      }
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const contentType = response.headers.get('content-type') || 'video/mp4';
-    const ext = contentType.includes('webm') ? 'webm' : 'mp4';
-
-    // 生成 MinIO 路径（不改动通用存储逻辑，这里简化一版）
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(
-      now.getDate(),
-    ).padStart(2, '0')}`;
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).slice(2, 8);
-
-    const pathVariables: Record<string, string | number> = {
-      userId: userId || 'anonymous',
-      modelName: modelName || 'unknown',
-      date: dateStr,
-      timestamp,
-      randomId,
-      ext,
-    };
-
-    let key = storageConfig.pathTemplate;
-    for (const [k, v] of Object.entries(pathVariables)) {
-      key = key.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+    if (result.progress) {
+      const progressPromise = this.processProgressStream(
+        taskId,
+        result.progress,
+        result,
+        storeToMinio,
+        storageConfig,
+        userId,
+        modelName,
+        provider,
+      );
+      if (awaitFullCompletion) {
+        await progressPromise;
+      } else {
+        progressPromise.catch((error) => {
+          console.error(`[TaskExecutor] 处理进度流失败 (taskId: ${taskId}):`, error);
+          this.taskManager.setTaskError(
+            taskId,
+            `处理进度流失败: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        });
+      }
+      return;
     }
 
-    const storageRepo = RepositoryFactory.createStorageRepository();
-    const uploadOptions: UploadOptions = {
-      contentType,
-      metadata: {
-        userId: userId || 'anonymous',
-        originalUrl: `deerapi://${deerVideoId}/content`,
-        mediaType: 'video',
-      },
-    };
+    if (storeToMinio && result.mediaUrls && result.mediaUrls.length > 0) {
+      await this.taskManager.updateTaskProgress(taskId, {
+        progress: 90,
+        logs: ['媒体生成完成，正在上传到存储...'],
+      });
+    } else {
+      await this.taskManager.updateTaskProgress(taskId, { progress: 100 });
+    }
 
-    const uploadResult = await storageRepo.uploadFile(
-      storageConfig.bucket,
-      key,
-      buffer,
-      uploadOptions,
+    await this.processResult(taskId, result, storeToMinio, storageConfig, userId, modelName, provider);
+  }
+
+  /**
+   * 供 video-task 等专用 handler 复用：MinIO 落库、计费、setTaskResult
+   */
+  async finalizeMediaTaskResult(
+    taskId: string,
+    result: GenerateResult,
+    options: {
+      storeToMinio?: boolean;
+      storageConfig?: StorageConfig;
+      userId?: string;
+      modelName?: string;
+      provider?: ProviderType;
+    },
+  ): Promise<void> {
+    return this.processResult(
+      taskId,
+      result,
+      options.storeToMinio,
+      options.storageConfig,
+      options.userId,
+      options.modelName,
+      options.provider,
     );
-
-    return {
-      key: uploadResult.key,
-      bucket: uploadResult.bucket,
-      url: uploadResult.url,
-    };
   }
 
   /**
@@ -928,11 +1051,381 @@ export class TaskExecutor {
   async callModelGenerate(
     modelName: string,
     params: Record<string, any>,
-    provider?: ProviderType
+    provider?: ProviderType,
+    scopeHint?: ModelScope
   ): Promise<GenerateResult> {
-    // 纯动态：仅从 provider_models 查找并执行（video → graph → audio → writing）
     const taskParams = { ...params, enableProgress: true };
+    if (scopeHint) {
+      return await runByModelKey(scopeHint, modelName, taskParams, { providerOverride: provider });
+    }
+    // 无 hint 时跨 scope 查找（如 music 等未纳入 ModelScope 的任务类型）
     return await runByModelKeyAnyScope(modelName, taskParams, { providerOverride: provider });
+  }
+
+  private async applyBusinessPostPipeline(
+    taskId: string,
+    result: GenerateResult,
+    userId?: string,
+    taskType?: string
+  ): Promise<GenerateResult | 'paused'> {
+    const taskResponse = await this.taskManager.getTask(taskId);
+    const taskMeta = (taskResponse?.task?.metadata ?? {}) as Record<string, unknown>;
+    const taskParams = (taskResponse?.task?.requestParams ?? {}) as Record<string, unknown>;
+    const nestedParams = (taskParams.params ?? taskParams) as Record<string, unknown>;
+
+    const taskV2 = (nestedParams.taskV2 ?? taskMeta.taskV2) as
+      | { scope?: string; taskKey?: string; subtype?: string | null }
+      | undefined;
+    if (!taskV2?.scope || !taskV2.taskKey) {
+      return result;
+    }
+
+    const { loadTaskDefinition } = await import('../tasks/task-definition');
+    const { buildCoreArtifactFromResult, applyFinalArtifactToGenerateResult } =
+      await import('../tasks/business-pipeline');
+    const {
+      runPostPipelineWithCheckpoints,
+      persistManualReviewPause,
+      buildPersistedParamsForAwaitingReview,
+      buildTaskMetadataForAwaitingReview,
+      mergeBusinessPipelineState,
+    } = await import('../tasks/manual-review');
+    const { mergeEffectivePipeline } = await import('../tasks/business-pipeline-defaults');
+
+    const { row, template } = await loadTaskDefinition({
+      scope: taskV2.scope as import('../tasks/types').TaskScope,
+      taskKey: taskV2.taskKey,
+      subtype: taskV2.subtype ?? null,
+    });
+
+    const { post } = mergeEffectivePipeline(
+      taskV2.scope,
+      template,
+      (row.extra ?? null) as Record<string, unknown> | null
+    );
+    if (!post.length) {
+      return result;
+    }
+
+    const meta = result.metadata ?? {};
+    const text =
+      typeof (result as { text?: string }).text === 'string'
+        ? (result as { text?: string }).text
+        : typeof meta.text === 'string'
+          ? meta.text
+          : undefined;
+
+    const coreArtifact = buildCoreArtifactFromResult(taskV2.scope, {
+      text,
+      mediaUrls: result.mediaUrls,
+      metadata: meta as Record<string, unknown>,
+    });
+
+    const pipelineState = mergeBusinessPipelineState(
+      taskParams as Record<string, unknown>,
+      nestedParams as Record<string, unknown>,
+      taskMeta
+    );
+
+    const reviewedFinalArtifact = pipelineState.finalArtifact as
+      | import('../tasks/types').CoreArtifact
+      | undefined;
+    const effectiveArtifact = reviewedFinalArtifact?.text?.trim()
+      ? reviewedFinalArtifact
+      : coreArtifact;
+
+    let ctx: import('../tasks/types').TaskContext = {
+      scope: taskV2.scope,
+      taskKey: taskV2.taskKey,
+      subtype: taskV2.subtype ?? null,
+      userId,
+      taskId,
+      params: { ...nestedParams, metadata: meta },
+      state: {
+        ...pipelineState,
+        coreArtifact: effectiveArtifact,
+        finalArtifact: effectiveArtifact,
+        _formSchema: template.formSchema,
+      },
+    };
+
+    const outcome = await runPostPipelineWithCheckpoints({
+      ctx,
+      template,
+      scope: taskV2.scope,
+      rowExtra: (row.extra ?? null) as Record<string, unknown> | null,
+      onStepCheckpoint: async (stepCtx) => {
+        const { mergeParamsWithPipelineState } = await import('../task/pipeline-retry');
+        const merged = mergeParamsWithPipelineState(taskParams as Record<string, unknown>, {
+          ...pipelineState,
+          ...stepCtx.state,
+          pendingPostResult: result,
+          businessPipelinePostDeferred: true,
+          pipelineRetryEligible: true,
+        });
+        await this.taskManager.updateTaskRequestParams(taskId, merged);
+      },
+    });
+
+    if (outcome.kind === 'paused') {
+      const execParams = {
+        ...(taskParams as Record<string, any>),
+        businessPipelineState: {
+          ...(pipelineState ?? {}),
+          ...outcome.ctx.state,
+          pendingPostResult: result,
+          businessPipelinePostDeferred: true,
+        },
+      };
+      const pausedParams = await persistManualReviewPause({
+        taskId,
+        gate: outcome.gate,
+        draft: outcome.draft,
+        execParams,
+        taskType: String(taskType ?? taskResponse?.task?.type ?? ''),
+      });
+      const persisted = buildPersistedParamsForAwaitingReview(pausedParams);
+      await this.taskManager.updateTaskRequestParams(taskId, persisted);
+
+      try {
+        const storage = (this.taskManager as any).storage;
+        if (storage) {
+          await storage.update(taskId, {
+            metadata: buildTaskMetadataForAwaitingReview(taskMeta, outcome.gate),
+          });
+        }
+      } catch (metaErr) {
+        console.warn('[TaskExecutor] post awaiting_review metadata 回写失败:', metaErr);
+      }
+
+      await this.taskManager.updateTaskStatus(taskId, 'awaiting_review', {
+        progress: 85,
+        logs: [`${outcome.gate.label ?? '产出审核'}，等待人工审核`],
+      });
+      return 'paused';
+    }
+
+    if (outcome.kind === 'awaitingNestedVideo') {
+      const { persistNestedVideoRenderPause } = await import('../tasks/manual-review');
+      const mergedState = {
+        ...(pipelineState ?? {}),
+        ...outcome.ctx.state,
+        pendingPostResult: result,
+      };
+      // videoEditRenderTaskId / nestedVideoRenderPending 一并塞进 businessPipelineState，
+      // 不再二次重写 root metadata（避免大 jsonb update 超时——已踩过坑：
+      // SupabaseJS update 全 jsonb 替换单条 update 在 metadata 巨大时易触发 statement timeout）。
+      const pausedParams = await persistNestedVideoRenderPause({
+        taskId,
+        renderTaskId: outcome.renderTaskId,
+        execParams: taskParams as Record<string, any>,
+        checkpoint: outcome.checkpoint,
+        pipelineState: mergedState,
+      });
+      await this.taskManager.updateTaskRequestParams(taskId, pausedParams);
+
+      await this.taskManager.updateTaskStatus(taskId, 'processing', {
+        progress: 92,
+        logs: [`逐段渲染进行中（子任务 ${outcome.renderTaskId}）…`],
+      });
+      return 'paused';
+    }
+
+    ctx = outcome.ctx;
+
+    const finalArtifact = ctx.state.finalArtifact as import('../tasks/types').CoreArtifact | undefined;
+    const merged = applyFinalArtifactToGenerateResult(finalArtifact, {
+      text,
+      mediaUrls: result.mediaUrls,
+      metadata: {
+        ...meta,
+        pipelineTrace: ctx.state.pipelineTrace,
+        pipelineNestedUsage: ctx.state.pipelineNestedUsage,
+        contextFieldMeta: ctx.state.contextFieldMeta,
+      },
+    });
+
+    return {
+      ...result,
+      text: merged.text ?? (result as { text?: string }).text,
+      mediaUrls: merged.mediaUrls ?? result.mediaUrls,
+      metadata: merged.metadata as GenerateResult['metadata'],
+    };
+  }
+
+  /** render 子任务完成后续跑父任务 post 管线（进入第二次 manualReview） */
+  async resumeParentPipelineAfterNestedRender(
+    parentTaskId: string,
+    renderTaskId: string
+  ): Promise<void> {
+    const taskResponse = await this.taskManager.getTask(parentTaskId);
+    const parent = taskResponse?.task;
+    if (!parent) return;
+
+    const { getMergedPipelineState } = await import('./pipeline-retry');
+    const bps = getMergedPipelineState(parent);
+    const meta = (parent.metadata ?? {}) as Record<string, unknown>;
+
+    const renderPending =
+      bps.nestedVideoRenderPending === true || meta.nestedVideoRenderPending === true;
+    if (!renderPending) return;
+    if (!bps.pendingPostResult) return;
+
+    let effectiveRenderId = String(
+      bps.videoEditRenderTaskId ?? meta.videoEditRenderTaskId ?? ''
+    ).trim();
+
+    if (effectiveRenderId !== renderTaskId) {
+      const { readParentPipelineTaskId } = await import('../tasks/nested-video-render');
+      const incomingSnap = await this.taskManager.getTask(renderTaskId);
+      const incomingParent = incomingSnap?.task
+        ? readParentPipelineTaskId(incomingSnap.task)
+        : undefined;
+      if (
+        incomingParent === parentTaskId &&
+        incomingSnap?.task?.status === 'completed'
+      ) {
+        effectiveRenderId = renderTaskId;
+      } else {
+        return;
+      }
+    }
+
+    const taskParams = (parent.requestParams ?? {}) as Record<string, any>;
+    const renderSnap = await this.taskManager.getTask(effectiveRenderId);
+    const renderStatus = renderSnap?.task?.status;
+    if (renderStatus === 'failed' || renderStatus === 'cancelled') {
+      const err =
+        renderSnap?.task?.progress?.error ??
+        renderSnap?.task?.result?.metadata ??
+        renderStatus;
+      const errMsg = `逐段渲染失败（${effectiveRenderId}）: ${typeof err === 'string' ? err : renderStatus}`;
+      try {
+        const { buildPipelineFailureSnapshot } = await import('./pipeline-retry');
+        const snapshot = buildPipelineFailureSnapshot(parent, {
+          nestedVideoRenderPending: false,
+          videoEditRenderTaskId: undefined,
+          businessPipelinePostDeferred: true,
+          pipelineRenderRetry: true,
+        });
+        await this.taskManager.updateTaskRequestParams(parentTaskId, snapshot);
+      } catch (persistErr) {
+        console.warn('[TaskExecutor] nested render failure snapshot failed:', persistErr);
+      }
+      await this.taskManager.setTaskError(parentTaskId, errMsg);
+      return;
+    }
+    if (renderStatus !== 'completed') return;
+
+    const { mergeParamsWithPipelineState } = await import('./pipeline-retry');
+    const mergedParams = mergeParamsWithPipelineState(taskParams, {
+      ...bps,
+      videoEditRenderTaskId: effectiveRenderId,
+      nestedVideoRenderPending: true,
+    });
+    await this.taskManager.updateTaskRequestParams(parentTaskId, mergedParams);
+
+    try {
+      const storage = (this.taskManager as any).storage;
+      if (storage) {
+        await storage.update(parentTaskId, {
+          metadata: {
+            ...meta,
+            videoEditRenderTaskId: effectiveRenderId,
+            nestedVideoRenderPending: true,
+          },
+        });
+      }
+    } catch (metaErr) {
+      console.warn('[TaskExecutor] nested render parent metadata patch failed:', metaErr);
+    }
+
+    const modelName =
+      (parent.metadata?.model as string) ||
+      (taskParams.params as Record<string, unknown> | undefined)?.logicalModel as string ||
+      'video-pipeline-orchestrator';
+    const provider = (parent.metadata?.provider || taskParams.provider) as ProviderType | undefined;
+    const userId =
+      (taskParams.userId as string) ||
+      (parent.metadata?.userId as string) ||
+      (parent.metadata?.billingUserId as string);
+
+    await this.resumeDeferredPostPipeline({
+      taskId: parentTaskId,
+      pendingResult: bps.pendingPostResult as GenerateResult,
+      params: taskParams,
+      userId,
+      storeToMinio: parent.metadata?.storeToMinio !== false,
+      modelName,
+      provider,
+      scopeHint: 'video',
+    });
+  }
+
+  /** 后置 manualReview 审核通过后，从 pendingPostResult 续跑 post 管线并完成落库 */
+  private async resumeDeferredPostPipeline(options: {
+    taskId: string;
+    pendingResult: GenerateResult;
+    params: Record<string, any>;
+    userId?: string;
+    storeToMinio?: boolean;
+    storageConfig?: StorageConfig;
+    modelName: string;
+    provider?: ProviderType;
+    scopeHint: ModelScope;
+  }): Promise<void> {
+    const { taskId, pendingResult, params, userId, modelName, provider } = options;
+    const taskResponse = await this.taskManager.getTask(taskId);
+    const taskType = taskResponse?.task?.type;
+
+    await this.taskManager.updateTaskStatus(taskId, 'processing', {
+      progress: 90,
+      logs: ['用户已确认产出，继续后置步骤…'],
+    });
+
+    const postOutcome = await this.applyBusinessPostPipeline(
+      taskId,
+      pendingResult,
+      userId,
+      taskType
+    );
+    if (postOutcome === 'paused') {
+      return;
+    }
+
+    const processedResult = postOutcome;
+    const mediaUrls = processedResult.mediaUrls ?? pendingResult.mediaUrls ?? [];
+    const taskMetadata = taskResponse?.task?.metadata ?? {};
+    const resultMetadata = processedResult.metadata ?? {};
+
+    const { scrubPersistedReviewArtifacts } = await import('../tasks/manual-review');
+    const cleaned = scrubPersistedReviewArtifacts(params);
+    const bps = { ...((cleaned.businessPipelineState ?? {}) as Record<string, unknown>) };
+    delete bps.pendingPostResult;
+    delete bps.businessPipelinePostDeferred;
+    cleaned.businessPipelineState = bps;
+    await this.taskManager.updateTaskRequestParams(taskId, cleaned);
+
+    const finalMetadata = {
+      ...taskMetadata,
+      ...resultMetadata,
+      model: resultMetadata.model || taskMetadata.model || modelName || 'unknown',
+      provider: resultMetadata.provider || taskMetadata.provider || 'unknown',
+      ...(typeof processedResult.text === 'string' && processedResult.text.trim()
+        ? { text: processedResult.text }
+        : {}),
+    };
+
+    await this.taskManager.setTaskResult(taskId, {
+      mediaUrls,
+      metadata: finalMetadata,
+    });
+
+    const { deleteManualReviewDraft } = await import('../tasks/manual-review-store');
+    const gateId = (taskMetadata.manualReviewGate as { gateId?: string } | undefined)?.gateId;
+    if (gateId) {
+      await deleteManualReviewDraft(taskId, gateId);
+    }
   }
 
   /**
