@@ -1,0 +1,731 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-13T01:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "course-glossary-extract",
+      "is_active": true,
+      "rules_i18n": { "zh": "", "en": "" },
+      "output_format_i18n": { "zh": "", "en": "" },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换 · 课程术语表抽取",
+          "subtypeLabel": "从原文抽取专有名词并附口语化释义；可挂载为 audio/speak/online-course-series 管线第一步 nestedText"
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["source_material"],
+            "properties": {
+              "source_material": {
+                "type": "string",
+                "title": "源文档",
+                "minLength": 1,
+                "x-ui-type": "textFileOrPaste",
+                "x-max-chars": 120000
+              },
+              "language": {
+                "type": "string",
+                "title": "课程语言",
+                "x-ui-type": "selection",
+                "enum": ["zh", "en"],
+                "x-enum-labels": ["中文", "English"],
+                "default": "zh"
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是【${language}】课程术语抽取师，从源文档中精准识别 6-15 个核心专有名词，给出口语化释义。\n\n【源文档】\n${source_material}\n\n【输出要求】\n只输出一个 JSON 数组，每项：\n- term：原文中的专有名词（保持原文大小写 / 译名）\n- pronounce：口语化读音（中文给汉字 + 拼音首字母；英文给音标或近音词；选最不易读错的）\n- definition_short：≤30 字一句话通俗解释（无依赖专业背景就能懂）\n- definition_long：≤80 字扩展释义（含类比或例子）\n\n【筛选原则】\n- 选**真正阻碍普通听众理解**的词：不解释听起来会完全卡住；放过能被上下文推断的词。\n- 同义/近义词合并为一项；术语若有正式英文，给原文。\n- 数值 / 日期 / 模型版本号属于专名（如「Transformer」「BERT」「AlphaFold」），保留但不放进术语表，除非读者会卡壳。\n\n【输出格式】\n```json\n[{\"term\":\"...\",\"pronounce\":\"...\",\"definition_short\":\"...\",\"definition_long\":\"...\"}]\n```\n\n仅输出 JSON，不要 Markdown 包裹，不要解释文字。"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.2,
+              "maxTokens": 8192
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-course-glossary-extract",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-transform-course-glossary-extract",
+          "charge_metric": "per_request",
+          "price_in_tokens": 8,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "course-glossary-extract",
+          "metadata": { "margin": 0.2, "coursePipelineStage": "glossary" }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "course-outline-from-doc",
+      "is_active": true,
+      "rules_i18n": { "zh": "", "en": "" },
+      "output_format_i18n": { "zh": "", "en": "" },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换 · 课程大纲生成",
+          "subtypeLabel": "从原文抽取 5-8 节课程结构，输出 JSON；可挂载为 audio/speak/online-course-series 管线第二步 nestedText"
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["course_title", "source_material"],
+            "properties": {
+              "course_title": {
+                "type": "string",
+                "title": "系列名 / 课名",
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "episode_index": {
+                "type": "integer",
+                "title": "期数",
+                "minimum": 1,
+                "default": 1
+              },
+              "episode_title": {
+                "type": "string",
+                "title": "本期主题",
+                "description": "本期要解决的核心问题；留空则在大纲阶段自动从源材料提炼",
+                "maxLength": 50
+              },
+              "target_audience": {
+                "type": "string",
+                "title": "目标受众",
+                "x-ui-type": "selection",
+                "enum": ["general", "tech", "finance_biz", "academic", "kids", "senior"],
+                "x-enum-labels": ["通用大众", "技术从业者", "金融/商业人士", "学术研究", "青少年儿童", "老年群体"],
+                "default": "general",
+                "description": "影响术语密度、类比风格、节奏；kids 类偏慢、多类比；academic 类偏快、术语原貌"
+              },
+              "course_topic_blurb": {
+                "type": "string",
+                "title": "课程一句话介绍",
+                "description": "课程是关于什么的、受众是谁、为何值得听；进入开场叙述",
+                "maxLength": 200
+              },
+              "course_tone": {
+                "type": "string",
+                "title": "课程语气基调",
+                "x-ui-type": "selection",
+                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
+                "x-enum-labels": ["沉稳理性", "评论思辨", "故事叙事", "教练拆解", "轻松活泼", "激情澎湃"],
+                "default": "explanatory"
+              },
+              "language": {
+                "type": "string",
+                "title": "课程语言",
+                "x-ui-type": "selection",
+                "enum": ["zh", "en"],
+                "x-enum-labels": ["中文", "English"],
+                "default": "zh"
+              },
+              "episode_target_minutes": {
+                "type": "integer",
+                "title": "本期目标时长（分钟，建议≤20）",
+                "x-ui-type": "number",
+                "minimum": 3,
+                "maximum": 20,
+                "default": 12
+              },
+              "course_glossary_json": {
+                "type": "string",
+                "title": "系列术语表（来自第一步）",
+                "description": "上游 nestedText 输出的 JSON 字符串，将由 pipeline 注入",
+                "default": "[]"
+              },
+              "source_material": {
+                "type": "string",
+                "title": "源文档",
+                "minLength": 1,
+                "x-ui-type": "textFileOrPaste",
+                "x-max-chars": 120000
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充要求",
+                "description": "可选：必讲名词、必须规避、强调角度等"
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是【${language}】网络课编辑，根据源文档内容裂解为本期课程的**结构化大纲**。\n\n【课程元数据】\n课程名：${course_title}\n期数：第 ${episode_index} 期\n本期主题：${episode_title}\n目标受众：${target_audience}\n  general=通用大众；tech=技术从业者（保留英文术语，节奏快）；\n  finance_biz=金融/商业人士（偏战略与案例数据）；academic=学术研究（严谨、保留术语原文）；\n  kids=青少年儿童（类比多、节奏慢、忌讳抽象）；senior=老年群体（句子短、口齿清晰、忌讳网络词）\n课程语气：${course_tone}（steady/editorial/narrative/explanatory/lively/passionate）\n课程介绍：${course_topic_blurb}\n本期目标时长：${episode_target_minutes} 分钟\n\n【本期系列术语表（参考）】\n${course_glossary_json}\n\n【源文档】\n${source_material}\n\n【任务】\n1. 按源文档**实际信息密度**确定本期的**节数**：5-8 节为宜；源文档 < 3000 字可 ≤4 节；> 8000 字可到 8 节。\n2. **每节是一节可独立听懂的「知识点」**，不是源文档的章节名直接复用。\n3. 本期总口播时长（含开头 hook）目标 ${episode_target_minutes} 分钟，但**不超过 20 分钟**（如源材料极大，自动压缩信息密度、剔除次要支线，而非延长时间）。\n4. 每节 `duration_seconds` 字段估算口播时长（目标 ×60 / 节数 ± 30s）；多节用 teaser 互相衔接，避免重复铺垫。\n5. 每节 `key_points` 3-5 条；要具体（数据、概念名、案例），不是「介绍…」「探讨…」。\n6. 每节 `teaser` 是 30 秒内的开场 hook 切入点（如反常识、痛点、悬念、一句话答案倒置）。\n\n【输出 - 严格的 JSON，无 Markdown 包裹】\n{\n  \"course_title\": \"${course_title}\",\n  \"episode_index\": ${episode_index},\n  \"episode_outline\": [\n    {\n      \"uid\": \"s1\",\n      \"title\": \"节标题（8-20 字）\",\n      \"teasing_seconds\": 30,\n      \"teaser\": \"节内 30 秒开场 hook 切入\",\n      \"teaching_objectives\": [\"听完能…\", \"能区分…\"],\n      \"key_points\": [\"要点 1\", \"要点 2\", \"要点 3\"],\n      \"case\": \"该节的具体案例或数据示例（无则 N/A）\",\n      \"duration_seconds\": 180,\n      \"depends_on\": []\n    }\n  ]\n}"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "maxTokens": 16384
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-course-outline-from-doc",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-transform-course-outline-from-doc",
+          "charge_metric": "per_request",
+          "price_in_tokens": 30,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "course-outline-from-doc",
+          "metadata": { "margin": 0.2, "coursePipelineStage": "outline" }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "course-lecture-script-draft",
+      "is_active": true,
+      "rules_i18n": { "zh": "", "en": "" },
+      "output_format_i18n": { "zh": "", "en": "" },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换 · 课程讲稿撰写",
+          "subtypeLabel": "基于大纲节展开口播讲稿（含 hook·概念·案例·小结）；可挂载为 audio/speak/online-course-series 管线第四步 nestedText"
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["episode_outline_json"],
+            "properties": {
+              "course_title": {
+                "type": "string",
+                "title": "课程名",
+                "default": ""
+              },
+              "episode_index": {
+                "type": "integer",
+                "title": "期数",
+                "default": 1
+              },
+              "course_tone": {
+                "type": "string",
+                "title": "课程语气基调",
+                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
+                "default": "explanatory"
+              },
+              "target_audience": {
+                "type": "string",
+                "title": "目标受众",
+                "enum": ["general", "tech", "finance_biz", "academic", "kids", "senior"],
+                "default": "general"
+              },
+              "course_glossary_json": {
+                "type": "string",
+                "title": "系列术语表",
+                "default": "[]"
+              },
+              "episode_outline_json": {
+                "type": "string",
+                "title": "上一步产出的本期大纲 JSON",
+                "description": "上游 nestedText 产物"
+              },
+              "language": {
+                "type": "string",
+                "title": "课程语言",
+                "enum": ["zh", "en"],
+                "default": "zh"
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是【${language}】网络课主讲人。基于本期大纲撰写**完整逐节口播讲稿**（Markdown），整期目标时长 ≤ 20 分钟，按节添加 `## s{N} · 标题` 二级标题作为 TTS 切点。\n\n【课程上下文】\n课程名：${course_title}（系列名）\n第 ${episode_index} 期\n目标受众：${target_audience}（参见上一项说明）\n课程语气：${course_tone}\n\n【系列术语表】\n${course_glossary_json}\n（术语首次出现时，**口语化插一句释义**：「X，专业读法 Y，意思是……」一句话即可。不要全稿罗列。听众通过听感理解即可，避免脚注式打断。）\n\n【本期大纲（JSON）】\n${episode_outline_json}\n\n【整稿结构（严格遵守）】\n# 第 ${episode_index} 期 · <本期主题>\n\n[开场 hook] 30 秒内抛出反常识或痛点，直接进入课程介绍与受众关怀（例如「如果你…，这期就是为你准备的」）。不开场寒暄。\n\n${course_topic_blurb ? `[本期你会学到] 列出 3 点（从大纲 teaching_objectives 抽取），让听众建立心智地图。` : `[本期你会学到] 列出 3 点（从大纲 teaching_objectives 抽取），让听众建立心智地图。`}\n\n## s1 · <节标题>\n\n[teaser] 重新调用本节 teaser（30 秒），承接上节或直接切新角度。\n\n**主稿正文**：以 key_points 为骨架，自然口语化改写，穿插 case。每节应独立完整、可被单独听（听众可能跳过前几节）。\n\n**小结**：用 1-2 句话提炼本节 takeaway，自然过渡到下节。\n\n## s2 · ...\n（重复上述结构）\n\n# 总结\n3-5 句话把全期核心回头串一遍，给一个「行动召唤」（听众课后可以做什么、想什么）。\n\n[下期预告] 一句话点下期主题方向。\n\n【硬性约束】\n1. **不使用任何 Markdown 标题层级 > ##**（不写 ###、####）。仅 #（整稿标题）+ ##（节切点）。TTS markup 解析节切点只识别 ## 。\n2. **不使用列表符**（-、*、1.）— 改用自然口语化串接。\n3. **不使用代码块、表格、引用嵌套**（> 单层可，作为钩子引述可用）。\n4. **整期口播时长硬上限 20 分钟**：若大纲内容超出，按信息密度择优，前 N 个 takeaway 保留，剔除冗余支线。\n5. **每节时长估算**：节内单词数 /（目标 200 字/分钟 zh）/ 文字密度，调度到节标题下用 `<!-- duration: ~Xs -->` 注释（仅用于人审参考；TTS markup 阶段忽略该注释）。\n6. 数字与量词（TTS 友好）：\n   - zh：阿拉伯数字改中文读法（2024→二零二四；3 个→三个；50%→百分之五十；10km→十公里；100 万→一百万）。\n   - en：保留数字格式；金额按读法（$1.5M → one point five million dollars；50% → fifty percent；2024 → twenty twenty-four）。\n7. kids 受众：用类比代替抽象词；节奏放慢为每分钟 120-150 字；忌讳生造英语术语。\n8. senior 受众：句子尽量短（≤ 25 字/句），忌网络词与成语堆叠；术语慢说 + 重复。\n9. academic 受众：保留术语原貌、cite 文献，可适度哲学化。\n10. **教学目标维度**：每节首段与小结务必呼应该节 teaching_objectives。\n\n【输出】只输出讲稿正文（Markdown），不加任何前缀、解释、JSON 包装。"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.45,
+              "maxTokens": 131072,
+              "parameters": {
+                "thinking": { "type": "disabled" },
+                "max_completion_tokens": 131072
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-course-lecture-script-draft",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-transform-course-lecture-script-draft",
+          "charge_metric": "per_request",
+          "price_in_tokens": 60,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "course-lecture-script-draft",
+          "metadata": { "margin": 0.2, "coursePipelineStage": "lecture_draft" }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "course-qa-card-gen",
+      "is_active": true,
+      "rules_i18n": { "zh": "", "en": "" },
+      "output_format_i18n": { "zh": "", "en": "" },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换 · 课程问答题生成",
+          "subtypeLabel": "基于原文 / 大纲生成 5-10 道课程配套问答题；可选，不进入主流程但可单跑"
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["source_material"],
+            "properties": {
+              "source_material": {
+                "type": "string",
+                "title": "源文档或大纲",
+                "minLength": 1,
+                "x-ui-type": "textFileOrPaste",
+                "x-max-chars": 60000
+              },
+              "target_audience": {
+                "type": "string",
+                "title": "目标受众",
+                "enum": ["general", "tech", "finance_biz", "academic", "kids", "senior"],
+                "default": "general"
+              },
+              "language": {
+                "type": "string",
+                "title": "课程语言",
+                "enum": ["zh", "en"],
+                "default": "zh"
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是【${language}】课程配套题库出题人，输出 JSON 数组（5-10 道题）。\n\n【受众】${target_audience}\n\n【教材】${source_material}\n\n【输出 - 严格的 JSON 数组】\n[\n  {\n    \"uid\": \"q1\",\n    \"type\": \"single_choice | true_false | short_answer\",\n    \"question\": \"题干（≤ 50 字，单纯正说，无歧义）\",\n    \"options\": [\"A. ...\", \"B. ...\", \"C. ...\", \"D. ...\"],（仅 single_choice）,\n    \"answer_short\": \"一句话正解（含定位知识点）\",\n    \"answer_long\": \"60-100 字详解（含定位节 / 来源）\",\n    \"knowledge_point_ref\": \"指向 s{N} 或节标题\",\n    \"difficulty\": \"easy | medium | hard\"\n  }\n]\n\n仅输出 JSON。"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.3,
+              "maxTokens": 16384
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-course-qa-card-gen",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-transform-course-qa-card-gen",
+          "charge_metric": "per_request",
+          "price_in_tokens": 25,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "course-qa-card-gen",
+          "metadata": { "margin": 0.2, "coursePipelineStage": "qa" }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "course-lecture-tts-markup",
+      "is_active": true,
+      "rules_i18n": { "zh": "", "en": "" },
+      "output_format_i18n": { "zh": "", "en": "" },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换 · 讲稿 TTS 优化",
+          "subtypeLabel": "为 MiniMax Speech 2.8 插入停顿与节切点；可挂载为 audio/speak/online-course-series 管线第六步 nestedText"
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["script_draft", "voice_id"],
+            "properties": {
+              "script_draft": {
+                "type": "string",
+                "title": "讲稿（已审核版本）",
+                "minLength": 1
+              },
+              "voice_id": {
+                "type": "string",
+                "title": "音色 voice_id",
+                "default": "female-shaonv"
+              },
+              "course_tone": {
+                "type": "string",
+                "title": "课程语气基调",
+                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
+                "default": "explanatory"
+              },
+              "speech_rhythm": {
+                "type": "string",
+                "title": "口播节奏",
+                "enum": ["none", "fluent", "default", "slow", "recitation"],
+                "x-enum-labels": ["无停顿", "流顺", "默认", "慢节奏", "朗诵"],
+                "default": "default"
+              },
+              "target_audience": {
+                "type": "string",
+                "title": "目标受众",
+                "enum": ["general", "tech", "finance_biz", "academic", "kids", "senior"],
+                "default": "general"
+              },
+              "language": {
+                "type": "string",
+                "title": "课程语言",
+                "enum": ["zh", "en"],
+                "default": "zh"
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是 MiniMax Speech 2.8 TTS 口播导演，把上面课程讲稿改写为 t2a_v2 可直接合成的文本。\n\n【课程语言】${language}（zh=中文；en=English）\n【目标受众】${target_audience}\n  kids=句子短、停顿多；senior=句子更短、停顿更多；其他按此表弱化\n【课程语气基调】${course_tone}\n【主播音色 voice_id】${voice_id}\n【口播节奏】${speech_rhythm}\n\n【讲稿（已审核）】\n${script_draft}\n\n【MiniMax 2.8 语法（必须遵守）】\n1. 停顿标签 <#秒数#>（0.01–99.99），按【口播节奏】控制密度，与语速无关：\n   - none：禁止任何 <#...#> 与 (breath)，只靠标点断句。\n   - fluent：全文仅在段落之间最多 1~2 处 <#0.2#>，句内不加停顿。\n   - default：句末 <#0.3#>，段落之间 <#0.5#>；约每 2~3 句一处，不可堆叠。\n   - slow：句末 <#0.4#>~<#0.5#>，段落 <#0.6#>~<#0.8#>。\n   - recitation：意群间 <#0.3#>~<#0.5#>，句末 <#0.6#>~<#0.8#>，段落 <#1#>。\n2. **节切点 <##section##>**（MiniMax 2.8 内部约定，用于章节翻篇）：\n   - 在 Markdown 的每一个 `## s{N} · 标题` 之前插入 `<#0.8#>` + 移除整段 `##` 行（节标题不入 TTS）。\n   - 节内首句之前可插 <#0.3#> 表示「开始新段落」。\n3. 语气词与助词全稿统一一种基调；禁止一惊一乍、禁止 (gasps)(sighs)(laughs) 及连续叠加：\n   - steady / editorial / explanatory / passionate：基本不加括号标签；保留 0~1 个自然连词。\n   - narrative：可 1~2 处 (breath)，仅段落过渡用。\n   - lively：可少量助词，【zh】「嗯」「你看」；【en】「well」「you know」「I think」，全文 ≤3 处。\n4. 数字与量词（TTS 友好）：\n   - zh 改中文读法（2024→二零二四；50%→百分之五十；3 个→三个；10km→十公里；100 万→一百万）。\n   - en 按读法（50% → fifty percent；$1.5M → one point five million dollars；2024 → twenty twenty-four）。\n5. kids 受众：停顿密度 ×1.5；插 0~2 处 (breath) 给听众「消化」节点。\n6. senior 受众：停顿密度 ×1.8；术语首次出现时前后各 <#0.3#> 帮助听辨。\n7. 严禁 Markdown / JSON / 解释文字。移除所有 `<!-- duration: ~Xs -->` 注释。\n8. 必须覆盖讲稿全部信息（含开/中/结与小节），不得省略段落。\n\n【输出】只输出最终 t2a_v2 合成文本（含必要标签与节切点），长度与讲稿相当。"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.32,
+              "maxTokens": 131072,
+              "parameters": {
+                "thinking": { "type": "disabled" },
+                "max_completion_tokens": 131072
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-course-lecture-tts-markup",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-transform-course-lecture-tts-markup",
+          "charge_metric": "per_request",
+          "price_in_tokens": 15,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "course-lecture-tts-markup",
+          "metadata": { "margin": 0.2, "coursePipelineStage": "tts_markup" }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "audio",
+      "type": "speak",
+      "subtype": "online-course-series",
+      "is_active": true,
+      "rules_i18n": { "zh": "", "en": "" },
+      "output_format_i18n": { "zh": "", "en": "" },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "音频 · 网络课程口播",
+          "subtypeLabel": "基于文档/说明书的网络课单期口播（术语表+大纲+讲稿+TTS），适合多期系列"
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["course_title", "source_material"],
+            "properties": {
+              "course_title": {
+                "type": "string",
+                "title": "系列名 / 课名",
+                "description": "系列品牌，写入每期开场和下期预告",
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "episode_index": {
+                "type": "integer",
+                "title": "期数",
+                "minimum": 1,
+                "default": 1
+              },
+              "episode_title": {
+                "type": "string",
+                "title": "本期主题",
+                "description": "留空会在大纲阶段自动从源材料提炼",
+                "maxLength": 50
+              },
+              "host_name": {
+                "type": "string",
+                "title": "讲师 / UP 主名",
+                "description": "可空，留空时以「讲师」占位",
+                "maxLength": 30
+              },
+              "target_audience": {
+                "type": "string",
+                "title": "目标受众",
+                "x-ui-type": "selection",
+                "enum": ["general", "tech", "finance_biz", "academic", "kids", "senior"],
+                "x-enum-labels": ["通用大众", "技术从业者", "金融/商业人士", "学术研究", "青少年儿童", "老年群体"],
+                "default": "general",
+                "description": "决定术语密度、类比、节奏；kids 偏慢多用类比；senior 句子短"
+              },
+              "course_topic_blurb": {
+                "type": "string",
+                "title": "课程一句话介绍",
+                "description": "讲什么、为何值得听；进入开场叙述",
+                "maxLength": 200
+              },
+              "course_tone": {
+                "type": "string",
+                "title": "课程语气基调",
+                "x-ui-type": "selection",
+                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
+                "x-enum-labels": ["沉稳理性", "评论思辨", "故事叙事", "教练拆解", "轻松活泼", "激情澎湃"],
+                "default": "explanatory"
+              },
+              "language": {
+                "type": "string",
+                "title": "课程语言",
+                "x-ui-type": "selection",
+                "enum": ["zh", "en"],
+                "x-enum-labels": ["中文", "English"],
+                "default": "zh"
+              },
+              "episode_target_minutes": {
+                "type": "integer",
+                "title": "本期目标时长（分钟，硬上限 20）",
+                "x-ui-type": "number",
+                "minimum": 3,
+                "maximum": 20,
+                "default": 12,
+                "description": "源文档内容密度自动影响实际节数与时长；超出 20 分钟系统会自动压缩而非延期"
+              },
+              "course_gloss_enabled": {
+                "type": "boolean",
+                "title": "讲稿中插入术语口语化释义",
+                "description": "关闭则跳过术语抽取步骤；推荐保持开启",
+                "default": true
+              },
+              "source_material": {
+                "type": "string",
+                "title": "源文档",
+                "description": "粘贴、上传解析 .txt / .md / .pdf，或从虚拟文件夹选取（三选一）",
+                "x-ui-type": "textFileOrPaste",
+                "x-max-chars": 120000,
+                "minLength": 1,
+                "default": ""
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充要求",
+                "description": "可选：必讲名词、避免话题、强调角度、引用要求"
+              },
+              "voice": {
+                "type": "object",
+                "title": "音色",
+                "description": "选择 speech-2.8 系统音色，或录制/上传进行 MiniMax 音色克隆",
+                "x-ui-type": "minimaxVoice",
+                "x-voice-model": "speech-2.8-hd",
+                "properties": {
+                  "mode": { "type": "string", "enum": ["system", "clone"] },
+                  "voice_id": { "type": "string" },
+                  "label": { "type": "string" }
+                },
+                "default": {
+                  "mode": "system",
+                  "voice_id": "female-shaonv",
+                  "label": "少女音色"
+                }
+              },
+              "speech_rhythm": {
+                "type": "string",
+                "title": "口播节奏",
+                "description": "控制断句与 <#秒数#> 停顿密度",
+                "x-ui-type": "selection",
+                "enum": ["none", "fluent", "default", "slow", "recitation"],
+                "x-enum-labels": ["无停顿", "流顺", "默认", "慢节奏", "朗诵"],
+                "default": "default"
+              },
+              "speed": {
+                "type": "number",
+                "title": "语速",
+                "description": "MiniMax TTS 语速，0.5（慢）~2（快），默认 1",
+                "x-ui-type": "number",
+                "minimum": 0.5,
+                "maximum": 2,
+                "default": 1
+              },
+              "total_duration_seconds": {
+                "type": "integer",
+                "title": "预估时长（秒，计费参考）",
+                "minimum": 1,
+                "default": 720,
+                "x-user-visible": false
+              }
+            }
+          },
+          "uiSchema": {
+            "source_material": { "ui:options": { "rows": 10 } },
+            "supplement": { "ui:widget": "textarea", "ui:options": { "rows": 3 } }
+          },
+          "prompt": {
+            "unifiedTemplate": "【课程元数据占位 - 由 6 步 pipeline 产出最终 prompt】\n\n课程名：${course_title}\n期数：${episode_index}\n本期主题：${episode_title}\n目标受众：${target_audience}\n语气：${course_tone}\n语言：${language}\n目标时长：${episode_target_minutes} 分钟\n术语表开启：${course_gloss_enabled}\n\n开场主题：${course_topic_blurb}\n源文档：${source_material}\n补充：${supplement}\n\n最终 prompt 由 pre 末段（TTS markup）输出。"
+          },
+          "storage": {
+            "scope": "audio",
+            "extension": "mp3",
+            "mime": "audio/mpeg",
+            "pathTemplate": "{userId}/audio/course/{timestamp}-{randomId}/",
+            "filenameTemplate": "course_{taskId}_{randomId}.mp3"
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/transform/course-glossary-extract",
+                "params": { "afterPromptRender": true, "outputStatePath": "courseGlossaryJson" },
+                "inputMapping": {
+                  "source_material": "${params.source_material}",
+                  "language": "${params.language}"
+                },
+                "when": { "all": [{ "field": "params.course_gloss_enabled", "op": "truthy" }] }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/transform/course-outline-from-doc",
+                "params": { "afterPromptRender": true },
+                "inputMapping": {
+                  "course_title": "${params.course_title}",
+                  "episode_index": "${params.episode_index}",
+                  "episode_title": "${params.episode_title}",
+                  "target_audience": "${params.target_audience}",
+                  "course_topic_blurb": "${params.course_topic_blurb}",
+                  "course_tone": "${params.course_tone}",
+                  "language": "${params.language}",
+                  "episode_target_minutes": "${params.episode_target_minutes}",
+                  "course_glossary_json": "${state.courseGlossaryJson}",
+                  "source_material": "${params.source_material}",
+                  "supplement": "${params.supplement}"
+                }
+              },
+              {
+                "step": "manualReview",
+                "params": {
+                  "id": "course-outline-review",
+                  "label": "课程大纲审核",
+                  "hint": "本期 5-8 节课程结构；可增删节、调整 teaching_objectives；确认后进入讲稿撰写。",
+                  "kind": "text",
+                  "draftFrom": "${state.finalPrompt}",
+                  "applyMapping": { "prompt": "${review.text}" }
+                }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/transform/course-lecture-script-draft",
+                "params": { "afterPromptRender": true },
+                "inputMapping": {
+                  "course_title": "${params.course_title}",
+                  "episode_index": "${params.episode_index}",
+                  "course_tone": "${params.course_tone}",
+                  "target_audience": "${params.target_audience}",
+                  "course_glossary_json": "${state.courseGlossaryJson}",
+                  "episode_outline_json": "${state.finalPrompt}",
+                  "language": "${params.language}"
+                }
+              },
+              {
+                "step": "manualReview",
+                "params": {
+                  "id": "course-lecture-review",
+                  "label": "课程讲稿审核",
+                  "hint": "本期完整逐节讲稿（Markdown，开头 hook + s1…sN 节 + 总结 + 下期预告）；总时长上限 20 分钟。确认后进入 TTS 优化与合成。",
+                  "kind": "text",
+                  "draftFrom": "${state.finalPrompt}",
+                  "applyMapping": { "prompt": "${review.text}" }
+                }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/transform/course-lecture-tts-markup",
+                "params": { "afterPromptRender": true },
+                "inputMapping": {
+                  "script_draft": "${state.finalPrompt}",
+                  "voice_id": "${params.voice_id}",
+                  "course_tone": "${params.course_tone}",
+                  "speech_rhythm": "${params.speech_rhythm}",
+                  "target_audience": "${params.target_audience}",
+                  "language": "${params.language}"
+                }
+              }
+            ]
+          },
+          "extra": {
+            "subtitle_enable": true
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "audio-speak-online-course-series",
+        "provider": "maxplan",
+        "model": "speech-2.8-hd",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "audio-speak-online-course-series",
+          "charge_metric": "per_audio_second",
+          "price_in_tokens": 2,
+          "min_charge_tokens": 60,
+          "provider": "maxplan",
+          "model_key": "speech-2.8-hd",
+          "subtype": "online-course-series",
+          "metadata": { "margin": 0.25, "course": true }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

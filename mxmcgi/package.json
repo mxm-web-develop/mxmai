@@ -65,6 +65,7 @@
     "seed:minimax-voice-previews": "tsx src/scripts/seed-minimax-voice-previews.ts",
     "seed:audio-voice-over-test": "tsx src/scripts/apply-mxm-business-bundle.ts src/tasks/examples/audio-speak-voice-over-test.business.json",
     "seed:audio-knowledge-show-episode": "tsx src/scripts/apply-mxm-business-bundle.ts src/tasks/examples/audio-speak-knowledge-show-episode.business.json",
+    "seed:audio-online-course-series": "tsx src/scripts/apply-mxm-business-bundle.ts src/tasks/examples/audio-speak-online-course-series.business.json",
     "seed:music-maxplan-test": "tsx src/scripts/apply-mxm-business-bundle.ts src/tasks/examples/music-compose-maxplan-test.business.json",
     "seed:video-edit-businesses": "tsx src/scripts/seed-video-edit-businesses.ts",
     "seed:science-pop-video-script": "tsx src/scripts/apply-mxm-business-bundle.ts src/tasks/examples/text-science-pop-video-script.business.json",
