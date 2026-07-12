@@ -1,10 +1,12 @@
 /**
  * 资源管理相关路由（文件夹管理）
+ * upload = 上传管理器目录树；virtual = 虚拟文件夹软链树
  */
 
 import '../config/loadEnv';
 import { Router } from 'express';
 import { RepositoryFactory, getSupabaseClient } from '@mxmai/mxmdata';
+import type { Folder, FolderIndexEntry, FolderKind, PromptEngineeringConfig } from '@mxmai/mxmdata';
 import { authMiddleware } from '../middleware/auth';
 import { NotFoundError, DuplicateError, DataAccessError } from '@mxmai/mxmdata';
 
@@ -12,99 +14,220 @@ const router = Router();
 const folderRepo = RepositoryFactory.createFolderRepository();
 const supabase = getSupabaseClient();
 
-/**
- * 清理并验证 UUID 格式
- */
 function cleanAndValidateUUID(id: string | undefined): string | null {
   if (!id) return null;
-  
-  // 移除首尾空白字符和可能的引号
-  let cleaned = id.trim().replace(/^["']+|["']+$/g, '');
-  
-  // 验证 UUID 格式
+  const cleaned = id.trim().replace(/^["']+|["']+$/g, '');
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(cleaned)) {
-    return null;
+  return uuidRegex.test(cleaned) ? cleaned : null;
+}
+
+function parseFolderKind(raw: unknown): FolderKind {
+  return raw === 'virtual' ? 'virtual' : 'upload';
+}
+
+async function assertFolderAccess(userId: string, folderId: string): Promise<Folder> {
+  const folder = await folderRepo.getFolderById(folderId);
+  if (!folder) {
+    throw new NotFoundError('Folder', folderId);
   }
-  
-  return cleaned;
+  if (folder.user_id !== userId) {
+    throw new DataAccessError('Folder does not belong to user', 'PERMISSION_ERROR');
+  }
+  return folder;
+}
+
+function indexEntryStatusFor(
+  entries: FolderIndexEntry[],
+  refType: 'task' | 'storage_object',
+  refId: string
+): string {
+  const hit = entries.find((e) => e.ref_type === refType && e.ref_id === refId);
+  return hit?.status ?? 'pending';
 }
 
 /**
- * GET /api/v1/assets/folders
- * 获取文件夹列表
+ * 把 taskType 映射到与生成列表呼应的稳定业务标签（与 web src/i18n/zh/assets.ts 同步）。
+ * 这是兜底，绝不会暴露 prompt 字符串。
  */
+const TASK_TYPE_BUSINESS_LABELS: Record<string, string> = {
+  audio: '音频',
+  music: '音乐',
+  video: '视频',
+  graph: '图片',
+  image: '图片',
+  writing: '写作',
+  text: '文本',
+};
+
+function businessLabelByTaskType(taskType: string | undefined | null): string {
+  return TASK_TYPE_BUSINESS_LABELS[taskType ?? ''] ?? '任务';
+}
+
+function shortId(id: string, head = 8): string {
+  return id.length >= head ? id.slice(0, head) : id;
+}
+
+/**
+ * 从 admin 业务配置中提取对外可读 label。
+ * 缺历史 extra.display 也安全返回 {}，链路回退到 taskKey。
+ */
+function readBusinessLabels(row: PromptEngineeringConfig | null): {
+  taskLabel: string | null;
+  subtypeLabel: string | null;
+} {
+  if (!row) return { taskLabel: null, subtypeLabel: null };
+  const extra = row.extra && typeof row.extra === 'object' ? (row.extra as Record<string, unknown>) : null;
+  const display = extra && typeof extra.display === 'object' ? (extra.display as Record<string, unknown>) : null;
+  if (!display) return { taskLabel: null, subtypeLabel: null };
+  return {
+    taskLabel: typeof display.taskLabel === 'string' && display.taskLabel.trim() ? display.taskLabel.trim() : null,
+    subtypeLabel:
+      typeof display.subtypeLabel === 'string' && display.subtypeLabel.trim() ? display.subtypeLabel.trim() : null,
+  };
+}
+
+type TaskV2Identity = { scope: string; taskKey: string; subtype: string | null };
+
+function readTaskV2(meta: Record<string, unknown>): TaskV2Identity | null {
+  const tv = meta.taskV2;
+  if (!tv || typeof tv !== 'object') return null;
+  const o = tv as Record<string, unknown>;
+  const scope = typeof o.scope === 'string' ? o.scope.trim() : '';
+  const taskKey = typeof o.taskKey === 'string' ? o.taskKey.trim() : '';
+  if (!scope || !taskKey) return null;
+  const subtype =
+    typeof o.subtype === 'string' && o.subtype.trim() ? o.subtype.trim() : null;
+  return { scope, taskKey, subtype };
+}
+
+/**
+ * 批量查 admin 业务配置表（PromptEngineeringConfig），把 link 的 taskV2 身份映射为对外可读 label。
+ * 历史配置缺 extra.display 时返回 null，回退到 taskKey/业务标签。
+ */
+async function batchResolveBusinessLabels(
+  identities: TaskV2Identity[]
+): Promise<Map<string, { taskLabel: string | null; subtypeLabel: string | null; fullConfig: PromptEngineeringConfig | null }>> {
+  const map = new Map<string, { taskLabel: string | null; subtypeLabel: string | null; fullConfig: PromptEngineeringConfig | null }>();
+  if (identities.length === 0) return map;
+  const repo = RepositoryFactory.createPromptEngineeringConfigRepository();
+  const uniq = new Map<string, TaskV2Identity>();
+  for (const id of identities) {
+    uniq.set(`${id.scope}|${id.taskKey}|${id.subtype ?? ''}`, id);
+  }
+  await Promise.all(
+    [...uniq.values()].map(async (id) => {
+      const key = `${id.scope}|${id.taskKey}|${id.subtype ?? ''}`;
+      let full: PromptEngineeringConfig | null = null;
+      try {
+        full = (await repo.findByKey(id.scope, id.taskKey, id.subtype)) as PromptEngineeringConfig | null;
+      } catch {
+        full = null;
+      }
+      const labels = readBusinessLabels(full);
+      map.set(key, { ...labels, fullConfig: full });
+    })
+  );
+  return map;
+}
+
+/**
+ * 派生 link.name（用户对外可见的标题）：
+ *   1. metadata.title 显式用户标题（如有）
+ *   2. admin 业务配置 taskLabel · subtypeLabel（与生成列表 taskLabel 对齐）
+ *   3. taskKey（系统标识）· 业务标签
+ *   4. 业务标签 + #短码（兜底，绝不返 prompt）
+ */
+function deriveLinkNameForTask(
+  task: Record<string, unknown>,
+  labelMap: Map<string, { taskLabel: string | null; subtypeLabel: string | null; fullConfig: PromptEngineeringConfig | null }>
+): { name: string; taskV2: TaskV2Identity | null; promptForAudit: string | null } {
+  const taskId = String(task.id);
+  const meta = (task.metadata && typeof task.metadata === 'object'
+    ? (task.metadata as Record<string, unknown>)
+    : {}) as Record<string, unknown>;
+  const id = readTaskV2(meta);
+  const userTitle = typeof meta.title === 'string' && meta.title.trim() ? meta.title.trim() : '';
+  const promptRaw = typeof task.prompt === 'string' ? task.prompt : '';
+
+  // 1) 用户标题最优先
+  if (userTitle) {
+    return { name: userTitle, taskV2: id, promptForAudit: promptRaw };
+  }
+  // 2) admin label
+  if (id) {
+    const labels = labelMap.get(`${id.scope}|${id.taskKey}|${id.subtype ?? ''}`);
+    const taskLabel = labels?.taskLabel ?? null;
+    const subtypeLabel = labels?.subtypeLabel ?? null;
+    if (taskLabel && subtypeLabel) return { name: `${taskLabel} · ${subtypeLabel}`, taskV2: id, promptForAudit: promptRaw };
+    if (taskLabel) return { name: taskLabel, taskV2: id, promptForAudit: promptRaw };
+    // 3) tech id + 业务兜底标签
+    const tech =
+      id.subtype && id.subtype !== id.taskKey
+        ? `${id.taskKey}/${id.subtype}`
+        : id.taskKey;
+    return {
+      name: `${tech} #${shortId(taskId)}`,
+      taskV2: id,
+      promptForAudit: promptRaw,
+    };
+  }
+  // 4) 纯兜底：业务标签 + 短码
+  return {
+    name: `${businessLabelByTaskType(String(task.task_type ?? ''))} #${shortId(taskId)}`,
+    taskV2: null,
+    promptForAudit: promptRaw,
+  };
+}
+
 router.get('/folders', authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user!.userId;
     const parentId = req.query.parent_id as string | undefined;
+    const folderKind = parseFolderKind(req.query.folder_kind);
 
     const folders = await folderRepo.getFolders(userId, {
-      parent_id: parentId === '' ? null : parentId,
+      parent_id: parentId === '' || parentId === undefined ? undefined : parentId === 'null' ? null : parentId,
+      folder_kind: folderKind,
     });
 
-    // 确保返回数组（即使表不存在也返回空数组）
     const folderList = Array.isArray(folders) ? folders : [];
 
     res.json({
       code: 200,
       message: '获取文件夹列表成功',
-      data: {
-        folders: folderList,
-        total: folderList.length,
-      },
+      data: { folders: folderList, total: folderList.length },
     });
-  } catch (error: any) {
-    // 如果是表不存在的错误，返回空数组而不是 500 错误
-    if (error instanceof DataAccessError && 
-        (error.message?.includes("Could not find the table") || 
-         error.message?.includes("does not exist") ||
-         error.originalError?.message?.includes("Could not find the table"))) {
-      return res.json({
-        code: 200,
-        message: '获取文件夹列表成功',
-        data: {
-          folders: [],
-          total: 0,
-        },
-      });
+  } catch (error: unknown) {
+    if (error instanceof DataAccessError && error.message?.includes('Could not find the table')) {
+      return res.json({ code: 200, message: '获取文件夹列表成功', data: { folders: [], total: 0 } });
     }
     next(error);
   }
 });
 
-/**
- * POST /api/v1/assets/folders
- * 创建文件夹
- */
 router.post('/folders', authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user!.userId;
-    const { name, parent_id } = req.body;
+    const { name, parent_id, folder_kind } = req.body;
+    const folderKind = parseFolderKind(folder_kind);
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({
-        code: 400,
-        message: '文件夹名称不能为空',
-        error: 'VALIDATION_ERROR',
-      });
+      return res.status(400).json({ code: 400, message: '文件夹名称不能为空', error: 'VALIDATION_ERROR' });
     }
 
-    // 如果指定了 parent_id，验证父文件夹存在且属于该用户
     if (parent_id) {
       const parentFolder = await folderRepo.getFolderById(parent_id);
       if (!parentFolder) {
-        return res.status(404).json({
-          code: 404,
-          message: '父文件夹不存在',
-          error: 'NOT_FOUND',
-        });
+        return res.status(404).json({ code: 404, message: '父文件夹不存在', error: 'NOT_FOUND' });
       }
       if (parentFolder.user_id !== userId) {
-        return res.status(403).json({
-          code: 403,
-          message: '无权限访问父文件夹',
-          error: 'PERMISSION_DENIED',
+        return res.status(403).json({ code: 403, message: '无权限访问父文件夹', error: 'PERMISSION_DENIED' });
+      }
+      if (parentFolder.folder_kind !== folderKind) {
+        return res.status(400).json({
+          code: 400,
+          message: '父文件夹类型与当前 folder_kind 不一致',
+          error: 'VALIDATION_ERROR',
         });
       }
     }
@@ -112,124 +235,64 @@ router.post('/folders', authMiddleware, async (req, res, next) => {
     const folder = await folderRepo.createFolder(userId, {
       name: name.trim(),
       parent_id: parent_id || null,
+      folder_kind: folderKind,
     });
 
-    res.status(201).json({
-      code: 201,
-      message: '创建文件夹成功',
-      data: folder,
-    });
+    res.status(201).json({ code: 201, message: '创建文件夹成功', data: folder });
   } catch (error) {
     if (error instanceof DuplicateError) {
-      return res.status(409).json({
-        code: 409,
-        message: '文件夹名称已存在',
-        error: 'DUPLICATE_ERROR',
-      });
+      return res.status(409).json({ code: 409, message: '文件夹名称已存在', error: 'DUPLICATE_ERROR' });
     }
     next(error);
   }
 });
 
-/**
- * PUT /api/v1/assets/folders/:id
- * 更新文件夹
- */
 router.put('/folders/:id', authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user!.userId;
     const folderId = cleanAndValidateUUID(req.params.id);
-    
     if (!folderId) {
-      return res.status(400).json({
-        code: 400,
-        message: `无效的文件夹 ID 格式: ${req.params.id}`,
-        error: 'VALIDATION_ERROR',
-      });
+      return res.status(400).json({ code: 400, message: `无效的文件夹 ID: ${req.params.id}`, error: 'VALIDATION_ERROR' });
     }
+
     const { name } = req.body;
-
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({
-        code: 400,
-        message: '文件夹名称不能为空',
-        error: 'VALIDATION_ERROR',
-      });
+      return res.status(400).json({ code: 400, message: '文件夹名称不能为空', error: 'VALIDATION_ERROR' });
     }
 
-    const folder = await folderRepo.updateFolder(userId, folderId, {
-      name: name.trim(),
-    });
-
-    res.json({
-      code: 200,
-      message: '更新文件夹成功',
-      data: folder,
-    });
+    const folder = await folderRepo.updateFolder(userId, folderId, { name: name.trim() });
+    res.json({ code: 200, message: '更新文件夹成功', data: folder });
   } catch (error) {
     if (error instanceof NotFoundError) {
-      return res.status(404).json({
-        code: 404,
-        message: '文件夹不存在',
-        error: 'NOT_FOUND',
-      });
+      return res.status(404).json({ code: 404, message: '文件夹不存在', error: 'NOT_FOUND' });
     }
     if (error instanceof DuplicateError) {
-      return res.status(409).json({
-        code: 409,
-        message: '文件夹名称已存在',
-        error: 'DUPLICATE_ERROR',
-      });
+      return res.status(409).json({ code: 409, message: '文件夹名称已存在', error: 'DUPLICATE_ERROR' });
     }
     if (error instanceof DataAccessError && error.type === 'PERMISSION_ERROR') {
-      return res.status(403).json({
-        code: 403,
-        message: '无权限操作此文件夹',
-        error: 'PERMISSION_DENIED',
-      });
+      return res.status(403).json({ code: 403, message: '无权限操作此文件夹', error: 'PERMISSION_DENIED' });
     }
     next(error);
   }
 });
 
-/**
- * DELETE /api/v1/assets/folders/:id
- * 删除文件夹
- */
 router.delete('/folders/:id', authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user!.userId;
     const folderId = cleanAndValidateUUID(req.params.id);
-    
     if (!folderId) {
-      return res.status(400).json({
-        code: 400,
-        message: `无效的文件夹 ID 格式: ${req.params.id}`,
-        error: 'VALIDATION_ERROR',
-      });
+      return res.status(400).json({ code: 400, message: `无效的文件夹 ID: ${req.params.id}`, error: 'VALIDATION_ERROR' });
     }
 
     await folderRepo.deleteFolder(userId, folderId);
-
-    res.json({
-      code: 200,
-      message: '删除文件夹成功',
-    });
+    res.json({ code: 200, message: '删除文件夹成功' });
   } catch (error) {
     if (error instanceof NotFoundError) {
-      return res.status(404).json({
-        code: 404,
-        message: '文件夹不存在',
-        error: 'NOT_FOUND',
-      });
+      return res.status(404).json({ code: 404, message: '文件夹不存在', error: 'NOT_FOUND' });
     }
     if (error instanceof DataAccessError) {
       if (error.type === 'PERMISSION_ERROR') {
-        return res.status(403).json({
-          code: 403,
-          message: '无权限操作此文件夹',
-          error: 'PERMISSION_DENIED',
-        });
+        return res.status(403).json({ code: 403, message: '无权限操作此文件夹', error: 'PERMISSION_DENIED' });
       }
       if (error.type === 'VALIDATION_ERROR') {
         return res.status(400).json({
@@ -243,290 +306,385 @@ router.delete('/folders/:id', authMiddleware, async (req, res, next) => {
   }
 });
 
-/**
- * GET /api/v1/assets/folders/:id/items
- * 获取文件夹中的所有内容（子文件夹和文件）
- * 嵌套路由：返回当前文件夹下的所有子文件夹和文件
- */
+router.get('/folders/:id/path', authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user!.userId;
+    const folderId = cleanAndValidateUUID(req.params.id);
+    if (!folderId) {
+      return res.status(400).json({ code: 400, message: '无效的文件夹 ID', error: 'VALIDATION_ERROR' });
+    }
+
+    await assertFolderAccess(userId, folderId);
+    const path = await folderRepo.getFolderPath(folderId);
+
+    res.json({ code: 200, message: '获取文件夹路径成功', data: { path } });
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return res.status(404).json({ code: 404, message: '文件夹不存在', error: 'NOT_FOUND' });
+    }
+    if (error instanceof DataAccessError && error.type === 'PERMISSION_ERROR') {
+      return res.status(403).json({ code: 403, message: '无权限访问此文件夹', error: 'PERMISSION_DENIED' });
+    }
+    next(error);
+  }
+});
+
+router.get('/items/:taskId/folders', authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user!.userId;
+    const { taskId } = req.params;
+    const folderKind = req.query.folder_kind ? parseFolderKind(req.query.folder_kind) : undefined;
+
+    const { data: task } = await supabase.from('cgi_tasks').select('user_id').eq('id', taskId).single();
+    if (!task || task.user_id !== userId) {
+      return res.status(404).json({ code: 404, message: '任务不存在', error: 'NOT_FOUND' });
+    }
+
+    const folders = await folderRepo.getItemFolders(taskId, folderKind);
+    res.json({ code: 200, message: '获取任务所属文件夹成功', data: { folders } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/storage-objects/:objectId/virtual-folders', authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user!.userId;
+    const objectId = cleanAndValidateUUID(req.params.objectId);
+    if (!objectId) {
+      return res.status(400).json({ code: 400, message: '无效的对象 ID', error: 'VALIDATION_ERROR' });
+    }
+
+    const { data: obj } = await supabase
+      .from('storage_objects')
+      .select('user_id')
+      .eq('id', objectId)
+      .is('deleted_at', null)
+      .single();
+
+    if (!obj || obj.user_id !== userId) {
+      return res.status(404).json({ code: 404, message: '存储对象不存在', error: 'NOT_FOUND' });
+    }
+
+    const folders = await folderRepo.getStorageObjectVirtualFolders(objectId);
+    res.json({ code: 200, message: '获取虚拟文件夹引用成功', data: { folders } });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user!.userId;
     const folderId = cleanAndValidateUUID(req.params.id);
-    
     if (!folderId) {
-      return res.status(400).json({
-        code: 400,
-        message: `无效的文件夹 ID 格式: ${req.params.id}`,
-        error: 'VALIDATION_ERROR',
-      });
+      return res.status(400).json({ code: 400, message: `无效的文件夹 ID: ${req.params.id}`, error: 'VALIDATION_ERROR' });
     }
-    
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
+
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 200;
     const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : 0;
 
-    // 验证文件夹存在且属于该用户
-    const folder = await folderRepo.getFolderById(folderId);
-    if (!folder) {
-      return res.status(404).json({
-        code: 404,
-        message: '文件夹不存在',
-        error: 'NOT_FOUND',
-      });
-    }
-    if (folder.user_id !== userId) {
-      return res.status(403).json({
-        code: 403,
-        message: '无权限访问此文件夹',
-        error: 'PERMISSION_DENIED',
-      });
-    }
+    const folder = await assertFolderAccess(userId, folderId);
+    const isVirtual = folder.folder_kind === 'virtual';
 
-    // 1. 获取当前文件夹下的子文件夹列表
-    let subFolders: any[] = [];
-    try {
-      const folders = await folderRepo.getFolders(userId, {
-        parent_id: folderId,
-      });
-      subFolders = (folders || []).map((f) => ({
-        id: f.id,
-        name: f.name,
-        parent_id: f.parent_id,
-        type: 'dir', // 文件夹类型
-        created_at: f.created_at,
-        updated_at: f.updated_at,
-      }));
-    } catch (error) {
-      // 如果获取子文件夹失败，继续处理文件
-      console.warn('[文件夹] 获取子文件夹失败:', error);
-    }
+    const indexEntries = isVirtual ? await folderRepo.getFolderIndexEntries(folderId) : [];
 
-    // 2. 获取文件夹中的任务 ID 列表
-    let taskIds: string[] = [];
-    try {
-      taskIds = await folderRepo.getFolderItemIds(folderId, {
-        limit,
-        offset,
-      });
-    } catch (error) {
-      // 如果获取任务列表失败，继续处理
-      console.warn('[文件夹] 获取任务列表失败:', error);
-    }
+    const subFolderRows = await folderRepo.getFolders(userId, {
+      parent_id: folderId,
+      folder_kind: folder.folder_kind,
+    });
 
-    // 3. 获取任务详情（从 cgi-tasks 表）
-    let fileItems: any[] = [];
-    if (taskIds && taskIds.length > 0) {
-      const { data: tasks, error: tasksError } = await supabase
+    const subFolders = subFolderRows.map((f) => ({
+      type: 'dir' as const,
+      id: f.id,
+      name: f.name,
+      parent_id: f.parent_id,
+      folder_kind: f.folder_kind,
+      index_status: f.index_status ?? 'none',
+      indexed_at: f.indexed_at,
+      knowledge_base_id: f.knowledge_base_id,
+      created_at: f.created_at,
+      updated_at: f.updated_at,
+    }));
+
+    const folderItems = await folderRepo.getFolderItems(folderId, { limit, offset });
+    const linkItems: Record<string, unknown>[] = [];
+
+    const taskIds = folderItems.map((i) => i.task_id).filter((id): id is string => !!id);
+    if (taskIds.length > 0) {
+      const { data: tasks } = await supabase
         .from('cgi_tasks')
-        .select('id, user_id, task_type, status, prompt, created_at, metadata')
+        .select('id, user_id, task_type, status, prompt, created_at, metadata, output_data')
         .in('id', taskIds)
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .is('deleted_at', null);
 
-      if (!tasksError && tasks) {
-        fileItems = tasks.map((task: any) => {
-          // 从 metadata 或 prompt 中提取标题
-          const title = task.metadata?.title || 
-                       task.prompt?.substring(0, 50) || 
-                       `任务 ${task.id.substring(0, 8)}`;
-          
-          return {
-            id: task.id,
-            task_id: task.id, // 任务 ID
-            user_id: task.user_id,
-            name: title,
-            type: 'file', // 文件类型
-            task_type: task.task_type, // 'text' | 'image' | 'video' | 'audio'
-            status: task.status,
-            created_at: task.created_at,
-          };
+      const taskMap = new Map((tasks || []).map((t: Record<string, unknown>) => [String(t.id), t]));
+
+      // 1) 解析所有 link 的 taskV2 身份，批量查 admin 业务配置 label
+      const identities: TaskV2Identity[] = [];
+      for (const task of tasks || []) {
+        const meta = (task.metadata as Record<string, unknown>) || {};
+        const id = readTaskV2(meta);
+        if (id) identities.push(id);
+      }
+      const labelMap = await batchResolveBusinessLabels(identities);
+
+      for (const item of folderItems.filter((i) => i.task_id)) {
+        const taskId = item.task_id!;
+        const task = taskMap.get(taskId);
+        if (!task) {
+          // 软链失效，无法定位 cgi_tasks；走兜底（业务标签+短码）
+          linkItems.push({
+            type: 'link',
+            ref_type: 'task',
+            id: taskId,
+            task_id: taskId,
+            name: `${businessLabelByTaskType(undefined)} #${shortId(taskId)}`,
+            broken: true,
+            index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, 'task', taskId) : undefined,
+            link_created_at: item.created_at,
+            created_at: item.created_at,
+          });
+          continue;
+        }
+        const { name, taskV2, promptForAudit } = deriveLinkNameForTask(task, labelMap);
+        // 写作任务的 prompt（角色指令）不应出现在对外 link.name，已由 deriveLinkNameForTask 派生产物替代。
+        // 元数据中仍保留 prompt，前端可作为附注；前端默认不再用其作为展示标题。
+        const metaOut: Record<string, unknown> = {};
+        if (taskV2) metaOut.taskV2 = taskV2;
+        if (promptForAudit && taskV2) {
+          metaOut.prompt = promptForAudit;
+        }
+        linkItems.push({
+          type: 'link',
+          ref_type: 'task',
+          id: taskId,
+          task_id: taskId,
+          name,
+          task_type: task.task_type,
+          status: task.status,
+          metadata: Object.keys(metaOut).length ? metaOut : undefined,
+          broken: false,
+          index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, 'task', taskId) : undefined,
+          link_created_at: item.created_at,
+          created_at: task.created_at,
         });
       }
     }
 
-    // 4. 合并文件夹和文件，按创建时间排序
-    const allItems = [...subFolders, ...fileItems].sort((a, b) => {
-      const timeA = new Date(a.created_at || 0).getTime();
-      const timeB = new Date(b.created_at || 0).getTime();
-      return timeB - timeA; // 最新的在前
+    const objectIds = folderItems
+      .map((i) => i.storage_object_id)
+      .filter((id): id is string => !!id);
+
+    if (objectIds.length > 0) {
+      const { data: objects } = await supabase
+        .from('storage_objects')
+        .select('id, user_id, original_name, content_type, object_key, metadata, created_at')
+        .in('id', objectIds)
+        .eq('user_id', userId)
+        .is('deleted_at', null);
+
+      const objMap = new Map((objects || []).map((o: Record<string, unknown>) => [String(o.id), o]));
+
+      for (const item of folderItems.filter((i) => i.storage_object_id)) {
+        const objectId = item.storage_object_id!;
+        const obj = objMap.get(objectId);
+        if (obj) {
+          const objMeta = (obj.metadata as Record<string, unknown>) || {};
+          const isVoiceAsset = objMeta.asset_type === 'minimax_voice';
+          linkItems.push({
+            type: 'link',
+            ref_type: 'storage_object',
+            id: objectId,
+            object_id: objectId,
+            name: isVoiceAsset
+              ? String(objMeta.label || objMeta.voice_id || obj.original_name || `音色 ${objectId.substring(0, 8)}`)
+              : (obj.original_name as string) || `文件 ${objectId.substring(0, 8)}`,
+            content_type: obj.content_type,
+            metadata: isVoiceAsset
+              ? {
+                  asset_type: 'minimax_voice',
+                  voice_id: objMeta.voice_id,
+                  label: objMeta.label,
+                  mode: objMeta.mode,
+                  model: objMeta.model,
+                  demo_audio: objMeta.demo_audio,
+                }
+              : undefined,
+            broken: false,
+            index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, 'storage_object', objectId) : undefined,
+            link_created_at: item.created_at,
+            created_at: obj.created_at,
+          });
+        } else {
+          linkItems.push({
+            type: 'link',
+            ref_type: 'storage_object',
+            id: objectId,
+            object_id: objectId,
+            name: `文件 ${objectId.substring(0, 8)}`,
+            broken: true,
+            index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, 'storage_object', objectId) : undefined,
+            link_created_at: item.created_at,
+            created_at: item.created_at,
+          });
+        }
+      }
+    }
+
+    const allItems = [...subFolders, ...linkItems].sort((a, b) => {
+      const timeA = new Date(String(a.created_at || 0)).getTime();
+      const timeB = new Date(String(b.created_at || 0)).getTime();
+      return timeB - timeA;
     });
 
-    // 5. 计算总数（子文件夹数量 + 文件数量）
-    let totalFiles = 0;
-    try {
-      totalFiles = await folderRepo.getFolderItemCount(folderId);
-    } catch (error) {
-      // 如果获取文件总数失败，使用当前文件数量
-      totalFiles = fileItems.length;
-    }
-    const total = subFolders.length + totalFiles;
+    const totalFiles = await folderRepo.getFolderItemCount(folderId);
 
     res.json({
       code: 200,
       message: '获取文件夹内容成功',
       data: {
+        folder: {
+          id: folder.id,
+          name: folder.name,
+          folder_kind: folder.folder_kind,
+          index_status: folder.index_status ?? 'none',
+          indexed_at: folder.indexed_at,
+          knowledge_base_id: folder.knowledge_base_id,
+        },
         items: allItems,
-        total,
+        total: subFolders.length + totalFiles,
         folders_count: subFolders.length,
-        files_count: fileItems.length,
+        links_count: totalFiles,
       },
     });
-  } catch (error: any) {
-    // 如果是表不存在的错误，返回空数组而不是 500 错误
-    if (error instanceof DataAccessError && 
-        (error.message?.includes("Could not find the table") || 
-         error.message?.includes("does not exist") ||
-         error.originalError?.message?.includes("Could not find the table"))) {
-      return res.json({
-        code: 200,
-        message: '获取文件夹内容成功',
-        data: {
-          items: [],
-          total: 0,
-          folders_count: 0,
-          files_count: 0,
-        },
-      });
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return res.status(404).json({ code: 404, message: '文件夹不存在', error: 'NOT_FOUND' });
+    }
+    if (error instanceof DataAccessError && error.type === 'PERMISSION_ERROR') {
+      return res.status(403).json({ code: 403, message: '无权限访问此文件夹', error: 'PERMISSION_DENIED' });
     }
     next(error);
   }
 });
 
-/**
- * POST /api/v1/assets/folders/:id/items
- * 添加任务到文件夹
- * 
- * 直接使用 task_id（任务 ID），不再依赖 user_media 表
- */
 router.post('/folders/:id/items', authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user!.userId;
     const folderId = cleanAndValidateUUID(req.params.id);
-    
     if (!folderId) {
-      return res.status(400).json({
-        code: 400,
-        message: `无效的文件夹 ID 格式: ${req.params.id}`,
-        error: 'VALIDATION_ERROR',
-      });
+      return res.status(400).json({ code: 400, message: `无效的文件夹 ID: ${req.params.id}`, error: 'VALIDATION_ERROR' });
     }
-    
-    // 检查请求体是否存在
+
     if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({ code: 400, message: '请求体不能为空', error: 'VALIDATION_ERROR' });
+    }
+
+    const { task_id, storage_object_id } = req.body;
+    const folder = await assertFolderAccess(userId, folderId);
+
+    if (folder.folder_kind !== 'virtual') {
       return res.status(400).json({
         code: 400,
-        message: '请求体不能为空，请确保 Content-Type 为 application/json',
+        message: '仅虚拟文件夹支持软链添加，上传管理器请使用 storage move API',
         error: 'VALIDATION_ERROR',
       });
     }
-    
-    const { task_id } = req.body;
 
-    if (!task_id || typeof task_id !== 'string') {
+    if (task_id && storage_object_id) {
       return res.status(400).json({
         code: 400,
-        message: '任务 ID (task_id) 不能为空',
+        message: 'task_id 与 storage_object_id 不能同时提供',
         error: 'VALIDATION_ERROR',
       });
     }
 
-    // 验证文件夹存在且属于该用户
-    const folder = await folderRepo.getFolderById(folderId);
-    if (!folder) {
-      return res.status(404).json({
-        code: 404,
-        message: '文件夹不存在',
-        error: 'NOT_FOUND',
-      });
-    }
-    if (folder.user_id !== userId) {
-      return res.status(403).json({
-        code: 403,
-        message: '无权限操作此文件夹',
-        error: 'PERMISSION_DENIED',
-      });
-    }
+    if (task_id && typeof task_id === 'string') {
+      const { data: task, error: taskError } = await supabase
+        .from('cgi_tasks')
+        .select('id, user_id')
+        .eq('id', task_id)
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .single();
 
-    // 验证任务存在且属于该用户（查询 cgi-tasks 表）
-    const { data: task, error: taskError } = await supabase
-      .from('cgi_tasks')
-      .select('id, user_id')
-      .eq('id', task_id)
-      .eq('user_id', userId)
-      .single();
+      if (taskError || !task) {
+        return res.status(404).json({
+          code: 404,
+          message: `未找到任务 "${task_id}"`,
+          error: 'NOT_FOUND',
+        });
+      }
 
-    if (taskError || !task) {
-      return res.status(404).json({
-        code: 404,
-        message: `未找到任务 ID "${task_id}" 或该任务不属于当前用户`,
-        error: 'NOT_FOUND',
-      });
+      await folderRepo.addItemToFolder(folderId, task_id);
+      return res.status(201).json({ code: 201, message: '添加任务软链成功' });
     }
 
-    // 直接使用 task_id 添加到文件夹
-    await folderRepo.addItemToFolder(folderId, task_id);
+    if (storage_object_id && typeof storage_object_id === 'string') {
+      const objectId = cleanAndValidateUUID(storage_object_id);
+      if (!objectId) {
+        return res.status(400).json({ code: 400, message: '无效的 storage_object_id', error: 'VALIDATION_ERROR' });
+      }
 
-    res.status(201).json({
-      code: 201,
-      message: '添加任务到文件夹成功',
+      const { data: obj, error: objError } = await supabase
+        .from('storage_objects')
+        .select('id, user_id')
+        .eq('id', objectId)
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .single();
+
+      if (objError || !obj) {
+        return res.status(404).json({ code: 404, message: '存储对象不存在', error: 'NOT_FOUND' });
+      }
+
+      await folderRepo.addStorageObjectToFolder(folderId, objectId);
+      return res.status(201).json({ code: 201, message: '添加上传资产软链成功' });
+    }
+
+    return res.status(400).json({
+      code: 400,
+      message: '请提供 task_id 或 storage_object_id',
+      error: 'VALIDATION_ERROR',
     });
   } catch (error) {
     next(error);
   }
 });
 
-/**
- * DELETE /api/v1/assets/folders/:id/items/:taskId
- * 从文件夹移除任务
- * 
- * 直接使用 task_id（任务 ID），不再依赖 user_media 表
- */
-router.delete('/folders/:id/items/:taskId', authMiddleware, async (req, res, next) => {
+router.delete('/folders/:id/items/:refId', authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user!.userId;
     const folderId = cleanAndValidateUUID(req.params.id);
-    
     if (!folderId) {
-      return res.status(400).json({
-        code: 400,
-        message: `无效的文件夹 ID 格式: ${req.params.id}`,
-        error: 'VALIDATION_ERROR',
-      });
-    }
-    
-    const taskId = req.params.taskId;
-    
-    if (!taskId) {
-      return res.status(400).json({
-        code: 400,
-        message: '任务 ID 不能为空',
-        error: 'VALIDATION_ERROR',
-      });
+      return res.status(400).json({ code: 400, message: `无效的文件夹 ID: ${req.params.id}`, error: 'VALIDATION_ERROR' });
     }
 
-    // 验证文件夹存在且属于该用户
-    const folder = await folderRepo.getFolderById(folderId);
-    if (!folder) {
-      return res.status(404).json({
-        code: 404,
-        message: '文件夹不存在',
-        error: 'NOT_FOUND',
-      });
-    }
-    if (folder.user_id !== userId) {
-      return res.status(403).json({
-        code: 403,
-        message: '无权限操作此文件夹',
-        error: 'PERMISSION_DENIED',
-      });
+    const refId = req.params.refId;
+    const refType = req.query.ref_type === 'storage_object' ? 'storage_object' : 'task';
+
+    await assertFolderAccess(userId, folderId);
+
+    if (refType === 'storage_object') {
+      const objectId = cleanAndValidateUUID(refId);
+      if (!objectId) {
+        return res.status(400).json({ code: 400, message: '无效的对象 ID', error: 'VALIDATION_ERROR' });
+      }
+      await folderRepo.removeStorageObjectFromFolder(folderId, objectId);
+    } else {
+      await folderRepo.removeItemFromFolder(folderId, refId);
     }
 
-    // 直接使用 task_id 从文件夹移除
-    await folderRepo.removeItemFromFolder(folderId, taskId);
-
-    res.json({
-      code: 200,
-      message: '从文件夹移除文件成功',
-    });
+    res.json({ code: 200, message: '移除软链成功' });
   } catch (error) {
+    if (error instanceof NotFoundError) {
+      return res.status(404).json({ code: 404, message: '文件夹不存在', error: 'NOT_FOUND' });
+    }
+    if (error instanceof DataAccessError && error.type === 'PERMISSION_ERROR') {
+      return res.status(403).json({ code: 403, message: '无权限操作此文件夹', error: 'PERMISSION_DENIED' });
+    }
     next(error);
   }
 });
