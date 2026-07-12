@@ -63,10 +63,22 @@ export function resolveLinkDisplayTitle(link: VirtualFolderLinkItem): string {
   const meta = (link.metadata ?? {}) as Record<string, unknown>;
   const metaLabel =
     typeof meta.label === 'string' && meta.label.trim() ? meta.label.trim() : '';
+  const taskLabel =
+    typeof meta.taskLabel === 'string' && meta.taskLabel.trim() ? meta.taskLabel.trim() : '';
+  const subtypeLabel =
+    typeof meta.subtypeLabel === 'string' && meta.subtypeLabel.trim()
+      ? meta.subtypeLabel.trim()
+      : '';
 
-  // 写作任务：source.label / taskLabel 优先，其次业务名+短码
-  // 注意：写作任务的 link.name 实际是 task.prompt 前 50 字（含「【角色】你是资深...」角色指令），
-  // 不能直接当作标题展示。这里显式使用业务标签，对应「生成列表」中的 taskLabel。
+  // 显示策略（与「我的创作」列表保持一致字段）：
+  // 1. 用户填的标题（meta.label）
+  // 2. 业务子类标签（subtypeLabel）：能精确匹配列表卡片上的「类型 · 子类型」
+  // 3. 业务大类 + 子类（taskLabel · subtypeLabel）
+  // 4. 兜底：业务大类 + 短码
+  if (metaLabel) return metaLabel;
+  if (subtypeLabel) return subtypeLabel;
+  if (taskLabel && subtypeLabel) return `${taskLabel} · ${subtypeLabel}`;
+  if (taskLabel) return taskLabel;
   const kindLabel = virtualFolderLinkTypeLabel(link);
-  return metaLabel ? `${kindLabel} · ${metaLabel}` : `${kindLabel} ${taskShort}`;
+  return `${kindLabel} ${taskShort}`;
 }

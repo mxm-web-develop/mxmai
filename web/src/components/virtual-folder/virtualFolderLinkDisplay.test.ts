@@ -34,9 +34,71 @@ describe('resolveLinkDisplayTitle', () => {
     const t = resolveLinkDisplayTitle(
       makeLink({ task_type: 'writing', metadata: { label: '中美科技对比选题' } })
     );
-    expect(t).toBe('Writing · 中美科技对比选题');
+    expect(t).toBe('中美科技对比选题');
     // 有业务 label 时不再混入短码
     expect(t).not.toContain('#');
+  });
+
+  it('写作任务：metadata.label 携带时间戳（如创建任务默认名）时原样展示，与列表对齐', () => {
+    // 与 buildDefaultTaskLabelFromSelection 生成的「subtypeLabel-yyyyMMdd_HHmmss」一致
+    const t = resolveLinkDisplayTitle(
+      makeLink({
+        task_type: 'writing',
+        metadata: {
+          label: 'AI科技情报报道-20260711_170150',
+          taskLabel: '写作',
+          subtypeLabel: 'AI科技情报报道',
+        },
+      })
+    );
+    expect(t).toBe('AI科技情报报道-20260711_170150');
+    expect(t).not.toContain('#');
+  });
+
+  it('写作任务：仅有 subtypeLabel 时展示子类名（与列表卡片字段一致）', () => {
+    const t = resolveLinkDisplayTitle(
+      makeLink({
+        task_type: 'writing',
+        metadata: { subtypeLabel: 'AI 科技情报报道' },
+      })
+    );
+    expect(t).toBe('AI 科技情报报道');
+    expect(t).not.toContain('#');
+  });
+
+  it('写作任务：subtypeLabel 优先于 taskLabel（与列表卡片子标题对齐）', () => {
+    const t = resolveLinkDisplayTitle(
+      makeLink({
+        task_type: 'writing',
+        metadata: { taskLabel: '写作', subtypeLabel: '营销方案' },
+      })
+    );
+    // 子类名比「业务 · 子类」更贴近列表卡片上的「营销方案」标签
+    expect(t).toBe('营销方案');
+    expect(t).not.toContain('#');
+  });
+
+  it('写作任务：仅有 taskLabel 时展示业务名，不再拼短码', () => {
+    const t = resolveLinkDisplayTitle(
+      makeLink({ task_type: 'writing', metadata: { taskLabel: '写作' } })
+    );
+    expect(t).toBe('写作');
+    expect(t).not.toContain('#');
+  });
+
+  it('写作任务：用户标题优先于业务标签', () => {
+    const t = resolveLinkDisplayTitle(
+      makeLink({
+        task_type: 'writing',
+        metadata: {
+          label: '我的自定义标题',
+          taskLabel: '写作',
+          subtypeLabel: '营销方案',
+        },
+      })
+    );
+    expect(t).toBe('我的自定义标题');
+    expect(t).not.toContain('营销方案');
   });
 
   it('音频任务：不展示包含的指令文案', () => {

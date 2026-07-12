@@ -140,26 +140,60 @@ async function batchResolveBusinessLabels(
 function deriveLinkNameForTask(
   task: Record<string, unknown>,
   labelMap: Map<string, { taskLabel: string | null; subtypeLabel: string | null; fullConfig: PromptEngineeringConfig | null }>
-): { name: string; taskV2: TaskV2Identity | null; promptForAudit: string | null } {
+): {
+  name: string;
+  taskV2: TaskV2Identity | null;
+  promptForAudit: string | null;
+  taskLabel: string | null;
+  subtypeLabel: string | null;
+  userTitle: string;
+} {
   const taskId = String(task.id);
   const meta = (task.metadata && typeof task.metadata === 'object'
     ? (task.metadata as Record<string, unknown>)
     : {}) as Record<string, unknown>;
   const id = readTaskV2(meta);
-  const userTitle = typeof meta.title === 'string' && meta.title.trim() ? meta.title.trim() : '';
+  // 任务「名字」存的是 metadata.label（与 mxmcgi extractRequestLabelFromParams / web getTaskTitle 一致）；
+  // metadata.title 不写入，写它会拿到空字符串，永远回退到 admin label。
+  const userTitle = typeof meta.label === 'string' && meta.label.trim() ? meta.label.trim() : '';
   const promptRaw = typeof task.prompt === 'string' ? task.prompt : '';
 
   // 1) 用户标题最优先
   if (userTitle) {
-    return { name: userTitle, taskV2: id, promptForAudit: promptRaw };
+    return {
+      name: userTitle,
+      taskV2: id,
+      promptForAudit: promptRaw,
+      taskLabel: null,
+      subtypeLabel: null,
+      userTitle,
+    };
   }
   // 2) admin label
   if (id) {
     const labels = labelMap.get(`${id.scope}|${id.taskKey}|${id.subtype ?? ''}`);
     const taskLabel = labels?.taskLabel ?? null;
     const subtypeLabel = labels?.subtypeLabel ?? null;
-    if (taskLabel && subtypeLabel) return { name: `${taskLabel} · ${subtypeLabel}`, taskV2: id, promptForAudit: promptRaw };
-    if (taskLabel) return { name: taskLabel, taskV2: id, promptForAudit: promptRaw };
+    if (taskLabel && subtypeLabel) {
+      return {
+        name: `${taskLabel} · ${subtypeLabel}`,
+        taskV2: id,
+        promptForAudit: promptRaw,
+        taskLabel,
+        subtypeLabel,
+        userTitle: '',
+      };
+    }
+    if (taskLabel) {
+      return {
+        name: taskLabel,
+        taskV2: id,
+        promptForAudit: promptRaw,
+        taskLabel,
+        subtypeLabel: null,
+        userTitle: '',
+      };
+    }
     // 3) tech id + 业务兜底标签
     const tech =
       id.subtype && id.subtype !== id.taskKey
@@ -169,6 +203,9 @@ function deriveLinkNameForTask(
       name: `${tech} #${shortId(taskId)}`,
       taskV2: id,
       promptForAudit: promptRaw,
+      taskLabel: null,
+      subtypeLabel: null,
+      userTitle: '',
     };
   }
   // 4) 纯兜底：业务标签 + 短码
@@ -176,6 +213,9 @@ function deriveLinkNameForTask(
     name: `${businessLabelByTaskType(String(task.task_type ?? ''))} #${shortId(taskId)}`,
     taskV2: null,
     promptForAudit: promptRaw,
+    taskLabel: null,
+    subtypeLabel: null,
+    userTitle: '',
   };
 }
 
@@ -448,7 +488,7 @@ router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
           });
           continue;
         }
-        const { name, taskV2, promptForAudit } = deriveLinkNameForTask(task, labelMap);
+        const { name, taskV2, promptForAudit, taskLabel, subtypeLabel, userTitle } = deriveLinkNameForTask(task, labelMap);
         // 写作任务的 prompt（角色指令）不应出现在对外 link.name，已由 deriveLinkNameForTask 派生产物替代。
         // 元数据中仍保留 prompt，前端可作为附注；前端默认不再用其作为展示标题。
         const metaOut: Record<string, unknown> = {};
@@ -456,6 +496,11 @@ router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
         if (promptForAudit && taskV2) {
           metaOut.prompt = promptForAudit;
         }
+        // 把任务名（用户在表单填的 label）透传给前端，与「我的创作」列表显示完全一致。
+        if (userTitle) metaOut.label = userTitle;
+        // 把业务标签一起透传给前端，与「我的创作」列表保持一致字段，避免用户混淆。
+        if (taskLabel) metaOut.taskLabel = taskLabel;
+        if (subtypeLabel) metaOut.subtypeLabel = subtypeLabel;
         linkItems.push({
           type: 'link',
           ref_type: 'task',

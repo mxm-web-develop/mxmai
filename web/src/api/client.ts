@@ -3,6 +3,24 @@
  * Base URL 默认指向 Gateway（如 http://localhost:3000）
  */
 
+import { compressImageForUpload } from '../utils/imageCompress';
+import {
+  getCachedMediaBlobUrl,
+  invalidateAuthenticatedMediaStreamCache,
+  mediaBlobCacheKey,
+  mediaPreviewCacheKey,
+  removeCachedMediaBlobByObjectId,
+  setCachedMediaBlobUrl,
+  storageObjectPreviewCacheKey,
+} from '../lib/mediaBlobCache';
+import {
+  DEFAULT_SESSION_CACHE_TTL_MS,
+  getSessionCache,
+  invalidateSessionCachePrefix,
+  setSessionCache,
+  STORAGE_LIST_CACHE_TTL_MS,
+} from '../lib/sessionApiCache';
+
 const getBaseUrl = (): string => {
   const stored = localStorage.getItem('api_base_url');
   // 开发时留空则走当前域名，配合 Vite proxy 代理到 Gateway
@@ -23,10 +41,92 @@ export function setToken(token: string) {
     localStorage.removeItem('api_token');
     setStoredUser(null);
   }
+  invalidateAuthenticatedMediaStreamCache();
 }
 
 export function getStoredToken(): string {
   return getToken();
+}
+
+/** 合并进行中的相同请求（Strict Mode 双 mount、多组件同时预览） */
+function dedupeInflight<T>(key: string, factory: () => Promise<T>): Promise<T> {
+  const g = dedupeInflight as unknown as { _m?: Map<string, Promise<T>> };
+  if (!g._m) g._m = new Map();
+  const existing = g._m.get(key);
+  if (existing) return existing;
+  const p = factory().finally(() => {
+    g._m?.delete(key);
+  });
+  g._m.set(key, p);
+  return p;
+}
+
+type SessionCacheOptions = { force?: boolean; ttlMs?: number };
+
+function shouldCacheSessionResult(data: unknown): boolean {
+  if (data == null || typeof data !== 'object') return true;
+  const err = (data as { error?: unknown }).error;
+  return !(typeof err === 'string' && err.trim().length > 0);
+}
+
+async function withSessionCache<T>(
+  cacheKey: string,
+  factory: () => Promise<T>,
+  options?: SessionCacheOptions
+): Promise<T> {
+  const ttlMs = options?.ttlMs ?? DEFAULT_SESSION_CACHE_TTL_MS;
+  if (!options?.force) {
+    const cached = getSessionCache<T>(cacheKey, ttlMs);
+    if (cached !== undefined) return cached;
+  }
+  return dedupeInflight(`sessionCache:${cacheKey}`, async () => {
+    if (!options?.force) {
+      const cached = getSessionCache<T>(cacheKey, ttlMs);
+      if (cached !== undefined) return cached;
+    }
+    const data = await factory();
+    if (shouldCacheSessionResult(data)) {
+      setSessionCache(cacheKey, data);
+    }
+    return data;
+  });
+}
+
+export function invalidateStorageObjectsListCache(): void {
+  invalidateSessionCachePrefix('listStorageObjects:');
+}
+
+export function invalidateAssetFoldersCache(): void {
+  invalidateSessionCachePrefix('getFolders');
+}
+
+export function invalidateTaskListCache(): void {
+  invalidateSessionCachePrefix('listWritingTasks:');
+  invalidateSessionCachePrefix('listOutlineTasks:');
+  invalidateSessionCachePrefix('listCgiTasks:');
+  invalidateSessionCachePrefix('listCharacters:');
+}
+
+function extractErrorMessage(data: unknown, fallback: string): string {
+  if (data == null) return fallback;
+  if (typeof data === 'string') return data || fallback;
+  if (typeof data !== 'object') return String(data);
+  const obj = data as Record<string, unknown>;
+  if (typeof obj.message === 'string' && obj.message.trim()) return obj.message;
+  if (typeof obj.error === 'string' && obj.error.trim()) return obj.error;
+  if (obj.error && typeof obj.error === 'object') {
+    const nested = obj.error as Record<string, unknown>;
+    if (typeof nested.message === 'string' && nested.message.trim()) return nested.message;
+  }
+  if (typeof obj.data === 'object' && obj.data) {
+    const nested = obj.data as Record<string, unknown>;
+    if (typeof nested.message === 'string' && nested.message.trim()) return nested.message;
+  }
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return fallback;
+  }
 }
 
 export async function request<T = unknown>(
@@ -75,11 +175,11 @@ export async function request<T = unknown>(
     } catch {
       // ignore
     }
-        const errMsg = (data as { message?: string; error?: string })?.message ?? (data as { message?: string; error?: string })?.error ?? res.statusText;
-        return { error: String(errMsg), status: res.status };
+        const errMsg = extractErrorMessage(data, res.statusText);
+        return { error: errMsg, status: res.status };
       }
-      const errMsg = (data as { message?: string; error?: string })?.message ?? (data as { message?: string; error?: string })?.error ?? res.statusText;
-      return { error: String(errMsg), status: res.status };
+      const errMsg = extractErrorMessage(data, res.statusText);
+      return { error: errMsg, status: res.status };
     }
     return { data, status: res.status };
   } catch (e) {
@@ -95,12 +195,74 @@ export interface LoginUser {
   [key: string]: unknown;
 }
 
-// 登录（mxmauth 返回 { code, data: { user, tokens: { accessToken, refreshToken } } }）
-export async function login(username: string, password: string) {
-  const res = await request<{ data?: { tokens?: { accessToken: string }; user?: LoginUser } }>('/api/v1/account/login', {
-    method: 'POST',
-    body: { username, password },
+export async function getCaptcha(): Promise<
+  { captchaId: string; bgUrl: string; puzzleUrl: string } | { error: string }
+> {
+  const res = await request<{
+    data?: { captchaId: string; bgUrl: string; puzzleUrl: string };
+  }>('/api/v1/account/captcha', { method: 'GET' });
+  if (res.error) return { error: res.error };
+  const body = res.data as {
+    data?: { captchaId: string; bgUrl: string; puzzleUrl: string };
+  };
+  const data =
+    body?.data ??
+    (body as unknown as { captchaId?: string; bgUrl?: string; puzzleUrl?: string });
+  if (data?.captchaId && data?.bgUrl && data?.puzzleUrl) {
+    return { captchaId: data.captchaId, bgUrl: data.bgUrl, puzzleUrl: data.puzzleUrl };
+  }
+  return { error: '获取验证码失败' };
+}
+
+export async function verifyCaptchaSlide(
+  captchaId: string,
+  payload: { x: number; duration?: number; trail?: [number, number][] }
+): Promise<{ success: boolean; error?: string }> {
+  const res = await request<{ data?: { verified?: boolean } }>(
+    '/api/v1/account/captcha/verify',
+    {
+      method: 'POST',
+      body: {
+        captchaId,
+        x: payload.x,
+        duration: payload.duration,
+        trail: payload.trail,
+      },
+    }
+  );
+  if (res.error) return { success: false, error: res.error };
+  return { success: true };
+}
+
+export async function getCaptchaConfig(): Promise<{ enabled: boolean } | { error: string }> {
+  const res = await request<{ data?: { enabled?: boolean } }>('/api/v1/account/captcha/config', {
+    method: 'GET',
   });
+  if (res.error) return { error: res.error };
+  const body = res.data as { data?: { enabled?: boolean } };
+  const enabled = body?.data?.enabled ?? (body as unknown as { enabled?: boolean }).enabled;
+  return { enabled: Boolean(enabled) };
+}
+
+// 登录（mxmauth 返回 { code, data: { user, tokens: { accessToken, refreshToken } } }）
+export async function login(
+  username: string,
+  password: string,
+  captcha?: { captchaId: string; captchaAnswer: string }
+) {
+  const res = await request<{ data?: { tokens?: { accessToken: string }; user?: LoginUser } }>(
+    '/api/v1/account/login',
+    {
+      method: 'POST',
+      body: {
+        username,
+        password,
+        ...(captcha?.captchaId && captcha.captchaAnswer
+          ? { captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer }
+          : {}),
+      },
+    }
+  );
   if (res.error) return { error: res.error };
   const body = res.data as { data?: { tokens?: { accessToken: string }; user?: LoginUser } };
   const data = body?.data ?? (body as unknown as { tokens?: { accessToken: string }; user?: LoginUser });
@@ -128,9 +290,30 @@ export function getStoredUser(): LoginUser | null {
   }
 }
 
+/** 与登录态一致的 user id（勿用已废弃的 localStorage user_id） */
+export function getStoredUserId(): string {
+  return getStoredUser()?.id ?? '';
+}
+
 // 获取当前用户信息（需已登录）
 export async function getProfile() {
   return request<{ data?: LoginUser }>('/api/v1/account/profile');
+}
+
+/** 客户端环境推断（国家/地区，供默认语言） */
+export async function fetchClientHints(): Promise<{ countryCode: string | null }> {
+  try {
+    const res = await fetch(`${getBaseUrl()}/client-hints`, {
+      credentials: 'include',
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return { countryCode: null };
+    const data = (await res.json()) as { countryCode?: string | null };
+    const code = typeof data.countryCode === 'string' ? data.countryCode.trim().toUpperCase() : null;
+    return { countryCode: code || null };
+  } catch {
+    return { countryCode: null };
+  }
 }
 
 // 修改密码（需已登录）
@@ -144,10 +327,307 @@ export async function changeMyPassword(params: { currentPassword: string; newPas
   });
 }
 
+// ---------- 用户设置（需已登录）----------
+export interface UserSettings {
+  theme?: string;
+  language?: string;
+  notifications_enabled?: boolean;
+}
+
+export async function getSettings() {
+  return request<{ data?: UserSettings }>('/api/v1/account/settings');
+}
+
+export async function updateSettings(params: { theme?: string; language?: string; notifications_enabled?: boolean }) {
+  return request<{ code?: number; message?: string; data?: UserSettings }>('/api/v1/account/settings', {
+    method: 'PUT',
+    body: params,
+  });
+}
+
+// ---------- 会员信息（需已登录）----------
+export interface MembershipInfo {
+  membership_type?: string;
+  membership_expires_at?: string;
+  level?: number;
+}
+
+export async function getMembership() {
+  return request<{ data?: MembershipInfo }>('/api/v1/account/membership');
+}
+
+// ---------- 文件夹管理（需已登录）----------
+export interface FolderItem {
+  id: string;
+  name: string;
+  user_id: string;
+  parent_id?: string | null;
+  folder_kind?: 'upload' | 'virtual';
+  index_status?: 'none' | 'indexing' | 'indexed' | 'stale' | null;
+  indexed_at?: string | null;
+  knowledge_base_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type VirtualFolderLinkItem = {
+  type: 'link';
+  ref_type: 'task' | 'storage_object';
+  id: string;
+  task_id?: string;
+  object_id?: string;
+  name: string;
+  broken?: boolean;
+  task_type?: string;
+  status?: string;
+  content_type?: string;
+  metadata?: {
+    asset_type?: string;
+    voice_id?: string;
+    label?: string;
+    mode?: string;
+    model?: string;
+    demo_audio?: string;
+    /** 业务大类展示名（如「写作」「音频」「视频」），由后端从 admin 配置透传 */
+    taskLabel?: string;
+    /** 业务子类展示名（如「AI 科技情报报道」「营销方案」），由后端从 admin 配置透传 */
+    subtypeLabel?: string;
+    /** Task V2 身份（scope/taskKey/subtype），用于前端按字段差异化展示 */
+    taskV2?: {
+      scope: string;
+      taskKey: string;
+      subtype: string | null;
+    };
+  };
+  index_entry_status?: string;
+  link_created_at?: string;
+  created_at: string;
+};
+
+export type VirtualFolderDirItem = {
+  type: 'dir';
+  id: string;
+  name: string;
+  parent_id?: string | null;
+  folder_kind?: string;
+  index_status?: string;
+  indexed_at?: string | null;
+  knowledge_base_id?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type VirtualFolderContentItem = VirtualFolderLinkItem | VirtualFolderDirItem;
+
+export interface FolderContentItem {
+  id: string;
+  task_id?: string;
+  folder_id?: string;
+  task_type?: string;
+  created_at: string;
+}
+
+function parseFoldersPayload(data: unknown): FolderItem[] {
+  if (!data || typeof data !== 'object') return [];
+  const root = data as Record<string, unknown>;
+  const payload = root.data ?? root;
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    const folders = (payload as { folders?: unknown }).folders;
+    if (Array.isArray(folders)) return folders as FolderItem[];
+  }
+  if (Array.isArray(payload)) return payload as FolderItem[];
+  return [];
+}
+
+export async function getFolders(options?: SessionCacheOptions): Promise<FolderItem[]> {
+  return withSessionCache(
+    'getFolders',
+    async () => {
+      const res = await request<{ data?: { folders?: FolderItem[] } }>(
+        '/api/v1/assets/folders?folder_kind=upload'
+      );
+      if (res.error) return [];
+      return parseFoldersPayload(res.data);
+    },
+    options
+  );
+}
+
+export async function getVirtualFolders(options?: SessionCacheOptions): Promise<FolderItem[]> {
+  return withSessionCache(
+    'getVirtualFolders',
+    async () => {
+      const res = await request<{ data?: { folders?: FolderItem[] } }>(
+        '/api/v1/assets/folders?folder_kind=virtual'
+      );
+      if (res.error) return [];
+      return parseFoldersPayload(res.data);
+    },
+    options
+  );
+}
+
+export async function createVirtualFolder(name: string, parentId?: string | null) {
+  const res = await request<{ code?: number; data?: FolderItem }>('/api/v1/assets/folders', {
+    method: 'POST',
+    body: { name, parent_id: parentId ?? null, folder_kind: 'virtual' },
+  });
+  if (!res.error) {
+    invalidateSessionCachePrefix('getVirtualFolders');
+  }
+  return res;
+}
+
+export async function deleteVirtualFolder(id: string) {
+  const res = await request(`/api/v1/assets/folders/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.error) invalidateSessionCachePrefix('getVirtualFolders');
+  return res;
+}
+
+export async function getVirtualFolderItems(folderId: string, options?: SessionCacheOptions) {
+  return withSessionCache(
+    `getVirtualFolderItems:${folderId}`,
+    async () => {
+      const res = await request<{
+        data?: {
+          folder?: FolderItem;
+          items?: VirtualFolderContentItem[];
+          total?: number;
+          folders_count?: number;
+          links_count?: number;
+        };
+      }>(`/api/v1/assets/folders/${encodeURIComponent(folderId)}/items`);
+      if (res.error) throw new Error(res.error);
+      return res.data?.data ?? { items: [], links_count: 0, folder: undefined };
+    },
+    { ttlMs: STORAGE_LIST_CACHE_TTL_MS, ...options }
+  );
+}
+
+export function peekVirtualFolderItems(folderId: string) {
+  return getSessionCache<{
+    folder?: FolderItem;
+    items?: VirtualFolderContentItem[];
+    links_count?: number;
+  }>(`getVirtualFolderItems:${folderId}`, STORAGE_LIST_CACHE_TTL_MS);
+}
+
+export function invalidateVirtualFolderItemsCache(): void {
+  invalidateSessionCachePrefix('getVirtualFolderItems:');
+}
+
+export async function addVirtualFolderTaskLink(folderId: string, taskId: string) {
+  const res = await request<{ code?: number }>(`/api/v1/assets/folders/${encodeURIComponent(folderId)}/items`, {
+    method: 'POST',
+    body: { task_id: taskId },
+  });
+  if (!res.error) {
+    invalidateSessionCachePrefix('getVirtualFolders');
+    invalidateVirtualFolderItemsCache();
+  }
+  return res;
+}
+
+export async function addVirtualFolderStorageLink(folderId: string, storageObjectId: string) {
+  const res = await request<{ code?: number }>(`/api/v1/assets/folders/${encodeURIComponent(folderId)}/items`, {
+    method: 'POST',
+    body: { storage_object_id: storageObjectId },
+  });
+  if (!res.error) {
+    invalidateSessionCachePrefix('getVirtualFolders');
+    invalidateVirtualFolderItemsCache();
+  }
+  return res;
+}
+
+export async function removeVirtualFolderLink(
+  folderId: string,
+  refId: string,
+  refType: 'task' | 'storage_object'
+) {
+  const q = refType === 'storage_object' ? '?ref_type=storage_object' : '';
+  const res = await request(
+    `/api/v1/assets/folders/${encodeURIComponent(folderId)}/items/${encodeURIComponent(refId)}${q}`,
+    { method: 'DELETE' }
+  );
+  if (!res.error) {
+    invalidateSessionCachePrefix('getVirtualFolders');
+    invalidateVirtualFolderItemsCache();
+  }
+  return res;
+}
+
+export async function getVirtualFolderPath(folderId: string) {
+  return request<{ data?: { path?: FolderItem[] } }>(
+    `/api/v1/assets/folders/${encodeURIComponent(folderId)}/path`
+  );
+}
+
+export async function createFolder(name: string, parentId?: string) {
+  const res = await request<{ code?: number; data?: FolderItem }>('/api/v1/assets/folders', {
+    method: 'POST',
+    body: { name, parent_id: parentId, folder_kind: 'upload' },
+  });
+  if (!res.error) invalidateAssetFoldersCache();
+  return res;
+}
+
+export async function updateFolder(id: string, name: string) {
+  return request<{ code?: number; data?: FolderItem }>(`/api/v1/assets/folders/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: { name },
+  });
+}
+
+export async function deleteFolder(id: string) {
+  const res = await request(`/api/v1/assets/folders/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.error) invalidateAssetFoldersCache();
+  return res;
+}
+
+export async function getFolderItems(folderId: string) {
+  return request<{ data?: FolderContentItem[] }>(`/api/v1/assets/folders/${encodeURIComponent(folderId)}/items`);
+}
+
+export async function addItemToFolder(folderId: string, taskId: string, taskType: string) {
+  return request<{ code?: number }>(`/api/v1/assets/folders/${encodeURIComponent(folderId)}/items`, {
+    method: 'POST',
+    body: { task_id: taskId, task_type: taskType },
+  });
+}
+
+export async function removeItemFromFolder(folderId: string, taskId: string) {
+  return request(`/api/v1/assets/folders/${encodeURIComponent(folderId)}/items/${encodeURIComponent(taskId)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function triggerVirtualFolderIndex(folderId: string, force = false) {
+  return request<{ data?: unknown }>(`/api/v1/virtual-folder-index/${encodeURIComponent(folderId)}`, {
+    method: 'POST',
+    body: { force },
+  });
+}
+
+/** 写作 webSearch 字段：当前可用搜索引擎（已启用且已配置） */
+export async function getEnabledSearchProviders(): Promise<string[]> {
+  const res = await request<{ providers?: string[] }>('/api/v1/search/providers/enabled');
+  if (res.error) return [];
+  const raw = res.data as { providers?: string[] } | undefined;
+  return Array.isArray(raw?.providers) ? raw.providers.map(String) : [];
+}
+
+export async function getVirtualFolderIndexStatus(folderId: string) {
+  return request<{ data?: unknown }>(`/api/v1/virtual-folder-index/${encodeURIComponent(folderId)}/status`);
+}
+
 // ---------- API 密钥（需已登录）----------
+export type UserApiKeyType = 'personal' | 'integration';
+
 export interface AccountApiKeyItem {
   id: string;
   key_prefix: string;
+  key_type: UserApiKeyType;
   name: string | null;
   created_at: string;
   last_used_at: string | null;
@@ -158,23 +638,351 @@ export async function getAccountApiKeys() {
   return request<{ code?: number; data?: AccountApiKeyItem[] }>('/api/v1/account/api-keys');
 }
 
+export type ApiKeyExpiresInDays = 0 | 7 | 30 | 90 | 180 | 365;
+
 export interface CreateAccountApiKeyResult {
   id: string;
   name: string | null;
+  key_type: UserApiKeyType;
   key_prefix: string;
   created_at: string;
+  expires_at: string | null;
   key: string;
+  usage_hint?: string;
 }
 
-export async function createAccountApiKey(name?: string) {
+export async function createAccountApiKey(options: {
+  name?: string;
+  keyType: UserApiKeyType;
+  expiresInDays?: ApiKeyExpiresInDays;
+}) {
   return request<{ code?: number; message?: string; data?: CreateAccountApiKeyResult }>('/api/v1/account/api-keys', {
     method: 'POST',
-    body: name != null ? { name: String(name).trim() || undefined } : {},
+    body: {
+      ...(options.name != null ? { name: String(options.name).trim() || undefined } : {}),
+      keyType: options.keyType,
+      ...(options.expiresInDays !== undefined ? { expiresInDays: options.expiresInDays } : {}),
+    },
   });
 }
 
 export async function deleteAccountApiKey(id: string) {
   return request(`/api/v1/account/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+// ---------- 已发布开放 API ----------
+export interface PublishedApiItem {
+  id: string;
+  slug: string;
+  kind: 'task_v2' | 'smartflow';
+  owner_user_id: string;
+  title: string;
+  description: string | null;
+  task_v2_scope: string | null;
+  task_v2_task_key: string | null;
+  task_v2_subtype: string | null;
+  smartflow_id: string | null;
+  schema_version: number;
+  is_enabled: boolean;
+  published_at: string;
+  updated_at: string;
+}
+
+export interface PublishedApiManifest {
+  slug: string;
+  title: string;
+  description: string | null;
+  kind: 'task_v2' | 'smartflow';
+  schemaVersion: number;
+  inputSchema: Record<string, unknown>;
+  inputDoc: Record<string, unknown>;
+  curlExamples: { getManifest: string; run: string; pollJob: string };
+}
+
+export async function listPublishedApis(params?: { limit?: number; offset?: number }) {
+  const q = new URLSearchParams();
+  if (params?.limit != null) q.set('limit', String(params.limit));
+  if (params?.offset != null) q.set('offset', String(params.offset));
+  const query = q.toString();
+  return request<{ success?: boolean; data?: PublishedApiItem[] }>(
+    `/api/v1/account/published-apis${query ? `?${query}` : ''}`
+  );
+}
+
+export async function createPublishedApi(body: {
+  slug: string;
+  kind: 'task_v2' | 'smartflow';
+  title: string;
+  description?: string;
+  taskV2Scope?: string;
+  taskV2TaskKey?: string;
+  taskV2Subtype?: string;
+  smartflowId?: string;
+}) {
+  return request<{ success?: boolean; data?: PublishedApiItem }>('/api/v1/account/published-apis', {
+    method: 'POST',
+    body,
+  });
+}
+
+export async function updatePublishedApi(
+  id: string,
+  body: { title?: string; description?: string; isEnabled?: boolean; republish?: boolean }
+) {
+  return request<{ success?: boolean; data?: PublishedApiItem }>(
+    `/api/v1/account/published-apis/${encodeURIComponent(id)}`,
+    { method: 'PUT', body }
+  );
+}
+
+export async function republishPublishedApi(id: string) {
+  return request<{ success?: boolean; data?: PublishedApiItem }>(
+    `/api/v1/account/published-apis/${encodeURIComponent(id)}/republish`,
+    { method: 'POST', body: {} }
+  );
+}
+
+export async function disablePublishedApi(id: string) {
+  return request<{ success?: boolean; data?: PublishedApiItem }>(
+    `/api/v1/account/published-apis/${encodeURIComponent(id)}/disable`,
+    { method: 'POST', body: {} }
+  );
+}
+
+export async function enablePublishedApi(id: string) {
+  return request<{ success?: boolean; data?: PublishedApiItem }>(
+    `/api/v1/account/published-apis/${encodeURIComponent(id)}/enable`,
+    { method: 'POST', body: {} }
+  );
+}
+
+export async function deletePublishedApi(id: string) {
+  return request<{ success?: boolean; message?: string }>(
+    `/api/v1/account/published-apis/${encodeURIComponent(id)}`,
+    { method: 'DELETE' }
+  );
+}
+
+export async function getOpenApiManifest(slug: string) {
+  return request<{ success?: boolean; data?: PublishedApiManifest }>(
+    `/api/v1/open/${encodeURIComponent(slug)}`
+  );
+}
+
+export interface PublishedApiUsageByCallerRow {
+  caller_user_id: string;
+  username?: string;
+  call_count: number;
+  tokens_charged: number;
+  last_called_at: string | null;
+}
+
+export interface PublishedApiUsageRecentEvent {
+  job_id: string;
+  slug: string;
+  published_api_id: string;
+  caller_user_id: string | null;
+  owner_user_id: string;
+  end_user_id?: string | null;
+  end_user_phone?: string | null;
+  status: string;
+  tokens_charged: number;
+  created_at: string;
+  kind: string;
+  task_v2_scope?: string | null;
+  title?: string;
+}
+
+export interface PublishedApiUsageStats {
+  days: number;
+  totalCalls: number;
+  completedCalls: number;
+  failedCalls: number;
+  pendingCalls: number;
+  totalTokensCharged: number;
+  daily: Array<{ date: string; call_count: number; tokens_charged: number }>;
+  byApi: Array<{
+    published_api_id: string;
+    slug: string;
+    title?: string;
+    call_count: number;
+    tokens_charged: number;
+    last_called_at: string | null;
+  }>;
+  byCaller?: PublishedApiUsageByCallerRow[];
+  byEndUser?: PublishedApiUsageByEndUserRow[];
+  recentEvents?: PublishedApiUsageRecentEvent[];
+}
+
+export interface PublishedApiUsageByEndUserRow {
+  end_user_id: string;
+  call_count: number;
+  tokens_charged: number;
+  last_called_at: string | null;
+  phone?: string | null;
+  phone_masked?: string | null;
+  display_name?: string | null;
+  user_kind?: string | null;
+}
+
+export interface AdminOpenApiUsageStats extends PublishedApiUsageStats {
+  byOwner?: Array<{
+    owner_user_id: string;
+    username?: string;
+    call_count: number;
+    tokens_charged: number;
+    last_called_at: string | null;
+  }>;
+}
+
+export async function getAdminOpenApiStats(days = 30) {
+  return request<{ success?: boolean; data?: AdminOpenApiUsageStats }>(
+    `/api/v1/system/admin/open-api-stats?days=${days}`
+  );
+}
+
+export async function getPublishedApiStats(days = 30) {
+  return request<{ success?: boolean; data?: PublishedApiUsageStats }>(
+    `/api/v1/account/published-apis/stats?days=${days}`
+  );
+}
+
+export async function getPublishedApiStatsById(id: string, days = 30) {
+  return request<{ success?: boolean; data?: { api?: PublishedApiItem; stats?: PublishedApiUsageStats } }>(
+    `/api/v1/account/published-apis/${encodeURIComponent(id)}/stats?days=${days}`
+  );
+}
+
+export type AccountUsageSourceFilter = 'all' | 'web' | 'open_api';
+
+export interface AccountUsageTotals {
+  mxmTokenCharged: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  imageCount: number;
+  videoRequests: number;
+  audioRequests: number;
+  musicRequests: number;
+  providerCallCount: number;
+}
+
+export interface AccountUsageByScopeRow {
+  scope: 'text' | 'writing' | 'graph' | 'video' | 'audio' | 'music';
+  metricKind: 'token' | 'count';
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  imageCount: number;
+  requestCount: number;
+  videoSeconds: number;
+  audioSeconds: number;
+  mxmTokenCharged: number;
+  providerCallCount: number;
+}
+
+export interface AccountUsageSummary {
+  days: number;
+  source: AccountUsageSourceFilter;
+  totals: AccountUsageTotals;
+  byScope: AccountUsageByScopeRow[];
+  bySource: { web: AccountUsageTotals; open_api: AccountUsageTotals };
+  daily: Array<{
+    date: string;
+    mxmTokenCharged: number;
+    inputTokens: number;
+    outputTokens: number;
+    imageCount: number;
+    videoRequests: number;
+    audioRequests: number;
+    musicRequests: number;
+    providerCallCount: number;
+  }>;
+  openApi: {
+    bySlug: Array<{
+      slug: string;
+      callCount: number;
+      mxmTokenCharged: number;
+      imageCount: number;
+      inputTokens: number;
+    }>;
+    byCaller: Array<{
+      callerUserId: string;
+      username?: string;
+      callCount: number;
+      mxmTokenCharged: number;
+    }>;
+    byEndUser: Array<{
+      endUserId: string;
+      callCount: number;
+      mxmTokenCharged: number;
+    }>;
+  };
+  recent: Array<{
+    id: string;
+    taskId: string | null;
+    scope: string;
+    displayScope: string;
+    usageSource: 'web' | 'open_api';
+    createdAt: string;
+    mxmTokenCharged: number;
+    inputTokens: number;
+    outputTokens: number;
+    imageCount: number;
+    requestCount: number;
+    publishedSlug: string | null;
+    callerUserId: string | null;
+    modelKey: string;
+    provider: string;
+  }>;
+}
+
+export async function getAccountUsageSummary(params?: {
+  days?: number;
+  source?: AccountUsageSourceFilter;
+}) {
+  const q = new URLSearchParams();
+  if (params?.days != null) q.set('days', String(params.days));
+  if (params?.source && params.source !== 'all') q.set('source', params.source);
+  const query = q.toString();
+  return request<{ success?: boolean; data?: AccountUsageSummary }>(
+    `/api/v1/account/usage/summary${query ? `?${query}` : ''}`
+  );
+}
+
+export interface AccountUsageEventsPage {
+  days: number;
+  source: AccountUsageSourceFilter;
+  scope?: string;
+  slug?: string;
+  taskId?: string;
+  page: number;
+  limit: number;
+  total: number;
+  items: AccountUsageSummary['recent'];
+}
+
+export async function getAccountUsageEvents(params?: {
+  days?: number;
+  source?: AccountUsageSourceFilter;
+  scope?: string;
+  slug?: string;
+  taskId?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const q = new URLSearchParams();
+  if (params?.days != null) q.set('days', String(params.days));
+  if (params?.source && params.source !== 'all') q.set('source', params.source);
+  if (params?.scope) q.set('scope', params.scope);
+  if (params?.slug) q.set('slug', params.slug);
+  if (params?.taskId) q.set('taskId', params.taskId);
+  if (params?.page != null) q.set('page', String(params.page));
+  if (params?.limit != null) q.set('limit', String(params.limit));
+  const query = q.toString();
+  return request<{ success?: boolean; data?: AccountUsageEventsPage }>(
+    `/api/v1/account/usage/events${query ? `?${query}` : ''}`
+  );
 }
 
 // 角色列表
@@ -190,8 +998,11 @@ export async function listCharacters(params?: {
   if (params?.page != null) q.set('page', String(params.page));
   if (params?.limit != null) q.set('limit', String(params.limit));
   const query = q.toString();
-  return request<{ data?: { characters?: CharacterItem[]; total?: number } }>(
-    `/api/v1/characters${query ? `?${query}` : ''}`
+  const cacheKey = `listCharacters:${query}`;
+  return withSessionCache(cacheKey, () =>
+    request<{ data?: { characters?: CharacterItem[]; total?: number } }>(
+      `/api/v1/characters${query ? `?${query}` : ''}`
+    )
   );
 }
 
@@ -240,75 +1051,410 @@ export async function deleteCharacter(id: string) {
   return request(`/api/v1/characters/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
-// 上传用户资源（图片等），用于角色参考图，存储到 userId/upload/graph/
-export async function uploadAssets(file: File) {
-  const form = new FormData();
-  form.append('file', file);
-  return request<{ data?: { url: string; key: string; bucket: string; proxyPath?: string } }>(
-    '/api/v1/cgi/upload/assets',
-    { method: 'POST', body: form }
-  );
+export type StorageObjectMode = 'asset' | 'temp';
+
+export interface UploadStorageOptions {
+  storageMode?: StorageObjectMode;
+  folderId?: string;
+  taskId?: string;
+  purpose?: string;
 }
 
-// 上传参考图到 Cloudflare R2，返回公开 URL
-// 用于 graph/video 等业务中参考图的公开存储访问
-export async function uploadReferenceImageToR2(file: File): Promise<{ url: string; key: string }> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('读取文件失败'));
-    reader.onload = async () => {
-      const res = reader.result;
-      if (typeof res !== 'string' || !res.startsWith('data:')) {
-        reject(new Error('无法转换为 Base64 data URI'));
-        return;
-      }
-      try {
-        const base64 = res;
-        // 使用与 request() 一致的 base URL 解析逻辑
-        // 优先用 api_base_url（指向 gateway:3000），否则走 Vite proxy（空字符串）
-        const storedBase = localStorage.getItem('api_base_url');
-        const hasExplicitBase = storedBase !== null && storedBase !== '';
+function appendUploadQuery(url: string, opts?: UploadStorageOptions): string {
+  if (!opts) return url;
+  const q = new URLSearchParams();
+  if (opts.storageMode) q.set('storageMode', opts.storageMode);
+  if (opts.folderId) q.set('folderId', opts.folderId);
+  if (opts.taskId) q.set('taskId', opts.taskId);
+  if (opts.purpose) q.set('purpose', opts.purpose);
+  const s = q.toString();
+  return s ? `${url}${url.includes('?') ? '&' : '?'}${s}` : url;
+}
 
-        // 构建请求 URL
-        let url: string;
-        if (hasExplicitBase) {
-          // 用户配置了 api_base_url，直接拼接
-          const base = storedBase.replace(/\/$/, '');
-          url = `${base}/api/v1/cgi/upload/r2-reference`;
-        } else {
-          // 无 api_base_url：走当前域名的 /api/v1/cgi/upload/r2-reference
-          // Vite dev proxy 会将其转发到 mxmcgi 的 /upload/r2-reference
-          const origin = window.location.origin;
-          url = `${origin}/api/v1/cgi/upload/r2-reference`;
-        }
-
-        const token = localStorage.getItem('api_token') || '';
-        const userId = localStorage.getItem('user_id') || '';
-
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...(userId ? { 'x-user-id': userId } : {}),
-          },
-          body: JSON.stringify({ base64 }),
-        });
-        const json = await response.json();
-        if (json.success && json.data?.url) {
-          resolve({ url: json.data.url, key: json.data.key });
-        } else {
-          reject(new Error(json.error || 'R2 上传失败'));
-        }
-      } catch (e) {
-        reject(e instanceof Error ? e : new Error(String(e)));
-      }
+// 上传用户资源（multipart），默认存入资产中心；图片会先压缩再上传
+export async function uploadAssets(file: File, options?: UploadStorageOptions) {
+  const prepared = await compressImageForUpload(file);
+  const form = new FormData();
+  form.append('file', prepared);
+  if (options?.storageMode) form.append('storageMode', options.storageMode);
+  if (options?.folderId) form.append('folderId', options.folderId);
+  if (options?.taskId) form.append('taskId', options.taskId);
+  if (options?.purpose) form.append('purpose', options.purpose);
+  const res = await request<{
+    data?: {
+      url: string;
+      key: string;
+      bucket: string;
+      objectId?: string;
+      storageMode?: StorageObjectMode;
+      folderId?: string | null;
+      proxyPath?: string;
     };
-    reader.readAsDataURL(file);
+  }>(appendUploadQuery('/api/v1/cgi/upload/assets', options), { method: 'POST', body: form });
+  if (!res.error) invalidateStorageObjectsListCache();
+  return res;
+}
+
+type UploadAssetsResponseBody = {
+  success?: boolean;
+  data?: { url?: string; key?: string; objectId?: string };
+  error?: string;
+  message?: string;
+};
+
+function parseUploadAssetsResponse(res: {
+  data?: UploadAssetsResponseBody;
+  error?: string;
+  status: number;
+}): { url: string; key: string; objectId?: string } {
+  if (res.error) {
+    if (res.status === 401) {
+      throw new Error('登录已过期，请重新登录后再上传');
+    }
+    throw new Error(res.error);
+  }
+  const payload = res.data?.data;
+  if (!payload?.url) {
+    throw new Error(res.data?.error || res.data?.message || '上传失败');
+  }
+  return {
+    url: normalizeUploadedMediaUrl(String(payload.url)),
+    key: String(payload.key ?? ''),
+    objectId: payload.objectId,
+  };
+}
+
+/** 上传参考图（multipart 直传 /upload/assets），用于 graph/video 等参考图槽位 */
+export async function uploadReferenceImageToR2(
+  file: File,
+  options?: UploadStorageOptions
+): Promise<{ url: string; key: string; objectId?: string }> {
+  const res = await uploadAssets(file, {
+    purpose: options?.purpose ?? 'reference',
+    storageMode: options?.storageMode,
+    folderId: options?.folderId,
+    taskId: options?.taskId,
   });
+  return parseUploadAssetsResponse(res);
+}
+
+export interface GridLayoutAnalyzeResult {
+  width: number;
+  height: number;
+  orientation: string;
+  aspect_label: string;
+  layout: '2x2' | '3x3' | '4x4' | '1x1' | null;
+  grid_n: number;
+  confidence: 'high' | 'medium' | 'low';
+  layout_source: string;
+}
+
+/** 宫格源图布局分析（白缝 + 画幅推断）；原图可用 base64，无需先上传 R2 */
+export async function analyzeGridLayout(input: {
+  url?: string;
+  base64?: string;
+  grid_n?: number;
+}): Promise<GridLayoutAnalyzeResult> {
+  const storedBase = localStorage.getItem('api_base_url');
+  const hasExplicitBase = storedBase !== null && storedBase !== '';
+  const apiUrl = hasExplicitBase
+    ? `${storedBase.replace(/\/$/, '')}/api/v1/cgi/upload/grid-analyze`
+    : `${window.location.origin}/api/v1/cgi/upload/grid-analyze`;
+
+  const token = getToken();
+  const userId = getStoredUserId();
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(userId ? { 'x-user-id': userId } : {}),
+    },
+    body: JSON.stringify(input),
+  });
+
+  const json = await response.json();
+  if (!json.success || !json.data) {
+    throw new Error(json.error || '宫格分析失败');
+  }
+  return json.data as GridLayoutAnalyzeResult;
+}
+
+/** @deprecated 使用 analyzeGridLayout({ url }) */
+export async function analyzeGridLayoutFromUrl(url: string): Promise<GridLayoutAnalyzeResult> {
+  return analyzeGridLayout({ url });
 }
 
 // 关联图片任务到角色
+export interface UserReferenceImageItem {
+  id: string;
+  r2_url: string;
+  url?: string;
+  original_name: string | null;
+  content_type: string | null;
+  storage_mode?: StorageObjectMode;
+  folder_id?: string | null;
+  expires_at?: string | null;
+  tag: string | null;
+  created_at: string;
+}
+
+export interface StorageObjectListItem {
+  id: string;
+  purpose: string;
+  storageMode: StorageObjectMode;
+  folderId: string | null;
+  partnerAppId?: string | null;
+  partnerEndUserId?: string | null;
+  endUserLabel?: string | null;
+  url: string;
+  contentType: string | null;
+  sizeBytes: number | null;
+  originalName: string | null;
+  createdAt: string;
+  expiresAt: string | null;
+}
+
+export type StorageUploadSource = 'self' | 'partner' | 'all';
+
+function buildStorageObjectsListQuery(options?: {
+  storageMode?: StorageObjectMode;
+  folderId?: string | null;
+  purpose?: string;
+  uploadSource?: StorageUploadSource;
+  partnerAppId?: string;
+  partnerEndUserId?: string;
+  limit?: number;
+  offset?: number;
+}): string {
+  const q = new URLSearchParams();
+  if (options?.limit != null) q.set('limit', String(options.limit));
+  if (options?.offset != null) q.set('offset', String(options.offset));
+  if (options?.storageMode) q.set('storageMode', options.storageMode);
+  if (options?.purpose) q.set('purpose', options.purpose);
+  if (options?.uploadSource) q.set('uploadSource', options.uploadSource);
+  if (options?.partnerAppId) q.set('partnerAppId', options.partnerAppId);
+  if (options?.partnerEndUserId) q.set('partnerEndUserId', options.partnerEndUserId);
+  if (options && 'folderId' in options) {
+    q.set('folderId', options.folderId == null ? 'root' : options.folderId);
+  }
+  return q.toString();
+}
+
+/** 同步读取已缓存的上传列表（切换路由时立即展示，不发网络请求） */
+export function peekStorageObjectsList(
+  options?: {
+    storageMode?: StorageObjectMode;
+    folderId?: string | null;
+    purpose?: string;
+    uploadSource?: StorageUploadSource;
+    partnerAppId?: string;
+    partnerEndUserId?: string;
+    limit?: number;
+    offset?: number;
+  },
+  ttlMs = STORAGE_LIST_CACHE_TTL_MS
+): { items: StorageObjectListItem[]; total: number } | undefined {
+  const query = buildStorageObjectsListQuery(options);
+  return getSessionCache<{ items: StorageObjectListItem[]; total: number }>(
+    `listStorageObjects:${query}`,
+    ttlMs
+  );
+}
+
+/** 用户上传对象列表（资产中心「我的上传」） */
+export async function listStorageObjects(
+  options?: {
+    storageMode?: StorageObjectMode;
+    folderId?: string | null;
+    purpose?: string;
+    uploadSource?: StorageUploadSource;
+    partnerAppId?: string;
+    partnerEndUserId?: string;
+    limit?: number;
+    offset?: number;
+  },
+  cacheOptions?: SessionCacheOptions
+): Promise<{ items: StorageObjectListItem[]; total: number }> {
+  const query = buildStorageObjectsListQuery(options);
+  const cacheKey = `listStorageObjects:${query}`;
+  return withSessionCache(
+    cacheKey,
+    async () => {
+      const res = await request<{
+        success?: boolean;
+        data?: { items: StorageObjectListItem[]; total: number };
+      }>(`/api/v1/storage/objects${query ? `?${query}` : ''}`);
+      if (res.error || !res.data?.data) {
+        return { items: [], total: 0 };
+      }
+      return res.data.data;
+    },
+    { ...cacheOptions, ttlMs: cacheOptions?.ttlMs ?? STORAGE_LIST_CACHE_TTL_MS }
+  );
+}
+
+/** 移动资产到逻辑文件夹（仅更新 folder_id，不搬迁 R2） */
+export async function moveStorageObjectsToFolder(
+  objectIds: string[],
+  folderId: string | null
+): Promise<{ error?: string; moved?: number }> {
+  const res = await request<{ success?: boolean; data?: { moved: number } }>(
+    '/api/v1/storage/objects/move',
+    {
+      method: 'POST',
+      body: JSON.stringify({ objectIds, folderId }),
+    }
+  );
+  if (res.error) return { error: res.error };
+  invalidateStorageObjectsListCache();
+  return { moved: res.data?.data?.moved ?? 0 };
+}
+
+/** 删除用户上传对象（storage_objects + R2） */
+export async function deleteStorageObject(objectId: string): Promise<{ error?: string }> {
+  const res = await request<{ success?: boolean }>(
+    `/api/v1/storage/objects/${encodeURIComponent(objectId)}`,
+    { method: 'DELETE' }
+  );
+  if (res.error) return { error: res.error };
+  invalidateStorageObjectsListCache();
+  removeCachedMediaBlobByObjectId(objectId);
+  return {};
+}
+
+/** 获取当前用户的最近参考图列表 */
+export async function listUserReferenceImages(options?: {
+  limit?: number;
+  offset?: number;
+  storageMode?: StorageObjectMode;
+}): Promise<{ items: UserReferenceImageItem[]; total: number }> {
+  const q = new URLSearchParams();
+  if (options?.limit != null) q.set('limit', String(options.limit));
+  if (options?.offset != null) q.set('offset', String(options.offset));
+  if (options?.storageMode) q.set('storageMode', options.storageMode);
+  const query = q.toString();
+  const cacheKey = `listUserReferenceImages:${query}`;
+  return dedupeInflight(cacheKey, async () => {
+    const res = await request<{ success?: boolean; data?: { items: UserReferenceImageItem[]; total: number } }>(
+      `/api/v1/cgi/upload/r2-reference${query ? `?${query}` : ''}`
+    );
+    if (res.error || !res.data?.data) {
+      return { items: [], total: 0 };
+    }
+    return res.data.data;
+  });
+}
+
+/** 删除用户的一条参考图（同步删除 R2 与数据库记录） */
+export async function deleteUserReferenceImage(id: string): Promise<void> {
+  await request(`/api/v1/cgi/upload/r2-reference/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export type StockImageItem = {
+  id: string;
+  title: string;
+  thumbnailUrl: string;
+  imageUrl: string;
+  sourcePageUrl: string;
+  creator: string | null;
+  license: string;
+  width: number | null;
+  height: number | null;
+  provider?: 'pexels' | 'unsplash' | 'pixabay' | 'openverse';
+};
+
+export type StockImageProvider = 'pexels' | 'unsplash' | 'pixabay' | 'openverse' | 'mixed';
+
+/** 搜索免费图库（多源混合：Pexels / Unsplash / Pixabay / Openverse） */
+export async function searchStockImages(params: {
+  q: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<{
+  items: StockImageItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  provider?: StockImageProvider;
+  sources?: StockImageProvider[];
+  attribution?: string;
+}> {
+  const q = new URLSearchParams();
+  q.set('q', params.q);
+  if (params.page != null) q.set('page', String(params.page));
+  if (params.pageSize != null) q.set('pageSize', String(params.pageSize));
+  const res = await request<{
+    success?: boolean;
+    data?: { items: StockImageItem[]; total: number; page: number; pageSize: number; pageCount: number };
+    provider?: StockImageProvider;
+    sources?: StockImageProvider[];
+    attribution?: string;
+    error?: string;
+  }>(`/api/v1/search/stock-images?${q.toString()}`);
+  if (res.error) throw new Error(res.error);
+  const data = res.data?.data;
+  if (!data) throw new Error('图库搜索响应异常');
+  return {
+    ...data,
+    provider: res.data?.provider,
+    sources: res.data?.sources,
+    attribution: res.data?.attribution,
+  };
+}
+
+export type StockVideoItem = {
+  id: string;
+  title: string;
+  thumbnailUrl: string;
+  videoUrl: string;
+  sourcePageUrl: string;
+  creator: string | null;
+  license: string;
+  width: number | null;
+  height: number | null;
+  durationSeconds: number | null;
+};
+
+/** 搜索免费视频素材库（Pexels，需服务端 PEXELS_API_KEY） */
+export async function searchStockVideos(params: {
+  q: string;
+  page?: number;
+  pageSize?: number;
+  preferWidth?: number;
+}): Promise<{
+  items: StockVideoItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  provider?: string | null;
+  attribution?: string;
+}> {
+  const q = new URLSearchParams();
+  q.set('q', params.q);
+  if (params.page != null) q.set('page', String(params.page));
+  if (params.pageSize != null) q.set('pageSize', String(params.pageSize));
+  if (params.preferWidth != null) q.set('preferWidth', String(params.preferWidth));
+  const res = await request<{
+    success?: boolean;
+    data?: { items: StockVideoItem[]; total: number; page: number; pageSize: number; pageCount: number };
+    provider?: string | null;
+    attribution?: string;
+    error?: string;
+  }>(`/api/v1/search/stock-videos?${q.toString()}`);
+  if (res.error) throw new Error(res.error);
+  const data = res.data?.data;
+  if (!data) throw new Error('视频素材搜索响应异常');
+  return {
+    ...data,
+    provider: res.data?.provider,
+    attribution: res.data?.attribution,
+  };
+}
+
 export async function linkCharacterImageTask(
   characterId: string,
   taskId: string,
@@ -320,34 +1466,13 @@ export async function linkCharacterImageTask(
   });
 }
 
-// 大纲生成
-export async function createOutline(
-  body: Record<string, unknown>,
-  opts?: {
-    scope?: 'outline' | 'writing';
-    taskKey?: string;
-    subtype?: string | null;
-  }
-) {
-  // v2：通过 Task v2 接口提交大纲任务（默认 scope=outline, taskKey=default）
-  const scope = opts?.scope ?? 'outline';
-  const taskKey = opts?.taskKey ?? 'default';
-  const subtype = opts?.subtype ?? null;
-  return request<{ taskId: string; scope: string; taskKey: string; result?: unknown; storage?: unknown }>(
-    '/api/v2/tasks/run',
-    {
-      method: 'POST',
-      body: {
-        scope,
-        taskKey,
-        subtype,
-        params: body,
-      },
-    }
-  );
-}
-
 /** POST /api/v2/tasks/run 响应体（Gateway 可能再包一层 data） */
+export type TaskRunV2ParallelChildBody = {
+  taskId: string;
+  parallelIndex: number;
+  status: string;
+};
+
 export type TaskRunV2ResponseBody = {
   success?: boolean;
   taskId?: string;
@@ -355,8 +1480,13 @@ export type TaskRunV2ResponseBody = {
   scope?: string;
   taskKey?: string;
   subtype?: string | null;
-  /** scope=text 时同步返回 */
-  syncResult?: { text?: string; metadata?: Record<string, unknown> };
+  parallel?: {
+    parentTaskId: string;
+    total: number;
+    tasks: TaskRunV2ParallelChildBody[];
+  };
+  /** scope=text 时同步返回；options.ephemeral 时异步业务也会直接带结果 */
+  syncResult?: { text?: string; metadata?: Record<string, unknown>; mediaUrls?: string[] };
   error?: string;
 };
 
@@ -365,8 +1495,10 @@ export async function runTaskV2(params: {
   taskKey: string;
   subtype?: string | null;
   params: Record<string, unknown>;
+  /** Admin 调试：不落任务列表，响应内直接带 syncResult */
+  ephemeral?: boolean;
 }) {
-  return request<TaskRunV2ResponseBody>(
+  const res = await request<TaskRunV2ResponseBody>(
     '/api/v2/tasks/run',
     {
       method: 'POST',
@@ -375,24 +1507,40 @@ export async function runTaskV2(params: {
         taskKey: params.taskKey,
         subtype: params.subtype ?? null,
         params: params.params,
+        ...(params.ephemeral ? { options: { ephemeral: true } } : {}),
       },
     }
   );
+  if (!res.error && !params.ephemeral) invalidateTaskListCache();
+  return res;
 }
 
-// 写作生成
-export async function createWriting(body: Record<string, unknown>) {
-  return request<{ data?: { taskId?: string } }>('/api/v1/writing/generate', { method: 'POST', body });
-}
-
-// 查询任务
+// 查询任务（mxmcgi /api/v2/tasks/:taskId）
 export async function getTask(taskId: string) {
-  return request<{ data?: unknown }>(`/api/v1/cgi-tasks/${encodeURIComponent(taskId)}`);
+  return request<{ data?: unknown }>(`/api/v2/tasks/${encodeURIComponent(taskId)}`);
 }
 
 // 删除任务（软删除）
 export async function deleteTask(taskId: string) {
-  return request(`/api/v1/cgi-tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE' });
+  const res = await request(`/api/v2/tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE' });
+  if (!res.error) invalidateTaskListCache();
+  return res;
+}
+
+/** 批量删除任务（软删除） */
+export async function deleteTasksBulk(taskIds: string[]): Promise<{
+  deleted: string[];
+  errors: Array<{ id: string; error: string }>;
+}> {
+  const deleted: string[] = [];
+  const errors: Array<{ id: string; error: string }> = [];
+  for (const id of taskIds) {
+    const res = await request(`/api/v2/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.error) errors.push({ id, error: res.error });
+    else deleted.push(id);
+  }
+  if (deleted.length > 0) invalidateTaskListCache();
+  return { deleted, errors };
 }
 
 // 写作任务列表（含大纲，当前用户）
@@ -401,7 +1549,13 @@ export interface WritingTaskItem {
   type: string;
   status: string;
   progress?: { status: string; progress?: number; error?: string };
-  result?: { metadata?: Record<string, unknown> };
+  result?: {
+    metadata?: Record<string, unknown>;
+    hasMedia?: boolean;
+    mediaCount?: number;
+    contentPreview?: string;
+    outputFormat?: 'pdf' | 'markdown' | 'json' | 'txt' | 'csv';
+  };
   metadata?: Record<string, unknown>;
   requestParams?: Record<string, unknown>;
   createdAt?: string;
@@ -419,11 +1573,14 @@ export interface WritingTaskListResponse {
   };
 }
 
+export type TaskCreationSourceFilter = 'web' | 'open_api';
+
 export async function listWritingTasks(params?: {
   status?: string;
   model?: string;
   limit?: number;
   offset?: number;
+  creationSource?: TaskCreationSourceFilter;
 }) {
   const q = new URLSearchParams();
   q.set('type', 'writing');
@@ -431,15 +1588,21 @@ export async function listWritingTasks(params?: {
   if (params?.model) q.set('model', params.model);
   if (params?.limit != null) q.set('limit', String(params.limit));
   if (params?.offset != null) q.set('offset', String(params.offset));
-  return request<WritingTaskListResponse>(`/api/v1/cgi-tasks?${q.toString()}`);
+  if (params?.creationSource) q.set('creationSource', params.creationSource);
+  const cacheKey = `listWritingTasks:${q.toString()}`;
+  return withSessionCache(cacheKey, () =>
+    request<WritingTaskListResponse>(`/api/v2/tasks?${q.toString()}`)
+  );
 }
 
-// 大纲任务列表（type=outline）
+// 大纲任务列表（type=outline）— 功能已下架，保留供历史页面兼容
+/** @deprecated 大纲功能已下架 */
 export async function listOutlineTasks(params?: {
   status?: string;
   model?: string;
   limit?: number;
   offset?: number;
+  creationSource?: TaskCreationSourceFilter;
 }) {
   const q = new URLSearchParams();
   q.set('type', 'outline');
@@ -447,53 +1610,137 @@ export async function listOutlineTasks(params?: {
   if (params?.model) q.set('model', params.model);
   if (params?.limit != null) q.set('limit', String(params.limit));
   if (params?.offset != null) q.set('offset', String(params.offset));
-  return request<WritingTaskListResponse>(`/api/v1/cgi-tasks?${q.toString()}`);
+  if (params?.creationSource) q.set('creationSource', params.creationSource);
+  const cacheKey = `listOutlineTasks:${q.toString()}`;
+  return withSessionCache(cacheKey, () =>
+    request<WritingTaskListResponse>(`/api/v2/tasks?${q.toString()}`)
+  );
 }
 
 // 通用 CGI 任务列表（图片 type=image、音频 type=audio、视频 type=video）
-export async function listCgiTasks(params: {
+export async function listCgiTasks(
+  params: {
   type: 'image' | 'audio' | 'music' | 'video' | 'graph';
   status?: string;
   model?: string;
   limit?: number;
   offset?: number;
-}) {
+  creationSource?: TaskCreationSourceFilter;
+  },
+  options?: SessionCacheOptions
+) {
   const q = new URLSearchParams();
   q.set('type', params.type);
   if (params?.status) q.set('status', params.status);
   if (params?.model) q.set('model', params.model);
   if (params?.limit != null) q.set('limit', String(params.limit));
   if (params?.offset != null) q.set('offset', String(params.offset));
-  return request<WritingTaskListResponse>(`/api/v1/cgi-tasks?${q.toString()}`);
+  if (params?.creationSource) q.set('creationSource', params.creationSource);
+  const cacheKey = `listCgiTasks:${q.toString()}`;
+  return withSessionCache(
+    cacheKey,
+    () => request<WritingTaskListResponse>(`/api/v2/tasks?${q.toString()}`),
+    options
+  );
 }
 
-// 视频生成
+/** 虚拟文件夹等场景：并行拉取各 scope 已完成任务并去重合并 */
+export async function listCompletedGenerationTasks(params?: {
+  limit?: number;
+  creationSource?: TaskCreationSourceFilter;
+}): Promise<WritingTaskItem[]> {
+  const limit = params?.limit ?? 100;
+  const base = {
+    limit,
+    status: 'completed' as const,
+    creationSource: params?.creationSource,
+  };
+
+  const [writingRes, graphRes, audioRes, musicRes, videoRes] = await Promise.all([
+    listWritingTasks(base),
+    // 大纲功能已下架，不再拉取 type=outline
+    // listOutlineTasks(base),
+    listCgiTasks({ ...base, type: 'graph' }),
+    listCgiTasks({ ...base, type: 'audio' }),
+    listCgiTasks({ ...base, type: 'music' }),
+    listCgiTasks({ ...base, type: 'video' }),
+  ]);
+
+  const tasks: WritingTaskItem[] = [];
+  const seen = new Set<string>();
+  for (const res of [writingRes, graphRes, audioRes, musicRes, videoRes]) {
+    const list = (res.data as WritingTaskListResponse | undefined)?.data?.tasks ?? [];
+    for (const t of list) {
+      if (t.status !== 'completed' || seen.has(t.id)) continue;
+      seen.add(t.id);
+      tasks.push(t);
+    }
+  }
+
+  tasks.sort((a, b) => {
+    const ta = a.updatedAt ?? a.createdAt ?? '';
+    const tb = b.updatedAt ?? b.createdAt ?? '';
+    return tb.localeCompare(ta);
+  });
+
+  return tasks;
+}
+
+export type GenerationPickerScope = 'writing' | 'graph' | 'video' | 'audio' | 'music';
+
+/** 按业务类型拉取已完成任务（虚拟文件夹软链选择器，单 Tab 懒加载） */
+export async function listCompletedTasksForPickerScope(
+  scope: GenerationPickerScope,
+  params?: { limit?: number; creationSource?: TaskCreationSourceFilter }
+): Promise<WritingTaskItem[]> {
+  const base = {
+    limit: params?.limit ?? 100,
+    status: 'completed' as const,
+    creationSource: params?.creationSource,
+  };
+  const res =
+    scope === 'writing'
+      ? await listWritingTasks(base)
+      : await listCgiTasks({ ...base, type: scope });
+  const tasks = (res.data as WritingTaskListResponse | undefined)?.data?.tasks ?? [];
+  return tasks.filter((t) => t.status === 'completed');
+}
+
 export async function createVideo(body: Record<string, unknown>) {
   return request<{ data?: unknown }>('/api/v1/cgi/video/generate', { method: 'POST', body });
 }
 
-// ---------- 图文 ----------
+// ---------- 图文（Task V2；旧 /api/v1/cgi/graph 已由后端返回 410）----------
+/** 兼容旧名：等价于 `getTaskFormConfig({ scope: 'graph', taskKey, subtype })` */
 export async function getGraphFormOptions(params?: { graphType?: 'photograph' | 'design' | 'painting'; type?: string; lang?: string }) {
-  const q = new URLSearchParams();
-  // 后端通过 query 中是否存在 photograph/design/painting 来判断 graphType
-  if (params?.graphType) q.set(params.graphType, '1');
-  if (params?.type) q.set('type', params.type);
-  if (params?.lang) q.set('lang', params.lang);
-  const query = q.toString();
-  return request<{ data?: unknown }>(`/api/v1/cgi/graph/getformOptions${query ? `?${query}` : ''}`);
+  const taskKey = params?.graphType;
+  if (!taskKey) {
+    throw new Error('getGraphFormOptions: graphType（即 taskKey）为必填，例如 photograph');
+  }
+  return getTaskFormConfig({
+    scope: 'graph',
+    taskKey,
+    subtype: params?.type,
+  });
 }
 
+/** 兼容旧名：转发到 `runTaskV2`（subtype 取自 body.type） */
 export async function postGraph(path: 'photograph' | 'design' | 'painting', body: Record<string, unknown>) {
-  return request<{ data?: unknown }>(`/api/v1/cgi/graph/${path}`, { method: 'POST', body });
+  const subtypeRaw = body?.type;
+  const subtype = typeof subtypeRaw === 'string' && subtypeRaw.trim() ? subtypeRaw.trim() : null;
+  return runTaskV2({
+    scope: 'graph',
+    taskKey: path,
+    subtype,
+    params: body,
+  });
 }
 
-export async function postGraphModel(modelName: string, body: Record<string, unknown>) {
-  return request<{ data?: unknown }>(`/api/v1/cgi/graph/${encodeURIComponent(modelName)}`, { method: 'POST', body });
-}
-
-// ---------- 文本 ----------
-export async function postTextModel(modelName: string, body: Record<string, unknown>) {
-  return request<{ data?: unknown }>(`/api/v1/cgi/text/${encodeURIComponent(modelName)}`, { method: 'POST', body });
+/** 已废弃：旧「任意 modelName」直 POST 不再支持，请用 Admin 配置 graph 路由 + `runTaskV2` */
+export async function postGraphModel(_modelName: string, _body: Record<string, unknown>) {
+  throw new Error(
+    'postGraphModel 已废弃。请使用 runTaskV2({ scope: "graph", taskKey, subtype, params })，物理模型由 graph_scope_config 解析。'
+  );
 }
 
 // ---------- 音频 ----------
@@ -503,6 +1750,95 @@ export async function getAudioModels() {
 
 export async function postAudioModel(modelName: string, body: Record<string, unknown>) {
   return request<{ data?: unknown }>(`/api/v1/cgi/audio/${encodeURIComponent(modelName)}`, { method: 'POST', body });
+}
+
+export type MinimaxVoiceItem = {
+  voice_id: string;
+  voice_name: string;
+  description?: string[];
+  created_time?: string;
+  source: 'system' | 'voice_cloning' | 'voice_generation';
+  gender?: 'male' | 'female' | 'other';
+  language?: 'zh' | 'en' | 'other';
+};
+
+export async function listMinimaxVoices(
+  voiceType: 'system' | 'voice_cloning' | 'voice_generation' | 'all' = 'system'
+): Promise<MinimaxVoiceItem[]> {
+  const res = await request<{
+    success?: boolean;
+    voices?: MinimaxVoiceItem[];
+    message?: string;
+    error?: string;
+  }>(`/api/v1/cgi/audio/voices?voice_type=${encodeURIComponent(voiceType)}`);
+  if (res.error) throw new Error(res.error);
+  const voices = res.data?.voices;
+  return Array.isArray(voices) ? voices : [];
+}
+
+/** 从虚拟文件夹软链读取用户登记的克隆音色 */
+export async function listMinimaxVoicesFromFolder(folderId: string): Promise<MinimaxVoiceItem[]> {
+  const res = await request<{
+    success?: boolean;
+    voices?: MinimaxVoiceItem[];
+    message?: string;
+    error?: string;
+  }>(`/api/v1/cgi/audio/voices/from-folder/${encodeURIComponent(folderId)}`);
+  if (res.error) throw new Error(res.error);
+  const voices = res.data?.voices;
+  return Array.isArray(voices) ? voices : [];
+}
+
+export async function cloneMinimaxVoice(
+  file: File,
+  options?: {
+    voiceName?: string;
+    previewText?: string;
+    model?: string;
+    voiceId?: string;
+    virtualFolderId?: string;
+  }
+): Promise<{
+  voice_id: string;
+  label?: string;
+  demo_audio?: string;
+  storage_object_id?: string;
+  virtual_folder_id?: string;
+}> {
+  const form = new FormData();
+  form.append('file', file);
+  if (options?.voiceName) form.append('voice_name', options.voiceName);
+  if (options?.previewText) form.append('preview_text', options.previewText);
+  if (options?.model) form.append('model', options.model);
+  if (options?.voiceId) form.append('voice_id', options.voiceId);
+  if (options?.virtualFolderId) form.append('virtual_folder_id', options.virtualFolderId);
+
+  const res = await request<{
+    success?: boolean;
+    data?: {
+      voice_id?: string;
+      label?: string;
+      demo_audio?: string;
+      storage_object_id?: string;
+      virtual_folder_id?: string;
+    };
+    message?: string;
+    error?: string;
+  }>('/api/v1/cgi/audio/voice-clone', { method: 'POST', body: form });
+
+  if (res.error) throw new Error(res.error);
+  const data = res.data?.data;
+  const voiceId = data?.voice_id;
+  if (!voiceId) {
+    throw new Error(res.data?.message || res.data?.error || '音色克隆失败');
+  }
+  return {
+    voice_id: voiceId,
+    label: data?.label,
+    demo_audio: data?.demo_audio,
+    storage_object_id: data?.storage_object_id,
+    virtual_folder_id: data?.virtual_folder_id,
+  };
 }
 
 // ---------- 知识库 ----------
@@ -531,55 +1867,535 @@ export async function getMediaWriting(taskId: string) {
   return request<{ data?: unknown }>(`/api/v1/media/writing/${encodeURIComponent(taskId)}`);
 }
 
-export async function getMediaAudio(taskId: string) {
-  return request<{ data?: unknown }>(`/api/v1/media/audio/${encodeURIComponent(taskId)}`);
+export type WritingMediaContent =
+  | { kind: 'text'; text: string }
+  | { kind: 'pdf'; blobUrl: string; revoke: () => void };
+
+async function isPdfBlob(blob: Blob, contentType: string): Promise<boolean> {
+  if (contentType.toLowerCase().includes('pdf')) return true;
+  const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  return head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46;
 }
 
-/** 获取媒体文件的 Blob URL（用于 img/audio 展示，需带认证） */
-export async function fetchMediaBlobUrl(
+/** 获取写作媒体内容（PDF 走 blob URL，文本/Markdown 走 string） */
+export async function fetchWritingMediaContent(
   taskId: string,
-  type: 'graph' | 'audio' | 'music' | 'video'
-): Promise<string> {
+  options?: { timeoutMs?: number }
+): Promise<WritingMediaContent> {
   const base = getBaseUrl().replace(/\/$/, '');
-  const path = `/api/v1/media/${type}/${encodeURIComponent(taskId)}`;
+  const path = `/api/v1/media/writing/${encodeURIComponent(taskId)}`;
+  const url = base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
+  const token = getToken();
+  const controller = new AbortController();
+  const timeout = options?.timeoutMs ?? 30000;
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      headers: authMediaHeaders(token),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      const text = await res.text();
+      let msg = res.statusText;
+      try {
+        const j = JSON.parse(text) as { error?: string; message?: string };
+        msg = j.error ?? j.message ?? msg;
+      } catch {
+        if (text) msg = text.slice(0, 200);
+      }
+      throw new Error(msg);
+    }
+    const contentType = res.headers.get('Content-Type') ?? '';
+    const blob = await res.blob();
+    if (await isPdfBlob(blob, contentType)) {
+      const blobUrl = URL.createObjectURL(blob);
+      return { kind: 'pdf', blobUrl, revoke: () => URL.revokeObjectURL(blobUrl) };
+    }
+    const text = await blob.text();
+    return { kind: 'text', text };
+  } catch (e) {
+    clearTimeout(timer);
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error('请求超时，获取写作内容失败');
+    }
+    throw e;
+  }
+}
+
+export type WritingExportFormat = 'pdf' | 'markdown';
+
+/** 下载写作导出文件（服务端按需转换，不改变存储） */
+export async function downloadWritingExport(
+  taskId: string,
+  format: WritingExportFormat
+): Promise<void> {
+  const base = getBaseUrl().replace(/\/$/, '');
+  const q = format === 'markdown' ? 'markdown' : 'pdf';
+  const path = `/api/v1/media/writing/${encodeURIComponent(taskId)}/export?format=${encodeURIComponent(q)}`;
   const url = base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
   const token = getToken();
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-  if (!res.ok) throw new Error(res.statusText || 'Failed to fetch media');
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = res.statusText;
+    try {
+      const j = JSON.parse(text) as { error?: string; message?: string };
+      msg = j.error ?? j.message ?? msg;
+    } catch {
+      if (text) msg = text.slice(0, 200);
+    }
+    throw new Error(msg);
+  }
   const blob = await res.blob();
-  return URL.createObjectURL(blob);
+  let filename = `writing-${taskId}.${format === 'pdf' ? 'pdf' : 'md'}`;
+  const disposition = res.headers.get('Content-Disposition');
+  const encoded = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const quoted = disposition?.match(/filename="([^"]+)"/i)?.[1];
+  const raw = encoded ?? quoted;
+  if (raw) {
+    try {
+      filename = decodeURIComponent(raw);
+    } catch {
+      filename = raw;
+    }
+  }
+  const objUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objUrl;
+  a.download = filename;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(objUrl);
+}
+
+/** 获取写作导出纯文本（服务端从 metadata / 存储解析，无需客户端 PDF.js） */
+export async function fetchWritingExportText(
+  taskId: string,
+  format: 'markdown' | 'txt' = 'markdown',
+  options?: { timeoutMs?: number }
+): Promise<string> {
+  const base = getBaseUrl().replace(/\/$/, '');
+  const q = format === 'txt' ? 'txt' : 'markdown';
+  const path = `/api/v1/media/writing/${encodeURIComponent(taskId)}/export?format=${encodeURIComponent(q)}`;
+  const url = base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
+  const token = getToken();
+  const controller = new AbortController();
+  const timeout = options?.timeoutMs ?? 60_000;
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      headers: authMediaHeaders(token),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      const text = await res.text();
+      let msg = res.statusText;
+      try {
+        const j = JSON.parse(text) as { error?: string; message?: string };
+        msg = j.error ?? j.message ?? msg;
+      } catch {
+        if (text) msg = text.slice(0, 200);
+      }
+      throw new Error(msg);
+    }
+    const text = (await res.text()).trim();
+    if (!text) throw new Error('该写作任务导出内容为空');
+    return text;
+  } catch (e) {
+    clearTimeout(timer);
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error('请求超时，获取写作内容失败');
+    }
+    throw e;
+  }
+}
+
+export async function getMediaAudio(taskId: string) {
+  return request<{ data?: unknown }>(`/api/v1/media/audio/${encodeURIComponent(taskId)}`);
+}
+
+/** 获取音频任务句级字幕（优先读任务内持久化数据，旧任务回退 MiniMax URL） */
+export async function fetchAudioSubtitles(taskId: string): Promise<unknown> {
+  const base = getBaseUrl().replace(/\/$/, '');
+  const path = `/api/v1/media/audio/${encodeURIComponent(taskId)}/subtitles`;
+  const url = base ? `${base}${path}` : path;
+  const token = getToken();
+  const res = await fetch(url, {
+    headers: authMediaHeaders(token),
+  });
+  if (res.status === 404) return [];
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = res.statusText;
+    try {
+      const j = JSON.parse(text) as { error?: string; message?: string };
+      msg = j.error || j.message || msg;
+    } catch {
+      // ignore
+    }
+    throw new Error(msg || `字幕 HTTP ${res.status}`);
+  }
+  const json = (await res.json()) as { success?: boolean; data?: unknown };
+  return json.data ?? json;
+}
+
+/** 获取媒体文件的 Blob URL（用于 img 展示，需带认证） */
+export async function fetchMediaBlobUrl(
+  taskId: string,
+  type: 'graph' | 'audio' | 'music' | 'video',
+  options?: {
+    timeoutMs?: number;
+    preview?: boolean;
+    previewWidth?: number;
+    useCache?: boolean;
+    /** 默认 stream；video 播放器可传 blob 整文件拉取 */
+    delivery?: 'stream' | 'blob';
+  }
+): Promise<string> {
+  const delivery = options?.delivery ?? 'stream';
+  if (
+    delivery === 'stream' &&
+    (type === 'audio' || type === 'music' || type === 'video')
+  ) {
+    return getAuthenticatedMediaStreamUrl(taskId, type, options);
+  }
+
+  const variant = options?.preview ? 'preview' : 'full';
+  const cacheKey = `${type}:${variant}:${taskId}`;
+  if (options?.useCache !== false) {
+    const hit = getCachedMediaBlobUrl(cacheKey);
+    if (hit?.startsWith('blob:')) return hit;
+  }
+
+  const base = getBaseUrl().replace(/\/$/, '');
+  let path = `/api/v1/media/${type}/${encodeURIComponent(taskId)}`;
+  if (options?.preview && type === 'graph') {
+    const w = options.previewWidth ?? 240;
+    path += `?preview=1&w=${encodeURIComponent(String(w))}`;
+  }
+  const url = base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
+  const token = getToken();
+  const controller = new AbortController();
+  const timeout = options?.timeoutMs ?? (type === 'video' ? 120_000 : 15_000);
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    if (options?.useCache !== false) {
+      setCachedMediaBlobUrl(cacheKey, blobUrl);
+    }
+    return blobUrl;
+  } catch (e) {
+    clearTimeout(timer);
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error('请求超时，媒体服务暂时不可用');
+    }
+    throw e;
+  }
+}
+
+/**
+ * 鉴权媒体直链（?token=），供 audio/video 原生 Range 分段拉流，无需整文件 blob
+ * Gateway GET 支持 ?token= JWT（每次现拼 token，不缓存直链）
+ */
+export function getAuthenticatedMediaStreamUrl(
+  taskId: string,
+  type: 'audio' | 'music' | 'video' | 'graph',
+  options?: { preview?: boolean; previewWidth?: number; useCache?: boolean }
+): string {
+  const base = getBaseUrl().replace(/\/$/, '');
+  let path = `/api/v1/media/${type}/${encodeURIComponent(taskId)}`;
+  if (options?.preview && type === 'graph') {
+    const w = options.previewWidth ?? 240;
+    path += `?preview=1&w=${encodeURIComponent(String(w))}`;
+  }
+
+  const token = getToken();
+  const sep = path.includes('?') ? '&' : '?';
+  const needsToken = type === 'audio' || type === 'music' || type === 'video';
+  const pathUrl = base
+    ? `${base}${path.startsWith('/') ? '' : '/'}${path}`
+    : path.startsWith('/')
+      ? path
+      : `/${path}`;
+
+  if (needsToken && token) {
+    return `${pathUrl}${sep}token=${encodeURIComponent(token)}`;
+  }
+  return pathUrl;
 }
 
 /** 获取用户上传资源（/media/asset）的 Blob URL（用于 img 展示，需带认证） */
 export async function fetchAssetBlobUrl(bucket: string, key: string): Promise<string> {
+  const cacheKey = mediaPreviewCacheKey(`/api/v1/media/asset?bucket=${bucket}&key=${key}`);
+  const cached = getCachedMediaBlobUrl(cacheKey);
+  if (cached) return cached;
+
   const base = getBaseUrl().replace(/\/$/, '');
   const path = `/api/v1/media/asset?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
   const url = base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
   const token = getToken();
   const res = await fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: authMediaHeaders(token),
   });
   if (!res.ok) throw new Error(res.statusText || 'Failed to fetch asset');
   const blob = await res.blob();
-  return URL.createObjectURL(blob);
+  const blobUrl = URL.createObjectURL(blob);
+  return setCachedMediaBlobUrl(cacheKey, blobUrl);
 }
 
-// ---------- 表单选项（写作/视频/图文，用于提示词与参数对照） ----------
-export async function getWritingFormOptions(params?: { writing_type?: string; outline_type?: string; lang?: string }) {
-  const q = new URLSearchParams();
-  if (params?.writing_type) q.set('writing_type', params.writing_type);
-  if (params?.outline_type) q.set('outline_type', params.outline_type);
-  if (params?.lang) q.set('lang', params.lang ?? 'zh');
-  return request<{ data?: unknown }>(`/api/v1/writing/getformOptions?${q.toString()}`);
+function authMediaHeaders(token: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const user = getStoredUser();
+  if (user?.id) headers['x-user-id'] = String(user.id);
+  return headers;
 }
 
-export async function getVideoFormOptions(params?: { lang?: string; mode?: 'sora-2' | 'sora-2-deer' }) {
-  const q = new URLSearchParams();
-  if (params?.lang) q.set('lang', params.lang ?? 'zh');
-  if (params?.mode) q.set('mode', params.mode);
-  return request<{ data?: unknown }>(`/api/v1/cgi/video/getformOptions?${q.toString()}`);
+/** 从 storage object 代理 URL 解析 objectId（含公网 /media/public/object） */
+export function parseStorageObjectIdFromUrl(url: string): string | null {
+  const m = url.match(/\/media\/(?:public\/)?object\/([^?/#]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/**
+ * 将 API 返回的绝对地址（如 http://localhost:3000/api/...）转为当前页同源路径，
+ * 开发时走 Vite proxy，避免 5173 → 3000 跨域导致预览 fetch 失败。
+ */
+export function toSameOriginApiPath(urlOrPath: string): string {
+  try {
+    if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
+      const u = new URL(urlOrPath);
+      if (u.pathname.startsWith('/api/')) {
+        return `${u.pathname}${u.search}`;
+      }
+      // 外部 CDN（Pexels、Openverse 等）保持原 URL，避免拼成 /https://...
+      return urlOrPath;
+    }
+  } catch {
+    // ignore
+  }
+  const base = getBaseUrl().replace(/\/$/, '');
+  if (urlOrPath.startsWith('/')) {
+    return base ? `${base}${urlOrPath}` : urlOrPath;
+  }
+  return base ? `${base}/${urlOrPath}` : `/${urlOrPath}`;
+}
+
+/** 上传接口返回的 url 规范化（表单存相对路径，换环境仍可用） */
+export function normalizeUploadedMediaUrl(url: string): string {
+  const relative = toSameOriginApiPath(url);
+  if (relative.startsWith('/api/v1/media/')) return relative;
+  return url;
+}
+
+/**
+ * 鉴权媒体直链（?token=），供 audio/video 原生 Range 分段拉流，无需整文件 blob。
+ * Gateway GET 支持 ?token= JWT（img/video/audio 无法带 Authorization Header）。
+ */
+export function resolveAuthenticatedMediaStreamUrl(contentUrl: string): string {
+  const trimmed = contentUrl.trim();
+  if (!trimmed || trimmed.startsWith('blob:') || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+
+  const normalized = toSameOriginApiPath(normalizeUploadedMediaUrl(trimmed));
+  if (!needsAuthenticatedMediaFetch(normalized)) {
+    return normalized;
+  }
+
+  const taskMediaMatch = normalized.match(/\/api\/v1\/media\/(audio|music|video|graph)\/([^/?#]+)/);
+  if (taskMediaMatch) {
+    const [, type, taskId] = taskMediaMatch;
+    return getAuthenticatedMediaStreamUrl(
+      decodeURIComponent(taskId),
+      type as 'audio' | 'music' | 'video' | 'graph'
+    );
+  }
+
+  const token = getToken();
+  if (!token) return normalized;
+
+  try {
+    const url = normalized.startsWith('http')
+      ? new URL(normalized)
+      : new URL(normalized, window.location.origin);
+    if (!url.searchParams.has('token')) {
+      url.searchParams.set('token', token);
+    }
+    if (normalized.startsWith('http')) {
+      return url.toString();
+    }
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    const sep = normalized.includes('?') ? '&' : '?';
+    return `${normalized}${sep}token=${encodeURIComponent(token)}`;
+  }
+}
+
+/** 是否需带 Token 拉取（Gateway /media/* 鉴权，不能直接用 <img src>） */
+export function needsAuthenticatedMediaFetch(url: string): boolean {
+  if (!url || url.startsWith('blob:') || url.startsWith('data:')) return false;
+  // STORAGE_USER_UPLOAD_ACCESS=public 时走 Gateway 公网读，无需 JWT
+  if (url.includes('/media/public/')) return false;
+  if (url.includes('/media/object/') || url.includes('/media/asset?')) return true;
+  if (url.startsWith('/') && url.includes('/api/v1/media/')) return true;
+  return false;
+}
+
+function resolveStoragePreviewCacheKey(contentUrl?: string, objectId?: string | null): string | null {
+  if (objectId) return storageObjectPreviewCacheKey(objectId);
+  if (!contentUrl) return null;
+  const parsed = parseStorageObjectIdFromUrl(contentUrl);
+  if (parsed) return storageObjectPreviewCacheKey(parsed);
+  if (needsAuthenticatedMediaFetch(contentUrl)) return mediaPreviewCacheKey(contentUrl);
+  return null;
+}
+
+/** 用户上传 / 鉴权媒体：统一走内存 blob 缓存（public 模式也不能靠浏览器 HTTP 缓存） */
+export function shouldUseBlobMediaPreview(contentUrl?: string, objectId?: string | null): boolean {
+  return !!resolveStoragePreviewCacheKey(contentUrl, objectId);
+}
+
+/** 获取 storage_objects 代理资源的 Blob URL（供预览组件使用） */
+export async function fetchStorageObjectBlobUrl(
+  contentUrl: string,
+  objectIdHint?: string
+): Promise<string> {
+  const objectId = objectIdHint || parseStorageObjectIdFromUrl(contentUrl);
+  if (!objectId) throw new Error('Invalid storage object URL');
+  const cacheKey = storageObjectPreviewCacheKey(objectId);
+  const cached = getCachedMediaBlobUrl(cacheKey);
+  if (cached) return cached;
+
+  const usePublicPath =
+    contentUrl.includes('/media/public/') ||
+    (!contentUrl.includes('/media/object/') && Boolean(objectIdHint));
+  const path = usePublicPath
+    ? `/api/v1/media/public/object/${encodeURIComponent(objectId)}`
+    : `/api/v1/media/object/${encodeURIComponent(objectId)}`;
+  const url = toSameOriginApiPath(path);
+  const token = getToken();
+  const res = await fetch(url, {
+    headers: usePublicPath ? {} : authMediaHeaders(token),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  const blobUrl = URL.createObjectURL(await res.blob());
+  return setCachedMediaBlobUrl(cacheKey, blobUrl);
+}
+
+/** 同步读取已缓存的媒体预览（切换路由时避免重复拉取） */
+export function getCachedAuthenticatedMediaPreviewUrl(
+  contentUrl?: string,
+  objectId?: string | null
+): string | undefined {
+  const cacheKey = resolveStoragePreviewCacheKey(contentUrl, objectId);
+  if (!cacheKey) return undefined;
+  return getCachedMediaBlobUrl(cacheKey);
+}
+
+/** 统一解析可展示的预览 Blob URL */
+export async function resolveAuthenticatedMediaPreviewUrl(
+  contentUrl: string,
+  objectId?: string | null
+): Promise<string> {
+  const cacheKey = resolveStoragePreviewCacheKey(contentUrl, objectId);
+  if (cacheKey) {
+    const cached = getCachedMediaBlobUrl(cacheKey);
+    if (cached) return cached;
+
+    return dedupeInflight(`mediaPreview:${cacheKey}`, async () => {
+      const hit = getCachedMediaBlobUrl(cacheKey);
+      if (hit) return hit;
+
+      const parsedId = objectId || parseStorageObjectIdFromUrl(contentUrl);
+      if (parsedId) {
+        return fetchStorageObjectBlobUrl(contentUrl, parsedId);
+      }
+
+      if (contentUrl.includes('/media/asset?')) {
+        try {
+          const u = contentUrl.startsWith('http')
+            ? new URL(contentUrl)
+            : new URL(contentUrl, window.location.origin);
+          const bucket = u.searchParams.get('bucket');
+          const key = u.searchParams.get('key');
+          if (bucket && key) {
+            return fetchAssetBlobUrl(bucket, key);
+          }
+        } catch {
+          // fall through
+        }
+      }
+      return fetchStorageObjectBlobUrl(contentUrl);
+    });
+  }
+
+  if (!needsAuthenticatedMediaFetch(contentUrl)) return contentUrl;
+  const urlKey = mediaPreviewCacheKey(contentUrl);
+  const cached = getCachedMediaBlobUrl(urlKey);
+  if (cached) return cached;
+
+  return dedupeInflight(`mediaPreview:${urlKey}`, async () => {
+    const hit = getCachedMediaBlobUrl(urlKey);
+    if (hit) return hit;
+    if (contentUrl.includes('/media/asset?')) {
+      const u = contentUrl.startsWith('http')
+        ? new URL(contentUrl)
+        : new URL(contentUrl, window.location.origin);
+      const bucket = u.searchParams.get('bucket');
+      const key = u.searchParams.get('key');
+      if (bucket && key) {
+        return fetchAssetBlobUrl(bucket, key);
+      }
+    }
+    return fetchStorageObjectBlobUrl(contentUrl);
+  });
+}
+
+/** 列表加载后预热缩略图 blob 缓存（切换路由再回来零网络） */
+export function prefetchStorageObjectPreviews(
+  items: Array<{ id: string; url: string; contentType?: string | null }>,
+  options?: { concurrency?: number }
+): void {
+  const concurrency = options?.concurrency ?? 4;
+  const queue = items.filter(
+    (it) =>
+      (it.contentType?.startsWith('image/') || it.contentType?.startsWith('video/')) &&
+      !getCachedAuthenticatedMediaPreviewUrl(it.url, it.id)
+  );
+  if (queue.length === 0) return;
+
+  let inFlight = 0;
+  let index = 0;
+
+  const pump = () => {
+    while (inFlight < concurrency && index < queue.length) {
+      const item = queue[index++];
+      inFlight += 1;
+      const mediaUrl = item.url.startsWith('http') ? item.url : normalizeUploadedMediaUrl(item.url);
+      void resolveAuthenticatedMediaPreviewUrl(mediaUrl, item.id)
+        .catch(() => undefined)
+        .finally(() => {
+          inFlight -= 1;
+          pump();
+        });
+    }
+  };
+
+  pump();
 }
 
 // ---------- 提示词工程配置（Admin） ----------
@@ -594,7 +2410,6 @@ export interface PromptConfigBody {
   scope: string;
   type: string;
   subtype?: string | null;
-  rules_i18n?: Record<string, string>;
   output_format_i18n?: Record<string, string>;
   form_options_i18n?: Record<string, unknown>;
   extra?: Record<string, unknown>;
@@ -625,6 +2440,54 @@ export async function upsertPromptConfig(body: PromptConfigBody) {
 
 export async function deletePromptConfig(id: string) {
   return request(`/api/v1/system/prompt-config/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+const BUSINESS_BUNDLE_BASE = '/api/v1/system/admin/business';
+
+/** 单条导出：GET bundle JSON（默认不含 businessPricing；含 routing / linked text-format；定价需 includePricing: true） */
+export async function exportBusinessBundleQuery(params: {
+  scope: string;
+  type: string;
+  subtype?: string | null;
+  includeRouting?: boolean;
+  includePricing?: boolean;
+  includeLinkedTextFormat?: boolean;
+}) {
+  const q = new URLSearchParams({ scope: params.scope, type: params.type });
+  if (params.subtype != null && params.subtype !== '') q.set('subtype', String(params.subtype));
+  if (params.includeRouting === false) q.set('includeRouting', '0');
+  if (params.includePricing === true) q.set('includePricing', '1');
+  if (params.includeLinkedTextFormat === false) q.set('includeLinkedTextFormat', '0');
+  return request<{ data?: unknown; warnings?: string[] }>(`${BUSINESS_BUNDLE_BASE}/bundle?${q.toString()}`);
+}
+
+/** 批量导出：POST body.keys 或 body.filter.scope */
+export async function exportBusinessBundlePost(body: {
+  keys?: Array<{ scope: string; type: string; subtype?: string | null }>;
+  filter?: { scope: string };
+  includeRouting?: boolean;
+  includePricing?: boolean;
+  includeLinkedTextFormat?: boolean;
+}) {
+  return request<{ data?: unknown; warnings?: string[] }>(`${BUSINESS_BUNDLE_BASE}/bundle/export`, {
+    method: 'POST',
+    body,
+  });
+}
+
+export type BusinessBundleImportPolicy = 'upsert' | 'skip' | 'dry-run';
+
+/** 导入 bundle；conflictPolicy=dry-run 仅返回预览，不写库 */
+export async function importBusinessBundle(body: {
+  bundle: unknown;
+  conflictPolicy?: BusinessBundleImportPolicy;
+}) {
+  return request<{
+    data?: { created: string[]; updated: string[]; skipped: string[]; warnings: string[] };
+  }>(`${BUSINESS_BUNDLE_BASE}/bundle/import`, {
+    method: 'POST',
+    body: { bundle: body.bundle, conflictPolicy: body.conflictPolicy ?? 'upsert' },
+  });
 }
 
 // ---------- 管理员：敏感词管理（需 Admin 权限）----------
@@ -792,20 +2655,176 @@ export async function getAdminTasks(params?: AdminTasksParams) {
   if (params?.includeDeleted) q.set('includeDeleted', 'true');
   const query = q.toString();
   return request<{ success?: boolean; data?: { tasks: AdminTaskItem[]; total: number; count: number; limit: number; offset: number } }>(
-    `/api/v1/cgi-tasks/admin${query ? `?${query}` : ''}`
+    `/api/v2/tasks/admin${query ? `?${query}` : ''}`
   );
 }
 
 export async function cancelTask(taskId: string) {
-  return request(`/api/v1/cgi-tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' });
+  return request(`/api/v2/tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' });
+}
+
+/** 人工审核通过，继续管线 */
+export type ReviewDraftPayload = {
+  version: 1;
+  gateId: string;
+  phase: 'pre' | 'post';
+  kind: 'text' | 'json' | 'image' | 'media' | 'composite';
+  text?: string;
+  json?: unknown;
+  mediaUrls?: string[];
+  metadata?: Record<string, unknown>;
+  editable: boolean;
+  label?: string;
+  hint?: string;
+};
+
+export async function approveTaskReview(
+  taskId: string,
+  body: {
+    gateId?: string;
+    reviewText?: string;
+    reviewJson?: unknown;
+    approved?: boolean;
+  }
+) {
+  return request<{ data?: { taskId?: string; status?: string; gateId?: string; phase?: string } }>(
+    `/api/v2/tasks/${encodeURIComponent(taskId)}/approve-review`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ approved: true, ...body }),
+    }
+  );
+}
+
+/** 成片审核阶段：重试失败/未就绪片段，父任务回到 processing */
+export async function retryRenderedReviewClips(
+  taskId: string,
+  body: {
+    gateId?: string;
+    reviewJson: unknown;
+    clipIds?: string[];
+  }
+) {
+  return request<{
+    data?: {
+      taskId?: string;
+      status?: string;
+      renderTaskId?: string;
+      retriedClipIds?: string[];
+    };
+  }>(`/api/v2/tasks/${encodeURIComponent(taskId)}/retry-rendered-review-clips`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getTaskReviewDraft(taskId: string, gateId?: string) {
+  const q = gateId ? `?gateId=${encodeURIComponent(gateId)}` : '';
+  return request<{
+    data?: {
+      text?: string;
+      gateId?: string;
+      draft?: ReviewDraftPayload | null;
+      draftRecovered?: boolean;
+      gate?: Record<string, unknown> | null;
+    };
+  }>(`/api/v2/tasks/${encodeURIComponent(taskId)}/review-draft${q}`);
+}
+
+/** 审核阶段按 clip 异步生成 GSAP 场景（text/plan/gsap-scene） */
+export type GsapReviewJobStatus =
+  | 'queued'
+  | 'generating'
+  | 'parsing'
+  | 'saving'
+  | 'done'
+  | 'failed';
+
+export type GsapReviewJobPayload = {
+  jobId: string;
+  clipId: string;
+  status: GsapReviewJobStatus;
+  progress: number;
+  message: string;
+  error?: string;
+  scene?: Record<string, unknown>;
+  draftJson?: unknown;
+};
+
+export async function generateGsapSceneForReview(
+  taskId: string,
+  body: {
+    clipId: string;
+    gateId?: string;
+    brief?: string;
+    structuredData?: unknown;
+    duration?: number;
+  }
+) {
+  return request<{
+    success?: boolean;
+    data?: GsapReviewJobPayload;
+  }>(`/api/v2/tasks/${encodeURIComponent(taskId)}/review/generate-gsap-scene`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getGsapSceneJobForReview(taskId: string, jobId: string) {
+  return request<{
+    success?: boolean;
+    data?: GsapReviewJobPayload;
+  }>(`/api/v2/tasks/${encodeURIComponent(taskId)}/review/generate-gsap-scene/${encodeURIComponent(jobId)}`, {
+    method: 'GET',
+  });
+}
+
+const GSAP_JOB_POLL_INTERVAL_MS = 1500;
+const GSAP_JOB_POLL_TIMEOUT_MS = 20 * 60 * 1000;
+
+export async function waitForGsapSceneJob(
+  taskId: string,
+  jobId: string,
+  options?: {
+    onProgress?: (job: GsapReviewJobPayload) => void;
+    pollIntervalMs?: number;
+    timeoutMs?: number;
+  }
+): Promise<GsapReviewJobPayload> {
+  const pollIntervalMs = options?.pollIntervalMs ?? GSAP_JOB_POLL_INTERVAL_MS;
+  const timeoutMs = options?.timeoutMs ?? GSAP_JOB_POLL_TIMEOUT_MS;
+  const started = Date.now();
+
+  for (;;) {
+    const res = await getGsapSceneJobForReview(taskId, jobId);
+    if (res.error) {
+      throw new Error(res.error);
+    }
+    const job = res.data?.data;
+    if (!job) {
+      throw new Error('未获取到生成任务状态');
+    }
+    options?.onProgress?.(job);
+
+    if (job.status === 'done') {
+      return job;
+    }
+    if (job.status === 'failed') {
+      throw new Error(job.error || job.message || '动画生成失败');
+    }
+    if (Date.now() - started > timeoutMs) {
+      throw new Error('动画生成超时，请稍后重试');
+    }
+    await new Promise((r) => setTimeout(r, pollIntervalMs));
+  }
 }
 
 export async function recoverTask(taskId: string) {
-  return request(`/api/v1/cgi-tasks/${encodeURIComponent(taskId)}/recover`, { method: 'POST' });
+  return request(`/api/v2/tasks/${encodeURIComponent(taskId)}/recover`, { method: 'POST' });
 }
 
 export async function retryTask(taskId: string) {
-  return request(`/api/v1/cgi-tasks/${encodeURIComponent(taskId)}/retry`, { method: 'POST' });
+  return request(`/api/v2/tasks/${encodeURIComponent(taskId)}/retry`, { method: 'POST' });
 }
 
 // ---------- 管理员：系统统计（需 Admin 权限）----------
@@ -842,11 +2861,20 @@ export async function getAdminStats(params?: { days?: number; topLimit?: number 
 // ---------- Admin：模型配置（Agent Chat 全局配置）----------
 export type AdminModelConfigData = {
   model_key: string;
+  provider?: string | null;
   temperature: number;
   max_tokens: number | null;
   top_p: number | null;
   frequency_penalty: number | null;
   presence_penalty: number | null;
+  max_loop_rounds?: number;
+  run_timeout_ms?: number;
+  system_prompt_extra?: string | null;
+  welcome_message?: string | null;
+  tools_enabled?: boolean;
+  /** null = 全部业务；[] = 禁止；非空 = 白名单 */
+  allowed_businesses?: Array<{ scope: string; taskKey: string; subtype?: string | null }> | null;
+  smartflow_enabled?: boolean;
   updated_at?: string;
 };
 
@@ -861,13 +2889,155 @@ export async function putAdminModelConfig(data: Partial<AdminModelConfigData> & 
   });
 }
 
-export type ModelOption = { provider: string; scope: string; model_key: string; display_name?: string };
+export type ModelOption = {
+  provider: string;
+  scope: string;
+  model_key: string;
+  display_name?: string;
+  supports_tools?: boolean;
+};
 export async function getAdminModelOptions() {
   return request<{ success?: boolean; data?: ModelOption[] }>('/api/v1/system/admin/model-config/options');
 }
 
+// ---------- Agent Chat v2 ----------
+export type AgentReference = {
+  type: 'folder' | 'knowledge' | 'business' | 'file';
+  id: string;
+  label?: string;
+  scope?: string;
+  taskKey?: string;
+  subtype?: string;
+  /** file：所属虚拟文件夹 */
+  folderId?: string;
+  /** file：task | storage_object */
+  refType?: 'task' | 'storage_object';
+  contentType?: string;
+};
+
+export type AgentPublicSettings = {
+  welcome_message: string | null;
+};
+
+export async function getAgentSettings() {
+  return request<{ success?: boolean; data?: AgentPublicSettings }>('/api/v2/agent/settings');
+}
+
+export type AgentConversation = {
+  id: string;
+  user_id: string;
+  title: string | null;
+  status: string;
+  summary: string | null;
+  last_message_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentMessagePart = {
+  type: 'text' | 'image' | 'file';
+  text?: string;
+  url?: string;
+  mimeType?: string;
+  name?: string;
+};
+
+export type AgentMessage = {
+  id: string;
+  conversation_id: string;
+  user_id: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: AgentMessagePart[];
+  references: AgentReference[];
+  run_id: string | null;
+  created_at: string;
+};
+
+export type AgentStreamEvent = {
+  type: string;
+  seq?: number;
+  runId?: string;
+  conversationId?: string;
+  payload?: Record<string, unknown>;
+  createdAt?: string;
+  cursor?: number;
+};
+
+export async function listAgentConversations(params?: { limit?: number; offset?: number }) {
+  const q = new URLSearchParams();
+  if (params?.limit != null) q.set('limit', String(params.limit));
+  if (params?.offset != null) q.set('offset', String(params.offset));
+  const qs = q.toString();
+  return request<{ success?: boolean; data?: AgentConversation[] }>(
+    `/api/v2/agent/conversations${qs ? `?${qs}` : ''}`
+  );
+}
+
+export async function createAgentConversation(title?: string) {
+  return request<{ success?: boolean; data?: AgentConversation }>('/api/v2/agent/conversations', {
+    method: 'POST',
+    body: { title },
+  });
+}
+
+export async function updateAgentConversation(
+  id: string,
+  patch: { title?: string | null; status?: string }
+) {
+  return request<{ success?: boolean; data?: AgentConversation }>(`/api/v2/agent/conversations/${id}`, {
+    method: 'PATCH',
+    body: patch,
+  });
+}
+
+export async function deleteAgentConversation(id: string) {
+  return request<{ success?: boolean }>(`/api/v2/agent/conversations/${id}`, { method: 'DELETE' });
+}
+
+export async function listAgentMessages(conversationId: string, params?: { limit?: number; before?: string }) {
+  const q = new URLSearchParams();
+  if (params?.limit != null) q.set('limit', String(params.limit));
+  if (params?.before) q.set('before', params.before);
+  const qs = q.toString();
+  return request<{ success?: boolean; data?: AgentMessage[] }>(
+    `/api/v2/agent/conversations/${conversationId}/messages${qs ? `?${qs}` : ''}`
+  );
+}
+
+export async function postAgentMessage(
+  conversationId: string,
+  body: { content: string | AgentMessagePart[]; references?: AgentReference[] }
+) {
+  return request<{
+    success?: boolean;
+    data?: { message: AgentMessage; runId: string; conversationId: string };
+    error?: string;
+  }>(`/api/v2/agent/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    body,
+  });
+}
+
+export async function cancelAgentRun(runId: string) {
+  return request<{ success?: boolean }>(`/api/v2/agent/runs/${runId}/cancel`, { method: 'POST' });
+}
+
+export function agentConversationStreamUrl(conversationId: string, cursor = 0): string {
+  const base = (typeof window !== 'undefined' && (window as any).__API_BASE__) || '';
+  return `${base}/api/v2/agent/conversations/${conversationId}/stream?cursor=${cursor}`;
+}
+
 // ---------- Admin：Provider 路由与监控（仅 Admin 可访问）----------
-export type ProviderRoutingEntry = { provider: string; model: string; overridden?: boolean };
+export type ProviderRoutingEntry = {
+  provider: string;
+  model: string;
+  overridden?: boolean;
+  margin?: number;
+  charge_metric?: string;
+  price_in_tokens?: number;
+  min_charge_tokens?: number;
+  sensitive_word_list_ids?: string[];
+};
 export type ProvidersRoutingResponse = { success?: boolean; data?: Record<string, ProviderRoutingEntry> };
 export async function getProvidersRouting() {
   return request<ProvidersRoutingResponse>('/api/v1/system/admin/providers/routing');
@@ -877,12 +3047,23 @@ export type ProvidersOptionsResponse = {
   data?: {
     modelsByProvider?: Record<string, string[]>;
     modelsByProviderByScope?: Record<string, Record<string, string[]>>;
+    /** 按 provider → scope → modality → model_key 聚合（含 modality 维度） */
+    modelsByScopeAndModality?: Record<string, Record<string, Record<string, string[]>>>;
   };
 };
 export async function getProvidersOptions() {
   return request<ProvidersOptionsResponse>('/api/v1/system/admin/providers/options');
 }
-export async function postProvidersRouting(body: { logicalModel: string; provider: string; model: string }) {
+export async function postProvidersRouting(body: {
+  logicalModel: string;
+  provider: string;
+  model: string;
+  margin?: number;
+  charge_metric?: string;
+  price_in_tokens?: number;
+  min_charge_tokens?: number;
+  sensitive_word_list_ids?: string[];
+}) {
   return request<{ success?: boolean; data?: unknown }>('/api/v1/system/admin/providers/routing', {
     method: 'POST',
     body,
@@ -922,13 +3103,21 @@ export interface ProviderBillingItem {
   resetAt?: string;
   manualBalance?: number;
   currency?: string;
+  /** 计费模式：usage=按量计费，subscription=包月/订阅（不参与余额扣费） */
+  billingMode?: 'usage' | 'subscription';
+  /** 计费说明（用于展示） */
+  billingNote?: string;
 }
 export async function getProvidersBilling() {
   return request<{ success?: boolean; data?: ProviderBillingItem[] }>(
     '/api/v1/system/admin/providers/billing'
   );
 }
-export async function putProviderBalance(body: { provider: string; balance: number }) {
+export async function putProviderBalance(body: {
+  provider: string;
+  balance: number;
+  currency?: string;
+}) {
   return request<{ success?: boolean; data?: unknown }>(
     '/api/v1/system/admin/providers/balances',
     { method: 'PUT', body }
@@ -1026,6 +3215,11 @@ export interface TaskFormConfig {
   scope: string;
   taskKey: string;
   subtype?: string | null;
+  taskLabel?: string | null;
+  subtypeLabel?: string | null;
+  taskLabelI18n?: Record<string, string> | null;
+  subtypeLabelI18n?: Record<string, string> | null;
+  form_options_i18n?: Record<string, Record<string, string>> | null;
   schema: {
     $schema?: string;
     type?: string;
@@ -1358,6 +3552,35 @@ export async function testProviderModel(body: {
   }>('/api/v1/system/admin/providers/models/test', { method: 'POST', body });
 }
 
+export type KnowledgeEmbeddingDefaultConfig = {
+  config?: { provider?: string; model?: string; enabled?: boolean } | null;
+  resolved?: {
+    modelKey: string;
+    provider: string;
+    upstreamModel: string;
+    dimensions: number;
+    protocol: string;
+  };
+  availableModelKeys?: string[];
+};
+
+export async function getKnowledgeEmbeddingDefault() {
+  return request<{ success?: boolean; data?: KnowledgeEmbeddingDefaultConfig }>(
+    '/api/v1/system/admin/providers/knowledge/embedding-default'
+  );
+}
+
+export async function putKnowledgeEmbeddingDefault(body: {
+  provider: string;
+  model: string;
+  enabled?: boolean;
+}) {
+  return request<{ success?: boolean; data?: unknown }>(
+    '/api/v1/system/admin/providers/knowledge/embedding-default',
+    { method: 'PUT', body }
+  );
+}
+
 // ─────────────────────────────────────────────
 // Wallet / Balance APIs  (mxmpay)
 // ─────────────────────────────────────────────
@@ -1554,6 +3777,42 @@ export async function deleteSmartflow(id: string) {
   );
 }
 
+export type SmartflowBundleImportPolicy = 'upsert' | 'skip' | 'dry-run';
+
+/** 导出单个工作流 bundle JSON */
+export async function exportSmartflowBundle(id: string) {
+  const q = new URLSearchParams({ id });
+  return request<SmartflowEnvelope<unknown> & { warnings?: string[] }>(
+    `/api/v1/smartflows/bundle?${q.toString()}`
+  );
+}
+
+/** 批量导出 */
+export async function exportSmartflowBundlePost(body: { ids: string[] }) {
+  return request<SmartflowEnvelope<unknown> & { warnings?: string[] }>(
+    '/api/v1/smartflows/bundle/export',
+    { method: 'POST', body }
+  );
+}
+
+/** 导入 bundle */
+export async function importSmartflowBundle(body: {
+  bundle: unknown;
+  conflictPolicy?: SmartflowBundleImportPolicy;
+}) {
+  return request<
+    SmartflowEnvelope<{
+      created: string[];
+      updated: string[];
+      skipped: string[];
+      warnings: string[];
+    }>
+  >('/api/v1/smartflows/bundle/import', {
+    method: 'POST',
+    body: { bundle: body.bundle, conflictPolicy: body.conflictPolicy ?? 'upsert' },
+  });
+}
+
 /** 需登录（网关对 POST …/execute 做 JWT 校验并注入 x-user-id） */
 export async function executeSmartflow(
   id: string,
@@ -1581,4 +3840,238 @@ export async function getSmartflowTask(id: string) {
   return request<SmartflowEnvelope<SmartflowExecutionItem>>(
     `/api/v1/smartflow-tasks/${encodeURIComponent(id)}`
   );
+}
+
+export async function pauseSmartflowTask(id: string) {
+  return request<SmartflowEnvelope<SmartflowExecutionItem>>(
+    `/api/v1/smartflow-tasks/${encodeURIComponent(id)}/pause`,
+    { method: 'POST' }
+  );
+}
+
+export async function cancelSmartflowTask(id: string) {
+  return request<SmartflowEnvelope<SmartflowExecutionItem>>(
+    `/api/v1/smartflow-tasks/${encodeURIComponent(id)}/cancel`,
+    { method: 'POST' }
+  );
+}
+
+export async function deleteSmartflowTask(id: string) {
+  return request<SmartflowEnvelope<{ message?: string }>>(
+    `/api/v1/smartflow-tasks/${encodeURIComponent(id)}`,
+    { method: 'DELETE' }
+  );
+}
+
+// ---------- Admin 系统存储 ----------
+
+export interface AdminStorageObjectItem {
+  id: string;
+  purpose: string;
+  url: string;
+  objectKey: string;
+  createdAt: string;
+}
+
+export async function listAdminStorageObjects(options?: { category?: string; limit?: number; offset?: number }) {
+  const q = new URLSearchParams();
+  if (options?.category) q.set('category', options.category);
+  if (options?.limit != null) q.set('limit', String(options.limit));
+  if (options?.offset != null) q.set('offset', String(options.offset));
+  const query = q.toString();
+  return request<{ success?: boolean; data?: { items: AdminStorageObjectItem[]; total: number } }>(
+    `/api/v1/admin/storage/objects${query ? `?${query}` : ''}`
+  );
+}
+
+export async function getAdminStorageConfig() {
+  return request<{ success?: boolean; data?: unknown }>('/api/v1/admin/storage/config');
+}
+
+// ---------- Partner 开放平台 ----------
+
+export interface PartnerAppItem {
+  id: string;
+  name: string;
+  apiKeyId: string;
+  allowedSlugs: string[];
+  status: string;
+  secretPrefix: string;
+  endUserAccessMode?: 'open' | 'whitelist';
+  slugAccessMode?: 'all_owner' | 'restricted';
+  h5LoginBaseUrl?: string | null;
+  hasInviteToken?: boolean;
+  dailyEndUserQuota?: number | null;
+  qpsLimit?: number | null;
+  createdAt?: string;
+}
+
+export interface PartnerAllowlistItem {
+  id: string;
+  provider: 'sms' | 'wechat' | 'external';
+  subject: string;
+  subjectMasked: string;
+  source: 'manual' | 'invite';
+  note?: string | null;
+  createdAt?: string;
+}
+
+export interface PartnerEndUserItem {
+  id: string;
+  status: 'active' | 'blocked';
+  kind: string;
+  display_name?: string | null;
+  phone?: string | null;
+  phone_masked?: string | null;
+  identities?: Array<{ provider: string; subject: string; subject_masked: string }>;
+  call_count?: number;
+  tokens_charged?: number;
+  last_called_at?: string | null;
+  created_at?: string;
+}
+
+export async function listPartnerApps() {
+  return request<{ code?: number; data?: PartnerAppItem[] }>('/api/v1/partner/apps');
+}
+
+export async function getPartnerAppByApiKeyId(apiKeyId: string) {
+  return request<{ code?: number; data?: PartnerAppItem }>(
+    `/api/v1/partner/apps/by-key/${encodeURIComponent(apiKeyId)}`
+  );
+}
+
+export async function updatePartnerAppSettings(
+  appId: string,
+  body: {
+    endUserAccessMode?: 'open' | 'whitelist';
+    slugAccessMode?: 'all_owner' | 'restricted';
+    allowedSlugs?: string[];
+    h5LoginBaseUrl?: string | null;
+  }
+) {
+  return request<{ code?: number; data?: PartnerAppItem }>(
+    `/api/v1/partner/apps/${encodeURIComponent(appId)}/settings`,
+    { method: 'PUT', body: JSON.stringify(body) }
+  );
+}
+
+export async function listPartnerAllowlist(appId: string, limit = 100) {
+  const q = new URLSearchParams({ limit: String(limit) });
+  return request<{ code?: number; data?: PartnerAllowlistItem[] }>(
+    `/api/v1/partner/apps/${encodeURIComponent(appId)}/allowlist?${q}`
+  );
+}
+
+export async function addPartnerAllowlist(
+  appId: string,
+  body: { provider: 'sms' | 'wechat' | 'external'; subject: string; note?: string }
+) {
+  return request<{ code?: number; data?: PartnerAllowlistItem }>(
+    `/api/v1/partner/apps/${encodeURIComponent(appId)}/allowlist`,
+    { method: 'POST', body: JSON.stringify(body) }
+  );
+}
+
+export async function removePartnerAllowlist(appId: string, entryId: string) {
+  return request<{ code?: number; data?: { removed: boolean } }>(
+    `/api/v1/partner/apps/${encodeURIComponent(appId)}/allowlist/${encodeURIComponent(entryId)}`,
+    { method: 'DELETE' }
+  );
+}
+
+export async function getPartnerInviteLink(appId: string) {
+  return request<{
+    code?: number;
+    data?: { url?: string | null; tokenPlain?: string; hasInviteToken?: boolean; hint?: string };
+  }>(`/api/v1/partner/apps/${encodeURIComponent(appId)}/invite-link`);
+}
+
+export async function rotatePartnerInviteLink(appId: string) {
+  return request<{
+    code?: number;
+    data?: { url?: string; tokenPlain?: string; hint?: string };
+  }>(`/api/v1/partner/apps/${encodeURIComponent(appId)}/invite-link/rotate`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export interface PartnerInviteItem {
+  id: string;
+  status: 'pending' | 'used' | 'revoked';
+  usedSubject: string | null;
+  usedEndUserId: string | null;
+  createdAt: string;
+  usedAt: string | null;
+}
+
+export async function getPartnerShareLink(appId: string) {
+  return request<{
+    code?: number;
+    data?: { url?: string; copyText?: string; mode?: string; hint?: string };
+  }>(`/api/v1/partner/apps/${encodeURIComponent(appId)}/share-link`);
+}
+
+export async function createPartnerInvite(appId: string) {
+  return request<{
+    code?: number;
+    data?: { inviteId?: string; url?: string; tokenPlain?: string; hint?: string };
+  }>(`/api/v1/partner/apps/${encodeURIComponent(appId)}/invites`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export async function listPartnerInvites(appId: string, limit = 50) {
+  const q = new URLSearchParams({ limit: String(limit) });
+  return request<{ code?: number; data?: PartnerInviteItem[] }>(
+    `/api/v1/partner/apps/${encodeURIComponent(appId)}/invites?${q}`
+  );
+}
+
+export async function revokePartnerInvite(appId: string, inviteId: string) {
+  return request<{ code?: number; data?: { revoked: boolean } }>(
+    `/api/v1/partner/apps/${encodeURIComponent(appId)}/invites/${encodeURIComponent(inviteId)}`,
+    { method: 'DELETE' }
+  );
+}
+
+export async function blockPartnerEndUser(appId: string, endUserId: string) {
+  return request<{ code?: number; data?: { blocked: boolean } }>(
+    `/api/v1/partner/apps/${encodeURIComponent(appId)}/end-users/${encodeURIComponent(endUserId)}/block`,
+    { method: 'POST', body: JSON.stringify({}) }
+  );
+}
+
+export async function unblockPartnerEndUser(appId: string, endUserId: string) {
+  return request<{ code?: number; data?: { unblocked: boolean } }>(
+    `/api/v1/partner/apps/${encodeURIComponent(appId)}/end-users/${encodeURIComponent(endUserId)}/unblock`,
+    { method: 'POST', body: JSON.stringify({}) }
+  );
+}
+
+export async function getPartnerAppStats(appId: string, days = 30, groupBy?: 'end_user') {
+  const q = new URLSearchParams({ days: String(days) });
+  if (groupBy) q.set('groupBy', groupBy);
+  return request<{ code?: number; data?: Record<string, unknown> }>(
+    `/api/v1/partner/apps/${encodeURIComponent(appId)}/stats?${q}`
+  );
+}
+
+export async function listPartnerAppEndUsers(appId: string, days = 30, limit = 50) {
+  const q = new URLSearchParams({ days: String(days), limit: String(limit) });
+  return request<{ code?: number; data?: Record<string, unknown>[] }>(
+    `/api/v1/partner/apps/${encodeURIComponent(appId)}/end-users?${q}`
+  );
+}
+
+export async function createPartnerApp(body: {
+  apiKeyId: string;
+  name: string;
+  allowedSlugs?: string[];
+}) {
+  return request<{ code?: number; data?: Record<string, unknown> }>('/api/v1/partner/apps', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
