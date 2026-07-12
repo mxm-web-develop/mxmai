@@ -74,6 +74,37 @@
                 "x-ui-type": "textFileOrPaste",
                 "x-max-chars": 120000
               },
+              "opening_greeting": {
+                "type": "string",
+                "title": "开场欢迎语（自定义）",
+                "description": "留空将使用默认：大家好，这里是 ${show_name}（可选续写「，我是 ${host_name}」）；音频后续用于视频剪辑，已避免「欢迎收听」措辞",
+                "maxLength": 200
+              },
+              "closing_thanks": {
+                "type": "string",
+                "title": "结束语·感谢句",
+                "default": "感谢你的陪伴。",
+                "maxLength": 100
+              },
+              "closing_cta_enabled": {
+                "type": "boolean",
+                "title": "包含一键三连话术",
+                "description": "关闭则该段不出现在结束语中",
+                "default": true
+              },
+              "closing_cta": {
+                "type": "string",
+                "title": "一键三连话术（自定义）",
+                "description": "缺省话术：「如果觉得本期内容对你有帮助，请帮我点赞、投币、收藏三连；点一下关注不迷路。」",
+                "default": "如果觉得本期内容对你有帮助，请帮我点赞、投币、收藏三连；点一下关注不迷路。",
+                "maxLength": 200
+              },
+              "closing_next_episode": {
+                "type": "string",
+                "title": "结束语·下期预告",
+                "default": "我们下期再见。",
+                "maxLength": 100
+              },
               "supplement": {
                 "type": "string",
                 "title": "补充要求",
@@ -172,7 +203,7 @@
             }
           },
           "prompt": {
-            "unifiedTemplate": "你是 MiniMax Speech 2.8 TTS 口播导演，把上述已审节目稿改写为 t2a_v2 可直接合成的文本。\n\n【节目语言】${language}（zh=中文；en=English）\n【节目语气基调】${show_tone}\n【主播音色 voice_id】${voice_id}\n【口播节奏】${speech_rhythm}\n\n【节目稿已审定】\n${script_draft}\n\n【MiniMax 2.8 语法（必须遵守）】\n1. 停顿标签 <#秒数#>（0.01–99.99），按【口播节奏】控制密度（与语速无关）：\n   - none 无停顿：禁止任何 <#...#> 与 (breath)，只靠标点断句。\n   - fluent 流顺：全文仅在段落之间最多 1~2 处 <#0.2#>，句内不加停顿。\n   - default 默认：句末可加 <#0.3#>，段落之间 <#0.5#>；约每 2~3 句一处，不可连续堆叠。\n   - slow 慢节奏：多数句末 <#0.4#>~<#0.5#>，段落 <#0.6#>~<#0.8#>。\n   - recitation 朗诵：意群/短语间 <#0.3#>~<#0.5#>，句末 <#0.6#>~<#0.8#>，段落 <#1#>；庄重抑扬，仍禁止连续堆叠。\n2. 语气词与助词全稿统一一种基调；禁止一惊一乍、禁止 (gasps)(sighs)(laughs) 及相邻两句连续语气标签。\n   - steady / editorial / explanatory / passionate：基本不加括号标签；可保留 0~1 个自然连词。\n   - narrative：可 1~2 处 (breath)，仅用于段落过渡，不可密集。\n   - lively：可少量助词，【zh】参考「嗯」「你看」，【en】参考「well」「you know」「I think」；全文 ≤3 处，分布均匀。\n3. 中英文口语与数字：保持原稿事实与顺序，不新增夸张情绪句。\n   - zh 数字改中文读法（50%→百分之五十、3 个→三个、2024→二零二四）。\n   - en 数字按读法（50% → fifty percent；$1.5M → one point five million dollars；2024 → twenty twenty-four）。\n4. 严禁 Markdown、JSON、解释文字；保留原稿 [开场]/[主稿]/[结束] 三段小标题原样。\n5. 必须覆盖原稿全部信息（含开场与结束），不得省略段落。\n\n【输出】只输出最终 t2a_v2 合成文本（含必要标签），长度与原稿相当。"
+            "unifiedTemplate": "你是 MiniMax Speech 2.8 TTS 口播导演，把上述已审节目稿改写为 t2a_v2 可直接合成的文本。\n\n【节目语言】${language}（zh=中文；en=English）\n【节目语气基调】${show_tone}\n【主播音色 voice_id】${voice_id}\n【口播节奏】${speech_rhythm}\n\n【节目稿已审定】\n${script_draft}\n\n【MiniMax 2.8 语法（必须遵守）】\n1. 停顿标签 <#秒数#>（0.01–99.99），按【口播节奏】控制密度（与语速无关）：\n   - none 无停顿：禁止任何 <#...#> 与 (breath)，只靠标点断句。\n   - fluent 流顺：全文仅在段落之间最多 1~2 处 <#0.2#>，句内不加停顿。\n   - default 默认：句末可加 <#0.3#>，段落之间 <#0.5#>；约每 2~3 句一处，不可连续堆叠。\n   - slow 慢节奏：多数句末 <#0.4#>~<#0.5#>，段落 <#0.6#>~<#0.8#>。\n   - recitation 朗诵：意群/短语间 <#0.3#>~<#0.5#>，句末 <#0.6#>~<#0.8#>，段落 <#1#>；庄重抑扬，仍禁止连续堆叠。\n2. 语气词与助词全稿统一一种基调；禁止一惊一乍、禁止 (gasps)(sighs)(laughs) 及相邻两句连续语气标签。\n   - steady / editorial / explanatory / passionate：基本不加括号标签；可保留 0~1 个自然连词。\n   - narrative：可 1~2 处 (breath)，仅用于段落过渡，不可密集。\n   - lively：可少量助词，【zh】参考「嗯」「你看」，【en】参考「well」「you know」「I think」；全文 ≤3 处，分布均匀。\n3. 中英文口语与数字：保持原稿事实与顺序，不新增夸张情绪句。\n   - zh 数字改中文读法（50%→百分之五十、3 个→三个、2024→二零二四）。\n   - en 数字按读法（50% → fifty percent；$1.5M → one point five million dollars；2024 → twenty twenty-four）。\n4. 严禁 Markdown、JSON、解释文字；段落间用 <#秒数#> 停顿标签替代原文里 [开场]/[主稿]/[结束] 等段落小标题（这些标记词若保留会被 TTS 直接朗读，破坏音频）。必须删除原稿里所有 [xxx] 形式的段落标记；原稿用「[xxx]\\n正文」组织段落时，删除 [xxx] 后用 <#秒数#> 在段首或段末补一个明显停顿。\n5. 必须覆盖原稿全部信息（含开场与结束），不得省略段落。\n\n【输出】只输出最终 t2a_v2 合成文本（含必要停顿标签），长度与原稿相当。"
           },
           "extra": {
             "generateParams": {
