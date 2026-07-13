@@ -6,6 +6,9 @@ export const CUT_BEAT_PROMPT_BODY = `
 
 ## 输入
 - 全局主题：\${topic}
+- 节目名：\${show_name}（系列品牌；空白时不引用）
+- 主持人：\${host_name}（讲师 / 主播；空白时不引用）
+- 节目语气基调 voice_tone：\${voice_tone}（steady / editorial / narrative / explanatory / lively / passionate）
 - 口播总时长（秒）：\${audio_duration_seconds}
 - 句级字幕 JSON：\${voiceover_subtitles_json}
 - 切镜节奏 cut_rhythm：\${cut_rhythm}

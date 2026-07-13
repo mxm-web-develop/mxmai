@@ -14,11 +14,26 @@ export const SHOT_LIST_BEAT_DRIVEN_PROMPT_BODY = `
 
 ## 输入
 - 全局主题：\${topic}
+- 副标题：\${subtitle}
+- 节目名：\${show_name}
+- 主持人名：\${host_name}
+- 节目语气基调 voice_tone：\${voice_tone}
+- 关键人物列表（JSON）：\${key_persons_json}
+- 节目品牌 logo URL：\${brand_logo}
+- 主持人形象照 URL：\${host_portrait}
 - **剪辑节拍 JSON（只读，segments 数量与顺序须一致）**：\${cut_beats_json}
 - 画面风格 edit_style：\${edit_style}
 - 剪辑方案 render_plan：\${render_plan}
 - 画幅：\${aspectRatio}
 - 补充：\${supplement}
+
+## 编辑身份元素（如填了）
+- **show_name** 在首段（opening）与最后一段（outro）的 chapter-cover / title-card / outro-cta 文案里引用，如「PART 01 · \${show_name}」。
+- **host_name**：
+  - 烧录条右下角持续署名 "（导师）\${host_name}"。
+  - 在首段 lower-third 中输出 "主讲 / 主持：\${host_name}"，emphasis soft。
+- **key_persons**（数组）：当某段口播提到其中某位人物时（同名识别），在该段加 lower-third：「人物名 · 头衔」 emphasis soft；该段在静态图素材检索时偏向「人物名 portrait」。
+- **brand_logo / host_portrait**（如已填）：本业务会自动在后置 videoTimelineRender 加全程右下角水印 / 人物起始帧 lower-third，无需在分镜里输出。
 
 ## 输出 JSON（只输出合法 JSON）
 \`\`\`json

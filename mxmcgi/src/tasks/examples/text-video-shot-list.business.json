@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-07T07:30:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "plan",
+      "subtype": "video-shot-list",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "internal": true,
+        "display": {
+          "taskLabel": "内部 · 分镜规划",
+          "subtypeLabel": "口播 shot-list JSON",
+          "userFacing": false
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "topic",
+              "voiceover_subtitles_json",
+              "audio_duration_seconds",
+              "edit_style",
+              "render_plan",
+              "aspectRatio"
+            ],
+            "properties": {
+              "topic": {
+                "type": "string",
+                "title": "视频主题"
+              },
+              "subtitle": {
+                "type": "string",
+                "title": "副标题（可选）"
+              },
+              "show_name": {
+                "type": "string",
+                "title": "节目名（可选）",
+                "maxLength": 30
+              },
+              "host_name": {
+                "type": "string",
+                "title": "主持人名（可选）",
+                "maxLength": 30
+              },
+              "voice_tone": {
+                "type": "string",
+                "title": "节目语气基调（可选）",
+                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
+                "default": "explanatory"
+              },
+              "key_persons_json": {
+                "type": "string",
+                "title": "关键人物列表 JSON（可选）"
+              },
+              "brand_logo": {
+                "type": "string",
+                "title": "节目品牌 logo URL（可选）",
+                "maxLength": 4096
+              },
+              "host_portrait": {
+                "type": "string",
+                "title": "主持人形象照 URL（可选）",
+                "maxLength": 4096
+              },
+              "script": {
+                "type": "string",
+                "title": "口播稿（可选，兼容）"
+              },
+              "voiceover_subtitles_json": {
+                "type": "string",
+                "title": "句级字幕 JSON（管线注入）"
+              },
+              "cut_beats_json": {
+                "type": "string",
+                "title": "剪辑节拍 JSON（前置 video-cut-beat 注入）"
+              },
+              "audio_duration_seconds": {
+                "type": "number",
+                "title": "口播总时长（秒）",
+                "minimum": 5,
+                "maximum": 1800
+              },
+              "cut_rhythm": {
+                "type": "string",
+                "title": "切镜节奏",
+                "enum": ["fast", "default", "slow"],
+                "x-enum-labels": ["快", "默认", "慢"],
+                "default": "default"
+              },
+              "edit_style": {
+                "type": "string",
+                "title": "画面风格",
+                "enum": [
+                  "science-pop",
+                  "documentary",
+                  "motion-infographic",
+                  "classroom",
+                  "tech",
+                  "cinematic"
+                ],
+                "x-enum-labels": [
+                  "知识科普",
+                  "纪录片质感",
+                  "动感信息图",
+                  "课堂白板",
+                  "极客硬核",
+                  "电影质感"
+                ],
+                "default": "science-pop"
+              },
+              "render_plan": {
+                "type": "array",
+                "title": "剪辑方案",
+                "description": "可多选组合。仅选一种则全片统一；多选时各镜在选中方案间分配。",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": ["static-image", "ai-video-gen"]
+                },
+                "x-enum-labels": ["素材引入", "AI 生成"],
+                "default": ["static-image", "ai-video-gen"]
+              },
+              "aspectRatio": {
+                "type": "string",
+                "title": "画幅",
+                "enum": ["16:9", "9:16", "1:1"]
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充要求"
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是 supermxmai **自动剪辑画面导演**。\n\n若 **cut_beats_json 非空**：根据已定剪辑节拍为每 beat 填画面，**禁止**输出 startSeconds/durationSeconds/voiceover_text，segments 数量与 beatId 须与节拍一致。\n若 cut_beats_json 为空：根据句级字幕自行切镜并填时长（兼容旧管线）。\n\n## 画面类型（仅两种 mxmRenderMode）\n1. **static-image（素材引入）**：从图库/视频库检索真实素材，检索词写 mxmStockSearchQuery\n2. **ai-video-gen（AI 生成）**：英文 prompt + mxmVideoMode\n\n**禁止** gsap-html-animation。文字动效走 **overlays**。\n\n## 输入\n- 全局主题：${topic}\n- 剪辑节拍 JSON：${cut_beats_json}\n- 口播总时长（秒）：${audio_duration_seconds}\n- 句级字幕 JSON：${voiceover_subtitles_json}\n- 切镜节奏 cut_rhythm：${cut_rhythm}\n- 画面风格 edit_style：${edit_style}\n- 剪辑方案 render_plan：${render_plan}\n- 画幅：${aspectRatio}\n- 补充：${supplement}\n\n## beat 模式输出（cut_beats_json 非空时）\n```json\n{\n  \"global_topic\": \"...\",\n  \"core_message\": \"...\",\n  \"global_keywords\": [\"english\", \"keywords\"],\n  \"segments\": [\n    {\n      \"beatId\": \"b1\",\n      \"text\": \"中文分镜描述（20–80字）\",\n      \"mxmRenderMode\": \"static-image\",\n      \"mxmStockSearchQuery\": \"english search keywords\",\n      \"mxmPrompt\": \"仅 ai-video-gen\",\n      \"mxmVideoMode\": \"text-to-video\",\n      \"overlays\": [],\n      \"keywords\": [\"english\", \"keywords\"],\n      \"on_topic_reason\": \"...\"\n    }\n  ]\n}\n```\n\n## 兼容模式（cut_beats_json 为空时）\nsegments 含 startSeconds、durationSeconds、voiceover_text；时长之和 = ${audio_duration_seconds}s（误差 ≤1s）；单镜 4–12 秒。\n\n## 规则\n1. mxmRenderMode 只能从 render_plan 白名单取值\n2. **每个 mxmRenderMode=ai-video-gen 的 segment 必须填写非空 mxmPrompt**（video=英文 Seedance 场景描述；image=中文/英文配图核心内容）\n3. **mxmStockSearchQuery 必须是英文检索词**（图库 Pexels/Pixabay/Unsplash 均按英文索引，中文检索命中率极低）：\n   - 2–5 个**具体可拍摄的视觉名词**，格式「主体 + 场景/动作 + 环境」，如 `city skyline aerial night`、`scientist microscope laboratory`、`hands typing laptop closeup`\n   - **禁止**抽象词/情绪词/口播原句（如 未来、发展、机遇、the future of…）——它们检索不到有效画面\n   - 从本段 text 与 voiceover 提炼**画面能拍到的实体**，而非概念\n   - 与 `keywords`（同为英文）保持一致；`keywords`/`global_keywords` 一律英文\n4. **全片风格连贯**：所有 AI 段使用相同的 mxmVisualStyle（由 edit_style 映射：science-minimal→minimal_clean, documentary→cinematic, motion-infographic→motion_graphics, classroom→minimal_clean），mxmMotionIntensity / mxmBackgroundMode 亦保持一致\n5. 抽象概念/数据图解优先 mxmAiOutputKind=image；具体场景/动作优先 video\n6. **画面与本段口播强相关**：static-image 段用 on_topic_reason 说明该检索词为何贴合本段内容；避免每段都用同一泛化检索词\n7. hook→标题 overlay；evidence→数据静图或 image；climax→ai-video-gen video\n8. JSON 字符串内禁止未转义双引号；mxmRenderMode 禁止写 `a | b`\n9. 只输出 JSON\n\n为【${topic}】生成 shot-list。"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.35,
+              "topP": 0.9,
+              "maxTokens": 16384
+            }
+          },
+          "storage": {
+            "scope": "text",
+            "extension": "json",
+            "mime": "application/json",
+            "bucket": "user-media",
+            "pathTemplate": "{userId}/video-shot-list/{timestamp}-{randomId}/",
+            "filenameTemplate": "shotlist_{taskId}_{randomId}.json"
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-plan-video-shot-list",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-plan-video-shot-list",
+          "charge_metric": "per_request",
+          "price_in_tokens": 0,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "video-shot-list",
+          "metadata": {
+            "internal": true,
+            "margin": 0
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

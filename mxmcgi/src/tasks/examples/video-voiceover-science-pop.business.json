@@ -1,0 +1,411 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-06T06:00:00.000Z",
+  "items": [
+    {
+      "scope": "video",
+      "type": "autocut",
+      "subtype": "voiceover-science-pop",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "自动剪辑",
+          "subtypeLabel": "基于音频剪辑知识分享"
+        },
+        "pipelineOrchestrator": true,
+        "defaultAiVideoGenerator": {
+          "taskKey": "generator",
+          "subtype": "fragment"
+        },
+        "aiVideoRoute": {
+          "taskKey": "generator",
+          "subtype": "fragment",
+          "note": "时间轴 AI 视频块走 video/generator/fragment（atlascloud seedance），与本业务 routing 无关"
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "x-video-reference-optional": true,
+            "required": ["topic", "voiceover_audio_url", "edit_style", "render_plan", "aspectRatio", "uid"],
+            "properties": {
+              "topic": {
+                "type": "string",
+                "title": "视频主题",
+                "description": "本期视频主题，如「黑巧克力与心血管健康」",
+                "minLength": 4,
+                "maxLength": 120,
+                "x-user-visible": true
+              },
+              "subtitle": {
+                "type": "string",
+                "title": "副标题（可选）",
+                "description": "本期的具体角度、受众或重点；可在覆盖层设计与开场叙述里使用",
+                "maxLength": 120,
+                "x-user-visible": true
+              },
+              "show_name": {
+                "type": "string",
+                "title": "节目名（可选）",
+                "description": "系列 / 节目品牌名，写进 chapter-cover 与 outro-cta",
+                "maxLength": 30,
+                "x-user-visible": true
+              },
+              "host_name": {
+                "type": "string",
+                "title": "主持人名（可选）",
+                "description": "讲师 / 主播名；lower-third 标识与字幕自动署名",
+                "maxLength": 30,
+                "x-user-visible": true
+              },
+              "key_persons": {
+                "type": "array",
+                "title": "关键人物列表（可选）",
+                "description": "节目中可能出现的采访 / 嘉宾 / 引用人物；分镜模型将为他们自动加 lower-third",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string", "title": "姓名", "minLength": 1, "maxLength": 30 },
+                    "title": { "type": "string", "title": "身份 / 头衔", "maxLength": 40 },
+                    "appearance_hint": { "type": "string", "title": "出现场景备注", "maxLength": 80 }
+                  },
+                  "required": ["name"]
+                },
+                "x-user-visible": true
+              },
+              "voice_tone": {
+                "type": "string",
+                "title": "节目语气基调（可选）",
+                "description": "影响覆盖层文字风格与 TTS markup；默认「教练拆解」",
+                "x-ui-type": "selection",
+                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
+                "x-enum-labels": [
+                  "沉稳理性",
+                  "评论思辨",
+                  "故事叙事",
+                  "教练拆解",
+                  "轻松活泼",
+                  "激情澎湃"
+                ],
+                "default": "explanatory",
+                "x-user-visible": true
+              },
+              "brand_logo": {
+                "type": "string",
+                "title": "节目品牌 logo（可选）",
+                "description": "R2 通用上传；右下角全程微透明水印（1080×1080 居中）",
+                "x-ui-type": "image",
+                "maxLength": 4096,
+                "x-user-visible": true
+              },
+              "host_portrait": {
+                "type": "string",
+                "title": "主持人形象照（可选）",
+                "description": "R2 通用上传；讲师 / 主播头像，出现在 lower-third",
+                "x-ui-type": "image",
+                "maxLength": 4096,
+                "x-user-visible": true
+              },
+              "voiceover_audio_url": {
+                "type": "string",
+                "title": "口播音频",
+                "description": "本地上传 mp3/m4a/wav、粘贴音频链接，或从虚拟文件夹选择音频软链",
+                "x-ui-type": "voiceoverAudio",
+                "minLength": 8,
+                "x-user-visible": true
+              },
+              "voiceover_source_task_id": {
+                "type": "string",
+                "title": "口播来源任务 ID",
+                "description": "从虚拟文件夹选择 TTS/音频任务时自动写入，用于复用已有句级字幕",
+                "x-user-visible": false
+              },
+              "audio_duration_seconds": {
+                "type": "number",
+                "title": "口播时长（秒）",
+                "description": "提交后由 ffprobe 自动探测；也可手动修正",
+                "minimum": 5,
+                "maximum": 1800,
+                "x-user-visible": true
+              },
+              "cut_rhythm": {
+                "type": "string",
+                "title": "切镜节奏",
+                "description": "贴合口播稿内容自适应确定每个镜长；不再写死秒数",
+                "x-ui-type": "selection",
+                "enum": ["fast", "default", "slow"],
+                "x-enum-labels": ["快（信息密集）", "默认（通用）", "慢（沉浸）"],
+                "default": "default",
+                "x-user-visible": true
+              },
+              "edit_style": {
+                "type": "string",
+                "title": "画面风格",
+                "description": "驱动素材库检索偏好、AI 视频 / 配图的 prompt 风格化、烧录条底色与转场",
+                "x-ui-type": "selection",
+                "enum": [
+                  "science-pop",
+                  "documentary",
+                  "motion-infographic",
+                  "classroom",
+                  "tech",
+                  "cinematic"
+                ],
+                "x-enum-labels": [
+                  "知识科普",
+                  "纪录片质感",
+                  "动感信息图",
+                  "课堂白板",
+                  "极客硬核",
+                  "电影质感"
+                ],
+                "default": "science-pop",
+                "x-user-visible": true
+              },
+              "render_plan": {
+                "type": "array",
+                "title": "剪辑方案",
+                "description": "可多选组合。仅选一种则全片统一；多选时各镜在选中方案间分配。",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": ["static-image", "ai-video-gen"]
+                },
+                "x-enum-labels": ["素材引入", "AI 生成"],
+                "default": ["static-image", "ai-video-gen"],
+                "x-user-visible": true
+              },
+              "aspectRatio": {
+                "type": "string",
+                "title": "画幅比例",
+                "enum": ["16:9", "9:16", "1:1"],
+                "default": "16:9",
+                "x-user-visible": true
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充要求（可选）",
+                "description": "精修口播稿 / 必讲要点 / 风格要求等",
+                "ui:widget": "textarea",
+                "ui:options": { "rows": 3 },
+                "x-user-visible": true
+              },
+              "parallel_count": {
+                "type": "integer",
+                "title": "生成份数",
+                "minimum": 1,
+                "maximum": 1,
+                "default": 1,
+                "const": 1,
+                "x-user-visible": false
+              },
+              "uid": { "type": "string", "title": "任务 UID", "x-user-visible": false }
+            }
+          },
+          "uiSchema": {
+            "script": { "ui:widget": "textarea", "ui:options": { "rows": 10 } },
+            "supplement": { "ui:widget": "textarea", "ui:options": { "rows": 3 } }
+          },
+          "prompt": {
+            "unifiedTemplate": "【自动剪辑/基于音频】主题：${topic}。分镜 JSON 由前置 buildVideoEditTimeline 生成，本占位 prompt 不调用视频模型。"
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "resolveVoiceoverAudio",
+                "params": {
+                  "audioUrlFrom": "${params.voiceover_audio_url}",
+                  "durationField": "audio_duration_seconds"
+                }
+              },
+              {
+                "step": "transcribeVoiceoverAudio",
+                "params": {
+                  "audioUrlFrom": "${params.voiceover_audio_url}",
+                  "skipWhenTtsSubtitles": true,
+                  "skipWhenStoredSubtitles": true,
+                  "skipWhenScriptPresent": true,
+                  "sourceTaskIdFrom": "${params.voiceover_source_task_id}",
+                  "language": "zh"
+                }
+              },
+              {
+                "step": "planVideoCutWindows",
+                "params": {
+                  "outputStatePath": "rhythmWindows"
+                },
+                "fieldMapping": {
+                  "duration": "${params.audio_duration_seconds}",
+                  "segments": "${params.voiceover_subtitles_json}",
+                  "cutRhythm": "${params.cut_rhythm}"
+                }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/plan/video-cut-beat",
+                "params": {
+                  "outputStatePath": "cutBeatPlan"
+                },
+                "inputMapping": {
+                  "topic": "${params.topic}",
+                  "show_name": "${params.show_name}",
+                  "host_name": "${params.host_name}",
+                  "voice_tone": "${params.voice_tone}",
+                  "voiceover_subtitles_json": "${params.voiceover_subtitles_json}",
+                  "audio_duration_seconds": "${params.audio_duration_seconds}",
+                  "cut_rhythm": "${params.cut_rhythm}",
+                  "supplement": "${params.supplement}"
+                }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/plan/video-shot-list",
+                "params": {
+                  "outputStatePath": "shotList"
+                },
+                "inputMapping": {
+                  "topic": "${params.topic}",
+                  "subtitle": "${params.subtitle}",
+                  "show_name": "${params.show_name}",
+                  "host_name": "${params.host_name}",
+                  "voice_tone": "${params.voice_tone}",
+                  "key_persons_json": "${params.key_persons}",
+                  "brand_logo": "${params.brand_logo}",
+                  "host_portrait": "${params.host_portrait}",
+                  "voiceover_subtitles_json": "${params.voiceover_subtitles_json}",
+                  "audio_duration_seconds": "${params.audio_duration_seconds}",
+                  "cut_rhythm": "${params.cut_rhythm}",
+                  "edit_style": "${params.edit_style}",
+                  "render_plan": "${params.render_plan}",
+                  "aspectRatio": "${params.aspectRatio}",
+                  "supplement": "${params.supplement}"
+                }
+              },
+              {
+                "step": "buildVideoEditTimeline",
+                "params": {
+                  "segmentStrategy": "shot-list",
+                  "segmentsStatePath": "shotList",
+                  "subtitlesStatePath": "voiceoverSubtitles.segments",
+                  "videoTrackName": "片段",
+                  "audioTrackName": "口播",
+                  "projectNameFallback": "自动剪辑视频",
+                  "aiVideoTaskKey": "generator",
+                  "aiVideoSubtype": "fragment"
+                },
+                "fieldMapping": {
+                  "duration": "${params.audio_duration_seconds}",
+                  "title": "${params.topic}",
+                  "subtitle": "${params.subtitle}",
+                  "show_name": "${params.show_name}",
+                  "host_name": "${params.host_name}",
+                  "voice_tone": "${params.voice_tone}",
+                  "key_persons_json": "${params.key_persons}",
+                  "brand_logo": "${params.brand_logo}",
+                  "host_portrait": "${params.host_portrait}",
+                  "audioUrl": "${params.voiceover_audio_url}",
+                  "segments": "${state.shotList}",
+                  "aspectRatio": "${params.aspectRatio}",
+                  "renderPlan": "${params.render_plan}",
+                  "editStyle": "${params.edit_style}",
+                  "supplement": "${params.supplement}"
+                }
+              }
+            ],
+            "post": [
+              {
+                "step": "manualReview",
+                "params": {
+                  "id": "voiceover-science-pop-review",
+                  "label": "自动剪辑分镜审核（时间轴）",
+                  "hint": "调整分镜与素材：切换画面类型、选图/选视频、剪切合并。通过后逐段生成基底画面。",
+                  "kind": "video-timeline",
+                  "timelinePhase": "plan",
+                  "draftFrom": "${state.finalArtifact.text}",
+                  "applyMapping": {
+                    "state.videoEditScriptJson": "${review.json}",
+                    "state.videoEditScriptMetadata": "${review.metadata}"
+                  },
+                  "editable": true
+                }
+              },
+              {
+                "step": "videoTimelineRender",
+                "params": {
+                  "renderOptions": { "concatFinal": false, "applyOverlays": false },
+                  "inputMapping": {
+                    "videoEditScriptJson": "${state.videoEditScriptJson}",
+                    "label": "${params.topic}"
+                  }
+                }
+              },
+              {
+                "step": "manualReview",
+                "params": {
+                  "id": "voiceover-science-pop-render-review",
+                  "label": "自动剪辑成片审核（时间轴）",
+                  "hint": "各段已生成。可精修转场、文字叠加与动效；确认后导出完整成片。",
+                  "kind": "video-timeline",
+                  "timelinePhase": "rendered",
+                  "draftFrom": "${state.videoEditScriptJson}",
+                  "applyMapping": {
+                    "state.videoEditScriptJson": "${review.json}"
+                  },
+                  "editable": true
+                }
+              },
+              {
+                "step": "videoTimelineRender",
+                "params": {
+                  "renderOptions": {
+                    "concatFinal": true,
+                    "skipReadyClips": true,
+                    "applySubtitleBurn": false,
+                    "applyOverlays": true,
+                    "applyTransitions": true
+                  },
+                  "inputMapping": {
+                    "videoEditScriptJson": "${state.videoEditScriptJson}",
+                    "label": "${params.topic}"
+                  }
+                }
+              }
+            ]
+          },
+          "storage": {
+            "scope": "video",
+            "extension": "mp4",
+            "mime": "video/mp4",
+            "bucket": "user-media",
+            "pathTemplate": "{userId}/voiceover-science-pop/{timestamp}-{randomId}/",
+            "filenameTemplate": "science_pop_{taskId}_{randomId}.mp4"
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "video-autocut-voiceover-science-pop",
+        "provider": "internal",
+        "model": "video-pipeline-orchestrator",
+        "enabled": true,
+        "sensitive_word_lists": [],
+        "note": "编排计费占位：不调外部视频模型。AI 片段走 video/generator/fragment（seedance）；文字/转场走 OpenReel overlay"
+      },
+      "businessPricing": [
+        {
+          "business_type": "video-autocut-voiceover-science-pop",
+          "charge_metric": "per_clip",
+          "price_in_tokens": 150,
+          "min_charge_tokens": 50,
+          "provider": "internal",
+          "model_key": "video-pipeline-orchestrator",
+          "subtype": "voiceover-science-pop",
+          "metadata": { "margin": 0.3 }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}
