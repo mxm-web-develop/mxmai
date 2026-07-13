@@ -37,7 +37,17 @@ export const SHOT_LIST_BEAT_DRIVEN_PROMPT_BODY = `
       "mxmImageMotionEnabled": true,
       "mxmImageMotion": "pan-left | pan-right | zoom-in | zoom-out（静图/配图默认开启，相邻段交替）",
       "mxmVideoMode": "text-to-video",
-      "overlays": [],
+      "overlayLayers": [
+        {
+          "role": "chapter-cover | keyword-pop | fact-card | lower-third | title-card | outro-cta | chapter-progress",
+          "text": "覆盖文字 4–16 字",
+          "position": "top-center | center | center-right | bottom-center | bottom-left",
+          "enterAt": 0.0,
+          "exitAt": 2.0,
+          "emphasis": "soft | normal | hot"
+        }
+      ],
+      "transition": { "type": "crossfade", "durationSeconds": 0.5 },
       "keywords": ["english", "keywords"],
       "on_topic_reason": "..."
     }
@@ -58,7 +68,22 @@ export const SHOT_LIST_BEAT_DRIVEN_PROMPT_BODY = `
 6. rhythmHint=hold 时画面宜稳（静图或慢镜），accelerate 可快切感 B-roll
 7. **静图/AI配图默认开启 Ken Burns 动效**（mxmImageMotionEnabled=true）；相邻段交替 pan-left↔pan-right 或 zoom-in↔zoom-out（**opening/closing 段用 zoom-in、不用横移**），用户可在审核页关闭
 8. **每段画面与该段口播的核心实体强相关**，on_topic_reason 说明「本段核心实体是 X，故检索 X」；避免全片同一泛化检索词
-9. 只输出 JSON
+9. **每段覆盖层设计（overlayLayers[]）—— 必须每段输出 1–3 个对象**：
+   - role 决定覆盖层视觉样式（**覆盖层是除画面素材外，第二注意力焦点**）：
+     - **chapter-cover**：节与节切换时 / 章节首段时输出，文字 6–14 字（如「PART 01 · 中美机器人」「开篇 · 数字里的国家」），位置 top-center 大字；enterAt=0、exitAt≈节长的 1/3。
+     - **keyword-pop**：本节核心实体首次出现时输出 1 个 2–6 字关键词卡（如「Tesla」「Optimus」「人形机器人」），位置 center-right，emphasis=hot，强 pop 动画。
+     - **fact-card**：含具体数字 / 引用 / 实验数据 / 日期时输出（如「50% 提升」「2024 年」），位置 bottom-center 或 center，字体偏小（fact-card preset），emphasis=normal。
+     - **title-card**：仅开场段（首段）、总结段（尾段）时输出，整屏大字，半透明暗底，支持 fade / slide-up。
+     - **lower-third**：人物首次出现 / 引出处输出 1 个「李永乐 · 北大附中」式 8 字标识，位置 bottom-left，emphasis=soft。
+     - **chapter-progress**：长片（> 30s）/ 多节段落内输出，仅显示「PART N」小条，位置 top-center 顶端进度条；emphasis=soft。
+     - **outro-cta**：仅最后一段（mxmBeatRole=outro 时）输出"点赞 · 关注 · 下期见"，emphasis=hot。
+   - **不所有节都需要所有 role**：
+     - **画面素材为主角**的节（事实陈述、风景、人物访谈）：用 0–1 个 keyword-pop，其余由字幕烧录条承担。
+     - **章节切分点、总结、开场**这类**画面索然**的节：用 chapter-cover / title-card，让文字成为注意力焦点。
+     - **绝大多数节 1 个 keyword-pop** 是底线；**章节切分节必须 1 个 chapter-cover**。
+   - **同时最多 2 个** overlay 同时出现（标题 + 关键词可同框）。
+   - enterAt / exitAt 在 [0, durationSeconds] 内。**整节都覆盖**时 enterAt=0、exitAt=durationSeconds。
+10. 只输出 JSON
 
 为【\${topic}】生成 shot-list。
 `.trim();

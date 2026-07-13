@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { searchStockImages, searchStockVideos } from '../../api/client';
 import {
   buildStockSearchQuery,
@@ -26,6 +26,8 @@ export type AutoStockPreview =
 const STOCK_PAGE_SIZE = 12;
 const MAX_STOCK_PAGES = 2;
 const STOCK_FETCH_CONCURRENCY = 5;
+/** 单段 auto-stock 整体超时：超过即标记为 error，让用户手动挑图，避免无限转圈 */
+const STOCK_FETCH_TIMEOUT_MS = 12_000;
 
 function stockSearchInputForClip(
   clip: VisualClipItem,
@@ -52,67 +54,75 @@ function relevanceTermsFor(meta: MxmClipMetadata, query: string): string[] {
 async function fetchAutoStockForClip(
   clip: VisualClipItem,
   searchInput: StockSearchQueryInput,
-  usedUrls: Set<string>
+  usedUrls: Set<string>,
+  abort?: { cancelled: boolean }
 ): Promise<AutoStockPreview> {
   const meta = clip.metadata;
   if (!meta) return { status: 'idle' };
   const query = buildStockSearchQuery(meta, searchInput.subtitleText, searchInput);
   const terms = relevanceTermsFor(meta, query);
 
+  // 整段 auto-stock 总时限：超过直接返回 error（用户可手动挑图）
+  const deadline = Date.now() + STOCK_FETCH_TIMEOUT_MS;
+  const isAlive = () => !abort?.cancelled && Date.now() < deadline;
+  const remainingBudget = () => Math.max(250, deadline - Date.now());
+
+  async function searchWithDeadline<T extends 'image' | 'video'>(
+    mode: T,
+    page: number
+  ): Promise<{ result: NonNullable<Awaited<ReturnType<typeof searchStockImages>>['items']>[number] | null; ranOut: boolean }> {
+    const opts = { q: query, page, pageSize: STOCK_PAGE_SIZE } as const;
+    if (mode === 'video') {
+      const res = await searchStockVideos(opts);
+      if (!isAlive()) return { result: null, ranOut: true };
+      const picked = pickBestStockHit(res.items, usedUrls, 'videoUrl', terms);
+      return { result: picked?.hit ?? null, ranOut: false };
+    }
+    const res = await searchStockImages(opts);
+    if (!isAlive()) return { result: null, ranOut: true };
+    const picked = pickBestStockHit(res.items, usedUrls, 'imageUrl', terms);
+    return { result: picked?.hit ?? null, ranOut: false };
+  }
+
   try {
     if (isAutoStockVideoEnabled(meta)) {
       let fallback: { url: string; title?: string; attribution?: string } | null = null;
       for (let page = 1; page <= MAX_STOCK_PAGES; page++) {
-        const res = await searchStockVideos({ q: query, page, pageSize: STOCK_PAGE_SIZE });
-        const picked = pickBestStockHit(res.items, usedUrls, 'videoUrl', terms);
-        if (picked?.hit.videoUrl) {
-          if (picked.scored) {
-            usedUrls.add(normalizeStockMediaUrl(picked.hit.videoUrl));
-            return {
-              status: 'ready',
-              kind: 'video',
-              url: picked.hit.videoUrl,
-              title: picked.hit.title,
-              attribution: res.attribution,
-            };
-          }
-          if (!fallback) {
-            fallback = { url: picked.hit.videoUrl, title: picked.hit.title, attribution: res.attribution };
+        if (!isAlive()) {
+          return { status: 'error', message: '素材搜索超时（未匹配）' };
+        }
+        const { result, ranOut } = await searchWithDeadline('video', page);
+        if (ranOut) return { status: 'error', message: '素材搜索超时（未匹配）' };
+        if (result?.videoUrl) {
+          if (fallback === null) {
+            fallback = { url: result.videoUrl, title: result.title, attribution: undefined };
           }
         }
-        if (res.items.length < STOCK_PAGE_SIZE) break;
+        // 即使没匹配到也只继续到第二页，避免重试累积
+        if (page === MAX_STOCK_PAGES && fallback) break;
       }
       if (fallback) {
         usedUrls.add(normalizeStockMediaUrl(fallback.url));
-        return { status: 'ready', kind: 'video', url: fallback.url, title: fallback.title, attribution: fallback.attribution };
+        return { status: 'ready', kind: 'video', url: fallback.url, title: fallback.title };
       }
     }
 
     if (isAutoStockImageEnabled(meta)) {
       let fallback: { url: string; title?: string; attribution?: string } | null = null;
       for (let page = 1; page <= MAX_STOCK_PAGES; page++) {
-        const res = await searchStockImages({ q: query, page, pageSize: STOCK_PAGE_SIZE });
-        const picked = pickBestStockHit(res.items, usedUrls, 'imageUrl', terms);
-        if (picked?.hit.imageUrl) {
-          if (picked.scored) {
-            usedUrls.add(normalizeStockMediaUrl(picked.hit.imageUrl));
-            return {
-              status: 'ready',
-              kind: 'image',
-              url: picked.hit.imageUrl,
-              title: picked.hit.title,
-              attribution: res.attribution,
-            };
-          }
-          if (!fallback) {
-            fallback = { url: picked.hit.imageUrl, title: picked.hit.title, attribution: res.attribution };
-          }
+        if (!isAlive()) {
+          return { status: 'error', message: '素材搜索超时（未匹配）' };
         }
-        if (res.items.length < STOCK_PAGE_SIZE) break;
+        const { result, ranOut } = await searchWithDeadline('image', page);
+        if (ranOut) return { status: 'error', message: '素材搜索超时（未匹配）' };
+        if (result?.imageUrl) {
+          fallback = { url: result.imageUrl, title: result.title, attribution: undefined };
+        }
+        if (page === MAX_STOCK_PAGES && fallback) break;
       }
       if (fallback) {
         usedUrls.add(normalizeStockMediaUrl(fallback.url));
-        return { status: 'ready', kind: 'image', url: fallback.url, title: fallback.title, attribution: fallback.attribution };
+        return { status: 'ready', kind: 'image', url: fallback.url, title: fallback.title };
       }
     }
 
@@ -156,35 +166,51 @@ export function useAutoStockPreviewMap(
   );
 
   const [map, setMap] = useState<Record<string, AutoStockPreview>>({});
+  // 记忆已成功条目，避免每次 targetsKey 变化时把还在用的图 URL 当 loading 重新拉。
+  const lastSuccessRef = useRef<Record<string, AutoStockPreview>>({});
 
   useEffect(() => {
     if (!targets.length) {
       setMap({});
+      lastSuccessRef.current = {};
       return;
     }
 
-    let cancelled = false;
-    const loading: Record<string, AutoStockPreview> = {};
-    for (const c of targets) loading[c.id] = { status: 'loading' };
-    setMap(loading);
+    // 每个 target 推断"应该用什么初始状态"：上一次成功/失败/取消过 → 复用
+    const initial: Record<string, AutoStockPreview> = {};
+    for (const c of targets) {
+      const prev = lastSuccessRef.current[c.id];
+      initial[c.id] = prev ?? { status: 'loading' };
+    }
+    setMap(initial);
 
+    // 仅给"还没成功出图"过的 target 跑拉取
+    const pending = targets.filter((c) => {
+      const prev = lastSuccessRef.current[c.id];
+      return !prev || prev.status === 'error' || prev.status === 'idle';
+    });
+    if (pending.length === 0) return;
+
+    const controller = { cancelled: false };
     void (async () => {
       const usedUrls = new Set<string>();
-      const next: Record<string, AutoStockPreview> = { ...loading };
+      const next: Record<string, AutoStockPreview> = { ...initial };
 
-      await runWithConcurrency(targets, STOCK_FETCH_CONCURRENCY, async (c) => {
-        if (cancelled) return;
+      await runWithConcurrency(pending, STOCK_FETCH_CONCURRENCY, async (c) => {
+        if (controller.cancelled) return;
         const input = stockSearchInputForClip(c, subtitles, projectTopic);
-        const preview = await fetchAutoStockForClip(c, input, usedUrls);
-        if (!cancelled) {
-          next[c.id] = preview;
-          setMap({ ...next });
+        const preview = await fetchAutoStockForClip(c, input, usedUrls, controller);
+        if (controller.cancelled) return;
+        next[c.id] = preview;
+        if (preview.status === 'ready') {
+          lastSuccessRef.current[c.id] = preview;
         }
+        setMap({ ...next });
       });
     })();
 
     return () => {
-      cancelled = true;
+      controller.cancelled = true;
     };
   }, [targetsKey, targets, subtitles, projectTopic]);
 

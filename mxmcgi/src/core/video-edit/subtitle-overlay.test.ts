@@ -30,7 +30,7 @@ describe('subtitlesToTextClips', () => {
     );
     expect(clips).toHaveLength(1);
     expect(clips[0]?.text).toBe('各位听众');
-    expect(clips[0]?.transform.position).toEqual({ x: 0.5, y: 0.82 });
+    expect(clips[0]?.transform.position).toEqual({ x: 0.5, y: 0.85 });
   });
 
   it('subtitle burn clips are separate from project textClips', () => {

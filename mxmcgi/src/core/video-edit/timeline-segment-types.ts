@@ -1,6 +1,27 @@
 import type { MxmRenderMode } from './types';
 import type { SegmentOverlaySpec, SegmentTransitionSpec } from './timeline-overlay-types';
 
+/** shot-list 新字段 overlayLayers 的角色枚举（与 overlay-style-presets.ts 的 OverlayLayerRole 对齐） */
+export type SegmentOverlayLayerRole =
+  | 'chapter-cover'
+  | 'keyword-pop'
+  | 'fact-card'
+  | 'lower-third'
+  | 'title-card'
+  | 'outro-cta'
+  | 'chapter-progress';
+
+export type SegmentOverlayLayerEmphasis = 'soft' | 'normal' | 'hot';
+
+export type SegmentOverlayLayerSpec = {
+  role: SegmentOverlayLayerRole;
+  text: string;
+  position?: 'top-left' | 'top-center' | 'top-right' | 'center-left' | 'center' | 'center-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+  enterAt?: number;
+  exitAt?: number;
+  emphasis?: SegmentOverlayLayerEmphasis;
+};
+
 /** 分镜 builder 统一的「一段可视内容」抽象（各 segmentStrategy 产出） */
 export type TimelineVisualSegment = {
   startSeconds: number;
@@ -9,6 +30,8 @@ export type TimelineVisualSegment = {
   mxmRenderMode?: MxmRenderMode;
   /** OpenReel 文字/模板 overlay（叠在基底素材或 AI 视频上） */
   overlays?: SegmentOverlaySpec[];
+  /** shot-list 新字段：role 化覆盖层（章节封面 / 关键词卡 / 事实卡 / 章节进度等） */
+  overlayLayers?: SegmentOverlayLayerSpec[];
   /** 与下一段之间的转场（OpenReel Transition） */
   transition?: SegmentTransitionSpec;
   /** ai-video-gen：视频生成 prompt（英文） */

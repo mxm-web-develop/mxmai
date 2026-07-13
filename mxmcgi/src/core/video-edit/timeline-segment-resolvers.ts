@@ -1,13 +1,26 @@
 /**
  * 分镜分段策略 — 纯函数，由 buildVideoEditTimeline 步骤 params.segmentStrategy 选择
  */
-import type { TimelineVisualSegment, VoiceoverSubtitleLike } from './timeline-segment-types';
+import type {
+  TimelineVisualSegment,
+  VoiceoverSubtitleLike,
+} from './timeline-segment-types';
 import type { MxmRenderMode } from './types';
 import { normalizeMxmRenderMode } from './render-mode';
 import {
   parseSegmentOverlays,
   parseSegmentTransition,
 } from './timeline-overlay-builder';
+
+const ROLE_VALUES = new Set<string>([
+  'chapter-cover',
+  'keyword-pop',
+  'fact-card',
+  'lower-third',
+  'title-card',
+  'outro-cta',
+  'chapter-progress',
+]);
 import { roundToWholeSeconds, snapVisualSegmentsToWholeSeconds } from './timeline-whole-seconds';
 import {
   normalizeCutRhythmId,
@@ -271,6 +284,20 @@ function parseShotList(raw: unknown, totalDuration: number): TimelineVisualSegme
     const rawMode = (item as { mxmRenderMode?: MxmRenderMode }).mxmRenderMode;
     const mode = normalizeMxmRenderMode(rawMode);
     const overlays = parseSegmentOverlays((item as { overlays?: unknown }).overlays);
+    const overlayLayersRaw = (item as { overlayLayers?: unknown }).overlayLayers;
+    const overlayLayers = Array.isArray(overlayLayersRaw)
+      ? (overlayLayersRaw as unknown[])
+          .filter((l): l is Record<string, unknown> => Boolean(l && typeof l === 'object'))
+          .map((l) => ({
+            role: String(l.role ?? ''),
+            text: String(l.text ?? ''),
+            position: l.position as never,
+            enterAt: typeof l.enterAt === 'number' ? l.enterAt : undefined,
+            exitAt: typeof l.exitAt === 'number' ? l.exitAt : undefined,
+            emphasis: l.emphasis as 'soft' | 'normal' | 'hot' | undefined,
+          }))
+          .filter((l) => l.text.trim() && ROLE_VALUES.has(l.role))
+      : undefined;
     const transition = parseSegmentTransition((item as { transition?: unknown }).transition);
     const videoModeRaw = String((item as { mxmVideoMode?: unknown }).mxmVideoMode ?? '').trim();
     const mxmVideoMode =
@@ -323,6 +350,7 @@ function parseShotList(raw: unknown, totalDuration: number): TimelineVisualSegme
       text,
       mxmRenderMode: mode,
       overlays: overlays.length ? overlays : undefined,
+      overlayLayers: overlayLayers && overlayLayers.length ? overlayLayers : undefined,
       transition,
       mxmVideoMode,
       mxmPrompt: mode === 'ai-video-gen' ? rawPrompt || undefined : undefined,
