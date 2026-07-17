@@ -16,6 +16,7 @@ import {
   Steps,
   Alert,
   Typography,
+  Tag,
 } from 'antd';
 import {
   getProvidersOptions,
@@ -41,6 +42,9 @@ import {
   putProviderModel,
   deleteProviderModel,
   testProviderModel,
+  getKnowledgeEmbeddingDefault,
+  putKnowledgeEmbeddingDefault,
+  type KnowledgeEmbeddingDefaultConfig,
   type ProviderModelTestRunRow,
   type ProviderModelRow,
 } from '../api/client';
@@ -56,8 +60,11 @@ const WINDOW_OPTIONS = [
 
 const KEY_PROVIDER_OPTIONS = [
   { value: '', label: '全部' },
-  { value: 'deer', label: 'deer' },
+  { value: 'openrouter', label: 'openrouter' },
+  { value: 'qhai', label: 'qhai（启航 AI）' },
+  { value: 'jiekou', label: 'jiekou（接口AI）' },
   { value: 'atlascloud', label: 'atlascloud' },
+  { value: 'deer', label: 'deer（已下架，仅历史数据）' },
   { value: 'replicate', label: 'replicate' },
   { value: 'ppio', label: 'ppio' },
   { value: 'openai', label: 'openai' },
@@ -70,8 +77,11 @@ const KEY_PROVIDER_OPTIONS = [
 ];
 
 const PROVIDER_OPTIONS = [
-  { value: 'deer', label: 'deer' },
+  { value: 'openrouter', label: 'openrouter' },
+  { value: 'qhai', label: 'qhai（启航 AI）' },
+  { value: 'jiekou', label: 'jiekou（接口AI）' },
   { value: 'atlascloud', label: 'atlascloud' },
+  { value: 'deer', label: 'deer（已下架，仅历史数据）' },
   { value: 'replicate', label: 'replicate' },
   { value: 'ppio', label: 'ppio' },
   { value: 'openai', label: 'openai' },
@@ -180,16 +190,130 @@ const SCOPE_OPTIONS = [
   { value: 'graph', label: 'graph（图片生成）' },
   { value: 'audio', label: 'audio（音频）' },
   { value: 'video', label: 'video（视频）' },
+  { value: 'music', label: 'music（音乐）' },
   { value: 'text', label: 'text（文本对话）' },
-  { value: 'default', label: 'default（兜底）' },
+  { value: 'knowledge', label: 'knowledge（知识库向量）' },
 ];
+
+const EMBEDDING_PROTOCOL_OPTIONS = [{ value: 'openai-embeddings', label: 'openai-embeddings' }];
+
+/** 6 种模态（与 AtlasCloud 官方归类对齐 + Embedding） */
+const MODALITY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'text', label: 'T 文本' },
+  { value: 'image', label: '🖼 图片' },
+  { value: 'audio', label: '🔊 语音/音频' },
+  { value: 'video', label: '🎬 视频' },
+  { value: '3d', label: '🧊 3D 模型' },
+  { value: 'embed', label: '🔢 向量（embedding）' },
+];
+
+const VALID_MODALITIES = new Set(MODALITY_OPTIONS.map((o) => o.value));
+
+/** 兼容读：优先 supported_inputs[]，回退 input{...} */
+function readSupportedInputs(caps: Record<string, unknown> | null | undefined): string[] {
+  if (!caps) return [];
+  if (Array.isArray(caps.supported_inputs)) {
+    return (caps.supported_inputs as unknown[]).filter(
+      (x): x is string => typeof x === 'string' && VALID_MODALITIES.has(x)
+    );
+  }
+  if (caps.input && typeof caps.input === 'object') {
+    return Object.entries(caps.input as Record<string, unknown>)
+      .filter(([, v]) => v === true)
+      .map(([k]) => k)
+      .filter((k) => VALID_MODALITIES.has(k));
+  }
+  return [];
+}
+
+function readSupportedOutputs(caps: Record<string, unknown> | null | undefined): string[] {
+  if (!caps) return [];
+  if (Array.isArray(caps.supported_outputs)) {
+    return (caps.supported_outputs as unknown[]).filter(
+      (x): x is string => typeof x === 'string' && VALID_MODALITIES.has(x)
+    );
+  }
+  if (caps.output && typeof caps.output === 'object') {
+    return Object.entries(caps.output as Record<string, unknown>)
+      .filter(([, v]) => v === true)
+      .map(([k]) => k)
+      .filter((k) => VALID_MODALITIES.has(k));
+  }
+  return [];
+}
+
+function readProviderModes(caps: Record<string, unknown> | null | undefined): string[] {
+  if (!caps) return [];
+  if (Array.isArray(caps.modes)) {
+    return (caps.modes as unknown[]).filter((x): x is string => typeof x === 'string');
+  }
+  return [];
+}
+
+function buildModelCapabilities(
+  values: ProviderModelFormValues,
+): Record<string, unknown> | null {
+  const built: Record<string, unknown> = {};
+  // 新字段（拍平数组，运行时优先读）
+  const supportedInputs = (values.cap_supported_inputs ?? []).filter((m) =>
+    VALID_MODALITIES.has(m as string)
+  );
+  const supportedOutputs = (values.cap_supported_outputs ?? []).filter((m) =>
+    VALID_MODALITIES.has(m as string)
+  );
+  if (supportedInputs.length > 0) {
+    built.supported_inputs = supportedInputs;
+    // 双写老格式，保持向后兼容
+    const inputMap: Record<string, boolean> = {};
+    for (const m of supportedInputs) inputMap[m as string] = true;
+    built.input = inputMap;
+  }
+  if (supportedOutputs.length > 0) {
+    built.supported_outputs = supportedOutputs;
+    const outputMap: Record<string, boolean> = {};
+    for (const m of supportedOutputs) outputMap[m as string] = true;
+    built.output = outputMap;
+  }
+  if (values.cap_modes && values.cap_modes.length > 0) {
+    built.modes = values.cap_modes;
+  }
+  if (values.cap_context_window != null) built.context_window = values.cap_context_window;
+  if (values.cap_vector_dim != null) {
+    built.vector_dim = values.cap_vector_dim;
+    if (values.scope === 'knowledge') built.supports_dimensions = true;
+  }
+  return Object.keys(built).length > 0 ? built : null;
+}
+
+function buildDefaultParameters(values: ProviderModelFormValues): Record<string, unknown> | null {
+  if (values.scope === 'knowledge' && values.cap_vector_dim != null) {
+    return { dimensions: values.cap_vector_dim };
+  }
+  return (values.default_parameters as Record<string, unknown> | null | undefined) ?? null;
+}
+
+function resolveModelProtocol(values: ProviderModelFormValues): string | null {
+  if (values.protocol?.trim()) return values.protocol.trim();
+  if (values.scope === 'knowledge') return 'openai-embeddings';
+  return null;
+}
+
+function isKnowledgeDefaultModel(
+  row: ProviderModelRow,
+  cfg: KnowledgeEmbeddingDefaultConfig | null,
+): boolean {
+  const provider = cfg?.config?.provider ?? cfg?.resolved?.provider;
+  const model = cfg?.config?.model ?? cfg?.resolved?.modelKey;
+  return row.scope === 'knowledge' && row.provider === provider && row.model_key === model;
+}
 
 function deriveModalityByScope(scope?: string, fallback?: string | null): string | null {
   const s = String(scope || '').toLowerCase();
   if (s === 'graph') return 'image';
   if (s === 'audio') return 'audio';
   if (s === 'video') return 'video';
-  if (s === 'text' || s === 'default' || s === 'writing' || s === 'outline') return 'text';
+  if (s === 'knowledge') return 'embedding';
+  if (s === 'text' || s === 'writing') return 'text';
   return fallback ?? null;
 }
 
@@ -226,17 +350,31 @@ function deriveModalityByScope(scope?: string, fallback?: string | null): string
 
 // type RoutingRow = { key: string; logicalModel: string; provider: string; model: string; overridden?: boolean; rawProvider: string; category: string };
 
-/** 物理模型表单 = 模型字段 + Provider 成本（可选，用于统计与余额扣费；业务价格 MXM-TOKEN 在业务管理配置） */
+/** 物理模型表单 = 模型字段 + Provider 成本（USD）+ MXM-TOKEN（platform_*） */
 type ProviderModelFormValues = Partial<ProviderModelRow> & {
   pricing_id?: string;
   charge_mode?: string;
   unit_price?: number;
   input_unit_price?: number | null;
   output_unit_price?: number | null;
+  platform_unit_price?: number | null;
+  platform_input_unit_price?: number | null;
+  platform_output_unit_price?: number | null;
+  platform_min_charge?: number | null;
   currency?: string;
   input_token_basis?: TokenPriceBasis;
   output_token_basis?: TokenPriceBasis;
   combined_token_basis?: TokenPriceBasis;
+  sync_text_writing?: boolean; // 同时为 text + writing 创建定价
+  // —— 模型能力（capabilities JSONB） ——
+  cap_context_window?: number;
+  cap_vector_dim?: number;
+  /** 拍平数组：text/image/audio/video/3d/embed */
+  cap_supported_inputs?: string[];
+  cap_supported_outputs?: string[];
+  /** 模式：text-to-image / image-to-video / reference-to-video / chat / embedding ... */
+  cap_modes?: string[];
+  protocol?: string;
 };
 
 type ProviderModelTestStep = {
@@ -298,6 +436,7 @@ export default function ProviderRoutes() {
   const [balanceModalOpen, setBalanceModalOpen] = useState(false);
   const [balanceModalProvider, setBalanceModalProvider] = useState<string | null>(null);
   const [balanceModalValue, setBalanceModalValue] = useState<number>(0);
+  const [balanceModalCurrency, setBalanceModalCurrency] = useState<string>('USD');
   const [providerModels, setProviderModels] = useState<ProviderModelRow[]>([]);
   const [providerModelsTotal, setProviderModelsTotal] = useState(0);
   const [providerModelsLoading, setProviderModelsLoading] = useState(false);
@@ -316,6 +455,10 @@ export default function ProviderRoutes() {
   const [providerModelTestModalOpen, setProviderModelTestModalOpen] = useState(false);
   const [providerModelTestLoading, setProviderModelTestLoading] = useState<string | null>(null);
   const [providerModelTestHistory, setProviderModelTestHistory] = useState<ProviderModelTestRunRow[]>([]);
+  const [knowledgeEmbDefault, setKnowledgeEmbDefault] = useState<KnowledgeEmbeddingDefaultConfig | null>(
+    null
+  );
+  const [knowledgeDefaultSaving, setKnowledgeDefaultSaving] = useState<string | null>(null);
   /** 编辑定价时合并 metadata（避免覆盖官方链接等扩展字段） */
   const providerPricingMetadataRef = useRef<Record<string, unknown>>({});
 
@@ -403,7 +546,14 @@ export default function ProviderRoutes() {
       service: undefined,
     });
     setKeysLoading(false);
-    if (res.error) return;
+    if (res.error) {
+      if (res.status === 401) {
+        setError('登录已过期，请重新登录后再访问 Provider Keys');
+      } else if (res.status === 403) {
+        setError('需要 Admin 权限才能查看 Provider Keys');
+      }
+      return;
+    }
     const data =
       (res.data as { data?: ProviderApiKeyMasked[] })?.data ?? (res.data as ProviderApiKeyMasked[]);
     if (Array.isArray(data)) setKeysList(data);
@@ -428,6 +578,29 @@ export default function ProviderRoutes() {
     if (typeof payload?.total === 'number') setProviderModelsTotal(payload.total);
   }, [providerModelsFilter]);
 
+  const fetchKnowledgeEmbDefault = useCallback(async () => {
+    const res = await getKnowledgeEmbeddingDefault();
+    if (res.error) return;
+    const data = (res.data as { data?: KnowledgeEmbeddingDefaultConfig })?.data;
+    if (data) setKnowledgeEmbDefault(data);
+  }, []);
+
+  const handleSetKnowledgeDefault = async (row: ProviderModelRow) => {
+    setKnowledgeDefaultSaving(row.id);
+    const res = await putKnowledgeEmbeddingDefault({
+      provider: row.provider,
+      model: row.model_key,
+      enabled: true,
+    });
+    setKnowledgeDefaultSaving(null);
+    if (res.error) {
+      message.error(res.error);
+      return;
+    }
+    message.success('已设为平台默认 Embedding');
+    fetchKnowledgeEmbDefault();
+  };
+
   const refresh = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -438,7 +611,6 @@ export default function ProviderRoutes() {
       fetchCosts(),
       fetchKeys(),
       fetchPricing(),
-      fetchProviderModels(),
     ]).finally(() => setLoading(false));
   }, [
     fetchOptions,
@@ -447,7 +619,6 @@ export default function ProviderRoutes() {
     fetchCosts,
     fetchKeys,
     fetchPricing,
-    fetchProviderModels,
   ]);
 
   useEffect(() => {
@@ -461,6 +632,12 @@ export default function ProviderRoutes() {
     const t = setTimeout(() => fetchProviderModels(), 0);
     return () => clearTimeout(t);
   }, [isAdmin, isLoggedIn, providerModelsFilter, fetchProviderModels]);
+
+  useEffect(() => {
+    if (!isAdmin || !isLoggedIn) return;
+    const t = setTimeout(() => fetchKnowledgeEmbDefault(), 0);
+    return () => clearTimeout(t);
+  }, [isAdmin, isLoggedIn, fetchKnowledgeEmbDefault]);
 
   useEffect(() => {
     if (!isAdmin || !isLoggedIn) return;
@@ -529,10 +706,20 @@ export default function ProviderRoutes() {
         scope: row.scope,
         model_key: row.model_key,
         upstream_model: row.upstream_model,
+        protocol: row.protocol ?? (row.scope === 'knowledge' ? 'openai-embeddings' : undefined),
         modality: row.modality,
         display_name: row.display_name,
         description: row.description,
         is_enabled: row.is_enabled,
+      });
+      // 读取 capabilities 并填充表单字段
+      const caps = (row as unknown as Record<string, unknown>).capabilities as Record<string, unknown> | null | undefined;
+      providerModelForm.setFieldsValue({
+        cap_context_window: caps?.context_window as number | undefined,
+        cap_vector_dim: caps?.vector_dim as number | undefined,
+        cap_supported_inputs: readSupportedInputs(caps),
+        cap_supported_outputs: readSupportedOutputs(caps),
+        cap_modes: readProviderModes(caps),
       });
       const pricingRes = await getProviderPricing({ provider: row.provider, scope: row.scope });
       const pricingList =
@@ -556,6 +743,10 @@ export default function ProviderRoutes() {
             combined_token_basis: basis.combined,
             currency: pricing.currency,
             pricing_id: pricing.id,
+            platform_unit_price: pricing.platform_unit_price ?? undefined,
+            platform_input_unit_price: pricing.platform_input_unit_price ?? undefined,
+            platform_output_unit_price: pricing.platform_output_unit_price ?? undefined,
+            platform_min_charge: pricing.platform_min_charge ?? undefined,
           });
         } else {
           providerModelForm.setFieldsValue({
@@ -568,6 +759,10 @@ export default function ProviderRoutes() {
             combined_token_basis: 'per_1k',
             currency: pricing.currency,
             pricing_id: pricing.id,
+            platform_unit_price: pricing.platform_unit_price ?? undefined,
+            platform_input_unit_price: pricing.platform_input_unit_price ?? undefined,
+            platform_output_unit_price: pricing.platform_output_unit_price ?? undefined,
+            platform_min_charge: pricing.platform_min_charge ?? undefined,
           });
         }
       } else {
@@ -585,6 +780,26 @@ export default function ProviderRoutes() {
     } else {
       providerModelForm.resetFields();
       providerPricingMetadataRef.current = {};
+      // 按 scope 给能力字段合理默认（运营可改）
+      const scope = providerModelsFilter.scope;
+      const defaultInputsByScope: Record<string, string[]> = {
+        graph: ['text', 'image'],
+        video: ['text', 'image', 'video', 'audio'],
+        audio: ['text'],
+        music: ['text'],
+        text: ['text'],
+        writing: ['text'],
+        knowledge: ['text'],
+      };
+      const defaultOutputsByScope: Record<string, string[]> = {
+        graph: ['image'],
+        video: ['video', 'audio'],
+        audio: ['audio'],
+        music: ['audio'],
+        text: ['text'],
+        writing: ['text'],
+        knowledge: ['embed'],
+      };
       providerModelForm.setFieldsValue({
         is_enabled: true,
         charge_mode: 'token_based',
@@ -592,6 +807,13 @@ export default function ProviderRoutes() {
         input_token_basis: 'per_1k',
         output_token_basis: 'per_1k',
         combined_token_basis: 'per_1k',
+        provider: providerModelsFilter.provider || undefined,
+        scope,
+        protocol: scope === 'knowledge' ? 'openai-embeddings' : undefined,
+        cap_vector_dim: scope === 'knowledge' ? 1536 : undefined,
+        cap_supported_inputs: defaultInputsByScope[scope ?? ''] ?? [],
+        cap_supported_outputs: defaultOutputsByScope[scope ?? ''] ?? [],
+        cap_modes: [],
       });
     }
     setProviderModelModalOpen(true);
@@ -602,40 +824,34 @@ export default function ProviderRoutes() {
     if (!values) return;
     setProviderModelSaving(true);
     try {
-      if (editingProviderModel) {
-        const modelPayload: Partial<ProviderModelRow> = {
-          scope: values.scope!,
-          upstream_model: values.upstream_model ?? null,
-          protocol: values.protocol ?? null,
-          modality: deriveModalityByScope(values.scope, values.modality),
-          io_schema: values.io_schema ?? null,
-          display_name: values.display_name ?? null,
-          description: values.description ?? null,
-          capabilities: values.capabilities ?? null,
-          default_parameters: values.default_parameters ?? null,
-          is_enabled: values.is_enabled ?? true,
-        };
-        const res = await putProviderModel(editingProviderModel.id, modelPayload);
-        if (!res.error) {
-          const envelope = res.data as
-            | { data?: ProviderModelRow; merged?: boolean; message?: string }
-            | undefined;
-          if (envelope?.merged && envelope?.message) {
-            message.success(envelope.message);
-          }
-          const scopeChanged = values.scope !== editingProviderModel.scope;
-          const merged = envelope?.merged;
-          const chargeMode = values.charge_mode ?? 'token_based';
-          const stored = computeStoredTokenPrices(values as Record<string, unknown>, chargeMode);
+      // 构建定价记录的 scope 列表：sync_text_writing 时同时为 text + writing 创建
+      const buildPricingScopes = (baseScope: string): string[] => {
+        if (values.sync_text_writing && (baseScope === 'text' || baseScope === 'writing')) {
+          return ['text', 'writing'];
+        }
+        return [baseScope];
+      };
+
+      const upsertPricingForScopes = async (
+        scopes: string[],
+        pricingId?: string
+      ) => {
+        const chargeMode = values.charge_mode ?? 'token_based';
+        const stored = computeStoredTokenPrices(values as Record<string, unknown>, chargeMode);
+        for (const scope of scopes) {
           const pricingBody: UpsertProviderPricingBody = {
-            id: merged || scopeChanged ? undefined : values.pricing_id,
+            id: scope === values.scope ? pricingId : undefined, // 仅主 scope 保留原 pricing_id
             provider: values.provider!,
-            scope: values.scope!,
+            scope,
             model_key: values.model_key!,
             charge_mode: chargeMode,
             unit_price: stored.unit_price,
             input_unit_price: stored.input_unit_price,
             output_unit_price: stored.output_unit_price,
+            platform_unit_price: values.platform_unit_price ?? null,
+            platform_input_unit_price: values.platform_input_unit_price ?? null,
+            platform_output_unit_price: values.platform_output_unit_price ?? null,
+            platform_min_charge: values.platform_min_charge ?? null,
             currency: values.currency ?? 'USD',
             metadata: {
               ...providerPricingMetadataRef.current,
@@ -645,53 +861,136 @@ export default function ProviderRoutes() {
             },
           };
           await upsertProviderPricing(pricingBody);
-          setProviderModelModalOpen(false);
-          setEditingProviderModel(null);
-          fetchProviderModels();
-          fetchOptions();
-          fetchPricing();
         }
+      };
+
+      if (editingProviderModel) {
+        const builtCapabilities = buildModelCapabilities(values);
+        const modelPayload: Partial<ProviderModelRow> = {
+          scope: values.scope!,
+          upstream_model: values.upstream_model ?? null,
+          protocol: resolveModelProtocol(values),
+          modality: deriveModalityByScope(values.scope, values.modality),
+          io_schema: values.io_schema ?? null,
+          display_name: values.display_name ?? null,
+          description: values.description ?? null,
+          capabilities: builtCapabilities,
+          default_parameters: buildDefaultParameters(values),
+          is_enabled: values.is_enabled ?? true,
+        };
+        const res = await putProviderModel(editingProviderModel.id, modelPayload);
+        if (res.error) {
+          message.error(res.error);
+          return;
+        }
+        const envelope = res.data as
+          | { data?: ProviderModelRow; merged?: boolean; message?: string }
+          | undefined;
+        if (envelope?.merged && envelope?.message) {
+          message.success(envelope.message);
+        }
+        const scopeChanged = values.scope !== editingProviderModel.scope;
+        const merged = envelope?.merged;
+        const scopes = buildPricingScopes(values.scope!);
+        let pricingErr: string | undefined;
+        for (const scope of scopes) {
+          const chargeMode = values.charge_mode ?? 'token_based';
+          const stored = computeStoredTokenPrices(values as Record<string, unknown>, chargeMode);
+          const pr = await upsertProviderPricing({
+            id: scope === values.scope ? (merged || scopeChanged ? undefined : values.pricing_id) : undefined,
+            provider: values.provider!,
+            scope,
+            model_key: values.model_key!,
+            charge_mode: chargeMode,
+            unit_price: stored.unit_price,
+            input_unit_price: stored.input_unit_price,
+            output_unit_price: stored.output_unit_price,
+            platform_unit_price: values.platform_unit_price ?? null,
+            platform_input_unit_price: values.platform_input_unit_price ?? null,
+            platform_output_unit_price: values.platform_output_unit_price ?? null,
+            platform_min_charge: values.platform_min_charge ?? null,
+            currency: values.currency ?? 'USD',
+            metadata: {
+              ...providerPricingMetadataRef.current,
+              ...(chargeMode === 'token_based' ? { token_price_basis: stored.tokenBasisMeta } : {}),
+            },
+          });
+          if (pr.error) pricingErr = pr.error;
+        }
+        if (pricingErr) {
+          message.warning(`物理模型已保存，但定价未写入：${pricingErr}`);
+        } else {
+          message.success('已保存物理模型');
+        }
+        setProviderModelModalOpen(false);
+        setEditingProviderModel(null);
+        fetchProviderModels();
+        fetchOptions();
+        fetchPricing();
+        if (values.scope === 'knowledge') fetchKnowledgeEmbDefault();
       } else {
+        const builtCapabilities = buildModelCapabilities(values);
         const res = await postProviderModel({
           provider: values.provider!,
           scope: values.scope!,
           model_key: values.model_key!,
           upstream_model: values.upstream_model ?? null,
-          protocol: values.protocol ?? null,
+          protocol: resolveModelProtocol(values),
           modality: deriveModalityByScope(values.scope, values.modality),
           io_schema: values.io_schema ?? null,
           display_name: values.display_name ?? null,
           description: values.description ?? null,
-          capabilities: values.capabilities ?? null,
-          default_parameters: values.default_parameters ?? null,
+          capabilities: builtCapabilities,
+          default_parameters: buildDefaultParameters(values),
           is_enabled: values.is_enabled ?? true,
         });
-        if (!res.error) {
+        if (res.error) {
+          message.error(res.error);
+          return;
+        }
+        const postBody = res.data as { success?: boolean; error?: string } | undefined;
+        if (postBody && 'success' in postBody && postBody.success === false) {
+          message.error(postBody.error || '保存物理模型失败');
+          return;
+        }
+        const scopes = buildPricingScopes(values.scope!);
+        let pricingErr: string | undefined;
+        for (const scope of scopes) {
           const chargeMode = values.charge_mode ?? 'token_based';
           const stored = computeStoredTokenPrices(values as Record<string, unknown>, chargeMode);
-          const pricingBody: UpsertProviderPricingBody = {
+          const pr = await upsertProviderPricing({
             provider: values.provider!,
-            scope: values.scope!,
+            scope,
             model_key: values.model_key!,
             charge_mode: chargeMode,
             unit_price: stored.unit_price,
             input_unit_price: stored.input_unit_price,
             output_unit_price: stored.output_unit_price,
+            platform_unit_price: values.platform_unit_price ?? null,
+            platform_input_unit_price: values.platform_input_unit_price ?? null,
+            platform_output_unit_price: values.platform_output_unit_price ?? null,
+            platform_min_charge: values.platform_min_charge ?? null,
             currency: values.currency ?? 'USD',
             metadata: {
               ...providerPricingMetadataRef.current,
-              ...(chargeMode === 'token_based'
-                ? { token_price_basis: stored.tokenBasisMeta }
-                : {}),
+              ...(chargeMode === 'token_based' ? { token_price_basis: stored.tokenBasisMeta } : {}),
             },
-          };
-          await upsertProviderPricing(pricingBody);
-          setProviderModelModalOpen(false);
-          setEditingProviderModel(null);
-          fetchProviderModels();
-          fetchOptions();
-          fetchPricing();
+          });
+          if (pr.error) pricingErr = pr.error;
         }
+        if (pricingErr) {
+          message.warning(
+            `物理模型已保存（若 model_key 已存在则为更新）。Provider 成本未写入：${pricingErr}`,
+          );
+        } else {
+          message.success('已保存物理模型');
+        }
+        setProviderModelModalOpen(false);
+        setEditingProviderModel(null);
+        fetchProviderModels();
+        fetchOptions();
+        fetchPricing();
+        if (values.scope === 'knowledge') fetchKnowledgeEmbDefault();
       }
     } finally {
       setProviderModelSaving(false);
@@ -888,6 +1187,7 @@ export default function ProviderRoutes() {
   const openBalanceModal = (b: ProviderBillingItem) => {
     setBalanceModalProvider(b.provider);
     setBalanceModalValue(typeof b.manualBalance === 'number' ? b.manualBalance : 0);
+    setBalanceModalCurrency(b.currency ?? 'USD');
     setBalanceModalOpen(true);
   };
 
@@ -896,6 +1196,7 @@ export default function ProviderRoutes() {
     const res = await putProviderBalance({
       provider: balanceModalProvider,
       balance: balanceModalValue,
+      currency: balanceModalCurrency,
     });
     if (!res.error) {
       setBalanceModalOpen(false);
@@ -1009,7 +1310,7 @@ export default function ProviderRoutes() {
                 label: '通道状态与统计',
                 children: (
                   <div className="admin-ux-tasktemplate">
-                    <div className="admin-business-toolbar">
+                    <div className="admin-business-toolbar admin-console-tab-toolbar">
                       <Space size={10} wrap>
                         <Select
                           value={window_}
@@ -1101,9 +1402,9 @@ export default function ProviderRoutes() {
                 label: '余额/用量',
                 children: (
                   <div className="admin-ux-tasktemplate">
-                    <div className="admin-business-toolbar">
+                    <div className="admin-business-toolbar admin-console-tab-toolbar">
                       <Space size={10} wrap>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        <Typography.Text type="secondary" className="admin-toolbar-hint">
                           手动余额按 provider_pricing 计费后自动扣减
                         </Typography.Text>
                         <Button size="small" onClick={refresh} loading={loading}>
@@ -1133,11 +1434,24 @@ export default function ProviderRoutes() {
                               <div className="provider-billing-card__head">
                                 <div className="provider-billing-card__title">{b.provider}</div>
                                 <div className="provider-billing-card__badge">
-                                  {b.supported ? '官方' : '手动'}
+                                  {b.billingMode === 'subscription'
+                                    ? 'OAuth 包月'
+                                    : b.supported
+                                      ? '官方'
+                                      : '手动'}
                                 </div>
                               </div>
                               <div className="provider-billing-card__body">
-                                {b.supported ? (
+                                {b.billingMode === 'subscription' ? (
+                                  <div className="provider-billing-balance">
+                                    <div className="provider-billing-balance__label">
+                                      {b.billingNote ?? 'OAuth 包月'}
+                                    </div>
+                                    <div className="provider-billing-balance__value">
+                                      不适用
+                                    </div>
+                                  </div>
+                                ) : b.supported ? (
                                   <>
                                     <div className="provider-billing-kv">
                                       <span className="k">已用</span>
@@ -1181,13 +1495,20 @@ export default function ProviderRoutes() {
                                 )}
                               </div>
                               <div className="provider-billing-card__foot">
-                                <Button
-                                  type="primary"
-                                  size="small"
-                                  onClick={() => openBalanceModal(b)}
-                                >
-                                  {b.manualBalance !== undefined ? '编辑余额' : '录入余额'}
-                                </Button>
+                                {b.billingMode !== 'subscription' && (
+                                  <Button
+                                    type="primary"
+                                    size="small"
+                                    onClick={() => openBalanceModal(b)}
+                                  >
+                                    <span className="ui-label--full">
+                                      {b.manualBalance !== undefined ? '编辑余额' : '录入余额'}
+                                    </span>
+                                    <span className="ui-label--short">
+                                      {b.manualBalance !== undefined ? '编辑' : '录入'}
+                                    </span>
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -1211,10 +1532,19 @@ export default function ProviderRoutes() {
                         cancelText="取消"
                       >
                         <div style={{ marginTop: 16 }}>
-                          <div style={{ marginBottom: 8 }}>余额（USD）：</div>
+                          <div style={{ marginBottom: 8 }}>币种</div>
+                          <Select
+                            style={{ width: '100%', marginBottom: 16 }}
+                            value={balanceModalCurrency}
+                            options={CURRENCY_OPTIONS}
+                            onChange={(v) => setBalanceModalCurrency(v ?? 'USD')}
+                          />
+                          <div style={{ marginBottom: 8 }}>
+                            余额（{balanceModalCurrency}）
+                          </div>
                           <InputNumber
                             min={0}
-                            step={1}
+                            step={balanceModalCurrency === 'CNY' ? 0.01 : 0.0001}
                             style={{ width: '100%' }}
                             value={balanceModalValue}
                             onChange={(v) => setBalanceModalValue(v ?? 0)}
@@ -1227,7 +1557,7 @@ export default function ProviderRoutes() {
                               marginTop: 8,
                             }}
                           >
-                            任务完成后将按 provider_pricing 自动扣减
+                            扣费金额与「模型价格」中该 Provider 的币种一致；请保持币种与定价配置相同
                           </div>
                         </div>
                       </Modal>
@@ -1259,7 +1589,7 @@ export default function ProviderRoutes() {
                 label: 'API Key 管理',
                 children: (
                   <div className="admin-ux-tasktemplate">
-                    <div className="admin-business-toolbar">
+                    <div className="admin-business-toolbar admin-console-tab-toolbar">
                       <Space size={10} wrap>
                         <Select
                           value={keyProviderFilter}
@@ -1279,7 +1609,8 @@ export default function ProviderRoutes() {
                           刷新
                         </Button>
                         <Button type="primary" size="small" onClick={() => setAddModalOpen(true)}>
-                          新增 Key
+                          <span className="ui-label--full">新增 Key</span>
+                          <span className="ui-label--short">新增</span>
                         </Button>
                       </Space>
                     </div>
@@ -1408,94 +1739,131 @@ export default function ProviderRoutes() {
                 label: '物理模型目录',
                 children: (
                   <div className="admin-ux-tasktemplate">
-                    <div className="admin-business-toolbar">
-                      <Space size={10} wrap>
-                        <Select
-                          value={providerModelsFilter.provider ?? ''}
-                          onChange={(v) => {
-                            setProviderModelsFilter((f) => ({ ...f, provider: v || undefined }));
-                          }}
-                          options={[
-                            { value: '', label: '全部 Provider' },
-                            ...KEY_PROVIDER_OPTIONS.filter((o) => o.value),
-                          ]}
-                          style={{ width: 190, maxWidth: '100%' }}
-                        />
-                        <Select
-                          value={providerModelsFilter.scope ?? ''}
-                          onChange={(v) => {
-                            setProviderModelsFilter((f) => ({ ...f, scope: v || undefined }));
-                          }}
-                          options={[{ value: '', label: '全部 Scope' }, ...SCOPE_OPTIONS]}
-                          style={{ width: 190, maxWidth: '100%' }}
-                        />
-                        <Select
-                          value={providerModelsFilter.onlyEnabled ? '1' : '0'}
-                          onChange={(v) => {
-                            setProviderModelsFilter((f) => ({ ...f, onlyEnabled: v === '1' }));
-                          }}
-                          options={[
-                            { value: '0', label: '全部' },
-                            { value: '1', label: '仅启用' },
-                          ]}
-                          style={{ width: 140, maxWidth: '100%' }}
-                        />
-                        <Button
-                          size="small"
-                          onClick={fetchProviderModels}
-                          loading={providerModelsLoading}
-                        >
-                          刷新
-                        </Button>
-                        <Button
-                          type="primary"
-                          size="small"
-                          onClick={() => openProviderModelModal()}
-                        >
-                          新增模型
-                        </Button>
-                      </Space>
-                    </div>
-
-                    <div className="admin-business-panel admin-business-tableOnly">
-                      <div className="admin-business-panel-head">
-                        <div>
+                    <div className="admin-business-panel admin-business-tableOnly provider-models-panel">
+                      <div className="provider-models-panel-head">
+                        <div className="provider-models-panel-intro">
                           <div className="admin-business-panel-title">物理模型目录</div>
                           <div className="admin-business-panel-subtitle">
-                            统一维护 provider_models + Provider 成本（用于扣费与统计）
+                            统一维护 provider_models；Embedding 选 scope=knowledge 后点「新增模型」录入，表格行可「设为默认」
                           </div>
                         </div>
-                        <div className="admin-business-panel-meta">
-                          <Typography.Text type="secondary">
+                        <div className="provider-models-panel-actions">
+                          <Typography.Text type="secondary" className="provider-models-count">
                             共 {providerModelsTotal} 条
                           </Typography.Text>
+                          <Button
+                            size="small"
+                            onClick={fetchProviderModels}
+                            loading={providerModelsLoading}
+                          >
+                            刷新
+                          </Button>
+                          <Button
+                            type="primary"
+                            size="small"
+                            onClick={() => openProviderModelModal()}
+                          >
+                            <span className="ui-label--full">新增模型</span>
+                            <span className="ui-label--short">新增</span>
+                          </Button>
                         </div>
                       </div>
-                      <div className="admin-business-panel-body admin-business-table-wrap">
+
+                      <div className="provider-models-filter-bar">
+                        <div className="provider-models-filter-field">
+                          <span className="provider-models-filter-label">Provider</span>
+                          <Select
+                            value={providerModelsFilter.provider ?? ''}
+                            onChange={(v) => {
+                              setProviderModelsFilter((f) => ({ ...f, provider: v || undefined }));
+                            }}
+                            options={[
+                              { value: '', label: '全部' },
+                              ...KEY_PROVIDER_OPTIONS.filter((o) => o.value),
+                            ]}
+                            className="provider-models-filter-control"
+                          />
+                        </div>
+                        <div className="provider-models-filter-field">
+                          <span className="provider-models-filter-label">Scope</span>
+                          <Select
+                            value={providerModelsFilter.scope ?? ''}
+                            onChange={(v) => {
+                              setProviderModelsFilter((f) => ({ ...f, scope: v || undefined }));
+                            }}
+                            options={[{ value: '', label: '全部' }, ...SCOPE_OPTIONS]}
+                            className="provider-models-filter-control"
+                          />
+                        </div>
+                        <div className="provider-models-filter-field">
+                          <span className="provider-models-filter-label">状态</span>
+                          <Select
+                            value={providerModelsFilter.onlyEnabled ? '1' : '0'}
+                            onChange={(v) => {
+                              setProviderModelsFilter((f) => ({ ...f, onlyEnabled: v === '1' }));
+                            }}
+                            options={[
+                              { value: '0', label: '全部' },
+                              { value: '1', label: '仅启用' },
+                            ]}
+                            className="provider-models-filter-control provider-models-filter-control--sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="admin-business-panel-body admin-business-table-wrap provider-models-table-wrap">
                         <Table<ProviderModelRow>
                           rowKey="id"
                           size="small"
                           loading={providerModelsLoading}
                           dataSource={providerModels}
                           tableLayout="fixed"
-                          scroll={{ x: 'max-content', y: 'calc(80vh - 280px)' }}
+                          scroll={{ x: 'max-content', y: 'calc(80vh - 320px)' }}
                           pagination={{ pageSize: 10, showSizeChanger: false }}
                           columns={[
                             {
-                              title: 'display_name',
+                              title: '显示名',
                               dataIndex: 'display_name',
                               key: 'display_name',
+                              width: 150,
+                              ellipsis: true,
+                              render: (v, row) => {
+                                const label = v ?? row.model_key ?? '—';
+                                const isDefault = isKnowledgeDefaultModel(row, knowledgeEmbDefault);
+                                return (
+                                  <Space size={4}>
+                                    <span>{label}</span>
+                                    {isDefault ? (
+                                      <Tag color="blue" bordered={false} className="m-0">
+                                        平台默认
+                                      </Tag>
+                                    ) : null}
+                                  </Space>
+                                );
+                              },
+                            },
+                            {
+                              title: 'model_key',
+                              dataIndex: 'model_key',
+                              key: 'model_key',
                               width: 140,
                               ellipsis: true,
-                              render: (v, row) => v ?? row.model_key ?? '—',
+                            },
+                            {
+                              title: 'upstream',
+                              dataIndex: 'upstream_model',
+                              key: 'upstream_model',
+                              width: 180,
+                              ellipsis: true,
+                              render: (v) => v ?? '—',
                             },
                             {
                               title: 'Provider',
                               dataIndex: 'provider',
                               key: 'provider',
-                              width: 110,
+                              width: 96,
                             },
-                            { title: 'Scope', dataIndex: 'scope', key: 'scope', width: 110 },
+                            { title: 'Scope', dataIndex: 'scope', key: 'scope', width: 96 },
                             {
                               title: 'Provider 成本',
                               key: 'provider_cost',
@@ -1520,6 +1888,29 @@ export default function ProviderRoutes() {
                               },
                             },
                             {
+                              title: 'MXM-TOKEN',
+                              key: 'platform_price',
+                              width: 140,
+                              align: 'right',
+                              render: (_, row) => {
+                                const p = providerPricing.find(
+                                  (x) =>
+                                    x.provider === row.provider &&
+                                    x.scope === row.scope &&
+                                    x.model_key === row.model_key
+                                );
+                                if (!p) return <span style={{ color: '#ef4444' }}>未配置</span>;
+                                const pin = p.platform_input_unit_price;
+                                const pout = p.platform_output_unit_price;
+                                const unit = Number(p.platform_unit_price || 0);
+                                if (pin != null && pout != null && (Number(pin) > 0 || Number(pout) > 0)) {
+                                  return `in:${pin} / out:${pout}`;
+                                }
+                                if (unit > 0) return String(unit);
+                                return <span style={{ color: '#ef4444' }}>未配置</span>;
+                              },
+                            },
+                            {
                               title: '最近测试',
                               key: 'latest_test',
                               width: 150,
@@ -1541,9 +1932,21 @@ export default function ProviderRoutes() {
                             {
                               title: '操作',
                               key: 'actions',
-                              width: 320,
+                              width: 360,
                               render: (_, row) => (
                                 <Space size="small" wrap={false}>
+                                  {row.scope === 'knowledge' &&
+                                  !isKnowledgeDefaultModel(row, knowledgeEmbDefault) ? (
+                                    <Button
+                                      type="link"
+                                      size="small"
+                                      loading={knowledgeDefaultSaving === row.id}
+                                      onClick={() => void handleSetKnowledgeDefault(row)}
+                                      style={{ padding: 0 }}
+                                    >
+                                      设为默认
+                                    </Button>
+                                  ) : null}
                                   <Button
                                     type="link"
                                     size="small"
@@ -1829,9 +2232,8 @@ export default function ProviderRoutes() {
             fontSize: 13,
           }}
         >
-          💡 Provider 成本用于统计及每次执行时从 provider
-          余额扣费，文字/图片/视频计费逻辑不同。可选填写，不填则按 0
-          计。业务价格（MXM-TOKEN）请在「业务管理」中配置。
+          💡 Provider 成本（USD）用于统计与上游余额扣费。MXM-TOKEN（字段 platform_*）用于向用户扣费；未配置时业务将报「计费模块错误，暂不可用」。建议 MXM-TOKEN ≈
+          成本USD ÷ 0.01 × 2.5（锚定 1 TOKEN≈$0.01）。业务页不再单独设价，只绑定模型。
         </div>
         <Form
           form={providerModelForm}
@@ -1855,11 +2257,59 @@ export default function ProviderRoutes() {
           <Form.Item name="scope" label="Scope" rules={[{ required: true }]}>
             <Select options={SCOPE_OPTIONS} placeholder="选择 Scope" />
           </Form.Item>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, cur) => prev.scope !== cur.scope}
+          >
+            {({ getFieldValue }) => {
+              const scope = getFieldValue('scope');
+              if (scope !== 'knowledge') return null;
+              return (
+                <>
+                  <Form.Item
+                    name="protocol"
+                    label="protocol"
+                    rules={[{ required: true, message: '请选择 protocol' }]}
+                    initialValue="openai-embeddings"
+                  >
+                    <Select options={EMBEDDING_PROTOCOL_OPTIONS} placeholder="openai-embeddings" />
+                  </Form.Item>
+                  <Form.Item
+                    name="cap_vector_dim"
+                    label="向量维度（vector_dim）"
+                    rules={[{ required: true, message: '请填写向量维度，需与 pgvector 一致（当前 1536）' }]}
+                    extra="写入 capabilities.vector_dim 与 default_parameters.dimensions；更换维度后需 re-index"
+                  >
+                    <InputNumber min={1} step={1} style={{ width: '100%' }} placeholder="1536" />
+                  </Form.Item>
+                </>
+              );
+            }}
+          </Form.Item>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, cur) => prev.scope !== cur.scope}
+          >
+            {({ getFieldValue }) => {
+              const scope = getFieldValue('scope');
+              const isTextScope = scope === 'text' || scope === 'writing';
+              return isTextScope ? (
+                <Form.Item
+                  name="sync_text_writing"
+                  label="定价同步"
+                  valuePropName="checked"
+                  extra="开启后同时为 text + writing 创建定价记录（适用于文字类模型）"
+                >
+                  <Switch />
+                </Form.Item>
+              ) : null;
+            }}
+          </Form.Item>
           <Form.Item name="model_key" label="model_key" rules={[{ required: true }]}>
             <Input placeholder="如 gemini-2-5-flash" disabled={!!editingProviderModel} />
           </Form.Item>
-          <Form.Item name="upstream_model" label="upstream_model（可选）">
-            <Input placeholder="上游真实模型名，model_key 为别名时填写" />
+          <Form.Item name="upstream_model" label="upstream_model">
+            <Input placeholder="上游 API model id，如 qwen/qwen3-embedding-8b" />
           </Form.Item>
           <Form.Item name="display_name" label="display_name（可选）">
             <Input placeholder="Admin 展示名" />
@@ -2028,6 +2478,154 @@ export default function ProviderRoutes() {
                       rules={[{ required: true, message: '请选择币种' }]}
                     >
                       <Select placeholder="选择币种" options={CURRENCY_OPTIONS} allowClear />
+                    </Form.Item>
+                    <div
+                      style={{
+                        margin: '16px 0 8px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                      }}
+                    >
+                      MXM-TOKEN（用户扣费）
+                    </div>
+                    <Form.Item
+                      shouldUpdate={(prev, cur) => prev.charge_mode !== cur.charge_mode}
+                      noStyle
+                    >
+                      {() => {
+                        const mode = providerModelForm.getFieldValue('charge_mode');
+                        if (mode === 'token_based') {
+                          const unitUsd = Number(providerModelForm.getFieldValue('unit_price') || 0);
+                          const inUsd = Number(providerModelForm.getFieldValue('input_unit_price') || 0);
+                          const outUsd = Number(providerModelForm.getFieldValue('output_unit_price') || 0);
+                          const suggestIn = inUsd > 0 ? Math.max(0.001, Math.round(inUsd * 100 * 2.5 * 1000) / 1000) : null;
+                          const suggestOut = outUsd > 0 ? Math.max(0.001, Math.round(outUsd * 100 * 2.5 * 1000) / 1000) : null;
+                          const suggestUnit = unitUsd > 0 ? Math.max(0.001, Math.round(unitUsd * 100 * 2.5 * 1000) / 1000) : null;
+                          return (
+                            <>
+                              <Form.Item
+                                name="platform_input_unit_price"
+                                label="输入 千Token 售价（MXM-TOKEN）"
+                                extra={suggestIn != null ? `建议约 ${suggestIn}` : undefined}
+                              >
+                                <InputNumber min={0} style={{ width: '100%' }} placeholder="如 0.1" />
+                              </Form.Item>
+                              <Form.Item
+                                name="platform_output_unit_price"
+                                label="输出 千Token 售价（MXM-TOKEN）"
+                                extra={suggestOut != null ? `建议约 ${suggestOut}` : undefined}
+                              >
+                                <InputNumber min={0} style={{ width: '100%' }} placeholder="如 0.5" />
+                              </Form.Item>
+                              <Form.Item
+                                name="platform_unit_price"
+                                label="通用千Token 售价（兜底）"
+                                extra={suggestUnit != null ? `建议约 ${suggestUnit}` : undefined}
+                              >
+                                <InputNumber min={0} style={{ width: '100%' }} />
+                              </Form.Item>
+                              <Form.Item name="platform_min_charge" label="最低扣费（MXM-TOKEN）">
+                                <InputNumber min={0} style={{ width: '100%' }} />
+                              </Form.Item>
+                            </>
+                          );
+                        }
+                        const unitUsd = Number(providerModelForm.getFieldValue('unit_price') || 0);
+                        const suggest = unitUsd > 0 ? Math.max(0.001, Math.round(unitUsd * 100 * 2.5 * 1000) / 1000) : null;
+                        return (
+                          <>
+                            <Form.Item
+                              name="platform_unit_price"
+                              label={
+                                mode === 'per_image'
+                                  ? '售价（每张，MXM-TOKEN）'
+                                  : mode === 'per_second_audio'
+                                    ? '售价（每秒音频，MXM-TOKEN）'
+                                    : mode === 'per_second_video'
+                                      ? '售价（每秒视频，MXM-TOKEN）'
+                                      : '售价（每次，MXM-TOKEN）'
+                              }
+                              extra={suggest != null ? `建议约 ${suggest}（成本×2.5）` : '未配置则业务不可用'}
+                              rules={[{ required: true, message: '请配置 MXM-TOKEN，否则用户无法调用' }]}
+                            >
+                              <InputNumber min={0} style={{ width: '100%' }} placeholder="如 2" />
+                            </Form.Item>
+                            <Form.Item name="platform_min_charge" label="最低扣费（MXM-TOKEN）">
+                              <InputNumber min={0} style={{ width: '100%' }} />
+                            </Form.Item>
+                          </>
+                        );
+                      }}
+                    </Form.Item>
+                  </>
+                ),
+              },
+              {
+                key: 'capabilities',
+                label: '模型能力参数',
+                children: (
+                  <>
+                    <div
+                      style={{
+                        marginBottom: 12,
+                        fontSize: 12,
+                        color: 'rgba(148, 163, 184, 0.9)',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      声明该物理模型允许的输入模态、产出模态和 *-to-* 模式（与 AtlasCloud 官方归类对齐）。
+                      业务侧将据此决定能否把音频/视频/图像作为输入传给该模型。
+                    </div>
+                    <Form.Item
+                      name="cap_supported_inputs"
+                      label="支持的输入模态"
+                      extra="模型可接受的输入内容类型；多选。"
+                    >
+                      <Select
+                        mode="multiple"
+                        allowClear
+                        placeholder="选择支持的输入模态"
+                        options={MODALITY_OPTIONS}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name="cap_supported_outputs"
+                      label="支持的输出模态"
+                      extra="模型可产出的内容类型；多选。"
+                    >
+                      <Select
+                        mode="multiple"
+                        allowClear
+                        placeholder="选择支持的输出模态"
+                        options={MODALITY_OPTIONS}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name="cap_modes"
+                      label="支持的 *-to-* 模式（可选）"
+                      extra="例如 text-to-image、image-to-video、reference-to-video、chat、embedding。多个用英文逗号分隔。"
+                    >
+                      <Select
+                        mode="tags"
+                        allowClear
+                        tokenSeparators={[',']}
+                        placeholder="text-to-image, image-edit"
+                      />
+                    </Form.Item>
+                    <Form.Item label="context_window（上下文窗口）">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Form.Item name="cap_context_window" noStyle>
+                          <InputNumber
+                            min={1}
+                            step={1000}
+                            style={{ width: '100%' }}
+                            placeholder="留空则使用系统默认 200,000"
+                          />
+                        </Form.Item>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          token
+                        </Typography.Text>
+                      </div>
                     </Form.Item>
                   </>
                 ),
