@@ -1,0 +1,94 @@
+{
+  "_comment": [
+    "provider_models.capabilities 模板：双写结构。",
+    "新字段（拍平数组）运行时优先读；旧字段（嵌套对象）保持向后兼容。",
+    "保存后用 sync-modality-capacities-production.sh 推到生产；",
+    "或直接编辑 mxmcgi/src/scripts/data/hk-provider-modalities.ts 走 seed 流程。",
+    "6 种模态：text / image / audio / video / 3d / embed（白名单）"
+  ],
+  "examples": [
+    {
+      "scenario": "纯文生图（GPT Image 2 / Nano Banana 2）",
+      "capabilities": {
+        "supported_inputs":  ["text", "image"],
+        "supported_outputs": ["image"],
+        "modes":              ["text-to-image", "image-edit"],
+        "input":  { "text": true, "image": true },
+        "output": { "image": true }
+      }
+    },
+    {
+      "scenario": "多模态 LLM（Gemini 3.5 Flash）",
+      "capabilities": {
+        "supported_inputs":  ["text", "image", "video", "audio"],
+        "supported_outputs": ["text"],
+        "modes":              ["chat", "completion", "multimodal-qa"],
+        "input":  { "text": true, "image": true, "video": true, "audio": true },
+        "output": { "text": true },
+        "context_window": 1_000_000,
+        "max_output_tokens": 8192
+      }
+    },
+    {
+      "scenario": "全模态视频生成（Seedance 2.0 旗舰）",
+      "capabilities": {
+        "supported_inputs":  ["text", "image", "video", "audio"],
+        "supported_outputs": ["video", "audio"],
+        "modes":              ["text-to-video", "image-to-video", "reference-to-video", "video-edit", "video-extension"],
+        "input":  { "text": true, "image": true, "video": true, "audio": true },
+        "output": { "video": true, "audio": true }
+      }
+    },
+    {
+      "scenario": "TTS（maxplan speech-2.8-hd）",
+      "capabilities": {
+        "supported_inputs":  ["text"],
+        "supported_outputs": ["audio"],
+        "modes":              ["text-to-speech", "voice-clone"],
+        "input":  { "text": true },
+        "output": { "audio": true }
+      }
+    },
+    {
+      "scenario": "音乐生成（suno/chirp-v4）",
+      "capabilities": {
+        "supported_inputs":  ["text"],
+        "supported_outputs": ["audio"],
+        "modes":              ["text-to-music"],
+        "input":  { "text": true },
+        "output": { "audio": true }
+      }
+    },
+    {
+      "scenario": "Embedding（jiekou qwen3-embedding-8b）",
+      "capabilities": {
+        "supported_inputs":  ["text"],
+        "supported_outputs": ["embed"],
+        "modes":              ["embedding"],
+        "input":  { "text": true },
+        "output": { "embed": true },
+        "vector_dim": 1536
+      }
+    },
+    {
+      "scenario": "3D 模型生成（Seed3D 2.0）",
+      "capabilities": {
+        "supported_inputs":  ["image"],
+        "supported_outputs": ["3d"],
+        "modes":              ["image-to-3d"],
+        "input":  { "image": true },
+        "output": { "3d": true }
+      }
+    }
+  ],
+  "ci_assertions": [
+    "supported_inputs / supported_outputs 必须是 6 选 N：text/image/audio/video/3d/embed",
+    "input / output 嵌套对象必须与拍平数组 1:1 一致",
+    "LLM 必有 supported_outputs 包含 text",
+    "生图必有 supported_outputs 包含 image",
+    "生视频必有 modes 至少一个 *-to-video",
+    "TTS 必有 modes 包含 text-to-speech",
+    "Embedding 必有 vector_dim",
+    "3D 输出必有 modes 包含 text-to-3d 或 image-to-3d"
+  ]
+}

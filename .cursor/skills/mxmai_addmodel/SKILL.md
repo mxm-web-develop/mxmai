@@ -1,26 +1,31 @@
 ---
 name: mxmai-addmodel
-description: Adds or updates model support in the mxmcgi service. Use when the user mentions adding a new model (with a specific provider like deer, replicate, ppio, openai, google, anthropic, etc.) and usually shares the upstream API or pricing docs, and they want this model to appear in the admin “模型通道管理/模型价格管理” configuration layer.
+description: Adds or updates model support in the mxmcgi service. Use when the user mentions adding a new model (with a specific provider like deer, replicate, ppio, openai, google, anthropic, etc.) and usually shares the upstream API or pricing docs, and they want this model to appear in the admin "模型通道管理/模型价格管理" configuration layer with correct input/output modality capabilities and platform pricing.
 ---
 
 # 在 mxmcgi 中新增模型支持（mxmai 专用流程）
 
-> 适用场景：用户说“给 DeerAPI/Replicate/OpenAI 等新增某个模型”，并提供了对应的线上文档或 pricing 页，希望：
+> **主通道 atlascloud / maxplan**：请改用 [`.cursor/skills/mxmai_provider_maintain/SKILL.md`](../mxmai_provider_maintain/SKILL.md)（含官方定价、probe 门禁、模态能力集中表、同步生产）。本 skill 覆盖 deer / replicate / openrouter 等其它 Provider。
+
+> 适用场景：用户说"给 DeerAPI/Replicate/OpenAI 等新增某个模型"，并提供了对应的线上文档或 pricing 页，希望：
 > - 代码能调用新模型；
 > - Admin 后台（模型通道管理页面）能在下拉中选择该模型；
-> - 计费层可以配置该模型的成本价和平台售价。
+> - 计费层可以配置该模型的成本价和平台售价；
+> - **业务层知道该模型允许什么输入、能输出什么**（`capabilities` 双写：supported_inputs/outputs/modes）。
 
 默认服务：`mxmcgi`（AI 内容生成服务），仓库根为 `/Users/mxm_pro/Desktop/codes/supermxmai`。  
-各 Provider 的官方文档与价格链接汇总见：[reference/providers.md](reference/providers.md)。
+各 Provider 的官方文档与价格链接汇总见：[reference/providers.md](reference/providers.md)。  
+**模态枚举 + 决策流程**见：[../mxmai_provider_maintain/reference/modality-cookbook.md](../mxmai_provider_maintain/reference/modality-cookbook.md)。
 
 ## 总体原则
 
 - **物理模型与上游 ID 以数据库为准**：表 `provider_models`（Admin「物理模型」）+ 启动时 `loadProviderModelCatalog()`；Provider 的 `supportsModel` / 上游解析依赖该表，**不再使用已删除的静态 `suport-list.ts`**。
 - **真实计费以 `provider_pricing` 为准**（Admin「模型价格管理」或 SQL）。
 - **新增模型时，一定要完成「模型注册」**：只有通过 `registerModel()` 注册过的模型才会出现在 Admin 的部分下拉中（由 `listModels()` + `/system/admin/providers/options` 提供）。
+- **模型能力（输入/输出模态）必须随模型一起声明**：每个新模型都要在 `provider_models.capabilities` JSONB 里写双写 `supported_inputs[]` / `supported_outputs[]` / `modes[]`（外加旧的 `input/output` 嵌套对象，保持向后兼容）。**不写模态 = 业务无法判断"该模型能否接音频/视频输入"，必失败**。
 - **尽量沿用现有同类模型的模式**：新的图像模型参考现有 nano-banana/flux/seedream，文本模型参考现有 gemini/qwen/gpt，避免重新发明轮子。
 
-当你接到“新增某模型支持”的请求时，请按下面的步骤执行。
+当你接到"新增某模型支持"的请求时，请按下面的步骤执行。
 
 ---
 
@@ -29,12 +34,16 @@ description: Adds or updates model support in the mxmcgi service. Use when the u
 从用户对话和链接中提取以下关键信息（如果缺失，可以推断或简单向用户补问）：
 
 1. **Provider 类型**：`deer` / `replicate` / `ppio` / `openai` / `google` / `anthropic` / `qwen` / `volc` / `minimax` 等。
-2. **业务模态 / 作用域 scope**：`graph`（图像）、`text`/`writing`（文本）、`audio`、`video`。
+2. **业务模态 / 作用域 scope**：`graph`（图像）、`text`/`writing`（文本）、`audio`、`video`、`music`、`knowledge`（embedding）。
 3. **逻辑模型 key（本仓库要使用的名字）**：例如 `nano-banana-2`。
 4. **上游物理模型名**：来自官方文档或 pricing 页，例如 `gemini-3.1-flash-image-preview`。
 5. **大致计费模式与价格**：按图片、按 token、按时长等（用于配置 `provider_pricing`）。
+6. **`supported_inputs[]`**：6 选 N — `text` / `image` / `audio` / `video` / `3d` / `embed`（看上游 API 文档）。
+7. **`supported_outputs[]`**：同上。
+8. **`modes[]`**（可选）：`*->*` 模式（`text-to-image` / `reference-to-video` / `chat` / `embedding` …），参照 modality-cookbook.md 选值。
 
-> 若用户只给了 pricing 链接（如 `https://api.deerapi.com/pricing`），可以根据页面内容推断模型名和收费模式。
+> 若用户只给了 pricing 链接（如 `https://api.deerapi.com/pricing`），可以根据页面内容推断模型名和收费模式。  
+> **模态字段（6/7/8）不能省**，按"该上游 API 接受什么输入 / 产出什么"判断，必要时查 [reference/providers.md](reference/providers.md) 的官方文档链接。
 
 ---
 
@@ -48,10 +57,16 @@ description: Adds or updates model support in the mxmcgi service. Use when the u
    - `scope`：如 `graph`、`writing`；
    - `model_key`：逻辑名，如 `nano-banana-2`；
    - `upstream_model`：上游真实 ID（Replicate 须为 `owner/model` 格式）；
+   - **「模型能力参数」Tab** 必填：
+     - 支持的输入模态（多选，6 选 N）
+     - 支持的输出模态（多选，6 选 N）
+     - 支持的 `*-to-*` 模式（tag 多选）
+     - `context_window`（LLM 必填）、`vector_dim`（embedding 必填）
    - 启用状态。
 3. 保存后重启或等待 catalog 刷新（若接口已触发 `refreshProviderModelCatalog` 则无需全量重启）。
 
-> 无 `provider_models` 记录时，`supportsModel` 一般为 `false`，调用会在上游解析阶段失败。
+> 无 `provider_models` 记录时，`supportsModel` 一般为 `false`，调用会在上游解析阶段失败。  
+> 模态能力字段的 schema 详见 [modality-cookbook.md](../mxmai_provider_maintain/reference/modality-cookbook.md)；批量脚本可走 `mxmcgi/src/scripts/data/hk-provider-modalities.ts`（仅 atlascloud/maxplan/jiekou 三个 HK provider，**其它 provider 暂时走 Admin 手动**）。
 
 ---
 
@@ -82,7 +97,7 @@ import './nano-banana-2';
 
 ## 步骤 3：在 Provider 实现中接入调用逻辑
 
-Provider 实现定义了“如何真正调用上游 API”。不同 Provider 文件位置示例：
+Provider 实现定义了"如何真正调用上游 API"。不同 Provider 文件位置示例：
 
 - DeerAPI：`mxmcgi/src/models/deerapi/provider.ts`
 - Replicate：`mxmcgi/src/models/replicate/provider.ts`
@@ -104,12 +119,35 @@ Provider 实现定义了“如何真正调用上游 API”。不同 Provider 文
 
 ## 步骤 4：配置数据库定价（表 `provider_pricing`）
 
-> 真实扣费逻辑在 `docs/billing-architecture.md` 中有详细说明。
+> 真实扣费逻辑在 `docs/billing-architecture.md` 中有详细说明。  
+> 售价公式：`platform_* = usd_cost × 100 × 2.5`（1 MXM-TOKEN ≈ $0.01，2.5× 加价）。
 
 1. Admin →「模型价格管理」：新增 `provider` + `scope` + `model_key` 与单价、`charge_mode` 等。
 2. 或直接使用 SQL/migration 插入一行。
+3. 或用脚本：
+
+```bash
+pnpm --filter @mxmai/mxmcgi run upsert:provider-pricing -- \
+  --provider deer --scope graph --model nano-banana-2 \
+  --mode per_image --unit-usd 0.02
+```
 
 > 若未配置 `provider_pricing`，该模型仍可调用，只是暂不产生费用（视 BillingService 策略而定）。
+
+---
+
+## 步骤 4.5：补/校验模态能力（必做，2026-07+）
+
+> 与 [mxmai_provider_maintain §1.5](../mxmai_provider_maintain/SKILL.md) 一致。即使本 skill 覆盖的 Provider 不在 HK 集中数据源里，**也要**在 Admin「物理模型」编辑时把 capabilities 三件套填齐（否则业务路由会判错）。
+
+- 校验工具：`mxmcgi/src/models/provider-modality.ts` 的 `normalizeModalityList()` 会在运行时过滤非法值。
+- 校验清单（手工）：
+  - [ ] `supported_inputs` / `supported_outputs` 全是 6 选 N
+  - [ ] LLM 必有 `supported_outputs: [text]`
+  - [ ] 生图必有 `supported_outputs: [image]`，modes 含 `text-to-image`
+  - [ ] 生视频必有 `supported_outputs: [video]`，modes 含 `text-to-video` 或 `image-to-video`
+  - [ ] Embedding 必有 `supported_outputs: [embed]` + `vector_dim`
+  - [ ] 3D 必有 `supported_outputs: [3d]`，modes 含 `text-to-3d` / `image-to-3d`
 
 ---
 
@@ -127,14 +165,15 @@ Provider 实现定义了“如何真正调用上游 API”。不同 Provider 文
 pnpm dev:mxmcgi
 ```
 
-在 Admin 验证物理模型、定价、业务路由；发起一次实际调用确认结果与 usage。
+在 Admin 验证物理模型、定价、模态能力、business 路由；发起一次实际调用确认结果与 usage。
 
 ---
 
 ## 使用本 Skill 时的提示
 
-当用户说“新增某模型支持”时，你应：
+当用户说"新增某模型支持"时，你应：
 
-1. 从文档中确定上游物理模型 ID、模态、计费模式。
-2. 按顺序：**Admin `provider_models` → `registerModel` 与 Provider 分支 → `provider_pricing` → 可选 `defaultRouting`**。
+1. 从文档中确定上游物理模型 ID、模态、计费模式、**输入/输出能力**。
+2. 按顺序：**Admin `provider_models`（含 capabilities）→ `registerModel` 与 Provider 分支 → `provider_pricing` → 可选 `defaultRouting`**。
 3. 沿用已有同类模型的模式，避免不一致的参数命名或调用风格。
+4. **不要**只填价格不填模态；**不要**把模态写进 `default_parameters`。

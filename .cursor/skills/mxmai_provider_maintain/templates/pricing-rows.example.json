@@ -1,0 +1,19 @@
+[
+  {
+    "provider": "maxplan",
+    "scope": "text",
+    "model_key": "MiniMax-M3",
+    "charge_mode": "token_based",
+    "input_unit_price": 0.0003,
+    "output_unit_price": 0.0012,
+    "note": "PAYG ≤512k 五折后；维护前请再核官网"
+  },
+  {
+    "provider": "atlascloud",
+    "scope": "video",
+    "model_key": "bytedance/seedance-2.0-mini",
+    "charge_mode": "per_second_video",
+    "unit_price": 0.045,
+    "note": "示例：以 Atlas 页面当前价为准"
+  }
+]
