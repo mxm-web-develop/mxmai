@@ -32,6 +32,13 @@ export function readContractSchema(template: TaskTemplate): JsonSchemaV2 | undef
   return template.contractSchema;
 }
 
+const LIGHT_PIPELINE_STEPS = new Set([
+  'noop',
+  'sensitiveCheck',
+  'knowledgeRetrieve',
+  'webSearch',
+]);
+
 async function runConfigurablePhase(
   ctx: TaskContext,
   steps: PipelineStep[] | undefined,
@@ -41,9 +48,14 @@ async function runConfigurablePhase(
 
   const { runInputPipeline, runOutputPipeline } = await import('../pipeline-registry');
   await import('../pipeline');
-  await import('../business-pipeline-steps');
   const { registerWarpWebSearchStep } = await import('./web-search-step');
   registerWarpWebSearchStep();
+
+  const needsHeavySteps = steps.some((s) => !LIGHT_PIPELINE_STEPS.has(String(s.step || '')));
+  if (needsHeavySteps) {
+    await import('../business-pipeline-steps');
+  }
+
   const { appendSkippedPipelineTrace, shouldRunPipelineStep } = await import('../pipeline-step-when');
 
   const runnable: PipelineStep[] = [];

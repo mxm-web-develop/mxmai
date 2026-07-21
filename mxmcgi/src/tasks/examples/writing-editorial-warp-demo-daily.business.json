@@ -7,7 +7,7 @@
       "scope": "writing",
       "type": "editorial",
       "subtype": "warp-demo-daily",
-      "is_active": false,
+      "is_active": true,
       "extra": {
         "display": {
           "taskLabel": "文稿",
@@ -107,7 +107,7 @@
         "logical_model": "writing-editorial-warp-demo-daily",
         "provider": "jiekou",
         "model": "deepseek-v3",
-        "enabled": false
+        "enabled": true
       },
       "businessPricing": [],
       "linkedTextFormat": null
