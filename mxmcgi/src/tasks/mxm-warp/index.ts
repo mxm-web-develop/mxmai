@@ -6,3 +6,4 @@ export * from './output-stage';
 export * from './warp-runner';
 export * from './llm-adapter';
 export * from './execute-warp-task';
+export * from './web-search-step';

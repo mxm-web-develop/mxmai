@@ -42,6 +42,8 @@ async function runConfigurablePhase(
   const { runInputPipeline, runOutputPipeline } = await import('../pipeline-registry');
   await import('../pipeline');
   await import('../business-pipeline-steps');
+  const { registerWarpWebSearchStep } = await import('./web-search-step');
+  registerWarpWebSearchStep();
   const { appendSkippedPipelineTrace, shouldRunPipelineStep } = await import('../pipeline-step-when');
 
   const runnable: PipelineStep[] = [];

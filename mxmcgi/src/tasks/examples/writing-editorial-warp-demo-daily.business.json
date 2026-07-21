@@ -75,8 +75,30 @@
             "unifiedTemplate": "你是职场写作助手。根据下方完整业务合同撰写可直接发送的工作日报 Markdown。只依据合同事实，不要编造。"
           },
           "pipeline": {
-            "pre": [],
-            "enrich": [],
+            "pre": [
+              {
+                "step": "webSearch",
+                "params": {
+                  "queryFrom": "params.topic",
+                  "target": "sources.websource",
+                  "depth": "quick",
+                  "maxResults": 5,
+                  "resultMaxChars": 2000
+                }
+              }
+            ],
+            "enrich": [
+              {
+                "step": "webSearch",
+                "params": {
+                  "queryFrom": "contract.enrich_search.query",
+                  "target": "enrich_search.result",
+                  "depth": "standard",
+                  "maxResults": 8,
+                  "resultMaxChars": 3500
+                }
+              }
+            ],
             "post": []
           }
         }

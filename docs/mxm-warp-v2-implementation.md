@@ -61,8 +61,17 @@
 
 `mxmcgi/src/tasks/examples/writing-editorial-warp-demo-daily.business.json`
 
-## 后续（未做）
+## 网络检索节点（`step: webSearch`）
 
-- pre/enrich **网络检索节点**写 `sources.websource` / `enrich_search.result`（节点专题）
-- Admin UI：`contractSchema` + enrich 管线页
-- graph/video 等 scope 的 warp 路径（当前优先 writing + text）
+节点级配置（挂在 `pipeline.pre` / `pipeline.enrich`）：
+
+| params | 含义 |
+|--------|------|
+| `query` | 固定查询串 |
+| `queryFrom` | 从路径取值：`params.topic` / `contract.basic.topic` / `contract.enrich_search.query` |
+| `target` | `sources.websource`（默认，pre）或 `enrich_search.result`（enrich） |
+| `depth` | `quick` \| `standard` \| `deep` |
+| `maxResults` | 条数上限 |
+| `resultMaxChars` | 结果文本长度上限 |
+
+实现：`mxmcgi/src/tasks/mxm-warp/web-search-step.ts`（注册名 `webSearch`）。
