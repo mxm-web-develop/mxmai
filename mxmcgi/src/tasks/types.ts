@@ -22,6 +22,17 @@ export interface PipelineStep {
   step: string;
   when?: Record<string, unknown>;
   params?: Record<string, unknown>;
+  nestedTextTaskKey?: string;
+  inputMapping?: Record<string, string>;
+  outputMapping?: { artifactField: 'text' | 'metadata' };
+}
+
+/** 业务可配管线；mxm-warp 另含 enrich */
+export interface BusinessPipelineConfig {
+  pre?: PipelineStep[];
+  /** mxm-warp：深检索 / 专家 text 等 */
+  enrich?: PipelineStep[];
+  post?: PipelineStep[];
 }
 
 export interface PromptTemplateConfig {
@@ -96,11 +107,19 @@ export interface KnowledgeConfig {
  */
 export interface TaskTemplate {
   formSchema: JsonSchemaV2;
+  /**
+   * mxm-warp：合同字段（扁平 + x-zone: basic|business）。
+   * executionMode=mxm-warp 时必填。
+   */
+  contractSchema?: JsonSchemaV2;
   uiSchema?: Record<string, unknown>;
 
   prompt: PromptTemplateConfig;
 
   knowledge?: KnowledgeConfig;
+
+  /** 业务执行管线；mxm-warp 为 pre / enrich / post */
+  pipeline?: BusinessPipelineConfig;
 
   /**
    * @deprecated Task v2 已改为固定前置链（见 task-v2-prelude），配置项不再生效。保留字段仅为兼容旧 JSON。
@@ -124,6 +143,8 @@ export interface TaskTemplate {
       maxTokens?: number;
       topP?: number;
     };
+    /** mxm-warp：启用五段合同执行（pre→input→enrich→output→post） */
+    executionMode?: 'mxm-warp' | string;
   };
 }
 
