@@ -1,0 +1,222 @@
+/**
+ * SuperMXMai UI Primitives — shared component patterns
+ */
+
+/* —— Page shell —— */
+.page-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: var(--page-padding);
+  max-width: 100%;
+  height: 80vh;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+.page-card h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+  color: var(--text-main);
+  margin: 0 0 var(--space-4) 0;
+  position: relative;
+  z-index: 1;
+}
+
+.page-card .hint {
+  font-size: var(--text-body);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-4) 0;
+  line-height: var(--leading-tight);
+}
+
+.page-card h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-title-sm);
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.page-card .hint code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8em;
+  padding: 0.15em 0.4em;
+  background: rgba(148, 163, 184, 0.18);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+}
+
+.page-card::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.18) 0%, transparent 55%),
+    radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.18) 0%, transparent 55%);
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .page-card:not(.generation-console-page) {
+    flex: 1;
+    min-height: 0;
+    height: 100% !important;
+    max-height: 100% !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .page-card:not(.generation-console-page) * {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 900px) {
+  .page-card {
+    min-width: min(759px, 100%);
+    flex: 1;
+    min-height: 0;
+    height: auto;
+  }
+}
+
+.muted {
+  font-size: var(--text-body);
+  color: var(--text-muted);
+}
+
+/* —— Buttons (custom, alongside Ant Design) —— */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  line-height: 1.2;
+  color: #dc2626;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.65);
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-small {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-caption);
+}
+
+/* —— Unified task status badges —— */
+.status-badge,
+.graph-task-status,
+.video-task-status,
+.audio-task-status,
+.writing-task-status,
+.music-task-status,
+.outline-task-status {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-ui);
+  font-size: var(--text-meta);
+  font-weight: 500;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.status-badge--completed,
+.graph-task-status--completed,
+.video-task-status--completed,
+.audio-task-status--completed,
+.writing-task-status--completed,
+.music-task-status--completed,
+.outline-task-status--completed {
+  background: var(--status-completed-bg);
+  color: var(--status-completed-fg);
+}
+
+.status-badge--failed,
+.status-badge--cancelled,
+.graph-task-status--failed,
+.graph-task-status--cancelled,
+.video-task-status--failed,
+.video-task-status--cancelled,
+.audio-task-status--failed,
+.audio-task-status--cancelled,
+.writing-task-status--failed,
+.writing-task-status--cancelled,
+.music-task-status--failed,
+.music-task-status--cancelled,
+.outline-task-status--failed,
+.outline-task-status--cancelled {
+  background: var(--status-failed-bg);
+  color: var(--status-failed-fg);
+}
+
+.status-badge--processing,
+.status-badge--pending,
+.status-badge--queued,
+.graph-task-status--processing,
+.graph-task-status--pending,
+.graph-task-status--queued,
+.video-task-status--processing,
+.video-task-status--pending,
+.video-task-status--queued,
+.audio-task-status--processing,
+.audio-task-status--pending,
+.audio-task-status--queued,
+.writing-task-status--processing,
+.writing-task-status--pending,
+.writing-task-status--queued,
+.music-task-status--processing,
+.music-task-status--pending,
+.music-task-status--queued,
+.outline-task-status--processing,
+.outline-task-status--pending,
+.outline-task-status--queued {
+  background: var(--status-processing-bg);
+  color: var(--status-processing-fg);
+}
+
+.status-badge--awaiting_review,
+.graph-task-status--awaiting_review,
+.video-task-status--awaiting_review,
+.audio-task-status--awaiting_review,
+.writing-task-status--awaiting_review,
+.music-task-status--awaiting_review,
+.outline-task-status--awaiting_review {
+  background: var(--status-review-bg);
+  color: var(--status-review-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-danger {
+    transition: none;
+  }
+}

@@ -1,12 +1,39 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Button, Drawer, notification, Select, Typography } from 'antd';
+import { useTranslation } from 'react-i18next';
+import { toAppLang } from '../i18n/appLocale';
+import { useTaskScopeLabels } from '../i18n/useTaskScopeLabels';
+import { pageCardTitle, PageHint } from '../components/PageHint';
 import { runTaskV2 } from '../api/client';
+import {
+  TaskBillingBar,
+  formatGenerateButtonLabel,
+  handleTaskBillingResponseError,
+  type TaskBillingState,
+} from '../components/billing/TaskBillingBar';
 import { useAuth } from '../context/AuthContext';
-import { useTaskV2FormConfig, formatTaskSelectionKey, parseTaskSelectionKey, TaskV2SchemaForm } from '../task-v2';
+import {
+  useTaskV2FormConfig,
+  formatTaskSelectionKey,
+  parseTaskSelectionKey,
+  TaskV2SchemaForm,
+  TaskV2TaskNameField,
+  TASK_V2_DRAWER_FORM_CLASS,
+  buildTaskSelectionSelectOptions,
+} from '../task-v2';
 
 export default function Text() {
+  const { t, i18n } = useTranslation();
+  const scopeLabels = useTaskScopeLabels('text');
   const { isLoggedIn } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const [billing, setBilling] = useState<TaskBillingState>({
+    canSubmit: true,
+    blockReason: null,
+    estimate: null,
+    loading: false,
+  });
+  const onBillingStateChange = useCallback((s: TaskBillingState) => setBilling(s), []);
   const [formOpen, setFormOpen] = useState(false);
   const [resultText, setResultText] = useState<string>('');
   const [resultMeta, setResultMeta] = useState<Record<string, unknown> | null>(null);
@@ -24,30 +51,29 @@ export default function Text() {
     resetFormValues,
     configLoading,
     listLoading,
-  } = useTaskV2FormConfig({ scope: 'text', enabled: isLoggedIn });
+    taskLabel,
+    onTaskLabelChange,
+    mergeTaskLabelIntoParams,
+    resetTaskLabelAfterSubmit,
+  } = useTaskV2FormConfig({ scope: 'text', enabled: isLoggedIn, formDrawerOpen: formOpen });
 
   const selectedValue = useMemo(() => formatTaskSelectionKey(taskKey, subtype), [taskKey, subtype]);
+  const appLang = toAppLang(i18n.language);
   const textSelectOptions = useMemo(
-    () =>
-      taskOptions.map((it) => ({
-        label: (() => {
-          const tk = (it.taskLabel ?? '').trim() || it.taskKey;
-          if (!it.subtype) return tk;
-          const st = (it.subtypeLabel ?? '').trim() || it.subtype;
-          return `${tk} / ${st}`;
-        })(),
-        value: formatTaskSelectionKey(it.taskKey, it.subtype),
-      })),
-    [taskOptions]
+    () => buildTaskSelectionSelectOptions(taskOptions, appLang),
+    [taskOptions, appLang]
   );
 
   const handleSubmit = async () => {
     if (!isLoggedIn) {
-      notification.warning({ message: '请先登录', placement: 'top' });
+      notification.warning({ message: t('auth.pleaseLogin'), placement: 'top' });
       return;
     }
     if (!taskOptions.length) {
-      notification.warning({ message: '暂无可用的文本业务配置', placement: 'top' });
+      notification.warning({
+        message: t('common.task.noBusinessConfig', { scope: scopeLabels.scopeLabel }),
+        placement: 'top',
+      });
       return;
     }
     setSubmitting(true);
@@ -56,9 +82,12 @@ export default function Text() {
         scope: 'text',
         taskKey,
         subtype,
-        params: formValues,
+        params: mergeTaskLabelIntoParams({ ...(formValues as Record<string, unknown>) }),
       });
-      if (res.error) throw new Error(res.error);
+      if (res.error) {
+        if (handleTaskBillingResponseError(res)) return;
+        throw new Error(res.error);
+      }
 
       const raw = res.data as unknown;
       const envelope = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
@@ -75,9 +104,10 @@ export default function Text() {
       notification.success({ message: '已完成（同步文本）', placement: 'top' });
       setFormOpen(false);
       resetFormValues();
+      resetTaskLabelAfterSubmit();
     } catch (err) {
       notification.error({
-        message: '提交失败',
+        message: t('common.submitFailed'),
         description: err instanceof Error ? err.message : String(err),
         placement: 'top',
       });
@@ -87,10 +117,9 @@ export default function Text() {
   };
 
   const renderForm = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className={TASK_V2_DRAWER_FORM_CLASS}>
       <Select
-        style={{ width: '100%' }}
-        placeholder="选择业务（taskKey / subtype）"
+        placeholder={t('common.task.selectBusiness')}
         value={taskOptions.length > 0 ? selectedValue : undefined}
         options={textSelectOptions}
         onChange={(v) => {
@@ -100,23 +129,38 @@ export default function Text() {
           clearPendingForm();
         }}
       />
+      <TaskV2TaskNameField value={taskLabel} onChange={onTaskLabelChange} />
       <TaskV2SchemaForm
         formConfig={formConfig}
         formValues={formValues}
         onChange={setFormValues}
         loading={configLoading || listLoading}
       />
+      <TaskBillingBar
+        scope="text"
+        taskKey={taskKey}
+        subtype={subtype}
+        params={formValues as Record<string, unknown>}
+        enabled={!!formConfig?.schema && isLoggedIn}
+        onStateChange={onBillingStateChange}
+      />
       <Button
         type="primary"
-        loading={submitting}
-        disabled={!formConfig?.schema}
+        loading={submitting || billing.loading}
+        disabled={!formConfig?.schema || !billing.canSubmit}
         onClick={() => void handleSubmit()}
+        style={{ width: '100%' }}
       >
-        运行
+        {formatGenerateButtonLabel(t('common.generate'), billing.estimate, billing.loading, {
+          insufficientBalance: billing.blockReason === 'insufficient_balance',
+          locale: toAppLang(i18n.language),
+        })}
       </Button>
-      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        提示：`text` 业务为同步执行，不会写入 `cgi_tasks`，也不会出现在写作/图片等任务列表中。
-      </Typography.Text>
+      <PageHint
+        title="执行说明"
+        label="同步任务"
+        description="text 业务为同步执行，不会写入 cgi_tasks，也不会出现在写作/图片等任务列表中。"
+      />
     </div>
   );
 
@@ -124,9 +168,11 @@ export default function Text() {
     <section className="page-card text-page">
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>文本（同步）</div>
-          <div className="muted" style={{ fontSize: 12 }}>
-            适用于 plan / think / format 等“节点式”文本业务。
+          <div style={{ fontWeight: 700, fontSize: 16 }}>
+            {pageCardTitle('文本（同步）', {
+              title: '适用场景',
+              description: '适用于 plan / think / format 等「节点式」文本业务。',
+            })}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -136,7 +182,7 @@ export default function Text() {
             onClick={() => setFormOpen(true)}
             disabled={!isLoggedIn}
           >
-            新建文本任务
+            {t('generation.create.text')}
           </button>
         </div>
       </div>
@@ -162,9 +208,25 @@ export default function Text() {
             {resultText}
           </pre>
           {resultMeta ? (
-            <details style={{ opacity: 0.9 }}>
-              <summary style={{ cursor: 'pointer' }}>metadata</summary>
-              <pre style={{ margin: 0, padding: 12, whiteSpace: 'pre-wrap' }}>
+            <details
+              style={{ opacity: 0.9 }}
+              className="text-result-meta"
+            >
+              <summary
+                style={{ cursor: 'pointer', padding: '8px 0', fontWeight: 500 }}
+              >
+                metadata
+              </summary>
+              <pre
+                style={{
+                  margin: 0,
+                  padding: 12,
+                  whiteSpace: 'pre-wrap',
+                  fontSize: 12,
+                  maxHeight: 200,
+                  overflow: 'auto',
+                }}
+              >
                 {JSON.stringify(resultMeta, null, 2)}
               </pre>
             </details>
@@ -172,17 +234,18 @@ export default function Text() {
         </div>
       ) : (
         <p className="muted" style={{ marginTop: 14 }}>
-          暂无输出。点击右上角「新建文本任务」开始。
+          {scopeLabels.emptyHint}
         </p>
       )}
 
       <Drawer
-        title="新建文本任务（同步）"
+        title={t('generation.create.textSync')}
         placement="right"
-        size={560}
+        width={560}
         open={formOpen}
         onClose={() => setFormOpen(false)}
         destroyOnHidden
+        styles={{ body: { paddingBottom: 24 } }}
       >
         {renderForm()}
       </Drawer>

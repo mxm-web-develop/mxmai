@@ -1,0 +1,90 @@
+/* 联网检索 / 知识库召回：可增删列表 — 继承 schema-form--panel 的 --sf-* token */
+
+.context-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.context-item-list__hint {
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--leading-prose);
+  color: var(--text-muted);
+}
+
+html.dark .mxm-form-surface .context-item-list__hint {
+  color: rgba(148, 163, 184, 0.95);
+}
+
+.context-item-list__stack {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--sf-group-border, var(--card-border));
+  border-radius: var(--sf-group-radius, var(--radius-md));
+  overflow: hidden;
+  background: var(--sf-group-bg, var(--card-bg));
+}
+
+.context-item-list__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--sf-group-divider, var(--divider));
+  background: transparent;
+  min-width: 0;
+}
+
+.context-item-list__row:last-child {
+  border-bottom: none;
+}
+
+.context-item-list__row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 1.5rem;
+}
+
+.context-item-list__index {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+html.dark .mxm-form-surface .context-item-list__index {
+  color: rgba(148, 163, 184, 0.95);
+}
+
+.context-item-list__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.context-item-list__add.ant-btn-dashed {
+  min-height: var(--sf-control-h, var(--control-height));
+  border-radius: var(--sf-control-radius, var(--radius-sm));
+  border-color: var(--sf-control-border, var(--border-default));
+  color: var(--text-muted);
+  font-size: var(--text-label);
+}
+
+.context-item-list__add.ant-btn-dashed:not(:disabled):hover {
+  border-color: var(--sf-focus-border, var(--action-primary-solid));
+  color: var(--sf-focus-border, var(--action-primary-solid));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .context-item-list__add.ant-btn-dashed {
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+}

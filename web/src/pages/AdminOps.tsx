@@ -1,9 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Column, Pie } from '@ant-design/charts';
-import { Badge, Button, Card, Input, Select, Space, Spin, Statistic, Table, Tabs, Tooltip } from 'antd';
+import {
+  App,
+  Badge,
+  Button,
+  Card,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tabs,
+  Tag,
+  Tooltip,
+} from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import BrandLoading from '../components/BrandLoading';
 import type { ColumnsType } from 'antd/es/table';
 import {
+  adminCreateUser,
+  adminDepositToWallet,
   adminForceLogout,
+  adminGetUserWallet,
   cancelTask,
   getAdminStats,
   getAdminTasks,
@@ -14,8 +35,12 @@ import {
   type AdminStatsData,
   type AdminTaskItem,
   type AdminUserItem,
+  type WalletItem,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import AdminAgentConfig from './AdminAgentConfig';
+
+const MXM_ASSET_CODE = 'MXM-TOKEN';
 
 const DARK_THEME = {
   defaultColor: '#5B8FF9',
@@ -49,6 +74,7 @@ function getStatusBadge(status: string) {
 }
 
 export default function AdminOps() {
+  const { message, modal } = App.useApp();
   const { isLoggedIn, isAdmin } = useAuth();
 
   // -------- Overview (stats) --------
@@ -265,24 +291,43 @@ export default function AdminOps() {
       fixed: 'right',
       render: (_, r) => {
         const loading = actionLoading === r.id;
+        const disabledAll = actionLoading !== null;
+        const canCancel = ['pending', 'queued', 'processing'].includes(r.status);
+        const canRecover = r.status === 'processing';
+        const canRetry = ['failed', 'processing'].includes(r.status);
         return (
-          <Space size="small" wrap>
-            {['pending', 'queued', 'processing'].includes(r.status) && (
-              <Button size="small" disabled={actionLoading !== null} onClick={() => handleAction(r.id, 'cancel')} loading={loading}>
-                取消
-              </Button>
+          <span className="actions-cell">
+            {canCancel && (
+              <button
+                type="button"
+                className={'act-btn act-btn--neutral' + (disabledAll ? ' act-btn--muted' : '')}
+                disabled={disabledAll}
+                onClick={() => handleAction(r.id, 'cancel')}
+              >
+                {loading && canCancel ? '…' : '取消'}
+              </button>
             )}
-            {r.status === 'processing' && (
-              <Button size="small" disabled={actionLoading !== null} onClick={() => handleAction(r.id, 'recover')} loading={loading}>
+            {canRecover && (
+              <button
+                type="button"
+                className={'act-btn act-btn--neutral' + (disabledAll ? ' act-btn--muted' : '')}
+                disabled={disabledAll}
+                onClick={() => handleAction(r.id, 'recover')}
+              >
                 恢复
-              </Button>
+              </button>
             )}
-            {['failed', 'processing'].includes(r.status) && (
-              <Button size="small" disabled={actionLoading !== null} onClick={() => handleAction(r.id, 'retry')} loading={loading}>
+            {canRetry && (
+              <button
+                type="button"
+                className={'act-btn act-btn--neutral' + (disabledAll ? ' act-btn--muted' : '')}
+                disabled={disabledAll}
+                onClick={() => handleAction(r.id, 'retry')}
+              >
                 重试
-              </Button>
+              </button>
             )}
-          </Space>
+          </span>
         );
       },
     },
@@ -298,6 +343,24 @@ export default function AdminOps() {
   const [usersTotal, setUsersTotal] = useState(0);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
+  const [mxmBalances, setMxmBalances] = useState<Record<string, string>>({});
+  const [balanceLoadingId, setBalanceLoadingId] = useState<string | null>(null);
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createSaving, setCreateSaving] = useState(false);
+  const [createForm] = Form.useForm<{
+    username: string;
+    password: string;
+    email?: string;
+    phone?: string;
+    role: 'user' | 'admin';
+    membership_type: 'free' | 'pro' | 'premium';
+  }>();
+
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [depositTarget, setDepositTarget] = useState<AdminUserItem | null>(null);
+  const [depositSaving, setDepositSaving] = useState(false);
+  const [depositForm] = Form.useForm<{ amount: number; note?: string }>();
 
   const fetchUsers = useCallback(async (overrides?: { page?: number }) => {
     if (!isLoggedIn || !isAdmin) {
@@ -333,65 +396,208 @@ export default function AdminOps() {
     return () => window.clearTimeout(t);
   }, [fetchUsers, isAdmin, isLoggedIn]);
 
-  const handleUserStatus = async (userId: string, status: 'active' | 'suspended') => {
-    setUserActionLoading(userId);
-    const res = await updateAdminUserStatus(userId, status);
-    setUserActionLoading(null);
-    if (!res.error) void fetchUsers();
-    else setUsersError(res.error);
+  const loadMxmBalance = async (userId: string) => {
+    setBalanceLoadingId(userId);
+    const res = await adminGetUserWallet(userId, MXM_ASSET_CODE);
+    setBalanceLoadingId(null);
+    if (res.error) {
+      message.error(`读取余额失败：${res.error}`);
+      return;
+    }
+    const bal = (res.data?.data as WalletItem | undefined)?.available_balance ?? '0';
+    setMxmBalances((prev) => ({ ...prev, [userId]: bal }));
+  };
+
+  const handleUserStatus = (userId: string, status: 'active' | 'suspended', username?: string) => {
+    const isDisable = status === 'suspended';
+    modal.confirm({
+      title: isDisable ? '确认禁用用户？' : '确认启用用户？',
+      content: isDisable
+        ? `禁用后「${username || userId}」将无法登录，且现有会话会被强制登出。`
+        : `启用后「${username || userId}」可重新登录使用。`,
+      okText: isDisable ? '确认禁用' : '确认启用',
+      okButtonProps: isDisable ? { danger: true } : undefined,
+      cancelText: '取消',
+      onOk: async () => {
+        setUserActionLoading(userId);
+        const res = await updateAdminUserStatus(userId, status);
+        setUserActionLoading(null);
+        if (!res.error) {
+          message.success(isDisable ? '用户已禁用' : '用户已启用');
+          void fetchUsers();
+        } else {
+          setUsersError(res.error);
+          message.error(res.error);
+        }
+      },
+    });
   };
 
   const handleUserForceLogout = async (userId: string) => {
     setUserActionLoading(userId);
     const res = await adminForceLogout(userId);
     setUserActionLoading(null);
-    if (!res.error) void fetchUsers();
-    else setUsersError(res.error);
+    if (!res.error) {
+      message.success('已强制登出');
+      void fetchUsers();
+    } else {
+      setUsersError(res.error);
+      message.error(res.error);
+    }
+  };
+
+  const openCreateUser = () => {
+    createForm.resetFields();
+    createForm.setFieldsValue({ role: 'user', membership_type: 'free' });
+    setCreateOpen(true);
+  };
+
+  const handleCreateUser = async () => {
+    const values = await createForm.validateFields().catch(() => null);
+    if (!values) return;
+    if (!values.email?.trim() && !values.phone?.trim()) {
+      message.error('请至少填写邮箱或手机号');
+      return;
+    }
+    setCreateSaving(true);
+    const res = await adminCreateUser({
+      username: values.username.trim(),
+      password: values.password,
+      email: values.email?.trim() || undefined,
+      phone: values.phone?.trim() || undefined,
+      role: values.role,
+      membership_type: values.membership_type,
+    });
+    setCreateSaving(false);
+    if (res.error) {
+      message.error(`创建失败：${res.error}`);
+      return;
+    }
+    message.success(`用户「${values.username}」已创建`);
+    setCreateOpen(false);
+    void fetchUsers({ page: 1 });
+  };
+
+  const openDeposit = (user: AdminUserItem) => {
+    setDepositTarget(user);
+    depositForm.resetFields();
+    setDepositOpen(true);
+    if (mxmBalances[user.id] == null) void loadMxmBalance(user.id);
+  };
+
+  const handleDeposit = async () => {
+    const values = await depositForm.validateFields().catch(() => null);
+    if (!values || !depositTarget) return;
+    setDepositSaving(true);
+    const res = await adminDepositToWallet({
+      userId: depositTarget.id,
+      assetCode: MXM_ASSET_CODE,
+      amount: String(values.amount),
+      metadata: values.note ? { note: values.note, source: 'admin_ops' } : { source: 'admin_ops' },
+    });
+    setDepositSaving(false);
+    if (res.error) {
+      message.error(`发放失败：${res.error}`);
+      return;
+    }
+    message.success(`已向「${depositTarget.username}」发放 ${values.amount} MXM-TOKEN`);
+    setDepositOpen(false);
+    setDepositTarget(null);
+    void loadMxmBalance(depositTarget.id);
   };
 
   const usersColumns: ColumnsType<AdminUserItem> = [
     { title: '用户名', dataIndex: 'username', key: 'username', width: 140, ellipsis: true, render: (v: string) => v ?? '-' },
-    { title: '邮箱', dataIndex: 'email', key: 'email', width: 220, ellipsis: true, render: (v: string) => v ?? '-' },
-    { title: '角色', dataIndex: 'role', key: 'role', width: 90, render: (v: string) => v ?? '-' },
-    { title: '状态', dataIndex: 'status', key: 'status', width: 110, render: (v: string) => v ?? '-' },
-    { title: '等级', dataIndex: 'level', key: 'level', width: 80, render: (v: number) => (v != null ? v : '-') },
-    { title: '会员', dataIndex: 'membership_type', key: 'membership_type', width: 110, render: (v: string) => v ?? '-' },
-    { title: '已登录', key: 'isLoggedIn', width: 90, render: (_: unknown, r) => (r.isLoggedIn ? '是' : '否') },
-    { title: '注册时间', dataIndex: 'created_at', key: 'created_at', width: 180, render: (v: string) => (v ? new Date(v).toLocaleString() : '-') },
+    { title: '邮箱', dataIndex: 'email', key: 'email', width: 200, ellipsis: true, render: (v: string) => v ?? '-' },
+    {
+      title: '角色',
+      dataIndex: 'role',
+      key: 'role',
+      width: 90,
+      render: (v: string) => (
+        <Tag color={v === 'admin' ? 'blue' : 'default'}>{v === 'admin' ? '管理员' : '用户'}</Tag>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (v: string) => {
+        const active = !v || v === 'active';
+        return <Tag color={active ? 'green' : 'red'}>{active ? '正常' : v === 'suspended' ? '已禁用' : v}</Tag>;
+      },
+    },
+    { title: '等级', dataIndex: 'level', key: 'level', width: 70, render: (v: number) => (v != null ? v : '-') },
+    { title: '会员', dataIndex: 'membership_type', key: 'membership_type', width: 90, render: (v: string) => v ?? '-' },
+    {
+      title: 'MXM-TOKEN',
+      key: 'mxm',
+      width: 130,
+      render: (_: unknown, r) => {
+        if (balanceLoadingId === r.id) return '…';
+        if (mxmBalances[r.id] != null) {
+          return <strong>{Number(mxmBalances[r.id]).toLocaleString()}</strong>;
+        }
+        return (
+          <Button type="link" size="small" onClick={() => void loadMxmBalance(r.id)}>
+            查看
+          </Button>
+        );
+      },
+    },
+    { title: '已登录', key: 'isLoggedIn', width: 80, render: (_: unknown, r) => (r.isLoggedIn ? '是' : '否') },
+    { title: '注册时间', dataIndex: 'created_at', key: 'created_at', width: 170, render: (v: string) => (v ? new Date(v).toLocaleString() : '-') },
     {
       title: '操作',
       key: 'actions',
-      width: 220,
+      width: 280,
       fixed: 'right',
       render: (_: unknown, r) => {
         const loading = userActionLoading === r.id;
         const status = r.status ?? 'active';
+        const disabledAll = userActionLoading !== null;
         return (
-          <Space size="small" wrap>
+          <span className="actions-cell">
+            <button
+              type="button"
+              className={'act-btn act-btn--primary' + (disabledAll ? ' act-btn--muted' : '')}
+              disabled={disabledAll}
+              onClick={() => openDeposit(r)}
+            >
+              发放 Token
+            </button>
             {status === 'active' ? (
-              <Button
-                size="small"
-                danger
-                disabled={userActionLoading !== null || r.role === 'admin'}
-                onClick={() => void handleUserStatus(r.id, 'suspended')}
-                loading={loading}
+              <button
+                type="button"
+                className={
+                  'act-btn act-btn--danger' +
+                  (disabledAll || r.role === 'admin' ? ' act-btn--muted' : '')
+                }
+                disabled={disabledAll || r.role === 'admin'}
+                onClick={() => handleUserStatus(r.id, 'suspended', r.username)}
               >
-                封禁
-              </Button>
+                {loading ? '…' : '禁用'}
+              </button>
             ) : (
-              <Button
-                size="small"
-                disabled={userActionLoading !== null}
-                onClick={() => void handleUserStatus(r.id, 'active')}
-                loading={loading}
+              <button
+                type="button"
+                className={'act-btn act-btn--success' + (disabledAll ? ' act-btn--muted' : '')}
+                disabled={disabledAll}
+                onClick={() => handleUserStatus(r.id, 'active', r.username)}
               >
-                解封
-              </Button>
+                {loading ? '…' : '启用'}
+              </button>
             )}
-            <Button size="small" disabled={userActionLoading !== null} onClick={() => void handleUserForceLogout(r.id)} loading={loading}>
+            <button
+              type="button"
+              className={'act-btn act-btn--neutral' + (disabledAll ? ' act-btn--muted' : '')}
+              disabled={disabledAll}
+              onClick={() => void handleUserForceLogout(r.id)}
+            >
               强制登出
-            </Button>
-          </Space>
+            </button>
+          </span>
         );
       },
     },
@@ -424,7 +630,7 @@ export default function AdminOps() {
                   className="admin-ops-card"
                   title="核心指标"
                   extra={
-                    <Space>
+                    <Space className="admin-ops-card-toolbar" size={8} wrap>
                       <span className="muted">每日用量天数</span>
                       <Select
                         value={days}
@@ -447,7 +653,7 @@ export default function AdminOps() {
                   {statsError && <div className="admin-ops-error">{statsError}</div>}
                   {statsLoading && !stats ? (
                     <div className="admin-ops-loading">
-                      <Spin size="large" tip="加载中…" />
+                      <BrandLoading size="large" tip="加载中…" />
                     </div>
                   ) : (
                     <div className="admin-ops-kpis">
@@ -498,7 +704,7 @@ export default function AdminOps() {
                   className="admin-ops-card"
                   title="任务列表"
                   extra={
-                    <Space wrap>
+                    <Space className="admin-ops-card-toolbar" wrap size={8}>
                       <Input
                         placeholder="用户 ID"
                         value={userId}
@@ -575,7 +781,7 @@ export default function AdminOps() {
                   className="admin-ops-card"
                   title="用户列表"
                   extra={
-                    <Space wrap>
+                    <Space className="admin-ops-card-toolbar" wrap size={8}>
                       <Input
                         placeholder="搜索用户名 / 邮箱 / 手机号"
                         value={usersSearch}
@@ -598,6 +804,9 @@ export default function AdminOps() {
                       <Button type="primary" size="small" onClick={() => void fetchUsers({ page: 1 })} loading={usersLoading}>
                         查询
                       </Button>
+                      <Button type="primary" size="small" icon={<PlusOutlined />} onClick={openCreateUser}>
+                        创建用户
+                      </Button>
                     </Space>
                   }
                 >
@@ -609,7 +818,7 @@ export default function AdminOps() {
                       rowKey="id"
                       loading={usersLoading}
                       size="small"
-                      scroll={{ x: 1200, y: 'calc(80vh - 360px)' }}
+                      scroll={{ x: 1400, y: 'calc(80vh - 360px)' }}
                       pagination={{
                         current: usersPage,
                         pageSize: usersLimit,
@@ -621,8 +830,106 @@ export default function AdminOps() {
                     />
                   </div>
                 </Card>
+
+                <Modal
+                  title="创建用户"
+                  open={createOpen}
+                  onOk={() => void handleCreateUser()}
+                  confirmLoading={createSaving}
+                  onCancel={() => setCreateOpen(false)}
+                  okText="创建"
+                  cancelText="取消"
+                  destroyOnHidden
+                >
+                  <Form form={createForm} layout="vertical" requiredMark="optional">
+                    <Form.Item
+                      name="username"
+                      label="用户名"
+                      rules={[{ required: true, message: '请输入用户名' }, { min: 2, message: '至少 2 个字符' }]}
+                      required
+                    >
+                      <Input placeholder="登录用户名" autoComplete="off" />
+                    </Form.Item>
+                    <Form.Item
+                      name="password"
+                      label="初始密码"
+                      rules={[{ required: true, message: '请输入密码' }, { min: 6, message: '至少 6 位' }]}
+                      required
+                    >
+                      <Input.Password placeholder="至少 6 位" autoComplete="new-password" />
+                    </Form.Item>
+                    <Form.Item name="email" label="邮箱">
+                      <Input placeholder="邮箱（与手机号至少填一项）" />
+                    </Form.Item>
+                    <Form.Item name="phone" label="手机号">
+                      <Input placeholder="手机号（与邮箱至少填一项）" />
+                    </Form.Item>
+                    <Form.Item name="role" label="角色" initialValue="user">
+                      <Select
+                        options={[
+                          { value: 'user', label: '普通用户' },
+                          { value: 'admin', label: '管理员' },
+                        ]}
+                      />
+                    </Form.Item>
+                    <Form.Item name="membership_type" label="会员类型" initialValue="free">
+                      <Select
+                        options={[
+                          { value: 'free', label: 'free' },
+                          { value: 'pro', label: 'pro' },
+                          { value: 'premium', label: 'premium' },
+                        ]}
+                      />
+                    </Form.Item>
+                  </Form>
+                </Modal>
+
+                <Modal
+                  title={`发放 MXM-TOKEN → ${depositTarget?.username ?? ''}`}
+                  open={depositOpen}
+                  onOk={() => void handleDeposit()}
+                  confirmLoading={depositSaving}
+                  onCancel={() => {
+                    setDepositOpen(false);
+                    setDepositTarget(null);
+                  }}
+                  okText="确认发放"
+                  cancelText="取消"
+                  destroyOnHidden
+                >
+                  {depositTarget && (
+                    <p className="muted" style={{ marginBottom: 12 }}>
+                      当前余额：{' '}
+                      {balanceLoadingId === depositTarget.id
+                        ? '加载中…'
+                        : mxmBalances[depositTarget.id] != null
+                          ? Number(mxmBalances[depositTarget.id]).toLocaleString()
+                          : '—'}
+                    </p>
+                  )}
+                  <Form form={depositForm} layout="vertical">
+                    <Form.Item
+                      name="amount"
+                      label="发放数量（MXM-TOKEN）"
+                      rules={[
+                        { required: true, message: '请输入数量' },
+                        { type: 'number', min: 0.01, message: '必须大于 0' },
+                      ]}
+                    >
+                      <InputNumber style={{ width: '100%' }} min={0.01} step={100} precision={2} placeholder="例如 1000" />
+                    </Form.Item>
+                    <Form.Item name="note" label="备注（可选）">
+                      <Input.TextArea rows={2} placeholder="发放原因，便于对账" />
+                    </Form.Item>
+                  </Form>
+                </Modal>
               </div>
             ),
+          },
+          {
+            key: 'agent',
+            label: 'AI 助手',
+            children: <AdminAgentConfig />,
           },
         ]}
           />

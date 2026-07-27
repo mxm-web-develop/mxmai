@@ -1,6 +1,7 @@
 /**
  * Admin：提示词工程
- * 按业务 (scope/type/subtype) 查看当前接口在使用的提示词，并分部分编辑：规则、输出格式、扩展配置等
+ * 按业务 (scope/type/subtype) 查看当前接口在使用的提示词；输出格式与扩展配置等写入 DB。
+ * 规则与系统说明请配置在 **extra.taskTemplate.prompt.unifiedTemplate**（不再使用 rules_i18n 列）。
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -11,6 +12,7 @@ import {
   type PromptConfigBody,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { pageCardTitle } from '../components/PageHint';
 import { App, Button, Table, Modal, Select, Input, Switch, Tabs } from 'antd';
 
 const SCOPE_OPTIONS = [
@@ -65,7 +67,7 @@ export interface PromptConfigRow {
 }
 
 export default function PromptConfig() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { isLoggedIn, isAdmin } = useAuth();
   const [lists, setLists] = useState<PromptConfigRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -75,9 +77,7 @@ export default function PromptConfig() {
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
   const [currentRow, setCurrentRow] = useState<PromptConfigRow | null>(null);
 
-  // 编辑态表单
-  const [rulesZh, setRulesZh] = useState('');
-  const [rulesEn, setRulesEn] = useState('');
+  // 编辑态表单（规则统一在 extra.taskTemplate.unifiedTemplate）
   const [outputFormatZh, setOutputFormatZh] = useState('');
   const [outputFormatEn, setOutputFormatEn] = useState('');
   const [extraJson, setExtraJson] = useState('{}');
@@ -109,8 +109,6 @@ export default function PromptConfig() {
     setCurrentRow(row);
     setModalMode(mode);
     setModalOpen(true);
-    setRulesZh((row.rules_i18n as Record<string, string>)?.zh ?? '');
-    setRulesEn((row.rules_i18n as Record<string, string>)?.en ?? '');
     setOutputFormatZh((row.output_format_i18n as Record<string, string>)?.zh ?? '');
     setOutputFormatEn((row.output_format_i18n as Record<string, string>)?.en ?? '');
     const extra = (row.extra ?? {}) as Record<string, unknown>;
@@ -126,9 +124,8 @@ export default function PromptConfig() {
       lang: 'zh',
     });
     setLoading(false);
-    const data = (res.data as { data?: PromptConfigRow & { rules?: string; output_format?: string } })?.data;
+    const data = (res.data as { data?: PromptConfigRow & { output_format?: string } })?.data;
     if (!res.error && data) {
-      if (data.rules !== undefined) setRulesZh(data.rules);
       if (data.output_format !== undefined) setOutputFormatZh(data.output_format);
       // 用 by-key 返回的完整 extra 覆盖列表项（避免列表未带全 extra 时保存误覆盖 DB）
       if (data.extra !== undefined) {
@@ -153,7 +150,6 @@ export default function PromptConfig() {
       scope: currentRow.scope,
       type: currentRow.type,
       subtype: currentRow.subtype ?? undefined,
-      rules_i18n: { zh: rulesZh, en: rulesEn },
       output_format_i18n: { zh: outputFormatZh, en: outputFormatEn },
       extra,
       is_active: isActive,
@@ -169,7 +165,7 @@ export default function PromptConfig() {
   };
 
   const handleDelete = (row: PromptConfigRow) => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认删除',
       content: `确定删除该提示词配置（${row.scope} / ${row.type}${row.subtype ? ` / ${row.subtype}` : ''}）？删除后该业务将回退到代码内默认配置。`,
       onOk: async () => {
@@ -194,10 +190,18 @@ export default function PromptConfig() {
 
   return (
     <div className="page-card admin-prompt-config-page">
-      <h2>提示词工程（Admin）</h2>
-      <p className="hint">
-        按业务 (scope / type / subtype) 查看与编辑当前接口在用的提示词。不同业务输出要求不同：<strong>分镜脚本</strong>为 JSON（chunks 数组），<strong>口播脚本</strong>为纯文本（TTS 时含 {'<#x#>'} 停顿），<strong>文章</strong>为 Markdown，<strong>大纲/歌词</strong>等为纯文本或特定格式。表格「输出要求」列与编辑弹窗顶部会标注本业务的默认要求，便于按格式编写规则与输出格式说明。
-      </p>
+      <h2>
+        {pageCardTitle('提示词工程（Admin）', {
+          title: '配置说明',
+          description: (
+            <>
+              按业务 (scope / type / subtype) 查看与编辑。系统规则与 briefing 请写在{' '}
+              <strong>扩展配置 extra → taskTemplate → prompt.unifiedTemplate</strong>；本页「输出格式」仍对应
+              <code>output_format_i18n</code>（可与 unified 中「【输出要求】」段落配合使用）。
+            </>
+          ),
+        })}
+      </h2>
 
       <div style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <Select
@@ -286,26 +290,16 @@ export default function PromptConfig() {
             items={[
               {
                 key: 'zh',
-                label: '规则与输出格式（中文）',
+                label: '输出格式（中文）',
                 children: (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div>
-                      <label>规则（中文）</label>
-                      <Input.TextArea
-                        value={rulesZh}
-                        onChange={(e) => setRulesZh(e.target.value)}
-                        readOnly={modalMode === 'view'}
-                        rows={6}
-                        placeholder="该业务在生成时使用的规则说明"
-                      />
-                    </div>
                     <div>
                       <label>输出格式说明（中文）</label>
                       <Input.TextArea
                         value={outputFormatZh}
                         onChange={(e) => setOutputFormatZh(e.target.value)}
                         readOnly={modalMode === 'view'}
-                        rows={4}
+                        rows={6}
                         placeholder="对模型输出格式的要求"
                       />
                     </div>
@@ -314,25 +308,16 @@ export default function PromptConfig() {
               },
               {
                 key: 'en',
-                label: 'Rules & Output (EN)',
+                label: 'Output format (EN)',
                 children: (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div>
-                      <label>Rules (EN)</label>
-                      <Input.TextArea
-                        value={rulesEn}
-                        onChange={(e) => setRulesEn(e.target.value)}
-                        readOnly={modalMode === 'view'}
-                        rows={6}
-                      />
-                    </div>
                     <div>
                       <label>Output format (EN)</label>
                       <Input.TextArea
                         value={outputFormatEn}
                         onChange={(e) => setOutputFormatEn(e.target.value)}
                         readOnly={modalMode === 'view'}
-                        rows={4}
+                        rows={6}
                       />
                     </div>
                   </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Table, Input, Select, Button, Space } from 'antd';
 import { getAdminUsers, updateAdminUserStatus, adminForceLogout, type AdminUserItem } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { pageCardTitle } from '../components/PageHint';
 import type { ColumnsType } from 'antd/es/table';
 
 export default function Users() {
@@ -141,8 +142,12 @@ export default function Users() {
 
   return (
     <div className="page-card admin-users-page">
-      <h2>用户管理（Admin）</h2>
-      <p className="hint">获取所有用户信息，需 Admin 权限。</p>
+      <h2>
+        {pageCardTitle('用户管理（Admin）', {
+          title: '权限说明',
+          description: '获取所有用户信息，需 Admin 权限。',
+        })}
+      </h2>
 
       <Space wrap size="middle" style={{ marginBottom: 16 }}>
         <Input

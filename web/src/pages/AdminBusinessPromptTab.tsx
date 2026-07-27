@@ -1,30 +1,43 @@
-import React from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  Divider,
-  Form,
-  Input,
-  Select,
-  Space,
-  Tag,
-  Tooltip,
-} from 'antd';
-import { CopyOutlined } from '@ant-design/icons';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Collapse, Input, Typography } from 'antd';
 import { PromptTempDesigner } from '@mxmweb/rtext';
-import type {
-  JsonSchema,
-  PromptConfigRow,
-  SchemaFieldRow,
-  Scope,
-  TaskTemplateDraft,
-} from './AdminBusiness.types';
+import type { JsonSchema, SchemaFieldRow, Scope, TaskTemplateDraft } from './AdminBusiness.types';
 import {
+  buildContractSkeletonPreview,
   fieldRowsToSchema,
-  parseTemplateMarkup,
-  SYSTEM_SCHEMA_FIELD_SET,
+  prettyJson,
 } from './AdminBusiness.utils';
+import { PageHint, PageHintsBar } from '../components/PageHint';
+
+type GroupOutput = {
+  itemsFrom?: string;
+  concurrency?: number;
+  maxItems?: number;
+  commonGroundFrom?: string;
+  itemBasicMapping?: Record<string, string>;
+  itemWebSearch?: Record<string, unknown> | null;
+  itemNestedText?: Record<string, unknown> | null;
+  itemManuscript?: {
+    field?: string;
+    systemPrompt?: string;
+    polishTaskKey?: string;
+  };
+  assemble?: {
+    itemsFrom?: string;
+    textField?: string;
+    titleFrom?: string;
+    headingTemplate?: string;
+    introTemplate?: string;
+  };
+};
+
+function readGroupOutput(draft: TaskTemplateDraft | null): GroupOutput | null {
+  if (!draft) return null;
+  const extra = (draft as Record<string, unknown>).extra as
+    | { groupOutput?: GroupOutput }
+    | undefined;
+  return extra?.groupOutput ?? null;
+}
 
 export interface AdminBusinessPromptTabProps {
   draft: TaskTemplateDraft | null;
@@ -34,235 +47,194 @@ export interface AdminBusinessPromptTabProps {
   scopeFilter: Scope;
   promptVarSearch: string;
   unifiedTemplateMarkup: string;
-  promptMarkupGetterRef: React.MutableRefObject<((format: 'pure_string' | 'string' | 'markdown' | 'html') => string) | null>;
+  promptMarkupGetterRef: React.MutableRefObject<
+    ((format: 'pure_string' | 'string' | 'markdown' | 'html') => string) | null
+  >;
   missingSchemaVars: string[];
-  promptTextTaskKey?: string;
-  textBusinessOptions: PromptConfigRow[];
+  unusedSchemaVars: string[];
   onPromptVarSearchChange: (v: string) => void;
   onUnifiedTemplateMarkupChange: (v: string) => void;
   onAddMissingVarsToSchema: () => void;
-  onPromptTextTaskKeyChange: (v: string) => void;
 }
 
 export function AdminBusinessPromptTab({
   draft,
   schemaMode,
   schemaRows,
-  schemaJson,
   scopeFilter,
-  promptVarSearch,
   unifiedTemplateMarkup,
   promptMarkupGetterRef,
-  missingSchemaVars,
-  promptTextTaskKey,
-  textBusinessOptions,
-  onPromptVarSearchChange,
   onUnifiedTemplateMarkupChange,
-  onAddMissingVarsToSchema,
-  onPromptTextTaskKeyChange,
 }: AdminBusinessPromptTabProps) {
-  const { message } = App.useApp();
-  // 检测暗色主题
-  const [isDarkTheme, setIsDarkTheme] = React.useState(() => {
-    return document.documentElement.classList.contains('dark') ||
-           document.documentElement.classList.contains('dark-mode');
+  const effectiveSchema: JsonSchema | undefined = useMemo(() => {
+    const base = draft?.contractSchema ?? draft?.formSchema;
+    if (schemaMode === 'guided' && draft && base) {
+      return fieldRowsToSchema(base, schemaRows);
+    }
+    return base;
+  }, [schemaMode, draft, schemaRows]);
+
+  const skeleton = useMemo(() => buildContractSkeletonPreview(effectiveSchema), [effectiveSchema]);
+  const groupOutput = useMemo(() => readGroupOutput(draft), [draft]);
+  const isGroupBusiness = scopeFilter !== 'text';
+  const manuscriptPrompt = groupOutput?.itemManuscript?.systemPrompt?.trim() ?? '';
+  const polishTaskKey = groupOutput?.itemManuscript?.polishTaskKey?.trim() ?? '';
+  const groupAuthoring = useMemo(() => {
+    if (!groupOutput) return null;
+    return {
+      itemsFrom: groupOutput.itemsFrom ?? '',
+      concurrency: groupOutput.concurrency ?? 0,
+      maxItems: groupOutput.maxItems ?? 0,
+      commonGroundFrom: groupOutput.commonGroundFrom ?? '',
+      itemBasicMapping: groupOutput.itemBasicMapping ?? {},
+      itemNestedTextKey: groupOutput.itemNestedText
+        ? ((groupOutput.itemNestedText as Record<string, unknown>).nestedTextTaskKey as string) ??
+          ''
+        : '',
+      itemManuscriptField: groupOutput.itemManuscript?.field ?? '',
+      assembleTextField: groupOutput.assemble?.textField ?? '',
+      assembleHeadingTemplate: groupOutput.assemble?.headingTemplate ?? '',
+      assembleIntroTemplate: groupOutput.assemble?.introTemplate ?? '',
+    };
+  }, [groupOutput]);
+
+  const [isDarkTheme, setIsDarkTheme] = useState(() => {
+    return (
+      document.documentElement.classList.contains('dark') ||
+      document.documentElement.classList.contains('dark-mode')
+    );
   });
-  React.useEffect(() => {
+  useEffect(() => {
     const observer = new MutationObserver(() => {
       setIsDarkTheme(
         document.documentElement.classList.contains('dark') ||
-        document.documentElement.classList.contains('dark-mode')
+          document.documentElement.classList.contains('dark-mode')
       );
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, []);
 
-  const effectiveSchema: JsonSchema | undefined =
-    schemaMode === 'guided' && draft
-      ? fieldRowsToSchema(draft.formSchema, schemaRows)
-      : draft?.formSchema;
-
-  const requiredSet = new Set<string>((effectiveSchema?.required ?? []).map((x) => String(x)));
-
-  const schemaProps = (effectiveSchema?.properties ?? {}) as Record<string, unknown>;
-
-  const templateVarsUsed = React.useMemo(() => {
-    if (!draft) return [];
-    const parsed = parseTemplateMarkup(unifiedTemplateMarkup);
-    return parsed.vars.map((v) => v.name);
-  }, [draft, unifiedTemplateMarkup]);
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontWeight: 700 }}>提示词配置</div>
-
-      {/* graph 业务专属：关联 text 业务解析/转换 prompt */}
-      {scopeFilter === 'graph' && (
-        <Alert
-          type="info"
-          showIcon
-          message="Prompt 格式解析"
-          description="指定一个 scope=text 的业务（如 text-nano-banana-format）来解析用户 prompt + schema，输出适合生图模型的 prompt。"
-        />
-      )}
-      {scopeFilter === 'graph' && (
-        <Form.Item
-          label="Text Format Task Key"
-          tooltip="指定用于解析/转换 graph prompt 的 text 业务"
-          style={{ marginTop: 8, marginBottom: 0 }}
-        >
-          <Select
-            style={{ width: '100%' }}
-            value={promptTextTaskKey || undefined}
-            onChange={onPromptTextTaskKeyChange}
-            placeholder="请选择 text 业务"
-            allowClear
-            options={[
-              { value: '', label: '不使用（直接传入用户 prompt）' },
-              ...textBusinessOptions.map((opt) => {
-                // 唯一标识：用 scope + type + subtype（避免同 type 不同 subtype 合并）
-                const fullKey = opt.subtype
-                  ? `${opt.scope}/${opt.type}/${opt.subtype}`
-                  : `${opt.scope}/${opt.type}`;
-                const label = opt.subtype
-                  ? `${opt.scope}/${opt.type} (${opt.subtype})`
-                  : `${opt.scope}/${opt.type}`;
-                return { value: fullKey, label };
-              }),
-            ]}
-          />
-        </Form.Item>
-      )}
-
-      <div style={{ marginTop: 8, padding: 8, borderRadius: 8, border: '1px dashed rgba(148,163,184,0.4)' }}>
-        <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 600 }}>可用变量（来自 Schema）</span>
-          <Input
-            allowClear
-            size="small"
-            placeholder="搜索变量名或标题…"
-            value={promptVarSearch}
-            onChange={(e) => onPromptVarSearchChange(e.target.value)}
-            style={{ width: 180 }}
-          />
-        </div>
-        <Space size={[6, 6]} wrap>
-          {Object.entries(schemaProps)
-            .filter(([name, defRaw]) => {
-              if (!promptVarSearch.trim()) return true;
-              const def =
-                defRaw && typeof defRaw === 'object'
-                  ? (defRaw as Record<string, unknown>)
-                  : {};
-              const title = def.title != null ? String(def.title) : name;
-              const q = promptVarSearch.trim().toLowerCase();
-              return (
-                name.toLowerCase().includes(q) ||
-                String(title).toLowerCase().includes(q)
-              );
-            })
-            .map(([name, defRaw]) => {
-              const def =
-                defRaw && typeof defRaw === 'object'
-                  ? (defRaw as Record<string, unknown>)
-                  : {};
-              const title = def.title != null ? String(def.title) : name;
-              const isRequired = requiredSet.has(name);
-              const isSystem = SYSTEM_SCHEMA_FIELD_SET.has(name);
-              const label = isSystem ? `${name}（系统）` : name;
-              const type = def.type != null ? String(def.type) : 'string';
-              const defaultValue =
-                def.default !== undefined && def.default !== null
-                  ? String(def.default)
-                  : '';
-              const snippetAttrs = [
-                `name="${name}"`,
-                `type="${type}"`,
-                `label="${title}"`,
-                `required="${isRequired ? 'true' : 'false'}"`,
-              ];
-              if (defaultValue) {
-                snippetAttrs.push(`defaultValue="${defaultValue}"`);
-              }
-              const snippet = `<template ${snippetAttrs.join(' ')}>${name}</template>`;
-              return (
-                <Space key={name} size={4} align="center">
-                  <Tag color={isSystem ? 'gold' : 'blue'}>{label}</Tag>
-                  <Tooltip title="复制 &lt;template&gt; 片段">
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<CopyOutlined />}
-                      style={{ padding: '0 4px', color: 'inherit', opacity: 0.7 }}
-                      onClick={() => {
-                        if (navigator.clipboard?.writeText) {
-                          void navigator.clipboard.writeText(snippet);
-                          message.success('已复制，请在光标处粘贴');
-                        } else {
-                          message.info('请手动复制：' + snippet);
-                        }
-                      }}
-                    />
-                  </Tooltip>
-                </Space>
-              );
-            })}
-        </Space>
+    <div className="admin-output-prompt">
+      <div className="page-card-title-row" style={{ fontWeight: 700 }}>
+        <span className="page-card-title-row__text">Output Prompt</span>
       </div>
-      {missingSchemaVars.length > 0 ? (
-        <Alert
-          type="warning"
-          showIcon
-          message="Prompt 模板变量未在 Schema 定义"
-          description={
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div className="mono">{missingSchemaVars.map((v) => `\${${v}}`).join('  ')}</div>
-              <Space wrap>
-                <Button
-                  size="small"
-                  onClick={onAddMissingVarsToSchema}
-                >
-                  一键补到 Schema
-                </Button>
-              </Space>
-            </div>
-          }
-        />
-      ) : null}
 
-      <div style={{ marginTop: 12 }}>
-        <div
-          className="rtext-editor-fix"
-          style={{
-            marginTop: 12,
-            border: '1px solid rgba(148, 163, 184, 0.22)',
-            borderRadius: 12,
-            padding: 12,
-          }}
-        >
-          <PromptTempDesigner
-            data={unifiedTemplateMarkup}
-            onChange={onUnifiedTemplateMarkupChange}
-            onGetData={(getData) => {
-              promptMarkupGetterRef.current = getData;
-            }}
-            // 亮色主题：蓝色；暗色主题：暖橙色
-            styles={{
-              templateField: {
-                backgroundColor: isDarkTheme
-                  ? 'rgba(251, 191, 36, 0.14)'
-                  : 'rgba(59, 130, 246, 0.15)',
-                borderColor: isDarkTheme
-                  ? 'rgba(251, 191, 36, 0.55)'
-                  : 'rgba(59, 130, 246, 0.4)',
-                textColor: isDarkTheme ? '#fde68a' : '#3b82f6',
-                minWidth: '64px',
-                maxWidth: '520px',
-              },
-            }}
+      <PageHintsBar>
+        <PageHint
+          title="仅写角色 / 业务 / 交付规范"
+          description="运行时会附带完整回填后的合同 JSON，不做 ${字段} 插值拼装。选用能接受完整合同长度的模型。"
+        />
+        {isGroupBusiness ? (
+          <PageHint
+            title="Group 业务：成稿不在此模板"
+            description="groupOutput.itemManuscript.systemPrompt 才是真实执笔 Prompt；本模板仅作占位（编译期会被忽略）。"
           />
-        </div>
+        ) : null}
+      </PageHintsBar>
+
+      <div className="admin-output-prompt__stack">
+        <section className="admin-output-prompt__editor" aria-label="Output Prompt 编辑">
+          <div className="admin-output-prompt__editor-shell">
+            <PromptTempDesigner
+              data={unifiedTemplateMarkup}
+              onChange={onUnifiedTemplateMarkupChange}
+              onGetData={(getData) => {
+                promptMarkupGetterRef.current = getData;
+              }}
+              styles={{
+                templateField: {
+                  backgroundColor: isDarkTheme
+                    ? 'rgba(251, 191, 36, 0.14)'
+                    : 'rgba(14, 165, 233, 0.12)',
+                  borderColor: isDarkTheme ? 'rgba(251, 191, 36, 0.55)' : 'rgba(14, 165, 233, 0.35)',
+                  textColor: isDarkTheme ? '#fde68a' : '#0284c7',
+                  minWidth: '64px',
+                  maxWidth: '100%',
+                },
+              }}
+            />
+          </div>
+        </section>
+
+        <Collapse
+          ghost
+          size="small"
+          className="admin-output-prompt__skeleton-collapse"
+          items={[
+            {
+              key: 'skeleton',
+              label: (
+                <span className="admin-output-prompt__skeleton-label">
+                  <Typography.Text strong style={{ fontSize: 13 }}>
+                    运行时合同骨架
+                  </Typography.Text>
+                  <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                    output 完整引入回填后合同（含 sources / enrich_search）
+                  </Typography.Text>
+                </span>
+              ),
+              children: (
+                <Input.TextArea
+                  readOnly
+                  value={prettyJson(skeleton)}
+                  rows={14}
+                  className="admin-output-prompt__skeleton-textarea"
+                />
+              ),
+            },
+            ...(groupOutput
+              ? [
+                  {
+                    key: 'group-output',
+                    label: (
+                      <span className="admin-output-prompt__skeleton-label">
+                        <Typography.Text strong style={{ fontSize: 13 }}>
+                          并发成稿（groupOutput）
+                        </Typography.Text>
+                        <Typography.Text
+                          type="secondary"
+                          style={{ fontSize: 12, marginLeft: 8 }}
+                        >
+                          itemManuscript.systemPrompt / itemBasicMapping / assemble 模板
+                        </Typography.Text>
+                      </span>
+                    ),
+                    children: (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {groupAuthoring ? (
+                          <Input.TextArea
+                            readOnly
+                            value={prettyJson(groupAuthoring)}
+                            rows={6}
+                            className="admin-output-prompt__skeleton-textarea"
+                          />
+                        ) : null}
+                        {manuscriptPrompt ? (
+                          <Input.TextArea
+                            readOnly
+                            value={manuscriptPrompt}
+                            rows={18}
+                            className="admin-output-prompt__skeleton-textarea"
+                          />
+                        ) : (
+                          <Typography.Text type="secondary">
+                            未配置 itemManuscript（并发成稿将退化为 groupItemBatch 默认行为）。
+                          </Typography.Text>
+                        )}
+                        {polishTaskKey ? (
+                          <Typography.Text type="secondary">
+                            后续润色节点：<code>{polishTaskKey}</code>
+                          </Typography.Text>
+                        ) : null}
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
     </div>
   );

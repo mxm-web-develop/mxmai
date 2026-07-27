@@ -1,0 +1,400 @@
+/**
+ * 控制台通用控件 — Admin / 资产中心 / 表格页工具栏
+ * 简约无框：单行密度，控件自带边框，工具栏本身不再套玻璃面板
+ */
+
+/*
+ * 全局：单行 affix Input（allowClear / prefix）placeholder 垂直居中
+ * 勿对内层 input 再设等于外框的 height/line-height（边框盒下会偏下）
+ */
+.ant-input-affix-wrapper:not(.ant-input-textarea-affix-wrapper):not(
+    .ant-input-affix-wrapper-textarea-with-clear-btn
+  ) {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding-block: 0 !important;
+}
+
+.ant-input-affix-wrapper:not(.ant-input-textarea-affix-wrapper):not(
+    .ant-input-affix-wrapper-textarea-with-clear-btn
+  )
+  > input.ant-input {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  line-height: 1.375 !important;
+  padding-block: 0 !important;
+}
+
+.ant-input-affix-wrapper .ant-input-prefix,
+.ant-input-affix-wrapper .ant-input-suffix {
+  display: inline-flex;
+  align-items: center;
+  max-height: 100%;
+}
+
+/* —— 工具栏行（无外框） —— */
+.console-toolbar,
+.admin-business-toolbar,
+.asset-filters,
+.page-table-panel__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0 0 var(--space-2);
+  margin: 0 0 var(--space-2);
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--divider);
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.admin-business-toolbar {
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.admin-business-toolbar__filters,
+.admin-business-toolbar__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.admin-business-toolbar__filters {
+  flex: 1 1 280px;
+}
+
+.admin-business-toolbar__actions {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+}
+
+.admin-business-toolbar__scope {
+  width: 11.875rem;
+  max-width: 100%;
+}
+
+.admin-business-toolbar__search {
+  width: min(18.75rem, 100%);
+  flex: 1 1 10rem;
+  min-width: 8.75rem;
+  max-width: 20rem;
+}
+
+.admin-business-toolbar__caret {
+  margin-inline-start: 0.35rem;
+  font-size: 0.65rem;
+  opacity: 0.65;
+}
+
+.admin-business-export-dropdown {
+  min-width: 12.5rem;
+  padding: 0.35rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--card-border);
+  background: var(--glass-surface-strong, rgba(255, 255, 255, 0.98));
+  box-shadow: var(--shadow-lg);
+}
+
+html.dark .admin-business-export-dropdown {
+  background: rgba(15, 23, 42, 0.96);
+  border-color: var(--border-subtle);
+}
+
+.admin-business-export-dropdown__option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.15rem 0.35rem 0.45rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-label);
+  color: var(--text-main);
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-business-export-dropdown__option:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.admin-business-export-dropdown__menu .ant-dropdown-menu {
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+}
+
+.admin-business-toolbar .ant-select-selector,
+.admin-business-toolbar .ant-input-affix-wrapper {
+  height: 2rem !important;
+  min-height: 2rem !important;
+  border-radius: var(--radius-sm) !important;
+  border-color: var(--border-default) !important;
+}
+
+/* allowClear：外层定高 + 垂直居中，内层 input 不再抢高度 */
+.console-toolbar .ant-input-affix-wrapper,
+.admin-business-toolbar .ant-input-affix-wrapper,
+.asset-filters .ant-input-affix-wrapper,
+.page-table-panel__toolbar .ant-input-affix-wrapper {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 2rem !important;
+  min-height: 2rem !important;
+  max-height: 2rem !important;
+  padding-block: 0 !important;
+  border-radius: var(--radius-sm) !important;
+  border-color: var(--border-default) !important;
+  box-shadow: none !important;
+}
+
+.admin-business-toolbar .ant-input-affix-wrapper > .ant-input,
+.console-toolbar .ant-input-affix-wrapper > .ant-input,
+.asset-filters .ant-input-affix-wrapper > .ant-input,
+.page-table-panel__toolbar .ant-input-affix-wrapper > .ant-input {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  outline: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  line-height: 1.25 !important;
+  padding-block: 0 !important;
+}
+
+.admin-business-toolbar .ant-select-selection-item,
+.admin-business-toolbar .ant-select-selection-placeholder {
+  line-height: calc(2rem - 2px) !important;
+}
+
+.page-table-panel__toolbar {
+  margin-bottom: var(--space-3);
+}
+
+.asset-filters {
+  flex-shrink: 0;
+}
+
+/* 工具栏内 Ant Design 控件密度对齐 */
+.console-toolbar .ant-select,
+.console-toolbar .ant-input-number,
+.admin-business-toolbar .ant-select,
+.admin-business-toolbar .ant-input-number,
+.asset-filters .ant-select,
+.page-table-panel__toolbar .ant-select {
+  min-height: 2rem;
+  font-size: var(--text-label);
+}
+
+/* 无 affix 的单行 Input：定高；line-height 扣掉 1px 上下边框，避免文字偏下 */
+.console-toolbar input.ant-input:not(textarea),
+.admin-business-toolbar input.ant-input:not(textarea),
+.asset-filters input.ant-input:not(textarea),
+.page-table-panel__toolbar input.ant-input:not(textarea) {
+  height: 2rem !important;
+  min-height: 2rem !important;
+  max-height: 2rem !important;
+  line-height: calc(2rem - 2px) !important;
+  padding-block: 0 !important;
+  font-size: var(--text-label);
+  border-radius: var(--radius-sm) !important;
+}
+
+/* affix 内层不要再套 2rem min-height */
+.console-toolbar .ant-input-affix-wrapper > .ant-input:not(textarea),
+.admin-business-toolbar .ant-input-affix-wrapper > .ant-input:not(textarea),
+.asset-filters .ant-input-affix-wrapper > .ant-input:not(textarea),
+.page-table-panel__toolbar .ant-input-affix-wrapper > .ant-input:not(textarea) {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  line-height: 1.25 !important;
+  padding-block: 0 !important;
+}
+
+.console-toolbar .ant-select .ant-select-selector,
+.admin-business-toolbar .ant-select .ant-select-selector,
+.asset-filters .ant-select .ant-select-selector,
+.page-table-panel__toolbar .ant-select .ant-select-selector {
+  height: 2rem !important;
+  min-height: 2rem !important;
+  border-radius: var(--radius-sm) !important;
+  border-color: var(--border-default) !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.console-toolbar .ant-btn,
+.admin-business-toolbar .ant-btn,
+.asset-filters .ant-btn,
+.page-table-panel__toolbar .ant-btn,
+.asset-center-actions .ant-btn {
+  height: 2rem;
+  padding-inline: var(--space-3);
+  font-size: var(--text-label);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+/* —— Admin 运维 KPI —— */
+.admin-ops-kpis {
+  gap: var(--space-3);
+}
+
+.admin-ops-kpi.ant-card,
+.admin-ops-card.ant-card {
+  border-radius: var(--radius-lg);
+  border-color: var(--card-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-ops-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* —— Admin 面板 —— */
+.admin-business-panel,
+.admin-providers-page .admin-ux-tasktemplate .admin-business-panel {
+  border-radius: var(--radius-lg);
+  border-color: var(--card-border);
+}
+
+.admin-business-panel-head,
+.admin-providers-page .admin-ux-tasktemplate .admin-business-panel-head {
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+}
+
+.admin-business-panel-title,
+.admin-providers-page .admin-ux-tasktemplate .admin-business-panel-title {
+  font-size: var(--text-title-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.admin-business-panel-subtitle {
+  font-size: var(--text-meta);
+  line-height: var(--leading-prose);
+}
+
+/* 表格区圆角与密度 */
+.page-card .ant-table-wrapper .ant-table {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.page-card .ant-table-thead > tr > th {
+  font-size: var(--text-meta);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.page-table-card.ant-card {
+  border-radius: var(--radius-lg);
+  border-color: var(--card-border);
+  box-shadow: var(--shadow-md);
+}
+
+.page-table-card > .ant-card-head {
+  padding: var(--space-3) var(--space-4);
+  min-height: auto;
+}
+
+.page-table-card > .ant-card-body {
+  padding: var(--space-3) var(--space-4) !important;
+}
+
+/* —— 全局按钮（App.css 补充：小尺寸对齐 controlHeight）—— */
+.btn-primary.btn-small,
+.btn-secondary.btn-small {
+  height: var(--control-height);
+  padding: 0 var(--space-4);
+  font-size: var(--text-label);
+  border-radius: var(--radius-md);
+}
+
+/* —— Smartflow 外壳 —— */
+.page-smartflow {
+  gap: var(--space-3);
+}
+
+.page-smartflow-shell {
+  gap: var(--space-4);
+}
+
+.page-smartflow-sidebar {
+  border-radius: var(--radius-lg);
+  border-color: var(--card-border);
+}
+
+/* —— 亮色模式 —— */
+html:not(.dark) .console-toolbar,
+html:not(.dark) .admin-business-toolbar,
+html:not(.dark) .asset-filters,
+html:not(.dark) .page-table-panel__toolbar {
+  background: transparent;
+  border-color: transparent;
+  border-bottom-color: var(--divider);
+}
+
+html:not(.dark) .asset-center-empty {
+  background: rgba(241, 245, 249, 0.45);
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+html:not(.dark) .admin-business-panel,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .admin-business-panel {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(148, 163, 184, 0.32);
+}
+
+@media (max-width: 768px) {
+  .console-toolbar,
+  .admin-business-toolbar,
+  .asset-filters,
+  .page-table-panel__toolbar {
+    padding: 0 0 var(--space-2);
+    gap: var(--space-2);
+  }
+
+  .admin-business-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-business-toolbar__filters,
+  .admin-business-toolbar__actions {
+    width: 100%;
+  }
+
+  .admin-business-toolbar__actions {
+    justify-content: flex-start;
+  }
+
+  .admin-business-toolbar__scope,
+  .admin-business-toolbar__search {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .btn-secondary {
+    transition: none;
+  }
+}

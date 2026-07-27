@@ -61,6 +61,11 @@ export type MxmImageMotion =
 
 export interface MxmClipMetadata {
   mxmRenderMode?: MxmRenderMode;
+  /** Seedance 生视频专用 */
+  mxmVideoPrompt?: string;
+  /** gpt-image / nano-banana 等生图核心内容 */
+  mxmImagePrompt?: string;
+  /** @deprecated 兼容旧数据；优先用 mxmVideoPrompt / mxmImagePrompt */
   mxmPrompt?: string;
   mxmDuration?: number;
   mxmRatio?: '16:9' | '9:16' | '1:1';

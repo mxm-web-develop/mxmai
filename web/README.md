@@ -16,7 +16,7 @@
 | 接口测试 | 登录 | 配置 API Base URL，用户名/密码登录，JWT 带在后续请求头。 |
 | | 角色 / 大纲 / 写作 / 任务 / 视频 | 全流程调试（大纲→写作→视频）及单接口测试。 |
 | | 图文 / 文本 / 音频 / 知识库 / 媒体 / 表单选项 | 其余业务接口调试。 |
-| 提示词工程 | 配置管理 | Admin 专用：GET 列表、GET by-key、PUT 新增/更新提示词配置（rules_i18n、output_format_i18n 等）。 |
+| 提示词工程 | 配置管理 | Admin 专用：GET 列表、GET by-key、PUT 新增/更新提示词配置（`output_format_i18n`、`extra.taskTemplate.unifiedTemplate` 等；`rules_i18n` 已弃用）。 |
 | | 索引说明 | 配置文件路径（wtconfigs、graphconfigs）与优化流程说明。 |
 
 ## 启动
@@ -32,7 +32,7 @@ pnpm install
 pnpm dev
 ```
 
-浏览器打开 Vite 提供的地址（通常 `http://localhost:5173`）。
+浏览器打开 `http://localhost:5200`（`dev:all-with-web` 固定端口，避免与 5173 上其他 Vite 项目冲突）。
 
 ## 使用前准备
 

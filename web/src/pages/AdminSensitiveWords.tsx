@@ -15,10 +15,11 @@ import {
   deleteSensitiveWord,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { pageCardTitle } from '../components/PageHint';
 import { App, Button, Input, Table, Modal, Space } from 'antd';
 
 export default function AdminSensitiveWords({ embedded }: { embedded?: boolean } = {}) {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { isLoggedIn, isAdmin } = useAuth();
   const [lists, setLists] = useState<{ id: string; name: string; description?: string | null; is_active: boolean }[]>([]);
   const [words, setWords] = useState<{ id: string; list_id: string; word: string }[]>([]);
@@ -107,7 +108,7 @@ export default function AdminSensitiveWords({ embedded }: { embedded?: boolean }
   };
 
   const handleDeleteList = (listId: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认删除',
       content: '删除敏感词表后，其下所有词条将失效，是否继续？',
       onOk: async () => {
@@ -161,7 +162,7 @@ export default function AdminSensitiveWords({ embedded }: { embedded?: boolean }
   };
 
   const handleDeleteWord = (wordId: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认删除',
       content: '确定删除该敏感词？',
       onOk: async () => {
@@ -181,10 +182,13 @@ export default function AdminSensitiveWords({ embedded }: { embedded?: boolean }
     <div className="admin-sensitive-words-page">
       {!embedded && (
         <>
-          <h2>敏感词管理（Admin）</h2>
-          <p className="hint">
-            管理敏感词表、词条，以及按业务 slot (scope / type / subtype) 绑定使用的敏感词表；一个业务可绑定多张表，校验时合并检查。
-          </p>
+          <h2>
+            {pageCardTitle('敏感词管理（Admin）', {
+              title: '功能说明',
+              description:
+                '管理敏感词表、词条，以及按业务 slot (scope / type / subtype) 绑定使用的敏感词表；一个业务可绑定多张表，校验时合并检查。',
+            })}
+          </h2>
         </>
       )}
 
@@ -199,53 +203,57 @@ export default function AdminSensitiveWords({ embedded }: { embedded?: boolean }
       <div className="admin-sensitive-words-content-wrap">
         <div className="admin-sensitive-words-content-inner">
       <h3>敏感词表列表</h3>
-      <Table
-        size="small"
-        dataSource={lists}
-        rowKey="id"
-        columns={[
-          { title: '名称', dataIndex: 'name' },
-          { title: '说明', dataIndex: 'description', render: (v: string | null) => v ?? '-' },
-          { title: '启用', dataIndex: 'is_active', render: (v: boolean) => (v ? '是' : '否') },
-          {
-            title: '操作',
-            render: (_: unknown, r: { id: string; name: string; description?: string | null }) => (
-              <Space wrap>
-                <Button size="small" onClick={() => { setSelectedListId(r.id); }}>查看词条</Button>
-                <Button size="small" type="primary" onClick={() => { setSelectedListId(r.id); setModalList('words'); setBatchWords(''); }}>添加敏感词</Button>
-                <Button size="small" onClick={() => { setModalList('edit'); setEditListId(r.id); setNewListName(r.name); setNewListDesc(r.description ?? ''); }}>编辑</Button>
-                <Button size="small" danger onClick={() => handleDeleteList(r.id)}>删除</Button>
-              </Space>
-            ),
-          },
-        ]}
-        pagination={false}
-      />
+      <div className="table-scroll-wrapper">
+        <Table
+          size="small"
+          dataSource={lists}
+          rowKey="id"
+          columns={[
+            { title: '名称', dataIndex: 'name' },
+            { title: '说明', dataIndex: 'description', render: (v: string | null) => v ?? '-' },
+            { title: '启用', dataIndex: 'is_active', render: (v: boolean) => (v ? '是' : '否') },
+            {
+              title: '操作',
+              render: (_: unknown, r: { id: string; name: string; description?: string | null }) => (
+                <Space wrap>
+                  <Button size="small" onClick={() => { setSelectedListId(r.id); }}>查看词条</Button>
+                  <Button size="small" type="primary" onClick={() => { setSelectedListId(r.id); setModalList('words'); setBatchWords(''); }}>添加敏感词</Button>
+                  <Button size="small" onClick={() => { setModalList('edit'); setEditListId(r.id); setNewListName(r.name); setNewListDesc(r.description ?? ''); }}>编辑</Button>
+                  <Button size="small" danger onClick={() => handleDeleteList(r.id)}>删除</Button>
+                </Space>
+              ),
+            },
+          ]}
+          pagination={false}
+        />
+      </div>
 
       {selectedListId && (
         <>
           <h3 style={{ marginTop: 24 }}>当前表词条：{lists.find((l) => l.id === selectedListId)?.name ?? selectedListId}</h3>
-          <Space style={{ marginBottom: 8 }}>
-            <Input placeholder="添加一条敏感词" value={newWord} onChange={(e) => setNewWord(e.target.value)} onPressEnter={handleAddWord} style={{ width: 200 }} />
+          <Space style={{ marginBottom: 8 }} wrap>
+            <Input placeholder="添加一条敏感词" value={newWord} onChange={(e) => setNewWord(e.target.value)} onPressEnter={handleAddWord} style={{ width: 160 }} />
             <Button type="primary" onClick={handleAddWord} loading={loading}>添加</Button>
             <Button onClick={() => { setModalList('words'); setBatchWords(''); }}>批量添加</Button>
           </Space>
-          <Table
-            size="small"
-            dataSource={words}
-            rowKey="id"
-            columns={[
-              { title: '敏感词', dataIndex: 'word' },
-              {
-                title: '操作',
-                width: 80,
-                render: (_: unknown, r: { id: string }) => (
-                  <Button size="small" danger onClick={() => handleDeleteWord(r.id)}>删除</Button>
-                ),
-              },
-            ]}
-            pagination={{ pageSize: 20 }}
-          />
+          <div className="table-scroll-wrapper">
+            <Table
+              size="small"
+              dataSource={words}
+              rowKey="id"
+              columns={[
+                { title: '敏感词', dataIndex: 'word' },
+                {
+                  title: '操作',
+                  width: 80,
+                  render: (_: unknown, r: { id: string }) => (
+                    <Button size="small" danger onClick={() => handleDeleteWord(r.id)}>删除</Button>
+                  ),
+                },
+              ]}
+              pagination={{ pageSize: 20 }}
+            />
+          </div>
         </>
       )}
 

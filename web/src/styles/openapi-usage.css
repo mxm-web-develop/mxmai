@@ -1,0 +1,371 @@
+/**
+ * Extracted from App.css
+ */
+
+/* ---------- Open API 调用统计（MiniMax 风格用量面板） ---------- */
+.openapi-usage-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 20px;
+}
+
+.openapi-usage-scope-hint {
+  margin-bottom: 0;
+}
+
+.openapi-usage-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: 0;
+  border-radius: var(--radius-lg);
+  background: rgba(2, 6, 23, 0.2);
+  border: 1px solid var(--card-border);
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow: var(--shadow-sm);
+}
+
+html:not(.dark) .openapi-usage-toolbar {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(148, 163, 184, 0.32);
+}
+
+.openapi-usage-toolbar .ant-select,
+.openapi-usage-toolbar .ant-segmented {
+  min-height: var(--control-height);
+}
+
+.openapi-usage-toolbar .ant-btn {
+  height: var(--control-height);
+  border-radius: var(--radius-md);
+}
+
+.openapi-usage-source-segmented.ant-segmented {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+html:not(.dark) .openapi-usage-source-segmented.ant-segmented {
+  background: rgba(148, 163, 184, 0.14);
+}
+
+.openapi-usage-toolbar__filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.openapi-usage-toolbar__label {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.openapi-usage-toolbar__api {
+  min-width: 240px;
+}
+
+.openapi-usage-toolbar__days {
+  width: 120px;
+}
+
+.openapi-usage-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 280px;
+}
+
+.openapi-usage-hero {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* 账号用量 KPI — Ant Statistic 卡片 */
+.account-usage-kpi {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.account-usage-kpi-card {
+  height: 100%;
+}
+
+.account-usage-kpi-card .ant-statistic-title {
+  font-size: var(--text-meta);
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.account-usage-kpi-card .ant-statistic-content {
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.account-usage-kpi-hint {
+  display: block;
+  margin-top: var(--space-2);
+  font-size: var(--text-meta);
+  line-height: 1.45;
+}
+
+.account-usage-kpi-card--primary {
+  background: linear-gradient(145deg, rgba(14, 165, 233, 0.14) 0%, rgba(14, 165, 233, 0.04) 100%);
+  border-color: rgba(56, 189, 248, 0.28) !important;
+}
+
+html:not(.dark) .account-usage-kpi-card--primary {
+  background: linear-gradient(145deg, rgba(0, 47, 167, 0.08) 0%, rgba(255, 255, 255, 0.98) 100%);
+  border-color: rgba(0, 47, 167, 0.18) !important;
+}
+
+.openapi-usage-hero__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: var(--glass-surface-soft);
+  border: 1px solid var(--card-border);
+}
+
+.openapi-usage-hero__card--primary {
+  background: linear-gradient(145deg, rgba(14, 165, 233, 0.14) 0%, rgba(14, 165, 233, 0.04) 100%);
+  border-color: rgba(56, 189, 248, 0.28);
+}
+
+.openapi-usage-hero__label {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.openapi-usage-hero__value {
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  line-height: 1.15;
+}
+
+.openapi-usage-hero__hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.openapi-usage-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.openapi-usage-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.openapi-usage-status-chip--ok {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.22);
+}
+
+.openapi-usage-status-chip--pending {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.openapi-usage-status-chip--fail {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.22);
+}
+
+.openapi-usage-status-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.openapi-usage-chart-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(240px, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.openapi-usage-chart-main,
+.openapi-usage-chart-side {
+  min-width: 0;
+}
+
+.openapi-usage-chart-main.page-table-card > .ant-card-head,
+.openapi-usage-chart-side.page-table-card > .ant-card-head,
+.openapi-usage-detail.page-table-card > .ant-card-head {
+  min-height: 2.75rem;
+  border-bottom-color: rgba(148, 163, 184, 0.14);
+}
+
+.openapi-usage-chart-main.page-table-card > .ant-card-body,
+.openapi-usage-chart-side.page-table-card > .ant-card-body,
+.openapi-usage-detail.page-table-card > .ant-card-body {
+  padding-top: var(--space-3) !important;
+}
+
+.openapi-usage-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.openapi-usage-chart-title {
+  margin: 0 !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--text-main) !important;
+}
+
+.openapi-usage-chart-body {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.openapi-usage-chart-empty {
+  margin: 32px 0 16px;
+}
+
+.openapi-usage-side-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.openapi-usage-side-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.openapi-usage-side-stats dt {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.openapi-usage-side-stats dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.openapi-usage-detail {
+  padding: 0;
+}
+
+.openapi-usage-detail.page-table-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-border);
+  background: rgba(2, 6, 23, 0.12);
+  backdrop-filter: var(--glass-backdrop);
+}
+
+html:not(.dark) .openapi-usage-detail.page-table-card,
+html:not(.dark) .openapi-usage-chart-main.page-table-card,
+html:not(.dark) .openapi-usage-chart-side.page-table-card {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(148, 163, 184, 0.32);
+}
+
+.openapi-usage-detail-title {
+  margin: 0 0 8px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+}
+
+.open-api-publish-tabs .ant-tabs-tabpane:has(.openapi-usage-panel) {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+@media (max-width: 960px) {
+  .openapi-usage-hero,
+  .account-usage-kpi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .openapi-usage-chart-section {
+    grid-template-columns: 1fr;
+  }
+
+  .openapi-usage-toolbar__api {
+    min-width: 180px;
+    flex: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .openapi-usage-hero,
+  .account-usage-kpi {
+    grid-template-columns: 1fr;
+  }
+
+  .openapi-usage-side-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .openapi-usage-panel * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.account-usage-panel {
+  min-height: 0;
+}
+
+.account-usage-source-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.account-usage-source-tag {
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-body);
+  border-radius: var(--radius-pill);
+}
+
+.openapi-usage-chart-toggle.ant-segmented {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+html:not(.dark) .openapi-usage-chart-toggle.ant-segmented {
+  background: rgba(148, 163, 184, 0.14);
+}
+

@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { App, Button, Space } from 'antd';
-import { FolderTree, Globe, Images, Upload as UploadIcon } from 'lucide-react';
-import { MediaLibraryPickerModal } from '../media-source/MediaLibraryPickerModal';
+import { FolderOpen, Globe, Upload as UploadIcon } from 'lucide-react';
 import { useMediaFileUpload } from '../media-source/mediaFileUpload';
-import { MediaVirtualFolderPickerModal } from '../media-source/MediaVirtualFolderPickerModal';
+import { MediaKnowledgeFolderPickerModal } from '../media-source/MediaKnowledgeFolderPickerModal';
 import { UnifiedMediaList } from '../media-source/UnifiedMediaList';
 import type { MediaListRow, MediaPickPayload } from '../media-source/types';
 import { StockMediaPickerModal, type StockMediaPick } from './StockMediaPickerModal';
@@ -46,8 +45,7 @@ export function ClipStaticMediaSourceField({
   onChange,
 }: ClipStaticMediaSourceFieldProps) {
   const { message } = App.useApp();
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const [virtualOpen, setVirtualOpen] = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
   const [stockTab, setStockTab] = useState<'image' | 'video'>('image');
 
@@ -60,7 +58,8 @@ export function ClipStaticMediaSourceField({
   }, [activeUrl, activeKind, assetId]);
 
   const applyPick = (pick: MediaPickPayload | StockMediaPick) => {
-    const kind = 'mediaKind' in pick ? pick.mediaKind : pick.kind;
+    const kindRaw = 'mediaKind' in pick ? pick.mediaKind : pick.kind;
+    const kind = kindRaw === 'video' ? 'video' : 'image';
     const url = 'content' in pick ? pick.content : pick.url;
     onChange({
       mxmSourceImageUrl: kind === 'image' ? url : undefined,
@@ -100,11 +99,8 @@ export function ClipStaticMediaSourceField({
           <Button size="small" icon={<UploadIcon size={14} />} loading={uploading} onClick={pickFile}>
             本地上传
           </Button>
-          <Button size="small" icon={<Images size={14} />} onClick={() => setLibraryOpen(true)}>
-            我的资产
-          </Button>
-          <Button size="small" icon={<FolderTree size={14} />} onClick={() => setVirtualOpen(true)}>
-            虚拟文件夹
+          <Button size="small" icon={<FolderOpen size={14} />} onClick={() => setResourcesOpen(true)}>
+            我的资源
           </Button>
           <Button size="small" icon={<Globe size={14} />} onClick={() => openStock('image')}>
             免费图库
@@ -124,16 +120,11 @@ export function ClipStaticMediaSourceField({
         onRemove={() => clearMedia()}
       />
 
-      <MediaLibraryPickerModal
-        open={libraryOpen}
-        onClose={() => setLibraryOpen(false)}
-        acceptVideos
-        onPick={(pick) => applyPick(pick)}
-      />
-
-      <MediaVirtualFolderPickerModal
-        open={virtualOpen}
-        onClose={() => setVirtualOpen(false)}
+      <MediaKnowledgeFolderPickerModal
+        open={resourcesOpen}
+        onClose={() => setResourcesOpen(false)}
+        accept="visual"
+        enableMyUploads
         onPick={(pick) => applyPick(pick)}
       />
 

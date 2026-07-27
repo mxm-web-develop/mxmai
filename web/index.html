@@ -3,11 +3,90 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>web</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0F172A" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>SuperMXM</title>
+    <style>
+      #app-boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        min-height: 100dvh;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+          env(safe-area-inset-left);
+        background:
+          radial-gradient(circle at 12% 0%, rgba(56, 189, 248, 0.14) 0%, transparent 42%),
+          radial-gradient(circle at 88% 8%, rgba(0, 47, 167, 0.16) 0%, transparent 46%),
+          #0f172a;
+        color: #f8fafc;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+      html.light #app-boot-splash {
+        background:
+          radial-gradient(circle at 10% 0%, rgba(56, 189, 248, 0.18) 0%, transparent 45%),
+          linear-gradient(180deg, #f9fafb 0%, #eef2f7 100%);
+        color: #0f172a;
+      }
+      #app-boot-splash__orb {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 2px solid rgba(56, 189, 248, 0.35);
+        border-top-color: #38bdf8;
+        animation: app-boot-spin 0.9s linear infinite;
+      }
+      #app-boot-splash__title {
+        margin: 0;
+        font-size: 1.35rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+      #app-boot-splash__hint {
+        margin: 0;
+        font-size: 0.875rem;
+        opacity: 0.72;
+      }
+      @keyframes app-boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #app-boot-splash__orb {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-boot-splash" role="status" aria-live="polite" aria-label="应用加载中">
+      <span id="app-boot-splash__orb" aria-hidden="true"></span>
+      <p id="app-boot-splash__title">SuperMXM</p>
+      <p id="app-boot-splash__hint">正在启动…</p>
+    </div>
     <div id="root"></div>
+    <script>
+      (function () {
+        try {
+          var manualTheme = localStorage.getItem('mxm-theme-manual') === '1';
+          var stored = manualTheme ? localStorage.getItem('mxm-theme') : null;
+          var hour = new Date().getHours();
+          var dark =
+            stored === 'dark' ||
+            (stored !== 'light' && !(hour >= 7 && hour < 18));
+          document.documentElement.classList.add(dark ? 'dark' : 'light');
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

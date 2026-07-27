@@ -1,0 +1,403 @@
+/**
+ * 统一表单控件外观 — Task V2 抽屉、审核弹窗、Admin 测试等
+ * 对齐 tokens.css：36px 高、6px 控件圆角、10px 分组圆角、--border-default
+ */
+
+.mxm-form-surface,
+.schema-form--panel,
+.task-v2-drawer-form,
+.text-drawer-form,
+.two-pane-overlay-body,
+.admin-business-test-modal__form,
+.manual-review-modal__body {
+  --sf-control-h: var(--control-height);
+  --sf-control-radius: var(--radius-sm);
+  --sf-group-radius: var(--radius-md);
+  --sf-control-pad-x: 11px;
+  --sf-textarea-min-h: 5rem;
+}
+
+html:not(.dark) .mxm-form-surface,
+html:not(.dark) .schema-form--panel,
+html:not(.dark) .task-v2-drawer-form,
+html:not(.dark) .text-drawer-form,
+html:not(.dark) .two-pane-overlay-body,
+html:not(.dark) .admin-business-test-modal__form,
+html:not(.dark) .manual-review-modal__body {
+  color: var(--text-main);
+  --sf-control-bg: #ffffff;
+  --sf-control-border: var(--border-default);
+  --sf-control-text: var(--text-main);
+  --sf-control-placeholder: #94a3b8;
+  --sf-group-bg: var(--glass-surface-soft);
+  --sf-group-border: var(--border-default);
+  --sf-group-divider: var(--divider);
+  --sf-focus-border: var(--action-primary-solid);
+  --sf-focus-ring: var(--action-focus-ring);
+  --sf-switch-bg: rgba(148, 163, 184, 0.35);
+}
+
+html.dark .mxm-form-surface,
+html.dark .schema-form--panel,
+html.dark .task-v2-drawer-form,
+html.dark .text-drawer-form,
+html.dark .two-pane-overlay-body,
+html.dark .admin-business-test-modal__form,
+html.dark .manual-review-modal__body {
+  color: #e2e8f0;
+  --sf-control-bg: #1e293b;
+  --sf-control-border: var(--border-default);
+  --sf-control-text: #f1f5f9;
+  --sf-control-placeholder: rgba(148, 163, 184, 0.9);
+  --sf-group-bg: rgba(15, 23, 42, 0.55);
+  --sf-group-border: var(--border-default);
+  --sf-group-divider: var(--divider);
+  --sf-focus-border: #34d399;
+  --sf-focus-ring: 0 0 0 2px rgba(52, 211, 153, 0.2);
+  --sf-switch-bg: rgba(71, 85, 105, 0.75);
+}
+
+.mxm-form-surface .schema-form__label,
+.schema-form--panel .schema-form__label,
+.task-v2-drawer-form .schema-form__label {
+  color: var(--sf-control-text);
+  font-weight: 600;
+}
+
+.mxm-form-surface .schema-form__help,
+.schema-form--panel .schema-form__help,
+.task-v2-drawer-form .schema-form__help {
+  color: var(--text-muted);
+}
+
+html.dark .mxm-form-surface .schema-form__help,
+html.dark .schema-form--panel .schema-form__help,
+html.dark .task-v2-drawer-form .schema-form__help {
+  color: rgba(148, 163, 184, 0.95);
+}
+
+/* 单行控件（排除 textarea / showCount，避免被压成单行高度并遮挡） */
+.mxm-form-surface .ant-input:not(textarea),
+.mxm-form-surface
+  .ant-input-affix-wrapper:not(.ant-input-textarea-affix-wrapper):not(
+    .ant-input-affix-wrapper-textarea-with-clear-btn
+  ):not(.ant-input-textarea-show-count),
+.mxm-form-surface .ant-input-number,
+.mxm-form-surface .ant-input-number-input,
+.mxm-form-surface .ant-select .ant-select-selector,
+.mxm-form-surface .ant-picker {
+  min-height: var(--sf-control-h) !important;
+  border-radius: var(--sf-control-radius) !important;
+  border-color: var(--sf-control-border) !important;
+  background: var(--sf-control-bg) !important;
+  color: var(--sf-control-text) !important;
+  box-shadow: none !important;
+}
+
+.mxm-form-surface
+  .ant-input-affix-wrapper:not(.ant-input-textarea-affix-wrapper):not(
+    .ant-input-affix-wrapper-textarea-with-clear-btn
+  ):not(.ant-input-textarea-show-count) {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding-inline: var(--sf-control-pad-x);
+  padding-block: 0 !important;
+  height: var(--sf-control-h) !important;
+}
+
+.mxm-form-surface
+  .ant-input-affix-wrapper:not(.ant-input-textarea-affix-wrapper):not(
+    .ant-input-affix-wrapper-textarea-with-clear-btn
+  ):not(.ant-input-textarea-show-count)
+  > input.ant-input {
+  height: auto !important;
+  min-height: 0 !important;
+  line-height: 1.25 !important;
+  padding-block: 0 !important;
+}
+
+/* TextArea + showCount：正常块级高度，不要继承单行 height */
+.mxm-form-surface .ant-input-textarea-show-count,
+.mxm-form-surface .ant-input-textarea-affix-wrapper,
+.mxm-form-surface .ant-input-affix-wrapper-textarea-with-clear-btn {
+  display: block !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding-block: 0 !important;
+  overflow: visible !important;
+  border-radius: var(--sf-control-radius) !important;
+  border-color: var(--sf-control-border) !important;
+  background: var(--sf-control-bg) !important;
+  color: var(--sf-control-text) !important;
+}
+
+.mxm-form-surface input.ant-input:not(textarea) {
+  height: var(--sf-control-h) !important;
+  /* 扣掉上下边框，避免 placeholder 视觉偏下 */
+  line-height: calc(var(--sf-control-h) - 2px) !important;
+  padding-block: 0 !important;
+}
+
+.mxm-form-surface .ant-input-affix-wrapper > input.ant-input:not(textarea) {
+  height: auto !important;
+  line-height: 1.25 !important;
+}
+
+.mxm-form-surface textarea.ant-input {
+  min-height: var(--sf-textarea-min-h);
+  padding-block: 8px;
+  border-radius: var(--sf-control-radius) !important;
+  border-color: var(--sf-control-border) !important;
+  background: var(--sf-control-bg) !important;
+  color: var(--sf-control-text) !important;
+  line-height: var(--leading-prose);
+}
+
+.mxm-form-surface .ant-input::placeholder,
+.mxm-form-surface .ant-input-number-input::placeholder,
+.mxm-form-surface textarea.ant-input::placeholder {
+  color: var(--sf-control-placeholder) !important;
+}
+
+.mxm-form-surface .ant-select-arrow,
+.mxm-form-surface .ant-select-selection-item,
+.mxm-form-surface .ant-picker-input > input {
+  color: var(--sf-control-text) !important;
+}
+
+.mxm-form-surface .ant-select-selection-placeholder,
+.mxm-form-surface .ant-picker-input > input::placeholder {
+  color: var(--sf-control-placeholder) !important;
+}
+
+.mxm-form-surface .ant-switch {
+  background: var(--sf-switch-bg);
+}
+
+.mxm-form-surface .ant-input:focus,
+.mxm-form-surface .ant-input-affix-wrapper-focused,
+.mxm-form-surface .ant-input-number-focused,
+.mxm-form-surface .ant-select-focused .ant-select-selector,
+.mxm-form-surface .ant-picker-focused {
+  border-color: var(--sf-focus-border) !important;
+  box-shadow: var(--sf-focus-ring) !important;
+}
+
+.mxm-form-surface .ant-input-show-count-suffix,
+.mxm-form-surface .ant-input-data-count {
+  color: var(--text-muted) !important;
+}
+
+html.dark .mxm-form-surface .ant-input-show-count-suffix,
+html.dark .mxm-form-surface .ant-input-data-count {
+  color: rgba(148, 163, 184, 0.95) !important;
+}
+
+/* 抽屉表单布局 */
+.task-v2-drawer-form,
+.text-drawer-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.task-v2-drawer-form > .ant-select,
+.text-drawer-form > .ant-select {
+  width: 100%;
+}
+
+.task-v2-schema-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* 自定义字段：在表单面板上继承 token */
+.mxm-form-surface .text-file-or-paste,
+.mxm-form-surface .minimax-voice-field {
+  --tfp-border: var(--sf-control-border);
+  --tfp-surface: var(--sf-control-bg);
+  --tfp-surface-soft: var(--sf-group-bg);
+  --tfp-text: var(--sf-control-text);
+  --mvf-border: var(--sf-control-border);
+  --mvf-surface: var(--sf-control-bg);
+  --mvf-panel: var(--sf-group-bg);
+  --mvf-text: var(--sf-control-text);
+  --mvf-text-muted: var(--text-muted);
+}
+
+.mxm-form-surface .ref-images__upload-settings,
+.mxm-form-surface .ref-images__panel {
+  border-radius: var(--sf-group-radius);
+  border-color: var(--sf-group-border);
+  background: var(--sf-group-bg);
+}
+
+.mxm-form-surface .ref-images__dropzone,
+.mxm-form-surface .ref-images__add-tile,
+.mxm-form-surface .ref-images__upload-card {
+  border-radius: var(--sf-control-radius);
+}
+
+.mxm-form-surface .ref-images__dropzone,
+.mxm-form-surface .ref-images__add-tile {
+  border-color: var(--sf-control-border);
+}
+
+.mxm-form-surface .ref-images__upload-card {
+  border-color: var(--sf-control-border);
+  background: var(--sf-control-bg);
+}
+
+.mxm-form-surface .color-picker-field__swatch-wrap {
+  border-radius: var(--sf-control-radius);
+  border-color: var(--sf-control-border);
+  width: var(--sf-control-h);
+  height: var(--sf-control-h);
+}
+
+.mxm-form-surface .minimax-voice-field__tabs,
+.mxm-form-surface .text-file-or-paste__tabs {
+  border-radius: var(--sf-control-radius);
+}
+
+.mxm-form-surface .minimax-voice-field__selected {
+  border-radius: var(--sf-group-radius);
+  border-color: var(--sf-control-border);
+}
+
+.mxm-form-surface .color-picker-field__hex.ant-input {
+  min-height: var(--sf-control-h) !important;
+}
+
+/* 前置管线审核弹窗 */
+.manual-review-modal__hint {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-label);
+  line-height: var(--leading-prose);
+  color: var(--text-muted);
+}
+
+.manual-review-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.manual-review-modal__editor {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-label);
+}
+
+.manual-review-modal__save {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.manual-review-modal__save-hint {
+  margin: 0;
+}
+
+.manual-review-modal__recovered-hint {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-label);
+  line-height: var(--leading-prose);
+  color: #0369a1;
+  background: rgba(186, 230, 253, 0.45);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+}
+
+.manual-review-modal__error-hint {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-label);
+  line-height: var(--leading-prose);
+  color: #b91c1c;
+  background: rgba(254, 226, 226, 0.55);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.admin-business-test-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* 原生 HTML 控件（角色页、遗留 form-row） */
+.form-row input,
+.form-row select,
+.form-row textarea,
+.characters-form input:not([type='file']),
+.characters-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: var(--text-body);
+  font-family: inherit;
+}
+
+.form-row input:not([type='checkbox']):not([type='radio']),
+.form-row select,
+.form-row textarea,
+.characters-form input:not([type='file']):not([type='checkbox']):not([type='radio']),
+.characters-form textarea {
+  min-height: var(--control-height);
+  padding: 0 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: #ffffff;
+  color: var(--text-main);
+}
+
+html.dark .form-row input:not([type='checkbox']):not([type='radio']),
+html.dark .form-row select,
+html.dark .form-row textarea,
+html.dark .characters-form input:not([type='file']):not([type='checkbox']):not([type='radio']),
+html.dark .characters-form textarea {
+  background: #1e293b;
+  border-color: var(--border-default);
+  color: #f1f5f9;
+}
+
+.form-row textarea,
+.characters-form textarea {
+  min-height: 5rem;
+  padding-block: 8px;
+  line-height: var(--leading-prose);
+}
+
+.form-row label,
+.characters-form label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-label);
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.form-row {
+  margin-bottom: var(--space-3);
+}
+
+.form-row-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.form-row-group .form-row {
+  margin-bottom: 0;
+}
+
+@media (max-width: 480px) {
+  .form-row-group {
+    grid-template-columns: 1fr;
+  }
+}

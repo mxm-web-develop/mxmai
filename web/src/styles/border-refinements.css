@@ -1,0 +1,106 @@
+/**
+ * 全局边框 / 分隔线细化 — 依赖 tokens.css 中的 --border-* / --divider
+ */
+
+/* —— Ant Design 组件 —— */
+.ant-table-wrapper .ant-table,
+.ant-table-wrapper .ant-table-container,
+.ant-card.ant-card-bordered {
+  border-color: var(--card-border) !important;
+}
+
+.ant-table-thead > tr > th,
+.ant-table-thead > tr > td {
+  border-bottom-color: var(--divider) !important;
+}
+
+.ant-table-tbody > tr > td,
+.ant-table-tbody > tr > th {
+  border-bottom-color: var(--divider) !important;
+}
+
+.ant-table-tbody > tr:last-child > td {
+  border-bottom-color: transparent !important;
+}
+
+.ant-segmented {
+  border: 1px solid var(--card-border) !important;
+  background: color-mix(in srgb, var(--card-bg) 88%, transparent) !important;
+}
+
+.ant-segmented-item-selected {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.ant-drawer-header,
+.ant-modal-header {
+  border-bottom-color: var(--divider) !important;
+}
+
+.ant-drawer-footer,
+.ant-modal-footer {
+  border-top-color: var(--divider) !important;
+}
+
+.ant-tabs-nav::before {
+  border-bottom-color: var(--divider) !important;
+}
+
+.ant-divider {
+  border-block-start-color: var(--divider) !important;
+}
+
+.ant-select-dropdown,
+.ant-dropdown-menu,
+.ant-picker-dropdown {
+  border-color: var(--card-border) !important;
+}
+
+/* —— 自定义按钮 / 卡片（App.css 遗留硬编码） —— */
+html:not(.dark) .app-sidebar {
+  border-right-color: var(--sidebar-border);
+}
+
+html:not(.dark) .page-card {
+  border-color: var(--card-border);
+}
+
+.btn-secondary {
+  border-color: var(--border-default);
+}
+
+.btn-secondary:hover {
+  border-color: var(--border-strong);
+}
+
+.page-card .ant-btn.generation-task-toolbar__btn--ghost {
+  border-color: var(--border-default) !important;
+}
+
+.page-card .ant-btn.generation-task-toolbar__btn--ghost:hover:not(:disabled) {
+  border-color: var(--border-strong) !important;
+}
+
+html:not(.dark) .page-card .ant-btn.generation-task-toolbar__btn--ghost {
+  border-color: var(--border-default) !important;
+}
+
+html:not(.dark) .page-card .ant-select.generation-task-filter-select .ant-select-selector {
+  border-color: var(--border-default) !important;
+}
+
+html.dark .page-card .ant-select.generation-task-filter-select .ant-select-selector {
+  border-color: var(--border-subtle) !important;
+}
+
+/* —— 预览弹窗 shell —— */
+.vv-shell,
+.wv-shell,
+.gv-shell,
+.audio-viewer-shell {
+  border-color: var(--card-border) !important;
+}
+
+.mvh-header {
+  border-bottom-color: var(--divider) !important;
+}

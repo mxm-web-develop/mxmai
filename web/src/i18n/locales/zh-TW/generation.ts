@@ -1,0 +1,48 @@
+export const generation = {
+  scope: {
+    video: '影片',
+    graph: '圖片',
+    audio: '音訊',
+    music: '音樂',
+    writing: '寫作',
+    outline: '大綱',
+    text: '文字',
+    characters: '角色',
+  },
+  create: {
+    video: '新建影片任務',
+    graph: '新建圖片任務',
+    audio: '新建音訊任務',
+    music: '新建音樂任務',
+    writing: '新建寫作任務',
+    outline: '新建大綱任務',
+    text: '新建文字任務',
+    textSync: '新建文字任務（同步）',
+  },
+  empty: {
+    video: '暫無影片任務，點擊右上角「新建影片任務」開始。',
+    graph: '暫無圖片任務，點擊右上角「新建圖片任務」開始。',
+    audio: '暫無音訊任務，點擊右上角「新建音訊任務」開始。',
+    music: '暫無音樂任務，點擊右上角「新建音樂任務」開始。',
+    writing: '暫無寫作任務，點擊右上角「新建寫作任務」開始。',
+    outline: '暫無大綱任務，點擊右上角「新建大綱任務」開始。',
+    text: '暫無輸出。點擊右上角「新建文字任務」開始。',
+    openApi: '暫無第三方應用創建的任務。',
+    openApiScoped: '暫無第三方應用通過開放 API 產生的{{scope}}任務。',
+  },
+  results: {
+    video: '影片結果',
+    videoGeneration: '影片產生結果',
+  },
+  preview: {
+    clip: '成片/片段預覽',
+    clipHint: '點擊卡片查看成片或片段詳情',
+    segment: '片段預覽',
+    segmentHint: '分鏡片段可在審核弹层中預覽與编辑',
+  },
+  clipLabel: {
+    aiImage: 'AI配圖',
+    aiVideo: 'AI影片',
+    shot: '鏡頭 {{n}}',
+  },
+} as const;

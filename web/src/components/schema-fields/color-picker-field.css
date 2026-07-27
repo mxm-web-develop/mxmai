@@ -1,0 +1,57 @@
+.color-picker-field {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  max-width: 16rem;
+}
+
+.color-picker-field--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.color-picker-field__swatch-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+  border: 1px solid var(--card-border, rgba(148, 163, 184, 0.35));
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+  cursor: pointer;
+}
+
+.color-picker-field__swatch {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.color-picker-field__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.color-picker-field__hex {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-label, 0.8125rem);
+  letter-spacing: 0.02em;
+}
+
+.color-picker-field__swatch--empty {
+  background: linear-gradient(
+    135deg,
+    rgba(148, 163, 184, 0.15) 0%,
+    rgba(148, 163, 184, 0.28) 100%
+  );
+}

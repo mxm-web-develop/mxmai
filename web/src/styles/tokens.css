@@ -1,0 +1,265 @@
+/**
+ * SuperMXMai Design Tokens — Mind × Machine
+ * Single source of truth. Import via index.css before App.css.
+ */
+
+:root {
+  /* —— Brand —— */
+  --brand-machine: #002fa7;
+  --brand-machine-hover: #002688;
+  --brand-mind: #38bdf8;
+  --brand-mind-strong: #0ea5e9;
+
+  /* —— Semantic colors (light) —— */
+  --color-background: #f3f4f6;
+  --color-primary: #0f172a;
+  --color-secondary: #e5e7eb;
+  --color-cta: var(--action-primary-solid, #0284c7);
+
+  /* —— Dashboard capability pills（控制台首页验证色）—— */
+  --pill-writing-bg: rgba(186, 230, 253, 0.72);
+  --pill-writing-fg: #0c4a6e;
+  --pill-image-bg: rgba(224, 242, 254, 0.78);
+  --pill-image-fg: #075985;
+  --pill-audio-bg: rgba(207, 250, 254, 0.75);
+  --pill-audio-fg: #0e7490;
+  --pill-music-bg: rgba(237, 233, 254, 0.78);
+  --pill-music-fg: #5b21b6;
+  --pill-video-bg: rgba(224, 231, 255, 0.76);
+  --pill-video-fg: #3730a3;
+  --pill-agent-bg: rgba(219, 234, 254, 0.78);
+  --pill-agent-fg: #0369a1;
+
+  /* —— Action & semantic（Dashboard 验证 → 全站 CTA / Tag）—— */
+  --action-primary-solid: #0284c7;
+  --action-primary-hover: #0369a1;
+  --action-primary-border: rgba(14, 165, 233, 0.42);
+  --action-primary-shadow: 0 8px 22px rgba(14, 165, 233, 0.26);
+  --action-primary-shadow-hover: 0 12px 28px rgba(14, 165, 233, 0.34);
+  --action-primary-gradient: linear-gradient(
+    135deg,
+    var(--brand-mind-strong) 0%,
+    var(--action-primary-solid) 48%,
+    var(--brand-machine) 100%
+  );
+  --action-primary-gradient-hover: linear-gradient(
+    135deg,
+    #38bdf8 0%,
+    var(--action-primary-hover) 50%,
+    var(--brand-machine-hover) 100%
+  );
+  --action-focus-ring: 0 0 0 3px rgba(14, 165, 233, 0.18);
+
+  --semantic-error-fg: #b91c1c;
+  --semantic-error-bg: rgba(254, 226, 226, 0.92);
+  --semantic-error-border: rgba(248, 113, 113, 0.45);
+  --semantic-warning-fg: #b45309;
+  --semantic-warning-bg: rgba(254, 243, 199, 0.94);
+  --semantic-warning-border: rgba(251, 191, 36, 0.48);
+  --semantic-success-fg: #047857;
+  --semantic-success-bg: rgba(209, 250, 229, 0.92);
+  --semantic-success-border: rgba(52, 211, 153, 0.42);
+  --color-text: #020617;
+  --color-text-muted: #4b5563;
+
+  --text-main: var(--color-text);
+  --text-muted: var(--color-text-muted);
+
+  /* —— Spacing (4px grid) —— */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --page-padding: var(--space-6);
+  --control-height: 2.25rem; /* 36px — 对齐 Ant Design controlHeight */
+  --app-shell-header-height: 58px;
+
+  /* —— Radius —— */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+  --page-radius: var(--radius-lg);
+  --radius: 0.625rem; /* 10px — Tailwind compat */
+
+  /* —— Typography —— */
+  --font-ui: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+
+  --text-caption: 0.6875rem;
+  --text-meta: 0.75rem;
+  --text-label: 0.8125rem;
+  --text-body: 0.875rem;
+  --text-title-sm: 1rem;
+  --text-title: 1.25rem;
+  --text-display: 1.5rem;
+
+  --leading-tight: 1.35;
+  --leading-prose: 1.6;
+
+  /* —— Motion —— */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 250ms;
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  /* —— Glass & surfaces —— */
+  --glass-backdrop: blur(16px);
+  --slate-rgb: 148, 163, 184;
+  /* 边框层级：hairline < divider < subtle < default < strong */
+  --border-hairline: rgba(var(--slate-rgb), 0.07);
+  --border-subtle: rgba(var(--slate-rgb), 0.11);
+  --border-default: rgba(var(--slate-rgb), 0.15);
+  --border-strong: rgba(var(--slate-rgb), 0.2);
+  --divider: rgba(var(--slate-rgb), 0.09);
+  --glass-border: 1px solid var(--border-subtle);
+  --glass-border-strong: 1px solid var(--border-default);
+  --glass-surface: rgba(255, 255, 255, 0.9);
+  --glass-surface-strong: rgba(255, 255, 255, 0.98);
+  --glass-surface-soft: rgba(241, 245, 249, 0.95);
+
+  --card-bg: var(--glass-surface);
+  --card-border: var(--border-subtle);
+  --header-bg: rgba(255, 255, 255, 0.98);
+  --sidebar-bg: rgba(255, 255, 255, 0.98);
+  --sidebar-border: var(--border-subtle);
+  --page-border: var(--border-subtle);
+
+  --page-bg: radial-gradient(circle at 10% 0%, rgba(56, 189, 248, 0.16) 0%, transparent 45%),
+    radial-gradient(circle at 90% 0%, rgba(34, 45, 197, 0.18) 0%, transparent 45%),
+    linear-gradient(180deg, #f9fafb 0%, #e5e7eb 45%, #e5e7eb 100%);
+
+  /* —— Elevation —— */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 18px 46px rgba(15, 23, 42, 0.12);
+  --shadow-xl: 0 28px 80px rgba(15, 23, 42, 0.16);
+
+  /* —— Z-index scale —— */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal-backdrop: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+
+  /* —— Status semantic —— */
+  --status-completed-bg: rgba(22, 163, 74, 0.25);
+  --status-completed-fg: #4ade80;
+  --status-failed-bg: rgba(185, 28, 28, 0.25);
+  --status-failed-fg: #fca5a5;
+  --status-processing-bg: rgba(30, 64, 175, 0.3);
+  --status-processing-fg: #93c5fd;
+  --status-review-bg: rgba(180, 83, 9, 0.28);
+  --status-review-fg: #fdba74;
+
+  /* —— Conversation accent (Agent Chat only) —— */
+  --accent-conversation: #e55a1c;
+  --accent-conversation-hover: #ff6b2c;
+  --accent-conversation-subtle: rgba(229, 90, 28, 0.12);
+  /* HSL bridge for Tailwind hsl(var(--agent-chat-accent)) */
+  --accent-conversation-h: 16;
+  --accent-conversation-s: 100%;
+  --accent-conversation-l: 47%;
+
+  /* —— Landing aliases —— */
+  --mxm-accent: var(--brand-machine);
+  --mxm-cyan: var(--brand-mind);
+  --mxm-ink: var(--text-main);
+  --mxm-muted: var(--text-muted);
+  --mxm-surface: var(--glass-surface-strong);
+  --mxm-border: var(--card-border);
+
+  /* Tailwind HSL bridge (light) — primary 对齐 Dashboard sky-600 */
+  --background: 210 40% 98%;
+  --foreground: 222.2 84% 4.9%;
+  --primary: 199 89% 48%;
+  --primary-hover: 201 96% 40%;
+  --primary-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 94.8%;
+  --ring: 224 76% 48%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --error: 0 72% 51%;
+  --warning: 38 92% 50%;
+  --success: 160 84% 39%;
+}
+
+html.dark {
+  --color-background: #0f172a;
+  --color-primary: #1e293b;
+  --color-secondary: #334155;
+  --color-text: #f8fafc;
+  --color-text-muted: rgba(248, 250, 252, 0.72);
+
+  --action-primary-solid: #0ea5e9;
+  --action-primary-hover: #38bdf8;
+  --action-primary-border: rgba(56, 189, 248, 0.38);
+  --action-primary-shadow: 0 8px 24px rgba(14, 165, 233, 0.22);
+  --action-primary-shadow-hover: 0 12px 30px rgba(56, 189, 248, 0.28);
+  --action-focus-ring: 0 0 0 3px rgba(56, 189, 248, 0.2);
+
+  --semantic-error-fg: #fecaca;
+  --semantic-error-bg: rgba(127, 29, 29, 0.42);
+  --semantic-error-border: rgba(248, 113, 113, 0.35);
+  --semantic-warning-fg: #fde68a;
+  --semantic-warning-bg: rgba(120, 53, 15, 0.38);
+  --semantic-warning-border: rgba(251, 191, 36, 0.32);
+  --semantic-success-fg: #a7f3d0;
+  --semantic-success-bg: rgba(6, 78, 59, 0.38);
+  --semantic-success-border: rgba(52, 211, 153, 0.28);
+
+  --border-hairline: rgba(var(--slate-rgb), 0.06);
+  --border-subtle: rgba(var(--slate-rgb), 0.1);
+  --border-default: rgba(var(--slate-rgb), 0.13);
+  --border-strong: rgba(var(--slate-rgb), 0.17);
+  --divider: rgba(var(--slate-rgb), 0.08);
+  --glass-border: 1px solid var(--border-subtle);
+  --glass-border-strong: 1px solid var(--border-default);
+  --glass-surface: rgba(15, 23, 42, 0.86);
+  --glass-surface-strong: rgba(15, 23, 42, 0.94);
+  --glass-surface-soft: rgba(30, 41, 59, 0.65);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 18px 46px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 28px 80px rgba(0, 0, 0, 0.55);
+
+  --page-border: var(--border-subtle);
+  --card-border: var(--border-subtle);
+  --header-bg: var(--glass-surface-strong);
+  --sidebar-bg: var(--glass-surface-strong);
+  --sidebar-border: var(--border-subtle);
+
+  --page-bg: radial-gradient(circle at 12% 10%, rgba(34, 118, 197, 0.1) 0%, transparent 35%),
+    radial-gradient(circle at 78% 18%, rgba(56, 189, 248, 0.12) 0%, transparent 42%),
+    radial-gradient(circle at 65% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+    linear-gradient(180deg, #0b1224 0%, #020617 55%, #000 100%);
+
+  --status-completed-bg: rgba(22, 163, 74, 0.25);
+  --status-completed-fg: #4ade80;
+  --status-failed-bg: rgba(185, 28, 28, 0.25);
+  --status-failed-fg: #fca5a5;
+  --status-processing-bg: rgba(30, 64, 175, 0.3);
+  --status-processing-fg: #93c5fd;
+
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --primary-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+}
+
+html:not(.dark) {
+  --status-completed-bg: var(--semantic-success-bg);
+  --status-completed-fg: var(--semantic-success-fg);
+  --status-failed-bg: var(--semantic-error-bg);
+  --status-failed-fg: var(--semantic-error-fg);
+  --status-processing-bg: rgba(186, 230, 253, 0.65);
+  --status-processing-fg: #0369a1;
+  --status-review-bg: var(--semantic-warning-bg);
+  --status-review-fg: var(--semantic-warning-fg);
+}

@@ -1,0 +1,111 @@
+/**
+ * Extracted from App.css
+ */
+
+/* ---------- 通用双栏布局（列表 + 表单） ---------- */
+.two-pane-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.two-pane-left,
+.two-pane-right {
+  min-width: 0;
+}
+
+/* 默认左列表略宽一些，右表单略窄，可在具体页面通过附加 class 覆盖 */
+.two-pane-left {
+  flex: 7;
+}
+
+.two-pane-right {
+  flex: 5;
+}
+
+@media (max-width: 767px) {
+  .two-pane-layout {
+    gap: 1rem;
+  }
+
+  .main-wrap {
+    position: relative;
+  }
+}
+
+@media (max-width: 1199px) {
+  /* 非大屏：双栏布局只展示列表，表单通过浮层弹出 */
+  .two-pane-layout--mobile {
+    position: relative;
+  }
+
+  .two-pane-right {
+    display: none;
+  }
+
+  .two-pane-fab {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 1200;
+    padding: 0.6rem 0.9rem;
+    border-radius: 999px;
+    border: none;
+    background: #6366f1;
+    color: #f9fafb;
+    font-size: 0.85rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+  }
+
+  .two-pane-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .two-pane-overlay-inner {
+    width: 100%;
+    max-height: 90vh;
+    background: #111827;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border: 1px solid #374151;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .two-pane-overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #374151;
+  }
+
+  .two-pane-overlay-title {
+    font-size: 0.9rem;
+    color: #e5e7eb;
+  }
+
+  .two-pane-overlay-close {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 1.4rem;
+    cursor: pointer;
+  }
+
+  .two-pane-overlay-body {
+    padding: 1rem;
+    overflow-y: auto;
+  }
+}

@@ -1,0 +1,230 @@
+.tvd-root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px 20px;
+  width: 100%;
+  max-width: 52rem;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.tvd-empty {
+  margin: 1rem;
+  color: var(--text-muted, #64748b);
+}
+
+.tvd-card {
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.tvd-card--error {
+  border-color: color-mix(in srgb, #ef4444 45%, var(--card-border));
+  background: color-mix(in srgb, #ef4444 7%, var(--card-bg));
+}
+
+.tvd-card__title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 10px;
+}
+
+.tvd-kv {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tvd-kv__row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 8px;
+  align-items: start;
+  font-size: 0.875rem;
+}
+
+.tvd-kv__row dt {
+  margin: 0;
+  color: var(--text-muted, #64748b);
+}
+
+.tvd-kv__row dd {
+  margin: 0;
+  color: var(--text-main);
+  word-break: break-word;
+}
+
+.tvd-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.tvd-status--ok {
+  background: color-mix(in srgb, #10b981 16%, transparent);
+  color: #059669;
+}
+
+.tvd-status--failed {
+  background: color-mix(in srgb, #ef4444 16%, transparent);
+  color: #dc2626;
+}
+
+.tvd-status--run {
+  background: color-mix(in srgb, #0284c7 16%, transparent);
+  color: #0369a1;
+}
+
+.tvd-fail-step {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.tvd-error-text {
+  margin: 0;
+  color: #dc2626;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tvd-muted {
+  color: var(--text-muted, #64748b);
+  font-size: 0.8125rem;
+}
+
+.tvd-empty-hint {
+  margin: 0;
+}
+
+.tvd-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+}
+
+.tvd-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tvd-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--page-bg, #f8fafc) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-border) 80%, transparent);
+}
+
+.tvd-step--skipped {
+  opacity: 0.72;
+}
+
+.tvd-step__index {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: color-mix(in srgb, #0284c7 14%, transparent);
+  color: #0369a1;
+}
+
+.tvd-step__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.tvd-step__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-main);
+}
+
+.tvd-step__meta {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+}
+
+.tvd-pill {
+  display: inline-flex;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: color-mix(in srgb, #94a3b8 18%, transparent);
+  color: #64748b;
+}
+
+.tvd-pill--ok {
+  background: color-mix(in srgb, #10b981 16%, transparent);
+  color: #059669;
+}
+
+.tvd-fail-hint {
+  margin: 10px 0 0;
+  font-size: 0.8125rem;
+  color: #dc2626;
+}
+
+.tvd-raw-toggle {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: #0369a1;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tvd-raw-toggle:hover {
+  text-decoration: underline;
+}
+
+.tvd-pre {
+  margin: 10px 0 0;
+  padding: 12px;
+  max-height: min(48vh, 520px);
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--page-bg, #f8fafc);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-main);
+}

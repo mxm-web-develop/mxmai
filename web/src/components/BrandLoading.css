@@ -1,0 +1,158 @@
+/* Brand GSAP loader — Mind × Machine orbital core */
+
+.brand-loading {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--text-muted, #64748b);
+}
+
+.brand-loading--small {
+  gap: 0;
+}
+
+.brand-loading--small .brand-loading__orb {
+  width: 18px;
+  height: 18px;
+}
+
+.brand-loading--default .brand-loading__orb {
+  width: 28px;
+  height: 28px;
+}
+
+.brand-loading--large .brand-loading__orb {
+  width: 44px;
+  height: 44px;
+}
+
+.brand-loading__orb {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.brand-loading__ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.brand-loading__ring-track {
+  fill: none;
+  stroke: rgba(0, 47, 167, 0.12);
+  stroke-width: 1.5;
+}
+
+.brand-loading__ring-arc {
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-dasharray: 18 80;
+}
+
+.brand-loading__ring defs {
+  display: none;
+}
+
+.brand-loading__core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28%;
+  height: 28%;
+  margin: -14% 0 0 -14%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-mind, #38bdf8), var(--brand-machine, #002fa7));
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.45);
+}
+
+.brand-loading__dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16%;
+  height: 16%;
+  margin: -8% 0 0 -8%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7dd3fc, var(--brand-machine, #002fa7));
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
+  transform: rotate(calc(var(--bl-dot-index, 0) * 120deg)) translateX(148%) rotate(calc(var(--bl-dot-index, 0) * -120deg));
+}
+
+.brand-loading__tip {
+  margin: 0;
+  font-size: var(--text-body, 0.875rem);
+  font-weight: 500;
+  color: var(--text-muted, #64748b);
+  text-align: center;
+}
+
+.brand-loading--large .brand-loading__tip {
+  font-size: 0.9375rem;
+}
+
+/* Wrapper — replaces antd Spin nesting */
+.brand-loading-nest {
+  position: relative;
+}
+
+.brand-loading-nest--fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.brand-loading-nest__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+html.dark .brand-loading-nest__overlay {
+  background: rgba(2, 6, 23, 0.55);
+}
+
+.brand-loading-nest--fullscreen .brand-loading-nest__overlay {
+  border-radius: 0;
+}
+
+.brand-loading-nest__content--dim {
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.2s ease;
+}
+
+/* Agent send button inline loader */
+.brand-loading--small.brand-loading--on-dark .brand-loading__core {
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+}
+
+.brand-loading--small.brand-loading--on-dark .brand-loading__ring-track {
+  stroke: rgba(255, 255, 255, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-loading__ring,
+  .brand-loading__core,
+  .brand-loading__dot {
+    animation: none !important;
+  }
+}
+
+/* Ant Design Table / Button 仍走 Spin 壳层时，隐藏默认圆点 */
+.ant-spin .ant-spin-dot {
+  display: none !important;
+}
+
+.ant-spin .brand-loading {
+  display: inline-flex;
+}

@@ -50,6 +50,15 @@ type SegmentPreviewProps = {
   selectedOverlayId?: string | null;
   onSelectOverlay?: (id: string) => void;
   onMoveOverlay?: (id: string, position: { x: number; y: number }) => void;
+  /** 一次审核：自动配图命中后写回脚本，供二次渲染同源 */
+  onAutoStockBatchReady?: (
+    commits: Array<{
+      clipId: string;
+      kind: 'image' | 'video';
+      url: string;
+      attribution?: string;
+    }>
+  ) => void;
 };
 
 export function SegmentPreview({
@@ -69,6 +78,7 @@ export function SegmentPreview({
   selectedOverlayId = null,
   onSelectOverlay,
   onMoveOverlay,
+  onAutoStockBatchReady,
 }: SegmentPreviewProps) {
   const { t } = useTranslation();
   const isRenderedPhase = timelinePhase === 'rendered';
@@ -85,7 +95,13 @@ export function SegmentPreview({
   );
 
   const displayClip = clipAtPlayhead ?? clip;
-  const autoStockMap = useAutoStockPreviewMap(visualClips, subtitles, projectTopic);
+  const autoStockMap = useAutoStockPreviewMap(
+    visualClips,
+    subtitles,
+    projectTopic,
+    // 仅方案审核阶段写回；成片阶段已有 rendered url，勿二次换图
+    timelinePhase === 'plan' ? onAutoStockBatchReady : undefined
+  );
 
   const staticClips = useMemo(
     () =>
@@ -169,7 +185,9 @@ export function SegmentPreview({
     setBrokenRenderedClipIds(new Set());
   }, [visualClips]);
 
+  // 成片已就绪时不要盖「正在匹配画面素材」—— auto-stock 仅作拉流失败回退，不应遮挡成片
   const showStaticLoading =
+    !(isRenderedPhase && displayClipRenderReady) &&
     mode === 'static-image' &&
     (activeAutoState?.status === 'loading' ||
       (activeStaticPreview?.kind === 'image' && !isReady(activeStaticPreview.url)) ||
@@ -395,7 +413,9 @@ export function SegmentPreview({
           </p>
           {mode === 'ai-video-gen' && (
             <p style={{ marginTop: 12, fontSize: 14, lineHeight: 1.5 }}>
-              {meta?.mxmPrompt ?? t('video.preview.noVideoPrompt')}
+              {(meta?.mxmAiOutputKind === 'image'
+                ? meta?.mxmImagePrompt ?? meta?.mxmPrompt
+                : meta?.mxmVideoPrompt ?? meta?.mxmPrompt) ?? t('video.preview.noVideoPrompt')}
             </p>
           )}
           {mode === 'gsap-html-animation' && !meta?.mxmHtmlContent && (

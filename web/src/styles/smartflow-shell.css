@@ -1,0 +1,508 @@
+/**
+ * Smartflow 页面外壳 + 亮色模式覆盖
+ * Extracted from App.css
+ */
+
+/* Smartflow：主区域左右分栏，右侧内容区单独滚动 */
+.page-smartflow {
+  flex: 1;
+  min-height: 0;
+  height: 100%;   /* 明确高度，撑起内部 flex 链 */
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 0 8px 16px 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-smartflow-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.page-smartflow-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: var(--surface-1, rgba(15, 23, 42, 0.35));
+  transition: width 160ms ease, padding 160ms ease;
+}
+
+.page-smartflow-sidebar.is-collapsed {
+  width: 52px;
+  padding: 10px 6px 10px;
+}
+
+.page-smartflow-sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-top: 8px;
+  padding-right: 4px;
+}
+
+/* Smartflow actions: fix button proportions (only this page) */
+.page-smartflow .sf-sidebar-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 32px 1fr 1fr;
+  gap: 8px;
+}
+
+.page-smartflow-sidebar.is-collapsed .sf-sidebar-actions {
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.page-smartflow .sf-action-btn.sf-action-btn--icon.ant-btn,
+.page-smartflow .sf-action-btn.sf-action-btn--icon.ant-btn-sm {
+  padding: 0;
+  width: 32px;
+  min-width: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-smartflow-sidebar.is-collapsed .sf-action-btn.ant-btn,
+.page-smartflow-sidebar.is-collapsed .sf-action-btn.ant-btn-sm {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* 仅隐藏文字 label，保留 .ant-btn-icon */
+.page-smartflow-sidebar.is-collapsed .sf-action-btn.ant-btn > span:not(.ant-btn-icon),
+.page-smartflow-sidebar.is-collapsed .sf-action-btn.ant-btn-sm > span:not(.ant-btn-icon) {
+  display: none !important;
+}
+
+.page-smartflow-sidebar.is-collapsed .sf-action-btn .ant-btn-icon {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  margin: 0 !important;
+  line-height: 1;
+}
+
+.page-smartflow-sidebar.is-collapsed .sf-action-btn .anticon {
+  font-size: 16px;
+}
+
+html:not(.dark) .page-smartflow-sidebar.is-collapsed .sf-action-btn .anticon {
+  color: #0f172a !important;
+}
+
+html.dark .page-smartflow-sidebar.is-collapsed .sf-action-btn .anticon {
+  color: rgba(226, 232, 240, 0.92) !important;
+}
+
+.page-smartflow-sidebar.is-collapsed .page-smartflow-sidebar-scroll {
+  padding-right: 0;
+}
+
+.page-smartflow-sidebar.is-collapsed .sf-flow-title,
+.page-smartflow-sidebar.is-collapsed .sf-flow-sub {
+  display: none;
+}
+
+.page-smartflow-sidebar.is-collapsed .sf-flow-item {
+  padding: 6px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border-radius: 12px;
+}
+
+.page-smartflow-sidebar.is-collapsed .sf-flow-item::after {
+  content: none;
+}
+
+.page-smartflow-sidebar .sf-flow-abbr {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 0;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.page-smartflow-sidebar .sf-flow-item.is-active .sf-flow-abbr {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.45);
+  color: #93c5fd;
+}
+
+html:not(.dark) .page-smartflow-sidebar .sf-flow-abbr {
+  background: rgba(148, 163, 184, 0.14) !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .page-smartflow-sidebar .sf-flow-item.is-active .sf-flow-abbr {
+  background: rgba(37, 99, 235, 0.12) !important;
+  border-color: rgba(37, 99, 235, 0.4) !important;
+  color: #1d4ed8 !important;
+}
+
+.page-smartflow .sf-action-btn.ant-btn,
+.page-smartflow .sf-action-btn.ant-btn-sm {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 30px;
+  border-radius: 10px;
+  font-weight: 650;
+}
+
+.page-smartflow .sf-action-btn.ant-btn > span {
+  line-height: 1;
+}
+
+.page-smartflow .sf-editor-actions .sf-action-btn.ant-btn,
+.page-smartflow .sf-editor-actions .sf-action-btn.ant-btn-sm {
+  height: 26px;
+}
+
+/* Smartflow sidebar items: compact + truncate */
+.page-smartflow-sidebar .sf-flow-item {
+  width: 100%;
+  text-align: left;
+  padding: 8px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.page-smartflow-sidebar .sf-flow-item:hover {
+  background: rgba(148, 163, 184, 0.10);
+  border-color: rgba(148, 163, 184, 0.32);
+}
+
+.page-smartflow-sidebar .sf-flow-item.is-active {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.55);
+}
+
+.page-smartflow-sidebar .sf-flow-title {
+  font-weight: 650;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-smartflow-sidebar .sf-flow-sub {
+  margin-top: 4px;
+  font-size: 10px;
+  opacity: 0.68;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Smartflow 执行详情弹窗 */
+.sf-exec-detail-modal .ant-modal-body {
+  max-height: min(72vh, 720px);
+  overflow-y: auto;
+  padding-top: 12px;
+}
+
+.sf-exec-detail-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.sf-exec-detail-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.sf-exec-detail-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.sf-exec-progress-wrap {
+  margin-bottom: 12px;
+}
+
+.sf-exec-meta .ant-descriptions-item-label,
+.sf-exec-meta .ant-descriptions-item-content {
+  font-size: 12px;
+}
+
+.sf-exec-section {
+  margin-bottom: 16px;
+}
+
+.sf-exec-timeline-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.sf-exec-step-body {
+  padding-bottom: 4px;
+}
+
+.sf-exec-json-block {
+  margin-bottom: 10px;
+}
+
+.sf-exec-json-label {
+  font-size: 11px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.sf-exec-json-pre {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  max-height: 240px;
+  overflow: auto;
+  background: var(--surface-1, rgba(15, 23, 42, 0.35));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+html:not(.dark) .sf-exec-json-pre {
+  background: rgba(248, 250, 252, 0.95);
+  border-color: rgba(148, 163, 184, 0.28);
+  color: #0f172a;
+}
+
+.sf-exec-timeline .ant-timeline-item-content {
+  min-height: 0;
+}
+
+.page-smartflow-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;     /* 明确高度，撑起 smartflow-designer-root */
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+/* ============================================
+   Smartflow Designer 亮色模式修复
+   ============================================ */
+
+/* 工具栏背景 */
+html:not(.dark) .smartflow-designer-toolbar {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+/* 画布背景 */
+html:not(.dark) .smartflow-designer-canvas-wrap {
+  background: #f8fafc !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+/* ReactFlow 画布网格线在亮色模式下 */
+html:not(.dark) .react-flow__background {
+  --xy-background-color: #f1f5f9 !important;
+}
+
+/* Smartflow 节点样式 */
+html:not(.dark) .sf-canvas-node {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .sf-canvas-node.sf-canvas-node--selected {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
+}
+
+html:not(.dark) .sf-canvas-node.sf-canvas-node--start,
+html:not(.dark) .sf-canvas-node.sf-canvas-node--end {
+  background: rgba(37, 99, 235, 0.08) !important;
+  border-color: rgba(37, 99, 235, 0.4) !important;
+}
+
+/* Smartflow sidebar 左侧列表 */
+html:not(.dark) .page-smartflow-sidebar {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .page-smartflow-sidebar-scroll {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .sf-flow-item {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .sf-flow-item:hover {
+  background: #f8fafc !important;
+}
+
+html:not(.dark) .sf-flow-item.is-active {
+  background: rgba(37, 99, 235, 0.08) !important;
+  border-color: rgba(37, 99, 235, 0.4) !important;
+}
+
+html:not(.dark) .sf-flow-title {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .sf-flow-sub {
+  color: #64748b !important;
+}
+
+/* Smartflow 主区域 */
+html:not(.dark) .page-smartflow-main {
+  background: #f8fafc !important;
+}
+
+/* Smartflow Toolbar 内的文字 */
+html:not(.dark) .smartflow-designer-toolbar .ant-btn {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .smartflow-designer-toolbar .ant-btn:hover {
+  background: #eff6ff !important;
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+}
+
+html:not(.dark) .smartflow-designer-toolbar .ant-tabs-tab {
+  color: #64748b !important;
+}
+
+html:not(.dark) .smartflow-designer-toolbar .ant-tabs-tab:hover {
+  color: #334155 !important;
+}
+
+html:not(.dark) .smartflow-designer-toolbar .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #2563eb !important;
+}
+
+/* Smartflow 编辑器按钮 */
+html:not(.dark) .sf-action-btn {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .sf-action-btn:hover {
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+}
+
+/* 画布右键菜单 — 亮色 */
+html:not(.dark) .sf-canvas-context-menu {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12) !important;
+}
+
+html:not(.dark) .sf-canvas-context-menu .ant-menu {
+  color: #334155 !important;
+  background: #ffffff !important;
+}
+
+html:not(.dark) .sf-canvas-context-menu .ant-menu-item,
+html:not(.dark) .sf-canvas-context-menu .ant-menu-submenu-title {
+  color: #334155 !important;
+}
+
+html:not(.dark) .sf-canvas-context-menu .ant-menu-item:hover,
+html:not(.dark) .sf-canvas-context-menu .ant-menu-submenu-title:hover {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .sf-canvas-context-menu .ant-menu-submenu-arrow {
+  color: #64748b !important;
+}
+
+html:not(.dark) .sf-canvas-context-menu-popup.ant-menu-submenu-popup > .ant-menu {
+  background: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.4) !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12) !important;
+}
+
+html:not(.dark) .sf-canvas-context-menu-popup .ant-menu-item {
+  color: #334155 !important;
+}
+
+html:not(.dark) .sf-canvas-context-menu-popup .ant-menu-item:hover {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+}
+
+/* Mini-map 亮色模式 */
+html:not(.dark) .react-flow__minimap {
+  background: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .react-flow__controls {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+html:not(.dark) .react-flow__controls-button {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .react-flow__controls-button:hover {
+  background: #f8fafc !important;
+}

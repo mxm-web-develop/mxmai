@@ -1,7 +1,23 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { App, Button, Input, InputNumber, Select, Space, Switch, Typography } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { App, Button, Input, InputNumber, Select, Slider, Space, Switch, Typography } from 'antd';
 import type { TaskFormConfig } from '../api/client';
-import { uploadAssets, uploadReferenceImageToR2 } from '../api/client';
+import { EshopGarmentBatchField } from './schema-form/EshopGarmentBatchField';
+import { GridStoryboardImagesField } from './schema-form/GridStoryboardImagesField';
+import { ReferenceImagesField } from './schema-form/ReferenceImagesField';
+import { deriveFormStockSearchDefault } from './schema-form/referenceImagesUtils';
+import { KbRecallField } from './schema-fields/KbRecallField';
+import { MxmKbInputField } from './schema-fields/MxmKbInputField';
+import { TextFileOrPasteField } from './schema-fields/TextFileOrPasteField';
+import { MinimaxVoiceField } from './schema-fields/MinimaxVoiceField';
+import { MediaUploadField, type MediaUploadMode } from './schema-fields/MediaUploadField';
+import { ColorPickerField } from './schema-fields/ColorPickerField';
+import { WebSearchField } from './schema-fields/WebSearchField';
+import { DomainSearchField } from './schema-fields/DomainSearchField';
+import { CheckboxGroupField, type CheckboxGroupSection } from './schema-fields/CheckboxGroupField';
+import { FolderCardAtField } from './knowledge-base/FolderCardAtField';
+import type { FolderCardTag } from '../api/client';
+import { userFacingCopy } from '../lib/uiCopyHygiene';
 import './SchemaForm.css';
 
 type JsonSchema = TaskFormConfig['schema'];
@@ -17,36 +33,139 @@ export type SchemaFormProps = {
   hydrateDefaults?: boolean;
   /**
    * `default`:跟随 `html.dark` 与 App 主题变量。
-   * `panel`:用于深色抽屉/浮层内嵌表单,强制浅色文字 + 深色输入(不依赖全局是否为 dark)。
+   * `panel`:用于抽屉/侧栏内嵌表单，跟随全局亮色/暗色主题。
    */
   variant?: 'default' | 'panel';
+  /** 任务 ID：临时参考图上传时写入 metadata，供任务完成后清理 */
+  taskId?: string;
+  /**
+   * Task V2 页顶栏已有「任务名称（列表展示）」→ metadata.label；
+   * 为 true 时隐藏 formSchema 中的 `label` 字段，避免重复表单项。
+   */
+  hideMetadataLabel?: boolean;
 };
 
-type UiType = 'text' | 'string' | 'number' | 'selection' | 'boolean' | 'referenceImages';
+type UiType =
+  | 'text'
+  | 'string'
+  | 'number'
+  | 'scale'
+  | 'selection'
+  | 'multiSelection'
+  | 'checkboxGroup'
+  | 'boolean'
+  | 'referenceImages'
+  | 'image'
+  | 'mediaUpload'
+  | 'eshopGarmentBatch'
+  | 'gridStoryboardImages'
+  | 'kbRecall'
+  | 'mxmKbInput'
+  | 'textFileOrPaste'
+  | 'minimaxVoice'
+  | 'voiceoverAudio'
+  | 'webSearch'
+  | 'domainSearch'
+  | 'colorPicker'
+  | 'folderCard';
 
-function schemaUiType(def: Record<string, unknown>): UiType {
+/** `type: array` + `items: { type: string, enum }` → 多选下拉 */
+function arrayItemsStringEnum(def: Record<string, unknown>): string[] {
+  if (String(def.type) !== 'array') return [];
+  const raw = def.items;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
+  const it = raw as Record<string, unknown>;
+  if (String(it.type) !== 'string') return [];
+  const en = it.enum;
+  if (!Array.isArray(en) || en.length === 0) return [];
+  return en.map((x) => String(x));
+}
+
+function schemaUiType(name: string, def: Record<string, unknown>): UiType {
+  const lower = name.toLowerCase();
+  // Heuristic first: these fields are upload cards even if old DB rows still mark x-ui-type as text.
+  if (lower === 'model_image' || lower === 'referenceimage' || lower === 'reference_image') {
+    console.log('[SchemaForm] force referenceImages by field name', { name, xUiType: def['x-ui-type'], type: def.type });
+    return 'referenceImages';
+  }
+
   const xUi = def['x-ui-type'];
   if (xUi === 'text') return 'text';
   if (xUi === 'string') return 'string';
   if (xUi === 'number') return 'number';
-  if (xUi === 'selection') return 'selection';
+  if (xUi === 'scale') return 'scale';
+  if (xUi === 'selection') {
+    if (def['x-multiple'] === true || String(def.type) === 'array') return 'multiSelection';
+    return 'selection';
+  }
+  if (xUi === 'multiSelection') return 'multiSelection';
+  if (xUi === 'checkboxGroup') return 'checkboxGroup';
   if (xUi === 'referenceImages') return 'referenceImages';
+  if (xUi === 'eshopGarmentBatch') return 'eshopGarmentBatch';
+  if (xUi === 'gridStoryboardImages') return 'gridStoryboardImages';
+  if (xUi === 'kbRecall') return 'kbRecall';
+  if (xUi === 'mxmKbInput') return 'mxmKbInput';
+  if (xUi === 'textFileOrPaste') return 'textFileOrPaste';
+  if (xUi === 'minimaxVoice') return 'minimaxVoice';
+  if (xUi === 'voiceoverAudio') return 'voiceoverAudio';
+  if (xUi === 'webSearch') return 'webSearch';
+  if (xUi === 'domainSearch') return 'domainSearch';
+  if (xUi === 'colorPicker') return 'colorPicker';
+  if (xUi === 'folderCard') return 'folderCard';
+  if (xUi === 'image') return 'image';
+  if (
+    xUi === 'imageUpload' ||
+    xUi === 'fileUpload' ||
+    xUi === 'audioUpload' ||
+    xUi === 'documentUpload'
+  ) {
+    return 'mediaUpload';
+  }
+  /** JSON Schema `type: boolean` 的显式开关样式（与隐式 `type:boolean` 一致，均走 antd Switch） */
+  if (xUi === 'switch') return 'boolean';
 
   const t = String(def.type ?? 'string');
   if (t === 'boolean') return 'boolean';
   if (t === 'number' || t === 'integer') return 'number';
+  if (t === 'array' && arrayItemsStringEnum(def).length > 0) return 'multiSelection';
   if (t === 'object' || t === 'array') return 'text';
   if (Array.isArray(def.enum) && def.enum.length > 0) return 'selection';
   return 'string';
+}
+
+function resolveFormFieldPath(root: SchemaFormValue, path: string): string | undefined {
+  const parts = path.split('.').map((p) => p.trim()).filter(Boolean);
+  let cur: unknown = root;
+  for (const part of parts) {
+    if (!cur || typeof cur !== 'object' || Array.isArray(cur)) return undefined;
+    cur = (cur as Record<string, unknown>)[part];
+  }
+  return typeof cur === 'string' && cur.trim() ? cur.trim() : undefined;
 }
 
 function isUserVisible(def: Record<string, unknown>): boolean {
   return def['x-user-visible'] !== false;
 }
 
+/** x-show-when / x-hide-when 控制显隐 */
+function isHiddenByWhen(def: Record<string, unknown>, formValue: SchemaFormValue): boolean {
+  const showWhen = def['x-show-when'];
+  if (showWhen && typeof showWhen === 'object' && !Array.isArray(showWhen)) {
+    for (const [key, expected] of Object.entries(showWhen as Record<string, unknown>)) {
+      if (formValue[key] !== expected) return true;
+    }
+  }
+  const hideWhen = def['x-hide-when'];
+  if (!hideWhen || typeof hideWhen !== 'object' || Array.isArray(hideWhen)) return false;
+  for (const [key, expected] of Object.entries(hideWhen as Record<string, unknown>)) {
+    if (formValue[key] === expected) return true;
+  }
+  return false;
+}
+
 function getTitle(name: string, def: Record<string, unknown>): string {
   const t = def.title != null ? String(def.title) : '';
-  return t.trim() ? t : name;
+  return userFacingCopy(t.trim() ? t : name, name);
 }
 
 function toNumberOrUndefined(v: unknown): number | undefined {
@@ -56,6 +175,59 @@ function toNumberOrUndefined(v: unknown): number | undefined {
     return Number.isFinite(n) ? n : undefined;
   }
   return undefined;
+}
+
+function buildEnumSelectOptions(
+  def: Record<string, unknown>,
+  enums: unknown[],
+  value: SchemaFormValue
+): Array<{ value: string; label: string }> {
+  const filtered = filterEnumByApplyto(def, value, enums);
+  const labels = Array.isArray(def['x-enum-labels']) ? (def['x-enum-labels'] as unknown[]) : [];
+  return filtered
+    .map((ev, idx) => {
+      const valueStr = String(ev);
+      const labelStr = labels[idx] != null && String(labels[idx]).trim() ? String(labels[idx]) : valueStr;
+      return { value: valueStr, label: labelStr };
+    })
+    .filter((o) => o.value.trim() !== '');
+}
+
+function buildCheckboxGroupSections(
+  def: Record<string, unknown>,
+  options: Array<{ value: string; label: string }>
+): CheckboxGroupSection[] | undefined {
+  const rawGroups = def['x-option-groups'];
+  if (!Array.isArray(rawGroups) || rawGroups.length === 0) return undefined;
+  const byValue = new Map(options.map((o) => [o.value, o]));
+  const sections: CheckboxGroupSection[] = [];
+  for (const group of rawGroups) {
+    if (!group || typeof group !== 'object' || Array.isArray(group)) continue;
+    const g = group as Record<string, unknown>;
+    const label = String(g.label ?? '').trim();
+    const items = Array.isArray(g.items) ? g.items.map(String) : [];
+    const groupOptions = items
+      .map((value) => byValue.get(value))
+      .filter((o): o is { value: string; label: string } => Boolean(o));
+    if (groupOptions.length > 0) sections.push({ label, options: groupOptions });
+  }
+  return sections.length > 0 ? sections : undefined;
+}
+
+function resolveTextareaRows(
+  name: string,
+  def: Record<string, unknown>,
+  uiSchema: Record<string, unknown> | null | undefined
+): { minRows: number; maxRows: number } {
+  const uiField = (uiSchema as Record<string, Record<string, unknown>> | undefined)?.[name];
+  const uiOptions = (uiField?.['ui:options'] as Record<string, unknown> | undefined) ?? {};
+  const minRowsRaw =
+    toNumberOrUndefined(def['x-min-rows']) ??
+    (typeof uiOptions.rows === 'number' ? Math.floor(uiOptions.rows) : undefined);
+  const maxRowsRaw = toNumberOrUndefined(def['x-max-rows']);
+  const minRows = minRowsRaw ?? (name === 'prompt' ? 6 : 4);
+  const maxRows = maxRowsRaw ?? Math.max(minRows + 4, 16);
+  return { minRows, maxRows };
 }
 
 function filterEnumByApplyto(
@@ -80,10 +252,10 @@ function groupEntriesForLayout(
   let i = 0;
   while (i < entries.length) {
     const [n1, d1] = entries[i];
-    const u1 = schemaUiType(d1);
+    const u1 = schemaUiType(n1, d1);
     if (u1 === 'number' && i + 1 < entries.length) {
       const [n2, d2] = entries[i + 1];
-      if (schemaUiType(d2) === 'number') {
+      if (schemaUiType(n2, d2) === 'number') {
         rows.push([
           [n1, d1],
           [n2, d2],
@@ -100,7 +272,8 @@ function groupEntriesForLayout(
 
 export function SchemaForm(props: SchemaFormProps) {
   const { message } = App.useApp();
-  const { schema, value, onChange, hydrateDefaults = true, variant = 'default' } = props;
+  const { t } = useTranslation();
+  const { schema, uiSchema, value, onChange, hydrateDefaults = true, variant = 'default', taskId: formTaskId, hideMetadataLabel = false } = props;
 
   const properties = (schema?.properties ?? {}) as Record<string, unknown>;
   const requiredSet = useMemo(() => new Set((schema?.required ?? []).map(String)), [schema?.required]);
@@ -147,24 +320,32 @@ export function SchemaForm(props: SchemaFormProps) {
   if (!schema) return null;
 
   const visibleEntries = Object.entries(properties).filter(([name, defRaw]) => {
+    if (hideMetadataLabel && name === 'label') return false;
     const def = defRaw && typeof defRaw === 'object' ? (defRaw as Record<string, unknown>) : {};
-    return !!name && isUserVisible(def);
+    return !!name && isUserVisible(def) && !isHiddenByWhen(def, value);
   }) as Array<[string, Record<string, unknown>]>;
 
   const layoutRows = groupEntriesForLayout(visibleEntries);
 
-  const rootClass = `schema-form schema-form--${variant}`;
+  const rootClass =
+    variant === 'panel'
+      ? 'schema-form schema-form--panel mxm-form-surface'
+      : `schema-form schema-form--${variant}`;
 
   const renderField = (name: string, def: Record<string, unknown>) => {
-    const uiType = schemaUiType(def);
+    const uiType = schemaUiType(name, def);
     const title = getTitle(name, def);
-    const desc = def.description != null ? String(def.description) : '';
+    const desc = userFacingCopy(def.description != null ? String(def.description) : '');
+    const titleText = userFacingCopy(
+      def.title != null ? String(def.title) : name,
+      name
+    );
     const required = requiredSet.has(name);
     const v = value[name];
 
     const label = (
       <div className="schema-form__label">
-        <span>{title}</span>
+        <span>{titleText || title}</span>
         {required ? <span className="schema-form__required">*</span> : null}
       </div>
     );
@@ -172,7 +353,11 @@ export function SchemaForm(props: SchemaFormProps) {
     const help =
       desc.trim() !== '' ? <div className="schema-form__help">{desc}</div> : null;
 
-    const setField = (nextVal: unknown) => onChange({ ...value, [name]: nextVal });
+    const setField = (nextVal: unknown) => {
+      const next = { ...valueRef.current, [name]: nextVal };
+      valueRef.current = next;
+      onChange(next);
+    };
 
     if (uiType === 'referenceImages') {
       const arrRaw = Array.isArray(v) ? v : [];
@@ -180,199 +365,206 @@ export function SchemaForm(props: SchemaFormProps) {
         .map((x) => (x && typeof x === 'object' ? (x as Record<string, unknown>) : null))
         .filter(Boolean) as Array<Record<string, unknown>>;
 
-      const allowedTypes = ['main-subject', 'background', 'outfits', 'color-reference', 'style-reference'] as const;
-      const typeOptions = allowedTypes.map((t) => ({ value: t, label: t }));
+      return (
+        <ReferenceImagesField
+          key={name}
+          fieldName={name}
+          fieldDef={def}
+          title={label}
+          help={help}
+          rows={rows}
+          formTaskId={formTaskId}
+          stockSearchDefault={deriveFormStockSearchDefault(valueRef.current)}
+          onChange={(next) => setField(next)}
+        />
+      );
+    }
 
-      const updateRow = (idx: number, patch: Partial<{ content: string; type: string; purpose: string }>) => {
-        const next = rows.map((r, i) => {
-          if (i !== idx) return r;
-          const cur = r as Record<string, unknown>;
-          const updated: Record<string, unknown> = { ...cur, ...patch };
-          // 兼容:强制字段存在
-          if (typeof updated.type !== 'string' || !updated.type) updated.type = 'main-subject';
-          if (typeof updated.content !== 'string') updated.content = '';
-          if (updated.purpose != null && typeof updated.purpose !== 'string') updated.purpose = String(updated.purpose);
-          return updated;
-        });
-        setField(next);
-      };
-
-      const removeRow = (idx: number) => {
-        const next = rows.filter((_, i) => i !== idx);
-        setField(next);
-      };
-
-      const addRow = () => {
-        const next = [...rows, { content: '', type: 'main-subject', purpose: '' }];
-        setField(next);
-      };
-
-      const fileToDataUri = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onerror = () => reject(new Error('读取文件失败'));
-          reader.onload = () => {
-            const res = reader.result;
-            if (typeof res === 'string' && res.startsWith('data:')) resolve(res);
-            else reject(new Error('无法转换为 Base64 data URI'));
-          };
-          reader.readAsDataURL(file);
-        });
-      };
-
-      const uploadIntoRow = async (idx: number, file: File) => {
-        try {
-          // 优先使用 R2 上传(公网可访问的公开 URL)
-          const r2Result = await uploadReferenceImageToR2(file);
-          updateRow(idx, { content: r2Result.url });
-          message.success('参考图已上传(R2 公网 URL)');
-        } catch (e) {
-          // R2 上传失败时,fallback 到 MinIO 上传
-          try {
-            const res = await uploadAssets(file);
-            if (res.error) throw new Error(res.error);
-            const body = res.data as unknown as { data?: { url?: string } } | { url?: string } | undefined;
-            const url = (body as any)?.data?.url ?? (body as any)?.url;
-            if (!url || typeof url !== 'string') throw new Error('上传成功但未返回 url');
-            updateRow(idx, { content: url });
-            message.warning('R2 上传失败,已改用 MinIO URL');
-          } catch (e2) {
-            message.error(e instanceof Error ? e.message : String(e));
-          }
-        }
-      };
-
-      const toBase64IntoRow = async (idx: number, file: File) => {
-        try {
-          const dataUri = await fileToDataUri(file);
-          updateRow(idx, { content: dataUri });
-          message.success('参考图已写入 Base64(直传模式)');
-        } catch (e) {
-          message.error(e instanceof Error ? e.message : String(e));
-        }
-      };
-
+    if (uiType === 'folderCard') {
+      const tagRaw = String(def['x-card-tag'] ?? 'writing').trim();
+      const cardTag = (
+        ['style', 'writing', 'character', 'knowledge'].includes(tagRaw) ? tagRaw : 'writing'
+      ) as FolderCardTag;
       return (
         <div key={name} className="schema-form__field">
           {label}
           {help}
-          <Space direction="vertical" style={{ width: '100%' }} size={8}>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              提示：URL 模式会上传到 Cloudflare R2（公网可访问）；若云端模型无法访问，再使用 Base64 直传。
-            </Typography.Text>
-            {rows.length === 0 ? (
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                暂无参考图,点击下方添加
-              </Typography.Text>
-            ) : null}
-            {rows.map((r, idx) => {
-              const content = typeof r.content === 'string' ? r.content : '';
-              const t = typeof r.type === 'string' ? r.type : 'main-subject';
-              const purpose = typeof r.purpose === 'string' ? r.purpose : '';
-              return (
-                <div
-                  key={`ref-${idx}`}
-                  style={{
-                    border: '1px solid rgba(148,163,184,0.25)',
-                    borderRadius: 10,
-                    padding: 10,
-                    background: 'rgba(15, 23, 42, 0.06)',
-                  }}
-                >
-                  <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 160px', gap: 8 }}>
-                      <Input
-                        value={content}
-                        placeholder="粘贴图片 URL(或先上传自动填充)"
-                        onChange={(e) => updateRow(idx, { content: e.target.value })}
-                      />
-                      <Select
-                        value={allowedTypes.includes(t as any) ? t : 'main-subject'}
-                        options={typeOptions}
-                        onChange={(sv) => updateRow(idx, { type: sv })}
-                      />
-                    </div>
-                    <Input
-                      value={purpose}
-                      placeholder="用途说明(可选):例如 主图模特/衣服面料细节/背景光线氛围"
-                      onChange={(e) => updateRow(idx, { purpose: e.target.value })}
-                    />
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          style={{ display: 'none' }}
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (!f) return;
-                            void uploadIntoRow(idx, f);
-                            // allow re-upload same file
-                            e.currentTarget.value = '';
-                          }}
-                        />
-                        <Button size="small">上传为 URL</Button>
-                      </label>
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          style={{ display: 'none' }}
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (!f) return;
-                            void toBase64IntoRow(idx, f);
-                            e.currentTarget.value = '';
-                          }}
-                        />
-                        <Button size="small">上传为 Base64</Button>
-                      </label>
-                      <Button size="small" danger onClick={() => removeRow(idx)}>
-                        删除该图
-                      </Button>
-                    </div>
-                  </Space>
-                </div>
-              );
-            })}
-            <Button onClick={addRow}>+ 添加参考图</Button>
-          </Space>
+          <FolderCardAtField
+            cardTag={cardTag}
+            value={typeof v === 'string' && v.trim() ? v : null}
+            onChange={(id) => setField(id ?? '')}
+          />
+        </div>
+      );
+    }
+
+    if (uiType === 'image' || uiType === 'mediaUpload') {
+      // 旧 `x-ui-type: image` 兼容：视作 mediaUpload mode=image。
+      // 新写法 `x-ui-type: imageUpload | fileUpload | audioUpload | documentUpload`。
+      const xUi = (def['x-ui-type'] as string) || '';
+      const mode: MediaUploadMode = (() => {
+        if (xUi === 'fileUpload') return 'file';
+        if (xUi === 'audioUpload') return 'audio';
+        if (xUi === 'documentUpload') return 'document';
+        return 'image';
+      })();
+      const enableLibrary =
+        def['x-enable-library'] === true || (mode === 'image' || mode === 'audio');
+      const enableKnowledgeFolder = (def['x-enable-knowledge-folder'] ?? def['x-enable-virtual-folder']) !== false;
+      /** 音频上传：带回来源 taskId，自动剪辑可引入该任务已持久化的 TTS 字幕 */
+      const bindVoiceoverSourceTask = mode === 'audio';
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <MediaUploadField
+            value={typeof v === 'string' ? v : ''}
+            mode={mode}
+            onChange={(url) => setField(url)}
+            enableLibrary={enableLibrary}
+            enableKnowledgeFolder={enableKnowledgeFolder}
+            formTaskId={formTaskId}
+            onSourceTaskIdChange={
+              bindVoiceoverSourceTask
+                ? (taskId) => {
+                    const next = { ...valueRef.current };
+                    if (taskId) next.voiceover_source_task_id = taskId;
+                    else delete next.voiceover_source_task_id;
+                    valueRef.current = next;
+                    onChange(next);
+                  }
+                : undefined
+            }
+            onDurationHint={
+              bindVoiceoverSourceTask
+                ? (sec) => {
+                    if (sec != null && sec > 0) {
+                      const next = { ...valueRef.current, audio_duration_seconds: sec };
+                      valueRef.current = next;
+                      onChange(next);
+                    } else {
+                      const next = { ...valueRef.current };
+                      delete next.audio_duration_seconds;
+                      valueRef.current = next;
+                      onChange(next);
+                    }
+                  }
+                : undefined
+            }
+          />
         </div>
       );
     }
 
     if (uiType === 'boolean') {
       return (
+        <div key={name} className="schema-form__field schema-form__field--switch">
+          <div className="schema-form__switch-row">
+            <div className="schema-form__switch-copy">
+              {label}
+              {help}
+            </div>
+            <Switch checked={!!v} onChange={(checked) => setField(checked)} />
+          </div>
+        </div>
+      );
+    }
+
+    if (uiType === 'colorPicker') {
+      const preset =
+        def.default != null && typeof def.default === 'string' ? String(def.default) : undefined;
+      const disabled = isHiddenByWhen(def, value);
+      return (
         <div key={name} className="schema-form__field">
           {label}
           {help}
-          <Switch checked={!!v} onChange={(checked) => setField(checked)} />
+          <ColorPickerField
+            value={v}
+            preset={preset}
+            disabled={disabled}
+            allowEmpty={!required}
+            placeholder={preset ?? '#002FA7'}
+            onChange={(hex) => setField(hex)}
+          />
         </div>
       );
     }
 
     if (uiType === 'number') {
       const n = toNumberOrUndefined(v);
+      const min = typeof def.minimum === 'number' ? def.minimum : undefined;
+      const max = typeof def.maximum === 'number' ? def.maximum : undefined;
+      const step =
+        typeof def.multipleOf === 'number' && def.multipleOf > 0
+          ? def.multipleOf
+          : min != null && max != null && max - min <= 2
+            ? 0.1
+            : 1;
       return (
         <div key={name} className="schema-form__field">
           {label}
           {help}
-          <InputNumber value={n} onChange={(nv) => setField(nv ?? undefined)} style={{ width: '100%' }} />
+          <InputNumber
+            value={n}
+            min={min}
+            max={max}
+            step={step}
+            onChange={(nv) => setField(nv ?? undefined)}
+            style={{ width: '100%' }}
+          />
+        </div>
+      );
+    }
+
+    if (uiType === 'scale') {
+      const min = typeof def.minimum === 'number' ? def.minimum : 1;
+      const max = typeof def.maximum === 'number' ? def.maximum : 10;
+      const labels = Array.isArray(def['x-enum-labels'])
+        ? (def['x-enum-labels'] as unknown[]).map(String)
+        : [];
+      const nRaw = toNumberOrUndefined(v);
+      const n =
+        nRaw != null && Number.isFinite(nRaw)
+          ? Math.min(max, Math.max(min, Math.round(nRaw)))
+          : typeof def.default === 'number'
+            ? Math.min(max, Math.max(min, Math.round(def.default)))
+            : Math.round((min + max) / 2);
+      const labelIdx = n - min;
+      const hint =
+        labelIdx >= 0 && labelIdx < labels.length
+          ? (() => {
+              const raw = labels[labelIdx]!.trim();
+              const sep = raw.indexOf('·');
+              return sep > 0 ? raw.slice(sep + 1).trim() || raw : raw;
+            })()
+          : null;
+      return (
+        <div key={name} className="schema-form__field schema-form__field--scale">
+          {label}
+          {help}
+          <div className="schema-form__scale-readout">
+            <span className="schema-form__scale-num">{n}</span>
+            {hint ? <span className="schema-form__scale-hint">{hint}</span> : null}
+          </div>
+          <Slider
+            min={min}
+            max={max}
+            step={1}
+            value={n}
+            tooltip={{ open: false }}
+            onChange={(nv) => setField(typeof nv === 'number' ? nv : min)}
+          />
+          <div className="schema-form__scale-ends">
+            <span>{min}</span>
+            <span>{max}</span>
+          </div>
         </div>
       );
     }
 
     if (uiType === 'selection') {
-      let enums = Array.isArray(def.enum) ? (def.enum as unknown[]) : [];
-      enums = filterEnumByApplyto(def, value, enums);
-      const labels = Array.isArray(def['x-enum-labels']) ? (def['x-enum-labels'] as unknown[]) : [];
-      const options = enums
-        .map((ev, idx) => {
-          const valueStr = String(ev);
-          const labelStr = labels[idx] != null && String(labels[idx]).trim() ? String(labels[idx]) : valueStr;
-          return { value: valueStr, label: labelStr };
-        })
-        .filter((o) => o.value.trim() !== '');
+      const enums = Array.isArray(def.enum) ? (def.enum as unknown[]) : [];
+      const options = buildEnumSelectOptions(def, enums, value);
       return (
         <div key={name} className="schema-form__field">
           {label}
@@ -380,10 +572,281 @@ export function SchemaForm(props: SchemaFormProps) {
           <Select
             value={v != null && String(v).trim() !== '' ? String(v) : undefined}
             allowClear
-            placeholder="请选择"
+            placeholder={t('form.selectPlaceholder')}
             options={options}
             onChange={(sv) => setField(sv)}
             style={{ width: '100%' }}
+          />
+        </div>
+      );
+    }
+
+    if (uiType === 'eshopGarmentBatch') {
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <EshopGarmentBatchField value={v} def={def} onChange={(next) => setField(next)} />
+        </div>
+      );
+    }
+
+    if (uiType === 'gridStoryboardImages') {
+      const supportsLastFrame = def['x-supports-last-frame'] !== false;
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <GridStoryboardImagesField
+            value={v}
+            supportsLastFrame={supportsLastFrame}
+            onChange={(next) => setField(next)}
+          />
+        </div>
+      );
+    }
+
+    if (uiType === 'kbRecall') {
+      const maxItems =
+        typeof def['x-max-items'] === 'number' && def['x-max-items'] > 0
+          ? Math.floor(def['x-max-items'] as number)
+          : 5;
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <KbRecallField value={v} maxItems={maxItems} onChange={(next) => setField(next)} />
+        </div>
+      );
+    }
+
+    if (uiType === 'mxmKbInput') {
+      const uiField = (uiSchema as Record<string, Record<string, unknown>> | undefined)?.[name];
+      const uiOptions = (uiField?.['ui:options'] as Record<string, unknown> | undefined) ?? {};
+      const rows =
+        typeof uiOptions.rows === 'number' && uiOptions.rows > 0
+          ? Math.floor(uiOptions.rows)
+          : typeof def['x-rows'] === 'number' && (def['x-rows'] as number) > 0
+            ? Math.floor(def['x-rows'] as number)
+            : 5;
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <MxmKbInputField value={v} rows={rows} onChange={(next) => setField(next)} />
+        </div>
+      );
+    }
+
+    if (uiType === 'textFileOrPaste') {
+      const uiField = (uiSchema as Record<string, Record<string, unknown>> | undefined)?.[name];
+      const uiOptions = (uiField?.['ui:options'] as Record<string, unknown> | undefined) ?? {};
+      const rows =
+        typeof uiOptions.rows === 'number' && uiOptions.rows > 0
+          ? Math.floor(uiOptions.rows)
+          : 8;
+      const accept =
+        typeof def['x-accept'] === 'string' && def['x-accept'].trim()
+          ? String(def['x-accept']).trim()
+          : typeof uiOptions.accept === 'string'
+            ? String(uiOptions.accept)
+            : undefined;
+      const maxChars =
+        typeof def['x-max-chars'] === 'number' && def['x-max-chars'] > 0
+          ? Math.floor(def['x-max-chars'] as number)
+          : undefined;
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <TextFileOrPasteField
+            value={v}
+            rows={rows}
+            accept={accept}
+            maxChars={maxChars}
+            onChange={(next) => setField(next)}
+          />
+        </div>
+      );
+    }
+
+    if (uiType === 'minimaxVoice') {
+      const voiceModel =
+        typeof def['x-voice-model'] === 'string' && def['x-voice-model'].trim()
+          ? String(def['x-voice-model']).trim()
+          : 'speech-2.8-hd';
+      const cloneFolderId =
+        (typeof def['x-clone-folder-id'] === 'string' && def['x-clone-folder-id'].trim()
+          ? String(def['x-clone-folder-id']).trim()
+          : undefined) ||
+        (typeof def['x-clone-folder-from'] === 'string'
+          ? resolveFormFieldPath(value, String(def['x-clone-folder-from']))
+          : undefined);
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <MinimaxVoiceField
+            value={v}
+            voiceModel={voiceModel}
+            cloneFolderId={cloneFolderId}
+            onChange={(next) => setField(next)}
+          />
+        </div>
+      );
+    }
+
+    if (uiType === 'voiceoverAudio') {
+      // 兼容旧 `x-ui-type: voiceoverAudio`：统一走 MediaUploadField audio。
+      // 新写法 `x-ui-type: audioUpload`。
+      const enableLibrary =
+        def['x-enable-library'] === true || true;
+      const enableKnowledgeFolder = (def['x-enable-knowledge-folder'] ?? def['x-enable-virtual-folder']) !== false;
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <MediaUploadField
+            mode="audio"
+            value={typeof v === 'string' ? v : ''}
+            onChange={(url) => setField(url)}
+            enableLibrary={enableLibrary}
+            enableKnowledgeFolder={enableKnowledgeFolder}
+            formTaskId={formTaskId}
+            onSourceTaskIdChange={(taskId) => {
+              const next = { ...valueRef.current };
+              if (taskId) next.voiceover_source_task_id = taskId;
+              else delete next.voiceover_source_task_id;
+              valueRef.current = next;
+              onChange(next);
+            }}
+            onDurationHint={(sec) => {
+              if (sec != null && sec > 0) {
+                const next = { ...valueRef.current, audio_duration_seconds: sec };
+                valueRef.current = next;
+                onChange(next);
+              } else {
+                const next = { ...valueRef.current };
+                delete next.audio_duration_seconds;
+                valueRef.current = next;
+                onChange(next);
+              }
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (uiType === 'domainSearch') {
+      const maxItems =
+        typeof def['x-max-items'] === 'number' && def['x-max-items'] > 0
+          ? Math.floor(def['x-max-items'] as number)
+          : 5;
+      const autoHint =
+        def['x-auto-from-prompt'] === true || def['x-auto-from'] === 'prompt'
+          ? t('form.schema.autoFromWritingTopic')
+          : undefined;
+      const propsDef = def.properties as Record<string, Record<string, unknown>> | undefined;
+      const depthDef = propsDef?.searchDepth;
+      const depthEnum = Array.isArray(depthDef?.enum)
+        ? (depthDef.enum as unknown[])
+            .map(String)
+            .filter((d): d is 'quick' | 'standard' | 'deep' =>
+              d === 'quick' || d === 'standard' || d === 'deep'
+            )
+        : undefined;
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <DomainSearchField
+            value={v}
+            enumSearchDepths={depthEnum}
+            maxItems={maxItems}
+            autoFromHint={autoHint}
+            onChange={(next) => setField(next)}
+          />
+        </div>
+      );
+    }
+
+    if (uiType === 'webSearch') {
+      const maxItems =
+        typeof def['x-max-items'] === 'number' && def['x-max-items'] > 0
+          ? Math.floor(def['x-max-items'] as number)
+          : 5;
+      const autoHint =
+        def['x-auto-from-prompt'] === true || def['x-auto-from'] === 'prompt'
+          ? t('form.schema.autoFromWritingTopic')
+          : undefined;
+      const propsDef = def.properties as Record<string, Record<string, unknown>> | undefined;
+      const depthDef = propsDef?.searchDepth;
+      const depthEnum = Array.isArray(depthDef?.enum)
+        ? (depthDef.enum as unknown[])
+            .map(String)
+            .filter((d): d is 'quick' | 'standard' | 'deep' =>
+              d === 'quick' || d === 'standard' || d === 'deep'
+            )
+        : undefined;
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <WebSearchField
+            value={v}
+            enumSearchDepths={depthEnum}
+            maxItems={maxItems}
+            autoFromHint={autoHint}
+            onChange={(next) => setField(next)}
+          />
+        </div>
+      );
+    }
+
+    if (uiType === 'multiSelection') {
+      const enums: unknown[] = arrayItemsStringEnum(def);
+      const options = buildEnumSelectOptions(def, enums, value);
+      const arrRaw = Array.isArray(v) ? v.map(String).filter((s) => s.trim() !== '') : [];
+      const maxItems = toNumberOrUndefined(def.maxItems);
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <Select
+            mode="multiple"
+            value={arrRaw}
+            allowClear={!required}
+            placeholder={t('form.multiSelectPlaceholder')}
+            options={options}
+            style={{ width: '100%' }}
+            onChange={(vals) => {
+              const next = Array.isArray(vals) ? vals.map(String) : [];
+              const uniq = def.uniqueItems === true ? Array.from(new Set(next)) : next;
+              const capped =
+                maxItems != null && maxItems > 0 && uniq.length > maxItems ? uniq.slice(0, maxItems) : uniq;
+              setField(capped);
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (uiType === 'checkboxGroup') {
+      const enums: unknown[] = arrayItemsStringEnum(def);
+      const options = buildEnumSelectOptions(def, enums, value);
+      const sections = buildCheckboxGroupSections(def, options);
+      const arrRaw = Array.isArray(v) ? v.map(String).filter((s) => s.trim() !== '') : [];
+      const maxItems = toNumberOrUndefined(def.maxItems);
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <CheckboxGroupField
+            value={arrRaw}
+            options={options}
+            sections={sections}
+            maxItems={maxItems}
+            onChange={(next) => setField(next)}
           />
         </div>
       );
@@ -434,6 +897,7 @@ export function SchemaForm(props: SchemaFormProps) {
       name === 'prompt' ||
       String(def.format ?? '') === 'textarea';
     if (useTextArea) {
+      const { minRows, maxRows } = resolveTextareaRows(name, def, uiSchema);
       return (
         <div key={name} className="schema-form__field">
           {label}
@@ -441,7 +905,7 @@ export function SchemaForm(props: SchemaFormProps) {
           <Input.TextArea
             value={v != null ? String(v) : ''}
             onChange={(e) => setField(e.target.value)}
-            autoSize={{ minRows: name === 'prompt' ? 6 : 4, maxRows: 16 }}
+            autoSize={{ minRows, maxRows }}
           />
         </div>
       );

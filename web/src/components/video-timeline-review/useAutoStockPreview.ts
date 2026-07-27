@@ -23,6 +23,14 @@ export type AutoStockPreview =
   | { status: 'ready'; kind: 'image' | 'video'; url: string; title?: string; attribution?: string }
   | { status: 'error'; message: string };
 
+export type AutoStockCommitPayload = {
+  clipId: string;
+  kind: 'image' | 'video';
+  url: string;
+  title?: string;
+  attribution?: string;
+};
+
 const STOCK_PAGE_SIZE = 12;
 const MAX_STOCK_PAGES = 2;
 const STOCK_FETCH_CONCURRENCY = 5;
@@ -139,8 +147,16 @@ async function fetchAutoStockForClip(
 export function useAutoStockPreviewMap(
   visualClips: VisualClipItem[],
   subtitles: TimelineSubtitle[],
-  projectTopic?: string
+  projectTopic?: string,
+  /**
+   * 本批检索全部结束后一次性回写（保证一次审核预览图 = 二次渲染源）。
+   * 调用方应跳过已有 mxmSource*Url 的片段。
+   */
+  onStockBatchReady?: (commits: AutoStockCommitPayload[]) => void
 ): Record<string, AutoStockPreview> {
+  const onStockBatchReadyRef = useRef(onStockBatchReady);
+  onStockBatchReadyRef.current = onStockBatchReady;
+
   const targets = useMemo(() => {
     return visualClips
       .filter((c) => {
@@ -189,7 +205,24 @@ export function useAutoStockPreviewMap(
       const prev = lastSuccessRef.current[c.id];
       return !prev || prev.status === 'error' || prev.status === 'idle';
     });
-    if (pending.length === 0) return;
+    if (pending.length === 0) {
+      // 本批已在内存中 ready、但尚未写回脚本时仍提交一遍（例如刚刷新后）
+      const commits: AutoStockCommitPayload[] = [];
+      for (const c of targets) {
+        const prev = lastSuccessRef.current[c.id];
+        if (prev?.status === 'ready') {
+          commits.push({
+            clipId: c.id,
+            kind: prev.kind,
+            url: prev.url,
+            title: prev.title,
+            attribution: prev.attribution,
+          });
+        }
+      }
+      if (commits.length) onStockBatchReadyRef.current?.(commits);
+      return;
+    }
 
     const controller = { cancelled: false };
     void (async () => {
@@ -207,6 +240,23 @@ export function useAutoStockPreviewMap(
         }
         setMap({ ...next });
       });
+
+      if (controller.cancelled) return;
+
+      const commits: AutoStockCommitPayload[] = [];
+      for (const c of targets) {
+        const preview = next[c.id] ?? lastSuccessRef.current[c.id];
+        if (preview?.status === 'ready') {
+          commits.push({
+            clipId: c.id,
+            kind: preview.kind,
+            url: preview.url,
+            title: preview.title,
+            attribution: preview.attribution,
+          });
+        }
+      }
+      if (commits.length) onStockBatchReadyRef.current?.(commits);
     })();
 
     return () => {

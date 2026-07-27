@@ -1,5 +1,7 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, startTransition, type ReactNode } from 'react';
 import { getStoredToken, setToken as storeToken, getStoredUser, getProfile, type LoginUser } from '../api/client';
+import { clearMediaBlobCache } from '../lib/mediaBlobCache';
+import { clearSessionCache } from '../lib/sessionApiCache';
 
 type AuthContextValue = {
   token: string;
@@ -23,9 +25,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    storeToken('');
-    setTokenState('');
-    setUser(null);
+    // 登出会切到 lazy Landing；同步 setState 会触发 React #426，须包在 transition 里
+    startTransition(() => {
+      storeToken('');
+      setTokenState('');
+      setUser(null);
+      clearMediaBlobCache();
+      clearSessionCache();
+    });
   }, []);
 
   useEffect(() => {

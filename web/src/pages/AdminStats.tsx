@@ -1,9 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Column, Pie } from '@ant-design/charts';
-import { Statistic, Card, Select, Button, Table, Space, Tooltip, Spin } from 'antd';
+import { Statistic, Card, Select, Button, Table, Space, Tooltip } from 'antd';
+import BrandLoading from '../components/BrandLoading';
 import type { ColumnsType } from 'antd/es/table';
-import { getAdminStats, type AdminStatsData } from '../api/client';
+import {
+  getAdminStats,
+  getAdminOpenApiStats,
+  type AdminStatsData,
+  type AdminOpenApiUsageStats,
+} from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { pageCardTitle, PageHint } from '../components/PageHint';
 
 const DARK_THEME = {
   defaultColor: '#5B8FF9',
@@ -27,6 +34,8 @@ export default function AdminStats() {
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(30);
   const topLimit = 10;
+  const [openApiStats, setOpenApiStats] = useState<AdminOpenApiUsageStats | null>(null);
+  const [openApiLoading, setOpenApiLoading] = useState(false);
 
   const fetchStats = useCallback(async () => {
     if (!isLoggedIn) {
@@ -44,6 +53,18 @@ export default function AdminStats() {
     const body = res.data as { success?: boolean; data?: AdminStatsData } | AdminStatsData;
     const statsData = body && typeof body === 'object' && 'data' in body ? body.data : (body as AdminStatsData);
     if (statsData && typeof statsData === 'object') setStats(statsData);
+
+    setOpenApiLoading(true);
+    const openRes = await getAdminOpenApiStats(days);
+    setOpenApiLoading(false);
+    if (!openRes.error) {
+      const openBody = openRes.data as { success?: boolean; data?: AdminOpenApiUsageStats } | AdminOpenApiUsageStats;
+      const openData =
+        openBody && typeof openBody === 'object' && 'data' in openBody
+          ? openBody.data
+          : (openBody as AdminOpenApiUsageStats);
+      if (openData && typeof openData === 'object') setOpenApiStats(openData);
+    }
   }, [isLoggedIn, days, topLimit]);
 
   useEffect(() => {
@@ -166,8 +187,12 @@ export default function AdminStats() {
 
   return (
     <div className="page-card admin-stats-page">
-      <h2>系统概览</h2>
-      <p className="hint">Admin 专用，展示用户数、任务统计、每日用量与 Top 用户。</p>
+      <h2>
+        {pageCardTitle('系统概览', {
+          title: '页面说明',
+          description: 'Admin 专用，展示用户数、任务统计、每日用量与 Top 用户。',
+        })}
+      </h2>
 
       <Space wrap size="middle" style={{ marginBottom: 16 }}>
         <span>每日用量天数：</span>
@@ -192,7 +217,7 @@ export default function AdminStats() {
         <div className="admin-stats-content-inner">
           {loading && !stats ? (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 280 }}>
-              <Spin size="large" tip="加载中…" />
+              <BrandLoading size="large" tip="加载中…" />
             </div>
           ) : stats ? (
             <>
@@ -208,15 +233,19 @@ export default function AdminStats() {
               {dailyChartData.length > 0 && (
                 <div style={{ marginBottom: 24 }} className="admin-stats-chart-wrap">
                   <h3 style={{ marginBottom: 12 }}>每日任务用量（最近 {dailyChartData.length} 天）</h3>
-                  <Column {...columnChartConfig} />
+                  <div style={{ overflowX: 'auto', minWidth: 0 }}>
+                    <Column {...columnChartConfig} />
+                  </div>
                 </div>
               )}
 
               <Space wrap size="large" style={{ marginBottom: 24 }} align="start">
                 {statusPieData.length > 0 && (
-                  <div style={{ minWidth: 320 }} className="admin-stats-chart-wrap">
+                  <div className="admin-stats-chart-wrap">
                     <h3 style={{ marginBottom: 12 }}>任务按状态</h3>
-                    <Pie {...pieConfig(statusPieData)} />
+                    <div style={{ overflowX: 'auto', minWidth: 0 }}>
+                      <Pie {...pieConfig(statusPieData)} />
+                    </div>
                     <ul style={{ marginTop: 12, paddingLeft: 0, listStyle: 'none', color: '#e0e0e0', fontSize: 14 }}>
                       {statusPieData.map((d, i) => (
                         <li key={d.type} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -228,9 +257,11 @@ export default function AdminStats() {
                   </div>
                 )}
                 {typePieData.length > 0 && (
-                  <div style={{ minWidth: 320 }} className="admin-stats-chart-wrap">
+                  <div className="admin-stats-chart-wrap">
                     <h3 style={{ marginBottom: 12 }}>任务按类型</h3>
-                    <Pie {...pieConfig(typePieData)} />
+                    <div style={{ overflowX: 'auto', minWidth: 0 }}>
+                      <Pie {...pieConfig(typePieData)} />
+                    </div>
                     <ul style={{ marginTop: 12, paddingLeft: 0, listStyle: 'none', color: '#e0e0e0', fontSize: 14 }}>
                       {typePieData.map((d, i) => (
                         <li key={d.type} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -243,25 +274,127 @@ export default function AdminStats() {
                 )}
               </Space>
 
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ marginBottom: 12 }}>开放 API（全站，近 {days} 天）</h3>
+                <Space wrap size="middle" style={{ marginBottom: 16 }}>
+                  <Card size="small" style={{ minWidth: 120 }}>
+                    <Statistic title="总调用" value={openApiStats?.totalCalls ?? 0} loading={openApiLoading} />
+                  </Card>
+                  <Card size="small" style={{ minWidth: 140 }}>
+                    <Statistic
+                      title="扣减 Token"
+                      value={openApiStats?.totalTokensCharged ?? 0}
+                      precision={2}
+                      loading={openApiLoading}
+                    />
+                  </Card>
+                  <Card size="small" style={{ minWidth: 120 }}>
+                    <Statistic title="已完成" value={openApiStats?.completedCalls ?? 0} loading={openApiLoading} />
+                  </Card>
+                  <Card size="small" style={{ minWidth: 100 }}>
+                    <Statistic title="失败" value={openApiStats?.failedCalls ?? 0} loading={openApiLoading} />
+                  </Card>
+                </Space>
+                {(openApiStats?.byOwner?.length ?? 0) > 0 && (
+                  <div style={{ marginBottom: 16, overflowX: 'auto' }}>
+                    <h4 style={{ marginBottom: 8 }}>按发布者</h4>
+                    <Table
+                      size="small"
+                      rowKey="owner_user_id"
+                      pagination={false}
+                      loading={openApiLoading}
+                      dataSource={openApiStats?.byOwner ?? []}
+                      columns={[
+                        { title: '用户名', dataIndex: 'username', width: 120 },
+                        {
+                          title: '用户 ID',
+                          dataIndex: 'owner_user_id',
+                          ellipsis: true,
+                          render: (id: string) => (
+                            <Tooltip title={id}>
+                              <span>{id}</span>
+                            </Tooltip>
+                          ),
+                        },
+                        { title: '调用次数', dataIndex: 'call_count', width: 100 },
+                        {
+                          title: '扣减 Token',
+                          dataIndex: 'tokens_charged',
+                          width: 120,
+                          render: (v: number) => Number(v).toFixed(2),
+                        },
+                        {
+                          title: '最近调用',
+                          dataIndex: 'last_called_at',
+                          width: 180,
+                          render: (v: string | null) => (v ? new Date(v).toLocaleString('zh-CN') : '—'),
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
+                {(openApiStats?.byApi?.length ?? 0) > 0 && (
+                  <div style={{ overflowX: 'auto' }}>
+                    <h4 style={{ marginBottom: 8 }}>按 slug</h4>
+                    <Table
+                      size="small"
+                      rowKey="published_api_id"
+                      pagination={false}
+                      loading={openApiLoading}
+                      dataSource={openApiStats?.byApi ?? []}
+                      columns={[
+                        {
+                          title: 'Slug',
+                          dataIndex: 'slug',
+                          width: 140,
+                          render: (v: string) => <code>{v}</code>,
+                        },
+                        { title: '名称', dataIndex: 'title', ellipsis: true },
+                        { title: '调用次数', dataIndex: 'call_count', width: 100 },
+                        {
+                          title: '扣减 Token',
+                          dataIndex: 'tokens_charged',
+                          width: 120,
+                          render: (v: number) => Number(v).toFixed(2),
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
+              </div>
+
               {topUsersDataSource.length > 0 && (
                 <div style={{ marginBottom: 24 }}>
                   <h3 style={{ marginBottom: 12 }}>用量 Top {topUsersDataSource.length} 用户</h3>
-                  <Table
-                    columns={topUsersColumns}
-                    dataSource={topUsersDataSource}
-                    rowKey="key"
-                    size="small"
-                    pagination={false}
-                  />
+                  <div style={{ overflowX: 'auto' }}>
+                    <Table
+                      columns={topUsersColumns}
+                      dataSource={topUsersDataSource}
+                      rowKey="key"
+                      size="small"
+                      pagination={false}
+                    />
+                  </div>
                 </div>
               )}
 
               {(!stats.dailyUsage || stats.dailyUsage.length === 0) &&
                 (!stats.topUsersByUsage || stats.topUsersByUsage.length === 0) && (
-                <p className="hint" style={{ marginTop: 16 }}>
-                  每日用量与 Top 用户需执行迁移：<code>pnpm --filter @mxmai/mxmdata run migrate:admin-stats</code>
-                  （需配置 SUPABASE_DB_URL）；若已迁移仍为空，可能为近期无任务数据。
-                </p>
+                <div style={{ marginTop: 16 }}>
+                  <PageHint
+                    tone="warning"
+                    emphasis
+                    title="数据为空"
+                    label="无统计数据"
+                    description={
+                      <>
+                        每日用量与 Top 用户需执行迁移：
+                        <code>pnpm --filter @mxmai/mxmdata run migrate:admin-stats</code>
+                        （需配置 SUPABASE_DB_URL）；若已迁移仍为空，可能为近期无任务数据。
+                      </>
+                    }
+                  />
+                </div>
               )}
             </>
           ) : null}

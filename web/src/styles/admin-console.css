@@ -1,0 +1,2555 @@
+/**
+ * Admin 控制台 — 业务管理 / Provider / 任务监控 / 系统概览等
+ * Extracted from App.css
+ */
+
+/* ---------- 任务监控（Admin）黑色主题下白色/浅色字体 + 表格占满整屏、最小 900px ---------- */
+.admin-tasks-page {
+  max-width: none;
+  width: 95%;
+  min-width: 0; /* 不撑开父容器，横向滚动仅由内部 table-wrap 负责 */
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-tasks-page,
+.admin-tasks-page .admin-tasks-form,
+.admin-tasks-page .admin-tasks-muted,
+.admin-tasks-page .admin-tasks-pagination {
+  color: var(--text-main);
+}
+
+.admin-tasks-page .admin-tasks-input,
+.admin-tasks-page .admin-tasks-select {
+  background: var(--card-bg);
+  border: 1px solid var(--page-border);
+  color: var(--text-main);
+}
+
+.admin-tasks-page .admin-tasks-error {
+  color: #f87171;
+}
+
+.admin-tasks-page .admin-tasks-table-wrap {
+  color: var(--text-main);
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden; /* 禁止容器横向滚动，仅表格内部横向滚动 */
+  overflow-y: auto;
+}
+
+/* 表格右侧留白：内层宽度留出 16px，表格不贴容器右缘 */
+.admin-tasks-page .admin-tasks-table-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+.admin-tasks-page .admin-tasks-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.admin-tasks-page .admin-tasks-table th,
+.admin-tasks-page .admin-tasks-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--page-border);
+  text-align: left;
+}
+
+.admin-tasks-page .admin-tasks-table th {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.admin-tasks-page .admin-tasks-table .admin-tasks-cell-id,
+.admin-tasks-page .admin-tasks-table .admin-tasks-cell-user {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-tasks-page .admin-tasks-table .admin-tasks-cell-user {
+  max-width: 120px;
+}
+
+.admin-tasks-page .admin-tasks-table .admin-tasks-cell-error {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fca5a5;
+}
+
+/* ---------- 系统概览（Admin）布局与任务监控一致：容器对齐、内部滚动 ---------- */
+.admin-stats-page {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-stats-page .admin-stats-content-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.admin-stats-page .admin-stats-content-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+/* 系统概览图表：深色主题下强制坐标轴、图例、标签为浅色且始终可见 */
+.admin-stats-page .admin-stats-chart-wrap svg text {
+  fill: #e0e0e0 !important;
+  opacity: 1 !important;
+}
+.admin-stats-page .admin-stats-chart-wrap .g2-html-annotation,
+.admin-stats-page .admin-stats-chart-wrap [class*="label"],
+.admin-stats-page .admin-stats-chart-wrap [class*="legend"] text,
+.admin-stats-page .admin-stats-chart-wrap [class*="axis"] text {
+  fill: #e0e0e0 !important;
+  color: #e0e0e0 !important;
+  opacity: 1 !important;
+}
+/* 图例可能是 HTML 渲染，强制所有图例区域内的文字为浅色、不透明 */
+.admin-stats-page .admin-stats-chart-wrap [class*="legend"] span,
+.admin-stats-page .admin-stats-chart-wrap [class*="legend"] div,
+.admin-stats-page .admin-stats-chart-wrap [class*="legend"] * {
+  color: #e0e0e0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.admin-stats-page .admin-stats-chart-wrap canvas {
+  display: block;
+}
+
+/* ---------- 用户管理（Admin）布局与任务监控一致、深色主题 ---------- */
+.admin-users-page {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-users-page .hint,
+.admin-users-page .admin-users-error {
+  color: #e0e0e0;
+}
+
+.admin-users-page .admin-users-error {
+  color: #f87171;
+}
+
+.admin-users-page .admin-users-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.admin-users-page .admin-users-table-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+/* antd Table 在深色主题下的文字与分页 */
+.admin-users-page .ant-table,
+.admin-users-page .ant-table-content,
+.admin-users-page .ant-pagination {
+  color: #e0e0e0;
+}
+
+.admin-users-page .ant-table-thead > tr > th {
+  background: #262626 !important;
+  color: #c0c0c0 !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+.admin-users-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #333 !important;
+  color: #e0e0e0 !important;
+}
+
+.admin-users-page .ant-table-tbody > tr:hover > td {
+  background: #333 !important;
+}
+
+.admin-users-page .ant-pagination .ant-pagination-item a,
+.admin-users-page .ant-pagination .ant-pagination-item-link,
+.admin-users-page .ant-pagination .ant-pagination-options .ant-select-selector {
+  color: #e0e0e0 !important;
+}
+
+.admin-users-page .ant-pagination .ant-pagination-item.ant-pagination-item-active {
+  background: #1677ff;
+}
+
+.admin-users-page .ant-pagination .ant-pagination-item.ant-pagination-item-active a {
+  color: #fff !important;
+}
+
+/* ---------- 提示词工程（Admin）布局与用户管理一致、容器内滚动 ---------- */
+.admin-prompt-config-page {
+  max-width: 95%;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-prompt-config-page .admin-prompt-config-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-width: 100%;
+}
+
+.admin-prompt-config-page .admin-prompt-config-table-inner {
+  width: 100%;
+  max-width: 95%;
+  box-sizing: border-box;
+}
+
+.admin-prompt-config-page .ant-table,
+.admin-prompt-config-page .ant-table-content,
+.admin-prompt-config-page .ant-pagination {
+  color: #e0e0e0;
+}
+
+.admin-prompt-config-page .ant-table-thead > tr > th {
+  background: #262626 !important;
+  color: #c0c0c0 !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+.admin-prompt-config-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #333 !important;
+  color: #e0e0e0 !important;
+}
+
+.admin-prompt-config-page .ant-table-tbody > tr:hover > td {
+  background: #333 !important;
+}
+
+/* ---------- 敏感词管理（Admin）布局与用户管理一致、容器内滚动 ---------- */
+.admin-sensitive-words-page {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-sensitive-words-page .admin-sensitive-words-content-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+/* ---------- 移动端表格横向滚动通用 wrapper ---------- */
+.table-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  margin-bottom: 8px;
+}
+
+.table-scroll-wrapper .ant-table {
+  min-width: 500px;
+}
+
+/* ---------- Media 页面移动端横向滚动 ---------- */
+.media-form-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+.admin-sensitive-words-page .admin-sensitive-words-content-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+.admin-sensitive-words-page .ant-table,
+.admin-sensitive-words-page .ant-table-content {
+  color: #e0e0e0;
+}
+
+.admin-sensitive-words-page .ant-table-thead > tr > th {
+  background: #262626 !important;
+  color: #c0c0c0 !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+.admin-sensitive-words-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #333 !important;
+  color: #e0e0e0 !important;
+}
+
+.admin-sensitive-words-page .ant-table-tbody > tr:hover > td {
+  background: #333 !important;
+}
+
+/* ---------- 业务管理（Admin / TaskTemplate）统一暗色质感 ---------- */
+.admin-business-page {
+  min-width: 600px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden; /* 页面不横滚，横滚收敛到表格容器 */
+}
+
+.page-card.admin-business-page {
+  min-width: 0;
+}
+
+.admin-business-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.admin-business-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+
+.admin-business-layout {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.admin-business-tableOnly {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 表格区域：固定可视高度，内部滚动，保证分页器始终可见且可点击 */
+.admin-table-wrap {
+  height: calc(80vh - 260px); /* page-card 高度为 80vh，按同口径计算 */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-x: auto; /* 表格横向滚动在此处发生 */
+  overflow-y: hidden;
+}
+
+.admin-table-wrap .ant-table-wrapper,
+.admin-business-page .admin-business-table-wrap .ant-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+/* ---------- 复用 TaskTemplate 视觉：用于其它 Admin Tab 对齐 ---------- */
+.admin-providers-page .admin-ux-tasktemplate {
+  min-width: 600px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .admin-business-toolbar {
+  position: relative;
+  z-index: 1;
+  padding: var(--space-3) var(--space-4);
+  backdrop-filter: var(--glass-backdrop);
+}
+
+.admin-providers-page .admin-ux-tasktemplate .admin-business-panel {
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: var(--glass-backdrop);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: calc(80vh - 120px);
+}
+
+.admin-providers-page .admin-ux-tasktemplate .admin-business-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(2, 6, 23, 0.18);
+}
+
+.admin-providers-page .admin-ux-tasktemplate .admin-business-panel-title {
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text-main);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .admin-business-panel-subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.admin-providers-page .admin-ux-tasktemplate .admin-business-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .admin-business-panel-body.admin-business-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 物理模型目录：统一面板（筛选 + knowledge 默认 + 表格） */
+.admin-providers-page .provider-models-panel {
+  gap: 0;
+}
+
+.admin-providers-page .provider-models-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.admin-providers-page .provider-models-panel-intro {
+  min-width: 0;
+}
+
+.admin-providers-page .provider-models-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.admin-providers-page .provider-models-count {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.admin-providers-page .provider-models-filter-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 200px));
+  gap: 12px 16px;
+  padding: 12px 16px;
+  align-items: end;
+}
+
+@media (max-width: 720px) {
+  .admin-providers-page .provider-models-filter-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-providers-page .provider-models-panel-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-providers-page .provider-models-panel-actions {
+    justify-content: flex-end;
+  }
+}
+
+.admin-providers-page .provider-models-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.admin-providers-page .provider-models-filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.92);
+}
+
+.admin-providers-page .provider-models-filter-control {
+  width: 100%;
+}
+
+.admin-providers-page .provider-models-filter-control--sm {
+  max-width: 140px;
+}
+
+.admin-providers-page .provider-models-divider {
+  margin: 0 16px !important;
+  border-color: rgba(148, 163, 184, 0.14) !important;
+}
+
+.admin-providers-page .provider-models-knowledge-bar {
+  padding: 12px 16px 14px;
+  background: rgba(14, 165, 233, 0.06);
+  border-bottom: 1px solid rgba(14, 165, 233, 0.12);
+}
+
+.admin-providers-page .provider-models-knowledge-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.admin-providers-page .provider-models-knowledge-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.admin-providers-page .provider-models-knowledge-hint {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.88);
+}
+
+.admin-providers-page .provider-models-knowledge-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.admin-providers-page .provider-models-knowledge-item {
+  margin-bottom: 0 !important;
+  min-width: 160px;
+}
+
+.admin-providers-page .provider-models-knowledge-item--grow {
+  flex: 1 1 220px;
+  max-width: 360px;
+}
+
+.admin-providers-page .provider-models-knowledge-item .ant-form-item-label > label {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.95);
+}
+
+.admin-providers-page .provider-models-knowledge-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 10px;
+}
+
+.admin-providers-page .provider-models-knowledge-resolved {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.95);
+}
+
+.admin-providers-page .provider-models-upstream {
+  font-size: 11px;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-providers-page .provider-models-knowledge-warn {
+  font-size: 12px;
+}
+
+.admin-providers-page .provider-models-table-wrap {
+  padding-top: 4px;
+}
+
+html:not(.dark) .admin-providers-page .provider-models-knowledge-bar {
+  background: rgba(14, 165, 233, 0.05);
+  border-bottom-color: rgba(14, 165, 233, 0.14);
+}
+
+html:not(.dark) .admin-providers-page .provider-models-knowledge-title {
+  color: #0f172a;
+}
+
+html:not(.dark) .admin-providers-page .provider-models-filter-label {
+  color: #64748b;
+}
+
+html:not(.dark) .admin-providers-page .provider-models-panel-head {
+  border-bottom-color: rgba(148, 163, 184, 0.22);
+}
+
+.admin-providers-page .admin-ux-tasktemplate .admin-business-panel-body.admin-business-table-wrap {
+  /* 避免外层容器与 Table scroll.y 形成“双滚动条” */
+  overflow: hidden;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .admin-business-table-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .admin-business-table-wrap .ant-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .admin-business-status-dot.is-disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* API Key 表：启用列用 Switch（原 status-dot 样式在 .admin-business-page 下，本页无尺寸） */
+.admin-providers-page .admin-ux-tasktemplate .ant-table-tbody .ant-switch.ant-switch-checked {
+  background: #22c55e !important;
+}
+.admin-providers-page .admin-ux-tasktemplate .ant-table-tbody .ant-switch:not(.ant-switch-checked) {
+  background: rgba(148, 163, 184, 0.35) !important;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .ant-table,
+.admin-providers-page .admin-ux-tasktemplate .ant-table-content,
+.admin-providers-page .admin-ux-tasktemplate .ant-pagination {
+  color: rgba(226, 232, 240, 0.92) !important;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .ant-table-thead > tr > th {
+  background: rgba(2, 6, 23, 0.25) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18) !important;
+  color: rgba(226, 232, 240, 0.92) !important;
+  font-weight: 700;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12) !important;
+  background: transparent !important;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .ant-table-tbody > tr:hover > td {
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .ant-input,
+.admin-providers-page .admin-ux-tasktemplate .ant-input-affix-wrapper,
+.admin-providers-page .admin-ux-tasktemplate .ant-input-textarea,
+.admin-providers-page .admin-ux-tasktemplate .ant-select-selector {
+  background: rgba(2, 6, 23, 0.35) !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  color: rgba(226, 232, 240, 0.92) !important;
+  border-radius: 12px !important;
+}
+
+.admin-providers-page .admin-ux-tasktemplate .ant-select-selection-item,
+.admin-providers-page .admin-ux-tasktemplate .ant-select-selection-placeholder,
+.admin-providers-page .admin-ux-tasktemplate .ant-input::placeholder {
+  color: rgba(148, 163, 184, 0.70) !important;
+}
+
+/* TaskTemplate 表格在 panel 内：让表格容器吃满 panel-body */
+.admin-business-page .admin-business-table-wrap {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 业务列表：保持列宽，窄屏横向滚动而非 ellipsis 压缩 */
+.admin-business-page .admin-business-list-table .ant-table {
+  min-width: 100%;
+}
+
+.admin-business-page .admin-business-list-table .ant-table-container {
+  overflow-x: auto;
+}
+
+.admin-business-page .admin-business-list-table .admin-business-col-taskkey {
+  min-width: 120px;
+}
+
+.admin-business-page .admin-business-list-table .admin-business-col-subtype {
+  min-width: 240px;
+}
+
+.admin-business-page .admin-business-list-table .admin-business-col-model {
+  min-width: 240px;
+}
+
+.admin-business-page .admin-business-list-table .admin-business-col-actions {
+  min-width: 240px;
+}
+
+.admin-business-page .admin-business-list-table .admin-business-col-updated {
+  min-width: 176px;
+}
+
+.admin-business-page .admin-business-list-table .admin-business-cell-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-business-page .admin-business-list-table .admin-business-cell-identity__label {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ant-color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-business-page .admin-business-list-table .admin-business-cell-identity__key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ant-color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-business-page .admin-business-list-table .admin-business-cell-identity--key .admin-business-cell-identity__label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.admin-business-detail-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  padding: 32px 16px;
+}
+
+.admin-business-drawer-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 业务编辑抽屉：加宽 + 小屏不溢出视口 */
+.admin-business-drawer.ant-drawer .ant-drawer-content-wrapper {
+  max-width: calc(100vw - 16px);
+}
+
+.admin-business-drawer-body {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-x: hidden;
+}
+
+.admin-business-editorBodyInner {
+  padding: 8px 4px 16px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Drawer 内编辑器 Tabs：Tab 导航固定，内容区滚动 */
+.admin-business-page .ant-drawer-body .ant-tabs-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgba(2, 6, 23, 0.92);
+  backdrop-filter: var(--glass-backdrop);
+}
+
+.admin-business-page .ant-drawer-body .ant-tabs-nav::before {
+  border-bottom-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+/* Drawer itself in dark theme */
+html.dark .admin-business-page .ant-drawer-content {
+  background: rgba(2, 6, 23, 0.92) !important;
+}
+
+html.dark .admin-business-page .ant-drawer-body {
+  overflow-x: hidden !important;
+}
+
+html.dark .admin-business-page .ant-drawer-header {
+  background: rgba(2, 6, 23, 0.92) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16) !important;
+}
+
+html.dark .admin-business-page .ant-drawer-title,
+html.dark .admin-business-page .ant-drawer-close {
+  color: rgba(226, 232, 240, 0.92) !important;
+}
+
+.admin-business-panel {
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.72);
+
+  backdrop-filter: var(--glass-backdrop);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: calc(80vh - 120px);
+}
+
+.admin-business-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(2, 6, 23, 0.18);
+}
+
+.admin-business-panel-title {
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text-main);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+.admin-business-panel-subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.admin-business-panel-body {
+
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-business-empty {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.admin-business-editor-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(56,189,248,0.10)), rgba(2, 6, 23, 0.18);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-business-editor-path {
+  font-weight: 800;
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-business-editor-path .sep {
+  opacity: 0.5;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.admin-business-editor-vars {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.admin-business-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.admin-business-editor-body {
+  padding: 12px 12px 14px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* rtext（PromptTempDesigner）在部分布局下会被父层交互样式影响，强制恢复可编辑行为 */
+.rtext-editor-fix,
+.rtext-editor-fix * {
+  pointer-events: auto;
+  padding: 0 !important;
+}
+
+.rtext-editor-fix [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+/* antd in admin-business: dark contrast + hover */
+.admin-business-page .ant-table,
+.admin-business-page .ant-table-content,
+.admin-business-page .ant-pagination {
+  color: #e0e0e0;
+}
+
+.admin-business-page .ant-table-thead > tr > th {
+  background: rgba(2, 6, 23, 0.55) !important;
+  color: rgba(226, 232, 240, 0.92) !important;
+  border-bottom: 1px solid rgba(148,163,184,0.22) !important;
+}
+
+.admin-business-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(148,163,184,0.16) !important;
+  color: rgba(226, 232, 240, 0.90) !important;
+}
+
+.admin-business-page .ant-table-tbody > tr:hover > td {
+  background: rgba(148, 163, 184, 0.10) !important;
+}
+
+/* Schema 表格紧凑、防止输入框重叠 */
+.admin-business-page .schema-table-wrap .ant-table-cell {
+  padding: 4px 6px !important;
+  vertical-align: middle !important;
+}
+.admin-business-page .schema-table-wrap .ant-table-thead > tr > th {
+  padding: 6px 6px !important;
+  font-size: 12px !important;
+}
+.admin-business-page .schema-table-wrap .ant-input,
+.admin-business-page .schema-table-wrap .ant-input-outlined,
+.admin-business-page .schema-table-wrap .ant-select-selector {
+  font-size: 12px !important;
+}
+.admin-business-page .schema-table-wrap .ant-input-textarea {
+  font-size: 12px !important;
+  min-height: 24px !important;
+}
+
+.admin-business-page .admin-business-status-dot {
+  --dot: 10px;
+  width: var(--dot);
+  height: var(--dot);
+  border-radius: 999px;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.10), 0 0 18px rgba(0, 0, 0, 0.35);
+}
+
+.admin-business-page .admin-business-status-dot.is-on {
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0) 40%),
+    #22c55e;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.30), 0 0 20px rgba(34, 197, 94, 0.28);
+}
+
+.admin-business-page .admin-business-status-dot.is-on::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.55);
+  opacity: 0;
+  transform: scale(0.7);
+  animation: adminBizWave 1.6s ease-out infinite;
+}
+
+.admin-business-page .admin-business-status-dot.is-off {
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 40%),
+    #ef4444;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.28), 0 0 18px rgba(239, 68, 68, 0.18);
+}
+
+@keyframes adminBizWave {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.7);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.85);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.85);
+  }
+}
+
+.admin-business-page .ant-input,
+.admin-business-page .ant-input-affix-wrapper,
+.admin-business-page .ant-input-textarea,
+.admin-business-page .ant-select-selector {
+  background: rgba(2, 6, 23, 0.35) !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  color: rgba(226, 232, 240, 0.92) !important;
+  border-radius: 12px !important;
+}
+
+.admin-business-page .ant-input-affix-wrapper {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding-block: 0 !important;
+}
+
+.admin-business-page .ant-input-affix-wrapper > .ant-input {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  outline: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  line-height: 1.25 !important;
+  padding-block: 0 !important;
+}
+
+.admin-business-page .ant-input-affix-wrapper:focus-within {
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.12) !important;
+}
+
+.admin-business-page .ant-select-selection-item,
+.admin-business-page .ant-select-selection-placeholder,
+.admin-business-page .ant-input::placeholder {
+  color: rgba(226, 232, 240, 0.72) !important;
+  opacity: 1 !important;
+}
+
+.admin-business-page .ant-tabs-nav::before {
+  border-bottom-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+.admin-business-page .ant-tabs-tab {
+  color: rgba(226,232,240,0.75) !important;
+}
+
+.admin-business-page .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: rgba(226,232,240,0.95) !important;
+}
+
+.page-card .ant-tabs-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background:transparent;
+  backdrop-filter: var(--glass-backdrop);
+}
+
+.page-card .ant-tabs-nav::before {
+  border-bottom-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+
+
+.page-card .ant-tabs-top > .ant-tabs-nav {
+  margin: 0 0 4px 0;
+}
+
+.admin-business-page .ant-divider {
+  border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+/* ---------- 表单选项（Admin）布局与用户管理一致、容器内滚动 ---------- */
+.admin-form-options-page {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-form-options-page .admin-form-options-content-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.admin-form-options-page .admin-form-options-content-inner {
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .admin-form-options-page .admin-form-options-content-inner {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 4px;
+  }
+
+  .admin-form-options-page .form-group {
+    gap: 0.5rem;
+  }
+
+  .admin-form-options-page .form-group label {
+    font-size: 0.85rem;
+    margin-bottom: 2px;
+  }
+
+  .admin-form-options-page .form-group input,
+  .admin-form-options-page .form-group select {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .admin-form-options-page .form-group button {
+    width: 100%;
+    padding: 0.6rem;
+    font-size: 0.95rem;
+  }
+
+  .response {
+    font-size: 0.7rem;
+    max-height: 300px;
+    padding: 0.75rem;
+  }
+}
+
+/* ---------- 模型通道管理（Admin）布局与任务监控一致、深色主题 ---------- */
+.admin-providers-page {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-providers-page .admin-providers-hint,
+.admin-providers-page .admin-providers-error {
+  color: #e0e0e0;
+}
+
+.admin-providers-page .admin-providers-error {
+  color: #f87171;
+}
+
+.admin-providers-page .admin-providers-content-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.admin-providers-page .admin-providers-content-inner {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.admin-providers-page .ant-tabs {
+  margin-top: 8px;
+}
+
+
+
+.admin-providers-page .ant-tabs-tabpane {
+  padding-bottom: 24px;
+}
+
+.admin-providers-page .ant-table,
+.admin-providers-page .ant-table-content,
+.admin-providers-page .ant-card,
+.admin-providers-page .ant-statistic-content {
+  color: #e0e0e0;
+}
+
+.admin-providers-page .ant-table-thead > tr > th {
+  background: #262626 !important;
+  color: #c0c0c0 !important;
+  border-bottom: 1px solid #444 !important;
+  padding: 14px 16px !important;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.admin-providers-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #333 !important;
+  color: #e0e0e0 !important;
+  padding: 14px 16px !important;
+  font-size: 0.875rem;
+}
+
+.admin-providers-page .ant-table-tbody > tr:hover > td {
+  background: #333 !important;
+}
+
+.admin-providers-page .ant-card {
+  background: #262626;
+  border: 1px solid #444;
+  border-radius: 12px;
+}
+
+.admin-providers-page .ant-card-head {
+  color: #c0c0c0;
+  border-bottom: 1px solid #444;
+  padding: 18px 24px !important;
+}
+
+.admin-providers-page .ant-card-body {
+  padding: 20px 24px !important;
+}
+
+.admin-providers-page .ant-statistic-title,
+.admin-providers-page .ant-statistic-content {
+  color: #e0e0e0;
+}
+
+/* 物理模型目录表格：更舒适的间距与对齐 */
+.admin-providers-page .provider-models-card .ant-card-head {
+  padding: 20px 24px !important;
+  margin-bottom: 0;
+}
+
+.admin-providers-page .provider-models-card .ant-card-body {
+  padding: 0 24px 24px !important;
+}
+
+.admin-providers-page .provider-models-card .ant-table-thead > tr > th {
+  padding: 16px 18px !important;
+}
+
+.admin-providers-page .provider-models-card .ant-table-tbody > tr > td {
+  padding: 16px 18px !important;
+  vertical-align: middle;
+}
+
+.admin-providers-page .provider-models-card .provider-cost-cell {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-providers-page .provider-models-card .ant-table-wrapper {
+  margin-top: 4px;
+  overflow-x: auto;
+}
+
+.admin-providers-page .provider-models-card .ant-space {
+  gap: 12px !important;
+}
+
+.admin-providers-page .provider-models-card .ant-btn {
+  border-radius: 8px;
+}
+
+.admin-providers-page .provider-models-card .ant-select-selector {
+  border-radius: 8px !important;
+}
+
+.admin-providers-page .provider-models-card .ant-pagination {
+  margin-top: 20px !important;
+}
+
+.admin-providers-page .provider-models-card .ant-pagination-item,
+.admin-providers-page .provider-models-card .ant-pagination-prev,
+.admin-providers-page .provider-models-card .ant-pagination-next {
+  border-radius: 6px !important;
+}
+
+/* 测试结果区域 */
+.admin-providers-page .provider-models-card .provider-test-result {
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: hsl(217 33% 18%);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  border: 1px solid hsl(217 33% 25%);
+}
+
+/* ---------- Provider 管理：余额/用量卡片网格 ---------- */
+.admin-providers-page .provider-billing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.admin-providers-page .provider-billing-card {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.20);
+  background:
+    radial-gradient(1200px 420px at 20% 0%, rgba(56, 189, 248, 0.10), rgba(56, 189, 248, 0) 55%),
+    radial-gradient(900px 380px at 80% 20%, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0) 55%),
+    rgba(17, 24, 39, 0.78);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 -1px 0 rgba(2, 6, 23, 0.55) inset,
+    var(--shadow-sm);
+  min-height: 168px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-providers-page .provider-billing-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.admin-providers-page .provider-billing-card__title {
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  text-transform: lowercase;
+}
+
+.admin-providers-page .provider-billing-card__badge {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: rgba(226, 232, 240, 0.86);
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+}
+
+.admin-providers-page .provider-billing-card__body {
+  padding: 12px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.admin-providers-page .provider-billing-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: rgba(226, 232, 240, 0.86);
+}
+
+.admin-providers-page .provider-billing-kv .k {
+  color: rgba(226, 232, 240, 0.62);
+}
+
+.admin-providers-page .provider-billing-kv .v {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.admin-providers-page .provider-billing-balance {
+  margin-top: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.30);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.admin-providers-page .provider-billing-balance__label {
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.62);
+  margin-bottom: 2px;
+}
+
+.admin-providers-page .provider-billing-balance__value {
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-providers-page .provider-billing-balance__hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.55);
+}
+
+.admin-providers-page .provider-billing-card__foot {
+  padding: 10px 16px 14px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.admin-providers-page .provider-billing-card__foot .ant-btn {
+  border-radius: 10px;
+}
+
+.admin-providers-page .provider-billing-empty {
+  color: rgba(226, 232, 240, 0.6);
+  padding: 16px;
+}
+
+/* Light mode overrides for admin-providers billing cards */
+html:not(.dark) .admin-providers-page .provider-billing-card {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+html:not(.dark) .admin-providers-page .provider-billing-card__head {
+  border-bottom-color: rgba(148, 163, 184, 0.20);
+}
+
+html:not(.dark) .admin-providers-page .provider-billing-card__title {
+  color: #1e293b;
+}
+
+html:not(.dark) .admin-providers-page .provider-billing-card__badge {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+html:not(.dark) .admin-providers-page .provider-billing-kv {
+  color: #475569;
+}
+
+html:not(.dark) .admin-providers-page .provider-billing-kv .k {
+  color: #94a3b8;
+}
+
+html:not(.dark) .admin-providers-page .provider-billing-balance {
+  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.20);
+}
+
+html:not(.dark) .admin-providers-page .provider-billing-balance__label {
+  color: #64748b;
+}
+
+html:not(.dark) .admin-providers-page .provider-billing-balance__value {
+  color: #1e293b;
+}
+
+html:not(.dark) .admin-providers-page .provider-billing-balance__hint {
+  color: #94a3b8;
+}
+
+html:not(.dark) .admin-providers-page .provider-billing-empty {
+  color: #64748b;
+}
+
+/* ---------- 管理员概览（系统概览 + 任务监控合并页） ---------- */
+.admin-ops-page {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-ops-page .admin-ops-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.admin-ops-page .ant-tabs {
+  margin-top: 8px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-ops-page .ant-tabs-content-holder {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.admin-ops-page .ant-tabs-content {
+  height: 100%;
+}
+
+.admin-ops-page .ant-tabs-tabpane {
+  height: 100%;
+}
+
+.admin-ops-page .ant-tabs-tabpane-active {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.admin-ops-page .admin-providers-content-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: hidden; /* 只保留内部面板/表格滚动 */
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-ops-page .admin-providers-content-inner {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-business-page .ant-tabs {
+  margin-top: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.admin-business-page .admin-providers-content-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: hidden; /* 只保留 table 内部 scroll.y 纵向滚动 */
+  padding: 0;
+}
+
+.admin-business-page .admin-providers-content-inner {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.admin-ops-page .admin-ops-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0 24px;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-ops-page .admin-ops-card {
+  background: #262626;
+  border: 1px solid #444;
+  border-radius: 12px;
+}
+
+.admin-ops-page .admin-ops-card .ant-card-head {
+  padding: 18px 22px !important;
+  border-bottom: 1px solid #444;
+}
+
+.admin-ops-page .admin-ops-card .ant-card-body {
+  padding: 18px 22px !important;
+}
+
+.admin-ops-page .admin-ops-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-ops-page .admin-ops-kpi {
+  background: rgba(15, 23, 42, 0.22);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 12px;
+}
+
+.admin-ops-page .admin-ops-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+  min-height: 0;
+}
+
+.admin-ops-page .admin-ops-pies {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.admin-ops-page .admin-ops-error {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #f87171;
+}
+
+.admin-ops-page .admin-ops-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 220px;
+}
+
+.admin-ops-page .ant-table-thead > tr > th {
+  background: #262626 !important;
+  color: #c0c0c0 !important;
+  border-bottom: 1px solid #444 !important;
+  padding: 14px 16px !important;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.admin-ops-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #333 !important;
+  color: #e0e0e0 !important;
+  padding: 14px 16px !important;
+  font-size: 0.875rem;
+}
+
+.admin-ops-page .ant-table-tbody > tr:hover > td {
+  background: #333 !important;
+}
+
+@media (max-width: 1100px) {
+  .admin-ops-page .admin-ops-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-ops-page .admin-ops-kpis {
+    grid-template-columns: 1fr;
+  }
+  .admin-ops-page .admin-ops-pies {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Admin 每日用量图表（旧，保留兼容） ---------- */
+.admin-daily-chart {
+  margin-top: 1rem;
+}
+
+.admin-daily-chart h3,
+.admin-top-users h3 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem 0;
+  color: #c0c0c0;
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 160px;
+  padding: 0.5rem 0;
+}
+
+.chart-bar-wrap {
+  flex: 1;
+  min-width: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.chart-bar {
+  width: 100%;
+  max-width: 32px;
+  min-height: 4px;
+  background: linear-gradient(to top, #6366f1, #818cf8);
+  border-radius: 4px 4px 0 0;
+  margin-bottom: 4px;
+  transition: height 0.2s ease;
+}
+
+.chart-label {
+  font-size: 0.65rem;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+}
+
+.chart-value {
+  font-size: 0.7rem;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.admin-top-users {
+  margin-top: 1rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148,163,184,0.28);
+  background: rgba(15,23,42,0.75);
+  color: var(--text-main);
+  font-family: ui-monospace, monospace;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+  backdrop-filter: var(--glass-backdrop);
+  transition: border-color 200ms ease, box-shadow 200ms ease, transform 150ms ease;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: rgba(148,163,184,0.85);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: rgba(34,197,94,0.55);
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.20);
+  transform: translateY(-1px);
+}
+
+.form-group textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.form-group button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148,163,184,0.3);
+  background: rgba(15,23,42,0.9);
+  color: var(--text-main);
+  font-size: 0.875rem;
+  cursor: pointer;
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow: var(--shadow-sm);
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.form-group button:hover:not(:disabled) {
+  background: rgba(34,197,94,0.12);
+  border-color: rgba(34,197,94,0.55);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.form-group button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+/* ============================================
+   Light mode overrides for admin pages
+   ============================================ */
+html:not(.dark) .admin-business-panel {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .admin-business-panel-head {
+  background: rgba(241, 245, 249, 0.8) !important;
+  border-bottom-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+html:not(.dark) .admin-business-panel-title {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-business-panel-subtitle {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-business-editor-head {
+  background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(56,189,248,0.06)), rgba(241, 245, 249, 0.8) !important;
+  border-bottom-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+/* Admin Providers page */
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate {
+  /* Keep container styles, only override inner panels */
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .admin-business-panel {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-head {
+  background: rgba(241, 245, 249, 0.8) !important;
+  border-bottom-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-title {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-subtitle {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .admin-business-toolbar {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Antd components in light mode admin pages */
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-table,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-table-content,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-pagination {
+  background: transparent !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-table-thead > tr > th {
+  background: rgba(241, 245, 249, 0.9) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.32) !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18) !important;
+  background: transparent !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-table-tbody > tr:hover > td {
+  background: rgba(241, 245, 249, 0.6) !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-input,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-input-affix-wrapper,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-input-textarea,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-select-selector {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.42) !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-select-selection-item,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-select-selection-placeholder,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Admin Ops page */
+html:not(.dark) .admin-ops-page .admin-ops-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .admin-ops-page .admin-ops-card .ant-card-head {
+  background: rgba(241, 245, 249, 0.8) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24) !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-ops-page .admin-ops-card .ant-card-body {
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-ops-page .admin-ops-kpi {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .admin-ops-page .admin-ops-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .admin-ops-page .admin-ops-loading {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-tabs-nav {
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-tabs-tab {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #2563eb !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-table-thead > tr > th {
+  background: rgba(241, 245, 249, 0.9) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.32) !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18) !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-ops-page .ant-table-tbody > tr:hover > td {
+  background: rgba(241, 245, 249, 0.6) !important;
+}
+
+/* Antd Select/Dropdown in light mode */
+html:not(.dark) .ant-select-dropdown,
+html:not(.dark) .ant-select-item {
+  background: #ffffff !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .ant-select-item-option-selected {
+  background: rgba(37, 99, 235, 0.1) !important;
+}
+
+/* Antd Modal in light mode */
+html:not(.dark) .ant-modal-content {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .ant-modal-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24) !important;
+}
+
+html:not(.dark) .ant-modal-title {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .ant-modal-close-x {
+  color: #64748b !important;
+}
+
+/* Antd Form items in light mode */
+html:not(.dark) .ant-form-item-label > label {
+  color: #334155 !important;
+}
+
+html:not(.dark) .ant-form-item-extra {
+  color: #64748b !important;
+}
+
+/* Antd Collapse in light mode */
+html:not(.dark) .ant-collapse-item {
+  border-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+html:not(.dark) .ant-collapse-header {
+  color: #334155 !important;
+  background: rgba(241, 245, 249, 0.6) !important;
+}
+
+html:not(.dark) .ant-collapse-content {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .ant-collapse-content-box {
+  color: #334155 !important;
+}
+
+/* Antd Steps in light mode */
+html:not(.dark) .ant-steps-item-title {
+  color: #334155 !important;
+}
+
+html:not(.dark) .ant-steps-item-description {
+  color: #64748b !important;
+}
+
+/* Antd Alert in light mode */
+html:not(.dark) .ant-alert {
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+html:not(.dark) .ant-alert-info {
+  background: rgba(59, 130, 246, 0.08) !important;
+  color: #1e40af !important;
+}
+
+html:not(.dark) .ant-alert-success {
+  background: rgba(34, 197, 94, 0.08) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .ant-alert-warning {
+  background: rgba(250, 204, 21, 0.12) !important;
+  color: #854d0e !important;
+}
+
+html:not(.dark) .ant-alert-error {
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: #991b1b !important;
+}
+
+/* Antd Switch in light mode */
+html:not(.dark) .ant-switch-checked {
+  background: #22c55e !important;
+}
+
+/* Antd Popconfirm in light mode */
+html:not(.dark) .ant-popover-inner {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .ant-popconfirm-message-title {
+  color: #334155 !important;
+}
+
+/* TaskTemplate specific fixes */
+html:not(.dark) .task-item {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .task-item:hover {
+  background: rgba(241, 245, 249, 0.8) !important;
+  border-color: rgba(37, 99, 235, 0.5) !important;
+}
+
+
+
+/* ============================================
+   行动列按钮（Admin / Provider 等管理表格）— 统一视觉
+   替代表格里散落的 `type="link"` + 各自 inline style。
+   ============================================ */
+
+/* 所有 admin / provider 表格的 action 列：默认行内操作按钮 */
+.admin-ops-page .ant-table-cell .actions-cell,
+.admin-providers-page .ant-table-cell .actions-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+/* 默认 cell-button：中型 default 视觉，紧凑、无填充 */
+.admin-ops-page .ant-table-cell .actions-cell .act-btn,
+.admin-providers-page .ant-table-cell .actions-cell .act-btn,
+.admin-business-page .ant-table-cell .actions-cell .act-btn {
+  border-radius: 6px;
+  font-size: 12px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 150ms var(--ease-out), border-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+
+/* neutral：编辑 / 测试 / 上移 / 下移 / 设为默认 等中性操作 */
+.admin-ops-page .ant-table-cell .actions-cell .act-btn--neutral,
+.admin-providers-page .ant-table-cell .actions-cell .act-btn--neutral,
+.admin-business-page .ant-table-cell .actions-cell .act-btn--neutral {
+  background: rgba(148, 163, 184, 0.10);
+  border-color: rgba(148, 163, 184, 0.22);
+  color: rgba(226, 232, 240, 0.86);
+}
+.admin-ops-page .ant-table-cell .actions-cell .act-btn--neutral:hover,
+.admin-providers-page .ant-table-cell .actions-cell .act-btn--neutral:hover,
+.admin-business-page .ant-table-cell .actions-cell .act-btn--neutral:hover {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.42);
+  color: #38bdf8;
+}
+
+/* primary（如「发放 Token」）— 沿用项目 action-primary token */
+.admin-ops-page .ant-table-cell .actions-cell .act-btn--primary,
+.admin-providers-page .ant-table-cell .actions-cell .act-btn--primary,
+.admin-business-page .ant-table-cell .actions-cell .act-btn--primary {
+  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(56, 189, 248, 0.42);
+  color: #38bdf8;
+}
+.admin-ops-page .ant-table-cell .actions-cell .act-btn--primary:hover,
+.admin-providers-page .ant-table-cell .actions-cell .act-btn--primary:hover,
+.admin-business-page .ant-table-cell .actions-cell .act-btn--primary:hover {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: rgba(56, 189, 248, 0.58);
+  color: #7dd3fc;
+}
+
+/* success：启用 — 走 semantic-success */
+.admin-ops-page .ant-table-cell .actions-cell .act-btn--success,
+.admin-providers-page .ant-table-cell .actions-cell .act-btn--success,
+.admin-business-page .ant-table-cell .actions-cell .act-btn--success {
+  background: var(--semantic-success-bg);
+  border-color: var(--semantic-success-border);
+  color: var(--semantic-success-fg);
+}
+.admin-ops-page .ant-table-cell .actions-cell .act-btn--success:hover,
+.admin-providers-page .ant-table-cell .actions-cell .act-btn--success:hover,
+.admin-business-page .ant-table-cell .actions-cell .act-btn--success:hover {
+  filter: brightness(1.06);
+}
+
+/* danger：禁用 / 删除 — 走 semantic-error */
+.admin-ops-page .ant-table-cell .actions-cell .act-btn--danger,
+.admin-providers-page .ant-table-cell .actions-cell .act-btn--danger,
+.admin-business-page .ant-table-cell .actions-cell .act-btn--danger {
+  background: var(--semantic-error-bg);
+  border-color: var(--semantic-error-border);
+  color: var(--semantic-error-fg);
+}
+.admin-ops-page .ant-table-cell .actions-cell .act-btn--danger:hover,
+.admin-providers-page .ant-table-cell .actions-cell .act-btn--danger:hover,
+.admin-business-page .ant-table-cell .actions-cell .act-btn--danger:hover {
+  filter: brightness(1.06);
+}
+
+/* muted：禁用态 */
+.admin-ops-page .ant-table-cell .actions-cell .act-btn--muted,
+.admin-providers-page .ant-table-cell .actions-cell .act-btn--muted,
+.admin-business-page .ant-table-cell .actions-cell .act-btn--muted {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* 图标-only 变体：当按钮仅含 icon */
+.admin-ops-page .ant-table-cell .actions-cell .act-btn--icon,
+.admin-providers-page .ant-table-cell .actions-cell .act-btn--icon,
+.admin-business-page .ant-table-cell .actions-cell .act-btn--icon {
+  padding: 0;
+  width: 24px;
+  justify-content: center;
+}
+
+/* light mode overrides — neutral */
+html:not(.dark) .admin-ops-page .ant-table-cell .actions-cell .act-btn--neutral,
+html:not(.dark) .admin-providers-page .ant-table-cell .actions-cell .act-btn--neutral,
+html:not(.dark) .admin-business-page .ant-table-cell .actions-cell .act-btn--neutral {
+  background: rgba(148, 163, 184, 0.10);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #334155;
+}
+html:not(.dark) .admin-ops-page .ant-table-cell .actions-cell .act-btn--neutral:hover,
+html:not(.dark) .admin-providers-page .ant-table-cell .actions-cell .act-btn--neutral:hover,
+html:not(.dark) .admin-business-page .ant-table-cell .actions-cell .act-btn--neutral:hover {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+html:not(.dark) .admin-ops-page .ant-table-cell .actions-cell .act-btn--primary,
+html:not(.dark) .admin-providers-page .ant-table-cell .actions-cell .act-btn--primary,
+html:not(.dark) .admin-business-page .ant-table-cell .actions-cell .act-btn--primary {
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.32);
+  color: #2563eb;
+}
+html:not(.dark) .admin-ops-page .ant-table-cell .actions-cell .act-btn--primary:hover,
+html:not(.dark) .admin-providers-page .ant-table-cell .actions-cell .act-btn--primary:hover,
+html:not(.dark) .admin-business-page .ant-table-cell .actions-cell .act-btn--primary:hover {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+html:not(.dark) .admin-ops-page .ant-table-cell .actions-cell .act-btn--success,
+html:not(.dark) .admin-providers-page .ant-table-cell .actions-cell .act-btn--success,
+html:not(.dark) .admin-business-page .ant-table-cell .actions-cell .act-btn--success {
+  color: #166534;
+}
+html:not(.dark) .admin-ops-page .ant-table-cell .actions-cell .act-btn--danger,
+html:not(.dark) .admin-providers-page .ant-table-cell .actions-cell .act-btn--danger,
+html:not(.dark) .admin-business-page .ant-table-cell .actions-cell .act-btn--danger {
+  color: #991b1b;
+}
+
+/* --- admin-providers-page light overrides: missing pieces --- */
+/* Tabs (敏感词库 等导航标签) */
+html:not(.dark) .admin-providers-page .ant-tabs-nav { color: #334155 !important; }
+html:not(.dark) .admin-providers-page .ant-tabs-tab { color: #64748b !important; }
+html:not(.dark) .admin-providers-page .ant-tabs-tab:hover { color: #334155 !important; }
+html:not(.dark) .admin-providers-page .ant-tabs-tab-active .ant-tabs-tab-btn { color: #2563eb !important; }
+
+/* Pagination helper text */
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-pagination-total-text {
+  color: #64748b !important;
+}
+
+/* Edit/Delete buttons in table */
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-btn-default {
+  color: #334155 !important;
+  border-color: #d1d5db !important;
+  background: #ffffff !important;
+}
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .ant-btn-default:hover {
+  color: #2563eb !important;
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+}
+
+/* ============================================
+   admin-business-page 业务管理亮色模式修复
+   ============================================ */
+
+/* Drawer 内的 Tabs 导航（敏感词库等） */
+html:not(.dark) .admin-business-page .ant-drawer-body .ant-tabs-nav {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-drawer-body .ant-tabs-nav::before {
+  border-bottom-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-tabs-nav {
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-tabs-tab {
+  color: #64748b !important;
+}
+
+html:not(.dark) .admin-business-page .ant-tabs-tab:hover {
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #2563eb !important;
+}
+
+/* Drawer 本身亮色模式 */
+html:not(.dark) .admin-business-page .ant-drawer-content {
+  background: #ffffff !important;
+}
+
+html:not(.dark) .admin-business-page .ant-drawer-body {
+  background: #ffffff !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-drawer-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-drawer-title,
+html:not(.dark) .admin-business-page .ant-drawer-close {
+  color: #1e293b !important;
+}
+
+/* admin-business-page 页面文字颜色 */
+html:not(.dark) .admin-business-page {
+  color: #334155 !important;
+}
+
+/* 表格相关 */
+html:not(.dark) .admin-business-page .ant-table,
+html:not(.dark) .admin-business-page .ant-table-content {
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-table-thead > tr > th {
+  background: #f1f5f9 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-business-page .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-table-tbody > tr:hover > td {
+  background: #f8fafc !important;
+}
+
+/* 输入框 */
+html:not(.dark) .admin-business-page .ant-input,
+html:not(.dark) .admin-business-page .ant-input-affix-wrapper {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .admin-business-page .ant-input-affix-wrapper > .ant-input {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+html:not(.dark) .admin-business-page .ant-input-affix-wrapper:focus-within {
+  border-color: #94a3b8 !important;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.2) !important;
+}
+
+html:not(.dark) .admin-business-page .ant-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Select 下拉框 */
+html:not(.dark) .admin-business-page .ant-select-selector {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-select-selection-item,
+html:not(.dark) .admin-business-page .ant-select-selection-placeholder {
+  color: #64748b !important;
+}
+
+/* 分页 */
+html:not(.dark) .admin-business-page .ant-pagination-total-text,
+html:not(.dark) .admin-business-page .ant-pagination .ant-pagination-item {
+  color: #64748b !important;
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .admin-business-page .ant-pagination .ant-pagination-item-active {
+  border-color: #2563eb !important;
+}
+
+/* 按钮 */
+html:not(.dark) .admin-business-page .ant-btn-default {
+  color: #334155 !important;
+  border-color: #d1d5db !important;
+  background: #ffffff !important;
+}
+
+html:not(.dark) .admin-business-page .ant-btn-default:hover {
+  color: #2563eb !important;
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+}
+
+/* stat-dot 等状态指示 */
+html:not(.dark) .admin-business-page .admin-business-status-dot {
+  color: #64748b !important;
+}
+
+/* ============================================
+   admin 页面通用文字和组件亮色模式修复
+   ============================================ */
+
+/* 所有 admin 页面通用：确保数字/百分比清晰可见 */
+html:not(.dark) .admin-business-page .ant-typography,
+html:not(.dark) .admin-business-page .ant-typography.ant-typography-secondary {
+  color: #334155 !important;
+}
+
+/* 利润率百分比等数字 — 确保深色高对比度 */
+html:not(.dark) .admin-business-page span.muted,
+html:not(.dark) .admin-business-page .muted span,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate span.muted,
+html:not(.dark) .admin-providers-page .admin-ux-tasktemplate .muted span {
+  color: #64748b !important;
+}
+
+/* 确保表格内百分比数字清晰 — 用 ant-typography 的数字要有深色 */
+html:not(.dark) .admin-business-page .ant-table .ant-typography,
+html:not(.dark) .admin-business-page .ant-table .ant-typography.ant-typography-secondary {
+  color: #475569 !important;
+}
+
+/* Tag 组件修复 — "已完成"绿色标签在亮色模式下 */
+html:not(.dark) .ant-tag {
+  border-color: #d1d5db !important;
+}
+
+html:not(.dark) .ant-tag-green,
+html:not(.dark) .ant-tag.ant-tag-success {
+  color: #166534 !important;
+  background: rgba(34, 197, 94, 0.12) !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+}
+
+html:not(.dark) .ant-tag-red,
+html:not(.dark) .ant-tag.ant-tag-error {
+  color: #991b1b !important;
+  background: rgba(239, 68, 68, 0.10) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+html:not(.dark) .ant-tag-orange,
+html:not(.dark) .ant-tag.ant-tag-warning {
+  color: #9a3412 !important;
+  background: rgba(249, 115, 22, 0.10) !important;
+  border-color: rgba(249, 115, 22, 0.35) !important;
+}
+
+html:not(.dark) .ant-tag-purple,
+html:not(.dark) .ant-tag.ant-tag-processing {
+  color: #5b21b6 !important;
+  background: rgba(139, 92, 246, 0.10) !important;
+  border-color: rgba(139, 92, 246, 0.35) !important;
+}
+
+/* 删除按钮（粉色）- 确保边框可见 */
+html:not(.dark) .ant-btn-default.ant-btn-dangerous {
+  color: #dc2626 !important;
+  border-color: #fca5a5 !important;
+  background: rgba(239, 68, 68, 0.04) !important;
+}
+
+html:not(.dark) .ant-btn-default.ant-btn-dangerous:hover {
+  color: #b91c1c !important;
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.10) !important;
+}
+
+/* 业务列表卡片样式 — 确保卡片边框足够明显 */
+html:not(.dark) .admin-business-panel {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 表格行 hover 确保有视觉反馈 */
+html:not(.dark) .ant-table-tbody > tr.ant-table-row:hover > td {
+  background: #f8fafc !important;
+}
+
+/* 确保分页器数字清晰 */
+html:not(.dark) .ant-pagination .ant-pagination-item a {
+  color: #334155 !important;
+}
+
+html:not(.dark) .ant-pagination .ant-pagination-prev .ant-pagination-item-link,
+html:not(.dark) .ant-pagination .ant-pagination-next .ant-pagination-item-link {
+  color: #334155 !important;
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* 搜索框图标颜色 */
+html:not(.dark) .ant-input-prefix,
+html:not(.dark) .ant-input-suffix {
+  color: #94a3b8 !important;
+}
+
+/* Drawer 内部样式确保全局覆盖 */
+html:not(.dark) .ant-drawer .ant-drawer-content {
+  background: #ffffff !important;
+  color: #334155 !important;
+}
+
+/* Tooltip 在亮色模式下 */
+html:not(.dark) .ant-tooltip-inner {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+html:not(.dark) .ant-tooltip-arrow-content {
+  background: #1e293b !important;
+}
+
+/* ---------- 业务质检（AdminQualityEval） ---------- */
+.admin-qe-page .admin-qe-section {
+  gap: 12px;
+}
+
+.admin-qe-page .admin-qe-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-end;
+}
+
+.admin-qe-page .admin-qe-form-row > .ant-form-item {
+  min-width: 0;
+}
+
+.admin-qe-page .admin-qe-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-qe-page .admin-qe-dim-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.admin-qe-page .admin-qe-evidence {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary, #64748b);
+  font-size: 13px;
+}
+
+.admin-qe-page .admin-qe-snapshot {
+  margin: 0;
+  white-space: pre-wrap;
+  max-height: 240px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--text-main);
+}
+
+.admin-qe-page .admin-qe-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-qe-page .admin-qe-detail-sub {
+  font-size: 13px;
+}
+
+html:not(.dark) .admin-qe-page .admin-qe-evidence {
+  color: #64748b;
+}
+
+/* ============================================
+   任务卡片组件亮色模式修复（graph/audio/music/outline/writing 通用）
+   ============================================ */

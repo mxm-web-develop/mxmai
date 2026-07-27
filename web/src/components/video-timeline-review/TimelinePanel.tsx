@@ -1,4 +1,13 @@
-import { useCallback, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from 'react';
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Minus,
@@ -32,6 +41,8 @@ type TimelinePanelProps = {
   subtitles: TimelineSubtitle[];
   totalDuration: number;
   selection: TimelineSelection | null;
+  /** 多选：视频轨已选中的 clip id（含主选中） */
+  selectedVisualIds?: string[];
   voiceSourceUrl?: string;
   voicePlaybackUrl?: string;
   bgmPlaybackUrl?: string;
@@ -40,6 +51,11 @@ type TimelinePanelProps = {
   currentTime: number;
   isPlaying: boolean;
   onSelect: (selection: TimelineSelection) => void;
+  /** 视频块多选（Cmd/Ctrl 切换、Shift 连选）；未传则仅单选 */
+  onSelectVisual?: (
+    clipId: string,
+    opts: { toggle: boolean; range: boolean }
+  ) => void;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onResizeClipBoundary?: (clipId: string, edge: 'start' | 'end', newSec: number) => void;
@@ -98,6 +114,7 @@ export function TimelinePanel({
   subtitles,
   totalDuration,
   selection,
+  selectedVisualIds = [],
   voiceSourceUrl,
   voicePlaybackUrl,
   bgmPlaybackUrl,
@@ -106,6 +123,7 @@ export function TimelinePanel({
   currentTime,
   isPlaying,
   onSelect,
+  onSelectVisual,
   onTogglePlay,
   onSeek,
   onResizeClipBoundary,
@@ -145,10 +163,18 @@ export function TimelinePanel({
   const pendingVoice = voiceLoading || (Boolean(voiceSourceUrl) && !voicePlaybackUrl);
   const playheadPx = secToPx(currentTime, pxPerSecond);
 
-  const isSelected = (kind: TimelineSelection['kind'], id: string, audioRole?: AudioRole) =>
-    selection?.kind === kind &&
-    selection.id === id &&
-    (kind !== 'audio' || (selection.audioRole ?? 'voice') === (audioRole ?? 'voice'));
+  const selectedVisualSet = useMemo(() => new Set(selectedVisualIds), [selectedVisualIds]);
+
+  const isSelected = (kind: TimelineSelection['kind'], id: string, audioRole?: AudioRole) => {
+    if (kind === 'visual') {
+      return selectedVisualSet.has(id) || (selection?.kind === 'visual' && selection.id === id);
+    }
+    return (
+      selection?.kind === kind &&
+      selection.id === id &&
+      (kind !== 'audio' || (selection.audioRole ?? 'voice') === (audioRole ?? 'voice'))
+    );
+  };
 
   /** clientX → 时间轴秒数（以轨道内容起点为 0，getBoundingClientRect 已反映滚动位置） */
   const secFromClientX = useCallback(
@@ -465,11 +491,21 @@ export function TimelinePanel({
                             data-block="visual"
                             className="video-timeline-review__clip"
                             style={{ background: color }}
-                            onClick={() => {
-                              onSelect({ kind: 'visual', id: clip.id });
-                              onSeek(clip.startTime);
+                            onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                              const toggle = e.metaKey || e.ctrlKey;
+                              const range = e.shiftKey;
+                              if (onSelectVisual) {
+                                onSelectVisual(clip.id, { toggle, range });
+                              } else {
+                                onSelect({ kind: 'visual', id: clip.id });
+                              }
+                              if (!toggle && !range) onSeek(clip.startTime);
                             }}
-                            title={mode ? t(RENDER_MODE_LABEL_KEY[mode]) : clip.id}
+                            title={
+                              mode
+                                ? `${t(RENDER_MODE_LABEL_KEY[mode])} · ${t('video.batchAi.multiSelectHint')}`
+                                : `${clip.id} · ${t('video.batchAi.multiSelectHint')}`
+                            }
                           >
                             <span className="video-timeline-review__clip-label">
                               {mode ? t(RENDER_MODE_LABEL_KEY[mode]) : clip.id.slice(0, 8)}

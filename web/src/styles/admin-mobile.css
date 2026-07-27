@@ -1,0 +1,463 @@
+/**
+ * Admin 控制台移动端 — Provider 管理 / 系统管理
+ * 贴边布局、单列卡片、工具栏栅格、内层滚动
+ */
+
+@media (max-width: 768px) {
+  /* ── 页面壳：100% 宽、flex 高度链 ── */
+  .dashboard-main-inner > .page-card.admin-providers-page,
+  .dashboard-main-inner > .page-card.admin-ops-page {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .admin-providers-page .admin-providers-content-wrap,
+  .admin-ops-page .admin-providers-content-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0 !important;
+  }
+
+  .admin-providers-page .admin-providers-content-inner,
+  .admin-ops-page .admin-providers-content-inner {
+    padding: 0 !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* ── Tabs：紧凑标签 + 内容区 flex ── */
+  .admin-providers-page .ant-tabs,
+  .admin-ops-page .ant-tabs {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin-top: 0 !important;
+    padding-inline: 0 !important;
+  }
+
+  .admin-providers-page .ant-tabs-nav,
+  .admin-ops-page .ant-tabs-nav {
+    flex-shrink: 0;
+    padding-inline: var(--space-2);
+    margin-bottom: 0 !important;
+  }
+
+  .admin-providers-page .ant-tabs-nav-wrap,
+  .admin-ops-page .ant-tabs-nav-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-providers-page .ant-tabs-nav-list,
+  .admin-ops-page .ant-tabs-nav-list {
+    flex-wrap: nowrap;
+  }
+
+  .admin-providers-page .ant-tabs-tab,
+  .admin-ops-page .ant-tabs-tab {
+    padding: 0.5rem 0.625rem !important;
+    font-size: 0.6875rem !important;
+    white-space: nowrap;
+  }
+
+  .admin-providers-page .ant-tabs-content-holder,
+  .admin-ops-page .ant-tabs-content-holder {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .admin-providers-page .ant-tabs-content,
+  .admin-ops-page .ant-tabs-content {
+    height: 100%;
+  }
+
+  .admin-providers-page .ant-tabs-tabpane,
+  .admin-ops-page .ant-tabs-tabpane {
+    height: 100%;
+    padding-bottom: 0 !important;
+  }
+
+  .admin-providers-page .ant-tabs-tabpane-active,
+  .admin-ops-page .ant-tabs-tabpane-active {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* ── Provider Tab 模板：去掉 min-width 600px ── */
+  .admin-providers-page .admin-ux-tasktemplate {
+    min-width: 0 !important;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .admin-providers-page .admin-ux-tasktemplate .admin-business-toolbar,
+  .admin-providers-page .admin-console-tab-toolbar {
+    flex-shrink: 0;
+    padding: var(--space-2) !important;
+    border-bottom: 1px solid var(--page-border);
+  }
+
+  .admin-providers-page .admin-console-tab-toolbar .ant-space {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 0.375rem !important;
+  }
+
+  .admin-providers-page .admin-console-tab-toolbar .ant-space-item {
+    min-width: 0;
+  }
+
+  /* 筛选 / 搜索占满一行 */
+  .admin-providers-page .admin-console-tab-toolbar .ant-space-item:has(.ant-select),
+  .admin-providers-page .admin-console-tab-toolbar .ant-space-item:has(.ant-input-affix-wrapper),
+  .admin-providers-page .admin-console-tab-toolbar .ant-space-item:has(.ant-input),
+  .admin-providers-page .admin-console-tab-toolbar .ant-space-item:has(.admin-toolbar-hint) {
+    grid-column: 1 / -1;
+  }
+
+  .admin-providers-page .admin-console-tab-toolbar .ant-select,
+  .admin-providers-page .admin-console-tab-toolbar .ant-input-affix-wrapper,
+  .admin-providers-page .admin-console-tab-toolbar .ant-input {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .admin-providers-page .admin-console-tab-toolbar .ant-btn {
+    width: 100%;
+    height: 2rem;
+    min-height: 2rem;
+    font-size: 0.6875rem;
+    padding-inline: 0.5rem;
+  }
+
+  .admin-providers-page .admin-toolbar-hint {
+    display: block;
+    font-size: 0.6875rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+  }
+
+  /* 面板：贴边、flex 滚动 */
+  .admin-providers-page .admin-ux-tasktemplate .admin-business-panel {
+    height: auto !important;
+    flex: 1;
+    min-height: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-head {
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+    padding: var(--space-2) !important;
+  }
+
+  .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+
+  .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-subtitle {
+    font-size: 0.6875rem;
+    line-height: 1.4;
+  }
+
+  .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-meta {
+    font-size: 0.6875rem;
+  }
+
+  .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--space-2) !important;
+  }
+
+  .admin-providers-page .admin-ux-tasktemplate .admin-business-panel-body.admin-business-table-wrap {
+    padding: 0 !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .admin-providers-page .admin-ux-tasktemplate .admin-business-table-wrap .ant-table-wrapper {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-providers-page .ant-table-body {
+    max-height: calc(100dvh - 16rem) !important;
+  }
+
+  /* ── Provider 余额/统计卡片：单列 ── */
+  .admin-providers-page .provider-billing-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  .admin-providers-page .provider-billing-card {
+    min-height: auto;
+    border-radius: var(--radius-md);
+  }
+
+  .admin-providers-page .provider-billing-card__head {
+    padding: var(--space-2);
+  }
+
+  .admin-providers-page .provider-billing-card__title {
+    font-size: 0.8125rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .admin-providers-page .provider-billing-card__badge {
+    font-size: 0.625rem;
+    padding: 2px 6px;
+    flex-shrink: 0;
+  }
+
+  .admin-providers-page .provider-billing-card__body {
+    padding: var(--space-2);
+    gap: 0.375rem;
+  }
+
+  .admin-providers-page .provider-billing-kv {
+    font-size: 0.75rem;
+  }
+
+  .admin-providers-page .provider-billing-balance {
+    padding: 0.5rem 0.625rem;
+  }
+
+  .admin-providers-page .provider-billing-balance__label,
+  .admin-providers-page .provider-billing-balance__hint {
+    font-size: 0.6875rem;
+  }
+
+  .admin-providers-page .provider-billing-balance__value {
+    font-size: 0.8125rem;
+    word-break: break-all;
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .admin-providers-page .provider-billing-card__foot {
+    padding: 0 var(--space-2) var(--space-2);
+  }
+
+  .admin-providers-page .provider-billing-card__foot .ant-btn {
+    width: 100%;
+    height: 2rem;
+    font-size: 0.75rem;
+    border-radius: var(--radius-md);
+  }
+
+  .admin-providers-page .provider-billing-empty {
+    padding: var(--space-4) var(--space-2);
+    text-align: center;
+    font-size: 0.8125rem;
+  }
+
+  /* ── 物理模型目录 ── */
+  .admin-providers-page .provider-models-panel {
+    height: auto !important;
+  }
+
+  .admin-providers-page .provider-models-panel-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+    padding: var(--space-2) !important;
+  }
+
+  .admin-providers-page .provider-models-panel-intro .admin-business-panel-subtitle {
+    font-size: 0.6875rem;
+    line-height: 1.4;
+  }
+
+  .admin-providers-page .provider-models-panel-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.375rem;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .admin-providers-page .provider-models-count {
+    grid-column: 1 / -1;
+    font-size: 0.6875rem;
+  }
+
+  .admin-providers-page .provider-models-panel-actions .ant-btn {
+    width: 100%;
+    height: 2rem;
+    font-size: 0.6875rem;
+  }
+
+  .admin-providers-page .provider-models-filter-bar {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+    padding: 0 var(--space-2) var(--space-2);
+  }
+
+  .admin-providers-page .provider-models-filter-label {
+    font-size: 0.6875rem;
+  }
+
+  .admin-providers-page .provider-models-filter-control {
+    width: 100% !important;
+  }
+
+  .admin-providers-page .provider-models-table-wrap .ant-table-body {
+    max-height: calc(100dvh - 18rem) !important;
+  }
+
+  /* ── 系统管理 ── */
+  .admin-ops-page .admin-ops-section {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--space-2);
+    gap: var(--space-2);
+  }
+
+  .admin-ops-page .admin-ops-card {
+    border-radius: var(--radius-md);
+    border-left: none;
+    border-right: none;
+  }
+
+  .admin-ops-page .admin-ops-card .ant-card-head {
+    flex-direction: column;
+    align-items: stretch !important;
+    padding: var(--space-2) !important;
+    gap: var(--space-2);
+    min-height: auto;
+  }
+
+  .admin-ops-page .admin-ops-card .ant-card-head-title {
+    font-size: 0.875rem !important;
+    padding: 0 !important;
+    white-space: normal;
+  }
+
+  .admin-ops-page .admin-ops-card .ant-card-extra {
+    margin-inline-start: 0 !important;
+    width: 100%;
+    padding: 0 !important;
+  }
+
+  .admin-ops-page .admin-ops-card-toolbar.ant-space {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 0.375rem !important;
+  }
+
+  .admin-ops-page .admin-ops-card-toolbar .ant-space-item:has(.ant-input),
+  .admin-ops-page .admin-ops-card-toolbar .ant-space-item:has(.ant-input-affix-wrapper),
+  .admin-ops-page .admin-ops-card-toolbar .ant-space-item:has(.ant-select),
+  .admin-ops-page .admin-ops-card-toolbar .ant-space-item:has(.muted) {
+    grid-column: 1 / -1;
+  }
+
+  .admin-ops-page .admin-ops-card-toolbar .ant-input,
+  .admin-ops-page .admin-ops-card-toolbar .ant-input-affix-wrapper,
+  .admin-ops-page .admin-ops-card-toolbar .ant-select {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .admin-ops-page .admin-ops-card-toolbar .ant-btn {
+    width: 100%;
+    height: 2rem;
+    font-size: 0.6875rem;
+  }
+
+  .admin-ops-page .admin-ops-card-toolbar .muted {
+    font-size: 0.6875rem;
+  }
+
+  .admin-ops-page .admin-ops-card .ant-card-body {
+    padding: var(--space-2) !important;
+  }
+
+  .admin-ops-page .admin-ops-kpis {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+    padding: 0 !important;
+  }
+
+  .admin-ops-page .admin-ops-kpi {
+    border-radius: var(--radius-md);
+  }
+
+  .admin-ops-page .admin-ops-kpi .ant-card-body {
+    padding: var(--space-2) !important;
+  }
+
+  .admin-ops-page .admin-ops-kpi .ant-statistic-title {
+    font-size: 0.6875rem;
+  }
+
+  .admin-ops-page .admin-ops-kpi .ant-statistic-content {
+    font-size: 1.125rem !important;
+  }
+
+  .admin-ops-page .admin-ops-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  .admin-ops-page .admin-ops-pies {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  .admin-ops-page .admin-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-ops-page .admin-table-wrap .ant-table-body {
+    max-height: calc(100dvh - 14rem) !important;
+  }
+
+  .admin-ops-page .admin-ops-error,
+  .admin-ops-page .admin-ops-loading {
+    font-size: 0.8125rem;
+  }
+
+  .admin-providers-page .admin-providers-error {
+    padding: var(--space-2);
+    font-size: 0.8125rem;
+  }
+}

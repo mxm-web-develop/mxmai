@@ -5,6 +5,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { getStoredToken } from '../api/client';
+import type { AssetMediaKind } from './asset-loading/types';
+import { MediaLoadingState } from './MediaLoadingState';
 
 function getFullUrl(src: string): string {
   if (src.startsWith('http')) return src;
@@ -19,17 +21,35 @@ interface AuthImageProps {
   referrerPolicy?: React.HTMLAttributeReferrerPolicy;
   onError?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
   style?: React.CSSProperties;
-  /** 加载中或失败时渲染的内容 */
+  /** 加载失败时渲染；未提供则加载失败时不显示 */
   fallback?: React.ReactNode;
+  /** 拉取中渲染；默认 compact 动画 */
+  loadingFallback?: React.ReactNode;
+  kind?: AssetMediaKind;
 }
 
-export function AuthImage({ src, alt = '', className, referrerPolicy, onError, style, fallback }: AuthImageProps) {
+export function AuthImage({
+  src,
+  alt = '',
+  className,
+  referrerPolicy,
+  onError,
+  style,
+  fallback,
+  loadingFallback,
+  kind = 'image',
+}: AuthImageProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const blobRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!src) return;
+
+    setLoading(true);
+    setFailed(false);
+    setBlobUrl(null);
 
     const token = getStoredToken();
     const url = getFullUrl(src);
@@ -46,8 +66,12 @@ export function AuthImage({ src, alt = '', className, referrerPolicy, onError, s
         const u = URL.createObjectURL(blob);
         blobRef.current = u;
         setBlobUrl(u);
+        setLoading(false);
       })
-      .catch(() => setFailed(true));
+      .catch(() => {
+        setFailed(true);
+        setLoading(false);
+      });
 
     return () => {
       if (blobRef.current) {
@@ -57,7 +81,17 @@ export function AuthImage({ src, alt = '', className, referrerPolicy, onError, s
     };
   }, [src]);
 
-  if (failed || !blobUrl) return fallback != null ? <>{fallback}</> : null;
+  if (loading) {
+    return (
+      <>
+        {loadingFallback ?? <MediaLoadingState variant="compact" kind={kind} />}
+      </>
+    );
+  }
+
+  if (failed || !blobUrl) {
+    return fallback != null ? <>{fallback}</> : null;
+  }
 
   return (
     <img

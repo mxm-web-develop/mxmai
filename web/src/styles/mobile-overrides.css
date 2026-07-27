@@ -1,0 +1,176 @@
+/**
+ * Extracted from App.css
+ */
+
+/* ---------- Mobile: Graph/Audio/Music/Video 列表页通用 ---------- */
+@media (max-width: 768px) {
+  /* Header 工具栏 flex wrap */
+  .graph-header,
+  .audio-header,
+  .music-header,
+  .video-header,
+  .outline-header,
+  .writing-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  /* 移动端表单 Drawer 改成全屏 */
+  .graph-drawer .ant-drawer-body,
+  .audio-drawer .ant-drawer-body,
+  .music-drawer .ant-drawer-body,
+  .video-drawer .ant-drawer-body,
+  .writing-drawer .ant-drawer-body {
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  /* AntD Drawer 移动端全屏 */
+  .ant-drawer.ant-drawer-open .ant-drawer-content-wrapper {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .ant-drawer .ant-drawer-body {
+    padding: 0.75rem;
+  }
+
+  /* 移动端隐藏次要按钮文字，但确保最小触控尺寸 */
+  .graph-task-actions .ant-btn > span:not(.anticon),
+  .audio-task-actions .ant-btn > span:not(.anticon) {
+    display: none;
+  }
+
+  .graph-task-actions .ant-btn,
+  .audio-task-actions .ant-btn {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+
+/* ---------- Mobile: Smartflow ---------- */
+@media (max-width: 768px) {
+  .page-smartflow-shell {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .page-smartflow-sidebar {
+    width: 100% !important;
+    max-height: 140px;
+  }
+
+  .page-smartflow-main {
+    height: auto;
+    min-height: 60vh;
+  }
+
+  .page-smartflow {
+    padding: 0;
+  }
+
+  /* Smartflow 工具栏 Tab 小屏适配 */
+  .smartflow-designer-toolbar .ant-tabs-nav {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sf-canvas-node {
+    font-size: 11px;
+  }
+
+  /* ReactFlow controls 移动端放大点击区域 */
+  .react-flow__controls-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .react-flow__minimap {
+    display: none; /* 移动端隐藏 minimap */
+  }
+}
+
+/* ---------- Mobile: AgentChat — 详见 pages/agent-chat.css ---------- */
+@media (max-width: 768px) {
+  .dashboard-main-inner > .agent-chat-page {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* ---------- Mobile: AdminBusiness ---------- */
+@media (max-width: 1024px) {
+  .admin-business-table-wrap .admin-business-list-table .ant-table {
+    min-width: 1280px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Admin Business Drawer 全屏 */
+  .admin-business-drawer .ant-drawer-content-wrapper {
+    width: 100vw !important;
+  }
+
+  .admin-business-panel-head {
+    padding: 0.75rem;
+  }
+
+  .admin-business-toolbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* 模型通道 / 业务管理：Tab 过多时可横向滑动，避免挤爆小屏 */
+  .admin-providers-page .ant-tabs-nav-wrap,
+  .admin-business-page .ant-tabs-nav-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-providers-page .ant-tabs-nav,
+  .admin-business-page .ant-tabs-nav {
+    flex-wrap: nowrap;
+  }
+
+  /* Smartflow：画布区允许触控平移/缩放 */
+  .page-smartflow-main .react-flow {
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-ops-kpi {
+    min-width: 120px;
+  }
+}
+
+/* ---------- Mobile: Account 页面 ---------- */
+@media (max-width: 640px) {
+  .account-grid-top {
+    grid-template-columns: 1fr !important;
+  }
+
+  .account-header {
+    padding: 0 0 0.5rem;
+  }
+}
+
+/* ---------- Mobile: Characters / Prompts / Text 页面 ---------- */
+@media (max-width: 640px) {
+  .prompts-page .page-card .form-group ul {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  .prompts-page .page-card code {
+    word-break: break-all;
+    overflowWrap: break-word;
+    font-size: 0.8em;
+  }
+}
+

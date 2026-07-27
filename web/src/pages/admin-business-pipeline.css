@@ -1,0 +1,974 @@
+/* 执行管线：pre → core → post 横向流程，紧凑、跟随 Ant Design 主题 */
+
+.admin-business-pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.admin-pipeline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-fill-quaternary);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ant-color-text-secondary);
+}
+
+.admin-pipeline-meta__label {
+  font-weight: 600;
+  color: var(--ant-color-text);
+  flex-shrink: 0;
+}
+
+.admin-pipeline-meta__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-bg-container);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: var(--ant-color-text);
+  cursor: default;
+}
+
+.admin-pipeline-meta__tag--muted {
+  opacity: 0.55;
+}
+
+.admin-pipeline-meta__tag-kind {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ant-color-text-tertiary);
+  font-family: inherit;
+}
+
+/* 主流程轨道：竖排五段 pre → input → enrich → output → post */
+.admin-pipeline-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 10px;
+  /* 圆角裁切用 clip，避免 hidden 把右侧标题/操作挤没 */
+  overflow-x: clip;
+  overflow-y: visible;
+  background: var(--ant-color-bg-container);
+}
+
+.admin-pipeline-segment {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px;
+}
+
+.admin-pipeline-segment--pre {
+  background: color-mix(in srgb, var(--ant-color-primary) 3%, var(--ant-color-bg-container));
+}
+
+.admin-pipeline-segment--enrich {
+  background: color-mix(in srgb, var(--ant-color-success) 3%, var(--ant-color-bg-container));
+}
+
+.admin-pipeline-segment--post {
+  background: color-mix(in srgb, var(--ant-color-warning) 3%, var(--ant-color-bg-container));
+}
+
+.admin-pipeline-segment__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  min-width: 0;
+}
+
+.admin-pipeline-segment__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ant-color-text);
+}
+
+.admin-pipeline-segment__count {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--ant-color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-pipeline-segment__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.admin-pipeline-segment__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ant-color-border-secondary);
+}
+
+/* 段间连线（竖排） */
+.admin-pipeline-connector {
+  flex: 0 0 auto;
+  height: 28px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ant-color-text-quaternary);
+  background: var(--ant-color-fill-quaternary);
+  position: relative;
+}
+
+.admin-pipeline-connector::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  height: auto;
+  background: var(--ant-color-border);
+  transform: translateX(-50%);
+}
+
+.admin-pipeline-connector__chevron {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--ant-color-bg-container);
+  border: 1px solid var(--ant-color-border-secondary);
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* 核心节点 */
+.admin-pipeline-core {
+  flex: 0 0 116px;
+  min-width: 116px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 10px;
+  text-align: center;
+  background: var(--ant-color-fill-quaternary);
+  border-left: 1px solid var(--ant-color-border-secondary);
+  border-right: 1px solid var(--ant-color-border-secondary);
+}
+
+.admin-pipeline-core__badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ant-color-primary);
+  background: color-mix(in srgb, var(--ant-color-primary) 12%, transparent);
+}
+
+.admin-pipeline-core__key {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ant-color-text);
+  word-break: break-word;
+  max-width: 100%;
+}
+
+/* 步骤卡片：左色条 + 网格正文 + 固定操作列 */
+.admin-pipeline-step-card {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-bg-elevated);
+  overflow: clip;
+}
+
+.admin-pipeline-step-card--auto {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--ant-color-primary) 4%, var(--ant-color-bg-elevated));
+}
+
+.admin-pipeline-step-card--config {
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 10px 10px 0;
+  border-color: var(--ant-color-primary-border);
+  background: color-mix(in srgb, var(--ant-color-primary) 5%, var(--ant-color-bg-elevated));
+}
+
+.admin-pipeline-step-card--config .admin-pipeline-step-card__main {
+  padding-bottom: 0;
+}
+
+.admin-pipeline-step-card__main--stack {
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+}
+
+.admin-pipeline-step-card--config .admin-pipeline-step-card__config-control {
+  margin-left: calc(3px + 2.75rem + 8px);
+  width: calc(100% - 3px - 2.75rem - 8px - 12px);
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-pipeline-step-card__rail {
+  flex: 0 0 3px;
+  background: var(--ant-color-border-secondary);
+}
+
+.admin-pipeline-step-card--kind-sensitiveCheck .admin-pipeline-step-card__rail {
+  background: color-mix(in srgb, var(--ant-color-error) 55%, var(--ant-color-border-secondary));
+}
+
+.admin-pipeline-step-card--kind-manualReview .admin-pipeline-step-card__rail {
+  background: color-mix(in srgb, var(--ant-color-warning) 55%, var(--ant-color-border-secondary));
+}
+
+.admin-pipeline-step-card--kind-nestedText .admin-pipeline-step-card__rail {
+  background: color-mix(in srgb, var(--ant-color-primary) 55%, var(--ant-color-border-secondary));
+}
+
+.admin-pipeline-step-card--kind-resolveContextFields .admin-pipeline-step-card__rail,
+.admin-pipeline-step-card--auto .admin-pipeline-step-card__rail {
+  background: color-mix(in srgb, var(--ant-color-primary) 35%, var(--ant-color-border-secondary));
+}
+
+.admin-pipeline-step-card__main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) max-content;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  row-gap: 1px;
+  align-items: center;
+  padding: 8px 12px 8px 8px;
+}
+
+.admin-pipeline-step-card__lead {
+  grid-row: 1 / 3;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-pipeline-step-card__lead-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--ant-color-text-tertiary);
+  background: var(--ant-color-fill-quaternary);
+}
+
+.admin-pipeline-step-card__body {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  min-width: 0;
+  align-self: center;
+}
+
+.admin-pipeline-step-card__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--ant-color-text-secondary);
+  background: var(--ant-color-fill-quaternary);
+}
+
+.admin-pipeline-step-card__badge--sensitiveCheck {
+  color: var(--ant-color-error);
+  background: color-mix(in srgb, var(--ant-color-error) 10%, transparent);
+}
+
+.admin-pipeline-step-card__badge--manualReview {
+  color: var(--ant-color-warning);
+  background: color-mix(in srgb, var(--ant-color-warning) 12%, transparent);
+}
+
+.admin-pipeline-step-card__badge--nestedText {
+  color: var(--ant-color-primary);
+  background: color-mix(in srgb, var(--ant-color-primary) 10%, transparent);
+}
+
+.admin-pipeline-step-card__badge--resolveContextFields {
+  color: var(--ant-color-text-secondary);
+  background: var(--ant-color-fill-quaternary);
+}
+
+.admin-pipeline-step-card__badge--renderDocumentPdf {
+  color: var(--ant-color-success);
+  background: color-mix(in srgb, var(--ant-color-success) 12%, transparent);
+}
+
+.admin-pipeline-step-card__name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ant-color-text);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.admin-pipeline-step-card__desc {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ant-color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-pipeline-step-card__actions {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  justify-self: end;
+  align-self: center;
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 6px;
+  background: var(--ant-color-bg-container);
+}
+
+.admin-pipeline-step-card__action-btn {
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  border-right: 1px solid var(--ant-color-border-secondary);
+}
+
+.admin-pipeline-step-card__action-btn:last-child {
+  border-right: none;
+}
+
+.admin-pipeline-step-card__action-btn--danger:not(:disabled):hover {
+  background: color-mix(in srgb, var(--ant-color-error) 8%, transparent) !important;
+}
+
+.admin-pipeline-step-card__actions > .ant-btn:last-child {
+  border-right: none;
+}
+
+.admin-pipeline-step-card__config-control {
+  width: 100%;
+}
+
+.admin-pipeline-settings-popover {
+  max-width: min(520px, calc(100vw - 24px));
+}
+
+.admin-pipeline-settings-popover .ant-popover-inner-content {
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.admin-pipeline-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(460px, calc(100vw - 48px));
+  max-width: 100%;
+}
+
+.admin-pipeline-settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-pipeline-settings__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ant-color-text);
+}
+
+.admin-pipeline-settings__control {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-pipeline-card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-pipeline-card-fields__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--ant-color-border) 80%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ant-color-fill-quaternary) 60%, transparent);
+}
+
+.admin-pipeline-card-fields__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.admin-pipeline-card-fields__req {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+}
+
+.admin-pipeline-card-fields__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.admin-pipeline-settings__advanced .ant-collapse-header {
+  padding: 0 !important;
+  font-size: 11px !important;
+}
+
+.admin-pipeline-settings__advanced .ant-collapse-content-box {
+  padding: 8px 0 0 !important;
+}
+
+.admin-pipeline-settings__when-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: start;
+  margin-bottom: 6px;
+}
+
+.admin-pipeline-settings__when-row .admin-pipeline-settings__control {
+  min-width: 0;
+}
+
+/* 空状态 */
+.admin-pipeline-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px dashed var(--ant-color-border-secondary);
+  font-size: 12px;
+  color: var(--ant-color-text-quaternary);
+  text-align: center;
+}
+
+.admin-pipeline-segment__footer .ant-btn {
+  flex-shrink: 0;
+}
+
+/* 添加步骤弹层：固定高度 + 内部滚动 + 搜索 */
+.admin-pipeline-add-step {
+  width: min(440px, calc(100vw - 24px));
+  background: var(--ant-color-bg-elevated);
+  border-radius: 8px;
+  box-shadow: var(--ant-box-shadow-secondary);
+  border: 1px solid var(--ant-color-border-secondary);
+  overflow: hidden;
+}
+
+.admin-pipeline-add-step__search {
+  padding: 8px;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-bg-container);
+}
+
+.admin-pipeline-add-step__list {
+  max-height: min(360px, 52vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+}
+
+.admin-pipeline-add-step__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.15s ease;
+}
+
+.admin-pipeline-add-step__item:hover:not(:disabled) {
+  background: var(--ant-color-fill-tertiary);
+}
+
+.admin-pipeline-add-step__item:focus-visible {
+  outline: 2px solid var(--ant-color-primary);
+  outline-offset: -2px;
+}
+
+.admin-pipeline-add-step__item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-pipeline-add-step__group {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--ant-color-text-quaternary);
+  line-height: 1.2;
+}
+
+.admin-pipeline-add-step__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ant-color-text);
+  line-height: 1.35;
+}
+
+.admin-pipeline-add-step__desc {
+  font-size: 11px;
+  color: var(--ant-color-text-tertiary);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.admin-pipeline-add-step__empty {
+  padding: 20px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ant-color-text-quaternary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-pipeline-add-step__item {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-pipeline-step {
+    transition: none;
+  }
+
+  .admin-warp-stage-rail__chip {
+    transition: none;
+  }
+}
+
+/* —— mxm-warp 五段轨 —— */
+.admin-pipeline-rail--warp {
+  align-items: stretch;
+}
+
+.admin-pipeline-segment__key {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 500;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--ant-color-text-tertiary);
+  text-transform: lowercase;
+}
+
+.admin-pipeline-segment__hint {
+  padding: 0 0 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ant-color-text-secondary);
+}
+
+.admin-pipeline-segment--locked {
+  background: var(--ant-color-fill-quaternary);
+  border-style: dashed;
+}
+
+.admin-pipeline-segment__lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--ant-color-text-secondary);
+}
+
+.admin-pipeline-segment__body--locked {
+  padding: var(--space-2) 0 var(--space-1);
+}
+
+.admin-pipeline-locked-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--ant-color-bg-container);
+  border: 1px solid var(--ant-color-border-secondary);
+}
+
+.admin-pipeline-locked-card__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ant-color-text);
+}
+
+.admin-pipeline-locked-card__desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ant-color-text-secondary);
+}
+
+.admin-pipeline-segment--input .admin-pipeline-segment__header,
+.admin-pipeline-segment--output .admin-pipeline-segment__header {
+  opacity: 0.95;
+}
+
+/* Drawer 顶栏五段微缩轨 */
+.admin-warp-stage-rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 2px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-fill-quaternary);
+}
+
+.admin-warp-stage-rail__chip {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ant-color-text-secondary);
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 180ms ease-out, color 180ms ease-out, border-color 180ms ease-out;
+}
+
+.admin-warp-stage-rail__chip:hover {
+  color: var(--ant-color-text);
+  background: var(--ant-color-bg-container);
+}
+
+.admin-warp-stage-rail__chip.is-active,
+.admin-warp-stage-rail__chip.is-focus {
+  color: #0284c7;
+  border-color: rgba(14, 165, 233, 0.35);
+  background: rgba(14, 165, 233, 0.1);
+  font-weight: 600;
+}
+
+.admin-warp-stage-rail__sep {
+  color: var(--ant-color-text-quaternary);
+  font-size: 11px;
+  user-select: none;
+}
+
+/* 合同字段双区 */
+.admin-contract-schema {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-contract-schema__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-contract-schema__zones {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.admin-contract-zone {
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 10px;
+  background: var(--ant-color-bg-container);
+  min-width: 0;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.admin-contract-zone--over {
+  border-color: var(--ant-color-primary);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ant-color-primary) 35%, transparent);
+}
+
+.admin-contract-zone__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+}
+
+.admin-contract-zone__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-contract-zone__count {
+  font-size: 11px;
+  color: var(--ant-color-text-secondary);
+}
+
+.admin-contract-zone__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 12px;
+  min-height: 72px;
+}
+
+.admin-contract-field-sortable--overlay {
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+  border-radius: 10px;
+  cursor: grabbing;
+}
+
+.admin-contract-field__drag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ant-color-text-tertiary);
+  cursor: grab;
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.admin-contract-field__drag:hover {
+  color: var(--ant-color-text);
+  background: var(--ant-color-fill-secondary);
+}
+
+.admin-contract-field__drag:active,
+.admin-contract-field__drag--static {
+  cursor: grabbing;
+}
+
+.admin-contract-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-fill-quaternary);
+}
+
+.admin-contract-field__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-contract-field__head-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.admin-contract-field__title {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-contract-field__label {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+  margin-bottom: 4px;
+}
+
+.admin-contract-field__grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-contract-field__grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-contract-field__toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-contract-field__toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+}
+
+/* Output Prompt：单列竖排，编辑器优先占满宽度 */
+.admin-output-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.admin-output-prompt__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-output-prompt__editor {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-output-prompt__editor-shell {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--ant-color-bg-container);
+  min-width: 0;
+}
+
+.admin-output-prompt__skeleton-collapse {
+  width: 100%;
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 10px;
+  background: var(--ant-color-fill-quaternary);
+  padding: 0 4px;
+}
+
+.admin-output-prompt__skeleton-collapse .ant-collapse-header {
+  align-items: center !important;
+  padding: 10px 12px !important;
+}
+
+.admin-output-prompt__skeleton-label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 0;
+  min-width: 0;
+}
+
+.admin-output-prompt__skeleton-textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 11px !important;
+  line-height: 1.45 !important;
+  background: var(--ant-color-bg-container) !important;
+  border-radius: 8px;
+}
+
+/* 兼容旧类名（若别处仍引用） */
+.admin-output-prompt__layout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-output-prompt__skeleton {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-fill-quaternary);
+}

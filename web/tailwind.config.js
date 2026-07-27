@@ -66,7 +66,7 @@ export default {
       },
       backgroundImage: {
         'gradient-primary':
-          'linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))',
+          'linear-gradient(135deg, var(--brand-mind-strong), var(--action-primary-solid), var(--brand-machine))',
         'gradient-text': 'linear-gradient(135deg, var(--color-primary), #8b5cf6)',
       },
       keyframes: {

@@ -185,6 +185,68 @@ function computeStoredTokenPrices(values: Record<string, unknown>, chargeMode: s
   };
 }
 
+/** 上架硬门禁：成本价至少一项 > 0（与后端 /admin/pricing/provider 一致） */
+function hasMeaningfulProviderCost(stored: {
+  unit_price: number | null;
+  input_unit_price: number | null;
+  output_unit_price: number | null;
+}): boolean {
+  const u = Number(stored.unit_price ?? 0);
+  const i = Number(stored.input_unit_price ?? 0);
+  const o = Number(stored.output_unit_price ?? 0);
+  return u > 0 || i > 0 || o > 0;
+}
+
+/** 成本 USD → 默认 MXM-TOKEN（×100×2.5）；与后端 fillDefaultPlatformPricesFromCost 一致 */
+function usdToDefaultPlatformTokens(usd: number): number {
+  if (!Number.isFinite(usd) || usd <= 0) return 0;
+  return Math.max(0.001, Math.round(usd * 100 * 2.5 * 1000) / 1000);
+}
+
+/** 保存时：未填 MXM-TOKEN 则按成本自动填默认售价（可被用户显式值覆盖） */
+function resolvePlatformPricesForSave(
+  chargeMode: string,
+  stored: {
+    unit_price: number | null;
+    input_unit_price: number | null;
+    output_unit_price: number | null;
+  },
+  values: Record<string, unknown>
+): {
+  platform_unit_price: number | null;
+  platform_input_unit_price: number | null;
+  platform_output_unit_price: number | null;
+} {
+  const pos = (v: unknown): number | null => {
+    if (v == null || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  let platformUnit = pos(values.platform_unit_price);
+  let platformIn = pos(values.platform_input_unit_price);
+  let platformOut = pos(values.platform_output_unit_price);
+  const costUnit = Number(stored.unit_price ?? 0);
+  const costIn = Number(stored.input_unit_price ?? 0);
+  const costOut = Number(stored.output_unit_price ?? 0);
+  if (chargeMode === 'token_based') {
+    if (platformIn == null && costIn > 0) platformIn = usdToDefaultPlatformTokens(costIn);
+    if (platformOut == null && costOut > 0) platformOut = usdToDefaultPlatformTokens(costOut);
+    if (platformUnit == null && costUnit > 0 && !(costIn > 0 || costOut > 0)) {
+      platformUnit = usdToDefaultPlatformTokens(costUnit);
+    }
+    if (platformUnit == null && costUnit > 0 && platformIn == null && platformOut == null) {
+      platformUnit = usdToDefaultPlatformTokens(costUnit);
+    }
+  } else if (platformUnit == null && costUnit > 0) {
+    platformUnit = usdToDefaultPlatformTokens(costUnit);
+  }
+  return {
+    platform_unit_price: platformUnit,
+    platform_input_unit_price: platformIn,
+    platform_output_unit_price: platformOut,
+  };
+}
+
 const SCOPE_OPTIONS = [
   { value: 'writing', label: 'writing（写作）' },
   { value: 'graph', label: 'graph（图片生成）' },
@@ -822,6 +884,19 @@ export default function ProviderRoutes() {
   const handleSaveProviderModel = async () => {
     const values = await providerModelForm.validateFields().catch(() => null);
     if (!values) return;
+
+    const chargeModePrecheck = values.charge_mode ?? 'token_based';
+    const storedPrecheck = computeStoredTokenPrices(
+      values as Record<string, unknown>,
+      chargeModePrecheck,
+    );
+    if (!hasMeaningfulProviderCost(storedPrecheck)) {
+      message.error(
+        'Provider 成本价为必填：请填写单价，或 Token 计费的输入/输出成本（至少一项 > 0）',
+      );
+      return;
+    }
+
     setProviderModelSaving(true);
     try {
       // 构建定价记录的 scope 列表：sync_text_writing 时同时为 text + writing 创建
@@ -830,38 +905,6 @@ export default function ProviderRoutes() {
           return ['text', 'writing'];
         }
         return [baseScope];
-      };
-
-      const upsertPricingForScopes = async (
-        scopes: string[],
-        pricingId?: string
-      ) => {
-        const chargeMode = values.charge_mode ?? 'token_based';
-        const stored = computeStoredTokenPrices(values as Record<string, unknown>, chargeMode);
-        for (const scope of scopes) {
-          const pricingBody: UpsertProviderPricingBody = {
-            id: scope === values.scope ? pricingId : undefined, // 仅主 scope 保留原 pricing_id
-            provider: values.provider!,
-            scope,
-            model_key: values.model_key!,
-            charge_mode: chargeMode,
-            unit_price: stored.unit_price,
-            input_unit_price: stored.input_unit_price,
-            output_unit_price: stored.output_unit_price,
-            platform_unit_price: values.platform_unit_price ?? null,
-            platform_input_unit_price: values.platform_input_unit_price ?? null,
-            platform_output_unit_price: values.platform_output_unit_price ?? null,
-            platform_min_charge: values.platform_min_charge ?? null,
-            currency: values.currency ?? 'USD',
-            metadata: {
-              ...providerPricingMetadataRef.current,
-              ...(chargeMode === 'token_based'
-                ? { token_price_basis: stored.tokenBasisMeta }
-                : {}),
-            },
-          };
-          await upsertProviderPricing(pricingBody);
-        }
       };
 
       if (editingProviderModel) {
@@ -896,6 +939,11 @@ export default function ProviderRoutes() {
         for (const scope of scopes) {
           const chargeMode = values.charge_mode ?? 'token_based';
           const stored = computeStoredTokenPrices(values as Record<string, unknown>, chargeMode);
+          const platform = resolvePlatformPricesForSave(
+            chargeMode,
+            stored,
+            values as Record<string, unknown>
+          );
           const pr = await upsertProviderPricing({
             id: scope === values.scope ? (merged || scopeChanged ? undefined : values.pricing_id) : undefined,
             provider: values.provider!,
@@ -905,9 +953,9 @@ export default function ProviderRoutes() {
             unit_price: stored.unit_price,
             input_unit_price: stored.input_unit_price,
             output_unit_price: stored.output_unit_price,
-            platform_unit_price: values.platform_unit_price ?? null,
-            platform_input_unit_price: values.platform_input_unit_price ?? null,
-            platform_output_unit_price: values.platform_output_unit_price ?? null,
+            platform_unit_price: platform.platform_unit_price,
+            platform_input_unit_price: platform.platform_input_unit_price,
+            platform_output_unit_price: platform.platform_output_unit_price,
             platform_min_charge: values.platform_min_charge ?? null,
             currency: values.currency ?? 'USD',
             metadata: {
@@ -918,10 +966,12 @@ export default function ProviderRoutes() {
           if (pr.error) pricingErr = pr.error;
         }
         if (pricingErr) {
-          message.warning(`物理模型已保存，但定价未写入：${pricingErr}`);
-        } else {
-          message.success('已保存物理模型');
+          message.error(`物理模型已保存，但 Provider 成本写入失败（成本价必填）：${pricingErr}`);
+          fetchProviderModels();
+          fetchPricing();
+          return;
         }
+        message.success('已保存物理模型');
         setProviderModelModalOpen(false);
         setEditingProviderModel(null);
         fetchProviderModels();
@@ -958,6 +1008,11 @@ export default function ProviderRoutes() {
         for (const scope of scopes) {
           const chargeMode = values.charge_mode ?? 'token_based';
           const stored = computeStoredTokenPrices(values as Record<string, unknown>, chargeMode);
+          const platform = resolvePlatformPricesForSave(
+            chargeMode,
+            stored,
+            values as Record<string, unknown>
+          );
           const pr = await upsertProviderPricing({
             provider: values.provider!,
             scope,
@@ -966,9 +1021,9 @@ export default function ProviderRoutes() {
             unit_price: stored.unit_price,
             input_unit_price: stored.input_unit_price,
             output_unit_price: stored.output_unit_price,
-            platform_unit_price: values.platform_unit_price ?? null,
-            platform_input_unit_price: values.platform_input_unit_price ?? null,
-            platform_output_unit_price: values.platform_output_unit_price ?? null,
+            platform_unit_price: platform.platform_unit_price,
+            platform_input_unit_price: platform.platform_input_unit_price,
+            platform_output_unit_price: platform.platform_output_unit_price,
             platform_min_charge: values.platform_min_charge ?? null,
             currency: values.currency ?? 'USD',
             metadata: {
@@ -979,12 +1034,14 @@ export default function ProviderRoutes() {
           if (pr.error) pricingErr = pr.error;
         }
         if (pricingErr) {
-          message.warning(
-            `物理模型已保存（若 model_key 已存在则为更新）。Provider 成本未写入：${pricingErr}`,
+          message.error(
+            `物理模型已写入，但 Provider 成本未保存（成本价必填，业务不可用）：${pricingErr}`,
           );
-        } else {
-          message.success('已保存物理模型');
+          fetchProviderModels();
+          fetchPricing();
+          return;
         }
+        message.success('已保存物理模型');
         setProviderModelModalOpen(false);
         setEditingProviderModel(null);
         fetchProviderModels();
@@ -1689,40 +1746,49 @@ export default function ProviderRoutes() {
                                   (k: ProviderApiKeyMasked) => k.id === r.id
                                 );
                                 const loadingRow = actionLoading === r.id;
+                                const upDisabled = idx <= 0 || loadingRow;
+                                const downDisabled =
+                                  idx >= visibleKeysList.length - 1 || idx < 0 || loadingRow;
                                 return (
-                                  <Space size="small">
-                                    <Button
-                                      type="link"
-                                      size="small"
-                                      disabled={idx <= 0 || loadingRow}
+                                  <span className="actions-cell">
+                                    <button
+                                      type="button"
+                                      className={
+                                        'act-btn act-btn--neutral' +
+                                        (upDisabled ? ' act-btn--muted' : '')
+                                      }
+                                      disabled={upDisabled}
                                       onClick={() => handleMoveKey(r.id, 'up')}
                                     >
                                       上移
-                                    </Button>
-                                    <Button
-                                      type="link"
-                                      size="small"
-                                      disabled={
-                                        idx >= visibleKeysList.length - 1 || idx < 0 || loadingRow
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={
+                                        'act-btn act-btn--neutral' +
+                                        (downDisabled ? ' act-btn--muted' : '')
                                       }
+                                      disabled={downDisabled}
                                       onClick={() => handleMoveKey(r.id, 'down')}
                                     >
                                       下移
-                                    </Button>
+                                    </button>
                                     <Popconfirm
                                       title="确定删除此 Key？"
                                       onConfirm={() => handleDeleteKey(r.id)}
                                     >
-                                      <Button
-                                        type="link"
-                                        size="small"
-                                        danger
+                                      <button
+                                        type="button"
+                                        className={
+                                          'act-btn act-btn--danger' +
+                                          (actionLoading ? ' act-btn--muted' : '')
+                                        }
                                         disabled={!!actionLoading}
                                       >
                                         删除
-                                      </Button>
+                                      </button>
                                     </Popconfirm>
-                                  </Space>
+                                  </span>
                                 );
                               },
                             },
@@ -1934,78 +2000,60 @@ export default function ProviderRoutes() {
                               key: 'actions',
                               width: 360,
                               render: (_, row) => (
-                                <Space size="small" wrap={false}>
+                                <span className="actions-cell">
                                   {row.scope === 'knowledge' &&
                                   !isKnowledgeDefaultModel(row, knowledgeEmbDefault) ? (
-                                    <Button
-                                      type="link"
-                                      size="small"
-                                      loading={knowledgeDefaultSaving === row.id}
+                                    <button
+                                      type="button"
+                                      className="act-btn act-btn--neutral"
+                                      disabled={knowledgeDefaultSaving === row.id}
                                       onClick={() => void handleSetKnowledgeDefault(row)}
-                                      style={{ padding: 0 }}
                                     >
-                                      设为默认
-                                    </Button>
+                                      {knowledgeDefaultSaving === row.id ? '…' : '设为默认'}
+                                    </button>
                                   ) : null}
-                                  <Button
-                                    type="link"
-                                    size="small"
+                                  <button
+                                    type="button"
+                                    className="act-btn act-btn--neutral"
                                     onClick={() => openProviderModelModal(row)}
-                                    style={{ padding: 0 }}
                                   >
                                     编辑
-                                  </Button>
-                                  <Button
-                                    type="link"
-                                    size="small"
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="act-btn act-btn--neutral"
+                                    disabled={providerModelTestLoading === row.id}
                                     onClick={() => openProviderModelTestModal(row)}
-                                    loading={providerModelTestLoading === row.id}
-                                    style={{ padding: 0 }}
                                   >
-                                    测试
-                                  </Button>
+                                    {providerModelTestLoading === row.id ? '测试中…' : '测试'}
+                                  </button>
                                   {row.is_enabled ? (
                                     <Popconfirm
                                       title="停用后仍保留记录，可在编辑中重新启用；确定停用？"
                                       onConfirm={() => handleDisableProviderModel(row)}
                                     >
-                                      <Button
-                                        type="link"
-                                        danger
-                                        size="small"
-                                        style={{
-                                          padding: '0 6px',
-                                          borderRadius: 4,
-                                          background: 'rgba(255,77,79,0.08)',
-                                        }}
-                                      >
+                                      <button type="button" className="act-btn act-btn--danger">
                                         停用
-                                      </Button>
+                                      </button>
                                     </Popconfirm>
                                   ) : (
-                                    <Button
-                                      type="link"
-                                      size="small"
-                                      style={{
-                                        padding: '0 6px',
-                                        borderRadius: 4,
-                                        color: '#52c41a',
-                                        background: 'rgba(82,196,26,0.10)',
-                                      }}
+                                    <button
+                                      type="button"
+                                      className="act-btn act-btn--success"
                                       onClick={() => handleEnableProviderModel(row)}
                                     >
                                       启用
-                                    </Button>
+                                    </button>
                                   )}
                                   <Popconfirm
                                     title="将永久删除该物理模型及同 provider+scope+model_key 的 Provider 成本，不可恢复。确定删除？"
                                     onConfirm={() => handleDeleteProviderModel(row)}
                                   >
-                                    <Button type="link" size="small" danger style={{ padding: 0 }}>
+                                    <button type="button" className="act-btn act-btn--danger">
                                       删除
-                                    </Button>
+                                    </button>
                                   </Popconfirm>
-                                </Space>
+                                </span>
                               ),
                             },
                           ]}
@@ -2108,7 +2156,7 @@ export default function ProviderRoutes() {
               <Alert
                 type="info"
                 showIcon
-                message="最近测试记录"
+                title="最近测试记录"
                 description={
                   <div style={{ fontSize: 12, lineHeight: 1.5 }}>
                     <div>
@@ -2185,7 +2233,7 @@ export default function ProviderRoutes() {
             <Alert
               type={providerModelTestResult.success ? 'success' : 'error'}
               showIcon
-              message={
+              title={
                 providerModelTestResult.success
                   ? `测试成功 · 延迟 ${providerModelTestResult.latencyMs}ms`
                   : `测试失败${providerModelTestResult.error ? `：${providerModelTestResult.error}` : ''}`
@@ -2232,8 +2280,8 @@ export default function ProviderRoutes() {
             fontSize: 13,
           }}
         >
-          💡 Provider 成本（USD）用于统计与上游余额扣费。MXM-TOKEN（字段 platform_*）用于向用户扣费；未配置时业务将报「计费模块错误，暂不可用」。建议 MXM-TOKEN ≈
-          成本USD ÷ 0.01 × 2.5（锚定 1 TOKEN≈$0.01）。业务页不再单独设价，只绑定模型。
+          💡 Provider 成本（USD）上架必填（unit / 输入 / 输出至少一项 {'>'} 0）。MXM-TOKEN（platform_*）
+          默认按成本自动计算：成本USD × 100 × 2.5（锚定 1 TOKEN≈$0.01）；可改。未手填时保存/后端也会回填。业务页只绑定模型，不再单独设价。
         </div>
         <Form
           form={providerModelForm}
@@ -2325,10 +2373,11 @@ export default function ProviderRoutes() {
           </Form.Item>
 
           <Collapse
+            defaultActiveKey={['pricing']}
             items={[
               {
                 key: 'pricing',
-                label: 'Provider 成本',
+                label: 'Provider 成本（必填）',
                 children: (
                   <>
                     <Form.Item
@@ -2506,21 +2555,33 @@ export default function ProviderRoutes() {
                               <Form.Item
                                 name="platform_input_unit_price"
                                 label="输入 千Token 售价（MXM-TOKEN）"
-                                extra={suggestIn != null ? `建议约 ${suggestIn}` : undefined}
+                              extra={
+                                suggestIn != null
+                                  ? `默认约 ${suggestIn}（成本×100×2.5；未填保存时自动回填）`
+                                  : undefined
+                              }
                               >
                                 <InputNumber min={0} style={{ width: '100%' }} placeholder="如 0.1" />
                               </Form.Item>
                               <Form.Item
                                 name="platform_output_unit_price"
                                 label="输出 千Token 售价（MXM-TOKEN）"
-                                extra={suggestOut != null ? `建议约 ${suggestOut}` : undefined}
+                              extra={
+                                suggestOut != null
+                                  ? `默认约 ${suggestOut}（成本×100×2.5；未填保存时自动回填）`
+                                  : undefined
+                              }
                               >
                                 <InputNumber min={0} style={{ width: '100%' }} placeholder="如 0.5" />
                               </Form.Item>
                               <Form.Item
                                 name="platform_unit_price"
                                 label="通用千Token 售价（兜底）"
-                                extra={suggestUnit != null ? `建议约 ${suggestUnit}` : undefined}
+                                extra={
+                                  suggestUnit != null
+                                    ? `默认约 ${suggestUnit}（成本×100×2.5；未填保存时自动回填）`
+                                    : undefined
+                                }
                               >
                                 <InputNumber min={0} style={{ width: '100%' }} />
                               </Form.Item>
@@ -2545,7 +2606,11 @@ export default function ProviderRoutes() {
                                       ? '售价（每秒视频，MXM-TOKEN）'
                                       : '售价（每次，MXM-TOKEN）'
                               }
-                              extra={suggest != null ? `建议约 ${suggest}（成本×2.5）` : '未配置则业务不可用'}
+                              extra={
+                                suggest != null
+                                  ? `默认约 ${suggest}（成本×100×2.5；未填保存时自动回填）`
+                                  : '将按成本自动回填'
+                              }
                               rules={[{ required: true, message: '请配置 MXM-TOKEN，否则用户无法调用' }]}
                             >
                               <InputNumber min={0} style={{ width: '100%' }} placeholder="如 2" />

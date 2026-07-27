@@ -1,0 +1,212 @@
+/* 列表卡片 — 紧凑进度环（缩略图区域） */
+
+.tpc {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, rgba(14, 165, 233, 0.1), transparent 65%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(2, 6, 23, 0.98) 100%);
+}
+
+html:not(.dark) .tpc {
+  background: radial-gradient(circle at 50% 25%, rgba(14, 165, 233, 0.12), transparent 60%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+}
+
+.tpc--failed {
+  background: radial-gradient(circle at 50% 30%, rgba(239, 68, 68, 0.12), transparent 65%),
+    linear-gradient(180deg, rgba(30, 10, 10, 0.92) 0%, rgba(15, 23, 42, 0.98) 100%);
+}
+
+html:not(.dark) .tpc--failed {
+  background: radial-gradient(circle at 50% 25%, rgba(239, 68, 68, 0.1), transparent 60%),
+    linear-gradient(180deg, #fff5f5 0%, #fef2f2 100%);
+}
+
+.tpc__backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tpc__grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.28;
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.07) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+html:not(.dark) .tpc__grid {
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(14, 165, 233, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 165, 233, 0.08) 1px, transparent 1px);
+}
+
+.tpc__scan {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  top: 15%;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.55), transparent);
+  opacity: 0.55;
+}
+
+html:not(.dark) .tpc__scan {
+  background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.45), transparent);
+}
+
+.tpc__ring-wrap {
+  position: relative;
+  width: 4.25rem;
+  height: 4.25rem;
+  flex-shrink: 0;
+}
+
+.tpc__svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.tpc__ring-track {
+  fill: none;
+  stroke: rgba(148, 163, 184, 0.22);
+  stroke-width: 7;
+}
+
+.tpc__ring-fill {
+  fill: none;
+  stroke: #38bdf8;
+  stroke-width: 7;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.45));
+}
+
+html:not(.dark) .tpc__ring-fill {
+  stroke: #0284c7;
+  filter: drop-shadow(0 0 4px rgba(14, 165, 233, 0.35));
+}
+
+.tpc--failed .tpc__ring-fill {
+  stroke: #ef4444;
+  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.35));
+}
+
+.tpc__orbit {
+  position: absolute;
+  inset: 0;
+}
+
+.tpc__dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.65);
+}
+
+html:not(.dark) .tpc__dot {
+  background: #0284c7;
+  box-shadow: 0 0 6px rgba(14, 165, 233, 0.5);
+}
+
+.tpc__dot--1 {
+  top: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tpc__dot--2 {
+  bottom: 16%;
+  left: 10%;
+}
+
+.tpc__dot--3 {
+  bottom: 16%;
+  right: 10%;
+}
+
+.tpc__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tpc__pct {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.03em;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #f8fafc;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+html:not(.dark) .tpc__pct {
+  color: #0f172a;
+}
+
+.tpc__pct-unit {
+  font-size: 0.58em;
+  font-weight: 600;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.tpc__icon {
+  color: #38bdf8;
+}
+
+html:not(.dark) .tpc__icon {
+  color: #0284c7;
+}
+
+.tpc__icon--failed {
+  color: #ef4444;
+}
+
+.tpc__bar {
+  position: relative;
+  z-index: 1;
+  width: 72%;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  overflow: hidden;
+}
+
+.tpc__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0284c7, #38bdf8);
+  transition: width 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html:not(.dark) .tpc__bar-fill {
+  background: linear-gradient(90deg, #0ea5e9, #38bdf8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tpc__bar-fill {
+    transition: none;
+  }
+}

@@ -1,0 +1,597 @@
+/**
+ * Account / OpenAPI / 表格页 — 统一布局与表格控制台
+ * Extracted from App.css (Wave 8 trim)
+ */
+
+/* ---------- Account page: inner scroll (page-card overflow is hidden) ---------- */
+.account-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.account-tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.account-tabs > .ant-tabs-nav {
+  flex-shrink: 0;
+}
+
+.account-tabs .ant-tabs-content-holder {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.account-tabs .ant-tabs-content,
+.account-tabs .ant-tabs-tabpane {
+  height: 100%;
+}
+
+.account-tab-pane {
+  padding-top: 4px;
+  padding-bottom: 8px;
+}
+
+.account-tab-pane--fill {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.account-tab-pane--scroll {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+/* 列表页通用：工具栏/筛选固定，仅 Table tbody 滚动 */
+.page-table-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-table-panel__toolbar {
+  flex-shrink: 0;
+}
+
+.page-table-card.ant-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-table-card > .ant-card-head {
+  flex-shrink: 0;
+}
+
+.page-table-card > .ant-card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: 12px !important;
+}
+
+.page-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page-table-wrap .ant-table-wrapper {
+  height: 100%;
+}
+.open-api-publish-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.open-api-publish-page > .ant-typography,
+.open-api-publish-page > h4 {
+  flex-shrink: 0;
+}
+
+.open-api-publish-tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.open-api-publish-tabs > .ant-tabs-nav {
+  flex-shrink: 0;
+}
+
+.open-api-publish-tabs .ant-tabs-content-holder {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.open-api-publish-tabs .ant-tabs-content,
+.open-api-publish-tabs .ant-tabs-tabpane {
+  height: 100%;
+}
+
+.open-api-tab-fill {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.open-api-stats-filters {
+  flex-shrink: 0;
+}
+.open-api-stats-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-border);
+  background: rgba(2, 6, 23, 0.2);
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow: var(--shadow-md);
+}
+
+.open-api-stats-toolbar__label {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.open-api-stats-toolbar__select {
+  min-width: 240px;
+}
+
+.open-api-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.open-api-kpi-item {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--glass-surface-soft);
+  border: 1px solid var(--card-border);
+}
+
+.open-api-kpi-item .ant-statistic-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.open-api-kpi-item .ant-statistic-content {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.open-api-guide {
+  display: none;
+}
+
+.open-api-manage-card > .ant-card-head {
+  min-height: 48px;
+}
+
+.open-api-manage-card > .ant-card-head-title {
+  font-weight: 600;
+}
+
+.open-api-toolbar-extra .ant-btn-primary {
+  box-shadow: none;
+}
+
+.open-api-cell-api {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.open-api-cell-slug {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.open-api-cell-title {
+  font-size: 13px;
+  max-width: 220px;
+}
+
+.open-api-cell-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.open-api-schema-tag {
+  margin: 0;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.open-api-kind-tag {
+  margin: 0;
+}
+
+.open-api-target {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.open-api-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin: -4px 0;
+}
+
+.open-api-row-actions__btn {
+  padding-inline: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.open-api-row-actions__btn:hover {
+  color: var(--color-cta) !important;
+  background: rgba(0, 47, 167, 0.08) !important;
+}
+
+.open-api-row-actions__more {
+  width: 28px;
+  padding-inline: 0;
+}
+
+.open-api-empty {
+  padding: 28px 0 12px;
+}
+
+.open-api-empty .ant-empty-description {
+  color: var(--text-muted);
+}
+
+@media (max-width: 1200px) {
+  .open-api-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .open-api-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .open-api-stats-toolbar__select {
+    min-width: 180px;
+    flex: 1;
+  }
+}
+
+.open-api-stats-kpi {
+  flex-shrink: 0;
+}
+
+.open-api-stats-tables {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.open-api-stats-table-block {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.account-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.account-password-form {
+  max-width: 420px;
+}
+
+.account-identity-bar {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: var(--glass-surface-soft);
+}
+
+.account-identity-bar__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: #fff;
+  background: linear-gradient(135deg, #0284c7, #002fa7);
+}
+
+.account-identity-bar__meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.account-identity-bar__name {
+  font-size: 1rem;
+}
+
+.account-identity-bar__id {
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+}
+
+.account-identity-bar__tags {
+  margin-top: 2px;
+}
+
+.account-identity-bar__actions {
+  margin-top: 8px;
+}
+
+.account-security-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 560px;
+}
+
+.account-security-section {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: var(--glass-surface-strong);
+  padding: var(--space-4);
+}
+
+.account-security-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.account-security-section__title-wrap {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.account-security-section__icon {
+  font-size: 1.25rem;
+  color: #0284c7;
+  margin-top: 2px;
+}
+
+.account-security-section__desc {
+  display: block;
+  font-size: 0.8125rem;
+  margin-top: 2px;
+}
+
+.account-security-section__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-security-section__action {
+  margin-top: var(--space-3);
+  align-self: flex-start;
+}
+
+.mfa-code-input {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.mfa-code-input__cell {
+  width: 40px;
+  height: 44px;
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--glass-surface);
+  color: var(--text-main);
+  text-align: center;
+  font-size: 1.125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.mfa-code-input__cell:focus {
+  outline: none;
+  border-color: color-mix(in srgb, #0284c7 55%, var(--border-default));
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.16);
+}
+
+.mfa-code-input__cell:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.totp-setup-modal__scan {
+  align-items: center;
+  text-align: center;
+}
+
+.totp-setup-modal__qr {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: #fff;
+  margin: 8px 0 12px;
+}
+
+.totp-setup-modal__secret {
+  display: block;
+  max-width: 100%;
+  word-break: break-all;
+  margin-bottom: 8px;
+}
+
+html.dark .account-security-section__icon {
+  color: #38bdf8;
+}
+
+.account-grid-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* —— 表格页工具栏增强（与 console-controls 叠加）—— */
+.page-table-panel__toolbar.console-toolbar {
+  margin-bottom: var(--space-3);
+}
+
+.open-api-stats-toolbar .ant-select,
+.open-api-manage-card .open-api-toolbar-extra .ant-select,
+.open-api-manage-card .open-api-toolbar-extra .ant-input {
+  min-height: var(--control-height);
+}
+
+.open-api-manage-card .open-api-toolbar-extra .ant-btn {
+  height: var(--control-height);
+  border-radius: var(--radius-md);
+}
+
+.account-header {
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.account-tabs > .ant-tabs-nav {
+  margin-bottom: var(--space-3) !important;
+}
+
+.open-api-kpi-item {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.open-api-row-actions__btn {
+  height: var(--control-height);
+  border-radius: var(--radius-sm);
+}
+
+html:not(.dark) .open-api-stats-toolbar {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(148, 163, 184, 0.36);
+}
+
+@media (max-width: 768px) {
+  .account-grid-top {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========== Integration key drawer ========== */
+/* Integration Key 权限抽屉 — 三 Tab 布局 */
+.integration-key-perm-drawer .ant-drawer-body {
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.integration-key-perm-drawer .perm-drawer-tabs {
+  flex: 1;
+  min-height: 0;
+}
+
+.integration-key-perm-drawer .perm-drawer-tabs .ant-tabs-content-holder {
+  overflow: auto;
+}
+
+.integration-key-perm-drawer .perm-drawer-tab-pane {
+  padding-top: 4px;
+}
+
+.integration-key-perm-drawer .perm-drawer-tab-desc {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.integration-key-perm-drawer .perm-drawer-whitelist-block {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+}
+
+.integration-key-perm-drawer .perm-drawer-users-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.integration-key-perm-drawer .perm-drawer-users-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}

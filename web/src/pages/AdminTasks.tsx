@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Table, Input, Select, Button, Space, Tooltip } from 'antd';
 import { getAdminTasks, cancelTask, recoverTask, retryTask, type AdminTaskItem } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { pageCardTitle } from '../components/PageHint';
 import type { ColumnsType } from 'antd/es/table';
 
 export default function AdminTasks() {
@@ -255,22 +256,26 @@ export default function AdminTasks() {
 
   return (
     <div className="page-card admin-tasks-page">
-      <h2>任务监控（Admin）</h2>
-      <p className="hint">Admin 专用，查看所有用户任务，支持筛选与操作。</p>
+      <h2>
+        {pageCardTitle('任务监控（Admin）', {
+          title: '页面说明',
+          description: 'Admin 专用，查看所有用户任务，支持筛选与操作。',
+        })}
+      </h2>
 
-      <Space wrap size="middle" style={{ marginBottom: 16 }}>
+      <Space wrap size="middle" style={{ marginBottom: 16 }} className="admin-tasks-filters">
         <Input
           placeholder="用户 ID 筛选"
           value={userId}
           onChange={(e) => setUserId(e.target.value)}
-          style={{ width: 160 }}
+          style={{ width: '100%', minWidth: 120, maxWidth: 200 }}
           allowClear
         />
         <Select
           value={type}
           onChange={setType}
           placeholder="全部类型"
-          style={{ width: 160 }}
+          style={{ width: '100%', minWidth: 100, maxWidth: 180 }}
           options={[
             { value: '', label: '全部类型' },
             { value: 'writing', label: 'writing' },
@@ -286,7 +291,7 @@ export default function AdminTasks() {
           value={status}
           onChange={setStatus}
           placeholder="全部状态"
-          style={{ width: 120 }}
+          style={{ width: '100%', minWidth: 90, maxWidth: 140 }}
           options={[
             { value: '', label: '全部状态' },
             { value: 'pending', label: 'pending' },
@@ -408,30 +413,33 @@ export default function AdminTasks() {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 1rem 1.25rem;
+                padding: 0.75rem 1rem;
                 border-bottom: 1px solid hsl(var(--border, 0 0% 22%));
+                gap: 0.5rem;
               }
               .admin-task-detail-title {
                 margin: 0;
-                font-size: 1rem;
+                font-size: 0.9rem;
                 color: hsl(var(--foreground, 0 0% 98%));
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-                max-width: 50%;
+                max-width: 40%;
               }
               .admin-task-detail-actions {
                 display: flex;
                 align-items: center;
-                gap: 0.5rem;
+                gap: 0.35rem;
+                flex-wrap: wrap;
+                justify-content: flex-end;
               }
               .admin-task-detail-tab {
-                padding: 0.35rem 0.75rem;
+                padding: 0.3rem 0.6rem;
                 border-radius: 6px;
                 border: 1px solid #444;
                 background: transparent;
                 color: #888;
-                font-size: 0.85rem;
+                font-size: 0.8rem;
                 cursor: pointer;
               }
               .admin-task-detail-tab:hover {
@@ -449,7 +457,7 @@ export default function AdminTasks() {
                 color: #888;
                 font-size: 1.5rem;
                 cursor: pointer;
-                padding: 0 0.5rem;
+                padding: 0 0.25rem;
                 line-height: 1;
               }
               .admin-task-detail-close:hover {
@@ -459,28 +467,30 @@ export default function AdminTasks() {
                 flex: 1;
                 min-height: 0;
                 overflow-y: auto;
-                padding: 1rem 1.5rem;
+                padding: 0.75rem 1rem;
               }
               .admin-task-detail-content {
                 display: flex;
                 flex-direction: column;
-                gap: 1rem;
+                gap: 0.75rem;
               }
               .admin-task-detail-meta {
-                font-size: 0.8rem;
+                font-size: 0.75rem;
                 color: #94a3b8;
+                line-height: 1.5;
               }
               .admin-task-detail-block-title {
                 font-weight: 600;
-                margin-bottom: 0.5rem;
+                margin-bottom: 0.4rem;
                 color: hsl(var(--foreground, 0 0% 98%));
+                font-size: 0.85rem;
               }
               .admin-task-detail-pre {
                 margin: 0;
-                padding: 1rem;
+                padding: 0.75rem;
                 background: #0f172a;
                 border-radius: 8px;
-                font-size: 0.8rem;
+                font-size: 0.75rem;
                 color: #e2e8f0;
                 overflow: auto;
                 white-space: pre-wrap;

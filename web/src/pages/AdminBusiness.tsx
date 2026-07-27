@@ -1,31 +1,33 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   deletePromptConfig,
-  deleteProvidersRouting,
-  getBusinessPricing,
+  exportBusinessBundlePost,
+  exportBusinessBundleQuery,
   getPromptConfigByKey,
   getProviderPricing,
   getProvidersOptions,
   getProvidersRouting,
+  importBusinessBundle,
   listPromptConfig,
   listSensitiveWordBindings,
   listSensitiveWordLists,
   postProvidersRouting,
   setSensitiveWordBindingsForSlot,
-  upsertBusinessPricing,
   upsertPromptConfig,
   type PromptConfigBody,
   type ProviderRoutingEntry,
   type ProviderPricingRow,
-  type BusinessPricingRow,
 } from '../api/client';
 import {
+  Alert,
   App,
   Button,
+  Checkbox,
   Drawer,
-  Form,
+  Dropdown,
   Input,
+  Modal,
   Popconfirm,
   Select,
   Space,
@@ -34,8 +36,17 @@ import {
   Table,
   Tag,
   Typography,
+  Spin,
 } from 'antd';
-import { DeleteOutlined, EditOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  DownOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  PlayCircleOutlined,
+  StopOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import { AdminBusinessTestModal } from '../components/AdminBusinessTestModal';
 import AdminSensitiveWords from './AdminSensitiveWords';
 import AdminPayment from './AdminPayment';
@@ -43,44 +54,90 @@ import AdminPayment from './AdminPayment';
 import type { Scope } from './AdminBusiness.types';
 import type {
   BusinessDisplayConfig,
-  BusinessPricingView,
   JsonSchema,
   PromptConfigRow,
   SchemaFieldRow,
   TaskTemplateDraft,
-  TemplateVarMeta,
 } from './AdminBusiness.types';
+import { isPlatformTaskKey } from './AdminBusiness.types';
 import {
   allowedModelScopesForBusiness,
   buildMarkupFromTemplate,
-  computeRecommendedTokensFromProviderCost,
-  COST_TO_MXM_TOKEN_RATE_DEFAULT,
-  DEFAULT_MARGIN,
   ensureTaskTemplate,
-  extractTemplateVars,
+  ensureWritingStorageDefaults,
   fieldRowsToSchema,
-  getMetaNumber,
   getBusinessTypeForPromptRow,
-  mergeGenerateParams,
   parseTemplateMarkup,
   prettyJson,
   readGenerateParams,
-  RECOMMENDED_GENERATE_PARAMS,
+  resolveSubtypeDisplay,
+  resolveTaskKeyDisplay,
+  formatBusinessDrawerTitle,
+  businessRowSearchText,
   safeJsonParse,
   schemaPropsToFieldRows,
   stripSystemSchemaFields,
+  syncWritingStorageToFormSchema,
 } from './AdminBusiness.utils';
+import { syncInteractiveCardFieldsToFormSchema } from './syncInteractiveCardFieldsToFormSchema';
+
+function formatPlatformPriceSummary(pp: ProviderPricingRow | undefined): {
+  chargeMode: string;
+  label: string;
+} | null {
+  if (!pp) return null;
+  const hasToken =
+    pp.charge_mode === 'token_based' &&
+    (Number(pp.platform_input_unit_price) > 0 || Number(pp.platform_output_unit_price) > 0);
+  const hasUnit = Number(pp.platform_unit_price) > 0;
+  if (!hasToken && !hasUnit) return null;
+  if (pp.charge_mode === 'token_based') {
+    return {
+      chargeMode: pp.charge_mode,
+      label: `in:${pp.platform_input_unit_price ?? 0} / out:${pp.platform_output_unit_price ?? 0}`,
+    };
+  }
+  return {
+    chargeMode: pp.charge_mode,
+    label: String(pp.platform_unit_price ?? 0),
+  };
+}
 
 import { AdminBusinessSchemaTab } from './AdminBusinessSchemaTab';
 import { AdminBusinessPromptTab } from './AdminBusinessPromptTab';
 import { AdminBusinessPricingTab } from './AdminBusinessPricingTab';
 import { AdminBusinessConfigTab } from './AdminBusinessConfigTab';
+import { AdminBusinessPipelineTab } from './AdminBusinessPipelineTab';
+import { migrateLegacyPromptTextTaskKeyToPipeline, migrateSensitiveBindingToPipeline, readSensitiveListIdsFromPipeline } from './admin-business-pipeline.utils';
+import { getTextV2FixedFormSchema, isTextV2Type, TEXT_V2_INPUT_KEYS } from './admin-text-v2';
+import './admin-business-pipeline.css';
 import { AdminBusinessCreateModal } from './AdminBusinessCreateModal';
+import { PublishOpenApiDrawer, type PublishOpenApiPreset } from '../components/PublishOpenApiDrawer';
+import AdminSearchConfig from './AdminSearchSearchConfig';
 
-function toNum(v: unknown): number | undefined {
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
-  return Number.isFinite(n) ? n : undefined;
+function renderBusinessIdentityCell(display: {
+  label: string;
+  key: string | null;
+  hasCustomLabel: boolean;
+}) {
+  return (
+    <div
+      className={[
+        'admin-business-cell-identity',
+        display.hasCustomLabel ? 'admin-business-cell-identity--named' : 'admin-business-cell-identity--key',
+      ].join(' ')}
+      title={display.hasCustomLabel && display.key ? display.key : undefined}
+    >
+      <span className="admin-business-cell-identity__label">{display.label}</span>
+      {display.hasCustomLabel && display.key ? (
+        <span className="admin-business-cell-identity__key">{display.key}</span>
+      ) : null}
+    </div>
+  );
 }
+
+/** 业务列表表格横向滚动最小宽度（列宽之和，避免窄屏压缩 subtype） */
+const BUSINESS_LIST_TABLE_SCROLL_X = 1080;
 
 export default function AdminBusiness() {
   const { message } = App.useApp();
@@ -90,6 +147,7 @@ export default function AdminBusiness() {
   const [scopeFilter, setScopeFilter] = useState<Scope>('writing');
   const [search, setSearch] = useState('');
   const [textBusinessOptions, setTextBusinessOptions] = useState<PromptConfigRow[]>([]);
+  const [videoBusinessOptions, setVideoBusinessOptions] = useState<PromptConfigRow[]>([]);
 
   const [selected, setSelected] = useState<PromptConfigRow | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -98,6 +156,8 @@ export default function AdminBusiness() {
   const [isActive, setIsActive] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [unifiedTemplateMarkup, setUnifiedTemplateMarkup] = useState('');
+  /** 加载/保存成功后的快照；与当前状态不同则提示未保存 */
+  const [savedSnapshot, setSavedSnapshot] = useState<string>('');
   /** PromptTempDesigner 对 onChange 有 ~400ms 防抖；保存前必须用 onGetData 拉取最新串，否则会写入旧模板 */
   const promptMarkupGetterRef = useRef<((format: 'pure_string' | 'string' | 'markdown' | 'html') => string) | null>(null);
 
@@ -110,8 +170,6 @@ export default function AdminBusiness() {
 
   // 敏感词库
   const [sensitiveLists, setSensitiveLists] = useState<{ id: string; name: string; description?: string | null; is_active: boolean }[]>([]);
-  const [sensitiveSelectedListIds, setSensitiveSelectedListIds] = useState<string[]>([]);
-  const [sensitiveLoading, setSensitiveLoading] = useState(false);
   const [sensitiveHint, setSensitiveHint] = useState<string | null>(null);
 
   const displayConfig = useMemo<BusinessDisplayConfig>(() => {
@@ -119,34 +177,33 @@ export default function AdminBusiness() {
     return d && typeof d === 'object' ? (d as BusinessDisplayConfig) : {};
   }, [extraDraft]);
 
-  const promptTextTaskKey = (extraDraft as Record<string, unknown>)?.promptTextTaskKey as string | undefined;
-
   const [saving, setSaving] = useState(false);
 
-  // 路由与定价
+  // 路由（用户扣费看 Provider MXM-TOKEN）
   const [routing, setRouting] = useState<Record<string, ProviderRoutingEntry>>({});
   const [modelsByProviderByScope, setModelsByProviderByScope] = useState<Record<string, Record<string, string[]>>>({});
   const [providerPricing, setProviderPricing] = useState<ProviderPricingRow[]>([]);
-  const [businessPricing, setBusinessPricing] = useState<BusinessPricingRow[]>([]);
-
-  const [pricingSaving, setPricingSaving] = useState(false);
-  const [pricingForm] = Form.useForm<{
-    margin: number;
-    unit?: number;
-    input?: number;
-    output?: number;
-    min_charge_tokens?: number;
-  }>();
-
-  const pricingMarginPct = Form.useWatch('margin', pricingForm);
-  const pricingUnit = Form.useWatch('unit', pricingForm);
-  const pricingInput = Form.useWatch('input', pricingForm);
-  const pricingOutput = Form.useWatch('output', pricingForm);
-  const pricingSyncRef = useRef<{ source: 'margin' | 'price' | null }>({ source: null });
 
   const [routeProvider, setRouteProvider] = useState<string>('');
   const [routeModel, setRouteModel] = useState<string>('');
-  const [routeSaving, setRouteSaving] = useState(false);
+
+  const editorSnapshot = useMemo(() => {
+    try {
+      return JSON.stringify({
+        draft,
+        extraDraft,
+        isActive,
+        unifiedTemplateMarkup,
+        routeProvider,
+        routeModel,
+      });
+    } catch {
+      return '';
+    }
+  }, [draft, extraDraft, isActive, unifiedTemplateMarkup, routeProvider, routeModel]);
+
+  const hasUnsavedChanges =
+    Boolean(selected) && Boolean(savedSnapshot) && editorSnapshot !== savedSnapshot && !detailLoading;
 
   // 新建
   const [createOpen, setCreateOpen] = useState(false);
@@ -157,21 +214,45 @@ export default function AdminBusiness() {
   // 测试
   const [testOpen, setTestOpen] = useState(false);
   const [testRow, setTestRow] = useState<PromptConfigRow | null>(null);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishPreset, setPublishPreset] = useState<PublishOpenApiPreset | null>(null);
+
+  // 业务 bundle 导出 / 导入
+  const [bundleTableSelectedKeys, setBundleTableSelectedKeys] = useState<React.Key[]>([]);
+  const [bundleExporting, setBundleExporting] = useState(false);
+  const [bundleImportModalOpen, setBundleImportModalOpen] = useState(false);
+  const [bundleImportPreview, setBundleImportPreview] = useState<{
+    created: string[];
+    updated: string[];
+    skipped: string[];
+    warnings: string[];
+  } | null>(null);
+  const [bundlePendingJson, setBundlePendingJson] = useState<unknown>(null);
+  const [bundleImportRunning, setBundleImportRunning] = useState(false);
+  const [bundleExportIncludePricing, setBundleExportIncludePricing] = useState(false);
+  const bundleFileInputRef = useRef<HTMLInputElement>(null);
 
   // ---------------------------------------------------------------------------
   // Data loading
   // ---------------------------------------------------------------------------
 
-  const loadList = useCallback(async () => {
+  const scopeFilterRef = useRef<Scope>(scopeFilter);
+  scopeFilterRef.current = scopeFilter;
+  const inFlightRef = useRef(false);
+
+  const loadListFnRef = useRef<(currentScope?: Scope) => Promise<void>>();
+  loadListFnRef.current = async (currentScope?: Scope) => {
     if (!isLoggedIn || !isAdmin) return;
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setLoading(true);
     try {
-      const [res, routingRes, optionsRes, providerPricingRes, businessPricingRes] = await Promise.all([
-        listPromptConfig({ scope: scopeFilter, type: undefined }),
+      const effectiveScope = currentScope ?? scopeFilterRef.current;
+      const [res, routingRes, optionsRes, providerPricingRes] = await Promise.all([
+        listPromptConfig({ scope: effectiveScope, type: undefined }),
         getProvidersRouting(),
         getProvidersOptions(),
         getProviderPricing(),
-        getBusinessPricing(),
       ]);
       const raw = res.data as { data?: { items?: PromptConfigRow[] } } | undefined;
       const items = raw?.data?.items as PromptConfigRow[] | undefined;
@@ -183,33 +264,38 @@ export default function AdminBusiness() {
         data?: { modelsByProviderByScope?: Record<string, Record<string, string[]>> };
       } | undefined)?.data;
       const pp = (providerPricingRes.data as { data?: ProviderPricingRow[] } | undefined)?.data ?? [];
-      const bp = (businessPricingRes.data as { data?: BusinessPricingRow[] } | undefined)?.data ?? [];
       setRouting(rdata);
       setModelsByProviderByScope(optData?.modelsByProviderByScope ?? {});
       setProviderPricing(pp);
-      setBusinessPricing(bp);
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
-  }, [isLoggedIn, isAdmin, scopeFilter]);
+  };
 
+  // scope 切换 / 首次进入：清空旧列表并加载，表格始终展示 loading
   useEffect(() => {
-    void loadList();
-  }, [loadList]);
-
-  // Fetch text business options when scope is graph (only type=format)
-  useEffect(() => {
-    if (scopeFilter !== 'graph') {
-      setTextBusinessOptions([]);
-      return;
-    }
-    void (async () => {
-      const res = await listPromptConfig({ scope: 'text', type: 'format' });
-      const raw = res.data as { data?: { items?: PromptConfigRow[] } } | undefined;
-      const items = raw?.data?.items as PromptConfigRow[] | undefined;
-      setTextBusinessOptions(Array.isArray(items) ? items : []);
-    })();
+    setList([]);
+    void loadListFnRef.current?.(scopeFilter);
   }, [scopeFilter]);
+
+  useEffect(() => {
+    setBundleTableSelectedKeys([]);
+  }, [scopeFilter]);
+
+  // 执行管线 Tab：加载 text / video 子业务选项
+  useEffect(() => {
+    void (async () => {
+      const [textRes, videoRes] = await Promise.all([
+        listPromptConfig({ scope: 'text', type: undefined }),
+        listPromptConfig({ scope: 'video', type: undefined }),
+      ]);
+      const textItems = (textRes.data as { data?: { items?: PromptConfigRow[] } } | undefined)?.data?.items;
+      const videoItems = (videoRes.data as { data?: { items?: PromptConfigRow[] } } | undefined)?.data?.items;
+      setTextBusinessOptions(Array.isArray(textItems) ? textItems.filter((r) => r.is_active !== false) : []);
+      setVideoBusinessOptions(Array.isArray(videoItems) ? videoItems.filter((r) => r.is_active !== false) : []);
+    })();
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Derived state
@@ -218,10 +304,7 @@ export default function AdminBusiness() {
   const visibleList = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return list;
-    return list.filter((r) => {
-      const k = `${r.scope}/${r.type}/${r.subtype ?? ''}`.toLowerCase();
-      return k.includes(q);
-    });
+    return list.filter((r) => businessRowSearchText(r).includes(q));
   }, [list, search]);
 
   const providerPricingIndex = useMemo(() => {
@@ -232,64 +315,54 @@ export default function AdminBusiness() {
     return map;
   }, [providerPricing]);
 
-  const businessPricingIndex = useMemo(() => {
-    const map = new Map<string, BusinessPricingRow>();
-    for (const r of businessPricing) {
-      const key = `${r.business_type}||${r.charge_metric}||${r.subtype ?? ''}`;
-      map.set(key, r);
-    }
-    return map;
-  }, [businessPricing]);
-
+  /** 列表用：仅解析当前路由物理模型（扣费单价在 Provider 管理配置，不在业务列表展示） */
   const pricingViewsById = useMemo(() => {
-    const result = new Map<string, BusinessPricingView>();
+    const result = new Map<
+      string,
+      {
+        businessType: string;
+        resolved?: { provider: string; model_key: string; overridden?: boolean };
+      }
+    >();
     for (const r of visibleList) {
       const businessType = getBusinessTypeForPromptRow(r);
       const resolved = routing[businessType];
       const provider = resolved?.provider;
       const modelKey = resolved?.model;
-      const resolvedObj = provider && modelKey ? { provider, model_key: modelKey, overridden: resolved.overridden } : undefined;
-
-      const pp =
-        provider && modelKey
-          ? providerPricingIndex.get(`${provider}||${r.scope}||${modelKey}`) ??
-            providerPricingIndex.get(`${provider}||default||${modelKey}`)
-          : undefined;
-
-      const chargeMetric = pp?.charge_mode ?? 'unknown';
-      const configured = businessPricingIndex.get(`${businessType}||${chargeMetric}||${r.subtype ?? ''}`) ?? null;
-      const { costTokens, recommendedTokens } = pp
-        ? computeRecommendedTokensFromProviderCost(pp)
-        : { costTokens: undefined, recommendedTokens: undefined };
-
       result.set(r.id, {
         businessType,
-        subtype: r.subtype ?? null,
-        chargeMetric,
-        resolved: resolvedObj,
-        providerCost: pp,
-        costTokens: costTokens ?? undefined,
-        recommendedTokens: recommendedTokens ?? undefined,
-        configured,
+        resolved:
+          provider && modelKey
+            ? { provider, model_key: modelKey, overridden: resolved.overridden }
+            : undefined,
       });
     }
     return result;
-  }, [visibleList, routing, providerPricingIndex, businessPricingIndex]);
+  }, [visibleList, routing]);
 
-  const templateVars = useMemo(() => {
-    const props = draft?.formSchema?.properties ?? {};
-    return Object.keys(props);
-  }, [draft?.formSchema]);
+  // Live schema vars from the currently edited schema rows (not the saved draft)
+  const schemaVars = useMemo(() => {
+    return schemaRows.map((r) => r.name);
+  }, [schemaRows]);
 
+  // Live prompt vars from the current markup editor content
+  // Supports both ${foo} and <template name="foo" ...>...</template> syntax
   const promptVarsUsed = useMemo(() => {
     if (!draft) return [];
-    return extractTemplateVars(draft.prompt.unifiedTemplate ?? '');
-  }, [draft]);
+    const parsed = parseTemplateMarkup(unifiedTemplateMarkup);
+    return parsed.vars.map((v) => v.name);
+  }, [draft, unifiedTemplateMarkup]);
+
+  // Schema vars that are NOT referenced in the prompt (reverse check, weak info)
+  const unusedSchemaVars = useMemo(() => {
+    const used = new Set(promptVarsUsed);
+    return schemaVars.filter((v) => !used.has(v));
+  }, [schemaVars, promptVarsUsed]);
 
   const missingSchemaVars = useMemo(() => {
-    const schemaVars = new Set(templateVars);
-    return promptVarsUsed.filter((v) => !schemaVars.has(v));
-  }, [promptVarsUsed, templateVars]);
+    const schemaSet = new Set(schemaVars);
+    return promptVarsUsed.filter((v) => !schemaSet.has(v));
+  }, [promptVarsUsed, schemaVars]);
 
   const routeDirty = useMemo(() => {
     if (!selected) return false;
@@ -337,133 +410,6 @@ export default function AdminBusiness() {
   // Handlers
   // ---------------------------------------------------------------------------
 
-  const hydratePricingFormByRow = useCallback((row: PromptConfigRow) => {
-    const view = pricingViewsById.get(row.id);
-    const marginFromMeta = toNum(view?.configured?.metadata?.margin);
-    const configuredMeta = view?.configured?.metadata ?? {};
-    const inputFromMeta = getMetaNumber(configuredMeta, 'input_price_in_tokens');
-    const outputFromMeta = getMetaNumber(configuredMeta, 'output_price_in_tokens');
-
-    const rec = view?.recommendedTokens;
-    const cost = view?.costTokens;
-    const configuredUnit = view?.configured?.price_in_tokens;
-    const configuredIn = inputFromMeta;
-    const configuredOut = outputFromMeta;
-
-    let margin = marginFromMeta != null ? marginFromMeta : undefined;
-    if (margin == null && view?.chargeMetric === 'token_based') {
-      const parts: number[] = [];
-      if (cost?.input != null && configuredIn != null && cost.input > 0) parts.push(configuredIn / cost.input - 1);
-      if (cost?.output != null && configuredOut != null && cost.output > 0) parts.push(configuredOut / cost.output - 1);
-      if (parts.length) margin = parts.reduce((a, b) => a + b, 0) / parts.length;
-    } else if (margin == null && view?.chargeMetric !== 'token_based') {
-      if (cost?.unit != null && configuredUnit != null && cost.unit > 0) margin = Number(configuredUnit) / cost.unit - 1;
-    }
-    if (margin == null || !Number.isFinite(margin)) margin = DEFAULT_MARGIN;
-
-    pricingForm.setFieldsValue({
-      margin: Math.round(margin * 100),
-      unit: view?.configured?.price_in_tokens ?? (rec?.unit != null ? Number(rec.unit.toFixed(4)) : undefined),
-      input: inputFromMeta ?? (rec?.input != null ? Number(rec.input.toFixed(4)) : undefined),
-      output: outputFromMeta ?? (rec?.output != null ? Number(rec.output.toFixed(4)) : undefined),
-      min_charge_tokens: view?.configured?.min_charge_tokens != null ? Number(view.configured.min_charge_tokens) : 0,
-    });
-  }, [pricingForm, pricingViewsById]);
-
-  const saveBusinessPricingForSelected = async () => {
-    if (!selected) return;
-    const values = await pricingForm.validateFields().catch(() => null);
-    if (!values) return;
-    const view = pricingViewsById.get(selected.id);
-    if (!view) return;
-    setPricingSaving(true);
-    try {
-      const margin = Number(values.margin) / 100;
-      const payload: Record<string, unknown> = { margin };
-      if (view.chargeMetric === 'token_based') {
-        payload.input_price_in_tokens = values.input ?? null;
-        payload.output_price_in_tokens = values.output ?? null;
-      }
-
-      const res = await upsertBusinessPricing({
-        id: view.configured?.id,
-        business_type: view.businessType,
-        charge_metric: view.chargeMetric,
-        subtype: selected.subtype ?? null,
-        provider: view.resolved?.provider ?? null,
-        model_key: view.resolved?.model_key ?? null,
-        price_in_tokens: view.chargeMetric === 'token_based' ? 0 : Number(values.unit ?? 0),
-        min_charge_tokens: Number(values.min_charge_tokens ?? 0),
-        metadata: payload,
-      });
-      if (res.error) {
-        message.error(`保存失败：${res.error}`);
-        return;
-      }
-      message.success('已保存业务收费');
-      const refreshed = await getBusinessPricing();
-      const bp = (refreshed.data as { data?: BusinessPricingRow[] } | undefined)?.data ?? [];
-      setBusinessPricing(bp);
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : String(e));
-    } finally {
-      setPricingSaving(false);
-    }
-  };
-
-  // 双向联动（编辑页"模型与定价"Tab）
-  useEffect(() => {
-    if (!drawerOpen || !selected) return;
-    const view = pricingViewsById.get(selected.id);
-    const pp = view?.providerCost;
-    const cost = view?.costTokens;
-    if (!pp || !cost) return;
-
-    const marginPct = typeof pricingMarginPct === 'number' && Number.isFinite(pricingMarginPct) ? pricingMarginPct : 20;
-    const margin = marginPct / 100;
-
-    if (pricingSyncRef.current.source === 'margin') {
-      const { recommendedTokens } = computeRecommendedTokensFromProviderCost(pp, COST_TO_MXM_TOKEN_RATE_DEFAULT, margin);
-      if (view.chargeMetric === 'token_based') {
-        pricingForm.setFieldsValue({
-          input: recommendedTokens.input != null ? Number(recommendedTokens.input.toFixed(4)) : undefined,
-          output: recommendedTokens.output != null ? Number(recommendedTokens.output.toFixed(4)) : undefined,
-        });
-      } else {
-        pricingForm.setFieldsValue({
-          unit: recommendedTokens.unit != null ? Number(recommendedTokens.unit.toFixed(4)) : undefined,
-        });
-      }
-      pricingSyncRef.current.source = null;
-      return;
-    }
-
-    if (pricingSyncRef.current.source === 'price') {
-      const parts: number[] = [];
-      if (view.chargeMetric === 'token_based') {
-        if (cost.input != null && pricingInput != null && cost.input > 0) parts.push(pricingInput / cost.input - 1);
-        if (cost.output != null && pricingOutput != null && cost.output > 0) parts.push(pricingOutput / cost.output - 1);
-      } else {
-        if (cost.unit != null && pricingUnit != null && cost.unit > 0) parts.push(pricingUnit / cost.unit - 1);
-      }
-      if (parts.length) {
-        const m = parts.reduce((a, b) => a + b, 0) / parts.length;
-        pricingForm.setFieldsValue({ margin: Math.round(m * 100) });
-      }
-      pricingSyncRef.current.source = null;
-      return;
-    }
-  }, [
-    drawerOpen,
-    selected,
-    pricingViewsById,
-    pricingForm,
-    pricingMarginPct,
-    pricingUnit,
-    pricingInput,
-    pricingOutput,
-  ]);
-
   const openRow = useCallback(async (row: PromptConfigRow) => {
     setSelected(row);
     setDraft(null);
@@ -485,9 +431,23 @@ export default function AdminBusiness() {
     }
     const extra = (data.extra ?? row.extra ?? {}) as Record<string, unknown>;
     const taskTemplate = (extra as Record<string, unknown>)?.taskTemplate;
-    const rulesZh = (data.rules_i18n as Record<string, string> | undefined)?.zh ?? '';
     const outZh = (data.output_format_i18n as Record<string, string> | undefined)?.zh ?? '';
-    const tpl = ensureTaskTemplate(taskTemplate, { rules: rulesZh, outputFormat: outZh });
+    let tpl = ensureWritingStorageDefaults(
+      migrateLegacyPromptTextTaskKeyToPipeline(
+        ensureTaskTemplate(taskTemplate, { outputFormat: outZh }),
+        typeof extra.promptTextTaskKey === 'string' ? extra.promptTextTaskKey : undefined
+      ),
+      row.scope as Scope
+    );
+    if (row.scope === 'text' && isTextV2Type(row.type)) {
+      const fixed = getTextV2FixedFormSchema(row.type);
+      tpl = {
+        ...tpl,
+        formSchema: fixed,
+        contractSchema: fixed,
+        pipeline: { pre: [], enrich: [], post: [] },
+      };
+    }
     const hasAnyGp = readGenerateParams(tpl.extra) !== null;
     setDraft(
       hasAnyGp
@@ -497,33 +457,59 @@ export default function AdminBusiness() {
             extra: { ...((tpl.extra ?? {}) as Record<string, unknown>), generateParams: { temperature: 0.5, maxTokens: 1600, topP: 0.95 } },
           }
     );
-    setExtraDraft(extra);
+    setExtraDraft({
+      ...extra,
+      executionMode: row.scope === 'text' ? (extra.executionMode ?? 'sync') : 'mxm-warp',
+    });
     setIsActive(data.is_active ?? row.is_active ?? true);
 
     const uniRaw = tpl.prompt.unifiedTemplateMarkup ?? tpl.prompt.unifiedTemplate ?? '';
+    const contractSrc = tpl.contractSchema ?? tpl.formSchema;
     const uniMarkup = uniRaw.includes('<template')
       ? uniRaw
-      : buildMarkupFromTemplate(uniRaw, tpl.formSchema);
+      : buildMarkupFromTemplate(uniRaw, contractSrc);
     setUnifiedTemplateMarkup(uniMarkup);
 
     setSchemaMode('guided');
-    const sanitizedSchema = stripSystemSchemaFields(tpl.formSchema);
+    const sanitizedSchema = stripSystemSchemaFields(contractSrc);
     setSchemaRows(schemaPropsToFieldRows(sanitizedSchema));
     setSchemaJson(prettyJson(sanitizedSchema));
-    hydratePricingFormByRow(row);
     const businessType = getBusinessTypeForPromptRow(row);
     const resolved = routing[businessType];
     setRouteProvider(resolved?.provider ?? '');
     setRouteModel(resolved?.model ?? '');
-    setDrawerTabKey('schema');
-  }, [hydratePricingFormByRow, routing, message]);
+    setDrawerTabKey(row.scope === 'text' ? 'prompt' : 'schema');
+    // 下一帧写入基线，避免与 setState 批处理竞态
+    window.setTimeout(() => {
+      setSavedSnapshot(
+        JSON.stringify({
+          draft: hasAnyGp
+            ? tpl
+            : {
+                ...tpl,
+                extra: {
+                  ...((tpl.extra ?? {}) as Record<string, unknown>),
+                  generateParams: { temperature: 0.5, maxTokens: 1600, topP: 0.95 },
+                },
+              },
+          extraDraft: {
+            ...extra,
+            executionMode: row.scope === 'text' ? (extra.executionMode ?? 'sync') : 'mxm-warp',
+          },
+          isActive: data.is_active ?? row.is_active ?? true,
+          unifiedTemplateMarkup: uniMarkup,
+          routeProvider: resolved?.provider ?? '',
+          routeModel: resolved?.model ?? '',
+        })
+      );
+    }, 0);
+  }, [routing, message]);
 
   // 敏感词库加载
   useEffect(() => {
     if (!drawerOpen || !selected) return;
     let cancelled = false;
     (async () => {
-      setSensitiveLoading(true);
       setSensitiveHint(null);
       try {
         const [listsRes, bindingsRes] = await Promise.all([
@@ -543,14 +529,12 @@ export default function AdminBusiness() {
         if (cancelled) return;
         setSensitiveLists(Array.isArray(listItems) ? listItems : []);
         if (metaHint) setSensitiveHint(String(metaHint));
-        setSensitiveSelectedListIds(Array.isArray(bindItems) ? bindItems.map((b) => String(b.list_id)) : []);
+        const bindingIds = Array.isArray(bindItems) ? bindItems.map((b) => String(b.list_id)) : [];
+        setDraft((prev) => (prev ? migrateSensitiveBindingToPipeline(prev, bindingIds) : prev));
       } catch {
         if (!cancelled) {
           setSensitiveLists([]);
-          setSensitiveSelectedListIds([]);
         }
-      } finally {
-        if (!cancelled) setSensitiveLoading(false);
       }
     })();
     return () => {
@@ -564,42 +548,17 @@ export default function AdminBusiness() {
       return;
     }
     const businessType = getBusinessTypeForPromptRow(selected);
-    setRouteSaving(true);
-    try {
-      const res = await postProvidersRouting({
-        logicalModel: businessType,
-        provider: routeProvider,
-        model: routeModel,
-      });
-      if (res.error) {
-        message.error(`保存路由失败：${res.error}`);
-        return;
-      }
-      message.success('已切换业务物理模型');
-      await loadList();
-    } finally {
-      setRouteSaving(false);
+    const res = await postProvidersRouting({
+      logicalModel: businessType,
+      provider: routeProvider,
+      model: routeModel,
+    });
+    if (res.error) {
+      message.error(`保存路由失败：${res.error}`);
+      return;
     }
-  };
-
-  const clearBusinessRouteOverrideForSelected = async () => {
-    if (!selected) return;
-    const businessType = getBusinessTypeForPromptRow(selected);
-    setRouteSaving(true);
-    try {
-      const res = await deleteProvidersRouting(businessType);
-      if (res.error) {
-        message.error(`清除覆盖失败：${res.error}`);
-        return;
-      }
-      message.success('已恢复默认路由');
-      await loadList();
-      const resolved = routing[businessType];
-      setRouteProvider(resolved?.provider ?? '');
-      setRouteModel(resolved?.model ?? '');
-    } finally {
-      setRouteSaving(false);
-    }
+    message.success('已切换业务物理模型');
+    await loadListFnRef.current?.();
   };
 
   const handleCreate = async () => {
@@ -609,38 +568,100 @@ export default function AdminBusiness() {
       message.warning('taskKey 不能为空');
       return;
     }
-    const initial: TaskTemplateDraft = ensureTaskTemplate({
-      formSchema: {
-        $schema: 'http://json-schema.org/draft-07/schema#',
-        type: 'object',
-        properties: {
-          prompt: { type: 'string', title: '写作需求', minLength: 1 },
+    if (!subtype) {
+      message.warning('subtype 不能为空');
+      return;
+    }
+    if (createScope !== 'text' && !isPlatformTaskKey(taskKey)) {
+      message.warning('taskKey 仅允许：generator / group / series');
+      return;
+    }
+    if (createScope === 'text') {
+      if (!isTextV2Type(taskKey)) {
+        message.warning('text 仅允许 taskKey：plan / transform / expert / validation');
+        return;
+      }
+      const fixed = getTextV2FixedFormSchema(taskKey);
+      const initial: TaskTemplateDraft = ensureTaskTemplate({
+        formSchema: fixed,
+        contractSchema: fixed,
+        prompt: {
+          unifiedTemplate:
+            'You are a specialist for this text step. Follow the subtype rules. Use only the provided fixed inputs. Output exactly as specified in this prompt.',
         },
-        required: ['prompt'],
+        pipeline: { pre: [], enrich: [], post: [] },
+      });
+      const row: PromptConfigRow = {
+        id: `new:${createScope}/${taskKey}/${subtype || '-'}`,
+        scope: createScope,
+        type: taskKey,
+        subtype: subtype || null,
+        extra: { executionMode: 'sync', taskTemplate: initial, display: {} },
+        is_active: true,
+      };
+      setCreateOpen(false);
+      setSelected(row);
+      setDraft(initial);
+      setExtraDraft({ executionMode: 'sync', taskTemplate: initial, display: {} });
+      setIsActive(true);
+      setDrawerOpen(true);
+      const uniRawNew = initial.prompt.unifiedTemplateMarkup ?? initial.prompt.unifiedTemplate ?? '';
+      const uniMarkupNew = uniRawNew.includes('<template')
+        ? uniRawNew
+        : buildMarkupFromTemplate(uniRawNew, initial.contractSchema ?? initial.formSchema);
+      setUnifiedTemplateMarkup(uniMarkupNew);
+      setSchemaMode('guided');
+      setSchemaRows(schemaPropsToFieldRows(fixed));
+      setSchemaJson(prettyJson(fixed));
+      setDrawerTabKey('prompt');
+      return;
+    }
+    const initialSchema = {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      properties: {
+        topic: {
+          type: 'string',
+          title: '主题',
+          description: '用户可回答的简单方向字段',
+          'x-zone': 'basic',
+          minLength: 1,
+        },
       },
-      prompt: {},
-    });
+      required: ['topic'],
+    };
+    const initial: TaskTemplateDraft = ensureWritingStorageDefaults(
+      ensureTaskTemplate({
+        formSchema: initialSchema,
+        contractSchema: initialSchema,
+        prompt: {
+          unifiedTemplate: '根据下方完整业务合同撰写交付内容。只依据合同事实，不要编造。',
+        },
+        pipeline: { pre: [], enrich: [], post: [] },
+      }),
+      createScope
+    );
     const row: PromptConfigRow = {
       id: `new:${createScope}/${taskKey}/${subtype || '-'}`,
       scope: createScope,
       type: taskKey,
       subtype: subtype || null,
-      extra: { taskTemplate: initial },
+      extra: { executionMode: 'mxm-warp', taskTemplate: initial },
       is_active: true,
     };
     setCreateOpen(false);
     setSelected(row);
     setDraft(initial);
-    setExtraDraft({ taskTemplate: initial });
+    setExtraDraft({ executionMode: 'mxm-warp', taskTemplate: initial });
     setIsActive(true);
     setDrawerOpen(true);
     const uniRawNew = initial.prompt.unifiedTemplateMarkup ?? initial.prompt.unifiedTemplate ?? '';
     const uniMarkupNew = uniRawNew.includes('<template')
       ? uniRawNew
-      : buildMarkupFromTemplate(uniRawNew, initial.formSchema);
+      : buildMarkupFromTemplate(uniRawNew, initial.contractSchema ?? initial.formSchema);
     setUnifiedTemplateMarkup(uniMarkupNew);
     setSchemaMode('guided');
-    const sanitizedSchema = stripSystemSchemaFields(initial.formSchema);
+    const sanitizedSchema = stripSystemSchemaFields(initial.contractSchema ?? initial.formSchema);
     setSchemaRows(schemaPropsToFieldRows(sanitizedSchema));
     setSchemaJson(prettyJson(sanitizedSchema));
     setDrawerTabKey('schema');
@@ -662,7 +683,6 @@ export default function AdminBusiness() {
         scope: row.scope,
         type: row.type,
         subtype: row.subtype ?? undefined,
-        rules_i18n: (full.rules_i18n as Record<string, string> | undefined) ?? {},
         output_format_i18n: (full.output_format_i18n as Record<string, string> | undefined) ?? {},
         form_options_i18n: (full.form_options_i18n as Record<string, unknown> | undefined) ?? undefined,
         extra: (full.extra as Record<string, unknown> | undefined) ?? undefined,
@@ -674,7 +694,7 @@ export default function AdminBusiness() {
         return;
       }
       message.success(nextActive ? '已启用业务' : '已停用业务');
-      await loadList();
+      await loadListFnRef.current?.();
     } catch (e) {
       message.error(e instanceof Error ? e.message : String(e));
     }
@@ -687,20 +707,202 @@ export default function AdminBusiness() {
       return;
     }
     message.success('业务已删除');
-    await loadList();
+    await loadListFnRef.current?.();
   };
+
+  const downloadBusinessBundleFile = useCallback((filename: string, data: unknown) => {
+    const name = filename.endsWith('.json') ? filename : `${filename}.business.json`;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleBundleExportRow = useCallback(
+    async (row: PromptConfigRow) => {
+      setBundleExporting(true);
+      try {
+        const res = await exportBusinessBundleQuery({
+          scope: row.scope,
+          type: row.type,
+          subtype: row.subtype,
+          includePricing: bundleExportIncludePricing,
+        });
+        if (res.error) {
+          message.error(res.error);
+          return;
+        }
+        const body = res.data as { success?: boolean; data?: unknown; warnings?: string[] } | undefined;
+        if (!body?.success || body.data == null) {
+          message.error('导出失败：响应异常');
+          return;
+        }
+        const fn = `${row.scope}-${row.type}-${row.subtype || 'default'}.business.json`;
+        downloadBusinessBundleFile(fn, body.data);
+        if (body.warnings?.length) message.warning(body.warnings.join('；'));
+        message.success('已下载 bundle');
+      } finally {
+        setBundleExporting(false);
+      }
+    },
+    [bundleExportIncludePricing, downloadBusinessBundleFile, message]
+  );
+
+  const handleBundleExportScope = useCallback(async () => {
+    setBundleExporting(true);
+    try {
+      const res = await exportBusinessBundlePost({
+        filter: { scope: scopeFilter },
+        includePricing: bundleExportIncludePricing,
+      });
+      if (res.error) {
+        message.error(res.error);
+        return;
+      }
+      const body = res.data as { success?: boolean; data?: unknown; warnings?: string[] } | undefined;
+      if (!body?.success || body.data == null) {
+        message.error('导出失败：响应异常');
+        return;
+      }
+      downloadBusinessBundleFile(`${scopeFilter}-scope-all.business.json`, body.data);
+      if (body.warnings?.length) message.warning(body.warnings.join('；'));
+      message.success('已下载当前 scope 全部业务 bundle');
+    } finally {
+      setBundleExporting(false);
+    }
+  }, [bundleExportIncludePricing, downloadBusinessBundleFile, message, scopeFilter]);
+
+  const handleBundleExportSelected = useCallback(async () => {
+    if (bundleTableSelectedKeys.length === 0) {
+      message.warning('请先在表格中勾选要导出的业务');
+      return;
+    }
+    const rows = bundleTableSelectedKeys
+      .map((id) => list.find((r) => r.id === id))
+      .filter((r): r is PromptConfigRow => !!r);
+    if (rows.length === 0) {
+      message.warning('未找到选中行');
+      return;
+    }
+    setBundleExporting(true);
+    try {
+      const res = await exportBusinessBundlePost({
+        keys: rows.map((r) => ({ scope: r.scope, type: r.type, subtype: r.subtype })),
+        includePricing: bundleExportIncludePricing,
+      });
+      if (res.error) {
+        message.error(res.error);
+        return;
+      }
+      const body = res.data as { success?: boolean; data?: unknown; warnings?: string[] } | undefined;
+      if (!body?.success || body.data == null) {
+        message.error('导出失败：响应异常');
+        return;
+      }
+      downloadBusinessBundleFile(`business-selected-${rows.length}.business.json`, body.data);
+      if (body.warnings?.length) message.warning(body.warnings.join('；'));
+      message.success('已下载选中业务 bundle');
+    } finally {
+      setBundleExporting(false);
+    }
+  }, [bundleExportIncludePricing, bundleTableSelectedKeys, downloadBusinessBundleFile, list, message]);
+
+  const handleBundleImportFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed: unknown = JSON.parse(text);
+        const dry = await importBusinessBundle({ bundle: parsed, conflictPolicy: 'dry-run' });
+        if (dry.error) {
+          message.error(dry.error);
+          return;
+        }
+        const body = dry.data as
+          | { success?: boolean; data?: { created: string[]; updated: string[]; skipped: string[]; warnings: string[] } }
+          | undefined;
+        if (!body?.success || !body.data) {
+          message.error('dry-run 响应异常');
+          return;
+        }
+        setBundlePendingJson(parsed);
+        setBundleImportPreview(body.data);
+        setBundleImportModalOpen(true);
+      } catch (err) {
+        message.error(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [message]
+  );
+
+  const runBundleImport = useCallback(
+    async (policy: 'upsert' | 'skip') => {
+      if (bundlePendingJson == null) return;
+      setBundleImportRunning(true);
+      try {
+        const res = await importBusinessBundle({ bundle: bundlePendingJson, conflictPolicy: policy });
+        if (res.error) {
+          message.error(res.error);
+          return;
+        }
+        const body = res.data as
+          | { success?: boolean; data?: { warnings?: string[] } }
+          | undefined;
+        const warns = body?.data?.warnings ?? [];
+        message.success(policy === 'skip' ? '导入完成（已跳过已存在主配置）' : '导入完成');
+        if (warns.length) message.warning(warns.join('；'));
+        setBundleImportModalOpen(false);
+        setBundlePendingJson(null);
+        setBundleImportPreview(null);
+        setBundleTableSelectedKeys([]);
+        await loadListFnRef.current?.();
+      } finally {
+        setBundleImportRunning(false);
+      }
+    },
+    [bundlePendingJson, message]
+  );
+
+  const handleBundleExportDrawer = useCallback(async () => {
+    if (!selected || selected.id.startsWith('new:')) {
+      message.warning('请先保存新建业务后再导出');
+      return;
+    }
+    await handleBundleExportRow(selected);
+  }, [handleBundleExportRow, message, selected]);
 
   const buildTaskTemplateFromUi = (markupOverride?: string): TaskTemplateDraft => {
     if (!draft) throw new Error('draft is null');
     const next = { ...draft };
     const effectiveMarkup = markupOverride !== undefined ? markupOverride : unifiedTemplateMarkup;
+    const isTextScope = selected?.scope === 'text';
 
-    if (schemaMode === 'guided') {
-      next.formSchema = fieldRowsToSchema(next.formSchema, schemaRows);
+    if (isTextScope && selected?.type) {
+      if (!isTextV2Type(selected.type)) {
+        throw new Error('text 仅允许 taskKey：plan / transform / expert / validation');
+      }
+      const fixed = getTextV2FixedFormSchema(selected.type);
+      next.contractSchema = fixed;
+      next.formSchema = fixed;
+      next.pipeline = { pre: [], enrich: [], post: [] };
     } else {
-      const parsed = safeJsonParse<JsonSchema>(schemaJson);
-      if (!parsed.ok) throw new Error(`Schema JSON 无效: ${parsed.error}`);
-      next.formSchema = stripSystemSchemaFields(parsed.value);
+      const baseSchema = next.contractSchema ?? next.formSchema;
+      if (schemaMode === 'guided') {
+        const schema = fieldRowsToSchema(baseSchema, schemaRows);
+        next.contractSchema = schema;
+        next.formSchema = schema;
+      } else {
+        const parsed = safeJsonParse<JsonSchema>(schemaJson);
+        if (!parsed.ok) throw new Error(`contractSchema JSON 无效: ${parsed.error}`);
+        const schema = stripSystemSchemaFields(parsed.value);
+        next.contractSchema = schema;
+        next.formSchema = schema;
+      }
     }
 
     const parsedUnified = parseTemplateMarkup(effectiveMarkup);
@@ -713,55 +915,32 @@ export default function AdminBusiness() {
       unifiedTemplateMarkup: effectiveMarkup,
     };
 
-    const allVarsMetaMap = new Map<string, TemplateVarMeta>();
-    const varSources = parsedUnified.vars;
-    for (const meta of varSources) {
-      const prev = allVarsMetaMap.get(meta.name) ?? ({} as TemplateVarMeta);
-      allVarsMetaMap.set(meta.name, {
-        name: meta.name,
-        type: meta.type ?? prev.type,
-        label: meta.label ?? prev.label,
-        defaultValue: meta.defaultValue ?? prev.defaultValue,
-        required: meta.required ?? prev.required,
-      });
+    // pipeline：text 已清空；其它 scope 保留 pre / enrich / post
+    if (!isTextScope && next.pipeline) {
+      const stripLegacy = (steps?: import('./AdminBusiness.types').PipelineStepDraft[]) =>
+        (steps ?? []).filter((s) => s.step !== 'knowledgeRetrieve' && s.step !== 'formatDocument');
+      const pre = stripLegacy(next.pipeline.pre);
+      const enrich = stripLegacy(next.pipeline.enrich);
+      const post = stripLegacy(next.pipeline.post);
+      next.pipeline =
+        pre.length || enrich.length || post.length
+          ? { pre, enrich, post }
+          : { pre: [], enrich: [], post: [] };
     }
-    if (Object.keys(next.formSchema.properties ?? {}).length === 0) {
-      next.formSchema.properties = {};
-    }
-    const props = (next.formSchema.properties ?? {}) as Record<string, unknown>;
-    const requiredArr = Array.isArray(next.formSchema.required) ? next.formSchema.required.map(String) : [];
-    const requiredSet = new Set<string>(requiredArr);
-    for (const [varName, meta] of allVarsMetaMap.entries()) {
-      if (!Object.prototype.hasOwnProperty.call(props, varName)) {
-        const def: Record<string, unknown> = {};
-        def.type = meta.type ?? 'string';
-        if (meta.label) def.title = meta.label;
-        if (meta.defaultValue != null && String(meta.defaultValue).trim() !== '') {
-          def.default =
-            def.type === 'integer' || def.type === 'number'
-              ? Number(meta.defaultValue)
-              : String(meta.defaultValue);
-        }
-        (props as Record<string, Record<string, unknown>>)[varName] = def;
-      }
-      if (meta.required) {
-        requiredSet.add(varName);
-      }
-    }
-    next.formSchema.properties = props;
-    next.formSchema.required = Array.from(requiredSet);
+    delete (next as Record<string, unknown>).inputPipeline;
+    delete (next as Record<string, unknown>).outputPipeline;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (next as any).inputPipeline;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (next as any).outputPipeline;
+    if (selected?.scope === 'writing') {
+      return syncWritingStorageToFormSchema(syncInteractiveCardFieldsToFormSchema(next));
+    }
 
-    return next;
+    return syncInteractiveCardFieldsToFormSchema(next);
   };
 
   const handleSave = async () => {
     if (!selected || !draft) return;
     setSaving(true);
+    let hasError = false;
     try {
       const flushedMarkup =
         typeof promptMarkupGetterRef.current === 'function'
@@ -770,16 +949,19 @@ export default function AdminBusiness() {
       setUnifiedTemplateMarkup(flushedMarkup);
       const tpl = buildTaskTemplateFromUi(flushedMarkup);
       if (!tpl.prompt.unifiedTemplate?.trim()) throw new Error('unifiedTemplate 不能为空');
-      if (!tpl.formSchema || typeof tpl.formSchema !== 'object') throw new Error('formSchema 无效');
-      if ((tpl.formSchema.type ?? 'object') !== 'object') throw new Error('formSchema.type 必须为 object');
-      const missingVars = extractTemplateVars(tpl.prompt.unifiedTemplate).filter(
-        (v) => !(tpl.formSchema.properties && Object.prototype.hasOwnProperty.call(tpl.formSchema.properties, v))
-      );
-      if (missingVars.length > 0) {
-        throw new Error(`Prompt 使用了未在 Schema 定义的变量：${missingVars.join(', ')}`);
+      if (!tpl.contractSchema || typeof tpl.contractSchema !== 'object') {
+        throw new Error('contractSchema 无效');
+      }
+      if ((tpl.contractSchema.type ?? 'object') !== 'object') {
+        throw new Error('contractSchema.type 必须为 object');
       }
 
-      const extra = { ...(extraDraft ?? {}), taskTemplate: tpl };
+      const extra: Record<string, unknown> = {
+        ...(extraDraft ?? {}),
+        executionMode: 'mxm-warp',
+        taskTemplate: tpl,
+      };
+      delete extra.promptTextTaskKey;
       const body: PromptConfigBody = {
         scope: selected.scope,
         type: selected.type,
@@ -790,8 +972,44 @@ export default function AdminBusiness() {
       const res = await upsertPromptConfig(body);
       if (res.error) throw new Error(res.error);
 
-      message.success('已保存');
-      await loadList();
+      if (routeProvider && routeModel) {
+        const businessType = getBusinessTypeForPromptRow(selected);
+        const pipelineListIds = draft ? readSensitiveListIdsFromPipeline(draft) : [];
+        const routeRes = await postProvidersRouting({
+          logicalModel: businessType,
+          provider: routeProvider,
+          model: routeModel,
+          sensitive_word_list_ids: pipelineListIds.length > 0 ? pipelineListIds : undefined,
+        });
+        if (routeRes.error) {
+          message.error(`路由保存失败：${routeRes.error}`);
+          hasError = true;
+        } else if (selected && pipelineListIds.length >= 0) {
+          await setSensitiveWordBindingsForSlot({
+            scope: selected.scope,
+            type: selected.type,
+            subtype: selected.subtype ?? null,
+            list_ids: pipelineListIds,
+          });
+        }
+      }
+
+      if (!hasError) {
+        message.success('已保存全部配置');
+        setDraft(tpl);
+        setExtraDraft({ ...extra, executionMode: 'mxm-warp' });
+        setSavedSnapshot(
+          JSON.stringify({
+            draft: tpl,
+            extraDraft: { ...extra, executionMode: 'mxm-warp' },
+            isActive,
+            unifiedTemplateMarkup: flushedMarkup,
+            routeProvider,
+            routeModel,
+          })
+        );
+      }
+      await loadListFnRef.current?.();
       const refreshed = await getPromptConfigByKey({
         scope: selected.scope,
         type: selected.type,
@@ -801,32 +1019,11 @@ export default function AdminBusiness() {
       const refreshedRow = (refreshed.data as { data?: PromptConfigRow } | undefined)?.data;
       if (!refreshed.error && refreshedRow) {
         setSelected((prev) => (prev ? { ...prev, ...refreshedRow } : prev));
-        const extraNew = (refreshedRow.extra ?? extra) as Record<string, unknown>;
-        setExtraDraft(extraNew);
       }
     } catch (e) {
       message.error(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleSensitiveSave = async () => {
-    if (!selected) return;
-    setSensitiveLoading(true);
-    try {
-      const res = await setSensitiveWordBindingsForSlot({
-        scope: selected.scope,
-        type: selected.type,
-        subtype: selected.subtype ?? null,
-        list_ids: sensitiveSelectedListIds,
-      });
-      if (res.error) throw new Error(res.error);
-      message.success('已保存敏感词挂载');
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSensitiveLoading(false);
     }
   };
 
@@ -843,6 +1040,7 @@ export default function AdminBusiness() {
           type: 'string',
           required: false,
           userVisible: true,
+          zone: 'basic',
           enumText: '',
           enumLabelsText: '',
           defaultText: '',
@@ -851,7 +1049,7 @@ export default function AdminBusiness() {
       return next;
     });
     setDrawerTabKey('schema');
-    message.info('已把缺失变量补到 Schema，已切换到 Schema 页');
+    message.info('已把缺失变量补到合同字段');
   };
 
   // ---------------------------------------------------------------------------
@@ -877,18 +1075,17 @@ export default function AdminBusiness() {
             items={[
               {
                 key: 'taskTemplate',
-                label: 'TaskTemplate',
+                label: '业务编排',
                 children: (
                   <>
                     <div className="admin-business-toolbar">
-                      <Space size={10} wrap>
+                      <div className="admin-business-toolbar__filters">
                         <Select<Scope>
+                          className="admin-business-toolbar__scope"
                           value={scopeFilter}
                           onChange={(v) => setScopeFilter(v)}
-                          style={{ width: 190, maxWidth: '100%' }}
                           options={[
                             { value: 'writing', label: '写作 (writing)' },
-                            { value: 'outline', label: '大纲 (outline)' },
                             { value: 'graph', label: '图文 (graph)' },
                             { value: 'audio', label: '音频 (audio)' },
                             { value: 'music', label: '音乐 (music)' },
@@ -897,27 +1094,74 @@ export default function AdminBusiness() {
                           ]}
                         />
                         <Input
+                          className="admin-business-toolbar__search"
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
-                          placeholder="搜索 taskKey / subtype…"
-                          style={{ width: 300, maxWidth: '100%' }}
+                          placeholder="搜索 taskKey / subtype / 显示名…"
                           allowClear
                         />
-                        <Button onClick={() => void loadList()} loading={loading}>
+                      </div>
+                      <div className="admin-business-toolbar__actions">
+                        <Button onClick={() => void loadListFnRef.current?.()} loading={loading}>
                           刷新
+                        </Button>
+                        <Dropdown
+                          trigger={['click']}
+                          placement="bottomRight"
+                          disabled={bundleExporting}
+                          popupRender={(menu) => (
+                            <div className="admin-business-export-dropdown">
+                              <label className="admin-business-export-dropdown__option">
+                                <Checkbox
+                                  checked={bundleExportIncludePricing}
+                                  onChange={(e) => setBundleExportIncludePricing(e.target.checked)}
+                                />
+                                <span>含 businessPricing</span>
+                              </label>
+                              <div className="admin-business-export-dropdown__menu">{menu}</div>
+                            </div>
+                          )}
+                          menu={{
+                            items: [
+                              {
+                                key: 'scope',
+                                icon: <DownloadOutlined />,
+                                label: '导出当前 scope',
+                                onClick: () => void handleBundleExportScope(),
+                              },
+                              {
+                                key: 'selected',
+                                icon: <DownloadOutlined />,
+                                label:
+                                  bundleTableSelectedKeys.length > 0
+                                    ? `导出选中 (${bundleTableSelectedKeys.length})`
+                                    : '导出选中',
+                                disabled: bundleTableSelectedKeys.length === 0,
+                                onClick: () => void handleBundleExportSelected(),
+                              },
+                            ],
+                          }}
+                        >
+                          <Button icon={<DownloadOutlined />} loading={bundleExporting}>
+                            导出
+                            <DownOutlined className="admin-business-toolbar__caret" />
+                          </Button>
+                        </Dropdown>
+                        <Button icon={<UploadOutlined />} onClick={() => bundleFileInputRef.current?.click()}>
+                          导入 JSON
                         </Button>
                         <Button
                           type="primary"
                           onClick={() => {
                             setCreateScope(scopeFilter);
-                            setCreateTaskKey('');
+                            setCreateTaskKey(scopeFilter === 'text' ? 'transform' : 'generator');
                             setCreateSubtype('');
                             setCreateOpen(true);
                           }}
                         >
                           新建业务
                         </Button>
-                      </Space>
+                      </div>
                     </div>
 
                     <div className="admin-business-panel admin-business-tableOnly">
@@ -932,20 +1176,41 @@ export default function AdminBusiness() {
                       </div>
                       <div className="admin-business-panel-body admin-business-table-wrap">
                         <Table<PromptConfigRow>
+                          className="admin-business-list-table"
                           size="small"
                           rowKey="id"
                           dataSource={visibleList}
-                          // 纯前端分页：翻页不应出现“假 loading”。
-                          // 仅在首次无数据时显示 loading，后台刷新不遮罩表格/分页交互。
-                          loading={loading && visibleList.length === 0}
-                          tableLayout="fixed"
+                          rowSelection={{
+                            selectedRowKeys: bundleTableSelectedKeys,
+                            onChange: (keys) => setBundleTableSelectedKeys(keys),
+                          }}
+                          loading={loading}
+                          scroll={{ x: BUSINESS_LIST_TABLE_SCROLL_X }}
                           pagination={{ pageSize: 10, showSizeChanger: false }}
                           columns={[
-                            { title: 'taskKey', dataIndex: 'type', ellipsis: true },
+                            {
+                              title: 'taskKey',
+                              dataIndex: 'type',
+                              width: 160,
+                              fixed: 'left',
+                              className: 'admin-business-col-taskkey',
+                              render: (_: unknown, r: PromptConfigRow) =>
+                                renderBusinessIdentityCell(resolveTaskKeyDisplay(r)),
+                            },
+                            {
+                              title: 'subtype',
+                              dataIndex: 'subtype',
+                              width: 200,
+                              fixed: 'left',
+                              className: 'admin-business-col-subtype',
+                              render: (_: unknown, r: PromptConfigRow) =>
+                                renderBusinessIdentityCell(resolveSubtypeDisplay(r)),
+                            },
                             {
                               title: '启用',
                               dataIndex: 'is_active',
                               width: 64,
+                              align: 'center',
                               render: (v: boolean) => (
                                 <span
                                   className={[
@@ -956,10 +1221,10 @@ export default function AdminBusiness() {
                                 />
                               ),
                             },
-                            { title: 'subtype', dataIndex: 'subtype', ellipsis: true, render: (v: string | null) => v ?? '-' },
                             {
                               title: '当前物理模型',
-                              width: 220,
+                              width: 240,
+                              className: 'admin-business-col-model',
                               render: (_: unknown, r: PromptConfigRow) => {
                                 const view = pricingViewsById.get(r.id);
                                 if (!view?.resolved) return <span className="muted">—</span>;
@@ -975,25 +1240,10 @@ export default function AdminBusiness() {
                               },
                             },
                             {
-                              title: 'MXM-TOKEN 定价',
-                              width: 160,
-                              render: (_: unknown, r: PromptConfigRow) => {
-                                const view = pricingViewsById.get(r.id);
-                                if (!view?.configured) return <span className="muted">未配置</span>;
-                                const margin = view.configured.metadata?.margin;
-                                return (
-                                  <Typography.Text style={{ fontSize: 12 }}>
-                                    {view.chargeMetric === 'token_based'
-                                      ? `in:${view.configured.metadata?.input_price_in_tokens ?? '-'} / out:${view.configured.metadata?.output_price_in_tokens ?? '-'}`
-                                      : `${view.configured.price_in_tokens} / 单位`}
-                                    {margin != null ? <span className="muted"> 利润率:{Math.round(Number(margin) * 100)}%</span> : null}
-                                  </Typography.Text>
-                                );
-                              },
-                            },
-                            {
                               title: '操作',
-                              width: 160,
+                              width: 240,
+                              fixed: 'right',
+                              className: 'admin-business-col-actions',
                               render: (_: unknown, r: PromptConfigRow) => {
                                 return (
                                   <Space size={4}>
@@ -1003,6 +1253,14 @@ export default function AdminBusiness() {
                                       onClick={() => void openRow(r)}
                                     >
                                       编辑
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      icon={<DownloadOutlined />}
+                                      loading={bundleExporting}
+                                      onClick={() => void handleBundleExportRow(r)}
+                                    >
+                                      导出
                                     </Button>
                                     <Popconfirm
                                       title={`${r.is_active ? '停用' : '启用'}该业务？`}
@@ -1024,6 +1282,7 @@ export default function AdminBusiness() {
                               title: '更新时间',
                               dataIndex: 'updated_at',
                               width: 176,
+                              className: 'admin-business-col-updated',
                               render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
                             },
                           ]}
@@ -1047,6 +1306,11 @@ export default function AdminBusiness() {
                 label: '收款配置',
                 children: <AdminPayment />,
               },
+              {
+                key: 'searchConfig',
+                label: '搜索引擎',
+                children: <AdminSearchConfig />,
+              },
             ]}
           />
         </div>
@@ -1056,7 +1320,19 @@ export default function AdminBusiness() {
       <Drawer
         title={
           selected
-            ? `编辑业务：${selected.scope} / ${selected.type}${selected.subtype ? ` / ${selected.subtype}` : ''}`
+            ? (() => {
+                const { title, subtitle } = formatBusinessDrawerTitle(selected);
+                return (
+                  <div className="admin-business-drawer-title">
+                    <span>{title}</span>
+                    {subtitle ? (
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        {subtitle}
+                      </Typography.Text>
+                    ) : null}
+                  </div>
+                );
+              })()
             : '编辑业务'
         }
         open={drawerOpen}
@@ -1066,11 +1342,10 @@ export default function AdminBusiness() {
           setDraft(null);
           setExtraDraft({});
           setSensitiveLists([]);
-          setSensitiveSelectedListIds([]);
-          pricingForm.resetFields();
         }}
-        size={780}
-        styles={{ body: { padding: '12px 20px' } }}
+        className="admin-business-drawer"
+        size={1080}
+        styles={{ body: { padding: '12px 16px', overflowX: 'hidden' } }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {/* 顶部操作栏 */}
@@ -1097,26 +1372,171 @@ export default function AdminBusiness() {
               >
                 调试
               </Button>
-              <Button type="primary" loading={saving} onClick={() => void handleSave()}>
+              <Button
+                size="small"
+                disabled={!selected || detailLoading || !isActive || selected?.id?.startsWith('new:')}
+                onClick={() => {
+                  if (!selected) return;
+                  const slugBase = `${selected.scope}-${selected.type}${selected.subtype ? `-${selected.subtype}` : ''}`
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/^-+|-+$/g, '');
+                  setPublishPreset({
+                    kind: 'task_v2',
+                    taskV2Scope: selected.scope,
+                    taskV2TaskKey: selected.type,
+                    taskV2Subtype: selected.subtype ?? undefined,
+                    titleHint: slugBase,
+                  });
+                  setPublishOpen(true);
+                }}
+              >
+                发布 API
+              </Button>
+              <Button
+                size="small"
+                icon={<DownloadOutlined />}
+                loading={bundleExporting}
+                disabled={!selected || detailLoading || selected?.id?.startsWith('new:')}
+                onClick={() => void handleBundleExportDrawer()}
+              >
+                导出此业务
+              </Button>
+              <Button
+                type="primary"
+                size="small"
+                loading={saving}
+                onClick={() => void handleSave()}
+              >
                 保存全部
               </Button>
+              {hasUnsavedChanges ? (
+                <Typography.Text type="warning" style={{ fontSize: 12 }}>
+                  有未保存更改
+                </Typography.Text>
+              ) : null}
             </Space>
           </div>
 
           {detailLoading ? (
-            <div style={{ padding: 24, textAlign: 'center' }}>
-              <Typography.Text type="secondary">加载中…</Typography.Text>
+            <div className="admin-business-detail-loading">
+              <Spin description="加载业务配置…" />
             </div>
           ) : (
             <div className="admin-business-editorBodyInner">
+              <div className="admin-warp-stage-rail" aria-label="mxm-warp 五段">
+                {selected?.scope === 'text' ? (
+                  <>
+                    <button
+                      type="button"
+                      className={[
+                        'admin-warp-stage-rail__chip',
+                        drawerTabKey === 'schema' ? 'is-active' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => setDrawerTabKey('schema')}
+                    >
+                      固定入参
+                    </button>
+                    <span className="admin-warp-stage-rail__sep" aria-hidden>
+                      →
+                    </span>
+                    <button
+                      type="button"
+                      className={[
+                        'admin-warp-stage-rail__chip',
+                        drawerTabKey === 'prompt' ? 'is-active is-focus' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => setDrawerTabKey('prompt')}
+                    >
+                      Prompt
+                    </button>
+                    <Tag color="processing" style={{ marginLeft: 8 }}>
+                      text v2 · 无管道
+                    </Tag>
+                  </>
+                ) : (
+                  <>
+                    {(
+                      [
+                        { key: 'schema', stage: '字段', tab: 'schema' },
+                        { key: 'pre', stage: 'pre', tab: 'pipeline' },
+                        { key: 'input', stage: 'input', tab: 'pipeline' },
+                        { key: 'enrich', stage: 'enrich', tab: 'pipeline' },
+                        { key: 'output', stage: 'output', tab: 'prompt' },
+                        { key: 'post', stage: 'post', tab: 'pipeline' },
+                      ] as const
+                    ).map((item, i, arr) => (
+                      <Fragment key={item.key}>
+                        <button
+                          type="button"
+                          className={[
+                            'admin-warp-stage-rail__chip',
+                            drawerTabKey === item.tab ? 'is-active' : '',
+                            item.tab === 'prompt' && drawerTabKey === 'prompt' && item.key === 'output'
+                              ? 'is-focus'
+                              : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          onClick={() => setDrawerTabKey(item.tab)}
+                        >
+                          {item.stage}
+                        </button>
+                        {i < arr.length - 1 ? (
+                          <span className="admin-warp-stage-rail__sep" aria-hidden>
+                            →
+                          </span>
+                        ) : null}
+                      </Fragment>
+                    ))}
+                    <Tag color="processing" style={{ marginLeft: 8 }}>
+                      mxm-warp
+                    </Tag>
+                  </>
+                )}
+              </div>
               <Tabs
                 activeKey={drawerTabKey}
                 onChange={setDrawerTabKey}
                 items={[
                   {
                     key: 'schema',
-                    label: 'Schema',
-                    children: (
+                    label: selected?.scope === 'text' ? '固定入参' : '合同字段',
+                    children:
+                      selected?.scope === 'text' && isTextV2Type(selected.type) ? (
+                        <Alert
+                          type="info"
+                          showIcon
+                          title={`text/${selected.type} 入参由平台钉死，不可改键`}
+                          description={
+                            <div>
+                              <Typography.Paragraph style={{ marginBottom: 8 }}>
+                                固定键：{TEXT_V2_INPUT_KEYS[selected.type].join(' · ')}
+                              </Typography.Paragraph>
+                              <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                                Admin 只编 subtype、显示名、Prompt、模型路由。合同双区与五段管道仅宿主生成业务使用。
+                              </Typography.Paragraph>
+                              <pre
+                                style={{
+                                  marginTop: 12,
+                                  maxHeight: 320,
+                                  overflow: 'auto',
+                                  fontSize: 12,
+                                  background: 'rgba(0,0,0,0.04)',
+                                  padding: 12,
+                                  borderRadius: 8,
+                                }}
+                              >
+                                {prettyJson(getTextV2FixedFormSchema(selected.type))}
+                              </pre>
+                            </div>
+                          }
+                        />
+                      ) : (
                       <AdminBusinessSchemaTab
                         draft={draft}
                         schemaMode={schemaMode}
@@ -1131,23 +1551,45 @@ export default function AdminBusiness() {
                         onSchemaJsonChange={setSchemaJson}
                         onPromptVarSearchChange={setPromptVarSearch}
                         onSyncToJson={() => {
+                          const base =
+                            draft?.contractSchema ??
+                            draft?.formSchema ?? { type: 'object', properties: {}, required: [] };
                           const parsed = safeJsonParse<JsonSchema>(schemaJson);
                           const nextSchema =
                             schemaMode === 'guided'
-                              ? fieldRowsToSchema(draft?.formSchema ?? { type: 'object', properties: {}, required: [] }, schemaRows)
+                              ? fieldRowsToSchema(base, schemaRows)
                               : parsed.ok
-                              ? parsed.value
-                              : (draft?.formSchema ?? { type: 'object', properties: {}, required: [] });
+                                ? parsed.value
+                                : base;
                           setSchemaJson(prettyJson(nextSchema));
                         }}
                         onUnifiedTemplateMarkupChange={setUnifiedTemplateMarkup}
                         onAddMissingVarsToSchema={handleAddMissingVarsToSchema}
                       />
-                    ),
+                      ),
                   },
+                  ...(selected?.scope === 'text'
+                    ? []
+                    : [
+                        {
+                          key: 'pipeline',
+                          label: '执行管线',
+                          children: (
+                            <AdminBusinessPipelineTab
+                              draft={draft}
+                              selected={selected}
+                              textBusinessOptions={textBusinessOptions}
+                              sensitiveLists={sensitiveLists}
+                              sensitiveHint={sensitiveHint}
+                              onDraftChange={setDraft}
+                              onNavigateToPrompt={() => setDrawerTabKey('prompt')}
+                            />
+                          ),
+                        },
+                      ]),
                   {
                     key: 'prompt',
-                    label: 'Prompt',
+                    label: selected?.scope === 'text' ? 'Prompt' : 'Output Prompt',
                     children: (
                       <AdminBusinessPromptTab
                         draft={draft}
@@ -1159,30 +1601,42 @@ export default function AdminBusiness() {
                         unifiedTemplateMarkup={unifiedTemplateMarkup}
                         promptMarkupGetterRef={promptMarkupGetterRef}
                         missingSchemaVars={missingSchemaVars}
-                        promptTextTaskKey={promptTextTaskKey}
-                        textBusinessOptions={textBusinessOptions}
+                        unusedSchemaVars={unusedSchemaVars}
                         onPromptVarSearchChange={setPromptVarSearch}
                         onUnifiedTemplateMarkupChange={setUnifiedTemplateMarkup}
                         onAddMissingVarsToSchema={handleAddMissingVarsToSchema}
-                        onPromptTextTaskKeyChange={(v) => {
-                          setExtraDraft((prev) => ({ ...(prev ?? {}), promptTextTaskKey: v || undefined }));
-                        }}
                       />
                     ),
                   },
                   {
-                    key: 'model_pricing',
-                    label: '模型与定价',
+                    key: 'model_config',
+                    label: '模型配置',
+                    forceRender: true,
                     children: (
                       <AdminBusinessPricingTab
                         selected={selected}
+                        extraDraft={extraDraft}
+                        videoGeneratorBusinesses={videoBusinessOptions}
+                        routing={routing}
                         routeProvider={routeProvider}
                         routeModel={routeModel}
-                        routeSaving={routeSaving}
                         routeDirty={routeDirty}
                         draft={draft}
-                        pricingForm={pricingForm}
-                        pricingSaving={pricingSaving}
+                        platformPriceSummary={
+                          (() => {
+                            if (!selected || !routeProvider || !routeModel) return null;
+                            const allowedScopes = allowedModelScopesForBusiness(selected.scope as Scope);
+                            let pp: ProviderPricingRow | undefined;
+                            for (const s of allowedScopes) {
+                              pp = providerPricingIndex.get(`${routeProvider}||${s}||${routeModel}`);
+                              if (pp) break;
+                            }
+                            if (!pp) {
+                              pp = providerPricingIndex.get(`${routeProvider}||default||${routeModel}`);
+                            }
+                            return formatPlatformPriceSummary(pp);
+                          })()
+                        }
                         currentRoutableModels={currentRoutableModels}
                         modelsByProviderByScope={modelsByProviderByScope}
                         onRouteProviderChange={(v) => {
@@ -1191,22 +1645,8 @@ export default function AdminBusiness() {
                         }}
                         onRouteModelChange={setRouteModel}
                         onSaveRoute={() => void saveBusinessRouteForSelected()}
-                        onClearRoute={() => void clearBusinessRouteOverrideForSelected()}
-                        onResetGenerateParams={() => {
-                          setDraft((prev) => {
-                            if (!prev) return prev;
-                            return {
-                              ...prev,
-                              extra: mergeGenerateParams(
-                                (prev.extra ?? {}) as Record<string, unknown>,
-                                RECOMMENDED_GENERATE_PARAMS
-                              ),
-                            };
-                          });
-                          message.success('已重置为推荐默认值');
-                        }}
+                        onExtraDraftChange={setExtraDraft}
                         onDraftChange={setDraft}
-                        onSavePricing={() => void saveBusinessPricingForSelected()}
                       />
                     ),
                   },
@@ -1218,10 +1658,7 @@ export default function AdminBusiness() {
                         selected={selected}
                         displayConfig={displayConfig}
                         draft={draft}
-                        sensitiveLists={sensitiveLists}
-                        sensitiveSelectedListIds={sensitiveSelectedListIds}
-                        sensitiveLoading={sensitiveLoading}
-                        sensitiveHint={sensitiveHint}
+                        extraDraft={extraDraft}
                         scopeFilter={scopeFilter}
                         onDisplayConfigChange={(d) =>
                           setExtraDraft((prev) => ({
@@ -1230,8 +1667,7 @@ export default function AdminBusiness() {
                           }))
                         }
                         onDraftChange={setDraft}
-                        onSensitiveListIdsChange={setSensitiveSelectedListIds}
-                        onSaveSensitiveBinding={() => void handleSensitiveSave()}
+                        onExtraDraftChange={setExtraDraft}
                       />
                     ),
                   },
@@ -1241,6 +1677,77 @@ export default function AdminBusiness() {
           )}
         </div>
       </Drawer>
+
+      <input
+        ref={bundleFileInputRef}
+        type="file"
+        accept=".json,application/json"
+        style={{ display: 'none' }}
+        onChange={(e) => void handleBundleImportFileChange(e)}
+      />
+
+      <Modal
+        title="导入预览（dry-run，未写入数据库）"
+        open={bundleImportModalOpen}
+        onCancel={() => {
+          setBundleImportModalOpen(false);
+          setBundlePendingJson(null);
+          setBundleImportPreview(null);
+        }}
+        width={640}
+        footer={[
+          <Button
+            key="cancel"
+            onClick={() => {
+              setBundleImportModalOpen(false);
+              setBundlePendingJson(null);
+              setBundleImportPreview(null);
+            }}
+          >
+            取消
+          </Button>,
+          <Button
+            key="skip"
+            loading={bundleImportRunning}
+            onClick={() => void runBundleImport('skip')}
+          >
+            导入（skip 已存在主配置）
+          </Button>,
+          <Button
+            key="upsert"
+            type="primary"
+            loading={bundleImportRunning}
+            onClick={() => void runBundleImport('upsert')}
+          >
+            导入（upsert 覆盖）
+          </Button>,
+        ]}
+      >
+        {bundleImportPreview ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Typography.Paragraph style={{ marginBottom: 0 }}>
+              将新建约 <strong>{bundleImportPreview.created.length}</strong> 条记录键；将更新约{' '}
+              <strong>{bundleImportPreview.updated.length}</strong> 条；将跳过约{' '}
+              <strong>{bundleImportPreview.skipped.length}</strong> 条（仅 skip 策略生效）。
+            </Typography.Paragraph>
+            {bundleImportPreview.warnings.length > 0 ? (
+              <Alert
+                type="warning"
+                showIcon
+                title="警告"
+                description={
+                  <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>
+                    {bundleImportPreview.warnings.join('\n')}
+                  </pre>
+                }
+              />
+            ) : null}
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              详细键名见控制台或自行展开 JSON；大列表建议在 dry-run 后使用 upsert 一次性同步。
+            </Typography.Text>
+          </div>
+        ) : null}
+      </Modal>
 
       {/* 测试 Modal */}
       <AdminBusinessTestModal
@@ -1263,6 +1770,12 @@ export default function AdminBusiness() {
         onTaskKeyChange={setCreateTaskKey}
         onSubtypeChange={setCreateSubtype}
         onConfirm={() => void handleCreate()}
+      />
+
+      <PublishOpenApiDrawer
+        open={publishOpen}
+        onClose={() => setPublishOpen(false)}
+        preset={publishPreset}
       />
     </div>
   );

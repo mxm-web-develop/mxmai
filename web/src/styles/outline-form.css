@@ -1,0 +1,64 @@
+/**
+ * Extracted from App.css
+ */
+
+/* ---------- Outline form + antd 适配 ---------- */
+.outline-form .ant-input,
+.outline-form .ant-input-textarea,
+.outline-form .ant-select-selector,
+.outline-form .ant-input-number,
+.outline-form .ant-input-number-input {
+  background: rgba(15,23,42,0.8) !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(148,163,184,0.35) !important;
+  color: var(--text-main) !important;
+}
+
+.outline-form .ant-select-selection-item,
+.outline-form .ant-select-selection-placeholder {
+  color: var(--text-main) !important;
+  opacity: 0.9;
+}
+
+.outline-form .ant-select,
+.outline-form .ant-input-number {
+  width: 100%;
+}
+
+.outline-form .ant-input::placeholder,
+.outline-form .ant-input-textarea::placeholder {
+  color: rgba(148,163,184,0.85);
+}
+
+.outline-form .ant-select-focused .ant-select-selector,
+.outline-form .ant-input:focus,
+.outline-form .ant-input-number-focused {
+  border-color: rgba(34,197,94,0.55) !important;
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.20) !important;
+}
+
+.response {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #0d0d0d;
+  border: 1px solid #333;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  overflow: auto;
+  max-height: 400px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #c0c0c0;
+  overflow-x: auto;
+}
+
+.message {
+  margin-top: 1rem;
+  color: #86efac;
+}
+
+.page-card hr {
+  border: none;
+  border-top: 1px solid #333;
+  margin: 1.5rem 0;
+}

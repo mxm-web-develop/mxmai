@@ -10,6 +10,10 @@ const TYPE_LABEL: Record<string, string> = {
   condition: '条件',
   loop: '循环',
   variable: '变量',
+  plan_execute: '计划执行',
+  reflection: '反思环',
+  react: 'ReAct',
+  research: '调研摘要',
 };
 
 const TYPE_COLORS: Record<string, { bg: string; border: string }> = {
@@ -21,12 +25,17 @@ const TYPE_COLORS: Record<string, { bg: string; border: string }> = {
   loop: { bg: 'rgba(6,182,212,0.15)', border: '#06b6d4' },
   variable: { bg: 'rgba(236,72,153,0.15)', border: '#ec4899' },
   end: { bg: 'rgba(239,68,68,0.15)', border: '#ef4444' },
+  plan_execute: { bg: 'rgba(99,102,241,0.18)', border: '#6366f1' },
+  reflection: { bg: 'rgba(99,102,241,0.18)', border: '#818cf8' },
+  react: { bg: 'rgba(99,102,241,0.18)', border: '#4f46e5' },
+  research: { bg: 'rgba(99,102,241,0.18)', border: '#7c3aed' },
 };
 
 type SfBlockNode = Node<SfCanvasData, 'sfBlock'>;
 
 function SfCanvasNodeInner({ data, selected }: NodeProps<SfBlockNode>) {
   const sn = data.sfNode;
+  const ui = data.ui;
   const t = String(sn.type ?? 'node');
   const name = String(sn.name ?? sn.id ?? '');
   const bizScope = sn.business_scope != null ? String(sn.business_scope) : '';
@@ -39,10 +48,23 @@ function SfCanvasNodeInner({ data, selected }: NodeProps<SfBlockNode>) {
 
   const isStart = t === 'start';
   const isEnd = t === 'end';
+  const isLoop = t === 'loop';
+  const loopNodes = isLoop && Array.isArray(sn.loop_nodes) ? (sn.loop_nodes as string[]) : [];
+  const parallel = isLoop && Boolean(sn.parallel_iterations);
+  const iterableRaw = isLoop ? String(sn.iterable ?? '') : '';
+  const iterableShort =
+    iterableRaw.length > 28 ? `${iterableRaw.slice(0, 26)}…` : iterableRaw;
+
+  const extraClass = [
+    ui?.loopBodyHighlight ? 'sf-canvas-node--loop-body-highlight' : '',
+    ui?.loopBodyMember ? 'sf-canvas-node--loop-body-member' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
-      className={`sf-canvas-node ${selected ? 'sf-canvas-node--selected' : ''} sf-canvas-node--${t}`}
+      className={`sf-canvas-node ${selected ? 'sf-canvas-node--selected' : ''} sf-canvas-node--${t} ${extraClass}`}
       style={{
         ...TYPE_COLORS[t] || TYPE_COLORS.model,
         minWidth: 160,
@@ -69,6 +91,28 @@ function SfCanvasNodeInner({ data, selected }: NodeProps<SfBlockNode>) {
           {taskKey ? `${taskKey}${subtype ? ` / ${subtype}` : ''}` : '未选择业务'}
         </div>
       )}
+      {(t === 'plan_execute' || t === 'reflection' || t === 'react' || t === 'research') && (
+        <div style={{ fontSize: 10, opacity: 0.6, marginTop: 6 }}>
+          Agent · {t === 'reflection' ? `max ${String(sn.max_rounds ?? 3)} 轮` : t === 'react' ? `max ${String(sn.max_steps ?? 10)} 步` : t === 'plan_execute' ? `max ${String(sn.max_steps ?? 6)} 步` : '调研'}
+        </div>
+      )}
+      {isLoop && (
+        <div className="sf-canvas-node__loop-summary">
+          <div>循环体 · {loopNodes.length} 个节点</div>
+          {parallel && <div>并行 · 最大 {String(sn.max_concurrency ?? 3)} 并发</div>}
+          {iterableShort && <div className="sf-canvas-node__loop-iterable">{iterableShort}</div>}
+        </div>
+      )}
+      {ui?.loopBodyMember && ui.loopBodyConflict && ui.loopBodyOwners && (
+        <div className="sf-canvas-node__loop-body-badge sf-canvas-node__loop-body-badge--conflict">
+          循环体冲突 · {ui.loopBodyOwners.length} 个 Loop
+        </div>
+      )}
+      {ui?.loopBodyMember && !ui.loopBodyConflict && ui.loopBodyOwners?.[0] && (
+        <div className="sf-canvas-node__loop-body-badge">
+          循环体内 · {ui.loopBodyOwners[0].loopName}
+        </div>
+      )}
       {t === 'condition' ? (
         <>
           {/* then 分支 - 顶部 */}
@@ -82,6 +126,25 @@ function SfCanvasNodeInner({ data, selected }: NodeProps<SfBlockNode>) {
           })}
           {/* else 分支 - 底部 */}
           <Handle type="source" position={Position.Bottom} id="else" style={{ bottom: 8, background: '#94a3b8', width: 8, height: 8 }} />
+        </>
+      ) : isLoop ? (
+        <>
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="main"
+            className="sf-handle sf-handle--main"
+            style={{ background: '#64748b', width: 10, height: 10, bottom: -5 }}
+          />
+          <Handle
+            type="source"
+            position={Position.Right}
+            id="loop-body"
+            className="sf-handle sf-handle--loop-body"
+            style={{ background: '#06b6d4', width: 10, height: 10, right: -5, top: '42%' }}
+          />
+          <span className="sf-handle-label sf-handle-label--main">主流程</span>
+          <span className="sf-handle-label sf-handle-label--loop-body">循环体</span>
         </>
       ) : !isEnd && (
         <Handle

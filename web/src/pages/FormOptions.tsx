@@ -1,69 +1,72 @@
 import { useState } from 'react';
-import { getWritingFormOptions, getVideoFormOptions, getGraphFormOptions } from '../api/client';
+import { getTaskFormConfig, getTaskFormConfigList } from '../api/client';
+import { pageCardTitle } from '../components/PageHint';
 import { useAuth } from '../context/AuthContext';
 
 export default function FormOptions() {
   const { isLoggedIn } = useAuth();
-  const [module, setModule] = useState<'writing' | 'video' | 'graph'>('writing');
-  const [writingType, setWritingType] = useState('storyboard-scripts');
-  const [outlineType, setOutlineType] = useState('short-video-storyboard');
-  const [graphType, setGraphType] = useState<'photograph' | 'design' | 'painting'>('photograph');
-  const [graphSubType, setGraphSubType] = useState('portrait');
+  const [scope, setScope] = useState('writing');
+  const [taskKey, setTaskKey] = useState('articles');
+  const [subtype, setSubtype] = useState('');
   const [res, setRes] = useState<string>('');
   const [loading, setLoading] = useState(false);
+
+  const handleFetchList = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoggedIn) return setRes('请先登录');
+    setLoading(true);
+    const result = await getTaskFormConfigList({ scope });
+    setLoading(false);
+    setRes(JSON.stringify(result, null, 2));
+  };
 
   const handleFetch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoggedIn) return setRes('请先登录');
     setLoading(true);
-    let result;
-    if (module === 'writing') {
-      result = await getWritingFormOptions({ writing_type: writingType, outline_type: outlineType, lang: 'zh' });
-    } else if (module === 'video') {
-      result = await getVideoFormOptions({ lang: 'zh' });
-    } else {
-      result = await getGraphFormOptions({ graphType, type: graphSubType, lang: 'zh' });
-    }
+    const result = await getTaskFormConfig({
+      scope,
+      taskKey,
+      subtype: subtype.trim() || undefined,
+    });
     setLoading(false);
     setRes(JSON.stringify(result, null, 2));
   };
 
   return (
     <div className="page-card admin-form-options-page">
-      <h2>表单选项</h2>
-      <p className="hint">获取各模块的表单/参数配置，便于与提示词（rules、outputformat）对照优化。写作：getformOptions；视频：getformOptions；图文：getformOptions。</p>
+      <h2>
+        {pageCardTitle('表单选项', {
+          title: '接口说明',
+          description: (
+            <>
+              与 Admin 业务管理一致：使用 Task V2 的 <code>GET /api/v2/tasks/form-config/list</code> 与{' '}
+              <code>GET /api/v2/tasks/form-config</code>（对应 prompt_engineering_config 中的 formSchema）。
+            </>
+          ),
+        })}
+      </h2>
       <div className="admin-form-options-content-wrap">
         <div className="admin-form-options-content-inner">
-      <form onSubmit={handleFetch} className="form-group">
-        <label>模块</label>
-        <select value={module} onChange={(e) => setModule(e.target.value as typeof module)}>
-          <option value="writing">写作 writing</option>
-          <option value="video">视频 video</option>
-          <option value="graph">图文 graph</option>
-        </select>
-        {module === 'writing' && (
-          <>
-            <label>writing_type</label>
-            <input value={writingType} onChange={(e) => setWritingType(e.target.value)} placeholder="storyboard-scripts" />
-            <label>outline_type（可选）</label>
-            <input value={outlineType} onChange={(e) => setOutlineType(e.target.value)} placeholder="short-video-storyboard" />
-          </>
-        )}
-        {module === 'graph' && (
-          <>
-            <label>graphType</label>
-            <select value={graphType} onChange={(e) => setGraphType(e.target.value as typeof graphType)}>
-              <option value="photograph">photograph</option>
-              <option value="design">design</option>
-              <option value="painting">painting</option>
-            </select>
-            <label>type</label>
-            <input value={graphSubType} onChange={(e) => setGraphSubType(e.target.value)} placeholder="portrait" />
-          </>
-        )}
-        <button type="submit" disabled={loading}>{loading ? '请求中...' : 'GET 表单选项'}</button>
-        {res && <pre className="response">{res}</pre>}
-      </form>
+          <form onSubmit={handleFetchList} className="form-group" style={{ marginBottom: 16 }}>
+            <label>scope（列表）</label>
+            <input value={scope} onChange={(e) => setScope(e.target.value)} placeholder="writing / graph / video …" />
+            <button type="submit" disabled={loading}>
+              {loading ? '请求中...' : 'GET form-config/list'}
+            </button>
+          </form>
+          <form onSubmit={handleFetch} className="form-group">
+            <label>scope</label>
+            <input value={scope} onChange={(e) => setScope(e.target.value)} />
+            <label>taskKey</label>
+            <input value={taskKey} onChange={(e) => setTaskKey(e.target.value)} placeholder="articles / photograph …" />
+            <label>subtype（可选）</label>
+            <input value={subtype} onChange={(e) => setSubtype(e.target.value)} placeholder="如 graph 子类型 portrait" />
+            <button type="submit" disabled={loading}>
+              {loading ? '请求中...' : 'GET form-config'}
+            </button>
+            {res && <pre className="response">{res}</pre>}
+          </form>
         </div>
       </div>
     </div>

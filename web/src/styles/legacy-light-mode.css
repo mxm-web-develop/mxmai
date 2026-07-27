@@ -1,0 +1,118 @@
+/**
+ * Extracted from App.css
+ */
+
+/* ---------- Light mode ---------- */
+@media (prefers-color-scheme: light) {
+  .app-dashboard {
+    background: #f0f0f0;
+  }
+  .dashboard-main {
+    background: #f8f8f8;
+  }
+  .page-card {
+    background: #fff;
+    border-color: #e0e0e0;
+  }
+  .page-card h2,
+  .page-card h3 {
+    color: #213547;
+  }
+  .page-card .hint {
+    color: #666;
+  }
+  .admin-tasks-page,
+  .admin-tasks-page .admin-tasks-form,
+  .admin-tasks-page .admin-tasks-muted,
+  .admin-tasks-page .admin-tasks-pagination {
+    color: #213547;
+  }
+  .admin-tasks-page .admin-tasks-input,
+  .admin-tasks-page .admin-tasks-select {
+    background: #fff;
+    border-color: #ddd;
+    color: #213547;
+  }
+  .admin-tasks-page .admin-tasks-error {
+    color: #b91c1c;
+  }
+  .admin-tasks-page .admin-tasks-table-wrap,
+  .admin-tasks-page .admin-tasks-table {
+    color: #213547;
+  }
+  .admin-tasks-page .admin-tasks-table th {
+    color: #374151;
+  }
+  .admin-tasks-page .admin-tasks-table td {
+    border-bottom-color: #e5e7eb;
+  }
+  .admin-tasks-page .admin-tasks-table .admin-tasks-cell-error {
+    color: #b91c1c;
+  }
+
+  /* Mobile admin tasks: filters responsive + table horizontal scroll */
+  .admin-tasks-page .admin-tasks-filters .ant-select,
+  .admin-tasks-page .admin-tasks-filters .ant-input {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .admin-tasks-page .admin-tasks-table-inner {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .admin-tasks-page .admin-tasks-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-tasks-page .admin-tasks-table {
+    min-width: 700px;
+  }
+
+  .form-group label {
+    color: #555;
+  }
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    background: #fff;
+    border-color: #ddd;
+    color: #213547;
+  }
+  .form-group button {
+    background: #f0f0f0;
+    color: #213547;
+    border-color: #ddd;
+  }
+  .form-group button:hover:not(:disabled) {
+    background: #eef2ff;
+    border-color: #6366f1;
+    color: #4338ca;
+  }
+  .response {
+    background: #fafafa;
+    border-color: #e0e0e0;
+    color: #213547;
+  }
+  .message {
+    color: #15803d;
+  }
+  .page-card hr {
+    border-top-color: #e0e0e0;
+  }
+  .dashboard-home .stat-card {
+    background: #fff;
+    border-color: #e0e0e0;
+  }
+  .dashboard-home .stat-value {
+    color: #213547;
+  }
+  .dashboard-home .quick-links h3 {
+    color: #444;
+  }
+  .dashboard-home .quick-links ul {
+    color: #555;
+  }
+}

@@ -1,0 +1,199 @@
+.module-agent-panel {
+  --ma-accent: var(--action-primary-solid, #0284c7);
+  --ma-accent-soft: rgba(14, 165, 233, 0.12);
+  --ma-surface: rgba(148, 163, 184, 0.06);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  gap: 0;
+}
+
+html.dark .module-agent-panel {
+  --ma-accent-soft: rgba(56, 189, 248, 0.14);
+  --ma-surface: rgba(15, 23, 42, 0.35);
+}
+
+.module-agent-panel__messages {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.15rem 0.1rem 0.75rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.module-agent-panel__empty {
+  margin: auto;
+  text-align: center;
+  color: var(--text-muted, #64748b);
+  font-size: 0.8125rem;
+  padding: 1.5rem;
+}
+
+.module-agent-panel__spin {
+  animation: module-agent-spin 0.8s linear infinite;
+  color: var(--ma-accent);
+}
+
+@keyframes module-agent-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.module-agent-panel__msg {
+  max-width: 100%;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  will-change: transform, opacity;
+}
+
+.module-agent-panel__msg--user {
+  align-self: flex-end;
+  max-width: 92%;
+  padding: 0.65rem 0.85rem;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--ma-accent-soft);
+  color: var(--text-main, #0f172a);
+  border: 1px solid rgba(14, 165, 233, 0.22);
+}
+
+.module-agent-panel__msg--assistant {
+  align-self: flex-start;
+  max-width: 96%;
+  padding: 0.7rem 0.9rem;
+  border-radius: 14px 14px 14px 4px;
+  background: var(--ma-bubble-assistant, rgba(241, 245, 249, 0.95));
+  color: var(--text-main, #0f172a);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+html.dark .module-agent-panel__msg--assistant {
+  --ma-bubble-assistant: rgba(30, 41, 59, 0.72);
+  border-color: rgba(71, 85, 105, 0.45);
+}
+
+.module-agent-panel__msg--assistant .agent-message-body,
+.module-agent-panel__msg--assistant .agent-md {
+  color: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.module-agent-panel__msg--assistant .agent-md p {
+  margin-bottom: 0.55em;
+}
+
+.module-agent-panel__msg--assistant .agent-md ul {
+  margin: 0.35em 0 0.65em;
+  padding-left: 1.25em;
+}
+
+.module-agent-panel__msg--assistant .agent-md li {
+  margin: 0.2em 0;
+}
+
+.module-agent-panel__msg--assistant .agent-md strong {
+  font-weight: 600;
+  color: var(--text-main, #0f172a);
+}
+
+.module-agent-panel__tasks {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+}
+
+/* 固定底部输入栏 */
+.module-agent-panel__composer {
+  flex-shrink: 0;
+  margin: 0 -0.15rem;
+  padding: 0.65rem 0.15rem 0.15rem;
+  border-top: 1px solid var(--divider, rgba(148, 163, 184, 0.22));
+  background: linear-gradient(
+    to top,
+    var(--glass-surface-strong, rgba(255, 255, 255, 0.96)) 70%,
+    transparent
+  );
+}
+
+html.dark .module-agent-panel__composer {
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.92) 65%, transparent);
+}
+
+.module-agent-panel__input-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-end;
+  padding: 0.4rem 0.45rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: var(--ma-surface);
+  transition:
+    border-color 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+
+.module-agent-panel__input-row:focus-within {
+  border-color: rgba(14, 165, 233, 0.55);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+
+.module-agent-panel__textarea {
+  flex: 1;
+  min-height: 2.5rem;
+  max-height: 7.5rem;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  padding: 0.35rem 0.25rem;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  line-height: 1.45;
+}
+
+.module-agent-panel__textarea::placeholder {
+  color: var(--text-muted, #94a3b8);
+  opacity: 1;
+}
+
+.module-agent-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding-bottom: 0.1rem;
+}
+
+.module-agent-panel__actions .agent-chat-icon-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  color: var(--text-muted, #64748b);
+}
+
+.module-agent-panel__actions .agent-chat-icon-btn--primary {
+  color: #fff;
+  background: var(--action-primary-gradient, var(--ma-accent));
+  box-shadow: var(--action-primary-shadow, 0 4px 12px rgba(14, 165, 233, 0.28));
+}
+
+.module-agent-panel__actions .agent-chat-icon-btn--primary:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module-agent-panel__msg {
+    will-change: auto;
+  }
+  .module-agent-panel__spin {
+    animation: none;
+  }
+}

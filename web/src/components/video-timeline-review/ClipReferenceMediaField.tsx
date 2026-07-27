@@ -67,7 +67,7 @@ export function ClipReferenceMediaField({ assets, taskId, onChange }: ClipRefere
         formTaskId={taskId}
         embedded
         acceptVideos
-        enableVirtualFolder
+        enableKnowledgeFolder
         maxImageItems={SEEDANCE_MAX_REFERENCE_IMAGES}
         maxVideoItems={SEEDANCE_MAX_REFERENCE_VIDEOS}
       />

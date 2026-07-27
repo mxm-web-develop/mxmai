@@ -58,6 +58,18 @@ const STOCK_QUERY_STOPWORDS = new Set([
 
 const MAX_STOCK_QUERY_WORDS = 5;
 
+/** 与 mxmcgi 对齐：开场/结尾用空旷背景 */
+export const OPENING_CLOSING_STOCK_QUERY = 'empty background';
+
+export function isOpeningOrClosingBeat(
+  meta?: Pick<MxmClipMetadata, 'mxmBeatRole' | 'mxmFragmentRole'> | null
+): boolean {
+  const beat = meta?.mxmBeatRole;
+  if (beat === 'opening' || beat === 'closing') return true;
+  const frag = meta?.mxmFragmentRole;
+  return frag === 'opening' || frag === 'outro';
+}
+
 /**
  * 归一化图库检索词：仅保留英文/数字词、去停用词、去重、限制词数。
  * 与 mxmcgi `stock-media-query.ts#normalizeStockQuery` 保持一致，保证预览与服务端结果同源。
@@ -113,6 +125,10 @@ export function buildStockSearchQuery(
   subtitleText?: string,
   input?: StockSearchQueryInput
 ): string {
+  if (isOpeningOrClosingBeat(meta)) {
+    return OPENING_CLOSING_STOCK_QUERY;
+  }
+
   // 1) LLM/用户显式检索词：归一化（英文、限词数）后使用
   const custom = meta?.mxmStockSearchQuery?.trim();
   if (custom) {
@@ -124,7 +140,11 @@ export function buildStockSearchQuery(
   const fromKeywords = englishKeywordsQuery(meta?.mxmStockKeywords);
   if (fromKeywords) return fromKeywords;
 
-  const prompt = meta?.mxmPrompt?.trim() ?? '';
+  const prompt =
+    meta?.mxmVideoPrompt?.trim() ||
+    meta?.mxmImagePrompt?.trim() ||
+    meta?.mxmPrompt?.trim() ||
+    '';
   const { topic: topicFromPrompt, segment: segmentFromPrompt } = extractPromptSemantics(prompt);
   const topic = input?.projectTopic?.trim() || topicFromPrompt;
 

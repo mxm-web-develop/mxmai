@@ -96,9 +96,13 @@ function normalizeTimelineSubtitle(raw: unknown, index: number): TimelineSubtitl
 
 const RENDER_INVALIDATING_KEYS = new Set([
   'mxmRenderMode',
+  'mxmVideoPrompt',
+  'mxmImagePrompt',
   'mxmPrompt',
   'mxmSourceImageUrl',
+  'mxmSourceVideoUrl',
   'mxmSourceAssetId',
+  'mxmStockUpstreamUrl',
   'mxmImageFit',
   'mxmImageMotionEnabled',
   'mxmImageMotion',
@@ -371,6 +375,52 @@ export function useVideoEditScript(initial: unknown, enrichInput?: VoiceoverEnri
     });
   }, []);
 
+  /**
+   * 将一次审核自动匹配到的库存图写回脚本（不标 mxmUserEdited）。
+   * 保证通过审核后的渲染使用同一素材，避免二次审核「变图」。
+   */
+  const commitAutoStockSources = useCallback(
+    (
+      commits: Array<{
+        clipId: string;
+        kind: 'image' | 'video';
+        url: string;
+        attribution?: string;
+      }>
+    ) => {
+      if (!commits.length) return;
+      setScriptState((prev) => {
+        if (!prev) return prev;
+        const byId = new Map(commits.map((c) => [c.clipId, c]));
+        let changed = false;
+        const next = structuredClone(prev);
+        for (const track of next.project.timeline.tracks) {
+          for (const clip of track.clips) {
+            const hit = byId.get(clip.id);
+            if (!hit?.url?.trim()) continue;
+            const meta = (clip.metadata ?? {}) as MxmClipMetadata;
+            if (meta.mxmSourceImageUrl?.trim() || meta.mxmSourceVideoUrl?.trim()) continue;
+            changed = true;
+            const url = hit.url.trim();
+            clip.metadata = {
+              ...meta,
+              ...(hit.kind === 'video'
+                ? { mxmSourceVideoUrl: url, mxmSourceImageUrl: undefined }
+                : { mxmSourceImageUrl: url, mxmSourceVideoUrl: undefined }),
+              mxmStockUpstreamUrl: url,
+              ...(hit.attribution ? { mxmStockAttribution: hit.attribution } : {}),
+              mxmRenderStatus: 'pending',
+              mxmRenderedVideoUrl: undefined,
+              mxmRenderError: undefined,
+            };
+          }
+        }
+        return changed ? next : prev;
+      });
+    },
+    []
+  );
+
   const setRenderMode = useCallback(
     (clipId: string, mode: MxmRenderMode) => {
       updateClip(clipId, { mxmRenderMode: mode });
@@ -612,6 +662,7 @@ export function useVideoEditScript(initial: unknown, enrichInput?: VoiceoverEnri
     audioMix,
     totalDuration,
     updateClip,
+    commitAutoStockSources,
     updateAudioClip,
     setBgmMedia,
     clearBgmMedia,

@@ -1,0 +1,88 @@
+.mxm-kb-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.mxm-kb-input__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.mxm-kb-input__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-inline-end: 0;
+  font-size: 0.75rem;
+}
+
+.mxm-kb-input__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mxm-kb-input-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.mxm-kb-input-picker {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  gap: 0.75rem;
+  min-height: 16rem;
+  max-height: 22rem;
+}
+
+.mxm-kb-input-picker__tree {
+  overflow: auto;
+  border-right: 1px solid var(--divider, rgba(148, 163, 184, 0.2));
+  padding-right: 0.5rem;
+}
+
+.mxm-kb-input-picker__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mxm-kb-input-picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.mxm-kb-input-list__ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 18rem;
+  overflow: auto;
+}
+
+.mxm-kb-input-list__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.5rem;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: start;
+  font-size: 0.8125rem;
+}
+
+.mxm-kb-input-list__item:hover {
+  background: rgba(148, 163, 184, 0.12);
+}

@@ -2,8 +2,78 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 500px;   /* 确保父容器有明确高度，支撑 canvas-wrap */
+  min-height: 500px;
   overflow: hidden;
+}
+
+.smartflow-designer-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sf-context-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1090;
+  pointer-events: none;
+}
+
+.sf-canvas-context-menu {
+  position: fixed;
+  z-index: 1100;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.98);
+}
+
+.sf-canvas-context-menu .ant-menu {
+  border-inline-end: none !important;
+  background: transparent;
+  color: #e2e8f0;
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+}
+
+.sf-canvas-context-menu .ant-menu-item,
+.sf-canvas-context-menu .ant-menu-submenu-title {
+  color: #e2e8f0 !important;
+}
+
+.sf-canvas-context-menu .ant-menu-item:hover,
+.sf-canvas-context-menu .ant-menu-submenu-title:hover {
+  background: rgba(99, 102, 241, 0.2) !important;
+  color: #f8fafc !important;
+}
+
+.sf-canvas-context-menu .ant-menu-submenu-arrow {
+  color: #94a3b8 !important;
+}
+
+/* 子菜单弹出层（portal 到 body，需单独类名；z-index 高于遮罩） */
+.sf-canvas-context-menu-popup.ant-menu-submenu-popup {
+  z-index: 1200 !important;
+  pointer-events: auto;
+}
+
+.sf-canvas-context-menu-popup.ant-menu-submenu-popup > .ant-menu {
+  background: rgba(15, 23, 42, 0.98) !important;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.sf-canvas-context-menu-popup .ant-menu-item {
+  color: #e2e8f0 !important;
+}
+
+.sf-canvas-context-menu-popup .ant-menu-item:hover {
+  background: rgba(99, 102, 241, 0.2) !important;
+  color: #f8fafc !important;
 }
 
 /* 工具栏：横向排列在画布上方 */
@@ -13,14 +83,38 @@
   overflow-x: auto;
   overflow-y: hidden;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: var(--surface-1, rgba(15, 23, 42, 0.35));
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-border);
+  background: rgba(2, 6, 23, 0.2);
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow: var(--shadow-md);
   flex-shrink: 0;
   height: auto;
-  min-height: 44px;
+  min-height: calc(var(--control-height) + var(--space-3));
+}
+
+.smartflow-designer-toolbar--top {
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-3);
+}
+
+.smartflow-designer-toolbar .ant-btn {
+  height: var(--control-height);
+  border-radius: var(--radius-md);
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+
+.smartflow-designer-toolbar .ant-select .ant-select-selector {
+  border-radius: var(--radius-md) !important;
+  min-height: var(--control-height) !important;
+}
+
+html:not(.dark) .smartflow-designer-toolbar {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(148, 163, 184, 0.36);
 }
 
 .smartflow-toolbar-divider {
@@ -31,19 +125,145 @@
 }
 
 .smartflow-designer-canvas-wrap {
+  position: relative;
   flex: 1;
-  min-height: 0;  /* 允许 flex 收缩 */
-  height: 100%;    /* 明确高度给 ReactFlow */
-  border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  min-height: 0;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-border);
   overflow: hidden;
   background: var(--surface-0, rgba(15, 23, 42, 0.55));
+  box-shadow: var(--shadow-sm);
 }
 
 .smartflow-designer-canvas-wrap .react-flow {
   --xy-background-color: transparent;
   width: 100%;
   height: 100%;
+}
+
+.smartflow-designer-canvas-wrap .react-flow__edge-loopBody path {
+  stroke: #06b6d4;
+}
+
+.sf-edge-toolbar {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+html.dark .sf-edge-toolbar {
+  background: rgba(30, 41, 59, 0.96);
+  border-color: rgba(148, 163, 184, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.smartflow-designer-canvas-wrap .react-flow__edgeupdater {
+  display: none !important;
+}
+
+.smartflow-designer-canvas-wrap .react-flow__edge.selected path {
+  stroke: #fbbf24 !important;
+  stroke-width: 2.5px !important;
+}
+
+.sf-canvas-node--loop {
+  position: relative;
+}
+
+.sf-handle-label {
+  position: absolute;
+  font-size: 8px;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 3px;
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+.sf-handle-label--main {
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(100, 116, 139, 0.35);
+  color: #cbd5e1;
+}
+
+.sf-handle-label--loop-body {
+  right: -36px;
+  top: 38%;
+  background: rgba(6, 182, 212, 0.25);
+  color: #67e8f9;
+}
+
+.sf-loop-body-edge-label {
+  position: absolute;
+  font-size: 10px;
+  line-height: 1.2;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(6, 182, 212, 0.18);
+  border: 1px solid rgba(6, 182, 212, 0.45);
+  color: #0891b2;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.sf-loop-body-edge-label--selected {
+  background: rgba(251, 191, 36, 0.22);
+  border-color: rgba(251, 191, 36, 0.75);
+  color: #b45309;
+}
+
+html.dark .sf-loop-body-edge-label {
+  color: #22d3ee;
+}
+
+html.dark .sf-loop-body-edge-label--selected {
+  color: #fcd34d;
+}
+
+.sf-canvas-node__loop-summary {
+  margin-top: 8px;
+  font-size: 10px;
+  line-height: 1.45;
+  opacity: 0.75;
+  border-top: 1px dashed rgba(6, 182, 212, 0.35);
+  padding-top: 6px;
+}
+
+.sf-canvas-node__loop-iterable {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  opacity: 0.85;
+  word-break: break-all;
+}
+
+.sf-canvas-node__loop-body-badge {
+  margin-top: 6px;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px dashed rgba(6, 182, 212, 0.4);
+  color: #67e8f9;
+}
+
+.sf-canvas-node__loop-body-badge--conflict {
+  background: rgba(234, 179, 8, 0.15);
+  border-color: rgba(234, 179, 8, 0.55);
+  color: #fcd34d;
+}
+
+.sf-canvas-node--loop-body-highlight {
+  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.55), 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+.sf-canvas-node--loop-body-member {
+  border-style: dashed !important;
 }
 
 @media (max-width: 768px) {

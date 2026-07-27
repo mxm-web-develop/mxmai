@@ -4,18 +4,18 @@ import { Clock, FolderTree, Globe, Image as ImageIcon, Images, Upload as UploadI
 import BrandLoading from '../BrandLoading';
 import { PageHint } from '../PageHint';
 import { ReferenceImageStockPicker } from '../schema-form/ReferenceImageStockPicker';
-import { VirtualFolderTreeSidebar } from '../asset-center';
-import { VirtualFolderContentList } from '../virtual-folder/VirtualFolderContentList';
+import { KnowledgeFolderTreeSidebar } from '../asset-center';
+import { KnowledgeFolderContentList } from '../knowledge-base/KnowledgeFolderContentList';
 import {
-  buildVirtualFolderBreadcrumb,
-  loadVirtualFolderBrowse,
-  loadVirtualFolderTree,
-  peekVirtualFolderBrowse,
+  buildKnowledgeFolderBreadcrumb,
+  loadKnowledgeFolderBrowse,
+  loadKnowledgeFolderTree,
+  peekKnowledgeFolderBrowse,
 } from '../schema-fields/voiceoverAudioUtils';
 import {
-  isVisualVirtualFolderLink,
-  resolveVirtualFolderVisualMedia,
-} from '../video-timeline-review/referenceMediaVirtualFolderUtils';
+  isVisualKnowledgeFolderLink,
+  resolveKnowledgeFolderVisualMedia,
+} from '../video-timeline-review/referenceMediaKnowledgeFolderUtils';
 import {
   deleteStorageObject,
   getFolders,
@@ -28,10 +28,10 @@ import {
   type StockImageItem,
   type StorageObjectListItem,
   type StorageObjectMode,
-  type VirtualFolderLinkItem,
+  type KnowledgeFolderLinkItem,
 } from '../../api/client';
 import { useAuthMediaPreview } from '../../hooks/useAuthMediaPreview';
-import { resolveLinkDisplayTitle } from '../virtual-folder/virtualFolderLinkDisplay';
+import { resolveLinkDisplayTitle } from '../knowledge-base/knowledgeFolderLinkDisplay';
 import type { MediaPickPayload, MediaSourcePickerTab } from './types';
 import '../schema-form/reference-images.css';
 import './unified-media-source.css';
@@ -78,7 +78,7 @@ export type MediaSourcePickerDrawerProps = {
   onClose: () => void;
   initialTab?: MediaSourcePickerTab;
   acceptVideos?: boolean;
-  enableVirtualFolder?: boolean;
+  enableKnowledgeFolder?: boolean;
   formTaskId?: string;
   closeOnPick?: boolean;
   onPick: (item: MediaPickPayload) => void;
@@ -91,7 +91,7 @@ export function MediaSourcePickerDrawer({
   onClose,
   initialTab = 'upload',
   acceptVideos = false,
-  enableVirtualFolder = false,
+  enableKnowledgeFolder = false,
   formTaskId,
   closeOnPick = false,
   onPick,
@@ -111,9 +111,9 @@ export function MediaSourcePickerDrawer({
   const [recentRefreshing, setRecentRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const [vfFolders, setVfFolders] = useState<Awaited<ReturnType<typeof loadVirtualFolderTree>>>([]);
+  const [vfFolders, setVfFolders] = useState<Awaited<ReturnType<typeof loadKnowledgeFolderTree>>>([]);
   const [vfSelectedFolderId, setVfSelectedFolderId] = useState<string | null>(null);
-  const [vfItems, setVfItems] = useState<Awaited<ReturnType<typeof loadVirtualFolderBrowse>>['items']>([]);
+  const [vfItems, setVfItems] = useState<Awaited<ReturnType<typeof loadKnowledgeFolderBrowse>>['items']>([]);
   const [vfSearch, setVfSearch] = useState('');
   const [vfLoading, setVfLoading] = useState(false);
 
@@ -184,32 +184,32 @@ export function MediaSourcePickerDrawer({
   }, [open, tab, libraryBrowseMode, acceptVideos]);
 
   useEffect(() => {
-    if (!open || tab !== 'virtual' || !enableVirtualFolder) return;
-    void loadVirtualFolderTree()
+    if (!open || tab !== 'knowledge' || !enableKnowledgeFolder) return;
+    void loadKnowledgeFolderTree()
       .then((folders) => {
         setVfFolders(folders);
         if (!vfSelectedFolderId && folders[0]?.id) setVfSelectedFolderId(folders[0].id);
       })
-      .catch((e) => message.error(e instanceof Error ? e.message : '加载虚拟文件夹失败'));
-  }, [open, tab, enableVirtualFolder, message, vfSelectedFolderId]);
+      .catch((e) => message.error(e instanceof Error ? e.message : '加载知识库失败'));
+  }, [open, tab, enableKnowledgeFolder, message, vfSelectedFolderId]);
 
   useEffect(() => {
-    if (!open || tab !== 'virtual' || !enableVirtualFolder || !vfSelectedFolderId) return;
-    const cached = peekVirtualFolderBrowse(vfSelectedFolderId);
+    if (!open || tab !== 'knowledge' || !enableKnowledgeFolder || !vfSelectedFolderId) return;
+    const cached = peekKnowledgeFolderBrowse(vfSelectedFolderId);
     if (cached?.items) setVfItems(cached.items);
     setVfLoading(true);
-    void loadVirtualFolderBrowse(vfSelectedFolderId)
+    void loadKnowledgeFolderBrowse(vfSelectedFolderId)
       .then(({ items }) => setVfItems(items))
       .finally(() => setVfLoading(false));
-  }, [open, tab, enableVirtualFolder, vfSelectedFolderId]);
+  }, [open, tab, enableKnowledgeFolder, vfSelectedFolderId]);
 
-  const vfBreadcrumb = buildVirtualFolderBreadcrumb(vfFolders, vfSelectedFolderId);
+  const vfBreadcrumb = buildKnowledgeFolderBreadcrumb(vfFolders, vfSelectedFolderId);
   const vfDisplayedItems = vfItems.filter((it) => {
     if (it.type === 'dir') return true;
     if (it.type !== 'link') return false;
-    if (!isVisualVirtualFolderLink(it as VirtualFolderLinkItem)) return false;
+    if (!isVisualKnowledgeFolderLink(it as KnowledgeFolderLinkItem)) return false;
     if (!vfSearch.trim()) return true;
-    return (it as VirtualFolderLinkItem).name.toLowerCase().includes(vfSearch.trim().toLowerCase());
+    return (it as KnowledgeFolderLinkItem).name.toLowerCase().includes(vfSearch.trim().toLowerCase());
   });
 
   const finishPick = (item: MediaPickPayload) => {
@@ -243,9 +243,9 @@ export function MediaSourcePickerDrawer({
     });
   };
 
-  const pickFromVirtualFolder = async (link: VirtualFolderLinkItem) => {
+  const pickFromKnowledgeFolder = async (link: KnowledgeFolderLinkItem) => {
     try {
-      const resolved = await resolveVirtualFolderVisualMedia(link);
+      const resolved = await resolveKnowledgeFolderVisualMedia(link);
       if (!resolved?.url) {
         message.error('无法解析该软链的媒体地址');
         return;
@@ -254,7 +254,7 @@ export function MediaSourcePickerDrawer({
       finishPick({
         content: resolved.url,
         mediaKind: resolved.mediaKind,
-        source: 'virtual-folder',
+        source: 'knowledge-folder',
         sourceLabel: displayTitle,
         purpose: displayTitle,
       });
@@ -350,16 +350,16 @@ export function MediaSourcePickerDrawer({
               <Images size={15} />
               {acceptVideos ? '我的资产' : '我的图片'}
             </button>
-            {enableVirtualFolder ? (
+            {enableKnowledgeFolder ? (
               <button
                 type="button"
                 role="tab"
-                aria-selected={tab === 'virtual'}
-                className={`ref-images__source-tab${tab === 'virtual' ? ' ref-images__source-tab--active' : ''}`}
-                onClick={() => setTab('virtual')}
+                aria-selected={tab === 'knowledge'}
+                className={`ref-images__source-tab${tab === 'knowledge' ? ' ref-images__source-tab--active' : ''}`}
+                onClick={() => setTab('knowledge')}
               >
                 <FolderTree size={15} />
-                虚拟文件夹
+                知识库
               </button>
             ) : null}
             <button
@@ -511,15 +511,15 @@ export function MediaSourcePickerDrawer({
           </div>
         ) : null}
 
-        {tab === 'virtual' && enableVirtualFolder ? (
+        {tab === 'knowledge' && enableKnowledgeFolder ? (
           <div className="ref-images__panel ref-images__panel--virtual" style={{ display: 'flex', gap: 12, minHeight: 280 }}>
             <aside style={{ width: 200, flexShrink: 0 }}>
               {vfFolders.length === 0 ? (
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  暂无虚拟文件夹
+                  暂无知识库
                 </Typography.Text>
               ) : (
-                <VirtualFolderTreeSidebar
+                <KnowledgeFolderTreeSidebar
                   folders={vfFolders}
                   selectedFolderId={vfSelectedFolderId}
                   onSelect={setVfSelectedFolderId}
@@ -543,16 +543,16 @@ export function MediaSourcePickerDrawer({
                 style={{ marginBottom: 8 }}
               />
               {vfSelectedFolderId ? (
-                <VirtualFolderContentList
+                <KnowledgeFolderContentList
                   items={vfDisplayedItems}
                   loading={vfLoading}
                   compact
                   emptyDescription={vfSearch.trim() ? '无匹配素材' : '此文件夹暂无可选图片/视频'}
                   onOpenDir={setVfSelectedFolderId}
-                  onPickLink={(link) => void pickFromVirtualFolder(link)}
+                  onPickLink={(link) => void pickFromKnowledgeFolder(link)}
                 />
               ) : (
-                <Typography.Text type="secondary">请从左侧选择虚拟文件夹</Typography.Text>
+                <Typography.Text type="secondary">请从左侧选择知识库</Typography.Text>
               )}
             </div>
           </div>

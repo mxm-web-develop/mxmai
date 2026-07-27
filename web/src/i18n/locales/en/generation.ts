@@ -1,0 +1,48 @@
+export const generation = {
+  scope: {
+    video: 'Video',
+    graph: 'Image',
+    audio: 'Audio',
+    music: 'Music',
+    writing: 'Writing',
+    outline: 'Outline',
+    text: 'Text',
+    characters: 'Character',
+  },
+  create: {
+    video: 'New video task',
+    graph: 'New image task',
+    audio: 'New audio task',
+    music: 'New music task',
+    writing: 'New writing task',
+    outline: 'New outline task',
+    text: 'New text task',
+    textSync: 'New text task (sync)',
+  },
+  empty: {
+    video: 'No video tasks yet. Click "New video task" in the top right to start.',
+    graph: 'No image tasks yet. Click "New image task" in the top right to start.',
+    audio: 'No audio tasks yet. Click "New audio task" in the top right to start.',
+    music: 'No music tasks yet. Click "New music task" in the top right to start.',
+    writing: 'No writing tasks yet. Click "New writing task" in the top right to start.',
+    outline: 'No outline tasks yet. Click "New outline task" in the top right to start.',
+    text: 'No output yet. Click "New text task" in the top right to start.',
+    openApi: 'No tasks from third-party apps yet.',
+    openApiScoped: 'No {{scope}} tasks from third-party Open API apps yet.',
+  },
+  results: {
+    video: 'Video results',
+    videoGeneration: 'Video generation results',
+  },
+  preview: {
+    clip: 'Final clip / segment preview',
+    clipHint: 'Click a card to view the final clip or segment details',
+    segment: 'Segment preview',
+    segmentHint: 'Storyboard segments can be previewed and edited in the review modal',
+  },
+  clipLabel: {
+    aiImage: 'AI image',
+    aiVideo: 'AI video',
+    shot: 'Shot {{n}}',
+  },
+} as const;

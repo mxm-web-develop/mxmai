@@ -1,0 +1,118 @@
+.mxm-captcha-dialog {
+  margin: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: min(400px, calc(100vw - 2rem));
+  width: 100%;
+}
+
+.mxm-captcha-dialog::backdrop {
+  background: color-mix(in srgb, #0f172a 42%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.mxm-captcha-dialog__panel {
+  position: relative;
+  padding: 1.25rem 1.25rem 1.1rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, #cbd5e1 80%, transparent);
+  background: #ffffff;
+  box-shadow:
+    0 24px 48px -12px rgba(15, 23, 42, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+}
+
+.mxm-captcha-dialog__close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.mxm-captcha-dialog__close:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.mxm-captcha-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-right: 1.75rem;
+}
+
+.mxm-captcha-dialog__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #e0f2fe, #bae6fd);
+  color: #0369a1;
+  flex-shrink: 0;
+}
+
+.mxm-captcha-dialog__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.mxm-captcha-dialog__header p {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.mxm-captcha-dialog__error {
+  margin: 0.65rem 0 0;
+  font-size: 0.8125rem;
+  color: #dc2626;
+}
+
+.mxm-slider-captcha--modal {
+  width: 100%;
+}
+
+.mxm-slider-captcha--modal .rc-slider-captcha-panel {
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.mxm-slider-captcha--modal .rc-slider-captcha-jigsaw {
+  border-radius: 10px 10px 0 0;
+}
+
+.mxm-slider-captcha--modal .rc-slider-captcha-control {
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+html.dark .mxm-captcha-dialog__panel {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+html.dark .mxm-captcha-dialog__header h2 {
+  color: #f8fafc;
+}
+
+html.dark .mxm-captcha-dialog__header p {
+  color: #94a3b8;
+}

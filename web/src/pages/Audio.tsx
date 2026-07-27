@@ -1,56 +1,137 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { notification, Drawer, Button, Select } from 'antd';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { notification, Drawer, Button, Select, Modal, message, App } from 'antd';
 import {
   listCgiTasks,
   deleteTask,
-  fetchMediaBlobUrl,
   runTaskV2,
   type WritingTaskItem,
   type WritingTaskListResponse,
 } from '../api/client';
+import {
+  TaskBillingBar,
+  formatGenerateButtonLabel,
+  handleTaskBillingResponseError,
+  type TaskBillingState,
+} from '../components/billing/TaskBillingBar';
 import { useAuth } from '../context/AuthContext';
+import { useCgiTaskListSync } from '../hooks/useCgiTaskListSync';
+import { usePaginatedCgiTaskList } from '../hooks/usePaginatedCgiTaskList';
+import { useOpenApiTaskNav } from '../hooks/useOpenApiTaskNav';
+import {
+  GenerationTaskFilterSelect,
+  GenerationTaskToolbar,
+} from '../components/GenerationTaskToolbar';
+import { GenerationTaskListScroll } from '../components/task-list/PullToRefreshScroll';
+import type { TaskCreationSourceTab } from '../lib/taskCreationSource';
+import { TaskListLoading } from '../components/asset-loading';
 import { AudioViewerModal } from '../components/AudioViewerModal';
-import { useTaskV2FormConfig, formatTaskSelectionKey, parseTaskSelectionKey, TaskV2SchemaForm } from '../task-v2';
+import { TaskGridCard } from '../components/task-list/TaskGridCard';
+import { AudioTaskVisual } from '../components/task-list/AudioTaskVisual';
+import { TaskListLoadSentinel } from '../components/task-list/TaskListLoadSentinel';
+import { downloadGenerationTask } from '../lib/downloadGenerationTask';
+import {
+  useTaskV2FormConfig,
+  formatTaskSelectionKey,
+  parseTaskSelectionKey,
+  TaskV2SchemaForm,
+  TaskV2TaskNameField,
+  TASK_V2_DRAWER_FORM_CLASS,
+  TaskV2CreateSurface,
+  TaskV2CreateModeSwitch,
+  type TaskV2CreateMode,
+  pickTaskIdFromRunTaskV2Response,
+  pickParallelFromRunTaskV2Response,
+  prepareTaskV2SubmitParams,
+  buildTaskSelectionSelectOptions,
+} from '../task-v2';
+import { ManualReviewModal } from '../components/ManualReviewModal';
+import { isTaskEligibleForManualReview } from '../shared/manualReview';
+import { resolveTaskListStatus } from '../utils/mergeTaskItem';
+import { openMediaGenerationTaskPreview } from '../shared/openMediaGenerationTask';
+import { useGenerationTaskListBulkActions } from '../hooks/useGenerationTaskListBulkActions';
+import { useTranslation } from 'react-i18next';
+import { toAppLang } from '../i18n/appLocale';
+import { getTaskStatusLabel } from '../i18n/taskStatus';
+import { useTaskScopeLabels } from '../i18n/useTaskScopeLabels';
+import { useTaskStatusOptions } from '../i18n/useTaskStatusOptions';
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return !!v && typeof v === 'object' && !Array.isArray(v);
-}
-
-function pickTaskIdFromRunTaskV2Response(raw: unknown): string | null {
-  if (!isRecord(raw)) return null;
-  const inner = isRecord(raw.data) ? raw.data : raw;
-  const tid = inner.taskId;
-  return typeof tid === 'string' && tid.trim() ? tid : null;
-}
-
-const STATUS_MAP: Record<string, string> = {
-  pending: '等待中',
-  queued: '排队中',
-  processing: '生成中',
-  completed: '已完成',
-  failed: '失败',
-  cancelled: '已取消',
-};
-
-function getTaskTitle(t: WritingTaskItem): string {
-  const labelVal = (t.metadata?.label as string)?.trim();
-  const rp = t.requestParams as Record<string, unknown> | undefined;
+function getTaskTitle(task: WritingTaskItem, defaultTitle: string): string {
+  const labelVal = (task.metadata?.label as string)?.trim();
+  if (labelVal) return labelVal;
+  const rp = task.requestParams as Record<string, unknown> | undefined;
   const params = rp?.params as Record<string, unknown> | undefined;
   const textVal = (params?.text as string) || (params?.prompt as string) || '';
-  return (
-    labelVal ||
-    (textVal?.trim().length
-      ? `${textVal.slice(0, 40).replace(/\n/g, ' ').trim()}${textVal.length > 40 ? '…' : ''}`
-      : '音频任务')
-  );
+  return textVal?.trim().length
+    ? `${textVal.slice(0, 40).replace(/\n/g, ' ').trim()}${textVal.length > 40 ? '…' : ''}`
+    : defaultTitle;
 }
 
 export default function Audio() {
+  const { t, i18n } = useTranslation();
+  const scopeLabels = useTaskScopeLabels('audio');
+  const statusOptions = useTaskStatusOptions();
+  const { notification: ctxNotification, modal, message: ctxMessage } = App.useApp();
   const { isLoggedIn } = useAuth();
-  const [tasks, setTasks] = useState<WritingTaskItem[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
+
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [creationSourceTab, setCreationSourceTab] = useState<TaskCreationSourceTab>('web');
+  const listResetKey = `${creationSourceTab}|${filterStatus}`;
+
+  const fetchAudioPage = useCallback(
+    async (offset: number, limit: number) => {
+      const res = await listCgiTasks({
+        type: 'audio',
+        limit,
+        offset,
+        creationSource: creationSourceTab,
+        status: filterStatus || undefined,
+      });
+      if (res.error) throw new Error(res.error);
+      const body = res.data as WritingTaskListResponse | undefined;
+      return {
+        tasks: body?.data?.tasks ?? [],
+        total: body?.data?.total ?? 0,
+      };
+    },
+    [creationSourceTab, filterStatus]
+  );
+
+  const {
+    tasks,
+    setTasks,
+    hasMore,
+    loadingInitial: loadingTasks,
+    loadingMore,
+    loadMore,
+    refresh: loadTasks,
+  } = usePaginatedCgiTaskList({
+    enabled: isLoggedIn,
+    resetKey: listResetKey,
+    fetchPage: fetchAudioPage,
+  });
+
+  const [gridEpoch, setGridEpoch] = useState(0);
+  const prevTaskCountRef = useRef(0);
+  useEffect(() => {
+    if (tasks.length > prevTaskCountRef.current && prevTaskCountRef.current > 0) {
+      setGridEpoch((n) => n + 1);
+    }
+    prevTaskCountRef.current = tasks.length;
+  }, [tasks.length]);
 
   const [submitting, setSubmitting] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [createMode, setCreateMode] = useState<TaskV2CreateMode>('form');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerTask, setViewerTask] = useState<WritingTaskItem | null>(null);
+  const [viewerUrls, setViewerUrls] = useState<string[]>([]);
+  const [viewerLoading, setViewerLoading] = useState(false);
+  const [viewerError, setViewerError] = useState<string | null>(null);
+
+  const [reviewVisible, setReviewVisible] = useState(false);
+  const [reviewTask, setReviewTask] = useState<WritingTaskItem | null>(null);
 
   const {
     taskKey,
@@ -65,73 +146,50 @@ export default function Audio() {
     resetFormValues,
     configLoading,
     listLoading,
-  } = useTaskV2FormConfig({ scope: 'audio', enabled: isLoggedIn });
-
+    taskLabel,
+    onTaskLabelChange,
+    mergeTaskLabelIntoParams,
+    resetTaskLabelAfterSubmit,
+  } = useTaskV2FormConfig({ scope: 'audio', enabled: isLoggedIn, formDrawerOpen: formOpen });
   const selectedValue = useMemo(() => formatTaskSelectionKey(taskKey, subtype), [taskKey, subtype]);
+  const appLang = toAppLang(i18n.language);
   const audioSelectOptions = useMemo(
-    () =>
-      taskOptions.map((it) => ({
-        label: (() => {
-          const tk = (it.taskLabel ?? '').trim() || it.taskKey;
-          if (!it.subtype) return tk;
-          const st = (it.subtypeLabel ?? '').trim() || it.subtype;
-          return `${tk} / ${st}`;
-        })(),
-        value: formatTaskSelectionKey(it.taskKey, it.subtype),
-      })),
-    [taskOptions]
+    () => buildTaskSelectionSelectOptions(taskOptions, appLang),
+    [taskOptions, appLang]
   );
 
-  const [filterStatus, setFilterStatus] = useState<string>('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
+  const { fetchTaskIntoList } = useCgiTaskListSync(isLoggedIn, setTasks, loadTasks, {
+    listScope: 'audio',
+  });
 
-  const [viewerVisible, setViewerVisible] = useState(false);
-  const [viewerTask, setViewerTask] = useState<WritingTaskItem | null>(null);
-  const [viewerUrls, setViewerUrls] = useState<string[]>([]);
-  const [viewerLoading, setViewerLoading] = useState(false);
-  const [viewerError, setViewerError] = useState<string | null>(null);
+  const filteredTasks = useMemo(
+    () =>
+      [...tasks].sort(
+        (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+      ),
+    [tasks]
+  );
 
-  const loadTasks = useCallback(async () => {
-    if (!isLoggedIn) return;
-    setLoadingTasks(true);
-    try {
-      const res = await listCgiTasks({ type: 'audio', limit: 200, offset: 0 });
-      const body = res.data as WritingTaskListResponse | undefined;
-      const list = body?.data?.tasks ?? [];
-      setTasks(list);
-    } catch (e) {
-      console.error('加载音频任务失败:', e);
-      setTasks([]);
-    } finally {
-      setLoadingTasks(false);
-    }
-  }, [isLoggedIn]);
-
-  useEffect(() => {
-    loadTasks();
-    const interval = setInterval(loadTasks, 8000);
-    return () => clearInterval(interval);
-  }, [loadTasks]);
-
-  const filteredTasks = tasks
-    .filter((t) => {
-      if (filterStatus && t.status !== filterStatus) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      const aTime = new Date(a.createdAt ?? 0).getTime();
-      const bTime = new Date(b.createdAt ?? 0).getTime();
-      return bTime - aTime;
-    });
+  const bulk = useGenerationTaskListBulkActions({
+    tasks: filteredTasks,
+    setTasks,
+    modal,
+    message: ctxMessage,
+    onDeletedIds: (ids) => {
+      if (viewerTask && ids.has(viewerTask.id)) setViewerVisible(false);
+    },
+  });
 
   const handleSubmit = async () => {
     if (!isLoggedIn) {
-      notification.warning({ message: '请先登录', placement: 'top' });
+      ctxNotification.warning({ message: t('auth.pleaseLogin'), placement: 'top' });
       return;
     }
     if (!taskOptions.length) {
-      notification.warning({ message: '暂无可用的音频业务配置', placement: 'top' });
+      ctxNotification.warning({
+        message: t('common.task.noBusinessConfig', { scope: scopeLabels.scopeLabel }),
+        placement: 'top',
+      });
       return;
     }
 
@@ -141,20 +199,39 @@ export default function Audio() {
         scope: 'audio',
         taskKey,
         subtype,
-        params: formValues,
+        params: mergeTaskLabelIntoParams(
+          prepareTaskV2SubmitParams(formValues as Record<string, unknown>, formConfig?.schema, {
+            scope: 'audio',
+          })
+        ),
       });
+      if (res.error) {
+        if (handleTaskBillingResponseError(res)) return;
+        throw new Error(res.error);
+      }
       const taskId = pickTaskIdFromRunTaskV2Response(res.data);
-      notification.success({
-        message: '任务已创建',
-        description: taskId ? `${taskId}\n可在左侧任务列表中查看进度。` : '可在左侧任务列表中查看进度。',
+      const parallel = pickParallelFromRunTaskV2Response(res.data);
+      const parallelHint =
+        parallel && parallel.total > 1
+          ? `\n${t('common.task.created.parallel', { count: parallel.total })}。`
+          : '';
+      ctxNotification.success({
+        message:
+          parallel && parallel.total > 1
+            ? t('common.task.created.batch', { count: parallel.total })
+            : t('common.task.created.single'),
+        description: taskId
+          ? `${taskId}${parallelHint}\n${t('common.task.created.hint')}`
+          : t('common.task.created.hint'),
         placement: 'top',
       });
       setFormOpen(false);
       resetFormValues();
-      loadTasks();
+      resetTaskLabelAfterSubmit();
+      if (taskId) void fetchTaskIntoList(taskId);
     } catch (e) {
-      notification.error({
-        message: '提交失败',
+      ctxNotification.error({
+        message: t('common.submitFailed'),
         description: e instanceof Error ? e.message : String(e),
         placement: 'top',
       });
@@ -163,171 +240,210 @@ export default function Audio() {
     }
   };
 
-  const handleDeleteTask = async (e: React.MouseEvent, t: WritingTaskItem) => {
+  const handleDeleteTask = async (e: React.MouseEvent, task: WritingTaskItem) => {
     e.stopPropagation();
-    if (!window.confirm(`确定删除任务「${getTaskTitle(t)}」吗？此操作不可恢复。`)) return;
-    setDeletingId(t.id);
-    try {
-      const res = await deleteTask(t.id);
-      if (res.error) {
-        alert(res.error);
-      } else {
-        loadTasks();
-        if (viewerTask?.id === t.id) setViewerVisible(false);
-      }
-    } finally {
-      setDeletingId(null);
-    }
+    modal.confirm({
+      title: t('common.task.deleteConfirm.title'),
+      content: t('common.task.deleteConfirm.content', {
+        name: getTaskTitle(task, scopeLabels.defaultTitle),
+      }),
+      onOk: async () => {
+        setDeletingId(task.id);
+        try {
+          const res = await deleteTask(task.id);
+          if (res.error) {
+            message.error(res.error);
+          } else {
+            setTasks((prev) => prev.filter((item) => item.id !== task.id));
+            if (viewerTask?.id === task.id) setViewerVisible(false);
+          }
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
-  const handleTaskClick = async (t: WritingTaskItem) => {
-    setViewerVisible(true);
-    setViewerTask(t);
-    setViewerUrls([]);
-    setViewerError(null);
-    setViewerLoading(true);
-    try {
-      // 与图片一致：已完成的音频统一走带鉴权的媒体接口取 blob URL
-      // getTask 返回的 mediaUrls/storageUrls 可能是内网/受保护地址，<audio> 无法携带鉴权而导致播放失败
-      if (t.status === 'completed') {
-        const blobUrl = await fetchMediaBlobUrl(t.id, 'audio');
-        setViewerUrls([blobUrl]);
-      } else {
-        setViewerUrls([]);
-      }
-    } catch (e) {
-      setViewerError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setViewerLoading(false);
-    }
-  };
+  const handleTaskClick = (t: WritingTaskItem) =>
+    void openMediaGenerationTaskPreview(t, 'audio', {
+      setReviewTask,
+      setReviewVisible,
+      setViewerVisible,
+      setViewerTask,
+      setViewerUrls,
+      setViewerLoading,
+      setViewerError,
+      setTasks,
+      onStaleReviewCompleted: () =>
+        ctxMessage.info('该任务已完成，正在打开音频预览…'),
+    });
+
+  useOpenApiTaskNav({
+    page: 'audio',
+    isLoggedIn,
+    tasks,
+    loadingTasks,
+    setCreationSourceTab,
+    onOpenTask: handleTaskClick,
+  });
+
+  const [billing, setBilling] = useState<TaskBillingState>({
+    canSubmit: true,
+    blockReason: null,
+    estimate: null,
+    loading: false,
+  });
+  const onBillingStateChange = useCallback((s: TaskBillingState) => setBilling(s), []);
 
   const renderForm = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Select
-          style={{ minWidth: 260 }}
-          placeholder="选择业务（taskKey / subtype）"
-          value={taskOptions.length > 0 ? selectedValue : undefined}
-          options={audioSelectOptions}
-          onChange={(v) => {
-            const p = parseTaskSelectionKey(String(v));
-            setTaskKey(p.taskKey);
-            setSubtype(p.subtype);
-            clearPendingForm();
-          }}
-        />
-        <Button type="primary" loading={submitting} disabled={!formConfig?.schema} onClick={() => void handleSubmit()}>
-          生成
-        </Button>
-      </div>
+    <div className={TASK_V2_DRAWER_FORM_CLASS}>
+      <Select
+        placeholder={t('common.task.selectBusiness')}
+        value={taskOptions.length > 0 ? selectedValue : undefined}
+        options={audioSelectOptions}
+        onChange={(v) => {
+          const p = parseTaskSelectionKey(String(v));
+          setTaskKey(p.taskKey);
+          setSubtype(p.subtype);
+          clearPendingForm();
+        }}
+      />
+      <TaskV2TaskNameField value={taskLabel} onChange={onTaskLabelChange} />
       <TaskV2SchemaForm
         formConfig={formConfig}
         formValues={formValues}
         onChange={setFormValues}
         loading={configLoading || listLoading}
       />
+      <TaskBillingBar
+        scope="audio"
+        taskKey={taskKey}
+        subtype={subtype}
+        params={formValues as Record<string, unknown>}
+        enabled={!!formConfig?.schema && isLoggedIn}
+        onStateChange={onBillingStateChange}
+      />
+      <Button
+        type="primary"
+        loading={submitting || billing.loading}
+        disabled={!formConfig?.schema || !billing.canSubmit}
+        onClick={() => void handleSubmit()}
+      >
+        {formatGenerateButtonLabel(t('common.generate'), billing.estimate, billing.loading, {
+          insufficientBalance: billing.blockReason === 'insufficient_balance',
+          locale: toAppLang(i18n.language),
+        })}
+      </Button>
     </div>
   );
 
   return (
-    <section className="page-card audio-page">
-      <div className="audio-header">
-        <div className="audio-header-main">
-          <div className="audio-filters">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="audio-filter-select"
-            >
-              <option value="">全部状态</option>
-              {Object.entries(STATUS_MAP).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="audio-header-actions">
-          <button
-            type="button"
-            className="btn-secondary btn-small"
-            onClick={() => loadTasks()}
-            disabled={loadingTasks}
+    <section className="page-card generation-console-page audio-page">
+      <GenerationTaskToolbar
+        creationSource={{ value: creationSourceTab, onChange: setCreationSourceTab }}
+        filters={
+          <GenerationTaskFilterSelect
+            value={filterStatus}
+            onChange={(v) => setFilterStatus(v)}
+            aria-label={t('common.task.filter.statusAria')}
           >
-            {loadingTasks ? '刷新中…' : '刷新列表'}
-          </button>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => setFormOpen(true)}
-            disabled={!isLoggedIn}
-          >
-            新建音频任务
-          </button>
-        </div>
-      </div>
+            <option value="">{t('common.task.filter.allStatuses')}</option>
+            {statusOptions.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </GenerationTaskFilterSelect>
+        }
+        onRefresh={() => void loadTasks()}
+        refreshLoading={loadingTasks}
+        primaryAction={{
+          label: scopeLabels.createLabel,
+          onClick: () => setFormOpen(true),
+          disabled: !isLoggedIn,
+        }}
+        bulkSelection={bulk.toolbarBulkSelection}
+      />
 
-      <div className="audio-list-scroll">
+      <GenerationTaskListScroll
+        className="audio-list-scroll"
+        onRefresh={() => void loadTasks()}
+        refreshing={loadingTasks}
+        disabled={!isLoggedIn}
+      >
         {!isLoggedIn ? (
-          <p className="muted">请先登录以查看任务列表。</p>
+          <p className="muted">{t('auth.pleaseLoginToViewTasks')}</p>
         ) : loadingTasks ? (
-          <p className="muted">加载中...</p>
+          <TaskListLoading layout="media-grid" kind="audio" count={6} />
         ) : filteredTasks.length === 0 ? (
-          <p className="muted">暂无音频任务，点击右上角「新建音频任务」开始。</p>
+          <p className="muted">
+            {creationSourceTab === 'open_api'
+              ? t('generation.empty.openApiScoped', { scope: scopeLabels.scopeLabel })
+              : scopeLabels.emptyHint}
+          </p>
         ) : (
           <ul className="audio-task-list">
-            {filteredTasks.map((t) => (
-              <li
-                key={t.id}
-                className="audio-task-item audio-task-item-clickable"
-                role="button"
-                tabIndex={0}
-                onClick={() => handleTaskClick(t)}
-                onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
-              >
-                <div className="audio-task-main">
-                  <span className="audio-task-title" title={getTaskTitle(t)}>
-                    {getTaskTitle(t)}
-                  </span>
-                  <span className="audio-task-actions">
-                    <span className={`audio-task-status audio-task-status--${t.status}`}>
-                      {STATUS_MAP[t.status] ?? t.status}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn-danger btn-small"
-                      title="删除"
-                      onClick={(e) => handleDeleteTask(e, t)}
-                      disabled={deletingId === t.id}
-                    >
-                      {deletingId === t.id ? '…' : '删除'}
-                    </button>
-                  </span>
-                </div>
-                <div className="audio-task-meta">
-                  <code className="audio-task-id">{t.id}</code>
-                  {t.progress?.progress != null && (
-                    <span className="audio-task-progress">{t.progress.progress}%</span>
-                  )}
-                  {t.progress?.error && (
-                    <span className="audio-task-error" title={t.progress.error}>
-                      {t.progress.error.slice(0, 60)}
-                      {t.progress.error.length > 60 ? '…' : ''}
-                    </span>
-                  )}
-                </div>
-              </li>
-            ))}
+            {filteredTasks.map((task) => {
+              const displayStatus = resolveTaskListStatus(task);
+              const awaitingReview = isTaskEligibleForManualReview(task);
+              return (
+                <TaskGridCard
+                  key={task.id}
+                  task={task}
+                  prefix="audio"
+                  title={getTaskTitle(task, scopeLabels.defaultTitle)}
+                  status={displayStatus}
+                  statusLabel={getTaskStatusLabel(displayStatus, t)}
+                  animateKey={gridEpoch}
+                  visual={
+                    <AudioTaskVisual
+                      task={task}
+                      status={displayStatus}
+                      awaitingReview={awaitingReview}
+                    />
+                  }
+                  onClick={() => bulk.wrapTaskClick(task.id, () => void handleTaskClick(task))}
+                  onDelete={(e) => void handleDeleteTask(e, task)}
+                  onMove={(e) => {
+                    e.stopPropagation();
+                    bulk.openMoveToFolder([task.id]);
+                  }}
+                  onDownload={async (e) => {
+                    e.stopPropagation();
+                    await downloadGenerationTask(task, 'audio');
+                  }}
+                  deleting={deletingId === task.id}
+                  selectionMode={bulk.selectionMode}
+                  selected={bulk.isSelected(task.id)}
+                  onToggleSelect={() => bulk.toggleSelected(task.id)}
+                />
+              );
+            })}
+            <TaskListLoadSentinel
+              enabled={hasMore && !filterStatus}
+              loading={loadingMore}
+              onVisible={() => void loadMore()}
+            />
           </ul>
         )}
-      </div>
+      </GenerationTaskListScroll>
+
+      <ManualReviewModal
+        open={reviewVisible}
+        task={reviewTask}
+        title={reviewTask ? `${getTaskTitle(reviewTask, scopeLabels.defaultTitle)} · 口播稿审核` : '口播稿审核'}
+      hint="前置 text 子任务已生成口播稿。请检查、编辑后点击「开始生成」继续 TTS 合成。正文为临时草稿，确认后不会长期保存在任务里；如需保留请展开下方「保存到知识库」。"
+        onClose={() => {
+          setReviewVisible(false);
+          setReviewTask(null);
+        }}
+        onApproved={() => void loadTasks()}
+      />
 
       <AudioViewerModal
         visible={viewerVisible}
         onClose={() => setViewerVisible(false)}
-        title={viewerTask ? getTaskTitle(viewerTask) : '音频结果'}
+        title={viewerTask ? getTaskTitle(viewerTask, scopeLabels.defaultTitle) : '音频结果'}
         task={viewerTask}
         mediaUrls={viewerUrls}
         loading={viewerLoading}
@@ -335,15 +451,33 @@ export default function Audio() {
       />
 
       <Drawer
-        title="新建音频任务"
+        title={
+          <div className="task-v2-drawer-header">
+            <span className="task-v2-drawer-header__title">{scopeLabels.createLabel}</span>
+            <TaskV2CreateModeSwitch value={createMode} onChange={setCreateMode} />
+          </div>
+        }
         placement="right"
         size={520}
         open={formOpen}
-        onClose={() => setFormOpen(false)}
+        onClose={() => {
+          setFormOpen(false);
+          setCreateMode('form');
+        }}
         destroyOnHidden
+        className="audio-drawer task-v2-create-drawer"
       >
-        {renderForm()}
+        <TaskV2CreateSurface
+          scope="audio"
+          mode={createMode}
+          onModeChange={setCreateMode}
+          open={formOpen}
+        >
+          {renderForm()}
+        </TaskV2CreateSurface>
       </Drawer>
+
+      {bulk.moveModal}
     </section>
   );
 }

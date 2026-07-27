@@ -88,7 +88,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  /* 与 stage 画幅对齐，勿用 contain（会导致叠字相对画面缩小/偏移） */
+  object-fit: fill;
   pointer-events: none;
 }
 
@@ -160,17 +161,18 @@
 
 .video-timeline-review__stage-subtitle-text {
   max-width: 90%;
-  padding: 6px 14px;
-  font-size: 16px;
+  padding: 8px 18px;
+  font-size: clamp(18px, 2.4vw, 28px);
   line-height: 1.5;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
   color: #f8fafc;
-  background: rgba(15, 23, 42, 0.72);
-  border-radius: 8px;
-  border: 1px solid rgba(125, 211, 252, 0.3);
+  background: rgba(15, 23, 42, 0.78);
+  border-radius: 10px;
+  border: 1px solid rgba(125, 211, 252, 0.35);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
   white-space: pre-wrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .video-timeline-review__preview--playback {
@@ -500,11 +502,6 @@
   z-index: 1;
 }
 
-.video-timeline-review__clip--active {
-  outline: 2px solid rgba(255, 255, 255, 0.85);
-  outline-offset: -2px;
-}
-
 .video-timeline-review__subtitle-clip--active {
   background: #ddd6fe;
   border-color: #8b5cf6;
@@ -732,18 +729,54 @@
   align-items: stretch;
 }
 
-.video-timeline-review__clip-wrap--selected .video-timeline-review__clip {
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35);
+.video-timeline-review__clip-wrap--selected {
+  z-index: 5;
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 2px #0ea5e9,
+    0 0 0 4px rgba(14, 165, 233, 0.5),
+    0 2px 12px rgba(2, 132, 199, 0.55);
 }
 
-.video-timeline-review__clip-wrap--active .video-timeline-review__clip {
-  outline: 2px solid rgba(255, 255, 255, 0.85);
-  outline-offset: -2px;
+.video-timeline-review__clip-wrap--selected .video-timeline-review__clip {
+  border-color: #e0f2fe;
+  border-width: 2px;
+  filter: brightness(1.14) saturate(1.1);
+}
+
+.video-timeline-review__clip-wrap--selected .video-timeline-review__clip::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #fbbf24, #f59e0b);
+  border-radius: 4px 0 0 4px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.video-timeline-review__clip-wrap--active:not(.video-timeline-review__clip-wrap--selected) {
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+
+.video-timeline-review__clip-wrap--active:not(.video-timeline-review__clip-wrap--selected)
+  .video-timeline-review__clip {
+  outline: none;
+  filter: brightness(1.06);
+}
+
+.video-timeline-review__clip-wrap--selected.video-timeline-review__clip-wrap--active {
+  box-shadow:
+    0 0 0 2px #38bdf8,
+    0 0 0 5px rgba(56, 189, 248, 0.6),
+    0 2px 14px rgba(14, 165, 233, 0.7);
 }
 
 .video-timeline-review__clip-wrap--resizing {
-  z-index: 4;
+  z-index: 6;
 }
 
 .video-timeline-review__resize-handle {
@@ -898,13 +931,13 @@
 }
 
 .video-timeline-review__clip--selected {
-  border-color: #0284c7;
-  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.25);
+  border-color: #e0f2fe;
+  border-width: 2px;
+  filter: brightness(1.14) saturate(1.1);
 }
 
 .video-timeline-review__clip--active {
-  outline: 2px solid rgba(255, 255, 255, 0.85);
-  outline-offset: -2px;
+  outline: none;
 }
 
 .video-timeline-review__inspector {
@@ -1351,10 +1384,10 @@
 
 .video-timeline-review__preview-subtitle-bar-text {
   max-width: min(720px, 92%);
-  padding: 8px 16px;
-  font-size: clamp(15px, 1.6vw, 20px);
+  padding: 8px 18px;
+  font-size: clamp(18px, 2.4vw, 28px);
   line-height: 1.55;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
   color: #f8fafc;
   background: rgba(15, 23, 42, 0.88);
@@ -1630,3 +1663,38 @@
   font-size: 12px;
 }
 
+
+
+/* —— writing-chat 居中卡片（非整屏铺满） —— */
+.manual-review-modal-wrap--centered-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.manual-review-modal-wrap--centered-card .ant-modal {
+  top: auto !important;
+  padding-bottom: 0;
+  max-width: min(560px, calc(100vw - 32px)) !important;
+}
+.manual-review-modal--centered-card.ant-modal {
+  width: min(560px, calc(100vw - 32px)) !important;
+}
+.writing-chat-review__topic {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: #f8fafc;
+}
+.writing-chat-review__topic-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+.writing-chat-review__topic-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.45;
+}

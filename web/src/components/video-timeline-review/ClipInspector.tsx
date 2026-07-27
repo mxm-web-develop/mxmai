@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Input, InputNumber, Select, Switch } from 'antd';
+import { Button, Input, InputNumber, Select, Switch, Typography } from 'antd';
 import { INSPECTOR_TIPS } from '../manualReviewUserCopy';
 import { AudioTrackInspector } from './AudioTrackInspector';
 import { ClipStaticMediaSourceField } from './ClipStaticMediaSourceField';
@@ -102,7 +102,30 @@ type ClipInspectorProps = {
   ) => void;
   onRetryClipRender?: (clipId: string) => void;
   retryingClipId?: string | null;
+  /** 视频轨多选 id（≥2 时右侧进入批量配置） */
+  selectedVisualIds?: string[];
+  onUpdateMany?: (clipIds: string[], patch: Record<string, unknown>) => void;
+  onBatchRetryRender?: (clipIds: string[]) => void;
+  batchBusy?: boolean;
 };
+
+function isAlbumGraphRoute(taskKey?: string, subtype?: string | null): boolean {
+  const tk = (taskKey ?? '').trim();
+  const sub = (subtype ?? '').trim();
+  return tk === 'group' || sub.includes('album');
+}
+
+function resolveAlbumGraphRoute(
+  options: VideoGeneratorOption[],
+  fallback?: { taskKey: string; subtype: string | null }
+): { taskKey: string; subtype: string | null } {
+  const hit = options.find((g) => isAlbumGraphRoute(g.taskKey, g.subtype));
+  if (hit) return { taskKey: hit.taskKey, subtype: hit.subtype };
+  if (fallback && isAlbumGraphRoute(fallback.taskKey, fallback.subtype)) {
+    return { taskKey: fallback.taskKey, subtype: fallback.subtype };
+  }
+  return { taskKey: 'group', subtype: 'content-album' };
+}
 
 function overlapsClip(sub: TimelineSubtitle, clip: ClipItem): boolean {
   const clipEnd = clip.startTime + clip.duration;
@@ -149,8 +172,15 @@ export function ClipInspector({
   onUpdateTransition,
   onRetryClipRender,
   retryingClipId = null,
+  selectedVisualIds = [],
+  onUpdateMany,
+  onBatchRetryRender,
+  batchBusy = false,
 }: ClipInspectorProps) {
   const { t } = useTranslation();
+  const multiIds = selectedVisualIds.length >= 2 ? selectedVisualIds : [];
+  const isMulti = multiIds.length >= 2;
+  const albumDefaultAppliedFor = useRef<string>('');
   const overlappingSubtitles = useMemo(() => {
     if (!clip) return [] as TimelineSubtitle[];
     return subtitles.filter((s) => overlapsClip(s, clip));
@@ -225,6 +255,35 @@ export function ClipInspector({
     [currentGraphGeneratorRoute, graphGeneratorOptions]
   );
 
+  const albumRoute = useMemo(
+    () => resolveAlbumGraphRoute(graphGeneratorOptions, defaultGraphGenerator),
+    [graphGeneratorOptions, defaultGraphGenerator]
+  );
+  const albumRouteValue = formatGeneratorRouteValue(albumRoute.taskKey, albumRoute.subtype);
+
+  // 多选 + 已选「AI 生成 / AI 配图」→ 默认图集/内容配图（每种多选自集合只写入一次）
+  useEffect(() => {
+    if (!isMulti || !onUpdateMany || !clip) return;
+    const m = clip.metadata ?? {};
+    const modeNow = m.mxmRenderMode ?? 'ai-video-gen';
+    const kindNow = m.mxmAiOutputKind ?? 'video';
+    if (modeNow !== 'ai-video-gen' || kindNow !== 'image') return;
+    const key = multiIds.slice().sort().join(',');
+    if (albumDefaultAppliedFor.current === key) return;
+    albumDefaultAppliedFor.current = key;
+    onUpdateMany(multiIds, {
+      mxmGraphTaskKey: albumRoute.taskKey,
+      mxmGraphSubtype: albumRoute.subtype ?? undefined,
+    });
+  }, [
+    isMulti,
+    multiIds,
+    onUpdateMany,
+    clip,
+    albumRoute.taskKey,
+    albumRoute.subtype,
+  ]);
+
   const segmentVoiceoverText = useMemo(() => {
     if (!clip) return '';
     return segmentVoiceoverDisplayText(clip.metadata ?? {}, clip, subtitles);
@@ -298,37 +357,52 @@ export function ClipInspector({
   const hasManualMedia = Boolean(meta.mxmSourceImageUrl?.trim() || meta.mxmSourceVideoUrl?.trim());
   const videoMode: MxmVideoMode = meta.mxmVideoMode ?? 'text-to-video';
   const isRenderedReview = timelinePhase === 'rendered';
+  const aiOutputKind = meta.mxmAiOutputKind ?? 'video';
+  const canPickGraphBusiness = mode === 'ai-video-gen' && aiOutputKind === 'image';
+
+  const patchClips = (patch: Record<string, unknown>) => {
+    if (isMulti && onUpdateMany) onUpdateMany(multiIds, patch);
+    else onUpdate(clip.id, patch);
+  };
 
   const applyGeneratorRoute = (routeValue: string) => {
     const { taskKey, subtype } = parseGeneratorRouteValue(routeValue);
     const normalized = normalizeVideoGeneratorRoute(taskKey, subtype);
-    onUpdate(clip.id, {
+    patchClips({
       mxmVideoTaskKey: normalized.taskKey,
       mxmVideoSubtype: normalized.subtype ?? undefined,
     });
   };
 
   const applyGraphGeneratorRoute = (routeValue: string) => {
+    if (!canPickGraphBusiness) return;
     const { taskKey, subtype } = parseGeneratorRouteValue(routeValue);
-    onUpdate(clip.id, {
+    patchClips({
       mxmGraphTaskKey: taskKey,
       mxmGraphSubtype: subtype ?? undefined,
     });
   };
 
-  const aiOutputKind = meta.mxmAiOutputKind ?? 'video';
+  const displayGraphRoute =
+    canPickGraphBusiness && isMulti && !isAlbumGraphRoute(meta.mxmGraphTaskKey, meta.mxmGraphSubtype)
+      ? albumRouteValue
+      : currentGraphGeneratorRoute;
 
   return (
     <div className="video-timeline-review__inspector">
       <header className="video-timeline-review__inspector-header">
-        <h4 className="video-timeline-review__inspector-title">{t('video.inspector.currentClip')}</h4>
+        <h4 className="video-timeline-review__inspector-title">
+          {isMulti ? t('video.batchAi.selected', { count: multiIds.length }) : t('video.inspector.currentClip')}
+        </h4>
         <span className="video-timeline-review__inspector-meta">
-          {clip.startTime.toFixed(1)}s · {clip.duration.toFixed(1)}s
+          {isMulti
+            ? t('video.batchAi.multiSelectHint')
+            : `${clip.startTime.toFixed(1)}s · ${clip.duration.toFixed(1)}s`}
         </span>
       </header>
 
       <div className="video-timeline-review__inspector-body">
-        {showSegmentVoiceover && onUpdateSegmentVoiceover ? (
+        {showSegmentVoiceover && onUpdateSegmentVoiceover && !isMulti ? (
           <section className="video-timeline-review__inspector-subtitle-block">
             <header className="video-timeline-review__inspector-subtitle-head">
               <span>{t('video.inspector.segmentVoiceover')}</span>
@@ -356,7 +430,7 @@ export function ClipInspector({
           <Select
             value={mode}
             onChange={(v: MxmRenderMode) =>
-              onUpdate(clip.id, {
+              patchClips({
                 mxmRenderMode: v,
                 ...(v === 'static-image'
                   ? {
@@ -373,6 +447,7 @@ export function ClipInspector({
           />
         </InspectorField>
 
+        {!isMulti && (
         <InspectorField
           label={t('video.inspector.durationSec')}
           tip={{ title: t('video.inspector.durationTip'), description: INSPECTOR_TIPS.duration }}
@@ -386,6 +461,7 @@ export function ClipInspector({
             onChange={(v) => v != null && onUpdate(clip.id, { duration: v })}
           />
         </InspectorField>
+        )}
 
         {mode === 'ai-video-gen' && (
           <>
@@ -398,8 +474,15 @@ export function ClipInspector({
             >
               <Select
                 value={aiOutputKind}
-                onChange={(v: 'video' | 'image') =>
-                  onUpdate(clip.id, {
+                onChange={(v: 'video' | 'image') => {
+                  const albumPatch =
+                    v === 'image' && isMulti
+                      ? {
+                          mxmGraphTaskKey: albumRoute.taskKey,
+                          mxmGraphSubtype: albumRoute.subtype ?? undefined,
+                        }
+                      : {};
+                  patchClips({
                     mxmAiOutputKind: v,
                     ...(v === 'image'
                       ? {
@@ -408,16 +491,23 @@ export function ClipInspector({
                             meta.mxmImageMotion && meta.mxmImageMotion !== 'none'
                               ? meta.mxmImageMotion
                               : 'zoom-in',
+                          ...albumPatch,
                         }
                       : {}),
-                  })
-                }
+                  });
+                }}
                 options={[
                   { value: 'video', label: t('video.inspector.aiVideoSeedance') },
                   { value: 'image', label: t('video.inspector.aiImageMotion') },
                 ]}
               />
             </InspectorField>
+            {isMulti && aiOutputKind === 'video' ? (
+              <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
+                {t('video.batchAi.needAiImageFirst')}
+              </Typography.Text>
+            ) : null}
+            {!isMulti && (
             <InspectorField
               label={t('video.inspector.referenceMedia')}
               tip={{
@@ -436,7 +526,9 @@ export function ClipInspector({
                 }}
               />
             </InspectorField>
+            )}
             {aiOutputKind === 'video' ? (
+              !isMulti ? (
               <>
             <InspectorField
               label={t('video.inspector.generatorBusiness')}
@@ -456,7 +548,7 @@ export function ClipInspector({
             <InspectorField label={t('video.inspector.videoGenMode')}>
               <Select
                 value={videoMode}
-                onChange={(v: MxmVideoMode) => onUpdate(clip.id, { mxmVideoMode: v })}
+                onChange={(v: MxmVideoMode) => patchClips({ mxmVideoMode: v })}
                 options={(Object.keys(VIDEO_MODE_LABEL_KEY) as MxmVideoMode[]).map((k) => ({
                   value: k,
                   label: t(VIDEO_MODE_LABEL_KEY[k]),
@@ -469,29 +561,55 @@ export function ClipInspector({
             >
               <Input.TextArea
                 rows={4}
-                value={meta.mxmPrompt ?? ''}
-                onChange={(e) => onUpdate(clip.id, { mxmPrompt: e.target.value })}
+                value={meta.mxmVideoPrompt ?? meta.mxmPrompt ?? ''}
+                onChange={(e) =>
+                  patchClips({ mxmVideoPrompt: e.target.value, mxmPrompt: undefined })
+                }
                 placeholder={t('video.inspector.videoPromptPlaceholder')}
               />
             </InspectorField>
               </>
+              ) : null
             ) : (
               <>
                 <InspectorField
                   label={t('video.inspector.graphBusiness')}
                   tip={{
                     title: t('video.inspector.graphBusinessTitle'),
-                    description: t('video.inspector.graphBusinessDesc'),
+                    description: isMulti
+                      ? t('video.batchAi.graphBusinessMultiDesc')
+                      : t('video.inspector.graphBusinessDesc'),
                   }}
                 >
                   <Select
-                    value={currentGraphGeneratorRoute}
+                    value={displayGraphRoute}
                     onChange={applyGraphGeneratorRoute}
                     options={graphGeneratorSelectOptions}
                     optionLabelProp="label"
-                    labelRender={() => currentGraphGeneratorLabel}
+                    labelRender={() =>
+                      resolveGeneratorLabel(displayGraphRoute, graphGeneratorOptions)
+                    }
+                    disabled={!canPickGraphBusiness}
+                    placeholder={t('video.batchAi.needAiImageFirst')}
                   />
                 </InspectorField>
+                {isMulti && canPickGraphBusiness ? (
+                  <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: -4 }}>
+                    {t('video.batchAi.hintPlan')}
+                  </Typography.Paragraph>
+                ) : null}
+                {isMulti && canPickGraphBusiness && isRenderedReview && onBatchRetryRender ? (
+                  <Button
+                    type="primary"
+                    block
+                    loading={batchBusy}
+                    style={{ marginBottom: 12 }}
+                    onClick={() => onBatchRetryRender(multiIds)}
+                  >
+                    {t('video.batchAi.generate')}
+                  </Button>
+                ) : null}
+                {!isMulti && (
                 <InspectorField
                   label={t('video.inspector.graphPrompt')}
                   tip={{
@@ -501,15 +619,18 @@ export function ClipInspector({
                 >
                   <Input.TextArea
                     rows={4}
-                    value={meta.mxmPrompt ?? ''}
-                    onChange={(e) => onUpdate(clip.id, { mxmPrompt: e.target.value })}
+                    value={meta.mxmImagePrompt ?? meta.mxmPrompt ?? ''}
+                    onChange={(e) =>
+                      patchClips({ mxmImagePrompt: e.target.value, mxmPrompt: undefined })
+                    }
                     placeholder={t('video.inspector.graphPromptPlaceholder')}
                   />
                 </InspectorField>
+                )}
                 <InspectorField label={t('video.inspector.imageFit')}>
                   <Select
                     value={meta.mxmImageFit ?? DEFAULT_IMAGE_FIT}
-                    onChange={(v: MxmImageFit) => onUpdate(clip.id, { mxmImageFit: v })}
+                    onChange={(v: MxmImageFit) => patchClips({ mxmImageFit: v })}
                     options={(Object.keys(IMAGE_FIT_LABEL_KEY) as MxmImageFit[]).map((k) => ({
                       value: k,
                       label: t(IMAGE_FIT_LABEL_KEY[k]),
@@ -522,7 +643,7 @@ export function ClipInspector({
                     checked={isImageMotionEnabled(meta)}
                     onChange={(checked) => {
                       if (checked) {
-                        onUpdate(clip.id, {
+                        patchClips({
                           mxmImageMotionEnabled: true,
                           mxmImageMotion:
                             meta.mxmImageMotion && meta.mxmImageMotion !== 'none'
@@ -530,7 +651,7 @@ export function ClipInspector({
                               : 'zoom-in',
                         });
                       } else {
-                        onUpdate(clip.id, {
+                        patchClips({
                           mxmImageMotionEnabled: false,
                           mxmImageMotion: 'none',
                         });
@@ -542,7 +663,7 @@ export function ClipInspector({
                   <InspectorField label={t('video.inspector.motionType')}>
                     <Select
                       value={resolveClipImageMotion(meta)}
-                      onChange={(v: MxmImageMotion) => onUpdate(clip.id, { mxmImageMotion: v })}
+                      onChange={(v: MxmImageMotion) => patchClips({ mxmImageMotion: v })}
                       options={IMAGE_MOTION_OPTIONS.map((k) => ({
                         value: k,
                         label: t(IMAGE_MOTION_LABEL_KEY[k]),
@@ -555,7 +676,7 @@ export function ClipInspector({
           </>
         )}
 
-        {mode === 'static-image' && (
+        {mode === 'static-image' && !isMulti && (
           <>
             <InspectorField
               label={t('video.inspector.mediaSource')}
@@ -696,7 +817,80 @@ export function ClipInspector({
           </>
         )}
 
-        {isRenderedReview && meta.mxmRenderStatus && (
+        {isRenderedReview && isMulti ? (
+          <>
+            <InspectorField
+              label={t('video.inspector.visualType')}
+              tip={{ title: t('video.inspector.visualType'), description: INSPECTOR_TIPS.visualMode }}
+            >
+              <Select
+                value={mode}
+                onChange={(v: MxmRenderMode) => patchClips({ mxmRenderMode: v })}
+                options={ACTIVE_RENDER_MODES.map((k) => ({
+                  value: k,
+                  label: t(RENDER_MODE_LABEL_KEY[k]),
+                }))}
+              />
+            </InspectorField>
+            {mode === 'ai-video-gen' ? (
+              <>
+                <InspectorField label={t('video.inspector.aiOutputKind')}>
+                  <Select
+                    value={aiOutputKind}
+                    onChange={(v: 'video' | 'image') => {
+                      patchClips({
+                        mxmAiOutputKind: v,
+                        ...(v === 'image'
+                          ? {
+                              mxmImageMotionEnabled: true,
+                              mxmImageMotion: 'zoom-in',
+                              mxmGraphTaskKey: albumRoute.taskKey,
+                              mxmGraphSubtype: albumRoute.subtype ?? undefined,
+                              mxmAutoStockImage: false,
+                            }
+                          : {}),
+                      });
+                    }}
+                    options={[
+                      { value: 'video', label: t('video.inspector.aiVideoSeedance') },
+                      { value: 'image', label: t('video.inspector.aiImageMotion') },
+                    ]}
+                  />
+                </InspectorField>
+                {aiOutputKind !== 'image' ? (
+                  <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
+                    {t('video.batchAi.needAiImageFirst')}
+                  </Typography.Text>
+                ) : (
+                  <InspectorField label={t('video.inspector.graphBusiness')}>
+                    <Select
+                      value={displayGraphRoute}
+                      onChange={applyGraphGeneratorRoute}
+                      options={graphGeneratorSelectOptions}
+                      optionLabelProp="label"
+                      labelRender={() =>
+                        resolveGeneratorLabel(displayGraphRoute, graphGeneratorOptions)
+                      }
+                    />
+                  </InspectorField>
+                )}
+                {canPickGraphBusiness && onBatchRetryRender ? (
+                  <Button
+                    type="primary"
+                    block
+                    loading={batchBusy}
+                    style={{ marginBottom: 12 }}
+                    onClick={() => onBatchRetryRender(multiIds)}
+                  >
+                    {t('video.batchAi.generate')}
+                  </Button>
+                ) : null}
+              </>
+            ) : null}
+          </>
+        ) : null}
+
+        {isRenderedReview && !isMulti && meta.mxmRenderStatus && (
           <div
             className={`video-timeline-review__status-pill video-timeline-review__status-pill--${meta.mxmRenderStatus}`}
           >
@@ -705,7 +899,7 @@ export function ClipInspector({
           </div>
         )}
 
-        {isRenderedReview && meta.mxmRenderStatus === 'failed' && onRetryClipRender ? (
+        {isRenderedReview && !isMulti && meta.mxmRenderStatus === 'failed' && onRetryClipRender ? (
           <Button
             type="primary"
             block

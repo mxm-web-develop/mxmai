@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Input, Select, Space, Switch, Typography, Collapse } from 'antd';
+import { Alert, Button, Input, InputNumber, Select, Space, Switch, Typography, Collapse } from 'antd';
 import type { Node } from '@xyflow/react';
-import { BUSINESS_SCOPES, type SfCanvasData } from './schemaFlow';
+import { getBusinessScopes, type SfCanvasData } from './schemaFlow';
+import { PageHint } from '../PageHint';
 import {
   getTaskFormConfig,
   getTaskFormConfigList,
   type TaskFormConfig,
   type TaskFormConfigListItem,
 } from '../../api/client';
-import { formatTaskSelectionKey, parseTaskSelectionKey } from '../../task-v2/taskSelection';
+import {
+  SCHEMA_FIELD_TYPE_OPTIONS,
+  defaultContentForStartInputType,
+  normalizeStartInputType,
+  syncStartInputFromFormSchema,
+  type StartInputRow,
+} from '../../shared/schemaFieldTypes';
 
 type Props = {
   node: Node<SfCanvasData> | null;
@@ -16,6 +23,7 @@ type Props = {
   peerNodes: Node<SfCanvasData>[];
   onChange: (next: Record<string, unknown>) => void;
   onDelete: () => void;
+  onFocusLoopBody?: () => void;
 };
 
 function clone<T>(o: T): T {
@@ -27,12 +35,18 @@ function clone<T>(o: T): T {
  * 优先使用 API 返回的 taskLabel，否则显示原始 taskKey
  * （让 admin 必须配置 label）
  */
-function getBeautifiedTaskLabel(taskLabel: string | null | undefined, taskKey: string): string {
+function getBeautifiedTaskLabel(taskLabel: string | null | undefined, taskKey: string, subtype: string | null | undefined): string {
   if (taskLabel) return taskLabel;
-  return taskKey;
+  let label = taskKey;
+  // 如果 taskLabel 未配置，且有 subtype，则显示 taskKey / subtype
+  if (subtype) {
+    label = `${taskKey} / ${subtype}`;
+  }
+  return label;
 }
 
-export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Props) {
+export function SmartflowProperties({ node, peerNodes, onChange, onDelete, onFocusLoopBody }: Props) {
+  const BUSINESS_SCOPES = getBusinessScopes();
   const sf = useMemo<Record<string, unknown> | null>(() => {
     if (!node) return null;
     const raw = node.data?.sfNode;
@@ -44,6 +58,7 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
 
   // P1-5: JSON 字段实时校验状态
   const [eoError, setEoError] = useState<string>('');
+  const [fsError, setFsError] = useState<string>('');
   const [omError, setOmError] = useState<string>('');
   const [tpError, setTpError] = useState<string>('');
 
@@ -70,10 +85,32 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
 
   const selectedTaskKey = String((sf as Record<string, unknown>)?.taskKey ?? '');
   const selectedSubtype = ((sf as Record<string, unknown>)?.subtype ?? null) as string | null;
-  const selectedTaskSelectionKey = useMemo(() => {
-    if (!selectedTaskKey) return undefined;
-    return formatTaskSelectionKey(selectedTaskKey, selectedSubtype ?? null);
-  }, [selectedTaskKey, selectedSubtype]);
+
+  const taskKeyOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of taskOptions) {
+      const k = String(item.taskKey || '');
+      if (!k) continue;
+      const label = getBeautifiedTaskLabel(item.taskLabel, item.taskKey, null);
+      if (!map.has(k)) map.set(k, label);
+    }
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.value.localeCompare(b.value));
+  }, [taskOptions]);
+
+  const subtypeOptions = useMemo(() => {
+    if (!selectedTaskKey) return [];
+    const subs = new Set<string>();
+    for (const item of taskOptions) {
+      if (String(item.taskKey) !== selectedTaskKey) continue;
+      if (item.subtype == null || String(item.subtype).trim() === '') continue;
+      subs.add(String(item.subtype));
+    }
+    return Array.from(subs)
+      .map((v) => ({ value: v, label: v }))
+      .sort((a, b) => a.value.localeCompare(b.value));
+  }, [taskOptions, selectedTaskKey]);
 
   // 当 business_scope 或 scope 改变时，获取 taskKey 列表
   useEffect(() => {
@@ -93,11 +130,7 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
         const items = Array.isArray(data?.items) ? data!.items! : [];
         if (cancelled) return;
         setTaskOptions(items);
-        // 自动选中第一个 taskKey
-        if (!selectedTaskKey && items[0]) {
-          setField('taskKey', items[0].taskKey);
-          setField('subtype', items[0].subtype ?? null);
-        }
+        // 不自动选中第一个 taskKey，让用户自己选择
       } catch {
         if (!cancelled) setTaskOptions([]);
       } finally {
@@ -123,14 +156,17 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
         const res = await getTaskFormConfig({
           scope: effectiveScope,
           taskKey: selectedTaskKey || 'default',
-          ...(selectedSubtype ? { subtype: selectedSubtype } : {}),
+          ...(selectedSubtype !== null ? { subtype: selectedSubtype } : {}),
         });
+        console.log('[SmartflowProperties] getTaskFormConfig response:', res, 'effectiveScope:', effectiveScope, 'selectedTaskKey:', selectedTaskKey, 'selectedSubtype:', selectedSubtype);
         const data =
           (res.data as { data?: TaskFormConfig } | undefined)?.data ??
           (res.data as TaskFormConfig | undefined);
+        console.log('[SmartflowProperties] extracted data:', data, 'has schema:', !!data?.schema);
         if (cancelled) return;
         setFormConfig(data?.schema ? data : null);
-      } catch {
+      } catch (err) {
+        console.warn('[SmartflowProperties] getTaskFormConfig failed:', err, { effectiveScope, selectedTaskKey, selectedSubtype });
         if (!cancelled) setFormConfig(null);
       } finally {
         if (!cancelled) setFormConfigLoading(false);
@@ -154,11 +190,84 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
   const startInputs = useMemo(() => {
     if (t !== 'start' || !sf) return [];
     const arr = sf.input;
-    return Array.isArray(arr) ? (arr as { name?: string; type?: string }[]) : [];
+    return Array.isArray(arr) ? (arr as StartInputRow[]) : [];
   }, [sf, t]);
+
+  const renderStartInputDefaultEditor = (row: StartInputRow, idx: number) => {
+    const inputType = normalizeStartInputType(row.type);
+    const updateContent = (content: unknown) => {
+      const next = clone(startInputs);
+      next[idx] = { ...next[idx], content };
+      setField('input', next);
+    };
+    if (inputType === 'json' || inputType === 'referenceImages' || inputType === 'multiSelection' || inputType === 'eshopGarmentBatch') {
+      const raw =
+        row.content !== undefined && row.content !== null
+          ? typeof row.content === 'string'
+            ? row.content
+            : JSON.stringify(row.content, null, 2)
+          : JSON.stringify(defaultContentForStartInputType(inputType), null, 2);
+      return (
+        <Input.TextArea
+          size="small"
+          rows={inputType === 'eshopGarmentBatch' ? 4 : 2}
+          value={raw}
+          placeholder={inputType === 'eshopGarmentBatch' ? '[{ "label": "SKU-A", "images": [...] }]' : '[] 或 {}'}
+          onChange={(e) => {
+            try {
+              updateContent(JSON.parse(e.target.value || (inputType === 'json' ? '{}' : '[]')));
+            } catch {
+              updateContent(e.target.value);
+            }
+          }}
+          style={{ marginTop: 4, fontFamily: 'ui-monospace, monospace', fontSize: 11, width: '100%' }}
+        />
+      );
+    }
+    if (inputType === 'number') {
+      return (
+        <InputNumber
+          size="small"
+          style={{ width: '100%', marginTop: 4 }}
+          value={
+            typeof row.content === 'number'
+              ? row.content
+              : row.content !== undefined && row.content !== ''
+                ? Number(row.content)
+                : undefined
+          }
+          onChange={(v) => updateContent(v ?? defaultContentForStartInputType('number'))}
+        />
+      );
+    }
+    if (inputType === 'boolean') {
+      const checked =
+        row.content === true ||
+        row.content === 'true' ||
+        row.content === 1 ||
+        row.content === '1';
+      return (
+        <Switch
+          size="small"
+          checked={checked}
+          onChange={(v) => updateContent(v)}
+          style={{ marginTop: 4 }}
+        />
+      );
+    }
+    return (
+      <Input
+        size="small"
+        value={String(row.content ?? '')}
+        onChange={(e) => updateContent(e.target.value)}
+        style={{ marginTop: 4 }}
+      />
+    );
+  };
 
   const setField = (key: string, value: unknown) => {
     if (!sf) return;
+    console.log('[SmartflowProperties] setField:', { key, value, currentSf: { taskKey: sf.taskKey, subtype: sf.subtype } });
     onChange({ ...sf, [key]: value });
   };
 
@@ -342,56 +451,139 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
             </Typography.Text>
           </div>
           <Typography.Text strong style={{ fontSize: 12 }}>
-            输入字段（input_data 的 key）
+            输入字段（input_data 的 key，类型与业务 formSchema 一致）
           </Typography.Text>
           {startInputs.map((row, idx) => (
-            <Space key={idx} wrap style={{ width: '100%' }}>
-              <Input
-                size="small"
-                placeholder="字段名"
-                style={{ width: 100 }}
-                value={row.name ?? ''}
-                onChange={(e) => {
-                  const next = clone(startInputs);
-                  next[idx] = { ...next[idx], name: e.target.value };
-                  setField('input', next);
-                }}
-              />
-              <Select
-                size="small"
-                style={{ width: 100 }}
-                value={row.type ?? 'text'}
-                options={[
-                  { value: 'text', label: 'text' },
-                  { value: 'json', label: 'json' },
-                ]}
-                onChange={(v) => {
-                  const next = clone(startInputs);
-                  next[idx] = { ...next[idx], type: v };
-                  setField('input', next);
-                }}
-              />
+            <div
+              key={idx}
+              style={{
+                marginTop: 8,
+                padding: 8,
+                borderRadius: 6,
+                border: '1px solid var(--border-subtle, rgba(255,255,255,0.1))',
+              }}
+            >
+              <Space wrap style={{ width: '100%' }}>
+                <Input
+                  size="small"
+                  placeholder="字段名"
+                  style={{ width: 120 }}
+                  value={row.name ?? ''}
+                  onChange={(e) => {
+                    const next = clone(startInputs);
+                    next[idx] = { ...next[idx], name: e.target.value };
+                    setField('input', next);
+                  }}
+                />
+                <Select
+                  size="small"
+                  style={{ minWidth: 168 }}
+                  value={normalizeStartInputType(row.type)}
+                  options={SCHEMA_FIELD_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                  onChange={(v) => {
+                    const next = clone(startInputs);
+                    next[idx] = {
+                      ...next[idx],
+                      type: v,
+                      content: defaultContentForStartInputType(v),
+                    };
+                    setField('input', next);
+                  }}
+                />
+                <Button
+                  size="small"
+                  danger
+                  type="link"
+                  onClick={() => {
+                    const next = startInputs.filter((_, i) => i !== idx);
+                    setField('input', next);
+                  }}
+                >
+                  删
+                </Button>
+              </Space>
+              <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                默认值（运行页预填 / Open API 文档示例）
+              </Typography.Text>
+              {renderStartInputDefaultEditor(row, idx)}
+            </div>
+          ))}
+          <Space wrap style={{ width: '100%', marginTop: 8 }}>
+            <Button
+              size="small"
+              type="dashed"
+              onClick={() =>
+                setField('input', [
+                  ...startInputs,
+                  { name: 'field', type: 'string', content: defaultContentForStartInputType('string') },
+                ])
+              }
+            >
+              + 添加输入字段
+            </Button>
+            {sf.formSchema && typeof sf.formSchema === 'object' ? (
               <Button
                 size="small"
-                danger
-                type="link"
                 onClick={() => {
-                  const next = startInputs.filter((_, i) => i !== idx);
-                  setField('input', next);
+                  const synced = syncStartInputFromFormSchema(sf.formSchema as import('../../pages/AdminBusiness.types').JsonSchema);
+                  setField('input', synced);
                 }}
               >
-                删
+                从 formSchema 同步
               </Button>
-            </Space>
-          ))}
-          <Button
-            size="small"
-            type="dashed"
-            block
-            onClick={() => setField('input', [...startInputs, { name: 'field', type: 'text', content: '' }])}
-          >
-            + 添加输入字段
-          </Button>
+            ) : null}
+          </Space>
+          <div style={{ marginTop: 8 }}>
+            <div className="page-card-title-row" style={{ marginBottom: 6 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                formSchema（JSON）
+              </Typography.Text>
+              <PageHint
+                title="动态表单 formSchema（推荐）"
+                description="运行页与 Open API 优先使用下方 formSchema（SchemaForm）。上方 input[] 用于 legacy 简易表单与无 formSchema 时的回退；类型已与 Admin 业务字段对齐。"
+              />
+            </div>
+            <Input.TextArea
+              key={`fs-${String(sf.id)}`}
+              rows={8}
+              status={fsError ? 'error' : undefined}
+              value={JSON.stringify(sf.formSchema ?? {}, null, 2)}
+              onChange={(e) => {
+                try {
+                  const parsed = JSON.parse(e.target.value || '{}');
+                  setFsError('');
+                  setField('formSchema', Object.keys(parsed).length > 0 ? parsed : undefined);
+                } catch (err) {
+                  setFsError((err as Error).message);
+                }
+              }}
+              style={{ marginTop: 4, fontFamily: 'ui-monospace, monospace', fontSize: 11 }}
+            />
+            {fsError && (
+              <Typography.Text type="danger" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
+                JSON 语法错误：{fsError}
+              </Typography.Text>
+            )}
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              uiSchema（JSON，可选）
+            </Typography.Text>
+            <Input.TextArea
+              key={`uis-${String(sf.id)}`}
+              rows={3}
+              value={JSON.stringify(sf.uiSchema ?? {}, null, 2)}
+              onChange={(e) => {
+                try {
+                  const parsed = JSON.parse(e.target.value || '{}');
+                  setField('uiSchema', Object.keys(parsed).length > 0 ? parsed : undefined);
+                } catch {
+                  /* 编辑中允许临时无效 JSON */
+                }
+              }}
+              style={{ marginTop: 4, fontFamily: 'ui-monospace, monospace', fontSize: 11 }}
+            />
+          </div>
           <div>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               expected_outputs（JSON 数组）
@@ -426,6 +618,22 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
             - subtype: 细分类型（可选）
             - params: 动态参数，由 getTaskFormConfig 返回的 schema 定义
           */}
+
+          {/* 校验警告：business_scope 和 taskKey 必须选择 */}
+          {(!effectiveScope || !selectedTaskKey) && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 12 }}
+              title={
+                !effectiveScope && !selectedTaskKey
+                  ? '请先选择「业务大类」和「业务类型」'
+                  : !effectiveScope
+                  ? '请选择「业务大类」'
+                  : '请选择「业务类型」'
+              }
+            />
+          )}
 
           {/* Step 1: 选择 business_scope */}
           <div style={{ position: 'relative', paddingLeft: 12, borderLeft: '2px solid rgba(139,92,246,0.2)', paddingBottom: 4, marginBottom: 4 }}>
@@ -468,25 +676,19 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
               <Select
                 size="small"
                 style={{ width: '100%', marginTop: 4 }}
-                value={selectedTaskSelectionKey}
-                options={taskOptions.map((item) => ({
-                  value: formatTaskSelectionKey(item.taskKey, item.subtype ?? null),
-                  label: getBeautifiedTaskLabel(item.taskLabel, item.taskKey),
-                }))}
+                value={selectedTaskKey || undefined}
+                options={taskKeyOptions}
                 loading={taskOptionsLoading}
                 onChange={(v) => {
-                  if (!v) {
-                    setField('taskKey', '');
-                    setField('subtype', null);
-                    return;
-                  }
-                  const parsed = parseTaskSelectionKey(v);
-                  setField('taskKey', parsed.taskKey);
-                  setField('subtype', parsed.subtype);
-                  // P2-11: taskKey 变化时同步更新节点名称
-                  setField('name', `业务 · ${getBeautifiedTaskLabel(parsed.taskKey, parsed.taskKey)}`);
-                  // 重置 params
-                  setField('params', {});
+                  const nextTaskKey = String(v ?? '');
+                  const nextSubtype: string | null = null;
+                  onChange({
+                    ...sf,
+                    taskKey: nextTaskKey,
+                    subtype: nextSubtype,
+                    name: nextTaskKey ? `业务 · ${getBeautifiedTaskLabel(undefined, nextTaskKey, null)}` : String(sf.name ?? '业务节点'),
+                    params: {},
+                  });
                 }}
                 placeholder="选择具体业务"
                 allowClear
@@ -494,10 +696,39 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
             </div>
           )}
 
-          {/* Step 3: 动态渲染参数表单（根据 form-config schema） */}
+          {/* Step 3: 选择 subtype（可选） */}
+          {effectiveScope && selectedTaskKey && (
+            <div style={{ position: 'relative', paddingLeft: 12, borderLeft: '2px solid rgba(139,92,246,0.2)', paddingBottom: 4, marginBottom: 4 }}>
+              <span style={{ position: 'absolute', left: -9, top: 2, width: 16, height: 16, borderRadius: '50%', background: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#fff', fontWeight: 700 }}>3</span>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                subType (subtype，可选)
+              </Typography.Text>
+              <Select
+                size="small"
+                style={{ width: '100%', marginTop: 4 }}
+                value={selectedSubtype ?? undefined}
+                options={subtypeOptions}
+                loading={taskOptionsLoading}
+                onChange={(v) => {
+                  const nextSubtype = v ? String(v) : null;
+                  onChange({
+                    ...sf,
+                    subtype: nextSubtype,
+                    name: `业务 · ${getBeautifiedTaskLabel(undefined, selectedTaskKey, nextSubtype)}`,
+                    params: {},
+                  });
+                }}
+                placeholder={subtypeOptions.length ? '选择 subtype（可选）' : '该 taskKey 无 subtype'}
+                allowClear
+                disabled={subtypeOptions.length === 0}
+              />
+            </div>
+          )}
+
+          {/* Step 4: 动态渲染参数表单（根据 form-config schema） */}
           {effectiveScope && selectedTaskKey && (
             <div style={{ position: 'relative', paddingLeft: 12, borderLeft: '2px solid rgba(139,92,246,0.2)', paddingBottom: 4 }}>
-              <span style={{ position: 'absolute', left: -9, top: 2, width: 16, height: 16, borderRadius: '50%', background: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#fff', fontWeight: 700 }}>3</span>
+              <span style={{ position: 'absolute', left: -9, top: 2, width: 16, height: 16, borderRadius: '50%', background: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#fff', fontWeight: 700 }}>4</span>
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 业务参数 (params)
               </Typography.Text>
@@ -564,23 +795,48 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
               <Select
                 size="small"
                 style={{ width: '100%', marginTop: 4 }}
-                value={selectedTaskSelectionKey}
-                options={taskOptions.map((item) => ({
-                  value: formatTaskSelectionKey(item.taskKey, item.subtype ?? null),
-                  label: getBeautifiedTaskLabel(item.taskLabel, item.taskKey),
-                }))}
+                value={selectedTaskKey || undefined}
+                options={taskKeyOptions}
                 loading={taskOptionsLoading}
                 onChange={(v) => {
-                  if (!v) { setField('taskKey', ''); setField('subtype', null); return; }
-                  const parsed = parseTaskSelectionKey(v);
-                  setField('taskKey', parsed.taskKey);
-                  setField('subtype', parsed.subtype);
-                  // P2-11: taskKey 变化时同步更新节点名称
-                  setField('name', `LLM · ${getBeautifiedTaskLabel(parsed.taskKey, parsed.taskKey)}`);
-                  setField('params', {});
+                  const nextTaskKey = String(v ?? '');
+                  onChange({
+                    ...sf,
+                    taskKey: nextTaskKey,
+                    subtype: null,
+                    name: nextTaskKey ? `LLM · ${getBeautifiedTaskLabel(undefined, nextTaskKey, null)}` : String(sf.name ?? ''),
+                    params: {},
+                  });
                 }}
                 placeholder="选择具体业务"
                 allowClear
+              />
+            </div>
+          )}
+
+          {effectiveScope && selectedTaskKey && (
+            <div style={{ marginTop: 8 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                subType (subtype，可选)
+              </Typography.Text>
+              <Select
+                size="small"
+                style={{ width: '100%', marginTop: 4 }}
+                value={selectedSubtype ?? undefined}
+                options={subtypeOptions}
+                loading={taskOptionsLoading}
+                onChange={(v) => {
+                  const nextSubtype = v ? String(v) : null;
+                  onChange({
+                    ...sf,
+                    subtype: nextSubtype,
+                    name: `LLM · ${getBeautifiedTaskLabel(undefined, selectedTaskKey, nextSubtype)}`,
+                    params: {},
+                  });
+                }}
+                placeholder={subtypeOptions.length ? '选择 subtype（可选）' : '该 taskKey 无 subtype'}
+                allowClear
+                disabled={subtypeOptions.length === 0}
               />
             </div>
           )}
@@ -775,12 +1031,35 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
               style={{ width: '100%', marginTop: 4 }}
               value={String(sf.tool_type ?? 'web_search')}
               options={[
-                { value: 'web_search', label: 'web_search' },
-                { value: 'web_scraper', label: 'web_scraper' },
-                { value: 'embedding', label: 'embedding' },
-                { value: 'http_request', label: 'http_request' },
-                { value: 'code_executor', label: 'code_executor' },
-                { value: 'custom', label: 'custom' },
+                {
+                  label: '默认工具',
+                  options: [
+                    { value: 'deep_search', label: 'deep_search (深度搜索)' },
+                    { value: 'web_scraper', label: 'web_scraper (网页爬虫)' },
+                    { value: 'code_executor', label: 'code_executor (代码执行)' },
+                    { value: 'vector_store', label: 'vector_store (向量存储)' },
+                    { value: 'vector_recall', label: 'vector_recall (向量召回)' },
+                  ],
+                },
+                {
+                  label: '专业数据源',
+                  options: [
+                    { value: 'domain_search', label: 'domain_search (领域统一检索)' },
+                    { value: 'legal_search', label: 'legal_search (法律检索)' },
+                    { value: 'stock_lookup', label: 'stock_lookup (股市行情)' },
+                    { value: 'crypto_lookup', label: 'crypto_lookup (币圈数据)' },
+                    { value: 'company_lookup', label: 'company_lookup (工商信息)' },
+                  ],
+                },
+                {
+                  label: '高级工具（可选）',
+                  options: [
+                    { value: 'http_request', label: 'http_request (HTTP请求)' },
+                    { value: 'multi_dimension_search', label: 'multi_dimension_search (多维搜索)' },
+                    { value: 'embedding', label: 'embedding (向量生成-legacy)' },
+                    { value: 'custom', label: 'custom (自定义)' },
+                  ],
+                },
               ]}
               onChange={(v) => setField('tool_type', v)}
             />
@@ -973,6 +1252,77 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
               style={{ marginTop: 4 }}
             />
           </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              循环体节点（loop_nodes）
+            </Typography.Text>
+            <Select
+              mode="multiple"
+              size="small"
+              style={{ width: '100%', marginTop: 4 }}
+              placeholder="选择循环体内执行的节点"
+              value={Array.isArray(sf.loop_nodes) ? (sf.loop_nodes as string[]) : []}
+              options={peerNodeOptions.filter((o) => {
+                const n = peerNodes.find((p) => p.id === o.value);
+                const type = String(n?.data?.sfNode?.type ?? n?.type ?? '');
+                return type !== 'start' && type !== 'end';
+              })}
+              onChange={(v) => setField('loop_nodes', v)}
+            />
+            {onFocusLoopBody && (
+              <Button size="small" type="link" style={{ padding: 0, marginTop: 4 }} onClick={onFocusLoopBody}>
+                定位循环体
+              </Button>
+            )}
+            <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+              循环体：从 Loop 右侧「循环体」拖到业务节点，或在下方多选 loop_nodes；青色虚线仅展示，不可选中
+            </Typography.Text>
+          </div>
+          <Space style={{ marginTop: 8 }} wrap>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              并行迭代
+            </Typography.Text>
+            <Switch
+              checked={Boolean(sf.parallel_iterations)}
+              onChange={(v) => setField('parallel_iterations', v)}
+            />
+            {sf.parallel_iterations && (
+              <>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  最大并发
+                </Typography.Text>
+                <Input
+                  size="small"
+                  type="number"
+                  style={{ width: 72 }}
+                  value={Number(sf.max_concurrency ?? 3)}
+                  onChange={(e) => setField('max_concurrency', Number(e.target.value))}
+                />
+              </>
+            )}
+          </Space>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              迭代失败策略
+            </Typography.Text>
+            <Select
+              size="small"
+              style={{ width: '100%', marginTop: 4 }}
+              value={String(sf.on_iteration_error ?? 'collect_errors')}
+              onChange={(v) => setField('on_iteration_error', v)}
+              options={[
+                {
+                  value: 'collect_errors',
+                  label: 'collect_errors — 收集全部结果（含失败）',
+                },
+                { value: 'skip', label: 'skip — 仅保留成功项' },
+                { value: 'fail_fast', label: 'fail_fast — 遇失败立即停止' },
+              ]}
+            />
+            <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+              仅 iteration 模式生效；默认 collect_errors，results 为结构化行数组
+            </Typography.Text>
+          </div>
           <Space style={{ marginTop: 8 }}>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               收集输出
@@ -992,6 +1342,186 @@ export function SmartflowProperties({ node, peerNodes, onChange, onDelete }: Pro
               />
             </div>
           )}
+        </>
+      )}
+
+      {t === 'reflection' && (
+        <>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              任务描述 (task)
+            </Typography.Text>
+            <Input.TextArea
+              rows={3}
+              value={String(sf.task ?? '')}
+              onChange={(e) => setField('task', e.target.value)}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              初稿 (artifact，可空)
+            </Typography.Text>
+            <Input.TextArea
+              rows={2}
+              value={String(sf.artifact ?? '')}
+              onChange={(e) => setField('artifact', e.target.value)}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              最大轮数
+            </Typography.Text>
+            <Input
+              size="small"
+              type="number"
+              value={Number(sf.max_rounds ?? 3)}
+              onChange={(e) => setField('max_rounds', Number(e.target.value))}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              通过标记 (pass_pattern)
+            </Typography.Text>
+            <Input
+              size="small"
+              value={String(sf.pass_pattern ?? 'PASS')}
+              onChange={(e) => setField('pass_pattern', e.target.value)}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+        </>
+      )}
+
+      {t === 'plan_execute' && (
+        <>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              目标 (goal)
+            </Typography.Text>
+            <Input.TextArea
+              rows={2}
+              value={String(sf.goal ?? '')}
+              onChange={(e) => setField('goal', e.target.value)}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              上下文 (context)
+            </Typography.Text>
+            <Input.TextArea
+              rows={2}
+              value={String(sf.context ?? '')}
+              onChange={(e) => setField('context', e.target.value)}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              最大步骤
+            </Typography.Text>
+            <Input
+              size="small"
+              type="number"
+              value={Number(sf.max_steps ?? 6)}
+              onChange={(e) => setField('max_steps', Number(e.target.value))}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <Space style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              失败时重规划
+            </Typography.Text>
+            <Switch
+              checked={sf.replan_on_failure !== false}
+              onChange={(v) => setField('replan_on_failure', v)}
+            />
+          </Space>
+        </>
+      )}
+
+      {t === 'react' && (
+        <>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              目标 (goal)
+            </Typography.Text>
+            <Input.TextArea
+              rows={2}
+              value={String(sf.goal ?? '')}
+              onChange={(e) => setField('goal', e.target.value)}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              模型
+            </Typography.Text>
+            <Input
+              size="small"
+              value={String(sf.model ?? 'gpt-4o-mini')}
+              onChange={(e) => setField('model', e.target.value)}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              最大步数
+            </Typography.Text>
+            <Input
+              size="small"
+              type="number"
+              value={Number(sf.max_steps ?? 10)}
+              onChange={(e) => setField('max_steps', Number(e.target.value))}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+        </>
+      )}
+
+      {t === 'research' && (
+        <>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              主题 (topic)
+            </Typography.Text>
+            <Input.TextArea
+              rows={2}
+              value={String(sf.topic ?? '')}
+              onChange={(e) => setField('topic', e.target.value)}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              搜索深度
+            </Typography.Text>
+            <Select
+              size="small"
+              style={{ width: '100%', marginTop: 4 }}
+              value={String(sf.search_depth ?? 'standard')}
+              onChange={(v) => setField('search_depth', v)}
+              options={[
+                { value: 'quick', label: 'quick' },
+                { value: 'standard', label: 'standard' },
+                { value: 'deep', label: 'deep' },
+              ]}
+            />
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              摘要模型
+            </Typography.Text>
+            <Input
+              size="small"
+              value={String(sf.summarizer_model ?? 'gpt-4o-mini')}
+              onChange={(e) => setField('summarizer_model', e.target.value)}
+              style={{ marginTop: 4 }}
+            />
+          </div>
         </>
       )}
 

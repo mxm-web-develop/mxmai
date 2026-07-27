@@ -1,5 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
+@import './styles/tokens.css';
+@import './styles/primitives.css';
+@import './styles/form-controls.css';
+@import './styles/border-refinements.css';
+@import './styles/action-buttons.css';
+
 html, body {
   height: 100%;
   margin: 0;
@@ -22,8 +28,8 @@ html, body {
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 222 100% 33%;   /* Klein Blue #002FA7 */
-    --primary-hover: 222 100% 27%;
+    --primary: 199 89% 48%;   /* sky-600 #0284C7 — Dashboard CTA */
+    --primary-hover: 201 96% 40%;
     --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -36,14 +42,15 @@ html, body {
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224 76% 48%;
-    --radius: 0.75rem;
+    --radius: var(--radius-md);
     --surface: 217 32% 17%;
     --surface-light: 217 28% 22%;
     --surface-glass: 217 32% 17% / 0.8;
     --error: 0 72% 51%;
+    --warning: 38 92% 50%;
     --success: 160 84% 39%;
 
-    /* Agent Chat page — dark theme (matches agent-chat-design-spec.md) */
+    /* Agent Chat — maps to accent-conversation tokens */
     --agent-chat-bg: 0 0% 5%;
     --agent-chat-surface: 240 6% 10%;
     --agent-chat-surface-elevated: 240 5% 14%;
@@ -52,8 +59,9 @@ html, body {
     --agent-chat-text: 240 0% 97%;
     --agent-chat-text-secondary: 240 0% 63%;
     --agent-chat-muted: 240 4% 42%;
-    --agent-chat-accent: 20 100% 55%;   /* #FF6B2C */
-    --agent-chat-accent-hover: 20 100% 62%;
+    /* Agent Chat — hsl() bridge; hex source: --accent-conversation in tokens.css */
+    --agent-chat-accent: var(--accent-conversation-h) var(--accent-conversation-s) var(--accent-conversation-l);
+    --agent-chat-accent-hover: 16 100% 52%;
     --agent-chat-accent-subtle: 20 100% 97%;
     --agent-chat-accent-text: 20 80% 76%;
     --agent-chat-user-bubble: 20 100% 55%;
@@ -69,8 +77,8 @@ html, body {
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222 100% 33%;   /* Klein Blue #002FA7 */
-    --primary-hover: 222 100% 27%;
+    --primary: 199 89% 48%;   /* sky-600 #0284C7 — Dashboard CTA */
+    --primary-hover: 201 96% 40%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -80,13 +88,14 @@ html, body {
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 214.3 31.8% 94.8%;
+    --input: 214.3 31.8% 94.8%;
     --ring: 224 76% 48%;
     --surface: 0 0% 100%;
     --surface-light: 210 40% 96%;
     --surface-glass: 0 0% 100% / 0.85;
     --error: 0 72% 51%;
+    --warning: 38 92% 50%;
     --success: 160 84% 39%;
 
     /* Agent Chat page — light theme */
@@ -98,7 +107,8 @@ html, body {
     --agent-chat-text: 222 47% 11%;
     --agent-chat-text-secondary: 220 9% 46%;
     --agent-chat-muted: 220 9% 64%;
-    --agent-chat-accent: 16 100% 47%;   /* #E55A1C — deeper orange for white background */
+    /* Agent Chat — light; accent from --accent-conversation-hsl in tokens.css */
+    --agent-chat-accent: var(--accent-conversation-h) var(--accent-conversation-s) var(--accent-conversation-l);
     --agent-chat-accent-hover: 16 100% 52%;
     --agent-chat-accent-subtle: 16 100% 97%;
     --agent-chat-accent-text: 16 80% 40%;
@@ -248,21 +258,40 @@ html, body {
       @apply flex-none w-full;
     }
   }
+}
 
-  @media (max-width: 768px) {
-    .glass-card {
-      @apply p-4 rounded-xl;
-    }
+@media (max-width: 768px) {
+  .glass-card {
+    @apply p-4 rounded-xl;
+  }
 
-    .modal-content {
-      @apply rounded-2xl;
-    }
+  .modal-content {
+    @apply rounded-2xl;
+  }
 
-    .modal-header,
-    .modal-body,
-    .modal-footer {
-      @apply px-4 py-4;
-    }
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    @apply px-4 py-4;
+  }
+}
+
+/* Text page mobile responsive */
+@media (max-width: 768px) {
+  .text-drawer-form .ant-select {
+    width: 100% !important;
+  }
+
+  .text-drawer-form .ant-btn {
+    width: 100%;
+  }
+
+  .text-result-meta summary {
+    padding: 12px 0;
+  }
+
+  .text-page .page-card {
+    padding: 12px;
   }
 }
 

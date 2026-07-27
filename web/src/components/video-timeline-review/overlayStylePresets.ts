@@ -139,7 +139,7 @@ export function styleForOverlayPreset(preset: OverlayStylePresetId): TextStyle {
       });
     case 'lower-third':
       return baseStyle({
-        fontSize: 36,
+        fontSize: 44,
         fontWeight: 700,
         color: '#F8FAFC',
         backgroundColor: 'rgba(15, 23, 42, 0.72)',
@@ -163,7 +163,7 @@ export function styleForOverlayPreset(preset: OverlayStylePresetId): TextStyle {
     case 'soft-caption':
     default:
       return baseStyle({
-        fontSize: 40,
+        fontSize: 48,
         fontWeight: 700,
         color: '#F8FAFC',
         backgroundColor: 'rgba(15, 23, 42, 0.55)',
@@ -246,5 +246,5 @@ export function buildOverlayAnimation(
   };
 }
 
-export const OVERLAY_FONT_SIZE_MIN = 24;
-export const OVERLAY_FONT_SIZE_MAX = 120;
+export const OVERLAY_FONT_SIZE_MIN = 28;
+export const OVERLAY_FONT_SIZE_MAX = 144;
