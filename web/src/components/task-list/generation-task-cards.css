@@ -1,0 +1,1210 @@
+/* 写作 / 音频 / 音乐 — 卡片网格与专属视觉 */
+
+.writing-doc-card {
+  position: relative;
+}
+
+.generation-task-item--selected {
+  border-color: rgba(14, 165, 233, 0.72) !important;
+  box-shadow:
+    0 0 0 1px rgba(14, 165, 233, 0.35),
+    var(--shadow-sm);
+}
+
+.generation-task-item--selecting {
+  cursor: pointer;
+}
+
+.task-card-select {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.task-card-select__box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 0.3rem;
+  border: 1.5px solid rgba(148, 163, 184, 0.65);
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+html:not(.dark) .task-card-select__box {
+  background: rgba(255, 255, 255, 0.92);
+  color: #0284c7;
+}
+
+.task-card-select.is-checked .task-card-select__box {
+  border-color: #0284c7;
+  background: #0284c7;
+  color: #fff;
+}
+
+.writing-list-scroll,
+.audio-list-scroll,
+.music-list-scroll,
+.graph-list-scroll,
+.video-list-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 262px);
+  overflow-y: auto;
+}
+
+.writing-task-list,
+.audio-task-list,
+.music-task-list,
+.graph-task-list,
+.video-task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+  gap: var(--space-3);
+}
+
+.writing-task-item,
+.audio-task-item,
+.music-task-item,
+.graph-task-item,
+.video-task-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  background: var(--glass-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.outline-task-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.writing-task-item::before,
+.audio-task-item::before,
+.music-task-item::before,
+.graph-task-item::before,
+.video-task-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.graph-task-item::before {
+  background: radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.2) 0%, transparent 55%);
+}
+
+.video-task-item::before {
+  background: radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.16) 0%, transparent 55%);
+}
+
+.writing-task-item::before {
+  background: radial-gradient(circle at 0% 0%, rgba(14, 165, 233, 0.18) 0%, transparent 55%);
+}
+
+.audio-task-item::before {
+  background: radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.2) 0%, transparent 55%);
+}
+
+.music-task-item::before {
+  background: radial-gradient(circle at 0% 0%, rgba(167, 139, 250, 0.22) 0%, transparent 55%);
+}
+
+.writing-task-item-clickable,
+.audio-task-item-clickable,
+.music-task-item-clickable,
+.graph-task-item-clickable,
+.video-task-item-clickable {
+  cursor: pointer;
+  transition:
+    transform var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out);
+}
+
+.writing-task-item-clickable:hover,
+.audio-task-item-clickable:hover,
+.music-task-item-clickable:hover,
+.graph-task-item-clickable:hover,
+.video-task-item-clickable:hover {
+  transform: translateY(-2px);
+  border-color: rgba(148, 163, 184, 0.55);
+  box-shadow: var(--shadow-lg);
+}
+
+.writing-task-item-clickable:hover::before,
+.audio-task-item-clickable:hover::before,
+.music-task-item-clickable:hover::before,
+.graph-task-item-clickable:hover::before,
+.video-task-item-clickable:hover::before {
+  opacity: 1;
+}
+
+.task-grid-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-grid-card__meta {
+  flex-wrap: wrap;
+}
+
+.task-grid-card__time {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}
+
+.task-grid-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+.task-grid-card__foot--actions-only {
+  justify-content: flex-end;
+}
+
+.task-grid-card--no-more.writing-task-item,
+.task-grid-card--no-more.audio-task-item,
+.task-grid-card--no-more.music-task-item,
+.writing-doc-card--no-more {
+  padding-bottom: var(--space-3);
+}
+
+/* —— 任务卡片「更多」⋯：固定卡片右下角 —— */
+.task-card-more-anchor {
+  position: absolute;
+  right: 0.45rem;
+  bottom: 0.45rem;
+  z-index: 3;
+  line-height: 0;
+}
+
+.writing-task-item,
+.audio-task-item,
+.music-task-item,
+.graph-task-item,
+.video-task-item,
+.outline-task-item,
+.writing-doc-card {
+  padding-bottom: calc(var(--space-3) + 1.35rem);
+}
+
+.task-card-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: #64748b;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.task-card-more-btn:hover:not(:disabled) {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.45);
+  color: #0284c7;
+}
+
+.task-card-more-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.task-card-more-btn__ellipsis {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+html:not(.dark) .task-card-more-btn {
+  color: #475569;
+  background: rgba(248, 250, 252, 0.95);
+}
+
+html:not(.dark) .task-card-more-btn:hover:not(:disabled) {
+  background: rgba(2, 132, 199, 0.1);
+  border-color: rgba(2, 132, 199, 0.4);
+  color: #0369a1;
+}
+
+/* —— 任务卡片删除（移动端图标，桌面端轻量文字） —— */
+.task-card-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.12rem 0.35rem;
+  min-height: unset;
+  min-width: unset;
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  font-weight: 500;
+  line-height: 1;
+  color: #ef4444;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.task-card-delete-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.task-card-delete-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.task-card-delete-btn__icon {
+  flex-shrink: 0;
+}
+
+.task-card-delete-btn__ellipsis {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+html:not(.dark) .task-card-delete-btn {
+  color: #dc2626;
+}
+
+html:not(.dark) .task-card-delete-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+}
+
+@media (max-width: 768px) {
+  .task-card-delete-btn {
+    width: 1.375rem;
+    height: 1.375rem;
+    padding: 0;
+  }
+
+  .task-card-delete-btn__text {
+    display: none;
+  }
+
+  .graph-task-actions,
+  .video-task-actions,
+  .audio-task-actions,
+  .writing-task-actions,
+  .music-task-actions,
+  .task-grid-card__foot,
+  .writing-doc-card__foot {
+    align-items: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .task-card-delete-btn {
+    min-height: unset !important;
+    min-width: unset !important;
+  }
+}
+
+.task-grid-sentinel {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 0 0.25rem;
+  min-height: 2rem;
+}
+
+.task-grid-sentinel__hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* —— 写作：文稿预览 —— */
+.writing-visual {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.88));
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.writing-visual__paper {
+  position: absolute;
+  inset: 0.55rem 0.65rem 0.65rem;
+  background: rgba(248, 250, 252, 0.96);
+  border-radius: 6px;
+  padding: 0.55rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  align-items: stretch;
+}
+
+html.dark .writing-visual__paper {
+  background: rgba(241, 245, 249, 0.92);
+}
+
+.writing-visual__type {
+  align-self: flex-start;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #0369a1;
+  background: rgba(14, 165, 233, 0.12);
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+}
+
+.writing-visual__excerpt {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: #334155;
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.writing-visual__excerpt--muted {
+  color: #64748b;
+  font-style: italic;
+}
+
+.writing-visual__doc-icon {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 4.5rem;
+  padding: 0.35rem 0;
+}
+
+/* —— 写作：文档格式图标（PDF / MD / JSON / TXT / CSV） —— */
+.writing-doc-icon {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.writing-doc-icon__sheet {
+  width: 3.25rem;
+  height: 3.85rem;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #f8fafc 0%, #e2e8f0 100%);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  box-shadow:
+    0 4px 12px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  color: #475569;
+}
+
+.writing-doc-icon__badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.14rem 0.45rem;
+  border-radius: 999px;
+  line-height: 1.2;
+  border: 1px solid transparent;
+}
+
+.writing-doc-icon--pdf .writing-doc-icon__sheet {
+  color: #b91c1c;
+  background: linear-gradient(160deg, #fef2f2 0%, #fee2e2 100%);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.writing-doc-icon--pdf .writing-doc-icon__badge {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.writing-doc-icon--markdown .writing-doc-icon__sheet {
+  color: #0369a1;
+  background: linear-gradient(160deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-color: rgba(14, 165, 233, 0.35);
+}
+
+.writing-doc-icon--markdown .writing-doc-icon__badge {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+  border-color: rgba(14, 165, 233, 0.2);
+}
+
+.writing-doc-icon--json .writing-doc-icon__sheet {
+  color: #b45309;
+  background: linear-gradient(160deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.writing-doc-icon--json .writing-doc-icon__badge {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
+.writing-doc-icon--txt .writing-doc-icon__sheet {
+  color: #475569;
+  background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 100%);
+  border-color: rgba(100, 116, 139, 0.35);
+}
+
+.writing-doc-icon--txt .writing-doc-icon__badge {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+.writing-doc-icon--csv .writing-doc-icon__sheet {
+  color: #15803d;
+  background: linear-gradient(160deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.writing-doc-icon--csv .writing-doc-icon__badge {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.writing-doc-icon--sm .writing-doc-icon__sheet {
+  width: 2.5rem;
+  height: 3rem;
+  border-radius: 8px;
+}
+
+.writing-doc-icon--sm .writing-doc-icon__badge {
+  font-size: 0.55rem;
+}
+
+.writing-visual__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.writing-visual__line {
+  display: block;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.writing-visual__line--short {
+  width: 72%;
+}
+
+.writing-visual__line--mid {
+  width: 88%;
+}
+
+.writing-visual__corner {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 2rem;
+  height: 2rem;
+  background: linear-gradient(135deg, transparent 50%, rgba(14, 165, 233, 0.25) 50%);
+}
+
+/* —— 音频：波形演播室 —— */
+.audio-visual {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: radial-gradient(circle at 30% 20%, #0c4a6e, #020617 70%);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.audio-visual--review {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.audio-visual--done {
+  background: radial-gradient(circle at 50% 30%, #164e63, #020617 75%);
+}
+
+.audio-visual__glow {
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.25), transparent 60%);
+  pointer-events: none;
+}
+
+.audio-visual__wave {
+  position: absolute;
+  inset: auto 0.5rem 2.1rem;
+  height: 2.4rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  opacity: 0.85;
+}
+
+.audio-visual__bar {
+  width: 4px;
+  height: calc(var(--h, 0.5) * 100%);
+  min-height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to top, #0284c7, #7dd3fc);
+  transform: scaleY(var(--h, 0.5));
+  transform-origin: 50% 100%;
+}
+
+.audio-visual__icon-wrap {
+  position: relative;
+  z-index: 1;
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.audio-visual__play {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 2px solid rgba(248, 250, 252, 0.92);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  position: relative;
+}
+
+.audio-visual__play::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 54%;
+  transform: translate(-50%, -50%);
+  border-style: solid;
+  border-width: 7px 0 7px 11px;
+  border-color: transparent transparent transparent rgba(248, 250, 252, 0.95);
+}
+
+.audio-visual__mic {
+  position: absolute;
+  bottom: -0.15rem;
+  right: -0.35rem;
+  color: #7dd3fc;
+  opacity: 0.9;
+}
+
+.audio-visual__placeholder {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.audio-visual__caption {
+  position: absolute;
+  left: 0.55rem;
+  right: 0.55rem;
+  bottom: 0.45rem;
+  margin: 0;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  color: rgba(226, 232, 240, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 1;
+}
+
+/* —— 音乐：唱片 —— */
+.music-visual {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #312e81, #0f172a 72%);
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.music-visual--review {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.music-visual--done {
+  background: radial-gradient(circle at 50% 35%, #4c1d95, #0f172a 78%);
+}
+
+.music-visual__ambient {
+  position: absolute;
+  inset: -15%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.28), transparent 58%);
+  pointer-events: none;
+}
+
+.music-visual__disc-wrap {
+  position: relative;
+  width: 68%;
+  aspect-ratio: 1;
+}
+
+.music-visual__disc {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #1e1b4b 0%, #020617 55%, #0f172a 100%);
+  border: 2px solid rgba(167, 139, 250, 0.45);
+  box-shadow: inset 0 0 0 4px rgba(15, 23, 42, 0.9), 0 8px 24px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.music-visual__groove {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  box-shadow:
+    inset 0 0 0 6px rgba(148, 163, 184, 0.06),
+    inset 0 0 0 14px rgba(148, 163, 184, 0.04);
+}
+
+.music-visual__groove--inner {
+  inset: 22%;
+  border-color: rgba(148, 163, 184, 0.1);
+  box-shadow:
+    inset 0 0 0 4px rgba(148, 163, 184, 0.05),
+    inset 0 0 0 10px rgba(148, 163, 184, 0.03);
+}
+
+.music-visual--spinning .music-visual__ambient {
+  animation: music-ambient-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes music-ambient-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.music-visual__label {
+  width: 32%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #0284c7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8fafc;
+  z-index: 1;
+  position: relative;
+}
+
+.music-visual__hub {
+  position: absolute;
+  width: 18%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6);
+}
+
+.music-visual__tonearm {
+  position: absolute;
+  top: 8%;
+  right: -8%;
+  width: 42%;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(226, 232, 240, 0.15), rgba(226, 232, 240, 0.75));
+  transform: rotate(24deg);
+  transform-origin: left center;
+  border-radius: 999px;
+}
+
+.music-visual__caption {
+  position: absolute;
+  left: 0.55rem;
+  right: 0.55rem;
+  bottom: 0.45rem;
+  margin: 0;
+  font-size: 0.62rem;
+  color: rgba(226, 232, 240, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.writing-task-content,
+.audio-task-content,
+.music-task-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.writing-task-title,
+.audio-task-title,
+.music-task-title {
+  font-size: 0.875rem;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.writing-task-meta,
+.audio-task-meta,
+.music-task-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  overflow: hidden;
+}
+
+.writing-task-subtype,
+.audio-task-subtype,
+.music-task-subtype {
+  flex-shrink: 0;
+  background: rgba(30, 64, 175, 0.35);
+  color: #bfdbfe;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+}
+
+.music-task-subtype {
+  background: rgba(91, 33, 182, 0.35);
+  color: #ddd6fe;
+}
+
+.writing-task-actions,
+.audio-task-actions,
+.music-task-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .writing-task-item-clickable,
+  .audio-task-item-clickable,
+  .music-task-item-clickable {
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+  }
+
+  .writing-task-item-clickable:hover,
+  .audio-task-item-clickable:hover,
+  .music-task-item-clickable:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .writing-task-list,
+  .audio-task-list,
+  .music-task-list,
+  .graph-task-list,
+  .video-task-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+}
+
+/* ========== Light mode (from App.css trim) ========== */
+/* --- graph-task-* 组件 --- */
+html:not(.dark) .graph-task-id {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .graph-task-subtype {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+}
+
+html:not(.dark) .graph-task-progress {
+  color: #1e40af !important;  /* 深蓝色，确保对比度 */
+}
+
+html:not(.dark) .graph-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .graph-task-thumb {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .graph-task-thumb-placeholder {
+  color: #94a3b8 !important;
+}
+
+html:not(.dark) .graph-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .graph-task-status--failed,
+html:not(.dark) .graph-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .graph-task-status--processing,
+html:not(.dark) .graph-task-status--pending,
+html:not(.dark) .graph-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+html:not(.dark) .graph-task-status--paused {
+  background: rgba(250, 204, 21, 0.12) !important;
+  color: #854d0e !important;
+}
+
+/* --- audio-task-* 组件 --- */
+html:not(.dark) .audio-task-progress {
+  color: #1e40af !important;
+}
+
+html:not(.dark) .audio-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .audio-task-id {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .audio-task-subtype {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+}
+
+html:not(.dark) .audio-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .audio-task-status--failed,
+html:not(.dark) .audio-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .audio-task-status--processing,
+html:not(.dark) .audio-task-status--pending,
+html:not(.dark) .audio-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+html:not(.dark) .audio-task-status--awaiting_review {
+  background: rgba(245, 158, 11, 0.14) !important;
+  color: #b45309 !important;
+}
+
+/* --- outline-task-* 组件 --- */
+html:not(.dark) .outline-task-progress {
+  color: #1e40af !important;
+}
+
+html:not(.dark) .outline-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .outline-task-id {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .outline-task-subtype {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+}
+
+html:not(.dark) .outline-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .outline-task-status--failed,
+html:not(.dark) .outline-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .outline-task-status--processing,
+html:not(.dark) .outline-task-status--pending,
+html:not(.dark) .outline-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+/* --- writing-task-* 组件 --- */
+html:not(.dark) .writing-task-progress {
+  color: #1e40af !important;
+}
+
+html:not(.dark) .writing-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .writing-task-id {
+  background: #f1f5f9 !important;
+  color: #111827 !important;
+}
+
+html:not(.dark) .writing-task-subtype {
+  background: rgba(37, 99, 235, 0.10) !important;
+  color: #1d4ed8 !important;
+}
+
+html:not(.dark) .writing-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .writing-task-status--failed,
+html:not(.dark) .writing-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .writing-task-status--processing,
+html:not(.dark) .writing-task-status--pending,
+html:not(.dark) .writing-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+/* --- 任务卡片容器背景修复（列表页） --- */
+html:not(.dark) .graph-list-scroll,
+html:not(.dark) .audio-list-scroll,
+html:not(.dark) .music-list-scroll,
+html:not(.dark) .outline-list-scroll,
+html:not(.dark) .writing-list-scroll,
+html:not(.dark) .video-list-scroll {
+  background: transparent !important;
+}
+
+/* --- 任务卡片整体 --- */
+html:not(.dark) .graph-task-item,
+html:not(.dark) .audio-task-item,
+html:not(.dark) .music-task-item,
+html:not(.dark) .outline-task-item,
+html:not(.dark) .writing-task-item,
+html:not(.dark) .video-task-item {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+html:not(.dark) .graph-task-item:hover,
+html:not(.dark) .audio-task-item:hover,
+html:not(.dark) .music-task-item:hover,
+html:not(.dark) .outline-task-item:hover,
+html:not(.dark) .writing-task-item:hover,
+html:not(.dark) .video-task-item:hover {
+  border-color: rgba(37, 99, 235, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10) !important;
+}
+
+/* --- graph-form 在亮色模式 --- */
+html:not(.dark) .graph-form .form-row input,
+html:not(.dark) .graph-form .form-row select,
+html:not(.dark) .graph-form .form-row textarea {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #1e293b !important;
+}
+
+html:not(.dark) .graph-advanced {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* --- video-task-* 组件 --- */
+html:not(.dark) .video-task-id {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .video-task-progress {
+  color: #475569 !important;
+}
+
+html:not(.dark) .video-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .video-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .video-task-status--failed,
+html:not(.dark) .video-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .video-task-status--processing,
+html:not(.dark) .video-task-status--pending,
+html:not(.dark) .video-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+html:not(.dark) .video-task-status--awaiting_review {
+  background: rgba(251, 191, 36, 0.15) !important;
+  color: #92400e !important;
+}
+
+html:not(.dark) .video-task-status--paused {
+  background: rgba(250, 204, 21, 0.12) !important;
+  color: #854d0e !important;
+}
+
+/* --- music-task-* 补充亮色覆盖 --- */
+html:not(.dark) .music-task-id {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html:not(.dark) .music-task-progress {
+  color: #1e40af !important;
+}
+
+html:not(.dark) .music-task-error {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .music-task-status--completed {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+}
+
+html:not(.dark) .music-task-status--failed,
+html:not(.dark) .music-task-status--cancelled {
+  background: rgba(239, 68, 68, 0.10) !important;
+  color: #991b1b !important;
+}
+
+html:not(.dark) .music-task-status--processing,
+html:not(.dark) .music-task-status--pending,
+html:not(.dark) .music-task-status--queued {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #1e40af !important;
+}
+
+html:not(.dark) .music-task-status--awaiting_review {
+  background: rgba(251, 191, 36, 0.15) !important;
+  color: #92400e !important;
+}
+
+/* --- 任务卡片中的 muted 文字 --- */
+html:not(.dark) .graph-list-scroll .muted,
+html:not(.dark) .audio-list-scroll .muted,
+html:not(.dark) .music-list-scroll .muted,
+html:not(.dark) .outline-list-scroll .muted,
+html:not(.dark) .writing-list-scroll .muted,
+html:not(.dark) .video-list-scroll .muted {
+  color: #374151 !important;
+}
+
+/* --- 任务卡片的标题/元信息文字 --- */
+html:not(.dark) .graph-task-title,
+html:not(.dark) .audio-task-title,
+html:not(.dark) .music-task-title,
+html:not(.dark) .outline-task-title,
+html:not(.dark) .writing-task-title,
+html:not(.dark) .video-task-title {
+  color: #111827 !important;
+}
+
+html:not(.dark) .graph-task-meta,
+html:not(.dark) .audio-task-meta,
+html:not(.dark) .music-task-meta,
+html:not(.dark) .outline-task-meta,
+html:not(.dark) .writing-task-meta,
+html:not(.dark) .video-task-meta {
+  color: #374151 !important;
+}
+
+/* --- Writing filter select in light mode --- */
+html:not(.dark) .writing-filter-select {
+  background: #ffffff !important;
+  border-color: rgba(148, 163, 184, 0.5) !important;
+  color: #111827 !important;
+}
+

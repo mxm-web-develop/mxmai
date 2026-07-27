@@ -4,6 +4,8 @@ export function formatTaskSelectionKey(taskKey: string, subtype: string | null):
 }
 
 export function parseTaskSelectionKey(raw: string): { taskKey: string; subtype: string | null } {
-  const [k, st] = raw.split('::');
-  return { taskKey: k || 'default', subtype: st ? st : null };
+  const parts = String(raw).split('::');
+  const k = parts[0] ?? '';
+  const st = parts.length > 1 ? parts.slice(1).join('::') : '';
+  return { taskKey: k, subtype: st ? st : null };
 }

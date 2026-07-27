@@ -4,6 +4,8 @@
  */
 
 import { compressImageForUpload } from '../utils/imageCompress';
+import i18n from '../i18n/config';
+import { normalizeAppLocale } from '../i18n/appLocale';
 import {
   getCachedMediaBlobUrl,
   invalidateAuthenticatedMediaStreamCache,
@@ -104,7 +106,6 @@ export function invalidateTaskListCache(): void {
   invalidateSessionCachePrefix('listWritingTasks:');
   invalidateSessionCachePrefix('listOutlineTasks:');
   invalidateSessionCachePrefix('listCgiTasks:');
-  invalidateSessionCachePrefix('listCharacters:');
 }
 
 function extractErrorMessage(data: unknown, fallback: string): string {
@@ -136,7 +137,7 @@ export async function request<T = unknown>(
     headers?: Record<string, string>;
     body?: object | FormData | string | null;
   } = {}
-): Promise<{ data?: T; error?: string; status: number }> {
+): Promise<{ data?: T; error?: string; status: number; code?: string; extras?: Record<string, unknown> }> {
   const base = getBaseUrl().replace(/\/$/, '');
   const url = path.startsWith('http') ? path : base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
   const token = getToken();
@@ -148,6 +149,8 @@ export async function request<T = unknown>(
     ...(customHeaders ?? {}),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
+  // 用户 UI 语言：后端 VF / 生成内容按此输出（zh | zh-TW | en | ja）
+  headers['x-user-lang'] = normalizeAppLocale(i18n.language);
 
   const init: RequestInit = { ...rest, method, headers };
   if (body !== undefined) {
@@ -179,7 +182,19 @@ export async function request<T = unknown>(
         return { error: errMsg, status: res.status };
       }
       const errMsg = extractErrorMessage(data, res.statusText);
-      return { error: errMsg, status: res.status };
+      const bodyObj = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
+      const errCode =
+        typeof bodyObj.error === 'string' && /^[A-Z][A-Z0-9_]+$/.test(bodyObj.error)
+          ? bodyObj.error
+          : undefined;
+      const code = errCode ?? (typeof bodyObj.code === 'string' ? bodyObj.code : undefined);
+      const extras: Record<string, unknown> = {};
+      if (bodyObj.estimatedTokens != null) extras.estimatedTokens = bodyObj.estimatedTokens;
+      if (bodyObj.currentBalance != null) extras.currentBalance = bodyObj.currentBalance;
+      if (bodyObj.data != null && typeof bodyObj.data === 'object') {
+        Object.assign(extras, bodyObj.data as object);
+      }
+      return { error: errMsg, status: res.status, code, extras };
     }
     return { data, status: res.status };
   } catch (e) {
@@ -246,16 +261,18 @@ export async function getCaptchaConfig(): Promise<{ enabled: boolean } | { error
 
 // 登录（mxmauth 返回 { code, data: { user, tokens: { accessToken, refreshToken } } }）
 export async function login(
-  username: string,
+  usernameOrEmail: string,
   password: string,
   captcha?: { captchaId: string; captchaAnswer: string }
 ) {
+  const id = usernameOrEmail.trim();
+  const isEmail = id.includes('@');
   const res = await request<{ data?: { tokens?: { accessToken: string }; user?: LoginUser } }>(
     '/api/v1/account/login',
     {
       method: 'POST',
       body: {
-        username,
+        ...(isEmail ? { email: id.toLowerCase() } : { username: id }),
         password,
         ...(captcha?.captchaId && captcha.captchaAnswer
           ? { captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer }
@@ -263,9 +280,30 @@ export async function login(
       },
     }
   );
-  if (res.error) return { error: res.error };
-  const body = res.data as { data?: { tokens?: { accessToken: string }; user?: LoginUser } };
-  const data = body?.data ?? (body as unknown as { tokens?: { accessToken: string }; user?: LoginUser });
+  if (res.error) return { error: res.error, code: res.code, status: res.status };
+  const body = res.data as {
+    data?: {
+      tokens?: { accessToken: string };
+      user?: LoginUser;
+      mfaRequired?: boolean;
+      mfaToken?: string;
+      expiresIn?: number;
+    };
+  };
+  const data = body?.data ?? (body as unknown as {
+    tokens?: { accessToken: string };
+    user?: LoginUser;
+    mfaRequired?: boolean;
+    mfaToken?: string;
+    expiresIn?: number;
+  });
+  if (data?.mfaRequired && data.mfaToken) {
+    return {
+      mfaRequired: true,
+      mfaToken: data.mfaToken,
+      expiresIn: data.expiresIn ?? 300,
+    };
+  }
   const tokens = data?.tokens;
   const user = data?.user;
   if (tokens?.accessToken) {
@@ -274,6 +312,187 @@ export async function login(
     return { ok: true, accessToken: tokens.accessToken, user };
   }
   return { error: '响应中无 accessToken' };
+}
+
+export async function verifyMfaLogin(mfaToken: string, code: string) {
+  const res = await request<{ data?: { tokens?: { accessToken: string }; user?: LoginUser } }>(
+    '/api/v1/account/auth/mfa/verify',
+    {
+      method: 'POST',
+      body: { mfaToken, code: code.replace(/\s/g, '') },
+    }
+  );
+  if (res.error) return { error: res.error, code: res.code, status: res.status };
+  const body = res.data as { data?: { tokens?: { accessToken: string }; user?: LoginUser } };
+  const data = body?.data;
+  const tokens = data?.tokens;
+  const user = data?.user;
+  if (tokens?.accessToken) {
+    setToken(tokens.accessToken);
+    if (user) setStoredUser(user);
+    return { ok: true, accessToken: tokens.accessToken, user };
+  }
+  return { error: '响应中无 accessToken' };
+}
+
+export type MfaStatus = {
+  totpEnabled: boolean;
+  hasPassword: boolean;
+  oauthOnly: boolean;
+  pendingSetup: boolean;
+};
+
+export async function getMfaStatus() {
+  return request<{ data?: MfaStatus }>('/api/v1/account/mfa/status');
+}
+
+export async function setupMfaTotp(password: string) {
+  return request<{ data?: { secret: string; otpauthUrl: string } }>('/api/v1/account/mfa/totp/setup', {
+    method: 'POST',
+    body: { password },
+  });
+}
+
+export async function enableMfaTotp(password: string, code: string) {
+  return request<{ code?: number; message?: string }>('/api/v1/account/mfa/totp/enable', {
+    method: 'POST',
+    body: { password, code: code.replace(/\s/g, '') },
+  });
+}
+
+export async function disableMfaTotp(password: string, code: string) {
+  return request<{ code?: number; message?: string }>('/api/v1/account/mfa/totp/disable', {
+    method: 'POST',
+    body: { password, code: code.replace(/\s/g, '') },
+  });
+}
+
+export type AuthProviders = { google: boolean; github: boolean; smtp: boolean };
+
+export async function getAuthProviders(): Promise<AuthProviders | { error: string }> {
+  const res = await request<{ data?: AuthProviders }>('/api/v1/account/auth/providers');
+  if (res.error) return { error: res.error };
+  const body = res.data as { data?: AuthProviders };
+  const data = body?.data;
+  if (!data) return { error: 'no providers' };
+  return {
+    google: Boolean(data.google),
+    github: Boolean(data.github),
+    smtp: Boolean(data.smtp),
+  };
+}
+
+export function getOAuthStartUrl(provider: 'google' | 'github'): string {
+  const base = getBaseUrl().replace(/\/$/, '');
+  const path = `/api/v1/account/oauth/${provider}/start`;
+  return base ? `${base}${path}` : path;
+}
+
+export async function registerAccount(
+  email: string,
+  password: string,
+  captcha?: { captchaId: string; captchaAnswer: string }
+) {
+  const res = await request<{
+    data?: { needVerification?: boolean; user?: LoginUser };
+    message?: string;
+  }>('/api/v1/account/register', {
+    method: 'POST',
+    body: {
+      email: email.trim().toLowerCase(),
+      password,
+      ...(captcha?.captchaId && captcha.captchaAnswer
+        ? { captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer }
+        : {}),
+    },
+  });
+  if (res.error) return { error: res.error, code: res.code, status: res.status };
+  const body = res.data as { data?: { needVerification?: boolean }; message?: string };
+  return {
+    ok: true as const,
+    needVerification: Boolean(body?.data?.needVerification ?? true),
+    message: body?.message,
+  };
+}
+
+export async function resendVerification(
+  email: string,
+  captcha?: { captchaId: string; captchaAnswer: string }
+) {
+  const res = await request('/api/v1/account/resend-verification', {
+    method: 'POST',
+    body: {
+      email: email.trim().toLowerCase(),
+      ...(captcha?.captchaId && captcha.captchaAnswer
+        ? { captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer }
+        : {}),
+    },
+  });
+  if (res.error) return { error: res.error, code: res.code };
+  return { ok: true as const };
+}
+
+export async function forgotPassword(
+  email: string,
+  captcha?: { captchaId: string; captchaAnswer: string }
+) {
+  const res = await request('/api/v1/account/forgot-password', {
+    method: 'POST',
+    body: {
+      email: email.trim().toLowerCase(),
+      ...(captcha?.captchaId && captcha.captchaAnswer
+        ? { captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer }
+        : {}),
+    },
+  });
+  if (res.error) return { error: res.error, code: res.code };
+  return { ok: true as const };
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const res = await request('/api/v1/account/reset-password', {
+    method: 'POST',
+    body: { token, newPassword },
+  });
+  if (res.error) return { error: res.error, code: res.code };
+  return { ok: true as const };
+}
+
+export async function verifyEmailToken(token: string) {
+  const res = await request<{ data?: { verified?: boolean } }>(
+    `/api/v1/account/verify-email?token=${encodeURIComponent(token)}`,
+    {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    }
+  );
+  if (res.error) return { error: res.error, code: res.code };
+  return { ok: true as const };
+}
+
+/** 解析 OAuth 回跳 hash：#oauth=<base64url json> */
+export function consumeOAuthHashPayload(): {
+  accessToken: string;
+  user?: LoginUser;
+} | null {
+  try {
+    const hash = window.location.hash.replace(/^#/, '');
+    if (!hash.startsWith('oauth=')) return null;
+    const raw = decodeURIComponent(hash.slice('oauth='.length));
+    const pad = raw.length % 4 === 0 ? '' : '='.repeat(4 - (raw.length % 4));
+    const b64 = raw.replace(/-/g, '+').replace(/_/g, '/') + pad;
+    const binary = atob(b64);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const text = new TextDecoder().decode(bytes);
+    const json = JSON.parse(text) as { accessToken?: string; user?: LoginUser };
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    if (!json.accessToken) return null;
+    setToken(json.accessToken);
+    if (json.user) setStoredUser(json.user);
+    return { accessToken: json.accessToken, user: json.user };
+  } catch {
+    return null;
+  }
 }
 
 function setStoredUser(user: LoginUser | null) {
@@ -357,6 +576,17 @@ export async function getMembership() {
 }
 
 // ---------- 文件夹管理（需已登录）----------
+export type FolderCardTag = 'style' | 'character' | 'knowledge' | 'writing';
+export type FolderCardStatus = 'idle' | 'parsing' | 'ready' | 'stale' | 'failed';
+export type FolderAssetRole =
+  | 'style_ref'
+  | 'palette'
+  | 'appearance'
+  | 'description'
+  | 'voice'
+  | 'doc'
+  | 'unknown';
+
 export interface FolderItem {
   id: string;
   name: string;
@@ -366,21 +596,29 @@ export interface FolderItem {
   index_status?: 'none' | 'indexing' | 'indexed' | 'stale' | null;
   indexed_at?: string | null;
   knowledge_base_id?: string | null;
+  card_tag?: FolderCardTag | null;
+  card_status?: FolderCardStatus;
+  card_summary?: Record<string, unknown> | null;
+  is_system?: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export type VirtualFolderLinkItem = {
+export type KnowledgeFolderLinkItem = {
   type: 'link';
   ref_type: 'task' | 'storage_object';
   id: string;
   task_id?: string;
   object_id?: string;
+  /** folder_items 行 id，用于 PATCH 资产角色 / 特征标签 */
+  folder_item_id?: string;
   name: string;
   broken?: boolean;
   task_type?: string;
   status?: string;
   content_type?: string;
+  /** 视觉风格 / 语感文风：该素材特征标签（最多 3） */
+  feature_tags?: string[];
   metadata?: {
     asset_type?: string;
     voice_id?: string;
@@ -388,6 +626,10 @@ export type VirtualFolderLinkItem = {
     mode?: string;
     model?: string;
     demo_audio?: string;
+    contentPreview?: string;
+    text?: string;
+    source_task_id?: string;
+    piece_id?: string;
     /** 业务大类展示名（如「写作」「音频」「视频」），由后端从 admin 配置透传 */
     taskLabel?: string;
     /** 业务子类展示名（如「AI 科技情报报道」「营销方案」），由后端从 admin 配置透传 */
@@ -404,7 +646,7 @@ export type VirtualFolderLinkItem = {
   created_at: string;
 };
 
-export type VirtualFolderDirItem = {
+export type KnowledgeFolderDirItem = {
   type: 'dir';
   id: string;
   name: string;
@@ -417,7 +659,7 @@ export type VirtualFolderDirItem = {
   updated_at: string;
 };
 
-export type VirtualFolderContentItem = VirtualFolderLinkItem | VirtualFolderDirItem;
+export type KnowledgeFolderContentItem = KnowledgeFolderLinkItem | KnowledgeFolderDirItem;
 
 export interface FolderContentItem {
   id: string;
@@ -453,9 +695,9 @@ export async function getFolders(options?: SessionCacheOptions): Promise<FolderI
   );
 }
 
-export async function getVirtualFolders(options?: SessionCacheOptions): Promise<FolderItem[]> {
+export async function getKnowledgeFolders(options?: SessionCacheOptions): Promise<FolderItem[]> {
   return withSessionCache(
-    'getVirtualFolders',
+    'getKnowledgeFolders',
     async () => {
       const res = await request<{ data?: { folders?: FolderItem[] } }>(
         '/api/v1/assets/folders?folder_kind=virtual'
@@ -467,31 +709,31 @@ export async function getVirtualFolders(options?: SessionCacheOptions): Promise<
   );
 }
 
-export async function createVirtualFolder(name: string, parentId?: string | null) {
+export async function createKnowledgeFolder(name: string, parentId?: string | null) {
   const res = await request<{ code?: number; data?: FolderItem }>('/api/v1/assets/folders', {
     method: 'POST',
     body: { name, parent_id: parentId ?? null, folder_kind: 'virtual' },
   });
   if (!res.error) {
-    invalidateSessionCachePrefix('getVirtualFolders');
+    invalidateSessionCachePrefix('getKnowledgeFolders');
   }
   return res;
 }
 
-export async function deleteVirtualFolder(id: string) {
+export async function deleteKnowledgeFolder(id: string) {
   const res = await request(`/api/v1/assets/folders/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  if (!res.error) invalidateSessionCachePrefix('getVirtualFolders');
+  if (!res.error) invalidateSessionCachePrefix('getKnowledgeFolders');
   return res;
 }
 
-export async function getVirtualFolderItems(folderId: string, options?: SessionCacheOptions) {
+export async function getKnowledgeFolderItems(folderId: string, options?: SessionCacheOptions) {
   return withSessionCache(
-    `getVirtualFolderItems:${folderId}`,
+    `getKnowledgeFolderItems:${folderId}`,
     async () => {
       const res = await request<{
         data?: {
           folder?: FolderItem;
-          items?: VirtualFolderContentItem[];
+          items?: KnowledgeFolderContentItem[];
           total?: number;
           folders_count?: number;
           links_count?: number;
@@ -504,43 +746,43 @@ export async function getVirtualFolderItems(folderId: string, options?: SessionC
   );
 }
 
-export function peekVirtualFolderItems(folderId: string) {
+export function peekKnowledgeFolderItems(folderId: string) {
   return getSessionCache<{
     folder?: FolderItem;
-    items?: VirtualFolderContentItem[];
+    items?: KnowledgeFolderContentItem[];
     links_count?: number;
-  }>(`getVirtualFolderItems:${folderId}`, STORAGE_LIST_CACHE_TTL_MS);
+  }>(`getKnowledgeFolderItems:${folderId}`, STORAGE_LIST_CACHE_TTL_MS);
 }
 
-export function invalidateVirtualFolderItemsCache(): void {
-  invalidateSessionCachePrefix('getVirtualFolderItems:');
+export function invalidateKnowledgeFolderItemsCache(): void {
+  invalidateSessionCachePrefix('getKnowledgeFolderItems:');
 }
 
-export async function addVirtualFolderTaskLink(folderId: string, taskId: string) {
+export async function addKnowledgeFolderTaskLink(folderId: string, taskId: string) {
   const res = await request<{ code?: number }>(`/api/v1/assets/folders/${encodeURIComponent(folderId)}/items`, {
     method: 'POST',
     body: { task_id: taskId },
   });
   if (!res.error) {
-    invalidateSessionCachePrefix('getVirtualFolders');
-    invalidateVirtualFolderItemsCache();
+    invalidateSessionCachePrefix('getKnowledgeFolders');
+    invalidateKnowledgeFolderItemsCache();
   }
   return res;
 }
 
-export async function addVirtualFolderStorageLink(folderId: string, storageObjectId: string) {
+export async function addKnowledgeFolderStorageLink(folderId: string, storageObjectId: string) {
   const res = await request<{ code?: number }>(`/api/v1/assets/folders/${encodeURIComponent(folderId)}/items`, {
     method: 'POST',
     body: { storage_object_id: storageObjectId },
   });
   if (!res.error) {
-    invalidateSessionCachePrefix('getVirtualFolders');
-    invalidateVirtualFolderItemsCache();
+    invalidateSessionCachePrefix('getKnowledgeFolders');
+    invalidateKnowledgeFolderItemsCache();
   }
   return res;
 }
 
-export async function removeVirtualFolderLink(
+export async function removeKnowledgeFolderLink(
   folderId: string,
   refId: string,
   refType: 'task' | 'storage_object'
@@ -551,13 +793,13 @@ export async function removeVirtualFolderLink(
     { method: 'DELETE' }
   );
   if (!res.error) {
-    invalidateSessionCachePrefix('getVirtualFolders');
-    invalidateVirtualFolderItemsCache();
+    invalidateSessionCachePrefix('getKnowledgeFolders');
+    invalidateKnowledgeFolderItemsCache();
   }
   return res;
 }
 
-export async function getVirtualFolderPath(folderId: string) {
+export async function getKnowledgeFolderPath(folderId: string) {
   return request<{ data?: { path?: FolderItem[] } }>(
     `/api/v1/assets/folders/${encodeURIComponent(folderId)}/path`
   );
@@ -602,11 +844,82 @@ export async function removeItemFromFolder(folderId: string, taskId: string) {
   });
 }
 
-export async function triggerVirtualFolderIndex(folderId: string, force = false) {
+/** HTTP 路径仍为 /virtual-folder-index（兼容）；产品名：知识库 */
+export async function triggerKnowledgeFolderIndex(folderId: string, force = false) {
   return request<{ data?: unknown }>(`/api/v1/virtual-folder-index/${encodeURIComponent(folderId)}`, {
     method: 'POST',
     body: { force },
   });
+}
+
+export async function triggerKnowledgeFolderParse(folderId: string, force = false) {
+  return request<{ data?: unknown }>(
+    `/api/v1/virtual-folder-index/${encodeURIComponent(folderId)}/parse`,
+    { method: 'POST', body: { force } }
+  );
+}
+
+export async function getKnowledgeFolderCard(folderId: string) {
+  return request<{ data?: unknown }>(
+    `/api/v1/virtual-folder-index/${encodeURIComponent(folderId)}/card`
+  );
+}
+
+export async function updateKnowledgeFolderCardTag(
+  folderId: string,
+  cardTag: FolderCardTag | null,
+  name?: string
+) {
+  const body: Record<string, unknown> = { card_tag: cardTag };
+  if (name != null) body.name = name;
+  const res = await request<{ data?: FolderItem }>(
+    `/api/v1/assets/folders/${encodeURIComponent(folderId)}`,
+    { method: 'PUT', body }
+  );
+  if (!res.error) invalidateSessionCachePrefix('getKnowledgeFolders');
+  return res;
+}
+
+export async function updateKnowledgeFolderItemAssetRole(
+  folderId: string,
+  itemId: string,
+  assetRole: FolderAssetRole
+) {
+  return request<{ data?: unknown }>(
+    `/api/v1/virtual-folder-index/${encodeURIComponent(folderId)}/items/${encodeURIComponent(itemId)}/asset-role`,
+    { method: 'PATCH', body: { asset_role: assetRole } }
+  );
+}
+
+export async function updateKnowledgeFolderItemFeatureTags(
+  folderId: string,
+  itemId: string,
+  featureTags: string[]
+) {
+  return request<{ data?: { feature_tags?: string[]; ref_key?: string } }>(
+    `/api/v1/virtual-folder-index/${encodeURIComponent(folderId)}/items/${encodeURIComponent(itemId)}/feature-tags`,
+    { method: 'PATCH', body: { feature_tags: featureTags } }
+  );
+}
+
+export async function updateKnowledgeFolderCharacterFields(
+  folderId: string,
+  patch: Record<string, unknown>
+) {
+  return request<{ data?: { character?: Record<string, unknown> } }>(
+    `/api/v1/virtual-folder-index/${encodeURIComponent(folderId)}/character`,
+    { method: 'PATCH', body: patch }
+  );
+}
+
+export async function getSystemKnowledgeFolders(cardTag?: FolderCardTag) {
+  const q = cardTag ? `?card_tag=${encodeURIComponent(cardTag)}` : '';
+  const res = await request<{ data?: { folders?: FolderItem[] } }>(
+    `/api/v1/assets/folders/system${q}`
+  );
+  if (res.error) return [];
+  const body = res.data as { data?: { folders?: FolderItem[] }; folders?: FolderItem[] } | undefined;
+  return body?.data?.folders ?? body?.folders ?? [];
 }
 
 /** 写作 webSearch 字段：当前可用搜索引擎（已启用且已配置） */
@@ -617,7 +930,94 @@ export async function getEnabledSearchProviders(): Promise<string[]> {
   return Array.isArray(raw?.providers) ? raw.providers.map(String) : [];
 }
 
-export async function getVirtualFolderIndexStatus(folderId: string) {
+/** pre 预览检索（不建任务）：返回可写入 sources.websource 的载荷 + 话题 chips */
+export type PreTrendSearchResult = {
+  websource: {
+    query: string;
+    depth: string;
+    providers: string[];
+    hitCount: number;
+    truncated: boolean;
+    text: string;
+    items: Array<{ title: string; url: string; snippet: string; domain: string }>;
+  };
+  topicChips: string[];
+  topicExtractTaskId?: string | null;
+  search_track?: string;
+  track_source?: string;
+};
+
+export async function previewWritingTrendSearch(opts: {
+  industry: string;
+  industryCustom?: string;
+  /** today | yesterday | custom | 今日 | 昨日 | 指定日期 */
+  dateMode?: string;
+  reportDate?: string;
+  /** global | cn | tw | jp | na | eu；默认 global */
+  searchRegion?: string;
+  maxResults?: number;
+  /** 热点提炼返回条数；与 maxResults 解耦 */
+  topicCount?: number;
+  language?: string;
+  searchTrack?: string;
+  /** writing 业务，用于读取 pipeline.pre.webSearch.topicExtractTextKey */
+  writingTaskKey?: string;
+  writingSubtype?: string | null;
+  /** 也可直接指定 text 业务 */
+  topicExtractTextKey?: string;
+}): Promise<{ data?: PreTrendSearchResult; error?: string }> {
+  const res = await request<{
+    topicChips?: string[];
+    websource?: PreTrendSearchResult['websource'];
+    topicExtractTaskId?: string | null;
+    search_track?: string;
+    track_source?: string;
+    error?: string;
+  }>('/api/v1/search/industry-daily-topics', {
+    method: 'POST',
+    body: {
+      industry: opts.industry,
+      industryCustom: opts.industryCustom,
+      dateMode: opts.dateMode ?? 'today',
+      reportDate: opts.reportDate,
+      searchRegion: opts.searchRegion ?? 'global',
+      maxResults: opts.maxResults ?? 8,
+      topicCount: opts.topicCount,
+      language: opts.language,
+      searchTrack: opts.searchTrack,
+      writingTaskKey: opts.writingTaskKey,
+      writingSubtype: opts.writingSubtype,
+      topicExtractTextKey: opts.topicExtractTextKey,
+    },
+  });
+  if (res.error) return { error: res.error };
+  const body = res.data as {
+    topicChips?: string[];
+    websource?: PreTrendSearchResult['websource'];
+    topicExtractTaskId?: string | null;
+    search_track?: string;
+    track_source?: string;
+    error?: string;
+  };
+  if (body?.error) return { error: body.error };
+  const websource = body?.websource;
+  if (!websource) return { error: '检索未返回结果' };
+  const topicChips = Array.isArray(body.topicChips) ? body.topicChips : [];
+  if (topicChips.length === 0) {
+    return { error: '话题提炼未返回可用话题' };
+  }
+  return {
+    data: {
+      websource,
+      topicChips,
+      topicExtractTaskId: body.topicExtractTaskId ?? null,
+      search_track: body.search_track,
+      track_source: body.track_source,
+    },
+  };
+}
+
+export async function getKnowledgeFolderIndexStatus(folderId: string) {
   return request<{ data?: unknown }>(`/api/v1/virtual-folder-index/${encodeURIComponent(folderId)}/status`);
 }
 
@@ -985,72 +1385,6 @@ export async function getAccountUsageEvents(params?: {
   );
 }
 
-// 角色列表
-export async function listCharacters(params?: {
-  search?: string;
-  is_public?: boolean;
-  page?: number;
-  limit?: number;
-}) {
-  const q = new URLSearchParams();
-  if (params?.search) q.set('search', params.search);
-  if (params?.is_public !== undefined) q.set('is_public', String(params.is_public));
-  if (params?.page != null) q.set('page', String(params.page));
-  if (params?.limit != null) q.set('limit', String(params.limit));
-  const query = q.toString();
-  const cacheKey = `listCharacters:${query}`;
-  return withSessionCache(cacheKey, () =>
-    request<{ data?: { characters?: CharacterItem[]; total?: number } }>(
-      `/api/v1/characters${query ? `?${query}` : ''}`
-    )
-  );
-}
-
-export interface CharacterItem {
-  id: string;
-  name: string;
-  nickname?: string;
-  description?: string;
-  age?: number | string;
-  category?: string[];
-  tags?: string[];
-  appearance?: { description?: string; reference_images?: string[] };
-  clothing_style?: { description?: string; reference_images?: string[] };
-  voice?: {
-    voice_id?: string;
-    voice_example?: string;
-    description?: string;
-  };
-  reference_videos?: string[];
-  others?: { personality?: string; background?: string; [key: string]: unknown };
-  personality?: Record<string, unknown>;
-  background?: Record<string, unknown>;
-  mediaUrls?: { avatar?: string; voice_example?: string };
-  is_public?: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
-
-// 角色详情
-export async function getCharacter(id: string) {
-  return request<{ data?: CharacterItem }>(`/api/v1/characters/${encodeURIComponent(id)}`);
-}
-
-// 创建角色
-export async function createCharacter(body: Record<string, unknown>) {
-  return request('/api/v1/characters', { method: 'POST', body });
-}
-
-// 更新角色
-export async function updateCharacter(id: string, body: Record<string, unknown>) {
-  return request(`/api/v1/characters/${encodeURIComponent(id)}`, { method: 'PUT', body });
-}
-
-// 删除角色
-export async function deleteCharacter(id: string) {
-  return request(`/api/v1/characters/${encodeURIComponent(id)}`, { method: 'DELETE' });
-}
-
 export type StorageObjectMode = 'asset' | 'temp';
 
 export interface UploadStorageOptions {
@@ -1058,6 +1392,8 @@ export interface UploadStorageOptions {
   folderId?: string;
   taskId?: string;
   purpose?: string;
+  /** 写入 storage_objects.metadata（如 writing_manuscript） */
+  metadata?: Record<string, unknown>;
 }
 
 function appendUploadQuery(url: string, opts?: UploadStorageOptions): string {
@@ -1080,6 +1416,9 @@ export async function uploadAssets(file: File, options?: UploadStorageOptions) {
   if (options?.folderId) form.append('folderId', options.folderId);
   if (options?.taskId) form.append('taskId', options.taskId);
   if (options?.purpose) form.append('purpose', options.purpose);
+  if (options?.metadata && Object.keys(options.metadata).length > 0) {
+    form.append('metadata', JSON.stringify(options.metadata));
+  }
   const res = await request<{
     data?: {
       url: string;
@@ -1455,17 +1794,6 @@ export async function searchStockVideos(params: {
   };
 }
 
-export async function linkCharacterImageTask(
-  characterId: string,
-  taskId: string,
-  imageType: 'appearance' | 'clothing_style' = 'appearance'
-) {
-  return request(`/api/v1/characters/${encodeURIComponent(characterId)}/link-image-task`, {
-    method: 'POST',
-    body: { taskId, imageType },
-  });
-}
-
 /** POST /api/v2/tasks/run 响应体（Gateway 可能再包一层 data） */
 export type TaskRunV2ParallelChildBody = {
   taskId: string;
@@ -1515,6 +1843,52 @@ export async function runTaskV2(params: {
   return res;
 }
 
+export type TaskEstimateResult = {
+  estimatedTokens: number;
+  currentBalance: number;
+  allowed: boolean;
+  hasPricing: boolean;
+  isAdmin: boolean;
+  code?: string;
+  message?: string;
+  breakdown?: Array<{
+    label: string;
+    provider: string;
+    modelKey: string;
+    scope: string;
+    estimatedTokens: number;
+  }>;
+  provider?: string;
+  modelKey?: string;
+  scope?: string;
+  /** 开局估价仅含审核前费用，后续在人工审核时再估 */
+  deferredUntilManualReview?: boolean;
+  estimatePhase?: 'create' | 'after_review' | 'full';
+};
+
+export async function estimateTaskV2(params: {
+  scope: string;
+  taskKey: string;
+  subtype?: string | null;
+  params?: Record<string, unknown>;
+  /** create=开局（审核前，默认）；after_review=审核后后续费用 */
+  estimatePhase?: 'create' | 'after_review' | 'full';
+}) {
+  return request<{ success?: boolean; data?: TaskEstimateResult } | TaskEstimateResult>(
+    '/api/v2/tasks/estimate',
+    {
+      method: 'POST',
+      body: {
+        scope: params.scope,
+        taskKey: params.taskKey,
+        subtype: params.subtype ?? null,
+        params: params.params ?? {},
+        estimatePhase: params.estimatePhase ?? 'create',
+      },
+    }
+  );
+}
+
 // 查询任务（mxmcgi /api/v2/tasks/:taskId）
 export async function getTask(taskId: string) {
   return request<{ data?: unknown }>(`/api/v2/tasks/${encodeURIComponent(taskId)}`);
@@ -1548,7 +1922,16 @@ export interface WritingTaskItem {
   id: string;
   type: string;
   status: string;
-  progress?: { status: string; progress?: number; error?: string };
+  progress?: {
+    status: string;
+    progress?: number;
+    error?: string;
+    /** 管道阶段人话，如「检索资讯中…」 */
+    message?: string;
+    phase?: string;
+    phaseIndex?: number;
+    phaseTotal?: number;
+  };
   result?: {
     metadata?: Record<string, unknown>;
     hasMedia?: boolean;
@@ -1644,7 +2027,7 @@ export async function listCgiTasks(
   );
 }
 
-/** 虚拟文件夹等场景：并行拉取各 scope 已完成任务并去重合并 */
+/** 知识库等场景：并行拉取各 scope 已完成任务并去重合并 */
 export async function listCompletedGenerationTasks(params?: {
   limit?: number;
   creationSource?: TaskCreationSourceFilter;
@@ -1688,7 +2071,7 @@ export async function listCompletedGenerationTasks(params?: {
 
 export type GenerationPickerScope = 'writing' | 'graph' | 'video' | 'audio' | 'music';
 
-/** 按业务类型拉取已完成任务（虚拟文件夹软链选择器，单 Tab 懒加载） */
+/** 按业务类型拉取已完成任务（知识库软链选择器，单 Tab 懒加载） */
 export async function listCompletedTasksForPickerScope(
   scope: GenerationPickerScope,
   params?: { limit?: number; creationSource?: TaskCreationSourceFilter }
@@ -1776,7 +2159,7 @@ export async function listMinimaxVoices(
   return Array.isArray(voices) ? voices : [];
 }
 
-/** 从虚拟文件夹软链读取用户登记的克隆音色 */
+/** 从知识库软链读取用户登记的克隆音色 */
 export async function listMinimaxVoicesFromFolder(folderId: string): Promise<MinimaxVoiceItem[]> {
   const res = await request<{
     success?: boolean;
@@ -1796,7 +2179,7 @@ export async function cloneMinimaxVoice(
     previewText?: string;
     model?: string;
     voiceId?: string;
-    virtualFolderId?: string;
+    knowledgeFolderId?: string;
   }
 ): Promise<{
   voice_id: string;
@@ -1811,7 +2194,7 @@ export async function cloneMinimaxVoice(
   if (options?.previewText) form.append('preview_text', options.previewText);
   if (options?.model) form.append('model', options.model);
   if (options?.voiceId) form.append('voice_id', options.voiceId);
-  if (options?.virtualFolderId) form.append('virtual_folder_id', options.virtualFolderId);
+  if (options?.knowledgeFolderId) form.append('virtual_folder_id', options.knowledgeFolderId);
 
   const res = await request<{
     success?: boolean;
@@ -1839,19 +2222,6 @@ export async function cloneMinimaxVoice(
     storage_object_id: data?.storage_object_id,
     virtual_folder_id: data?.virtual_folder_id,
   };
-}
-
-// ---------- 知识库 ----------
-export async function listKnowledgeBases() {
-  return request<{ data?: unknown }>('/api/v1/knowledge/bases');
-}
-
-export async function getKnowledgeBase(id: string) {
-  return request<{ data?: unknown }>(`/api/v1/knowledge/bases/${encodeURIComponent(id)}`);
-}
-
-export async function searchKnowledgeBase(id: string, body: { query: string; limit?: number }) {
-  return request<{ data?: unknown }>(`/api/v1/knowledge/bases/${encodeURIComponent(id)}/search`, { method: 'POST', body });
 }
 
 // ---------- 媒体（按任务取结果） ----------
@@ -2054,6 +2424,8 @@ export async function fetchMediaBlobUrl(
     preview?: boolean;
     previewWidth?: number;
     useCache?: boolean;
+    /** 图集等多图任务的第几张（0-based） */
+    index?: number;
     /** 默认 stream；video 播放器可传 blob 整文件拉取 */
     delivery?: 'stream' | 'blob';
   }
@@ -2066,8 +2438,9 @@ export async function fetchMediaBlobUrl(
     return getAuthenticatedMediaStreamUrl(taskId, type, options);
   }
 
+  const index = options?.index ?? 0;
   const variant = options?.preview ? 'preview' : 'full';
-  const cacheKey = `${type}:${variant}:${taskId}`;
+  const cacheKey = mediaBlobCacheKey(type, taskId, variant, index);
   if (options?.useCache !== false) {
     const hit = getCachedMediaBlobUrl(cacheKey);
     if (hit?.startsWith('blob:')) return hit;
@@ -2075,10 +2448,14 @@ export async function fetchMediaBlobUrl(
 
   const base = getBaseUrl().replace(/\/$/, '');
   let path = `/api/v1/media/${type}/${encodeURIComponent(taskId)}`;
+  const qs = new URLSearchParams();
+  if (index > 0) qs.set('index', String(index));
   if (options?.preview && type === 'graph') {
-    const w = options.previewWidth ?? 240;
-    path += `?preview=1&w=${encodeURIComponent(String(w))}`;
+    qs.set('preview', '1');
+    qs.set('w', String(options.previewWidth ?? 240));
   }
+  const q = qs.toString();
+  if (q) path += `?${q}`;
   const url = base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
   const token = getToken();
   const controller = new AbortController();
@@ -2294,6 +2671,17 @@ export async function fetchStorageObjectBlobUrl(
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
   const blobUrl = URL.createObjectURL(await res.blob());
   return setCachedMediaBlobUrl(cacheKey, blobUrl);
+}
+
+/** 读取 storage object 文本（文集单篇 .md / 纯文本预览） */
+export async function fetchStorageObjectText(
+  contentUrl: string,
+  objectIdHint?: string
+): Promise<string> {
+  const blobUrl = await fetchStorageObjectBlobUrl(contentUrl, objectIdHint);
+  const res = await fetch(blobUrl);
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  return res.text();
 }
 
 /** 同步读取已缓存的媒体预览（切换路由时避免重复拉取） */
@@ -2548,25 +2936,6 @@ export async function removeSensitiveWordBinding(bindingId: string) {
   return request(`${SENSITIVE_BASE}/bindings/${encodeURIComponent(bindingId)}`, { method: 'DELETE' });
 }
 
-// ---------- 管理员：系统知识库默认绑定（需 Admin 权限）----------
-export async function getKnowledgeAdminDefaults(scope?: string) {
-  const q = scope != null ? `?scope=${encodeURIComponent(scope)}` : '';
-  return request<{ data?: { defaults?: { scope: string; category: string; sub_type: string; knowledge_base_id: string }[] } }>(
-    `/api/v1/knowledge/admin/defaults${q}`
-  );
-}
-
-export async function setKnowledgeAdminDefault(body: { scope: string; category: string; sub_type: string; knowledge_base_id: string }) {
-  return request<{ data?: unknown }>('/api/v1/knowledge/admin/defaults', { method: 'PUT', body });
-}
-
-export async function deleteKnowledgeAdminDefault(scope: string, category: string, subType: string) {
-  return request(
-    `/api/v1/knowledge/admin/defaults/${encodeURIComponent(scope)}/${encodeURIComponent(category)}/${encodeURIComponent(subType)}`,
-    { method: 'DELETE' }
-  );
-}
-
 // ---------- 管理员：用户列表（需 Admin 权限）----------
 export interface AdminUsersParams {
   page?: number;
@@ -2604,6 +2973,24 @@ export async function getAdminUsers(params?: AdminUsersParams) {
   );
 }
 
+/** Admin: 创建用户 */
+export async function adminCreateUser(body: {
+  username: string;
+  password: string;
+  email?: string;
+  phone?: string;
+  role?: 'user' | 'admin';
+  membership_type?: 'free' | 'pro' | 'premium';
+}) {
+  return request<{ code?: number; message?: string; data?: AdminUserItem }>(
+    `/api/v1/account/admin/users`,
+    {
+      method: 'POST',
+      body,
+    }
+  );
+}
+
 export async function updateAdminUserStatus(userId: string, status: 'active' | 'suspended' | 'banned') {
   return request(`/api/v1/account/admin/users/${encodeURIComponent(userId)}/status`, {
     method: 'PUT',
@@ -2634,7 +3021,16 @@ export interface AdminTaskItem {
   id: string;
   type: string;
   status: string;
-  progress?: { status: string; progress?: number; error?: string };
+  progress?: {
+    status: string;
+    progress?: number;
+    error?: string;
+    /** 管道阶段人话，如「检索资讯中…」 */
+    message?: string;
+    phase?: string;
+    phaseIndex?: number;
+    phaseTotal?: number;
+  };
   metadata?: { userId?: string; userName?: string; model?: string; provider?: string };
   /** 后端保存的原始请求参数（已做 base64 清理），用于展示 provider 传参 */
   requestParams?: Record<string, unknown>;
@@ -2668,7 +3064,16 @@ export type ReviewDraftPayload = {
   version: 1;
   gateId: string;
   phase: 'pre' | 'post';
-  kind: 'text' | 'json' | 'image' | 'media' | 'composite';
+  kind:
+    | 'text'
+    | 'json'
+    | 'image'
+    | 'media'
+    | 'composite'
+    | 'video-timeline'
+    | 'interactive-card'
+    | 'basic-form'
+    | 'writing-chat';
   text?: string;
   json?: unknown;
   mediaUrls?: string[];
@@ -2676,6 +3081,10 @@ export type ReviewDraftPayload = {
   editable: boolean;
   label?: string;
   hint?: string;
+  /** writing-chat：LLM 整理的人话版 Markdown 摘要（默认渲染）。 */
+  summary?: string;
+  /** writing-chat：摘要里的可调字段清单（结构同 interactive-card.fields）。 */
+  interactiveCardFields?: unknown;
 };
 
 export async function approveTaskReview(
@@ -2694,6 +3103,52 @@ export async function approveTaskReview(
       body: JSON.stringify({ approved: true, ...body }),
     }
   );
+}
+
+/** 图集：重试失败单项配图 */
+export async function retryAlbumItem(taskId: string, itemId: string) {
+  return request<{
+    data?: {
+      taskId?: string;
+      itemId?: string;
+      status?: 'ready' | 'failed';
+      error?: string;
+      albumResult?: unknown;
+      mediaUrls?: string[];
+    };
+  }>(`/api/v2/tasks/${encodeURIComponent(taskId)}/retry-album-item`, {
+    method: 'POST',
+    body: JSON.stringify({ itemId }),
+  });
+}
+
+/** 图集：删除单项配图 */
+export async function removeAlbumItem(taskId: string, itemId: string) {
+  return request<{
+    data?: {
+      taskId?: string;
+      itemId?: string;
+      albumResult?: unknown;
+      mediaUrls?: string[];
+    };
+  }>(`/api/v2/tasks/${encodeURIComponent(taskId)}/remove-album-item`, {
+    method: 'POST',
+    body: JSON.stringify({ itemId }),
+  });
+}
+
+/** 写作文集：删除单篇 */
+export async function removeCollectionItem(taskId: string, itemId: string) {
+  return request<{
+    data?: {
+      taskId?: string;
+      itemId?: string;
+      collectionResult?: unknown;
+    };
+  }>(`/api/v2/tasks/${encodeURIComponent(taskId)}/remove-collection-item`, {
+    method: 'POST',
+    body: JSON.stringify({ itemId }),
+  });
 }
 
 /** 成片审核阶段：重试失败/未就绪片段，父任务回到 processing */
@@ -2729,94 +3184,6 @@ export async function getTaskReviewDraft(taskId: string, gateId?: string) {
       gate?: Record<string, unknown> | null;
     };
   }>(`/api/v2/tasks/${encodeURIComponent(taskId)}/review-draft${q}`);
-}
-
-/** 审核阶段按 clip 异步生成 GSAP 场景（text/plan/gsap-scene） */
-export type GsapReviewJobStatus =
-  | 'queued'
-  | 'generating'
-  | 'parsing'
-  | 'saving'
-  | 'done'
-  | 'failed';
-
-export type GsapReviewJobPayload = {
-  jobId: string;
-  clipId: string;
-  status: GsapReviewJobStatus;
-  progress: number;
-  message: string;
-  error?: string;
-  scene?: Record<string, unknown>;
-  draftJson?: unknown;
-};
-
-export async function generateGsapSceneForReview(
-  taskId: string,
-  body: {
-    clipId: string;
-    gateId?: string;
-    brief?: string;
-    structuredData?: unknown;
-    duration?: number;
-  }
-) {
-  return request<{
-    success?: boolean;
-    data?: GsapReviewJobPayload;
-  }>(`/api/v2/tasks/${encodeURIComponent(taskId)}/review/generate-gsap-scene`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-}
-
-export async function getGsapSceneJobForReview(taskId: string, jobId: string) {
-  return request<{
-    success?: boolean;
-    data?: GsapReviewJobPayload;
-  }>(`/api/v2/tasks/${encodeURIComponent(taskId)}/review/generate-gsap-scene/${encodeURIComponent(jobId)}`, {
-    method: 'GET',
-  });
-}
-
-const GSAP_JOB_POLL_INTERVAL_MS = 1500;
-const GSAP_JOB_POLL_TIMEOUT_MS = 20 * 60 * 1000;
-
-export async function waitForGsapSceneJob(
-  taskId: string,
-  jobId: string,
-  options?: {
-    onProgress?: (job: GsapReviewJobPayload) => void;
-    pollIntervalMs?: number;
-    timeoutMs?: number;
-  }
-): Promise<GsapReviewJobPayload> {
-  const pollIntervalMs = options?.pollIntervalMs ?? GSAP_JOB_POLL_INTERVAL_MS;
-  const timeoutMs = options?.timeoutMs ?? GSAP_JOB_POLL_TIMEOUT_MS;
-  const started = Date.now();
-
-  for (;;) {
-    const res = await getGsapSceneJobForReview(taskId, jobId);
-    if (res.error) {
-      throw new Error(res.error);
-    }
-    const job = res.data?.data;
-    if (!job) {
-      throw new Error('未获取到生成任务状态');
-    }
-    options?.onProgress?.(job);
-
-    if (job.status === 'done') {
-      return job;
-    }
-    if (job.status === 'failed') {
-      throw new Error(job.error || job.message || '动画生成失败');
-    }
-    if (Date.now() - started > timeoutMs) {
-      throw new Error('动画生成超时，请稍后重试');
-    }
-    await new Promise((r) => setTimeout(r, pollIntervalMs));
-  }
 }
 
 export async function recoverTask(taskId: string) {
@@ -2908,7 +3275,7 @@ export type AgentReference = {
   scope?: string;
   taskKey?: string;
   subtype?: string;
-  /** file：所属虚拟文件夹 */
+  /** file：所属知识库文件夹 */
   folderId?: string;
   /** file：task | storage_object */
   refType?: 'task' | 'storage_object';
@@ -2929,6 +3296,10 @@ export type AgentConversation = {
   title: string | null;
   status: string;
   summary: string | null;
+  /** 模块 Agent 硬绑定；主助手为 null/undefined */
+  scope?: string | null;
+  /** UI 语言 zh | en */
+  locale?: string | null;
   last_message_at: string | null;
   created_at: string;
   updated_at: string;
@@ -2973,10 +3344,17 @@ export async function listAgentConversations(params?: { limit?: number; offset?:
   );
 }
 
-export async function createAgentConversation(title?: string) {
+export async function createAgentConversation(
+  title?: string,
+  options?: { scope?: string | null; locale?: string | null }
+) {
   return request<{ success?: boolean; data?: AgentConversation }>('/api/v2/agent/conversations', {
     method: 'POST',
-    body: { title },
+    body: JSON.stringify({
+      title: title || undefined,
+      ...(options?.scope ? { scope: options.scope } : {}),
+      ...(options?.locale ? { locale: options.locale } : {}),
+    }),
   });
 }
 
@@ -3006,7 +3384,7 @@ export async function listAgentMessages(conversationId: string, params?: { limit
 
 export async function postAgentMessage(
   conversationId: string,
-  body: { content: string | AgentMessagePart[]; references?: AgentReference[] }
+  body: { content: string | AgentMessagePart[]; references?: AgentReference[]; locale?: string }
 ) {
   return request<{
     success?: boolean;
@@ -3220,6 +3598,29 @@ export interface TaskFormConfig {
   taskLabelI18n?: Record<string, string> | null;
   subtypeLabelI18n?: Record<string, string> | null;
   form_options_i18n?: Record<string, Record<string, string>> | null;
+  /**
+   * schema-form：抽屉内完整 Schema；
+   * warp-gates：仅平台字段开任务，basic 在 interactiveCard 闸门中分步采集
+   */
+  createUx?: 'schema-form' | 'warp-gates';
+  /** 管线 pre 引导：交互卡字段 + websource 检索参数（动态生效） */
+  createGuide?: {
+    interactiveCard: {
+      label?: string;
+      hint?: string;
+      /** pre 结束后进 basic 前的提示（可选） */
+      postPreHint?: string;
+      fields: Array<Record<string, unknown> & { name: string }>;
+    } | null;
+    webSearch: {
+      /** 显式：pre 后在 C 端跑话题预览检索 */
+      clientPreview?: boolean;
+      maxResults?: number;
+      depth?: string;
+      topicExtractTextKey?: string;
+      topicCount?: number;
+    } | null;
+  };
   schema: {
     $schema?: string;
     type?: string;
@@ -3246,6 +3647,11 @@ export type TaskFormConfigListItem = {
   /** Admin 可配置的显示名（避免用户看到业务 key） */
   taskLabel?: string | null;
   subtypeLabel?: string | null;
+  /** 业务简介（列表选择器用） */
+  description?: string | null;
+  taskLabelI18n?: Record<string, string> | null;
+  subtypeLabelI18n?: Record<string, string> | null;
+  descriptionI18n?: Record<string, string> | null;
   updated_at?: string;
 };
 
@@ -4074,4 +4480,167 @@ export async function createPartnerApp(body: {
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+// ---------- Admin：写作质量评估 ----------
+
+export type QualityEvalDimension = {
+  key: string;
+  label: string;
+  description: string;
+  weight: number;
+  failBelow: number;
+};
+
+export type QualityEvalRubric = {
+  id: string;
+  scope: string;
+  task_key: string;
+  subtype: string;
+  dimensions: QualityEvalDimension[];
+  business_brief: string;
+  provider: string;
+  model_key: string;
+  auto_on_complete: boolean;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type QualityEvalDimensionScore = {
+  key: string;
+  label: string;
+  score: number;
+  failed: boolean;
+  evidence: string[];
+  comment: string;
+};
+
+export type QualityEvalScores = {
+  overall: number;
+  summary: string;
+  articleTypeFit: string;
+  dimensions: QualityEvalDimensionScore[];
+};
+
+export type QualityEvalAttributionFinding = {
+  step: string;
+  phase?: string;
+  severity: 'high' | 'medium' | 'low';
+  relatedDimensions: string[];
+  reason: string;
+  suggestion: string;
+};
+
+export type QualityEvalAttribution = {
+  findings: QualityEvalAttributionFinding[];
+  summary: string;
+};
+
+export type QualityEvalRun = {
+  id: string;
+  rubric_id: string | null;
+  scope: string;
+  task_key: string;
+  subtype: string;
+  source_kind: 'task' | 'folder_item' | 'paste';
+  source_ref: { taskId?: string; folderId?: string; itemId?: string; storageObjectId?: string } | null;
+  article_text: string | null;
+  article_text_truncated: string | null;
+  is_system_generated: boolean;
+  scores: QualityEvalScores | null;
+  attribution: QualityEvalAttribution | null;
+  model_provider: string | null;
+  model_key: string | null;
+  status: string;
+  error: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getQualityEvalDefaults() {
+  return request<{ success?: boolean; data?: {
+    provider: string;
+    modelKey: string;
+    modelOptions: Array<{ provider: string; modelKey: string; label: string }>;
+  } }>('/api/v1/system/admin/quality-eval/defaults');
+}
+
+export async function listQualityEvalRubrics(scope = 'writing') {
+  const q = new URLSearchParams({ scope });
+  return request<{ success?: boolean; data?: QualityEvalRubric[] }>(
+    `/api/v1/system/admin/quality-eval/rubrics?${q}`
+  );
+}
+
+export async function upsertQualityEvalRubric(body: {
+  scope?: string;
+  task_key: string;
+  subtype: string;
+  dimensions: QualityEvalDimension[];
+  business_brief?: string;
+  provider?: string;
+  model_key?: string;
+  auto_on_complete?: boolean;
+  is_active?: boolean;
+}) {
+  return request<{ success?: boolean; data?: QualityEvalRubric; error?: string }>(
+    '/api/v1/system/admin/quality-eval/rubrics',
+    { method: 'PUT', body }
+  );
+}
+
+export async function listQualityEvalRuns(params?: {
+  scope?: string;
+  taskKey?: string;
+  subtype?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const q = new URLSearchParams();
+  if (params?.scope) q.set('scope', params.scope);
+  if (params?.taskKey) q.set('taskKey', params.taskKey);
+  if (params?.subtype) q.set('subtype', params.subtype);
+  if (params?.limit != null) q.set('limit', String(params.limit));
+  if (params?.offset != null) q.set('offset', String(params.offset));
+  const qs = q.toString();
+  return request<{ success?: boolean; data?: { runs: QualityEvalRun[]; total: number } }>(
+    `/api/v1/system/admin/quality-eval/runs${qs ? `?${qs}` : ''}`
+  );
+}
+
+export async function getQualityEvalRun(id: string) {
+  return request<{ success?: boolean; data?: QualityEvalRun }>(
+    `/api/v1/system/admin/quality-eval/runs/${encodeURIComponent(id)}`
+  );
+}
+
+export async function createQualityEvalRun(body: {
+  scope?: string;
+  taskKey: string;
+  subtype: string;
+  sourceKind: 'task' | 'folder_item' | 'paste';
+  sourceRef?: { taskId?: string; folderId?: string; itemId?: string; storageObjectId?: string } | null;
+  text?: string;
+  modelOverride?: { provider?: string; modelKey?: string };
+}) {
+  return request<{ success?: boolean; data?: QualityEvalRun; error?: string }>(
+    '/api/v1/system/admin/quality-eval/runs',
+    {
+      method: 'POST',
+      body,
+      signal: AbortSignal.timeout(300_000),
+    }
+  );
+}
+
+export async function reattributeQualityEvalRun(id: string) {
+  return request<{ success?: boolean; data?: QualityEvalRun; error?: string }>(
+    `/api/v1/system/admin/quality-eval/runs/${encodeURIComponent(id)}/reattribute`,
+    {
+      method: 'POST',
+      signal: AbortSignal.timeout(300_000),
+    }
+  );
 }

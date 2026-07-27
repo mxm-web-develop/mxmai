@@ -1,0 +1,97 @@
+.task-v2-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.task-v2-mode-switch__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition:
+    color 160ms ease-out,
+    background 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+
+.task-v2-mode-switch__btn:hover {
+  color: var(--text-main, #0f172a);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+html.dark .task-v2-mode-switch__btn:hover {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--text-main, #f8fafc);
+}
+
+.task-v2-mode-switch__btn.is-active {
+  color: var(--action-primary-solid, #0284c7);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+html.dark .task-v2-mode-switch__btn.is-active {
+  background: rgba(14, 165, 233, 0.18);
+  color: #7dd3fc;
+  box-shadow: none;
+}
+
+.task-v2-mode-switch__btn:focus-visible {
+  outline: none;
+  box-shadow: var(--action-focus-ring, 0 0 0 2px rgba(14, 165, 233, 0.35));
+}
+
+.task-v2-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding-inline-end: 0.25rem;
+}
+
+.task-v2-drawer-header__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main, #0f172a);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Drawer 体：聊天模式撑满高度 */
+.task-v2-create-drawer.ant-drawer .ant-drawer-header {
+  padding-block: 0.75rem;
+}
+
+.task-v2-create-drawer.ant-drawer .ant-drawer-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem 0.85rem;
+  height: calc(100% - 55px);
+  overflow: hidden;
+}
+
+.task-v2-create-drawer.ant-drawer .ant-drawer-header-title {
+  flex: 1;
+  margin-inline-end: 0.5rem;
+}
+
+.task-v2-create-drawer.ant-drawer .ant-drawer-title {
+  width: 100%;
+  margin: 0;
+}

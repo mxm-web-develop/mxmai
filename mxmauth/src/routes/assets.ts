@@ -9,6 +9,7 @@ import { RepositoryFactory, getSupabaseClient } from '@mxmai/mxmdata';
 import type { Folder, FolderIndexEntry, FolderKind, PromptEngineeringConfig } from '@mxmai/mxmdata';
 import { authMiddleware } from '../middleware/auth';
 import { NotFoundError, DuplicateError, DataAccessError } from '@mxmai/mxmdata';
+import { decodePossiblyMojibakeFilename } from '../utils/filename-encoding';
 
 const router = Router();
 const folderRepo = RepositoryFactory.createFolderRepository();
@@ -43,6 +44,22 @@ function indexEntryStatusFor(
 ): string {
   const hit = entries.find((e) => e.ref_type === refType && e.ref_id === refId);
   return hit?.status ?? 'pending';
+}
+
+function featureTagsFor(
+  entries: FolderIndexEntry[],
+  refType: 'task' | 'storage_object',
+  refId: string
+): string[] {
+  const hit = entries.find((e) => e.ref_type === refType && e.ref_id === refId);
+  const analysis = hit?.analysis;
+  if (!analysis || typeof analysis !== 'object' || Array.isArray(analysis)) return [];
+  const tags = (analysis as { feature_tags?: unknown }).feature_tags;
+  if (!Array.isArray(tags)) return [];
+  return tags
+    .filter((t): t is string => typeof t === 'string' && !!t.trim())
+    .map((t) => t.trim())
+    .slice(0, 3);
 }
 
 /**
@@ -224,13 +241,31 @@ router.get('/folders', authMiddleware, async (req, res, next) => {
     const userId = req.user!.userId;
     const parentId = req.query.parent_id as string | undefined;
     const folderKind = parseFolderKind(req.query.folder_kind);
+    const cardTagRaw = req.query.card_tag as string | undefined;
+    const cardTag =
+      cardTagRaw === 'style' || cardTagRaw === 'character' || cardTagRaw === 'knowledge'
+        ? cardTagRaw
+        : cardTagRaw === 'null'
+          ? null
+          : undefined;
+    const includeSystem = req.query.include_system === 'true' || req.query.include_system === '1';
 
     const folders = await folderRepo.getFolders(userId, {
       parent_id: parentId === '' || parentId === undefined ? undefined : parentId === 'null' ? null : parentId,
       folder_kind: folderKind,
+      card_tag: cardTag,
     });
 
-    const folderList = Array.isArray(folders) ? folders : [];
+    let folderList = Array.isArray(folders) ? folders : [];
+    if (includeSystem && folderKind === 'virtual') {
+      const systemFolders = await folderRepo.getSystemFolders({
+        card_tag: cardTag === undefined ? undefined : cardTag,
+      });
+      const seen = new Set(folderList.map((f) => f.id));
+      for (const sf of systemFolders) {
+        if (!seen.has(sf.id)) folderList.push(sf);
+      }
+    }
 
     res.json({
       code: 200,
@@ -245,18 +280,54 @@ router.get('/folders', authMiddleware, async (req, res, next) => {
   }
 });
 
+router.get('/folders/system', authMiddleware, async (req, res, next) => {
+  try {
+    const cardTagRaw = req.query.card_tag as string | undefined;
+    const cardTag =
+      cardTagRaw === 'style' || cardTagRaw === 'character' || cardTagRaw === 'knowledge'
+        ? cardTagRaw
+        : undefined;
+    const folders = await folderRepo.getSystemFolders({ card_tag: cardTag });
+    res.json({
+      code: 200,
+      message: 'ok',
+      data: { folders, total: folders.length },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post('/folders', authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user!.userId;
-    const { name, parent_id, folder_kind } = req.body;
+    const { name, parent_id, folder_kind, card_tag, is_system } = req.body;
     const folderKind = parseFolderKind(folder_kind);
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ code: 400, message: '文件夹名称不能为空', error: 'VALIDATION_ERROR' });
     }
 
-    if (parent_id) {
-      const parentFolder = await folderRepo.getFolderById(parent_id);
+    const cardTag =
+      card_tag === 'style' || card_tag === 'character' || card_tag === 'knowledge'
+        ? card_tag
+        : card_tag === null
+          ? null
+          : undefined;
+
+    // 仅 admin 可创建系统卡（ADMIN_USER_IDS 逗号分隔）
+    const isAdmin = (process.env.ADMIN_USER_IDS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .includes(userId);
+    const wantSystem = is_system === true && isAdmin;
+
+    // 虚拟文件夹强制平铺：忽略 parent_id
+    const effectiveParentId = folderKind === 'virtual' ? null : parent_id || null;
+
+    if (effectiveParentId) {
+      const parentFolder = await folderRepo.getFolderById(effectiveParentId);
       if (!parentFolder) {
         return res.status(404).json({ code: 404, message: '父文件夹不存在', error: 'NOT_FOUND' });
       }
@@ -274,8 +345,10 @@ router.post('/folders', authMiddleware, async (req, res, next) => {
 
     const folder = await folderRepo.createFolder(userId, {
       name: name.trim(),
-      parent_id: parent_id || null,
+      parent_id: effectiveParentId,
       folder_kind: folderKind,
+      card_tag: cardTag ?? null,
+      is_system: wantSystem,
     });
 
     res.status(201).json({ code: 201, message: '创建文件夹成功', data: folder });
@@ -295,12 +368,46 @@ router.put('/folders/:id', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ code: 400, message: `无效的文件夹 ID: ${req.params.id}`, error: 'VALIDATION_ERROR' });
     }
 
-    const { name } = req.body;
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({ code: 400, message: '文件夹名称不能为空', error: 'VALIDATION_ERROR' });
+    const { name, card_tag } = req.body;
+    const patch: { name?: string; card_tag?: 'style' | 'character' | 'knowledge' | null } = {};
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ code: 400, message: '文件夹名称不能为空', error: 'VALIDATION_ERROR' });
+      }
+      patch.name = name.trim();
+    }
+    if (card_tag !== undefined) {
+      if (
+        card_tag !== null &&
+        card_tag !== 'style' &&
+        card_tag !== 'character' &&
+        card_tag !== 'knowledge'
+      ) {
+        return res.status(400).json({ code: 400, message: '无效 card_tag', error: 'VALIDATION_ERROR' });
+      }
+      patch.card_tag = card_tag;
+    }
+    if (Object.keys(patch).length === 0) {
+      return res.status(400).json({ code: 400, message: '无更新字段', error: 'VALIDATION_ERROR' });
     }
 
-    const folder = await folderRepo.updateFolder(userId, folderId, { name: name.trim() });
+    const folder = await folderRepo.updateFolder(userId, folderId, patch);
+    // 打标后自动触发解析（异步）
+    if (patch.card_tag && folder.folder_kind === 'virtual') {
+      try {
+        const mxmcgi = process.env.MXMCGI_URL || process.env.MXMCGI_API_URL || 'http://127.0.0.1:4003';
+        void fetch(`${mxmcgi}/api/v1/virtual-folder-index/${folderId}/parse`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': userId,
+          },
+          body: JSON.stringify({ force: false }),
+        }).catch(() => undefined);
+      } catch {
+        /* ignore */
+      }
+    }
     res.json({ code: 200, message: '更新文件夹成功', data: folder });
   } catch (error) {
     if (error instanceof NotFoundError) {
@@ -337,7 +444,7 @@ router.delete('/folders/:id', authMiddleware, async (req, res, next) => {
       if (error.type === 'VALIDATION_ERROR') {
         return res.status(400).json({
           code: 400,
-          message: error.message || '无法删除包含子文件夹的文件夹',
+          message: error.message || '无法删除文件夹',
           error: 'VALIDATION_ERROR',
         });
       }
@@ -429,10 +536,13 @@ router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
 
     const indexEntries = isVirtual ? await folderRepo.getFolderIndexEntries(folderId) : [];
 
-    const subFolderRows = await folderRepo.getFolders(userId, {
-      parent_id: folderId,
-      folder_kind: folder.folder_kind,
-    });
+    // 虚拟夹平铺：内容列表不返回子文件夹；上传管理器仍可树形
+    const subFolderRows = isVirtual
+      ? []
+      : await folderRepo.getFolders(userId, {
+          parent_id: folderId,
+          folder_kind: folder.folder_kind,
+        });
 
     const subFolders = subFolderRows.map((f) => ({
       type: 'dir' as const,
@@ -480,9 +590,11 @@ router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
             ref_type: 'task',
             id: taskId,
             task_id: taskId,
+            folder_item_id: item.id,
             name: `${businessLabelByTaskType(undefined)} #${shortId(taskId)}`,
             broken: true,
             index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, 'task', taskId) : undefined,
+            feature_tags: isVirtual ? featureTagsFor(indexEntries, 'task', taskId) : undefined,
             link_created_at: item.created_at,
             created_at: item.created_at,
           });
@@ -506,12 +618,14 @@ router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
           ref_type: 'task',
           id: taskId,
           task_id: taskId,
+          folder_item_id: item.id,
           name,
           task_type: task.task_type,
           status: task.status,
           metadata: Object.keys(metaOut).length ? metaOut : undefined,
           broken: false,
           index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, 'task', taskId) : undefined,
+          feature_tags: isVirtual ? featureTagsFor(indexEntries, 'task', taskId) : undefined,
           link_created_at: item.created_at,
           created_at: task.created_at,
         });
@@ -538,14 +652,28 @@ router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
         if (obj) {
           const objMeta = (obj.metadata as Record<string, unknown>) || {};
           const isVoiceAsset = objMeta.asset_type === 'minimax_voice';
+          const isWritingManuscript =
+            objMeta.asset_type === 'writing_manuscript' ||
+            String(obj.content_type ?? '')
+              .toLowerCase()
+              .includes('markdown') ||
+            String(obj.content_type ?? '')
+              .toLowerCase()
+              .startsWith('text/plain') ||
+            /\.(md|markdown|txt)$/i.test(String(obj.original_name ?? ''));
+          const displayName = isVoiceAsset
+            ? String(objMeta.label || objMeta.voice_id || obj.original_name || `音色 ${objectId.substring(0, 8)}`)
+            : isWritingManuscript && typeof objMeta.label === 'string' && objMeta.label.trim()
+              ? objMeta.label.trim()
+              : decodePossiblyMojibakeFilename(obj.original_name as string) ||
+                `文件 ${objectId.substring(0, 8)}`;
           linkItems.push({
             type: 'link',
             ref_type: 'storage_object',
             id: objectId,
             object_id: objectId,
-            name: isVoiceAsset
-              ? String(objMeta.label || objMeta.voice_id || obj.original_name || `音色 ${objectId.substring(0, 8)}`)
-              : (obj.original_name as string) || `文件 ${objectId.substring(0, 8)}`,
+            folder_item_id: item.id,
+            name: displayName,
             content_type: obj.content_type,
             metadata: isVoiceAsset
               ? {
@@ -556,9 +684,21 @@ router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
                   model: objMeta.model,
                   demo_audio: objMeta.demo_audio,
                 }
-              : undefined,
+              : isWritingManuscript
+                ? {
+                    asset_type: 'writing_manuscript',
+                    label: objMeta.label ?? displayName,
+                    contentPreview: objMeta.contentPreview,
+                    text: objMeta.text,
+                    taskLabel: objMeta.taskLabel,
+                    subtypeLabel: objMeta.subtypeLabel,
+                    source_task_id: objMeta.source_task_id,
+                    piece_id: objMeta.piece_id,
+                  }
+                : undefined,
             broken: false,
             index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, 'storage_object', objectId) : undefined,
+            feature_tags: isVirtual ? featureTagsFor(indexEntries, 'storage_object', objectId) : undefined,
             link_created_at: item.created_at,
             created_at: obj.created_at,
           });
@@ -568,9 +708,11 @@ router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
             ref_type: 'storage_object',
             id: objectId,
             object_id: objectId,
+            folder_item_id: item.id,
             name: `文件 ${objectId.substring(0, 8)}`,
             broken: true,
             index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, 'storage_object', objectId) : undefined,
+            feature_tags: isVirtual ? featureTagsFor(indexEntries, 'storage_object', objectId) : undefined,
             link_created_at: item.created_at,
             created_at: item.created_at,
           });
@@ -593,10 +735,17 @@ router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
         folder: {
           id: folder.id,
           name: folder.name,
+          parent_id: folder.parent_id,
           folder_kind: folder.folder_kind,
           index_status: folder.index_status ?? 'none',
           indexed_at: folder.indexed_at,
           knowledge_base_id: folder.knowledge_base_id,
+          card_tag: folder.card_tag ?? null,
+          card_status: folder.card_status ?? 'idle',
+          card_summary: folder.card_summary ?? {},
+          is_system: folder.is_system === true,
+          created_at: folder.created_at,
+          updated_at: folder.updated_at,
         },
         items: allItems,
         total: subFolders.length + totalFiles,

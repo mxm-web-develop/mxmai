@@ -1,0 +1,557 @@
+/**
+ * 写作任务卡片 — 刊头扫光（对齐音频/图片：1:1 视觉区 + 下方标题）
+ */
+
+.writing-task-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+  gap: var(--space-3);
+}
+
+.writing-doc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.5rem 0.55rem calc(var(--space-3) + 1.35rem);
+  background: var(--glass-surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    transform var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out);
+}
+
+.writing-doc-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(2, 132, 199, 0.4);
+  box-shadow: var(--shadow-lg);
+}
+
+.writing-doc-card__visual {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: #ffffff;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.writing-doc-card__mast {
+  position: relative;
+  padding: 0.55rem 0.65rem 0.5rem;
+  background: linear-gradient(90deg, #0284c7, #0ea5e9);
+  color: #fff;
+  overflow: hidden;
+  min-height: 4.25rem;
+}
+
+.writing-doc-card__shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* —— 文集卡片：与普通写作卡同结构（刊头 + 白纸篇目），不叠套卡片 —— */
+.writing-doc-card--anthology {
+  border-color: color-mix(in srgb, #0284c7 18%, var(--card-border));
+}
+
+.writing-doc-card--anthology:hover {
+  border-color: rgba(2, 132, 199, 0.45);
+}
+
+.writing-anthology__mast-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.15rem;
+}
+
+.writing-anthology__mast-row .writing-doc-card__eyebrow {
+  margin-bottom: 0;
+}
+
+.writing-anthology__count {
+  flex: 0 0 auto;
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.writing-anthology__sheet-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.writing-anthology__pieces {
+  list-style: none;
+  margin: 0;
+  padding: 0.1rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.writing-anthology__piece {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr);
+  gap: 0.35rem;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.writing-anthology__piece-idx {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #0284c7;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.writing-anthology__piece-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html.dark .writing-anthology__piece-label {
+  color: #e2e8f0;
+}
+
+html.dark .writing-anthology__piece-idx {
+  color: #38bdf8;
+}
+
+.writing-doc-card--anthology .writing-doc-card__title {
+  color: #0c4a6e;
+}
+
+html.dark .writing-doc-card--anthology .writing-doc-card__title {
+  color: #7dd3fc;
+}
+
+.writing-doc-card__eyebrow {
+  position: relative;
+  z-index: 1;
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.92;
+  margin-bottom: 0.2rem;
+}
+
+.writing-doc-card__headline {
+  position: relative;
+  z-index: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+
+.writing-doc-card__gen-hint {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.58rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.writing-doc-card__gen {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  min-width: 0;
+}
+
+.writing-doc-card__phases {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.2rem;
+  width: 100%;
+}
+
+.writing-doc-card__phase {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.writing-doc-card__phase-bar {
+  display: block;
+  height: 0.22rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  transition: background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.writing-doc-card__phase--done .writing-doc-card__phase-bar {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.writing-doc-card__phase--active .writing-doc-card__phase-bar {
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+  animation: writing-phase-pulse 1.4s ease-in-out infinite;
+}
+
+.writing-doc-card__phase-label {
+  font-size: 0.5rem;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.writing-doc-card__phase--done .writing-doc-card__phase-label,
+.writing-doc-card__phase--active .writing-doc-card__phase-label {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .writing-doc-card__phase--active .writing-doc-card__phase-bar {
+    animation: none;
+  }
+}
+
+@keyframes writing-phase-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* 生成中刊头：墨线占位，不暴露内部提示词 */
+.writing-doc-card__mast-writing {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0.1rem 0 0.05rem;
+  min-height: 2.1rem;
+}
+
+.writing-doc-card__mast-ink {
+  display: block;
+  height: 0.32rem;
+  width: 92%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  transform-origin: left center;
+  opacity: 0.72;
+}
+
+.writing-doc-card__mast-ink--mid {
+  width: 74%;
+  opacity: 0.5;
+}
+
+.writing-doc-card__mast-ink--short {
+  width: 48%;
+  opacity: 0.38;
+}
+
+.writing-doc-card__mast-caret {
+  position: absolute;
+  right: 0.1rem;
+  bottom: 0.05rem;
+  width: 0.14rem;
+  height: 0.72rem;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.45);
+  opacity: 0.9;
+}
+
+.writing-doc-card__sheet {
+  padding: 0.5rem 0.6rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 0;
+  background: #ffffff;
+}
+
+.writing-doc-card__excerpt {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  font-size: 0.65rem;
+  line-height: 1.45;
+  color: #475569;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.writing-doc-card__excerpt--muted {
+  color: #94a3b8;
+  font-style: italic;
+  -webkit-line-clamp: 3;
+}
+
+.writing-doc-card__error {
+  margin: 0;
+  flex: 1;
+  font-size: 0.65rem;
+  line-height: 1.4;
+  color: #dc2626;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.writing-doc-card__title {
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 标题下：终端行风格 — 状态 / 时间 / 文稿 */
+.writing-doc-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.15rem;
+}
+
+.writing-doc-card__meta--term {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.62rem;
+  color: #64748b;
+  letter-spacing: -0.01em;
+  gap: 0.4rem;
+}
+
+.writing-doc-card__meta--term .status-badge {
+  font-family: inherit;
+  font-size: 0.58rem;
+  padding: 0.06rem 0.32rem;
+}
+
+.writing-doc-card__meta--term time::before,
+.writing-doc-card__meta--term .writing-doc-card__term-type::before {
+  content: '·';
+  margin-right: 0.4rem;
+  opacity: 0.55;
+  font-weight: 400;
+}
+
+.writing-doc-card__term-type {
+  color: #64748b;
+}
+
+.writing-doc-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+/* —— 生成中：墨线骨架 —— */
+.writing-doc-card__inking {
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+  flex: 1;
+  padding-top: 0.1rem;
+}
+
+.writing-doc-card__ink {
+  display: block;
+  height: 0.34rem;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e2e8f0, #cbd5e1, #e2e8f0);
+  background-size: 200% 100%;
+  transform-origin: left center;
+  opacity: 0.75;
+}
+
+.writing-doc-card__ink--title {
+  height: 0.42rem;
+  width: 72%;
+  background: linear-gradient(90deg, rgba(2, 132, 199, 0.35), rgba(14, 165, 233, 0.55), rgba(2, 132, 199, 0.35));
+  background-size: 200% 100%;
+}
+
+.writing-doc-card__ink--short {
+  width: 58%;
+}
+
+.writing-doc-card__ink--mid {
+  width: 82%;
+}
+
+.writing-doc-card--generating .writing-doc-card__mast {
+  background: linear-gradient(90deg, #0369a1, #0284c7 40%, #38bdf8);
+}
+
+.writing-doc-card--generating .writing-doc-card__visual {
+  border-color: rgba(14, 165, 233, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.12);
+}
+
+/* —— 审核中 —— */
+.writing-doc-card--review .writing-doc-card__mast {
+  background: linear-gradient(90deg, #b45309, #f59e0b);
+}
+
+.writing-doc-card--review .writing-doc-card__visual {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+/* —— 失败 —— */
+.writing-doc-card--failed .writing-doc-card__mast {
+  background: linear-gradient(90deg, #b91c1c, #ef4444);
+}
+
+.writing-doc-card--failed .writing-doc-card__visual {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .writing-doc-card {
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+  }
+
+  .writing-doc-card:hover {
+    transform: none;
+  }
+
+  .writing-doc-card__shimmer {
+    display: none;
+  }
+
+  .writing-doc-card__ink {
+    opacity: 0.55;
+    transform: none;
+  }
+
+  .writing-doc-card__mast-ink {
+    opacity: 0.45;
+    transform: none;
+  }
+
+  .writing-doc-card__mast-caret {
+    opacity: 0.7;
+    animation: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .writing-task-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+}
+
+@media (max-width: 640px) {
+  .writing-task-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* —— 亮色覆盖 —— */
+html:not(.dark) .writing-doc-card {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+html:not(.dark) .writing-doc-card:hover {
+  border-color: rgba(2, 132, 199, 0.45);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+html:not(.dark) .writing-doc-card__title {
+  color: #111827;
+}
+
+html:not(.dark) .writing-doc-card__excerpt {
+  color: #475569;
+}
+
+html:not(.dark) .writing-doc-card__chip {
+  background: rgba(2, 132, 199, 0.1);
+  color: #0369a1;
+}
+
+/* 暗色：刊头保持 sky，正文区略暗 */
+html.dark .writing-doc-card__sheet {
+  background: rgba(15, 23, 42, 0.92);
+}
+
+html.dark .writing-doc-card__excerpt {
+  color: #94a3b8;
+}
+
+html.dark .writing-doc-card__ink {
+  background: linear-gradient(90deg, #334155, #475569, #334155);
+  background-size: 200% 100%;
+}
+
+html.dark .writing-doc-card__visual {
+  background: #0f172a;
+  border-color: rgba(148, 163, 184, 0.25);
+}

@@ -1,0 +1,66 @@
+.pull-to-refresh-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pull-to-refresh-scroll__indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  overflow: hidden;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: height 0.18s ease;
+}
+
+.pull-to-refresh-scroll--refreshing .pull-to-refresh-scroll__indicator {
+  transition: height 0.12s ease;
+}
+
+.pull-to-refresh-scroll__hint {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pull-to-refresh-scroll__body {
+  min-height: 100%;
+  transition: transform 0.18s ease;
+  will-change: transform;
+}
+
+.pull-to-refresh-scroll--pulling .pull-to-refresh-scroll__body {
+  transition: none;
+}
+
+.pull-to-refresh-scroll__icon--spin {
+  animation: pull-to-refresh-spin 0.75s linear infinite;
+}
+
+@keyframes pull-to-refresh-spin {
+  to {
+    transform: rotate(360deg) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pull-to-refresh-scroll__body,
+  .pull-to-refresh-scroll__indicator {
+    transition: none;
+  }
+
+  .pull-to-refresh-scroll__icon--spin {
+    animation: none;
+  }
+}

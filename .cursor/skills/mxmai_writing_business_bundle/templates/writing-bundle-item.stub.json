@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "writing",
+      "type": "outlines",
+      "subtype": "your-subtype-id",
+      "is_active": true,
+      "rules_i18n": { "zh": "", "en": "" },
+      "output_format_i18n": { "zh": "", "en": "" },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "写作 · 示例子业务",
+          "subtypeLabel": "your-subtype-id（一句话说明）"
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["prompt"],
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "title": "写作需求",
+                "minLength": 1
+              }
+            }
+          },
+          "uiSchema": {
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": { "rows": 4 }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】…\n\n【参数】\n- …：${prompt}\n\n【输出要求】\n…"
+          },
+          "extra": {
+            "generateParams": {
+              "maxTokens": 4096,
+              "temperature": 0.7
+            }
+          },
+          "knowledge": {
+            "useKnowledge": false,
+            "strategy": "none"
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "writing-outlines-your-subtype-id",
+        "provider": "deer",
+        "model": "deepseek-v3.2",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "writing-outlines-your-subtype-id",
+          "charge_metric": "per_request",
+          "price_in_tokens": 50,
+          "min_charge_tokens": 0,
+          "provider": "deer",
+          "model_key": "deepseek-v3.2",
+          "subtype": "your-subtype-id",
+          "metadata": { "margin": 0.2 }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

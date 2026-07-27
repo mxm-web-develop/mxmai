@@ -6,32 +6,51 @@
  * - articles/其他: Markdown 或纯文本
  */
 
-import { useState, useMemo } from 'react';
-import type { WritingTaskItem } from '../api/client';
-
-function simpleMarkdownToHtml(text: string): string {
-  let html = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  html = html.replace(/\n/g, '<br />');
-  return html;
-}
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { FileDown, FileText, FolderInput, Trash2 } from 'lucide-react';
+import { App } from 'antd';
+import {
+  downloadWritingExport,
+  uploadAssets,
+  type WritingTaskItem,
+} from '../api/client';
+import { getTaskStatusLabel } from '../i18n/taskStatus';
+import { MediaLoadingState } from './MediaLoadingState';
+import {
+  MediaViewerHeader,
+  MediaViewerHeaderDivider,
+  MediaViewerHeaderIconButton,
+} from './MediaViewerHeader';
+import {
+  DocumentReaderShell,
+  MarkdownReader,
+  PdfJsReader,
+  PlainTextReader,
+  ReaderToolbar,
+  type PdfReaderControls,
+} from './document-reader';
+import { TaskProgressStage } from './TaskProgressStage';
+import { TaskViewerDataPanel } from './TaskViewerDataPanel';
+import { useAdminGatedViewerMode } from './viewer/useAdminGatedViewerMode';
+import {
+  MoveTasksToKnowledgeFolderModal,
+  type PrepareKnowledgeLinksResult,
+} from './task-list/MoveTasksToKnowledgeFolderModal';
+import './WritingViewerModal.css';
 
 interface WritingViewerModalProps {
   visible: boolean;
   onClose: () => void;
   title?: string;
   content: string;
+  /** PDF 存储时使用 blob URL 内嵌预览 */
+  pdfPreviewUrl?: string | null;
   task: WritingTaskItem | null;
   loading?: boolean;
   error?: string | null;
+  /** 文集：删除当前篇（父页调 API 并刷新 task） */
+  onRemoveCollectionItem?: (itemId: string) => Promise<void>;
 }
 
 interface StoryboardChunk {
@@ -79,7 +98,255 @@ function resolveWritingInfo(task: WritingTaskItem | null): { writingType?: strin
   };
 }
 
+type WritingCollectionItem = {
+  id: string;
+  order: number;
+  title: string;
+  name?: string;
+  angle?: string;
+  status: 'ready' | 'failed';
+  error?: string;
+  manuscript?: string;
+  textPreview?: string;
+};
+
+type WritingCollectionResult = {
+  title?: string;
+  itemCount?: number;
+  items: WritingCollectionItem[];
+};
+
+function readWritingCollection(task: WritingTaskItem | null): WritingCollectionResult | null {
+  if (!task) return null;
+  const fromResult = task.result?.metadata?.collectionResult;
+  const fromMeta = task.metadata?.collectionResult;
+  const raw = fromResult ?? fromMeta;
+  if (!raw || typeof raw !== 'object') return null;
+  const items = (raw as { items?: unknown }).items;
+  if (!Array.isArray(items) || items.length === 0) return null;
+  const normalized: WritingCollectionItem[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (!it || typeof it !== 'object') continue;
+    const o = it as Record<string, unknown>;
+    const manuscript = typeof o.manuscript === 'string' ? o.manuscript.trim() : '';
+    normalized.push({
+      id: String(o.id ?? `v${i + 1}`),
+      order: typeof o.order === 'number' ? o.order : i,
+      title: String(o.title ?? o.name ?? `路线 ${i + 1}`).trim() || `路线 ${i + 1}`,
+      name: typeof o.name === 'string' && o.name.trim() ? o.name.trim() : undefined,
+      angle: typeof o.angle === 'string' && o.angle.trim() ? o.angle.trim() : undefined,
+      status: o.status === 'failed' || !manuscript ? 'failed' : 'ready',
+      error: typeof o.error === 'string' ? o.error : undefined,
+      manuscript: manuscript || undefined,
+      textPreview: typeof o.textPreview === 'string' ? o.textPreview : undefined,
+    });
+  }
+  if (normalized.length === 0) return null;
+  return {
+    title: typeof (raw as { title?: unknown }).title === 'string' ? (raw as { title: string }).title : undefined,
+    itemCount: normalized.length,
+    items: normalized,
+  };
+}
+
+function WritingCollectionView({
+  collection,
+  onMovePiece,
+  onDeletePiece,
+  busy,
+}: {
+  collection: WritingCollectionResult;
+  onMovePiece?: (item: WritingCollectionItem) => void;
+  onDeletePiece?: (item: WritingCollectionItem) => void;
+  busy?: boolean;
+}) {
+  const { t } = useTranslation();
+  const readyCount = collection.items.filter((i) => i.status === 'ready' && i.manuscript).length;
+  const fallbackId =
+    collection.items.find((i) => i.status === 'ready' && i.manuscript)?.id ??
+    collection.items[0]?.id ??
+    '';
+  const [activeId, setActiveId] = useState(fallbackId);
+  const activeIndex = Math.max(
+    0,
+    collection.items.findIndex((i) => i.id === activeId)
+  );
+  const active =
+    collection.items.find((i) => i.id === activeId) ??
+    collection.items.find((i) => i.status === 'ready' && i.manuscript) ??
+    collection.items[0] ??
+    null;
+
+  useEffect(() => {
+    if (collection.items.some((i) => i.id === activeId)) return;
+    const next =
+      collection.items.find((i) => i.status === 'ready' && i.manuscript)?.id ??
+      collection.items[0]?.id ??
+      '';
+    setActiveId(next);
+  }, [activeId, collection.items]);
+
+  const selectByOffset = useCallback(
+    (delta: number) => {
+      if (collection.items.length === 0) return;
+      const next =
+        (activeIndex + delta + collection.items.length) % collection.items.length;
+      setActiveId(collection.items[next]!.id);
+    },
+    [activeIndex, collection.items]
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        selectByOffset(1);
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        selectByOffset(-1);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectByOffset]);
+
+  const canMovePiece = Boolean(active?.manuscript && onMovePiece && !busy);
+  const canDeletePiece = Boolean(active && onDeletePiece && !busy);
+
+  return (
+    <div className="wv-collection">
+      <aside className="wv-collection__nav" aria-label="文章集合">
+        <header className="wv-collection__nav-head">
+          <div className="wv-collection__nav-title">
+            <span className="wv-collection__kicker">探索集合</span>
+            <strong title={collection.title || undefined}>
+              {collection.title || '多路文稿'}
+            </strong>
+          </div>
+          <div className="wv-collection__count" aria-label={`${readyCount} 篇已就绪`}>
+            <b>{readyCount}</b>
+            <span>/{collection.items.length} 篇</span>
+          </div>
+        </header>
+
+        <div className="wv-collection__chips" role="tablist" aria-label="快速切换">
+          {collection.items.map((item, idx) => {
+            const selected = item.id === active?.id;
+            const short =
+              item.name ||
+              (item.title.length <= 14 ? item.title : `第 ${idx + 1} 路`);
+            return (
+              <button
+                key={`chip-${item.id}`}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                className={`wv-collection__chip${selected ? ' is-active' : ''}${
+                  item.status === 'failed' ? ' is-failed' : ''
+                }`}
+                onClick={() => setActiveId(item.id)}
+                title={item.title}
+              >
+                <i>{idx + 1}</i>
+                <em>{short}</em>
+              </button>
+            );
+          })}
+        </div>
+
+        <ul className="wv-collection__list" role="listbox" aria-label="篇目列表">
+          {collection.items.map((item, idx) => {
+            const selected = item.id === active?.id;
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  className={`wv-collection__item${selected ? ' is-active' : ''}${
+                    item.status === 'failed' ? ' is-failed' : ''
+                  }`}
+                  onClick={() => setActiveId(item.id)}
+                >
+                  <span className="wv-collection__idx" aria-hidden>
+                    {String(idx + 1).padStart(2, '0')}
+                  </span>
+                  <span className="wv-collection__item-body">
+                    {item.name ? (
+                      <span className="wv-collection__name">{item.name}</span>
+                    ) : null}
+                    <b className="wv-collection__item-title">{item.title}</b>
+                    {item.angle ? (
+                      <small className="wv-collection__angle">{item.angle}</small>
+                    ) : null}
+                    {item.status === 'failed' ? (
+                      <small className="wv-collection__fail">{item.error || '未生成'}</small>
+                    ) : null}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </aside>
+
+      <div className="wv-collection__reader">
+        {active ? (
+          <div className="wv-collection__reader-meta">
+            <span className="wv-collection__reader-pos">
+              {activeIndex + 1} / {collection.items.length}
+            </span>
+            {active.name ? <span className="wv-collection__reader-name">{active.name}</span> : null}
+            <div className="wv-collection__reader-actions" role="group" aria-label="本篇操作">
+              {onMovePiece ? (
+                <button
+                  type="button"
+                  className="wv-collection__nav-action"
+                  disabled={!canMovePiece}
+                  onClick={() => {
+                    if (active?.manuscript) onMovePiece(active);
+                  }}
+                  aria-label={t('common.viewer.writing.movePiece')}
+                  title={t('common.viewer.writing.movePiece')}
+                >
+                  <FolderInput size={14} strokeWidth={2} aria-hidden />
+                </button>
+              ) : null}
+              {onDeletePiece ? (
+                <button
+                  type="button"
+                  className="wv-collection__nav-action wv-collection__nav-action--danger"
+                  disabled={!canDeletePiece}
+                  onClick={() => onDeletePiece(active)}
+                  aria-label={t('common.viewer.writing.deletePiece')}
+                  title={t('common.viewer.writing.deletePiece')}
+                >
+                  <Trash2 size={14} strokeWidth={2} aria-hidden />
+                </button>
+              ) : null}
+            </div>
+            <span className="wv-collection__reader-hint">← → 切换</span>
+          </div>
+        ) : null}
+        {collection.items.length === 0 ? (
+          <p className="wv-error">{t('common.viewer.writing.noContent')}</p>
+        ) : active?.manuscript ? (
+          <DocumentReaderShell variant="immersive">
+            <MarkdownReader content={active.manuscript} />
+          </DocumentReaderShell>
+        ) : (
+          <p className="wv-error">{active?.error || '该路文稿尚未生成'}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StoryboardChunksView({ chunks }: { chunks: StoryboardChunk[] }) {
+  const { t } = useTranslation();
   const summary = useMemo(() => {
     let shotCount = 0;
     let totalSeconds = 0;
@@ -108,12 +375,16 @@ function StoryboardChunksView({ chunks }: { chunks: StoryboardChunk[] }) {
   return (
     <div className="wv-storyboard">
       <div className="wv-storyboard-summary">
-        <div className="wv-summary-title">分镜统计</div>
+        <div className="wv-summary-title">{t('common.viewer.writing.storyboardSummary')}</div>
         <div className="wv-summary-line">
-          段落 {summary.chunkCount} · 镜头 {summary.shotCount} · 总时长 {Math.round(summary.totalSeconds)} 秒
+          {t('common.viewer.writing.storyboardStats', {
+            chunks: summary.chunkCount,
+            shots: summary.shotCount,
+            seconds: Math.round(summary.totalSeconds),
+          })}
         </div>
         {summary.roles.length > 0 && (
-          <div className="wv-summary-line">角色：{summary.roles.join('、')}</div>
+          <div className="wv-summary-line">{t('common.viewer.writing.roles', { roles: summary.roles.join('、') })}</div>
         )}
       </div>
       {chunks.map((chunk, i) => {
@@ -124,12 +395,12 @@ function StoryboardChunksView({ chunks }: { chunks: StoryboardChunk[] }) {
           <div key={idx} className="wv-chunk-card">
             <div className="wv-chunk-title">
               {hasShots
-                ? `段落 ${idx}（${secs} 秒，含 ${chunk.shots!.length} 个镜头）`
-                : `镜头 ${idx}（${secs} 秒）`}
+                ? t('common.viewer.writing.segmentWithShots', { index: idx, seconds: secs, count: chunk.shots!.length })
+                : t('common.viewer.writing.shot', { index: idx, seconds: secs })}
             </div>
             {chunk.shot_timeline?.length && !hasShots && (
               <div className="wv-chunk-meta">
-                <span className="wv-meta-label">时间线</span>
+                <span className="wv-meta-label">{t('common.viewer.writing.timeline')}</span>
                 {chunk.shot_timeline.map((seg) => `[${seg}]`).join(' ')}
               </div>
             )}
@@ -138,14 +409,30 @@ function StoryboardChunksView({ chunks }: { chunks: StoryboardChunk[] }) {
                 {chunk.shots!.map((shot, si) => (
                   <div key={si} className="wv-shot">
                     <div className="wv-shot-meta">
-                      镜头 {shot.shot_index}
+                      {t('common.viewer.writing.shotIndex', { index: shot.shot_index })}
                       {shot.shot_timeline?.[0] && ` · ${shot.shot_timeline[0]}`}
                     </div>
                     <div className="wv-shot-desc">{shot.video_description || '—'}</div>
-                    {shot.dialogue && <div className="wv-shot-dialogue">对话：{shot.dialogue}</div>}
-                    {shot.camera_movement && <div className="wv-shot-extra">运镜：{shot.camera_movement}</div>}
-                    {shot.sound_effects && <div className="wv-shot-extra">音效：{shot.sound_effects}</div>}
-                    {shot.transition && <div className="wv-shot-extra">转场：{shot.transition}</div>}
+                    {shot.dialogue && (
+                      <div className="wv-shot-dialogue">
+                        {t('common.viewer.writing.dialogue', { text: shot.dialogue })}
+                      </div>
+                    )}
+                    {shot.camera_movement && (
+                      <div className="wv-shot-extra">
+                        {t('common.viewer.writing.camera', { text: shot.camera_movement })}
+                      </div>
+                    )}
+                    {shot.sound_effects && (
+                      <div className="wv-shot-extra">
+                        {t('common.viewer.writing.sfx', { text: shot.sound_effects })}
+                      </div>
+                    )}
+                    {shot.transition && (
+                      <div className="wv-shot-extra">
+                        {t('common.viewer.writing.transition', { text: shot.transition })}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -155,11 +442,13 @@ function StoryboardChunksView({ chunks }: { chunks: StoryboardChunk[] }) {
                   <div className="wv-shot-desc">{chunk.video_description}</div>
                 )}
                 {chunk.dialogue && (
-                  <div className="wv-shot-dialogue">对话：{chunk.dialogue}</div>
+                  <div className="wv-shot-dialogue">
+                    {t('common.viewer.writing.dialogue', { text: chunk.dialogue })}
+                  </div>
                 )}
                 {chunk.camera_movement && (
                   <div className="wv-chunk-meta">
-                    <span className="wv-meta-label">运镜</span>
+                    <span className="wv-meta-label">{t('common.viewer.writing.cameraLabel')}</span>
                     {chunk.camera_movement}
                   </div>
                 )}
@@ -204,29 +493,30 @@ function StoryboardChunksView({ chunks }: { chunks: StoryboardChunk[] }) {
 }
 
 function SunoJsonView({ data }: { data: SunoData }) {
+  const { t } = useTranslation();
   return (
     <div className="wv-suno">
       {data.title && (
         <div className="wv-suno-block">
-          <div className="wv-suno-label">歌曲标题</div>
+          <div className="wv-suno-label">{t('common.viewer.writing.songTitle')}</div>
           <div className="wv-suno-value">{data.title}</div>
         </div>
       )}
       <div className="wv-suno-block">
-        <div className="wv-suno-label">歌词内容</div>
+        <div className="wv-suno-label">{t('common.viewer.writing.lyrics')}</div>
         <div className="wv-suno-content">{data.prompt}</div>
       </div>
       {(data.tags || data.negative_tags) && (
         <div className="wv-suno-meta">
           {data.tags && (
             <div>
-              <div className="wv-suno-label">音乐标签</div>
+              <div className="wv-suno-label">{t('common.viewer.writing.musicTags')}</div>
               <div className="wv-suno-value">{data.tags}</div>
             </div>
           )}
           {data.negative_tags && (
             <div>
-              <div className="wv-suno-label">负面标签</div>
+              <div className="wv-suno-label">{t('common.viewer.writing.negativeTags')}</div>
               <div className="wv-suno-value">{data.negative_tags}</div>
             </div>
           )}
@@ -256,18 +546,59 @@ function SunoJsonView({ data }: { data: SunoData }) {
 export function WritingViewerModal({
   visible,
   onClose,
-  title = '写作内容',
+  title,
   content,
+  pdfPreviewUrl = null,
   task,
   loading = false,
   error = null,
+  onRemoveCollectionItem,
 }: WritingViewerModalProps) {
-  const [viewMode, setViewMode] = useState<'content' | 'raw'>('content');
+  const { t } = useTranslation();
+  const { modal, message } = App.useApp();
+  const { isAdmin, viewMode, setViewMode } = useAdminGatedViewerMode<'content' | 'raw'>('content');
+  const [downloadBusy, setDownloadBusy] = useState<'pdf' | 'markdown' | null>(null);
+  const [pdfControls, setPdfControls] = useState<PdfReaderControls | null>(null);
+  const [pieceBusy, setPieceBusy] = useState(false);
+  const [moveSession, setMoveSession] = useState<{
+    taskIds: string[];
+    prepareLinks?: () => Promise<PrepareKnowledgeLinksResult>;
+    itemCount: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    // 失败任务默认进「数据」，便于立刻看到状态与报错（仅 admin）
+    const st = task?.status ?? '';
+    if (isAdmin && (st === 'failed' || st === 'cancelled' || st === 'network_error')) {
+      setViewMode('raw');
+    } else {
+      setViewMode('content');
+    }
+  }, [visible, task?.id, task?.status, isAdmin, setViewMode]);
+
+  const handlePdfControlsChange = useCallback((controls: PdfReaderControls | null) => {
+    setPdfControls(controls);
+  }, []);
 
   const { writingType, format } = resolveWritingInfo(task);
   const isStoryboard = writingType === 'storyboard-scripts';
   const isSunoJson = writingType === 'lyrics' && format === 'suno';
   const isPlainText = writingType === 'voice-scripts';
+  const taskStatus = task?.status ?? '';
+  const isTaskFailed =
+    taskStatus === 'failed' || taskStatus === 'cancelled' || taskStatus === 'network_error';
+  const isTaskIncomplete =
+    !!task &&
+    !isTaskFailed &&
+    !['completed', 'awaiting_review'].includes(taskStatus) &&
+    !content?.trim() &&
+    !pdfPreviewUrl;
+  const taskError = (task?.progress?.error || '').trim() || null;
+  const contentErrorLabel =
+    error && /no content found/i.test(error)
+      ? t('common.viewer.writing.noContentIncomplete')
+      : error;
 
   const storyboardChunks = useMemo((): StoryboardChunk[] | null => {
     if (!isStoryboard || !content?.trim()) return null;
@@ -322,12 +653,126 @@ export function WritingViewerModal({
     return null;
   }, [isSunoJson, content]);
 
-  const markdownHtml = useMemo(() => {
+  const writingCollection = useMemo(() => readWritingCollection(task), [task]);
+
+  const openMoveWhole = useCallback(() => {
+    if (!task?.id) return;
+    setMoveSession({ taskIds: [task.id], itemCount: 1 });
+  }, [task?.id]);
+
+  const openMovePiece = useCallback(
+    (item: WritingCollectionItem) => {
+      if (!item.manuscript?.trim()) return;
+      const parentTaskId = task?.id;
+      const manuscript = item.manuscript;
+      const pieceTitle = (item.title || item.name || '文稿').trim().slice(0, 120);
+      const safeName = (item.title || item.name || 'manuscript')
+        .replace(/[\\/:*?"<>|]+/g, '_')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 80);
+      const previewSource = (item.textPreview || manuscript).trim();
+      const contentPreview = previewSource.slice(0, 1200);
+      const taskMeta = (task?.metadata ?? {}) as Record<string, unknown>;
+      const taskLabel =
+        typeof taskMeta.taskLabel === 'string' && taskMeta.taskLabel.trim()
+          ? taskMeta.taskLabel.trim()
+          : undefined;
+      const subtypeLabel =
+        typeof taskMeta.subtypeLabel === 'string' && taskMeta.subtypeLabel.trim()
+          ? taskMeta.subtypeLabel.trim()
+          : undefined;
+      setMoveSession({
+        taskIds: [],
+        itemCount: 1,
+        prepareLinks: async () => {
+          const file = new File([manuscript], `${safeName || 'manuscript'}.md`, {
+            type: 'text/markdown;charset=utf-8',
+          });
+          const res = await uploadAssets(file, {
+            purpose: 'knowledge',
+            storageMode: 'asset',
+            taskId: parentTaskId,
+            metadata: {
+              asset_type: 'writing_manuscript',
+              label: pieceTitle,
+              contentPreview,
+              ...(taskLabel ? { taskLabel } : {}),
+              ...(subtypeLabel ? { subtypeLabel } : {}),
+              ...(parentTaskId ? { source_task_id: parentTaskId } : {}),
+              piece_id: item.id,
+            },
+          });
+          const objectId = res.data?.data?.objectId;
+          if (res.error || !objectId) {
+            throw new Error(res.error || t('common.task.moveToFolder.failed'));
+          }
+          return { storageObjectIds: [objectId] };
+        },
+      });
+    },
+    [t, task?.id, task?.metadata]
+  );
+
+  const handleDeletePiece = useCallback(
+    (item: WritingCollectionItem) => {
+      if (!onRemoveCollectionItem) return;
+      modal.confirm({
+        title: t('common.viewer.writing.deletePieceConfirmTitle'),
+        content: t('common.viewer.writing.deletePieceConfirmContent', {
+          title: item.title || item.name || item.id,
+        }),
+        okText: t('common.viewer.writing.deletePiece'),
+        okButtonProps: { danger: true },
+        cancelText: t('common.cancel'),
+        onOk: async () => {
+          setPieceBusy(true);
+          try {
+            await onRemoveCollectionItem(item.id);
+            message.success(t('common.viewer.writing.deletePieceSuccess'));
+          } catch (err) {
+            message.error(
+              err instanceof Error ? err.message : t('common.viewer.writing.deletePieceFailed')
+            );
+            throw err;
+          } finally {
+            setPieceBusy(false);
+          }
+        },
+      });
+    },
+    [message, modal, onRemoveCollectionItem, t]
+  );
+
+  const markdownContent = useMemo(() => {
+    if (writingCollection) return null;
     if (!content?.trim() || isPlainText || storyboardChunks || sunoData) return null;
-    return simpleMarkdownToHtml(content.trim());
-  }, [content, isPlainText, storyboardChunks, sunoData]);
+    return content.trim();
+  }, [content, isPlainText, storyboardChunks, sunoData, writingCollection]);
 
   const renderContent = () => {
+    if (pdfPreviewUrl) {
+      return (
+        <DocumentReaderShell variant="immersive">
+          <PdfJsReader
+            source={pdfPreviewUrl}
+            showInlineToolbar={false}
+            onControlsChange={handlePdfControlsChange}
+          />
+        </DocumentReaderShell>
+      );
+    }
+    if (writingCollection) {
+      return (
+        <WritingCollectionView
+          key={task?.id ?? writingCollection.title ?? 'collection'}
+          collection={writingCollection}
+          onMovePiece={openMovePiece}
+          onDeletePiece={onRemoveCollectionItem ? handleDeletePiece : undefined}
+          busy={pieceBusy}
+        />
+      );
+    }
     if (storyboardChunks) {
       return <StoryboardChunksView chunks={storyboardChunks} />;
     }
@@ -336,192 +781,203 @@ export function WritingViewerModal({
     }
     if (isPlainText) {
       return (
-        <pre className="writing-viewer-pre writing-viewer-plain">
-          {content || '暂无内容'}
-        </pre>
+        <DocumentReaderShell variant="immersive">
+          <PlainTextReader content={content || t('common.viewer.writing.noContent')} />
+        </DocumentReaderShell>
       );
     }
-    if (markdownHtml) {
+    if (markdownContent) {
       return (
-        <div
-          className="writing-viewer-markdown"
-          dangerouslySetInnerHTML={{ __html: markdownHtml }}
-        />
+        <DocumentReaderShell variant="immersive">
+          <MarkdownReader content={markdownContent} />
+        </DocumentReaderShell>
       );
     }
     return (
-      <pre className="writing-viewer-pre">
-        {content || '暂无内容（任务可能未完成或尚未存储）'}
-      </pre>
+      <DocumentReaderShell variant="immersive">
+        <PlainTextReader content={content || t('common.viewer.writing.noContentIncomplete')} />
+      </DocumentReaderShell>
     );
+  };
+
+  const handleDownload = async (format: 'pdf' | 'markdown') => {
+    const taskId = task?.id;
+    if (!taskId || downloadBusy || loading || error) return;
+    setDownloadBusy(format);
+    try {
+      await downloadWritingExport(taskId, format);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : t('common.viewer.downloadFailedGeneric'));
+    } finally {
+      setDownloadBusy(null);
+    }
   };
 
   if (!visible) return null;
 
+  const hasReadableContent = Boolean(pdfPreviewUrl || content?.trim());
+  const showDownloads = Boolean(task?.id && !loading && !error && hasReadableContent);
+
+  const showPdfToolbar =
+    Boolean(pdfPreviewUrl && viewMode === 'content' && pdfControls && !loading && !error);
+
+  const bodyScrollClass =
+    !loading && viewMode === 'content' && !pdfPreviewUrl && !writingCollection
+      ? 'wv-body wv-body--edge-scroll'
+      : 'wv-body wv-body--contained';
+
   return (
-    <>
-      <div className="writing-viewer-overlay" onClick={onClose} aria-hidden="true" />
-      <div className="writing-viewer-modal">
-        <div className="writing-viewer-header">
-          <h3 className="writing-viewer-title">{title}</h3>
-          <div className="writing-viewer-actions">
-            <button
-              type="button"
-              className={`writing-viewer-tab ${viewMode === 'content' ? 'active' : ''}`}
-              onClick={() => setViewMode('content')}
-            >
-              内容
-            </button>
-            <button
-              type="button"
-              className={`writing-viewer-tab ${viewMode === 'raw' ? 'active' : ''}`}
-              onClick={() => setViewMode('raw')}
-            >
-              查看数据
-            </button>
-            <button type="button" className="writing-viewer-close" onClick={onClose}>
-              ×
-            </button>
-          </div>
-        </div>
-        <div className="writing-viewer-body">
+    <div
+      className="wv-root"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="wv-title"
+    >
+      <div className="wv-backdrop" onClick={onClose} aria-hidden="true" />
+      <div className="wv-shell">
+        <MediaViewerHeader
+          title={title || t('common.viewer.writing.title')}
+          titleId="wv-title"
+          tabs={[
+            { value: 'content', label: t('common.viewer.tabs.content') },
+            { value: 'raw', label: t('common.viewer.tabs.data') },
+          ]}
+          activeTab={viewMode}
+          onTabChange={(tab) => setViewMode(tab as 'content' | 'raw')}
+          onClose={onClose}
+        >
+          {showPdfToolbar && pdfControls ? (
+            <>
+              <MediaViewerHeaderDivider />
+              <ReaderToolbar
+                variant="compact"
+                className="mvh-pdf-toolbar"
+                zoom={pdfControls.zoom}
+                onZoomIn={pdfControls.onZoomIn}
+                onZoomOut={pdfControls.onZoomOut}
+                onFitWidth={pdfControls.onFitWidth}
+                fitWidthActive={pdfControls.fitWidthActive}
+                currentPage={pdfControls.currentPage}
+                totalPages={pdfControls.totalPages}
+                onPrevPage={pdfControls.onPrevPage}
+                onNextPage={pdfControls.onNextPage}
+                canPrevPage={pdfControls.canPrevPage}
+                canNextPage={pdfControls.canNextPage}
+              />
+            </>
+          ) : null}
+
+          {showDownloads ? (
+            <>
+              <MediaViewerHeaderDivider />
+              <MediaViewerHeaderIconButton
+                disabled={!!downloadBusy}
+                onClick={() => void handleDownload('markdown')}
+                aria-label={t('common.viewer.writing.downloadMarkdown')}
+                title={
+                  downloadBusy === 'markdown'
+                    ? t('common.viewer.downloading')
+                    : t('common.viewer.writing.downloadMarkdown')
+                }
+              >
+                <FileText size={15} strokeWidth={2} />
+              </MediaViewerHeaderIconButton>
+              <MediaViewerHeaderIconButton
+                disabled={!!downloadBusy}
+                onClick={() => void handleDownload('pdf')}
+                aria-label={t('common.viewer.writing.downloadPdf')}
+                title={
+                  downloadBusy === 'pdf'
+                    ? t('common.viewer.downloading')
+                    : t('common.viewer.writing.downloadPdf')
+                }
+              >
+                <FileDown size={15} strokeWidth={2} />
+              </MediaViewerHeaderIconButton>
+            </>
+          ) : null}
+
+          {task?.id && !loading && !error ? (
+            <>
+              <MediaViewerHeaderDivider />
+              <MediaViewerHeaderIconButton
+                onClick={openMoveWhole}
+                aria-label={
+                  writingCollection
+                    ? t('common.viewer.writing.moveCollection')
+                    : t('common.task.actions.moveToFolder')
+                }
+                title={
+                  writingCollection
+                    ? t('common.viewer.writing.moveCollection')
+                    : t('common.task.actions.moveToFolder')
+                }
+              >
+                <FolderInput size={15} strokeWidth={2} />
+              </MediaViewerHeaderIconButton>
+            </>
+          ) : null}
+        </MediaViewerHeader>
+
+        <main className={bodyScrollClass}>
           {loading ? (
-            <p className="writing-viewer-loading">加载中...</p>
-          ) : error ? (
-            <p className="writing-viewer-error">{error}</p>
-          ) : viewMode === 'content' ? (
-            <div className="writing-viewer-content">{renderContent()}</div>
+            <div className="media-viewer-loading-wrap writing-viewer-loading-wrap">
+              <MediaLoadingState variant="inline" kind="writing" />
+            </div>
+          ) : viewMode === 'raw' ? (
+            <div className="wv-body-inner wv-body-inner--data">
+              <TaskViewerDataPanel task={task} />
+            </div>
           ) : (
-            <div className="writing-viewer-raw">
-              <pre className="writing-viewer-pre">
-                {task ? JSON.stringify(task, null, 2) : '暂无任务数据'}
-              </pre>
+            <div
+              className={`wv-body-inner${
+                pdfPreviewUrl
+                  ? ' wv-body-inner--pdf'
+                  : writingCollection
+                    ? ' wv-body-inner--collection'
+                    : ''
+              }`}
+            >
+              {isTaskFailed && task ? (
+                <div className="wv-progress-wrap">
+                  <TaskProgressStage
+                    progress={task.progress?.progress ?? null}
+                    status={task.status}
+                    statusLabel={getTaskStatusLabel(task.status, t)}
+                    kind="writing"
+                    error={taskError || contentErrorLabel || t('common.task.status.failed')}
+                  />
+                </div>
+              ) : isTaskIncomplete && task ? (
+                <div className="wv-progress-wrap">
+                  <TaskProgressStage
+                    progress={task.progress?.progress ?? null}
+                    status={task.status}
+                    statusLabel={
+                      task.progress?.message?.trim() || getTaskStatusLabel(task.status, t)
+                    }
+                    kind="writing"
+                  />
+                </div>
+              ) : contentErrorLabel && !hasReadableContent ? (
+                <p className="wv-error">{contentErrorLabel}</p>
+              ) : (
+                renderContent()
+              )}
             </div>
           )}
-        </div>
-        <style>{`
-          .writing-viewer-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-          }
-          .writing-viewer-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 1001;
-            background: hsl(var(--background));
-            border: 1px solid hsl(var(--border));
-            border-radius: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-          }
-          .writing-viewer-header {
-            flex-shrink: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem 1.25rem;
-            border-bottom: 1px solid #333;
-          }
-          .writing-viewer-title {
-            margin: 0;
-            font-size: 1.1rem;
-            color: #e0e0e0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            max-width: 50%;
-          }
-          .writing-viewer-actions {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-          }
-          .writing-viewer-tab {
-            padding: 0.35rem 0.75rem;
-            border-radius: 6px;
-            border: 1px solid #444;
-            background: transparent;
-            color: #888;
-            font-size: 0.85rem;
-            cursor: pointer;
-          }
-          .writing-viewer-tab:hover {
-            background: #333;
-            color: #e0e0e0;
-          }
-          .writing-viewer-tab.active {
-            background: #1e3a5f;
-            color: #93c5fd;
-            border-color: #1e3a5f;
-          }
-          .writing-viewer-close {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0 0.5rem;
-            line-height: 1;
-          }
-          .writing-viewer-close:hover {
-            color: #e0e0e0;
-          }
-          .writing-viewer-body {
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-            padding: 1rem 1.5rem;
-          }
-          .writing-viewer-loading,
-          .writing-viewer-error,
-          .writing-viewer-empty {
-            margin: 0;
-            color: #888;
-          }
-          .writing-viewer-error { color: #fca5a5; }
-          .writing-viewer-content,
-          .writing-viewer-raw {
-            height: 100%;
-          }
-          .writing-viewer-pre {
-            margin: 0;
-            padding: 1rem;
-            background: #0f172a;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            color: #e0e0e0;
-            overflow: auto;
-            max-height: 70vh;
-            white-space: pre-wrap;
-            word-break: break-word;
-            line-height: 1.5;
-          }
-          .writing-viewer-plain {
-            background: transparent;
-            padding: 0;
-          }
-          .writing-viewer-markdown {
-            font-size: 0.9rem;
-            line-height: 1.6;
-            color: #e0e0e0;
-          }
-          .writing-viewer-markdown h1, .writing-viewer-markdown h2, .writing-viewer-markdown h3 {
-            margin: 1rem 0 0.5rem;
-            color: #e0e0e0;
-          }
-          .writing-viewer-markdown p { margin: 0.5rem 0; }
-          .writing-viewer-markdown ul, .writing-viewer-markdown ol { margin: 0.5rem 0; padding-left: 1.5rem; }
-          .writing-viewer-markdown code { background: #333; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.85em; }
-        `}</style>
+        </main>
       </div>
-    </>
+
+      {moveSession ? (
+        <MoveTasksToKnowledgeFolderModal
+          open
+          taskIds={moveSession.taskIds}
+          prepareLinks={moveSession.prepareLinks}
+          itemCount={moveSession.itemCount}
+          onClose={() => setMoveSession(null)}
+        />
+      ) : null}
+    </div>
   );
 }

@@ -1,0 +1,122 @@
+/**
+ * Extracted from App.css
+ */
+
+/* ---------- PageHint：收起式说明，hover/click 展开 ---------- */
+.page-card-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.page-card-title-row__text {
+  min-width: 0;
+}
+
+.page-hints-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.page-hint-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: help;
+  vertical-align: middle;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.page-hint-trigger:hover,
+.page-hint-trigger:focus-visible {
+  color: var(--color-cta);
+  background: rgba(0, 47, 167, 0.08);
+  outline: none;
+}
+
+.page-hint-trigger--warning:hover,
+.page-hint-trigger--warning:focus-visible {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.12);
+}
+
+.page-hint-trigger--success:hover,
+.page-hint-trigger--success:focus-visible {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.12);
+}
+
+.page-hint-trigger__icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.page-hint-trigger__icon {
+  font-size: 14px;
+}
+
+.page-hint-trigger__dot {
+  position: absolute;
+  top: -1px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 0 1px var(--card-bg, #fff);
+}
+
+html.dark .page-hint-trigger__dot {
+  box-shadow: 0 0 0 1px var(--glass-surface-strong, #0f172a);
+}
+
+.page-hint-trigger--emphasis {
+  color: #d97706;
+}
+
+.page-hint-trigger__label {
+  font-size: 12px;
+}
+
+.page-hint-content {
+  max-width: 320px;
+}
+
+.page-hint-content__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.page-hint-content__body {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.page-hint-popover .ant-popover-inner {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--glass-surface-strong);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-md);
+}
+

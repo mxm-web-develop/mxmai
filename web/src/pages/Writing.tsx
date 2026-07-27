@@ -1,122 +1,147 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Button, Drawer, Select, notification } from 'antd';
+import { Drawer, message, App } from 'antd';
 import {
   listWritingTasks,
+  invalidateTaskListCache,
   deleteTask,
-  getMediaWriting,
-  runTaskV2,
+  fetchWritingMediaContent,
+  getTask,
+  removeCollectionItem,
   type WritingTaskItem,
   type WritingTaskListResponse,
 } from '../api/client';
+import { type TaskBillingState } from '../components/billing/TaskBillingBar';
 import { useAuth } from '../context/AuthContext';
+import { useCgiTaskListSync } from '../hooks/useCgiTaskListSync';
+import { usePaginatedCgiTaskList } from '../hooks/usePaginatedCgiTaskList';
+import {
+  GenerationTaskFilterSelect,
+  GenerationTaskToolbar,
+} from '../components/GenerationTaskToolbar';
+import { GenerationTaskListScroll } from '../components/task-list/PullToRefreshScroll';
+import type { TaskCreationSourceTab } from '../lib/taskCreationSource';
+import { TaskListLoading } from '../components/asset-loading';
 import { WritingViewerModal } from '../components/WritingViewerModal';
-import { useTaskV2FormConfig, formatTaskSelectionKey, parseTaskSelectionKey, TaskV2SchemaForm } from '../task-v2';
+import { ManualReviewModal } from '../components/ManualReviewModal';
+import { WritingCreateWizard } from '../components/WritingCreateWizard';
+// create UX: WritingCreateWizard only（已废弃 WritingWarpGuidedCreate / 长表单）
+import { openGenerationTaskClick } from '../shared/openMediaGenerationTask';
+import { WritingTaskCard } from '../components/task-list/WritingTaskCard';
+import { TaskListLoadSentinel } from '../components/task-list/TaskListLoadSentinel';
+import { downloadGenerationTask } from '../lib/downloadGenerationTask';
+import {
+  extractCgiTaskFromApiResponse,
+  extractFullCgiTaskFromApiResponse,
+} from '../notifications/task-snapshot';
+import { mergeTaskIntoList } from '../utils/mergeTaskItem';
+import {
+  useTaskV2FormConfig,
+  formatTaskSelectionKey,
+  TASK_V2_DRAWER_FORM_CLASS,
+  TaskV2CreateSurface,
+  TaskV2CreateModeSwitch,
+  type TaskV2CreateMode,
+  buildTaskSelectionLabelMap,
+  buildTaskSelectionSelectOptions,
+  formatTaskBusinessDisplayFull,
+  taskMatchesSelectionFilter,
+} from '../task-v2';
+import { useOpenApiTaskNav } from '../hooks/useOpenApiTaskNav';
+import { useGenerationTaskListBulkActions } from '../hooks/useGenerationTaskListBulkActions';
+import { useTranslation } from 'react-i18next';
+import { toAppLang } from '../i18n/appLocale';
+import { getTaskStatusLabel } from '../i18n/taskStatus';
+import { useTaskScopeLabels } from '../i18n/useTaskScopeLabels';
+import { useTaskStatusOptions } from '../i18n/useTaskStatusOptions';
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return !!v && typeof v === 'object' && !Array.isArray(v);
+async function waitForAwaitingReview(
+  taskId: string,
+  attempts = 12,
+  intervalMs = 400
+): Promise<WritingTaskItem | null> {
+  for (let i = 0; i < attempts; i++) {
+    const res = await getTask(taskId);
+    const item = extractCgiTaskFromApiResponse(res.data);
+    if (item?.status === 'awaiting_review') return item;
+    if (item && ['failed', 'cancelled', 'completed', 'network_error'].includes(item.status)) {
+      return item;
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return null;
 }
 
-function pickTaskIdFromRunTaskV2Response(raw: unknown): string | null {
-  if (!isRecord(raw)) return null;
-  const inner = isRecord(raw.data) ? raw.data : raw;
-  const tid = inner.taskId;
-  return typeof tid === 'string' && tid.trim() ? tid : null;
-}
-
-// 写作类型选项（排除 outlines，与 mobile 对齐）
-const WRITING_TYPE_OPTIONS = [
-  { value: 'articles', label: '文章' },
-  { value: 'lyrics', label: '歌词' },
-  { value: 'voice-scripts', label: '口播稿' },
-  { value: 'storyboard-scripts', label: '分镜脚本' },
-];
-
-// 细分类型选项
-const OUTLINE_TYPE_OPTIONS: Record<string, Array<{ value: string; label: string }>> = {
-  articles: [
-    { value: 'tech-article', label: '科技文章' },
-    { value: 'story-novel', label: '故事小说' },
-    { value: 'academic-paper', label: '学术论文' },
-  ],
-  'voice-scripts': [
-    { value: 'sales-voice', label: '带货口播' },
-    { value: 'emotional-story-voice', label: '情感故事口播' },
-    { value: 'knowledge-sharing-voice', label: '知识分享口播' },
-  ],
-  'storyboard-scripts': [
-    { value: 'short-video-storyboard', label: '短视频分镜' },
-    { value: 'movie-storyboard', label: '电影分镜' },
-    { value: 'animation-storyboard', label: '动画分镜' },
-    { value: 'music-video-storyboard', label: '音乐视频分镜' },
-    { value: 'commercial-storyboard', label: '广告分镜' },
-    { value: 'documentary-storyboard', label: '纪录片分镜' },
-    { value: 'motion-graphics-storyboard', label: '概念动效分镜' },
-    { value: 'educational-storyboard', label: '教育片分镜' },
-    { value: 'game-cg-storyboard', label: '游戏CG分镜' },
-  ],
-};
-
-const STATUS_MAP: Record<string, string> = {
-  pending: '等待中',
-  queued: '排队中',
-  processing: '生成中',
-  completed: '已完成',
-  failed: '失败',
-  cancelled: '已取消',
-};
-
-function extractWritingType(t: WritingTaskItem): string {
-  const rp = t.requestParams as Record<string, unknown> | undefined;
-  const params = rp?.params as Record<string, unknown> | undefined;
-  return (
-    (t.metadata?.writing_type as string) ??
-    (params?.writing_type as string) ??
-    (params?.params as Record<string, unknown> | undefined)?.writing_type as string ??
-    ''
-  );
-}
-
-function extractOutlineType(t: WritingTaskItem): string {
-  const rp = t.requestParams as Record<string, unknown> | undefined;
-  const params = rp?.params as Record<string, unknown> | undefined;
-  return (
-    (params?.outline_type as string) ??
-    (params?.params as Record<string, unknown> | undefined)?.outline_type as string ??
-    ''
-  );
-}
-
-function getTaskTitle(t: WritingTaskItem): string {
+function getTaskTitle(task: WritingTaskItem, defaultTitle: string): string {
   const labelVal =
-    (t.metadata?.label as string)?.trim() ||
-    (t.metadata?.writing_type_label as string)?.trim();
-  const rp = t.requestParams as Record<string, unknown> | undefined;
+    (task.metadata?.label as string)?.trim() ||
+    (task.metadata?.writing_type_label as string)?.trim();
+  const rp = task.requestParams as Record<string, unknown> | undefined;
   const params = rp?.params as Record<string, unknown> | undefined;
   const promptVal = (params?.prompt as string) || '';
   return (
     labelVal ||
     (promptVal?.trim().length
       ? `${promptVal.slice(0, 40).replace(/\n/g, ' ').trim()}${promptVal.length > 40 ? '…' : ''}`
-      : '写作任务')
+      : defaultTitle)
   );
 }
 
-function getSubtypeLabel(writingType: string, outlineType: string): string {
-  const opts = OUTLINE_TYPE_OPTIONS[writingType];
-  if (!opts || !outlineType) return '';
-  const found = opts.find((o) => o.value === outlineType);
-  return found?.label ?? outlineType;
-}
-
 export default function Writing() {
+  const { t, i18n } = useTranslation();
+  const scopeLabels = useTaskScopeLabels('writing');
+  const statusOptions = useTaskStatusOptions();
+  const { modal, message: ctxMessage } = App.useApp();
   const { isLoggedIn } = useAuth();
-  const [allTasks, setAllTasks] = useState<WritingTaskItem[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
 
-  const [filterWritingType, setFilterWritingType] = useState<string>('');
+  const [filterSelectionKey, setFilterSelectionKey] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [creationSourceTab, setCreationSourceTab] = useState<TaskCreationSourceTab>('web');
 
-  const [submitting, setSubmitting] = useState(false);
+  const listResetKey = `${creationSourceTab}|${filterStatus}|${filterSelectionKey}`;
+
+  const fetchWritingPage = useCallback(
+    async (offset: number, limit: number) => {
+      const res = await listWritingTasks({
+        limit,
+        offset,
+        creationSource: creationSourceTab,
+        status: filterStatus || undefined,
+      });
+      if (res.error) throw new Error(res.error);
+      const body = res.data as WritingTaskListResponse | undefined;
+      return {
+        tasks: body?.data?.tasks ?? [],
+        total: body?.data?.total ?? 0,
+      };
+    },
+    [creationSourceTab, filterStatus]
+  );
+
+  const {
+    tasks: allTasks,
+    setTasks: setAllTasks,
+    hasMore,
+    loadingInitial: loadingTasks,
+    loadingMore,
+    loadMore,
+    refresh: loadTasks,
+  } = usePaginatedCgiTaskList({
+    enabled: isLoggedIn,
+    resetKey: listResetKey,
+    fetchPage: fetchWritingPage,
+  });
+
+  const [gridEpoch, setGridEpoch] = useState(0);
+  const prevTaskCountRef = useRef(0);
+  useEffect(() => {
+    if (allTasks.length > prevTaskCountRef.current && prevTaskCountRef.current > 0) {
+      setGridEpoch((n) => n + 1);
+    }
+    prevTaskCountRef.current = allTasks.length;
+  }, [allTasks.length]);
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [createMode, setCreateMode] = useState<TaskV2CreateMode>('form');
 
   const {
     taskKey,
@@ -126,26 +151,24 @@ export default function Writing() {
     clearPendingForm,
     taskOptions,
     formConfig,
-    formValues,
-    setFormValues,
     resetFormValues,
     configLoading,
     listLoading,
-  } = useTaskV2FormConfig({ scope: 'writing', enabled: isLoggedIn });
+    taskLabel,
+    onTaskLabelChange,
+    mergeTaskLabelIntoParams,
+    resetTaskLabelAfterSubmit,
+  } = useTaskV2FormConfig({ scope: 'writing', enabled: isLoggedIn, formDrawerOpen: formOpen });
 
   const selectedValue = useMemo(() => formatTaskSelectionKey(taskKey, subtype), [taskKey, subtype]);
+  const appLang = toAppLang(i18n.language);
   const writingSelectOptions = useMemo(
-    () =>
-      taskOptions.map((it) => ({
-        label: (() => {
-          const tk = (it.taskLabel ?? '').trim() || it.taskKey;
-          if (!it.subtype) return tk;
-          const st = (it.subtypeLabel ?? '').trim() || it.subtype;
-          return `${tk} / ${st}`;
-        })(),
-        value: formatTaskSelectionKey(it.taskKey, it.subtype),
-      })),
-    [taskOptions]
+    () => buildTaskSelectionSelectOptions(taskOptions, appLang),
+    [taskOptions, appLang]
+  );
+  const taskSelectionLabelMap = useMemo(
+    () => buildTaskSelectionLabelMap(taskOptions, appLang),
+    [taskOptions, appLang]
   );
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -153,157 +176,165 @@ export default function Writing() {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerTask, setViewerTask] = useState<WritingTaskItem | null>(null);
   const [viewerContent, setViewerContent] = useState<string>('');
+  const [viewerPdfUrl, setViewerPdfUrl] = useState<string | null>(null);
+  const viewerPdfRevokeRef = useRef<(() => void) | null>(null);
   const [viewerLoading, setViewerLoading] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
+  const [reviewVisible, setReviewVisible] = useState(false);
+  const [reviewTask, setReviewTask] = useState<WritingTaskItem | null>(null);
 
-  // 仅首次进入页面时展示整体 loading，后续轮询静默更新，避免列表反复“闪一下”
-  const hasInitialLoadedRef = useRef(false);
+  const clearViewerPdf = useCallback(() => {
+    viewerPdfRevokeRef.current?.();
+    viewerPdfRevokeRef.current = null;
+    setViewerPdfUrl(null);
+  }, []);
 
-  const loadTasks = useCallback(async () => {
-    if (!isLoggedIn) return;
-    if (!hasInitialLoadedRef.current) {
-      setLoadingTasks(true);
-    }
-    try {
-      const res = await listWritingTasks({ limit: 200, offset: 0 });
-      const body = res.data as WritingTaskListResponse | undefined;
-      const list = body?.data?.tasks ?? [];
-      setAllTasks(list);
-    } catch (e) {
-      console.error('加载写作任务失败:', e);
-      setAllTasks([]);
-    } finally {
-      hasInitialLoadedRef.current = true;
-      setLoadingTasks(false);
-    }
-  }, [isLoggedIn]);
+  useEffect(() => () => clearViewerPdf(), [clearViewerPdf]);
 
-  useEffect(() => {
-    loadTasks();
-    const interval = setInterval(loadTasks, 8000);
-    return () => clearInterval(interval);
-  }, [loadTasks]);
+  const { fetchTaskIntoList } = useCgiTaskListSync(isLoggedIn, setAllTasks, loadTasks, {
+    listScope: 'writing',
+  });
 
-  const filteredTasks = allTasks
-    .filter((t) => {
-      if (filterWritingType && extractWritingType(t) !== filterWritingType) return false;
-      if (filterStatus && t.status !== filterStatus) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      const aTime = new Date(a.createdAt ?? 0).getTime();
-      const bTime = new Date(b.createdAt ?? 0).getTime();
-      return bTime - aTime;
+  const filteredTasks = useMemo(
+    () =>
+      allTasks
+        .filter((t) => taskMatchesSelectionFilter(t, filterSelectionKey))
+        .sort(
+          (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+        ),
+    [allTasks, filterSelectionKey]
+  );
+
+  const bulk = useGenerationTaskListBulkActions({
+    tasks: filteredTasks,
+    setTasks: setAllTasks,
+    modal,
+    message: ctxMessage,
+    onDeletedIds: (ids) => {
+      if (viewerTask && ids.has(viewerTask.id)) setViewerVisible(false);
+    },
+  });
+
+  const [billing, setBilling] = useState<TaskBillingState>({
+    canSubmit: true,
+    blockReason: null,
+    estimate: null,
+    loading: false,
+  });
+  const onBillingStateChange = useCallback((s: TaskBillingState) => {
+    setBilling((prev) => {
+      if (
+        prev.canSubmit === s.canSubmit &&
+        prev.blockReason === s.blockReason &&
+        prev.loading === s.loading &&
+        prev.estimate === s.estimate
+      ) {
+        return prev;
+      }
+      return s;
     });
+  }, []);
+
+  const finishCreateDrawer = useCallback(() => {
+    setFormOpen(false);
+    resetFormValues();
+    resetTaskLabelAfterSubmit();
+    void loadTasks();
+  }, [resetFormValues, resetTaskLabelAfterSubmit, loadTasks]);
+
+  const onGuidedTaskCreated = useCallback(
+    (id: string) => {
+      void fetchTaskIntoList(id);
+      // 闸门由 WritingCreateWizard 内联处理，勿再弹 ManualReviewModal
+    },
+    [fetchTaskIntoList]
+  );
 
   const renderForm = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <Select
-        style={{ width: '100%' }}
-        placeholder="选择业务（taskKey / subtype）"
-        value={taskOptions.length > 0 ? selectedValue : undefined}
-        options={writingSelectOptions}
-        onChange={(v) => {
-          const p = parseTaskSelectionKey(String(v));
-          setTaskKey(p.taskKey);
-          setSubtype(p.subtype);
+    <div className={TASK_V2_DRAWER_FORM_CLASS}>
+      <WritingCreateWizard
+        taskOptions={taskOptions}
+        selectOptions={writingSelectOptions}
+        selectedValue={selectedValue}
+        onSelectBusiness={(k, st) => {
+          setTaskKey(k);
+          setSubtype(st);
           clearPendingForm();
         }}
-      />
-      <TaskV2SchemaForm
+        taskKey={taskKey}
+        subtype={subtype}
         formConfig={formConfig}
-        formValues={formValues}
-        onChange={setFormValues}
-        loading={configLoading || listLoading}
+        configLoading={configLoading || listLoading}
+        taskLabel={taskLabel}
+        onTaskLabelChange={onTaskLabelChange}
+        mergeTaskLabelIntoParams={mergeTaskLabelIntoParams}
+        locale={toAppLang(i18n.language)}
+        generateLabel={t('common.generate')}
+        billing={billing}
+        onBillingStateChange={onBillingStateChange}
+        onTaskCreated={onGuidedTaskCreated}
+        onFinished={finishCreateDrawer}
       />
-      <Button
-        type="primary"
-        loading={submitting}
-        disabled={!formConfig?.schema}
-        onClick={() => void handleSubmit()}
-      >
-        生成
-      </Button>
     </div>
   );
 
-  const handleSubmit = async () => {
-    if (!isLoggedIn) {
-      notification.warning({ message: '请先登录', placement: 'top' });
-      return;
-    }
-    if (!taskOptions.length) {
-      notification.warning({ message: '暂无可用的写作业务配置', placement: 'top' });
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await runTaskV2({
-        scope: 'writing',
-        taskKey,
-        subtype,
-        params: formValues,
-      });
-      const taskId = pickTaskIdFromRunTaskV2Response(res.data);
-      notification.success({
-        message: '任务已创建',
-        description: taskId ? `${taskId}\n可在下方任务列表中查看进度。` : '可在下方任务列表中查看进度。',
-        placement: 'top',
-      });
-      setFormOpen(false);
-      resetFormValues();
-      loadTasks();
-    } catch (err) {
-      notification.error({
-        message: '提交失败',
-        description: err instanceof Error ? err.message : String(err),
-        placement: 'top',
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDeleteTask = async (e: React.MouseEvent, t: WritingTaskItem) => {
+  const handleDeleteTask = async (e: React.MouseEvent, task: WritingTaskItem) => {
     e.stopPropagation();
-    if (!window.confirm(`确定删除任务「${getTaskTitle(t)}」吗？此操作不可恢复。`)) return;
-    setDeletingId(t.id);
-    try {
-      const res = await deleteTask(t.id);
-      if (res.error) {
-        alert(res.error);
-      } else {
-        loadTasks();
-        if (viewerTask?.id === t.id) setViewerVisible(false);
-      }
-    } finally {
-      setDeletingId(null);
-    }
+    modal.confirm({
+      title: t('common.task.deleteConfirm.title'),
+      content: t('common.task.deleteConfirm.content', {
+        name: getTaskTitle(task, scopeLabels.defaultTitle),
+      }),
+      onOk: async () => {
+        setDeletingId(task.id);
+        try {
+          const res = await deleteTask(task.id);
+          if (res.error) {
+            message.error(res.error);
+          } else {
+            setAllTasks((prev) => prev.filter((item) => item.id !== task.id));
+            if (viewerTask?.id === task.id) setViewerVisible(false);
+          }
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
-  const handleTaskClick = async (t: WritingTaskItem) => {
+  const openWritingViewer = async (t: WritingTaskItem) => {
+    clearViewerPdf();
     setViewerVisible(true);
     setViewerTask(t);
     setViewerContent('');
     setViewerError(null);
     setViewerLoading(true);
     try {
-      const res = await getMediaWriting(t.id);
-      const data = res.data;
-      if (res.error) {
-        setViewerError(res.error || '获取内容失败');
+      let detail: WritingTaskItem = t;
+      // 拉完整任务（含 pipelineTrace / requestParams），列表摘要不够看「数据」页
+      try {
+        const detailRes = await getTask(t.id);
+        const full = extractFullCgiTaskFromApiResponse(detailRes.data);
+        if (full) {
+          detail = full;
+          setViewerTask(full);
+        }
+      } catch {
+        /* 详情失败仍可用列表行打开数据页 */
+      }
+
+      const terminalNoContent = ['failed', 'cancelled', 'network_error'].includes(detail.status);
+      if (terminalNoContent) {
+        // 失败任务通常无正文；不请求 content，避免挡住「数据」页
         return;
       }
-      if (typeof data === 'string') {
-        setViewerContent(data);
-      } else if (data && typeof data === 'object' && 'data' in data) {
-        const inner = (data as { data?: unknown }).data;
-        setViewerContent(
-          typeof inner === 'string' ? inner : JSON.stringify(inner ?? data, null, 2)
-        );
+
+      const media = await fetchWritingMediaContent(t.id);
+      if (media.kind === 'pdf') {
+        setViewerPdfUrl(media.blobUrl);
+        viewerPdfRevokeRef.current = media.revoke;
       } else {
-        setViewerContent(JSON.stringify(data ?? {}, null, 2));
+        setViewerContent(media.text);
       }
     } catch (e) {
       setViewerError(e instanceof Error ? e.message : String(e));
@@ -312,140 +343,224 @@ export default function Writing() {
     }
   };
 
+  const handleRemoveCollectionItem = useCallback(async (itemId: string) => {
+    const taskId = viewerTask?.id;
+    if (!taskId) throw new Error('缺少任务');
+    const res = await removeCollectionItem(taskId, itemId);
+    if (res.error) throw new Error(res.error);
+
+    const detailRes = await getTask(taskId);
+    const full = extractFullCgiTaskFromApiResponse(detailRes.data);
+    if (!full) throw new Error('删除成功但无法刷新任务');
+
+    setViewerTask(full);
+    setAllTasks((prev) => mergeTaskIntoList(prev, full));
+    invalidateTaskListCache();
+
+    try {
+      const media = await fetchWritingMediaContent(taskId);
+      if (media.kind === 'pdf') {
+        clearViewerPdf();
+        setViewerPdfUrl(media.blobUrl);
+        viewerPdfRevokeRef.current = media.revoke;
+        setViewerContent('');
+      } else {
+        clearViewerPdf();
+        setViewerContent(media.text);
+      }
+    } catch {
+      /* 正文刷新失败不影响文集 metadata 已更新 */
+    }
+  }, [viewerTask?.id]);
+
+  const handleTaskClick = async (t: WritingTaskItem) => {
+    openGenerationTaskClick(t, {
+      setReviewTask,
+      setReviewVisible,
+      onOpen: (task) => void openWritingViewer(task),
+    });
+  };
+
+  useOpenApiTaskNav({
+    page: 'writing',
+    isLoggedIn,
+    tasks: allTasks,
+    loadingTasks,
+    setCreationSourceTab,
+    onOpenTask: handleTaskClick,
+  });
+
   return (
-    <section className="page-card writing-page">
-      <div className="writing-header">
-        <div className="writing-header-main">
-          <div className="writing-filters">
-            <select
-              value={filterWritingType}
-              onChange={(e) => setFilterWritingType(e.target.value)}
-              className="writing-filter-select"
+    <section className="page-card generation-console-page writing-page">
+      <GenerationTaskToolbar
+        creationSource={{ value: creationSourceTab, onChange: setCreationSourceTab }}
+        filters={
+          <>
+            <GenerationTaskFilterSelect
+              value={filterSelectionKey}
+              onChange={(v) => setFilterSelectionKey(v)}
+              aria-label="写作业务"
             >
-              <option value="">全部类型</option>
-              {WRITING_TYPE_OPTIONS.map((o) => (
+              <option value="">全部业务</option>
+              {writingSelectOptions.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
-            </select>
-            <select
+            </GenerationTaskFilterSelect>
+            <GenerationTaskFilterSelect
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="writing-filter-select"
+              onChange={(v) => setFilterStatus(v)}
+              aria-label={t('common.task.filter.statusAria')}
             >
-              <option value="">全部状态</option>
-              {Object.entries(STATUS_MAP).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
+              <option value="">{t('common.task.filter.allStatuses')}</option>
+              {statusOptions.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
-            </select>
-          </div>
-        </div>
-        <div className="writing-header-actions">
-          <button
-            type="button"
-            className="btn-secondary btn-small"
-            onClick={() => loadTasks()}
-            disabled={loadingTasks}
-          >
-            {loadingTasks ? '刷新中…' : '刷新列表'}
-          </button>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => setFormOpen(true)}
-            disabled={!isLoggedIn}
-          >
-            新建写作任务
-          </button>
-        </div>
-      </div>
+            </GenerationTaskFilterSelect>
+          </>
+        }
+        onRefresh={() => {
+          invalidateTaskListCache();
+          void loadTasks();
+        }}
+        refreshLoading={loadingTasks}
+        primaryAction={{
+          label: scopeLabels.createLabel,
+          onClick: () => setFormOpen(true),
+          disabled: !isLoggedIn,
+        }}
+        bulkSelection={bulk.toolbarBulkSelection}
+      />
 
-      <div className="writing-list-scroll">
+      <GenerationTaskListScroll
+        className="writing-list-scroll"
+        onRefresh={() => {
+          invalidateTaskListCache();
+          void loadTasks();
+        }}
+        refreshing={loadingTasks}
+        disabled={!isLoggedIn}
+      >
         {!isLoggedIn ? (
-          <p className="muted">请先登录以查看任务列表。</p>
+          <p className="muted">{t('auth.pleaseLoginToViewTasks')}</p>
         ) : loadingTasks ? (
-          <p className="muted">加载中...</p>
+          <TaskListLoading layout="media-grid" kind="writing" count={6} />
         ) : filteredTasks.length === 0 ? (
-          <p className="muted">暂无写作任务，点击右上角「新建写作任务」开始。</p>
+          <p className="muted">
+            {creationSourceTab === 'open_api'
+              ? t('generation.empty.openApiScoped', { scope: scopeLabels.scopeLabel })
+              : scopeLabels.emptyHint}
+          </p>
         ) : (
           <ul className="writing-task-list">
-            {filteredTasks.map((t) => {
-              const wt = extractWritingType(t);
-              const ot = extractOutlineType(t);
-              const subtypeLabel = getSubtypeLabel(wt, ot);
+            {filteredTasks.map((task) => {
+              const { taskLabel: typeLabel, subtypeLabel } = formatTaskBusinessDisplayFull(
+                taskSelectionLabelMap,
+                task
+              );
               return (
-                <li
-                  key={t.id}
-                  className="writing-task-item writing-task-item-clickable"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleTaskClick(t)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleTaskClick(t)}
-                >
-                  <div className="writing-task-main">
-                    <span className="writing-task-title" title={getTaskTitle(t)}>
-                      {getTaskTitle(t)}
-                    </span>
-                    <span className="writing-task-actions">
-                      <span className={`writing-task-status writing-task-status--${t.status}`}>
-                        {STATUS_MAP[t.status] ?? t.status}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn-danger btn-small"
-                        title="删除"
-                        onClick={(e) => handleDeleteTask(e, t)}
-                        disabled={deletingId === t.id}
-                      >
-                        {deletingId === t.id ? '…' : '删除'}
-                      </button>
-                    </span>
-                  </div>
-                  <div className="writing-task-meta">
-                    {subtypeLabel && (
-                      <span className="writing-task-subtype">{subtypeLabel}</span>
-                    )}
-                    <code className="writing-task-id">{t.id}</code>
-                    {t.progress?.progress != null && (
-                      <span className="writing-task-progress">{t.progress.progress}%</span>
-                    )}
-                    {t.progress?.error && (
-                      <span className="writing-task-error" title={t.progress.error}>
-                        {t.progress.error.slice(0, 60)}
-                        {t.progress.error.length > 60 ? '…' : ''}
-                      </span>
-                    )}
-                  </div>
-                </li>
+                <WritingTaskCard
+                  key={task.id}
+                  task={task}
+                  title={getTaskTitle(task, scopeLabels.defaultTitle)}
+                  status={task.status}
+                  statusLabel={getTaskStatusLabel(task.status, t)}
+                  typeLabel={typeLabel || undefined}
+                  subtypeLabel={subtypeLabel || undefined}
+                  animateKey={gridEpoch}
+                  onClick={() => bulk.wrapTaskClick(task.id, () => void handleTaskClick(task))}
+                  onDelete={(e) => void handleDeleteTask(e, task)}
+                  onMove={(e) => {
+                    e.stopPropagation();
+                    bulk.openMoveToFolder([task.id]);
+                  }}
+                  onDownload={async (e) => {
+                    e.stopPropagation();
+                    await downloadGenerationTask(task, 'writing');
+                  }}
+                  deleting={deletingId === task.id}
+                  selectionMode={bulk.selectionMode}
+                  selected={bulk.isSelected(task.id)}
+                  onToggleSelect={() => bulk.toggleSelected(task.id)}
+                />
               );
             })}
+            <TaskListLoadSentinel
+              enabled={hasMore && !filterSelectionKey}
+              loading={loadingMore}
+              onVisible={() => void loadMore()}
+            />
           </ul>
         )}
-      </div>
+      </GenerationTaskListScroll>
+
+      <ManualReviewModal
+        open={reviewVisible}
+        task={reviewTask}
+        onClose={() => {
+          setReviewVisible(false);
+          setReviewTask(null);
+        }}
+        onApproved={() => {
+          const id = reviewTask?.id;
+          void (async () => {
+            await loadTasks();
+            if (!id) return;
+            const next = await waitForAwaitingReview(id, 20, 500);
+            if (next?.status === 'awaiting_review') {
+              setReviewTask(next);
+              setReviewVisible(true);
+            }
+          })();
+        }}
+      />
 
       <WritingViewerModal
         visible={viewerVisible}
-        onClose={() => setViewerVisible(false)}
-        title={viewerTask ? getTaskTitle(viewerTask) : '写作内容'}
+        onClose={() => {
+          clearViewerPdf();
+          setViewerVisible(false);
+        }}
+        title={viewerTask ? getTaskTitle(viewerTask, scopeLabels.defaultTitle) : '写作内容'}
         content={viewerContent}
+        pdfPreviewUrl={viewerPdfUrl}
         task={viewerTask}
         loading={viewerLoading}
         error={viewerError}
+        onRemoveCollectionItem={handleRemoveCollectionItem}
       />
 
       <Drawer
-        title="新建写作任务"
+        title={
+          <div className="task-v2-drawer-header">
+            <span className="task-v2-drawer-header__title">{scopeLabels.createLabel}</span>
+            <TaskV2CreateModeSwitch value={createMode} onChange={setCreateMode} />
+          </div>
+        }
         placement="right"
         size={520}
         open={formOpen}
-        onClose={() => setFormOpen(false)}
+        onClose={() => {
+          setFormOpen(false);
+          setCreateMode('form');
+        }}
         destroyOnHidden
+        className="writing-drawer task-v2-create-drawer"
       >
-        {renderForm()}
+        <TaskV2CreateSurface
+          scope="writing"
+          mode={createMode}
+          onModeChange={setCreateMode}
+          open={formOpen}
+        >
+          {renderForm()}
+        </TaskV2CreateSurface>
       </Drawer>
+
+      {bulk.moveModal}
     </section>
   );
 }

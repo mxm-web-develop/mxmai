@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { toAppLang } from '../../i18n/appLocale';
 import { App, Button, Modal } from 'antd';
 import type { WritingTaskItem } from '../../api/client';
 import { approveTaskReview, getTaskReviewDraft, retryRenderedReviewClips, type ReviewDraftPayload } from '../../api/client';
@@ -7,7 +9,12 @@ import { ClipInspector } from './ClipInspector';
 import { OverlayInspector } from './OverlayInspector';
 import { SegmentPreview } from './SegmentPreview';
 import { TimelinePanel } from './TimelinePanel';
-import { AUDIO_PREVIEW_CLIP_ID, BGM_PREVIEW_CLIP_ID, type TimelineSelection, type VideoGeneratorOption } from './types';
+import {
+  AUDIO_PREVIEW_CLIP_ID,
+  BGM_PREVIEW_CLIP_ID,
+  type TimelineSelection,
+  type VideoGeneratorOption,
+} from './types';
 import { findAudioTrack, getClipAudioSettings } from './audioTrackUtils';
 import { findVisualClipAtTime } from './timelineClipAtTime';
 import { useVideoEditScript } from './useVideoEditScript';
@@ -23,6 +30,11 @@ import { resolveReviewScriptInitial } from './resolveReviewScriptInitial';
 import './video-timeline-review.css';
 import { MANUAL_REVIEW_FULLSCREEN_MODAL_STYLES } from '../manualReviewModalLayout';
 import { countFailedClipRenders, listBlockingClipRenders } from './clipRenderPreviewUtils';
+import {
+  ReviewBillingBar,
+  formatGenerateButtonLabel,
+  useReviewBillingEstimate,
+} from '../billing/ReviewBillingEstimate';
 
 const DRAFT_LOAD_SLOW_MS = 12_000;
 
@@ -50,7 +62,7 @@ export function VideoTimelineReviewModal({
   onClose,
   onApproved,
 }: VideoTimelineReviewModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { message } = App.useApp();
   const messageRef = useRef(message);
   messageRef.current = message;
@@ -65,7 +77,10 @@ export function VideoTimelineReviewModal({
   const [retrying, setRetrying] = useState(false);
   const [retryingClipId, setRetryingClipId] = useState<string | null>(null);
   const [selection, setSelection] = useState<TimelineSelection | null>(null);
+  /** 视频轨多选（主选中 id 始终包含在内） */
+  const [selectedVisualIds, setSelectedVisualIds] = useState<string[]>([]);
   const [contentReady, setContentReady] = useState(false);
+  const [batchBusy, setBatchBusy] = useState(false);
 
   const scriptInitial = useMemo(() => {
     if (loadingDraft) return undefined;
@@ -88,6 +103,7 @@ export function VideoTimelineReviewModal({
     audioMix,
     totalDuration,
     updateClip,
+    commitAutoStockSources,
     updateAudioClip,
     setBgmMedia,
     clearBgmMedia,
@@ -226,12 +242,47 @@ export function VideoTimelineReviewModal({
       playback.seek(time);
       // 编辑叠加层时不因 scrub 抢占选中态
       if (selection?.kind === 'overlay') return;
+      // 多选时 scrub 不打断选择
+      if (selectedVisualIds.length > 1) return;
       const atPlayhead = findVisualClipAtTime(visualClips, time);
       if (atPlayhead) {
         setSelection({ kind: 'visual', id: atPlayhead.id });
+        setSelectedVisualIds([atPlayhead.id]);
       }
     },
-    [playback, visualClips, selection?.kind]
+    [playback, visualClips, selection?.kind, selectedVisualIds.length]
+  );
+
+  const handleSelectVisual = useCallback(
+    (clipId: string, opts: { toggle: boolean; range: boolean }) => {
+      const orderedIds = [...visualClips]
+        .sort((a, b) => a.startTime - b.startTime)
+        .map((c) => c.id);
+      const idx = orderedIds.indexOf(clipId);
+      if (idx < 0) return;
+
+      setSelectedVisualIds((prev) => {
+        let next: string[];
+        if (opts.range && prev.length > 0) {
+          const anchorId = selection?.kind === 'visual' ? selection.id : prev[prev.length - 1]!;
+          const anchorIdx = orderedIds.indexOf(anchorId);
+          const from = Math.min(anchorIdx >= 0 ? anchorIdx : idx, idx);
+          const to = Math.max(anchorIdx >= 0 ? anchorIdx : idx, idx);
+          next = orderedIds.slice(from, to + 1);
+        } else if (opts.toggle) {
+          const set = new Set(prev);
+          if (set.has(clipId)) set.delete(clipId);
+          else set.add(clipId);
+          next = orderedIds.filter((id) => set.has(id));
+          if (next.length === 0) next = [clipId];
+        } else {
+          next = [clipId];
+        }
+        setSelection({ kind: 'visual', id: clipId });
+        return next;
+      });
+    },
+    [visualClips, selection]
   );
 
   const activeEditClipId = useMemo(() => {
@@ -321,6 +372,8 @@ export function VideoTimelineReviewModal({
       setRetrying(false);
       setRetryingClipId(null);
       setSelection(null);
+      setSelectedVisualIds([]);
+      setBatchBusy(false);
       return;
     }
     if (!task?.id) return;
@@ -527,6 +580,26 @@ export function VideoTimelineReviewModal({
 
   const handleRetryClip = (clipId: string) => void handleRetryClips([clipId]);
 
+  const handleUpdateManyClips = useCallback(
+    (clipIds: string[], patch: Record<string, unknown>) => {
+      flushSync(() => {
+        for (const id of clipIds) updateClip(id, patch);
+      });
+    },
+    [updateClip]
+  );
+
+  const handleBatchRetryRender = useCallback(
+    (clipIds: string[]) => {
+      if (clipIds.length < 2) return;
+      setBatchBusy(true);
+      void handleRetryClips(clipIds).finally(() => setBatchBusy(false));
+    },
+    // handleRetryClips closes over latest exportJson/task
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [handleRetryClips]
+  );
+
   const handleRetryAllFailed = () => {
     const failedIds = blockingClipRenders.filter((b) => b.reason === 'failed').map((b) => b.clipId);
     if (!failedIds.length) {
@@ -536,10 +609,27 @@ export function VideoTimelineReviewModal({
     void handleRetryClips(failedIds);
   };
 
+  const reviewPayloadForBilling = useMemo((): Record<string, unknown> | null => {
+    if (!script || typeof script !== 'object') return null;
+    return script as Record<string, unknown>;
+  }, [script]);
+
+  const { estimate: reviewEstimate, loading: reviewBillingLoading, blockApprove } =
+    useReviewBillingEstimate({
+      open,
+      task,
+      reviewPayload: reviewPayloadForBilling,
+      enabled: !!script && !isRenderedReview,
+    });
+
   const handleApprove = async () => {
     if (!task?.id) return;
     if (approveBlockedByClips) {
       message.warning(t('video.review.clipsNotReady'));
+      return;
+    }
+    if (!isRenderedReview && blockApprove) {
+      message.warning(reviewEstimate?.message || '余额不足或计费异常，暂不可继续');
       return;
     }
     const json = exportJson();
@@ -585,6 +675,9 @@ export function VideoTimelineReviewModal({
       footer={
         <div className="manual-review-modal__footer">
           <div className="manual-review-modal__footer-main">
+            {!isRenderedReview ? (
+              <ReviewBillingBar estimate={reviewEstimate} loading={reviewBillingLoading} />
+            ) : null}
             {isRenderedReview && hasBlockingClipRenders ? (
               <span className="video-timeline-review__footer-hint">
                 {t('video.review.clipsNotReadyCount', { count: blockingClipRenders.length })}
@@ -603,11 +696,29 @@ export function VideoTimelineReviewModal({
                 type="primary"
                 loading={submitting}
                 disabled={
-                  loadingDraft || submitting || retrying || !script || approveBlockedByClips
+                  loadingDraft ||
+                  submitting ||
+                  retrying ||
+                  !script ||
+                  approveBlockedByClips ||
+                  (!isRenderedReview && (blockApprove || reviewBillingLoading))
                 }
                 onClick={() => void handleApprove()}
               >
-                {isRenderedReview ? t('video.review.approveExport') : t('video.review.approvePlan')}
+                {formatGenerateButtonLabel(
+                  isRenderedReview ? t('video.review.approveExport') : t('video.review.approvePlan'),
+                  isRenderedReview ? null : reviewEstimate,
+                  reviewBillingLoading,
+                  {
+                    insufficientBalance: !!(
+                      reviewEstimate &&
+                      !reviewEstimate.allowed &&
+                      !reviewEstimate.isAdmin &&
+                      reviewEstimate.hasPricing !== false
+                    ),
+                    locale: toAppLang(i18n.language),
+                  }
+                )}
               </Button>
             </div>
           </div>
@@ -674,6 +785,11 @@ export function VideoTimelineReviewModal({
                       }
                     : undefined
                 }
+                onAutoStockBatchReady={
+                  isRenderedReview
+                    ? undefined
+                    : (commits) => commitAutoStockSources(commits)
+                }
               />
               {previewReady && activePreviewSubtitle && (
                 <div className="video-timeline-review__preview-subtitle-bar" aria-live="polite">
@@ -692,6 +808,7 @@ export function VideoTimelineReviewModal({
                 textClips={textClips}
                 totalDuration={totalDuration}
                 selection={selection}
+                selectedVisualIds={selectedVisualIds}
                 voiceSourceUrl={voicePreviewUrl}
                 voicePlaybackUrl={voicePlaybackUrl}
                 bgmPlaybackUrl={bgmPlaybackUrlResolved}
@@ -703,7 +820,12 @@ export function VideoTimelineReviewModal({
                 bgmRef={playback.bgmRef}
                 onTogglePlay={playback.toggle}
                 onSeek={handleSeek}
-                onSelect={setSelection}
+                onSelect={(sel) => {
+                  setSelection(sel);
+                  if (sel.kind === 'visual') setSelectedVisualIds([sel.id]);
+                  else setSelectedVisualIds([]);
+                }}
+                onSelectVisual={handleSelectVisual}
                 onResizeClipBoundary={resizeClipBoundary}
                 canSplit={canSplitSelected}
                 canDelete={canDeleteSelected}
@@ -738,6 +860,10 @@ export function VideoTimelineReviewModal({
                 graphGeneratorOptions={graphGeneratorOptions}
                 defaultGraphGenerator={defaultGraphGenerator}
                 onUpdate={(id, patch) => updateClip(id, patch)}
+                onUpdateMany={handleUpdateManyClips}
+                selectedVisualIds={selectedVisualIds}
+                onBatchRetryRender={isRenderedReview ? handleBatchRetryRender : undefined}
+                batchBusy={batchBusy || retrying}
                 onUpdateAudio={(id, patch) => updateAudioClip(id, patch)}
                 onPickBgm={setBgmMedia}
                 onClearBgm={clearBgmMedia}
