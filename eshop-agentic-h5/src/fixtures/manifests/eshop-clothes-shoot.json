@@ -1,0 +1,75 @@
+{
+  "slug": "eshop-clothes-shoot",
+  "title": "服装商拍单款",
+  "description": "上传模特与服装参考，生成电商上架主图",
+  "kind": "task_v2",
+  "schemaVersion": 1,
+  "inputSchema": {
+    "type": "object",
+    "required": ["model_images", "garment_images"],
+    "properties": {
+      "model_images": {
+        "type": "array",
+        "title": "模特参考",
+        "minItems": 1,
+        "maxItems": 4,
+        "x-ui-type": "referenceImages",
+        "items": {
+          "type": "object",
+          "properties": {
+            "content": { "type": "string" },
+            "type": { "type": "string", "default": "main-subject" }
+          }
+        }
+      },
+      "garment_images": {
+        "type": "array",
+        "title": "服装 SKU 参考",
+        "minItems": 1,
+        "maxItems": 6,
+        "x-ui-type": "referenceImages",
+        "items": {
+          "type": "object",
+          "properties": {
+            "content": { "type": "string" },
+            "type": { "type": "string", "default": "outfits" }
+          }
+        }
+      },
+      "shoot_preset": {
+        "type": "string",
+        "title": "拍摄场景",
+        "default": "studio_soft_gray",
+        "enum": ["studio_soft_gray", "beach_sunny_pier", "urban_street", "cafe_window"],
+        "enumNames": ["棚拍柔灰", "海边栈道", "城市街拍", "窗边咖啡"],
+        "x-ui-type": "selection"
+      },
+      "output_grid": {
+        "type": "string",
+        "title": "输出布局",
+        "default": "1x1",
+        "enum": ["1x1", "2x2"],
+        "enumNames": ["单图", "四宫格"],
+        "x-ui-type": "selection"
+      },
+      "parallel_count": {
+        "type": "number",
+        "title": "生成份数",
+        "default": 1,
+        "minimum": 1,
+        "maximum": 4,
+        "x-ui-type": "number"
+      }
+    }
+  },
+  "inputDoc": {
+    "fieldHints": {
+      "model_images": "上传正面全身或半身模特参考",
+      "garment_images": "同款 SKU 平铺或挂拍图"
+    },
+    "referenceImageSlots": [
+      { "key": "model_images", "label": "模特", "type": "main-subject" },
+      { "key": "garment_images", "label": "服装", "type": "outfits" }
+    ]
+  }
+}

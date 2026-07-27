@@ -1,0 +1,406 @@
+{
+  "slug": "eshop-manoutfits",
+  "title": "电商 · 男装上架图",
+  "description": null,
+  "kind": "task_v2",
+  "schemaVersion": 1,
+  "platformRef": {
+    "scope": "graph",
+    "taskKey": "eshop",
+    "subtype": "clothes-men"
+  },
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "garment_images",
+      "shoot_focus",
+      "model_participation",
+      "shoot_preset",
+      "output_grid"
+    ],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "title": "补充说明",
+        "default": "",
+        "description": "品牌调性、目标平台（Amazon/Shopify/天猫）、禁止元素、镜头或陈列偏好等"
+      },
+      "output_grid": {
+        "enum": [
+          "1x1",
+          "2x2",
+          "3x3"
+        ],
+        "type": "string",
+        "title": "输出宫格",
+        "default": "1x1",
+        "x-ui-type": "selection",
+        "description": "与拍摄场景独立：单张选 1×1；需多角度连拍选 2×2 或 3×3（contact sheet 生成后裁格）。"
+      },
+      "shoot_focus": {
+        "enum": [
+          "shoulder_chest",
+          "structure_tailoring",
+          "trouser_break",
+          "fabric_weave",
+          "full_catalog"
+        ],
+        "type": "string",
+        "title": "男装拍摄侧重点",
+        "default": "shoulder_chest",
+        "x-ui-type": "selection",
+        "description": "本单最想卖清楚的视觉信息；英文 prompt 须优先安排构图、景别与布光以服务此项。",
+        "x-enum-descriptions": {
+          "fabric_weave": "牛仔斜纹、粗花呢颗粒、牛津纺织纹、皮革粒面等肌理清晰；侧光微反差。",
+          "full_catalog": "全身 catalog 标准站姿，头到鞋完整，结构信息与比例并重；白棚/浅灰优先。",
+          "trouser_break": "裤脚与鞋面关系（no break / slight break / full break）、裤线、中缝、腰头/门襟必须入镜。",
+          "shoulder_chest": "肩线落点、胸宽余量、袖山与袖笼为绝对主体；站姿肩背平直，禁含胸塌肩。",
+          "structure_tailoring": "门襟、驳领、省道、口袋位置、下摆弧度；西装/夹克/衬衫卖剪裁与挺括度。"
+        }
+      },
+      "model_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "main-subject"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "模特参考",
+        "maxItems": 8,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "「默认」时建议上传以锁定面部与身形；「去模特身份」时可选（仅作体态参考）；「无模特」时可不上传。"
+      },
+      "shoot_preset": {
+        "enum": [
+          "studio_white_seamless",
+          "studio_soft_gray",
+          "studio_concrete_industrial",
+          "studio_dual_tone_corner",
+          "indoor_minimal_loft",
+          "urban_subway_concourse",
+          "urban_glass_facade",
+          "urban_street_day",
+          "nature_forest_dappled"
+        ],
+        "type": "string",
+        "title": "拍摄场景",
+        "default": "studio_white_seamless",
+        "x-ui-type": "selection",
+        "description": "无「场景参考图」时由本项决定环境/背景/光线氛围；有场景参考图时本项仅作补充说明。",
+        "x-enum-descriptions": {
+          "studio_soft_gray": "【棚拍】浅灰微纹理，柔光+轻轮廓光，微反差清晰；独立站主图常用。",
+          "urban_street_day": "【城市】商业街混合天光，都市纵深，背景虚化，禁可读招牌文字。",
+          "urban_glass_facade": "【城市】玻璃幕墙前蓝灰反射；商务男装/极简都会，结构线条清晰。",
+          "indoor_minimal_loft": "【室内】大白墙、浅木地板、少量现代家具剪影，高 key 干净。",
+          "nature_forest_dappled": "【自然】林间斑驳光，绿色环境光；户外机能/工装/徒步男装，面料机能感可读。",
+          "studio_white_seamless": "【棚拍】无缝纯白背景，均匀柔光，高 key 色彩还原；Amazon/天猫主图标准，主体占画面 75–88%。",
+          "urban_subway_concourse": "【城市】地铁/高铁长廊，线性灯带+冷白反射；男装通勤/机能风，强调挺括轮廓与纵深，禁站台文字。",
+          "studio_dual_tone_corner": "【棚拍】双色墙角透视，轻纵深感但不抢主体。",
+          "studio_concrete_industrial": "【棚拍】清水泥/灰色工业墙，侧光强调肌理，硬朗都会感。"
+        }
+      },
+      "style_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "style-reference"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "风格参考（可选）",
+        "maxItems": 8,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "仅学习摄影/调色风格：色调、对比、景深、构图与氛围；不得复制参考中的具体商品、人物身份或品牌 Logo。若与 SKU/模特参考冲突，以 SKU/模特为准。"
+      },
+      "garment_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "outfits"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "男装 SKU 参考",
+        "maxItems": 14,
+        "minItems": 1,
+        "x-ui-type": "referenceImages",
+        "description": "锁定男装款式、配色、面料与结构：肩线、门襟/驳领、胸袋、袖长、裤腰、中缝、break；须与参考为同一 SKU，禁止改成女装软塌腰线或改色改款。"
+      },
+      "parallel_count": {
+        "type": "integer",
+        "title": "生成份数",
+        "default": 1,
+        "maximum": 99,
+        "minimum": 1,
+        "x-ui-order": -100,
+        "description": "一次提交生成几份独立结果（1～99），每份内容须有差异。"
+      },
+      "garment_material": {
+        "enum": [
+          "use_reference_only",
+          "cotton",
+          "cotton_linen",
+          "linen",
+          "silk_satin",
+          "chiffon_georgette",
+          "denim",
+          "wool_knit",
+          "cashmere",
+          "leather_suede",
+          "faux_leather",
+          "mesh_lace",
+          "tulle_organza",
+          "velvet",
+          "corduroy",
+          "tweed",
+          "down_puffy",
+          "functional_shell",
+          "sequin_embellished",
+          "synthetic_blend",
+          "metal_trim"
+        ],
+        "type": "string",
+        "title": "服装质感（补充）",
+        "default": "use_reference_only",
+        "x-ui-type": "selection",
+        "description": "参考图面料不清或识别错误时指定；默认「以参考图为准」不额外写入材质词。"
+      },
+      "environment_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "background"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "场景参考（可选）",
+        "maxItems": 6,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "有上传时以参考图的空间、光线与色调为准；「拍摄场景」仅作氛围补充，不得覆盖参考像素。"
+      },
+      "model_participation": {
+        "enum": [
+          "default",
+          "no_model"
+        ],
+        "type": "string",
+        "title": "展示方式",
+        "default": "default",
+        "x-ui-type": "selection",
+        "description": "默认模特穿拍；无模特仅用于挂拍/平铺 catalog。",
+        "x-enum-descriptions": {
+          "default": "真人模特穿着展示 SKU；有模特参考时须 identity lock（同一人）；面部自然入镜，姿态与景别服务于拍摄侧重点。",
+          "no_model": "无真人；衣架、鬼影人台或平铺，以多角度展示版型与细节，仍须 SKU 锁定。"
+        }
+      }
+    },
+    "x-grid-pose-scripts": {
+      "2x2": [
+        "Full-body neutral stance, shoulders square, ~32mm eye-level, trouser break and shoe line visible.",
+        "Chest-up hero, adjusting lapel or cuff, ~70mm, emphasize shoulder line and chest fit.",
+        "Three-quarter back, hands in pockets optional, highlight back yoke and trouser drape, ~40mm.",
+        "Seated upright on minimal stool, clean trouser crease, ~50mm, structured tailoring readable."
+      ],
+      "3x3": [
+        "Full-body establishing, confident walk toward camera, ~28mm, masculine silhouette clear.",
+        "Chest-up hero, arms crossed or hand in pocket, ~65mm, sell-point at chest and shoulder.",
+        "Macro of weave, button, or stitching, ~100mm shallow DoF.",
+        "Clean profile full-body, jawline optional if default, ~38mm, strong vertical lines.",
+        "Back full-body, natural stride, show rear panel and hem, ~35mm.",
+        "Half-kneel or crouch adjusting shoelace/cuff, ~55mm, low angle emphasizing trouser fit.",
+        "Waist-up leaning forward, both hands at belt, ~75mm, emphasize waistband and fly.",
+        "Walking away mid-step, structured coat swing, ~32mm.",
+        "Detail of tie, watch, or belt zone with adjacent garment, ~85mm."
+      ]
+    }
+  },
+  "inputDoc": {
+    "fieldHints": {
+      "prompt": "补充说明",
+      "output_grid": "0: 单张（1×1）; 1: 四宫格（2×2）; 2: 九宫格（3×3）",
+      "shoot_focus": "0: 肩胸版型; 1: 结构与剪裁; 2: 裤长与 break; 3: 面料肌理; 4: 全身 catalog",
+      "model_images": "模特参考",
+      "shoot_preset": "0: 室内 · 纯白无缝棚; 1: 室内 · 浅灰渐变棚; 2: 室内 · 清水泥工业棚; 3: 室内 · 双色墙角布景; 4: 室内 · 极简 Loft; 5: 城市 · 地铁车站纵深; 6: 城市 · 玻璃幕墙倒影; 7: 城市 · 日景商业街; 8: 自然 · 林缘斑驳光",
+      "style_images": "风格参考（可选）",
+      "garment_images": "男装 SKU 参考",
+      "parallel_count": "生成份数",
+      "garment_material": "0: 以参考图为准; 1: 纯棉; 2: 棉麻; 3: 亚麻; 4: 真丝/缎面; 5: 雪纺/乔其; 6: 牛仔; 7: 羊毛/针织; 8: 羊绒; 9: 真皮/绒面革; 10: 仿皮革 PU; 11: 网纱/蕾丝; 12: 欧根纱/硬纱; 13: 丝绒; 14: 灯芯绒; 15: 粗花呢; 16: 羽绒/蓬松填充; 17: 机能防水防风; 18: 亮片/珠片; 19: 化纤/混纺; 20: 金属辅料/链饰",
+      "environment_images": "场景参考（可选）",
+      "model_participation": "0: 模特穿拍; 1: 无模特挂拍/平铺"
+    },
+    "referenceImageSlots": [
+      {
+        "field": "model_images",
+        "title": "模特参考",
+        "maxItems": 8,
+        "description": "「默认」时建议上传以锁定面部与身形；「去模特身份」时可选（仅作体态参考）；「无模特」时可不上传。"
+      },
+      {
+        "field": "style_images",
+        "title": "风格参考（可选）",
+        "maxItems": 8,
+        "description": "仅学习摄影/调色风格：色调、对比、景深、构图与氛围；不得复制参考中的具体商品、人物身份或品牌 Logo。若与 SKU/模特参考冲突，以 SKU/模特为准。"
+      },
+      {
+        "field": "garment_images",
+        "title": "男装 SKU 参考",
+        "maxItems": 14,
+        "description": "锁定男装款式、配色、面料与结构：肩线、门襟/驳领、胸袋、袖长、裤腰、中缝、break；须与参考为同一 SKU，禁止改成女装软塌腰线或改色改款。"
+      },
+      {
+        "field": "environment_images",
+        "title": "场景参考（可选）",
+        "maxItems": 6,
+        "description": "有上传时以参考图的空间、光线与色调为准；「拍摄场景」仅作氛围补充，不得覆盖参考像素。"
+      }
+    ]
+  }
+}

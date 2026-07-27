@@ -1,0 +1,48 @@
+{
+  "slug": "eshop-model-video",
+  "title": "上架图转短视频",
+  "description": "商拍成片生成动效短视频",
+  "kind": "smartflow",
+  "schemaVersion": 1,
+  "inputSchema": {
+    "type": "object",
+    "required": ["source_images"],
+    "properties": {
+      "source_images": {
+        "type": "array",
+        "title": "上架图参考",
+        "minItems": 1,
+        "maxItems": 4,
+        "x-ui-type": "referenceImages",
+        "items": {
+          "type": "object",
+          "properties": {
+            "content": { "type": "string" },
+            "type": { "type": "string", "default": "main-subject" }
+          }
+        }
+      },
+      "motion_style": {
+        "type": "string",
+        "title": "动效风格",
+        "default": "subtle_sway",
+        "enum": ["subtle_sway", "walk_forward", "turn_around"],
+        "enumNames": ["轻微摆动", "向前走动", "转身展示"],
+        "x-ui-type": "selection"
+      },
+      "duration": {
+        "type": "number",
+        "title": "时长（秒）",
+        "default": 5,
+        "minimum": 3,
+        "maximum": 10,
+        "x-ui-type": "number"
+      }
+    }
+  },
+  "inputDoc": {
+    "fieldHints": {
+      "source_images": "使用已生成的商拍主图"
+    }
+  }
+}

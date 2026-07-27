@@ -1,0 +1,401 @@
+{
+  "slug": "graph-eshop-accessories",
+  "title": "电商 · 饰品上架图",
+  "description": "eshop/accessories（珠宝配饰 · 微距与陈列）",
+  "kind": "task_v2",
+  "schemaVersion": 1,
+  "platformRef": {
+    "scope": "graph",
+    "type": "eshop",
+    "subtype": "accessories",
+    "routeHint": "/graph/eshop/accessories"
+  },
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "product_images",
+      "model_participation",
+      "display_mode",
+      "shoot_preset",
+      "output_grid"
+    ],
+    "properties": {
+      "product_images": {
+        "type": "array",
+        "title": "商品 SKU 参考",
+        "description": "锁定款式、配色、材质、结构与关键细节（Logo 形态、扣件、纹理、比例）；生成须与参考为同一 SKU，禁止改款改色或替换为近似款。",
+        "x-ui-type": "referenceImages",
+        "minItems": 1,
+        "maxItems": 12,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "type": {
+              "type": "string",
+              "title": "用途类型",
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "default": "main-subject"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            }
+          },
+          "required": [
+            "content",
+            "type"
+          ]
+        }
+      },
+      "display_mode": {
+        "type": "string",
+        "title": "陈列方式",
+        "description": "决定饰品在画面中的呈现形态；与「模特参与度」配合（佩戴局部时可选手部/颈部裁切）。",
+        "x-ui-type": "selection",
+        "enum": [
+          "macro_detail",
+          "flat_lay",
+          "jewelry_stand",
+          "worn_partial",
+          "lifestyle_prop"
+        ],
+        "x-enum-labels": [
+          "微距细节",
+          "平铺陈列",
+          "首饰架/托盘",
+          "佩戴局部",
+          "场景道具"
+        ],
+        "x-enum-descriptions": {
+          "macro_detail": "微距展示宝石切面、金属拉丝、珐琅、扣头；浅景深但关键细节清晰。",
+          "flat_lay": "俯视平铺，对称或杂志式排版，背景干净，无文字装饰。",
+          "jewelry_stand": "项链架、戒指托、耳钉卡纸等专业陈列，电商主图常用。",
+          "worn_partial": "佩戴在颈/腕/耳/手局部，裁切不含可识别面部；强调比例与光泽。",
+          "lifestyle_prop": "与书本、花、大理石台等静物搭配，生活感但仍以 SKU 为主体。"
+        },
+        "default": "macro_detail"
+      },
+      "style_images": {
+        "type": "array",
+        "title": "风格参考（可选）",
+        "description": "仅学习摄影/调色风格：色调、对比、景深、构图与氛围；不得复制参考中的具体商品、人物身份或品牌 Logo。若与 SKU/模特参考冲突，以 SKU/模特为准。",
+        "x-ui-type": "referenceImages",
+        "minItems": 0,
+        "maxItems": 8,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "type": {
+              "type": "string",
+              "title": "用途类型",
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "default": "style-reference"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            }
+          },
+          "required": [
+            "content",
+            "type"
+          ]
+        }
+      },
+      "environment_images": {
+        "type": "array",
+        "title": "场景参考（可选）",
+        "description": "有上传时以参考图的空间、光线与色调为准；「拍摄场景」仅作氛围补充，不得覆盖参考像素。",
+        "x-ui-type": "referenceImages",
+        "minItems": 0,
+        "maxItems": 6,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "type": {
+              "type": "string",
+              "title": "用途类型",
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "default": "background"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            }
+          },
+          "required": [
+            "content",
+            "type"
+          ]
+        }
+      },
+      "shoot_preset": {
+        "type": "string",
+        "title": "拍摄场景",
+        "description": "无「场景参考图」时由本项决定环境/背景/光线氛围；有场景参考图时本项仅作补充说明。",
+        "x-ui-type": "selection",
+        "enum": [
+          "studio_white_seamless",
+          "studio_soft_gray",
+          "studio_warm_beige",
+          "studio_concrete_industrial",
+          "studio_pastel_backdrop",
+          "studio_dual_tone_corner",
+          "studio_window_side_light",
+          "studio_black_dramatic",
+          "indoor_minimal_loft",
+          "indoor_marble_vanity",
+          "indoor_cafe_window",
+          "nature_soft_daylight",
+          "urban_street_day",
+          "beach_golden_sunset",
+          "resort_poolside",
+          "nature_meadow_park",
+          "urban_rooftop_golden",
+          "urban_subway_concourse",
+          "urban_glass_facade",
+          "nature_forest_dappled"
+        ],
+        "x-enum-labels": [
+          "室内 · 纯白无缝棚",
+          "室内 · 浅灰渐变棚",
+          "室内 · 暖米杏色棚",
+          "室内 · 清水泥工业棚",
+          "室内 · 马卡龙色背景纸",
+          "室内 · 双色墙角布景",
+          "室内 · 落地窗侧光棚",
+          "室内 · 黑色戏剧光棚",
+          "室内 · 极简 Loft",
+          "室内 · 大理石梳妆台",
+          "室内 · 咖啡馆临窗",
+          "自然 · 柔和日光",
+          "城市 · 日景商业街",
+          "海边 · 日落金色海滩",
+          "海边 · 度假村泳池畔",
+          "自然 · 公园草坪",
+          "城市 · 屋顶天际线黄昏",
+          "城市 · 地铁车站纵深",
+          "城市 · 玻璃幕墙倒影",
+          "自然 · 林缘斑驳光"
+        ],
+        "default": "studio_black_dramatic",
+        "x-enum-descriptions": {
+          "studio_white_seamless": "【棚拍】无缝纯白背景，均匀柔光，高 key 色彩还原；Amazon/天猫主图标准，主体占画面 75–88%。",
+          "studio_soft_gray": "【棚拍】浅灰微纹理，柔光+轻轮廓光，微反差清晰；独立站主图常用。",
+          "studio_warm_beige": "【棚拍】暖米/杏色无缝，柔和暖主光，轻奢温馨。",
+          "studio_concrete_industrial": "【棚拍】清水泥/灰色工业墙，侧光强调肌理，硬朗都会感。",
+          "studio_pastel_backdrop": "【棚拍】低饱和粉/蓝/薄荷背景纸，高 key 清新电商风。",
+          "studio_dual_tone_corner": "【棚拍】双色墙角透视，轻纵深感但不抢主体。",
+          "studio_window_side_light": "【棚拍】大窗单侧自然光，柔阴影，接近窗边 lookbook。",
+          "studio_black_dramatic": "【棚拍】纯黑或深灰背景，定向硬光+轮廓光，珠宝/鞋履/高端单品常用。",
+          "indoor_minimal_loft": "【室内】大白墙、浅木地板、少量现代家具剪影，高 key 干净。",
+          "indoor_marble_vanity": "【室内】大理石台面/梳妆场景，适合饰品、美妆瓶器、小件精品。",
+          "indoor_cafe_window": "【室内】咖啡馆临大窗，室内暖光+窗外虚化 bokeh，生活感陈列。",
+          "nature_soft_daylight": "【自然】开放阴影区柔和日光，低饱和自然系；户外静物/穿戴局部。",
+          "urban_street_day": "【城市】商业街混合天光，都市纵深，背景虚化，禁可读招牌文字。",
+          "beach_golden_sunset": "【海边】日落金时刻，暖橙天空，长影与轮廓光，浪漫度假女装/泳装；强调裙摆/垂坠与暖调肤色（若可见肢体）。",
+          "resort_poolside": "【海边】泳池畔或躺椅区，水面高光，奢华休闲；泳装/度假系列，高 key 但仍保留环境层次。",
+          "nature_meadow_park": "【自然】公园草坪与树影，柔光清新；女装生活系/童装户外系列，低饱和自然绿环境光。",
+          "urban_rooftop_golden": "【城市】屋顶围栏+天际线，日落侧光，风感衣摆；都市女装/轻商务，禁可读招牌。",
+          "urban_subway_concourse": "【城市】地铁/高铁长廊，线性灯带+冷白反射；男装通勤/机能风，强调挺括轮廓与纵深，禁站台文字。",
+          "urban_glass_facade": "【城市】玻璃幕墙前蓝灰反射；商务男装/极简都会，结构线条清晰。",
+          "nature_forest_dappled": "【自然】林间斑驳光，绿色环境光；户外机能/工装/徒步男装，面料机能感可读。"
+        }
+      },
+      "output_grid": {
+        "type": "string",
+        "title": "输出宫格",
+        "description": "与拍摄场景独立：单张选 1×1；需多角度连拍选 2×2 或 3×3（contact sheet 生成后裁格）。",
+        "x-ui-type": "selection",
+        "enum": [
+          "1x1",
+          "2x2",
+          "3x3"
+        ],
+        "x-enum-labels": [
+          "单张（1×1）",
+          "四宫格（2×2）",
+          "九宫格（3×3）"
+        ],
+        "default": "1x1"
+      },
+      "grid_cell_constraint_preset": {
+        "type": "string",
+        "title": "宫格单元约束",
+        "x-user-visible": false,
+        "enum": [
+          "strict_seamless",
+          "standard",
+          "none"
+        ],
+        "default": "strict_seamless",
+        "x-enum-prompt-append": {
+          "strict_seamless": "**CRITICAL REQUIREMENTS FOR CELLS:** 1. NO borders, NO white edges, NO margins, NO gaps between cells. 2. Content must fill the entire cell area edge-to-edge with no empty spaces. 3. Each cell must be seamless and complete, with content extending to all edges. 4. Ensure cells are clearly separated visually but can be cropped independently without any white borders or edges. 5. The grid should appear as ${total_cells} complete, edge-to-edge images that can be perfectly cropped without any borders or margins.",
+          "standard": "**GRID LAYOUT:** ${grid_n}x${grid_n} equal cells; no thick outer frame; each cell must be visually distinct and independently crop-friendly; ${total_cells} panels total.",
+          "none": ""
+        }
+      },
+      "aspect_ratio": {
+        "type": "string",
+        "title": "画幅",
+        "x-user-visible": false,
+        "enum": [
+          "1:1",
+          "3:4",
+          "4:3",
+          "16:9",
+          "9:16"
+        ],
+        "default": "1:1"
+      },
+      "prompt": {
+        "type": "string",
+        "title": "补充说明",
+        "description": "品牌调性、目标平台（Amazon/Shopify/天猫）、禁止元素、镜头或陈列偏好等",
+        "default": ""
+      },
+      "model_participation": {
+        "type": "string",
+        "title": "模特参与度",
+        "description": "控制画面中是否出现真人模特；与「模特参考」配合使用。",
+        "x-ui-type": "selection",
+        "enum": [
+          "default",
+          "face_hidden",
+          "no_model"
+        ],
+        "x-enum-labels": [
+          "默认",
+          "去模特身份",
+          "无模特"
+        ],
+        "default": "no_model",
+        "x-enum-descriptions": {
+          "default": "根据描述或模特参考完整展示人物；须保证与参考为同一人（identity lock）。",
+          "face_hidden": "强去脸：画面裁切在下巴/下唇以下，或纯背影/侧后景，商品与穿着部位为绝对主体；禁止清晰双眼与五官入镜。",
+          "no_model": "画面中不出现真人；仅展示商品本体或静物陈列，以多角度与细节为主，仍须遵守 SKU 锁定。"
+        }
+      },
+      "model_images": {
+        "type": "array",
+        "title": "模特参考",
+        "description": "「默认」时建议上传以锁定面部与身形；「去模特身份」时可选（仅作体态参考）；「无模特」时可不上传。",
+        "x-ui-type": "referenceImages",
+        "minItems": 0,
+        "maxItems": 8,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "type": {
+              "type": "string",
+              "title": "用途类型",
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "default": "main-subject"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            }
+          },
+          "required": [
+            "content",
+            "type"
+          ]
+        }
+      }
+    }
+  },
+  "inputDoc": {}
+}

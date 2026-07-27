@@ -1,0 +1,410 @@
+{
+  "slug": "eshop-womenoutfits",
+  "title": "电商 · 女装上架图",
+  "description": null,
+  "kind": "task_v2",
+  "schemaVersion": 1,
+  "platformRef": {
+    "scope": "graph",
+    "taskKey": "eshop",
+    "subtype": "clothes-women"
+  },
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "garment_images",
+      "shoot_focus",
+      "model_participation",
+      "shoot_preset",
+      "output_grid"
+    ],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "title": "补充说明",
+        "default": "",
+        "description": "品牌调性、目标平台（Amazon/Shopify/天猫）、禁止元素、镜头或陈列偏好等"
+      },
+      "output_grid": {
+        "enum": [
+          "1x1",
+          "2x2",
+          "3x3"
+        ],
+        "type": "string",
+        "title": "输出宫格",
+        "default": "1x1",
+        "x-ui-type": "selection",
+        "description": "与拍摄场景独立：单张选 1×1；需多角度连拍选 2×2 或 3×3（contact sheet 生成后裁格）。"
+      },
+      "shoot_focus": {
+        "enum": [
+          "silhouette_drape",
+          "waist_hemline",
+          "neckline_sleeve",
+          "fabric_flow",
+          "full_lookbook"
+        ],
+        "type": "string",
+        "title": "女装拍摄侧重点",
+        "default": "silhouette_drape",
+        "x-ui-type": "selection",
+        "description": "本单最想卖清楚的视觉信息；英文 prompt 须优先安排构图、景别与布光以服务此项。",
+        "x-enum-descriptions": {
+          "fabric_flow": "真丝/雪纺/针织等强调垂坠、飘逸、褶皱方向与高光流动；可配合轻转身或步行带风。",
+          "full_lookbook": "平衡展示全身搭配与氛围，适合连衣裙/套装；仍须 SKU 锁定，非时尚大片叙事。",
+          "waist_hemline": "腰上/腰下分段卖款：腰线位置、高腰/中腰/低腰、裙长/裤长/开衩高度必须可读。",
+          "neckline_sleeve": "胸上 hero：领型（V/方/一字/挂脖）、袖笼、袖口、肩带/蝴蝶结等女性化结构为画面中心。",
+          "silhouette_drape": "优先全身或 3/4 身，强调女性 S/A/H 轮廓、摆围与侧缝线条；镜头略低或 eye-level 保留裙裤摆型。"
+        }
+      },
+      "model_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "main-subject"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "模特参考",
+        "maxItems": 8,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "「默认」时建议上传以锁定面部与身形；「去模特身份」时可选（仅作体态参考）；「无模特」时可不上传。"
+      },
+      "shoot_preset": {
+        "enum": [
+          "studio_soft_gray",
+          "studio_warm_beige",
+          "studio_pastel_backdrop",
+          "studio_window_side_light",
+          "indoor_cafe_window",
+          "indoor_marble_vanity",
+          "beach_golden_sunset",
+          "resort_poolside",
+          "nature_meadow_park",
+          "urban_rooftop_golden",
+          "urban_street_day"
+        ],
+        "type": "string",
+        "title": "拍摄场景",
+        "default": "studio_soft_gray",
+        "x-ui-type": "selection",
+        "description": "无「场景参考图」时由本项决定环境/背景/光线氛围；有场景参考图时本项仅作补充说明。",
+        "x-enum-descriptions": {
+          "resort_poolside": "【海边】泳池畔或躺椅区，水面高光，奢华休闲；泳装/度假系列，高 key 但仍保留环境层次。",
+          "studio_soft_gray": "【棚拍】浅灰微纹理，柔光+轻轮廓光，微反差清晰；独立站主图常用。",
+          "urban_street_day": "【城市】商业街混合天光，都市纵深，背景虚化，禁可读招牌文字。",
+          "studio_warm_beige": "【棚拍】暖米/杏色无缝，柔和暖主光，轻奢温馨。",
+          "indoor_cafe_window": "【室内】咖啡馆临大窗，室内暖光+窗外虚化 bokeh，生活感陈列。",
+          "nature_meadow_park": "【自然】公园草坪与树影，柔光清新；女装生活系/童装户外系列，低饱和自然绿环境光。",
+          "beach_golden_sunset": "【海边】日落金时刻，暖橙天空，长影与轮廓光，浪漫度假女装/泳装；强调裙摆/垂坠与暖调肤色（若可见肢体）。",
+          "indoor_marble_vanity": "【室内】大理石台面/梳妆场景，适合饰品、美妆瓶器、小件精品。",
+          "urban_rooftop_golden": "【城市】屋顶围栏+天际线，日落侧光，风感衣摆；都市女装/轻商务，禁可读招牌。",
+          "studio_pastel_backdrop": "【棚拍】低饱和粉/蓝/薄荷背景纸，高 key 清新电商风。",
+          "studio_window_side_light": "【棚拍】大窗单侧自然光，柔阴影，接近窗边 lookbook。"
+        }
+      },
+      "style_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "style-reference"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "风格参考（可选）",
+        "maxItems": 8,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "仅学习摄影/调色风格：色调、对比、景深、构图与氛围；不得复制参考中的具体商品、人物身份或品牌 Logo。若与 SKU/模特参考冲突，以 SKU/模特为准。"
+      },
+      "garment_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "outfits"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "女装 SKU 参考",
+        "maxItems": 14,
+        "minItems": 1,
+        "x-ui-type": "referenceImages",
+        "description": "锁定女装款式、配色、面料与结构：领型、袖型、腰线、裙摆/裤脚、开衩、褶裥、辅料；须与参考为同一 SKU，禁止改成男装廓形或改色改款。"
+      },
+      "parallel_count": {
+        "type": "integer",
+        "title": "生成份数",
+        "default": 1,
+        "maximum": 99,
+        "minimum": 1,
+        "x-ui-order": -100,
+        "description": "一次提交生成几份独立结果（1～99），每份内容须有差异。"
+      },
+      "garment_material": {
+        "enum": [
+          "use_reference_only",
+          "cotton",
+          "cotton_linen",
+          "linen",
+          "silk_satin",
+          "chiffon_georgette",
+          "denim",
+          "wool_knit",
+          "cashmere",
+          "leather_suede",
+          "faux_leather",
+          "mesh_lace",
+          "tulle_organza",
+          "velvet",
+          "corduroy",
+          "tweed",
+          "down_puffy",
+          "functional_shell",
+          "sequin_embellished",
+          "synthetic_blend",
+          "metal_trim"
+        ],
+        "type": "string",
+        "title": "服装质感（补充）",
+        "default": "use_reference_only",
+        "x-ui-type": "selection",
+        "description": "参考图面料不清或识别错误时指定；默认「以参考图为准」不额外写入材质词。"
+      },
+      "environment_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "background"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "场景参考（可选）",
+        "maxItems": 6,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "有上传时以参考图的空间、光线与色调为准；「拍摄场景」仅作氛围补充，不得覆盖参考像素。"
+      },
+      "model_participation": {
+        "enum": [
+          "default",
+          "no_model"
+        ],
+        "type": "string",
+        "title": "展示方式",
+        "default": "default",
+        "x-ui-type": "selection",
+        "description": "默认模特穿拍；无模特仅用于挂拍/平铺 catalog。",
+        "x-enum-descriptions": {
+          "default": "真人模特穿着展示 SKU；有模特参考时须 identity lock（同一人）；面部自然入镜，姿态与景别服务于拍摄侧重点。",
+          "no_model": "无真人；衣架、鬼影人台或平铺，以多角度展示版型与细节，仍须 SKU 锁定。"
+        }
+      }
+    },
+    "x-grid-pose-scripts": {
+      "2x2": [
+        "Full-body feminine stride, subtle hip angle, ~32mm eye-level, dress/skirt hem fully visible, soft catalog lighting.",
+        "Waist-up hero, hands adjusting neckline or sleeve cuff, ~70mm, emphasize décolletage line and waist seam.",
+        "Three-quarter back, hair over shoulder, highlight back drape and slit/hem movement, ~40mm.",
+        "Seated elegant three-quarter, smooth fabric fall across lap, ~50mm, camera slightly above eye line."
+      ],
+      "3x3": [
+        "Full-body establishing walk, gentle sway, ~28mm, feminine silhouette readable.",
+        "Waist-up twist, one hand on hip or bag strap, ~65mm, sell-point at bust and waist.",
+        "Macro of lace, bow, or delicate trim, ~100mm shallow DoF.",
+        "Clean profile full-body, off-camera gaze, ~38mm, emphasize S-curve fit.",
+        "Back full-body, natural arm swing, show rear panel and train/hem, ~35mm.",
+        "Light twirl or step, dynamic hem flare, ~32mm, motion without blur on garment.",
+        "Collarbone-to-waist crop with natural expression, fabric texture hero, ~75mm.",
+        "Walking away mid-step turn, wind-touch hem, ~32mm.",
+        "Accessory adjacency (belt, scarf, bag) with garment context, ~85mm."
+      ]
+    }
+  },
+  "inputDoc": {
+    "fieldHints": {
+      "prompt": "补充说明",
+      "output_grid": "0: 单张（1×1）; 1: 四宫格（2×2）; 2: 九宫格（3×3）",
+      "shoot_focus": "0: 轮廓与垂坠; 1: 腰线与裙裤长; 2: 领口与袖型; 3: 面料流动感; 4: 全身 lookbook",
+      "model_images": "模特参考",
+      "shoot_preset": "0: 室内 · 浅灰渐变棚; 1: 室内 · 暖米杏色棚; 2: 室内 · 马卡龙色背景纸; 3: 室内 · 落地窗侧光棚; 4: 室内 · 咖啡馆临窗; 5: 室内 · 大理石梳妆台; 6: 海边 · 日落金色海滩; 7: 海边 · 度假村泳池畔; 8: 自然 · 公园草坪; 9: 城市 · 屋顶天际线黄昏; 10: 城市 · 日景商业街",
+      "style_images": "风格参考（可选）",
+      "garment_images": "女装 SKU 参考",
+      "parallel_count": "生成份数",
+      "garment_material": "0: 以参考图为准; 1: 纯棉; 2: 棉麻; 3: 亚麻; 4: 真丝/缎面; 5: 雪纺/乔其; 6: 牛仔; 7: 羊毛/针织; 8: 羊绒; 9: 真皮/绒面革; 10: 仿皮革 PU; 11: 网纱/蕾丝; 12: 欧根纱/硬纱; 13: 丝绒; 14: 灯芯绒; 15: 粗花呢; 16: 羽绒/蓬松填充; 17: 机能防水防风; 18: 亮片/珠片; 19: 化纤/混纺; 20: 金属辅料/链饰",
+      "environment_images": "场景参考（可选）",
+      "model_participation": "0: 模特穿拍; 1: 无模特挂拍/平铺"
+    },
+    "referenceImageSlots": [
+      {
+        "field": "model_images",
+        "title": "模特参考",
+        "maxItems": 8,
+        "description": "「默认」时建议上传以锁定面部与身形；「去模特身份」时可选（仅作体态参考）；「无模特」时可不上传。"
+      },
+      {
+        "field": "style_images",
+        "title": "风格参考（可选）",
+        "maxItems": 8,
+        "description": "仅学习摄影/调色风格：色调、对比、景深、构图与氛围；不得复制参考中的具体商品、人物身份或品牌 Logo。若与 SKU/模特参考冲突，以 SKU/模特为准。"
+      },
+      {
+        "field": "garment_images",
+        "title": "女装 SKU 参考",
+        "maxItems": 14,
+        "description": "锁定女装款式、配色、面料与结构：领型、袖型、腰线、裙摆/裤脚、开衩、褶裥、辅料；须与参考为同一 SKU，禁止改成男装廓形或改色改款。"
+      },
+      {
+        "field": "environment_images",
+        "title": "场景参考（可选）",
+        "maxItems": 6,
+        "description": "有上传时以参考图的空间、光线与色调为准；「拍摄场景」仅作氛围补充，不得覆盖参考像素。"
+      }
+    ]
+  }
+}

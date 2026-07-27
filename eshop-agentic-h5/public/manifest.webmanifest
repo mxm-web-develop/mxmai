@@ -1,0 +1,35 @@
+{
+  "id": "/",
+  "name": "一拍上架",
+  "short_name": "一拍上架",
+  "description": "AI 电商商拍 · 3×3 宫格 · 高清放大",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#F6F3EF",
+  "theme_color": "#F6F3EF",
+  "orientation": "portrait-primary",
+  "lang": "zh-CN",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,247 @@
+{
+  "slug": "video-eshop-i2v",
+  "title": "电商 · 上架图动效短片",
+  "description": "commercial/eshop-i2v（接 graph/eshop 上架图 · 分镜运镜）",
+  "kind": "task_v2",
+  "schemaVersion": 1,
+  "platformRef": {
+    "scope": "video",
+    "type": "commercial",
+    "subtype": "eshop-i2v",
+    "routeHint": "默认单张首帧图生视频（Smartflow 自动传入上架图）；也可开启宫格分镜，上传 2×2/3×3/4×4 分镜源图走多参考成片"
+  },
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": [
+      "motion_preset",
+      "uid"
+    ],
+    "properties": {
+      "hero_still_images": {
+        "type": "array",
+        "title": "首帧（上架图）",
+        "description": "单张首帧图生视频模式使用。来自 graph/eshop 的成片静帧；Smartflow 由上一节点自动填入。开启宫格分镜时请留空。",
+        "x-ui-type": "referenceImages",
+        "minItems": 0,
+        "maxItems": 1,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "main-subject"
+              ],
+              "default": "main-subject"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            }
+          }
+        }
+      },
+      "storyboard_grid": {
+        "type": "object",
+        "title": "宫格分镜图（可选）",
+        "description": "开启后上传单张 2×2 / 3×3 / 4×4 分镜宫格源图，自动识别白缝裁切为多 reference_images（reference-to-video）。与「首帧」二选一。",
+        "x-ui-type": "gridStoryboardImages",
+        "x-supports-last-frame": true,
+        "default": {
+          "enabled": false,
+          "layout": "2x2",
+          "auto_detect_layout": true,
+          "source_image": null,
+          "cells": [],
+          "first_frame_index": 0,
+          "last_frame_index": null
+        },
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "layout": {
+            "type": "string",
+            "enum": [
+              "2x2",
+              "3x3",
+              "4x4"
+            ],
+            "default": "2x2"
+          },
+          "auto_detect_layout": {
+            "type": "boolean",
+            "default": true
+          },
+          "source_image": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "default": "main-subject"
+              }
+            }
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer"
+                },
+                "purpose": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "first_frame_index": {
+            "type": "integer",
+            "default": 0
+          },
+          "last_frame_index": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "x-user-visible": true
+      },
+      "product_title": {
+        "type": "string",
+        "title": "品牌 / 商品名（可选）",
+        "description": "用于运镜节奏与氛围（如轻奢、运动、童装），不写则仅按首帧与运镜预设生成。",
+        "maxLength": 120,
+        "x-user-visible": true
+      },
+      "motion_preset": {
+        "type": "string",
+        "title": "运镜 / 展示预设",
+        "description": "控制分镜节奏与镜头运动，突出版型与面料可读性。",
+        "x-ui-type": "selection",
+        "enum": [
+          "gentle_turn",
+          "walk_in_place",
+          "detail_chest",
+          "hem_sway",
+          "runway_step"
+        ],
+        "x-enum-labels": [
+          "缓慢转身 · 三向版型",
+          "轻步 / 垂坠摆围",
+          "胸腰推近 · 结构细节",
+          "低机位 · 下摆摆动",
+          "T 台小步 · 主图视频感"
+        ],
+        "default": "gentle_turn",
+        "x-user-visible": true
+      },
+      "scene_style": {
+        "type": "string",
+        "title": "场景 / 光感",
+        "x-ui-type": "selection",
+        "enum": [
+          "taobao_clean",
+          "studio_soft",
+          "lifestyle_indoor"
+        ],
+        "x-enum-labels": [
+          "货架白底 · 高 key",
+          "柔和棚拍 · 面料质感",
+          "简约室内 · 品牌生活感"
+        ],
+        "default": "taobao_clean",
+        "x-user-visible": true
+      },
+      "prompt": {
+        "type": "string",
+        "title": "分镜 / 品牌补充（可选）",
+        "description": "卖点、禁止项、品牌调性（如「偏轻奢慢节奏」「强调领口细节」）等；不写则完全由运镜预设驱动。",
+        "x-ui-type": "textarea",
+        "x-user-visible": true
+      },
+      "duration": {
+        "type": "integer",
+        "title": "时长（秒）",
+        "minimum": 4,
+        "maximum": 15,
+        "default": 5,
+        "x-user-visible": true
+      },
+      "ratio": {
+        "type": "string",
+        "title": "画幅",
+        "enum": [
+          "9:16",
+          "1:1",
+          "16:9",
+          "adaptive"
+        ],
+        "default": "9:16",
+        "x-user-visible": true
+      },
+      "resolution": {
+        "type": "string",
+        "title": "分辨率",
+        "enum": [
+          "480p",
+          "720p",
+          "1080p"
+        ],
+        "default": "720p",
+        "x-user-visible": true
+      },
+      "generate_audio": {
+        "type": "boolean",
+        "title": "生成环境音",
+        "default": false,
+        "x-user-visible": true
+      },
+      "total_duration_seconds": {
+        "type": "integer",
+        "title": "计费时长（秒）",
+        "minimum": 1,
+        "default": 5,
+        "x-user-visible": false
+      },
+      "parallel_count": {
+        "type": "integer",
+        "title": "生成份数",
+        "minimum": 1,
+        "maximum": 9,
+        "default": 1,
+        "x-user-visible": true
+      },
+      "label": {
+        "type": "string",
+        "title": "任务名称",
+        "x-user-visible": true
+      },
+      "uid": {
+        "type": "string",
+        "title": "任务 UID",
+        "x-user-visible": false
+      }
+    }
+  },
+  "inputDoc": {}
+}

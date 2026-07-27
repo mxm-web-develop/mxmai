@@ -1,0 +1,53 @@
+[
+  {
+    "slug": "eshop-clothes-shoot",
+    "title": "服装商拍单款",
+    "description": "上传模特与服装参考，生成电商上架主图与细节图",
+    "kind": "task_v2",
+    "category": "shoot",
+    "coverImage": "/demo-results/sample-1.png",
+    "tags": ["商拍", "服装", "单款"],
+    "roleHints": ["photographer", "model"]
+  },
+  {
+    "slug": "eshop-batch-studio",
+    "title": "批量商拍工作流",
+    "description": "1 组模特 + N 款 SKU，自动规划场景并并行出图",
+    "kind": "smartflow",
+    "category": "batch",
+    "coverImage": "/demo-results/sample-2.png",
+    "tags": ["批量", "Smartflow", "运营"],
+    "roleHints": ["operator"]
+  },
+  {
+    "slug": "eshop-model-video",
+    "title": "上架图转短视频",
+    "description": "将商拍成片转为动效展示短片，适合详情页与信息流",
+    "kind": "smartflow",
+    "category": "video",
+    "coverImage": "/demo-results/sample-1.png",
+    "tags": ["视频", "动效"],
+    "roleHints": ["operator", "photographer"]
+  },
+  {
+    "slug": "eshop-poster-quick",
+    "title": "促销海报",
+    "description": "快速生成大促、新品海报（能力设计中）",
+    "kind": "task_v2",
+    "category": "poster",
+    "coverImage": "/demo-results/sample-2.png",
+    "tags": ["海报", "设计"],
+    "comingSoon": true,
+    "roleHints": ["operator"]
+  },
+  {
+    "slug": "eshop-women-line",
+    "title": "女装专线",
+    "description": "针对女装廓形与面料细节的专用商拍模板",
+    "kind": "task_v2",
+    "category": "shoot",
+    "coverImage": "/demo-results/sample-1.png",
+    "tags": ["女装", "商拍"],
+    "roleHints": ["photographer", "model"]
+  }
+]

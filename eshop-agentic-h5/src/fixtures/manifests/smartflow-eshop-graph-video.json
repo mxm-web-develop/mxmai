@@ -1,0 +1,15 @@
+{
+  "slug": "smartflow-eshop-graph-video",
+  "title": "电商 · 上架图 → 动效短片",
+  "description": "graph/eshop/clothes 生成上架图 → 首帧自动传入 video/commercial/eshop-i2v，仅配置运镜/场景/品牌（无需模特或服装参考图）",
+  "kind": "smartflow",
+  "schemaVersion": 1,
+  "platformRef": {
+    "smartflowId": "eshop-model-video-v1"
+  },
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "inputDoc": {}
+}

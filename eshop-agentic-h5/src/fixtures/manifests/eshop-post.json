@@ -1,0 +1,290 @@
+{
+  "slug": "eshop-post",
+  "title": "设计 · 产品宣传海报",
+  "description": null,
+  "kind": "task_v2",
+  "schemaVersion": 1,
+  "authentication": {
+    "type": "bearer",
+    "header": "Authorization",
+    "prefix": "mxm_"
+  },
+  "endpoints": {
+    "schema": "/api/v1/open/eshop-post",
+    "run": "/api/v1/open/eshop-post/run",
+    "jobStatus": "/api/v1/open/eshop-post/jobs/{jobId}"
+  },
+  "inputSchema": {
+    "type": "object",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "required": [
+      "product_name",
+      "product_price",
+      "product_images",
+      "headline",
+      "layout_style",
+      "aspect_ratio"
+    ],
+    "properties": {
+      "cta": {
+        "type": "string",
+        "title": "行动号召",
+        "default": "立即购买",
+        "maxLength": 40,
+        "x-ui-type": "string",
+        "description": "如：立即购买、加入购物车、扫码领券。"
+      },
+      "prompt": {
+        "type": "string",
+        "title": "补充说明",
+        "default": "",
+        "x-ui-type": "string",
+        "description": "禁忌、渠道（天猫/抖音）、必须出现的卖点、不要出现的元素等。"
+      },
+      "headline": {
+        "type": "string",
+        "title": "主标题",
+        "maxLength": 80,
+        "x-ui-type": "string",
+        "description": "海报最大字号的主文案，如「轻到忘了戴」。"
+      },
+      "color_mood": {
+        "enum": [
+          "brand_neutral",
+          "high_key_clean",
+          "cinematic_warm_cool",
+          "dark_premium",
+          "pop_contrast",
+          "pastel_soft",
+          "mono_luxury"
+        ],
+        "type": "string",
+        "title": "色彩气质",
+        "default": "brand_neutral",
+        "x-ui-type": "selection"
+      },
+      "logo_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "style-reference"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "品牌 Logo（可选）",
+        "maxItems": 3,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "若有品牌标识参考，请上传透明底 PNG；未上传则不在画面中添加虚构 Logo。"
+      },
+      "promo_badge": {
+        "type": "string",
+        "title": "促销角标（可选）",
+        "default": "",
+        "maxLength": 20,
+        "x-ui-type": "string",
+        "description": "如：新品、限时、热卖 TOP1；留空则不加角标。"
+      },
+      "subheadline": {
+        "type": "string",
+        "title": "副标题",
+        "default": "",
+        "maxLength": 120,
+        "x-ui-type": "string",
+        "description": "可选：一句副文案或品类定位。"
+      },
+      "aspect_ratio": {
+        "enum": [
+          "1:1",
+          "3:4",
+          "4:3",
+          "4:5",
+          "16:9",
+          "9:16"
+        ],
+        "type": "string",
+        "title": "画幅",
+        "default": "3:4",
+        "x-ui-type": "selection"
+      },
+      "layout_style": {
+        "enum": [
+          "hero_product",
+          "cinematic_lifestyle",
+          "lifestyle_scene",
+          "split_compare",
+          "price_focus",
+          "minimal_typography"
+        ],
+        "type": "string",
+        "title": "版式风格",
+        "default": "hero_product",
+        "x-ui-type": "selection",
+        "description": "默认「大产品主视觉」最稳；需要电影感场景时再选生活方式类。"
+      },
+      "product_name": {
+        "type": "string",
+        "title": "产品名称",
+        "maxLength": 120,
+        "minLength": 1,
+        "x-ui-type": "string",
+        "description": "将出现在海报主文案区，如商品全称或系列名。"
+      },
+      "product_price": {
+        "type": "string",
+        "title": "价格 / 优惠信息",
+        "maxLength": 80,
+        "minLength": 1,
+        "x-ui-type": "string",
+        "description": "展示用文案，如：¥199、限时 8 折、From $29.9；将指导画面中的价格条或角标。"
+      },
+      "parallel_count": {
+        "type": "integer",
+        "title": "生成份数",
+        "default": 1,
+        "maximum": 99,
+        "minimum": 1,
+        "x-ui-order": -100,
+        "description": "一次提交生成几份独立结果（1～99），每份内容须有差异。"
+      },
+      "product_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "main-subject"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "产品参考图",
+        "maxItems": 12,
+        "minItems": 1,
+        "x-ui-type": "referenceImages",
+        "description": "至少一张：产品本体/包装/白底主图；像素会进生图模型，摘要会进文案 briefing。"
+      },
+      "selling_points": {
+        "type": "string",
+        "title": "核心卖点",
+        "default": "",
+        "x-ui-type": "string",
+        "description": "多条可用换行或分号分隔，如：40h 续航；IPX7；亲肤硅胶。"
+      },
+      "target_audience": {
+        "type": "string",
+        "title": "目标受众 / 语气",
+        "default": "泛电商用户",
+        "maxLength": 80,
+        "x-ui-type": "string",
+        "description": "如：Gen Z 女性、数码极客、宝妈；影响文案语气与画面氛围。"
+      },
+      "on_screen_text_language": {
+        "enum": [
+          "zh",
+          "en",
+          "ja"
+        ],
+        "type": "string",
+        "title": "画面文字语言",
+        "default": "zh",
+        "x-ui-type": "selection",
+        "description": "除你填写的主标题/价格/CTA 等原文外，海报上**额外生成**的装饰字、小字说明、辅助标签使用何种书写语言。",
+        "x-enum-descriptions": {
+          "en": "Auxiliary on-image copy in English.",
+          "ja": "補助テキストは日本語。",
+          "zh": "辅助与装饰性上屏字以简体中文为主。"
+        }
+      }
+    }
+  },
+  "inputDoc": {
+    "fieldHints": {
+      "cta": "行动号召",
+      "prompt": "补充说明",
+      "headline": "主标题",
+      "color_mood": "0: 跟随参考图; 1: 明亮干净（电商白底感）; 2: 电影感冷暖分离; 3: 深色高级感; 4: 高对比撞色; 5: 柔和马卡龙; 6: 黑白金奢华",
+      "logo_images": "",
+      "promo_badge": "促销角标（可选）",
+      "subheadline": "副标题",
+      "aspect_ratio": "0: 1:1 方图; 1: 3:4 竖版（电商常用）; 2: 4:3 横版; 3: 4:5 社媒竖版; 4: 16:9 横版 Banner; 5: 9:16 全屏竖版",
+      "layout_style": "0: 大产品主视觉（默认）; 1: 电影感生活方式; 2: 场景化生活方式; 3: 左右对比/前后对比; 4: 价格与促销主导; 5: 极简大字排版",
+      "product_name": "产品名称",
+      "product_price": "价格 / 优惠信息",
+      "parallel_count": "生成份数",
+      "product_images": "",
+      "selling_points": "核心卖点",
+      "target_audience": "目标受众 / 语气",
+      "on_screen_text_language": "0: 中文; 1: English; 2: 日本語"
+    },
+    "referenceImageSlots": [
+      {
+        "field": "logo_images",
+        "title": "品牌 Logo（可选）",
+        "maxItems": 3,
+        "description": "若有品牌标识参考，请上传透明底 PNG；未上传则不在画面中添加虚构 Logo。"
+      },
+      {
+        "field": "product_images",
+        "title": "产品参考图",
+        "maxItems": 12,
+        "description": "至少一张：产品本体/包装/白底主图；像素会进生图模型，摘要会进文案 briefing。"
+      }
+    ]
+  },
+  "async": true,
+  "polling": {
+    "pathTemplate": "/api/v1/open/eshop-post/jobs/{jobId}",
+    "intervalMs": 2000
+  },
+  "curlExamples": {
+    "getManifest": "curl -sS \"http://localhost:4003/api/v1/open/eshop-post\" -H \"Authorization: Bearer mxm_YOUR_API_KEY\"",
+    "run": "curl -sS -X POST \"http://localhost:4003/api/v1/open/eshop-post/run\" -H \"Content-Type: application/json\" -H \"Authorization: Bearer mxm_YOUR_API_KEY\" -d '{\"params\":{\"product_name\":\"\",\"product_price\":\"\",\"product_images\":[],\"headline\":\"\",\"layout_style\":\"hero_product\",\"aspect_ratio\":\"3:4\"}}'",
+    "pollJob": "curl -sS \"http://localhost:4003/api/v1/open/eshop-post/jobs/JOB_ID\" -H \"Authorization: Bearer mxm_YOUR_API_KEY\""
+  }
+}

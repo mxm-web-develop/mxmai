@@ -1,0 +1,319 @@
+{
+  "slug": "eshop-solution",
+  "title": "电商服装批量上架",
+  "description": null,
+  "kind": "smartflow",
+  "schemaVersion": 1,
+  "platformRef": {
+    "smartflowId": "eshop-clothes-batch-v1"
+  },
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "garments"
+    ],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "title": "全局补充 prompt（可选）",
+        "default": "",
+        "x-ui-type": "textarea"
+      },
+      "garments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "images"
+          ],
+          "properties": {
+            "label": {
+              "type": "string",
+              "title": "SKU 标签",
+              "default": ""
+            },
+            "images": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "content",
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "main-subject",
+                      "background",
+                      "outfits",
+                      "color-reference",
+                      "style-reference"
+                    ],
+                    "type": "string",
+                    "title": "用途类型",
+                    "default": "outfits"
+                  },
+                  "content": {
+                    "type": "string",
+                    "title": "图片 URL / Base64"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "title": "用途说明（可选）"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "title": "服装图",
+              "maxItems": 3,
+              "minItems": 1
+            },
+            "prompt": {
+              "type": "string",
+              "title": "SKU 补充 prompt（可选）",
+              "default": "",
+              "x-ui-type": "textarea"
+            },
+            "shoot_preset": {
+              "type": "string",
+              "title": "场景预设（可选）",
+              "description": "shoot_preset_mode=按款 时生效；未填则用「场景回退预设」"
+            },
+            "garment_material": {
+              "type": "string",
+              "title": "面料质感（可选）",
+              "description": "未填则用「面料质感回退」"
+            }
+          }
+        },
+        "title": "服装 SKU 列表",
+        "minItems": 1,
+        "x-ui-type": "eshopGarmentBatch",
+        "description": "每款 1～3 张服装图；与 model_images 组合后并行创建 graph/eshop/clothes 任务。"
+      },
+      "output_grid": {
+        "enum": [
+          "1x1",
+          "2x2",
+          "3x3"
+        ],
+        "type": "string",
+        "title": "输出宫格",
+        "default": "1x1",
+        "x-ui-type": "selection"
+      },
+      "model_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "main-subject"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "模特参考",
+        "maxItems": 8,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "建议 1～3 张；用于锁定面部与身形。"
+      },
+      "style_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "风格参考（可选）",
+        "default": [],
+        "maxItems": 8,
+        "x-ui-type": "referenceImages",
+        "description": "参考图数组：每项含 content（URL 或 data URI）、可选 type/purpose。可先调用平台上传接口获取 URL。"
+      },
+      "parallel_count": {
+        "type": "integer",
+        "title": "生成份数",
+        "default": 1,
+        "maximum": 99,
+        "minimum": 1,
+        "x-ui-order": -100,
+        "description": "一次提交生成几份独立结果（1～99），每份内容须有差异。"
+      },
+      "shoot_preset_mode": {
+        "enum": [
+          "auto",
+          "fixed"
+        ],
+        "type": "string",
+        "title": "场景预设模式",
+        "default": "auto",
+        "x-ui-type": "selection"
+      },
+      "environment_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "场景参考（可选）",
+        "default": [],
+        "maxItems": 6,
+        "x-ui-type": "referenceImages",
+        "description": "参考图数组：每项含 content（URL 或 data URI）、可选 type/purpose。可先调用平台上传接口获取 URL。"
+      },
+      "shoot_preset_fixed": {
+        "type": "string",
+        "title": "固定场景预设",
+        "default": "studio_soft_gray",
+        "description": "shoot_preset_mode=fixed 时全部 SKU 使用此项（与 graph/eshop/clothes 拍摄场景枚举一致）"
+      },
+      "model_participation": {
+        "enum": [
+          "default",
+          "face_hidden",
+          "no_model"
+        ],
+        "type": "string",
+        "title": "模特参与度",
+        "default": "default",
+        "x-ui-type": "selection"
+      },
+      "shoot_preset_fallback": {
+        "type": "string",
+        "title": "场景回退预设",
+        "default": "studio_soft_gray",
+        "description": "AI 规划未返回 shoot_preset 时的兜底（非沿用服装图原背景）"
+      },
+      "garment_material_fallback": {
+        "type": "string",
+        "title": "面料质感回退",
+        "default": "use_reference_only"
+      }
+    }
+  },
+  "inputDoc": {
+    "notes": [
+      "请求 body 使用 { \"input_data\": { ...字段 } }；与 Task V2 开放 API 的 params 键不同。"
+    ],
+    "examples": {
+      "input_data": {
+        "prompt": "",
+        "output_grid": "1x1",
+        "style_images": [],
+        "parallel_count": 1,
+        "shoot_preset_mode": "auto",
+        "environment_images": [],
+        "shoot_preset_fixed": "studio_soft_gray",
+        "model_participation": "default",
+        "shoot_preset_fallback": "studio_soft_gray",
+        "garment_material_fallback": "use_reference_only"
+      }
+    },
+    "fieldHints": {
+      "prompt": "全局补充 prompt（可选）",
+      "garments": "服装 SKU 列表",
+      "output_grid": "1x1: 单张（1×1）; 2x2: 四宫格（2×2）; 3x3: 九宫格（3×3）",
+      "model_images": "模特参考",
+      "style_images": "风格参考（可选）",
+      "parallel_count": "生成份数",
+      "shoot_preset_mode": "auto: AI 按款识别后选场景; fixed: 全部使用固定预设",
+      "environment_images": "场景参考（可选）",
+      "shoot_preset_fixed": "固定场景预设",
+      "model_participation": "default: 默认; no_model: 无模特; face_hidden: 去模特身份",
+      "shoot_preset_fallback": "场景回退预设",
+      "garment_material_fallback": "面料质感回退"
+    },
+    "referenceImageSlots": [
+      {
+        "field": "model_images",
+        "title": "模特参考",
+        "maxItems": 8,
+        "description": "建议 1～3 张；用于锁定面部与身形。"
+      },
+      {
+        "field": "style_images",
+        "title": "风格参考（可选）",
+        "maxItems": 8,
+        "description": "上传参考图后，在请求 body 的 params 中传入 data URI 或平台 asset URL 数组"
+      },
+      {
+        "field": "environment_images",
+        "title": "场景参考（可选）",
+        "maxItems": 6,
+        "description": "上传参考图后，在请求 body 的 params 中传入 data URI 或平台 asset URL 数组"
+      }
+    ]
+  }
+}

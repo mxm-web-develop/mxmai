@@ -1,0 +1,400 @@
+{
+  "slug": "eshop-childoutfits",
+  "title": "电商 · 童装上架图",
+  "description": null,
+  "kind": "task_v2",
+  "schemaVersion": 1,
+  "platformRef": {
+    "scope": "graph",
+    "taskKey": "eshop",
+    "subtype": "clothes-kids"
+  },
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "garment_images",
+      "shoot_focus",
+      "model_participation",
+      "shoot_preset",
+      "output_grid"
+    ],
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "title": "补充说明",
+        "default": "",
+        "description": "品牌调性、目标平台（Amazon/Shopify/天猫）、禁止元素、镜头或陈列偏好等"
+      },
+      "output_grid": {
+        "enum": [
+          "1x1",
+          "2x2",
+          "3x3"
+        ],
+        "type": "string",
+        "title": "输出宫格",
+        "default": "1x1",
+        "x-ui-type": "selection",
+        "description": "与拍摄场景独立：单张选 1×1；需多角度连拍选 2×2 或 3×3（contact sheet 生成后裁格）。"
+      },
+      "shoot_focus": {
+        "enum": [
+          "size_proportion",
+          "print_pattern",
+          "soft_comfort",
+          "playful_wear",
+          "detail_trim"
+        ],
+        "type": "string",
+        "title": "童装拍摄侧重点",
+        "default": "size_proportion",
+        "x-ui-type": "selection",
+        "description": "本单最想卖清楚的视觉信息；英文 prompt 须优先安排构图、景别与布光以服务此项。",
+        "x-enum-descriptions": {
+          "detail_trim": "按扣、拉链、帽兜、口袋、罗纹袖口等辅料与做工细节可读。",
+          "playful_wear": "跑跳、提衣角、拉帽绳等活泼动作，能量感自然；全身穿拍展示动态版型。",
+          "soft_comfort": "针织/棉毛圈/法兰绒等软感面料，强调蓬松、亲肤与柔软垂坠；柔光均匀。",
+          "print_pattern": "卡通/印花/刺绣/贴布图案颜色与位置锁定，macro 与全身各须可读。",
+          "size_proportion": "儿童头身比、袖长/裤长相对身形、版型宽松度必须准确；避免按成人比例生成。"
+        }
+      },
+      "model_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "main-subject"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "模特参考",
+        "maxItems": 8,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "「默认」时建议上传以锁定面部与身形；「去模特身份」时可选（仅作体态参考）；「无模特」时可不上传。"
+      },
+      "shoot_preset": {
+        "enum": [
+          "studio_pastel_backdrop",
+          "studio_white_seamless",
+          "studio_warm_beige",
+          "nature_meadow_park",
+          "nature_soft_daylight",
+          "indoor_minimal_loft"
+        ],
+        "type": "string",
+        "title": "拍摄场景",
+        "default": "studio_pastel_backdrop",
+        "x-ui-type": "selection",
+        "description": "无「场景参考图」时由本项决定环境/背景/光线氛围；有场景参考图时本项仅作补充说明。",
+        "x-enum-descriptions": {
+          "studio_warm_beige": "【棚拍】暖米/杏色无缝，柔和暖主光，轻奢温馨。",
+          "nature_meadow_park": "【自然】公园草坪与树影，柔光清新；女装生活系/童装户外系列，低饱和自然绿环境光。",
+          "indoor_minimal_loft": "【室内】大白墙、浅木地板、少量现代家具剪影，高 key 干净。",
+          "nature_soft_daylight": "【自然】开放阴影区柔和日光，低饱和自然系；户外静物/穿戴局部。",
+          "studio_white_seamless": "【棚拍】无缝纯白背景，均匀柔光，高 key 色彩还原；Amazon/天猫主图标准，主体占画面 75–88%。",
+          "studio_pastel_backdrop": "【棚拍】低饱和粉/蓝/薄荷背景纸，高 key 清新电商风。"
+        }
+      },
+      "style_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "style-reference"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "风格参考（可选）",
+        "maxItems": 8,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "仅学习摄影/调色风格：色调、对比、景深、构图与氛围；不得复制参考中的具体商品、人物身份或品牌 Logo。若与 SKU/模特参考冲突，以 SKU/模特为准。"
+      },
+      "garment_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "outfits"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "童装 SKU 参考",
+        "maxItems": 14,
+        "minItems": 1,
+        "x-ui-type": "referenceImages",
+        "description": "锁定童装款式、配色、印花/刺绣与结构：儿童穿着比例、袖长裤长、帽兜与辅料细节；须与参考为同一 SKU，禁止改图案或按成人比例改款。"
+      },
+      "parallel_count": {
+        "type": "integer",
+        "title": "生成份数",
+        "default": 1,
+        "maximum": 99,
+        "minimum": 1,
+        "x-ui-order": -100,
+        "description": "一次提交生成几份独立结果（1～99），每份内容须有差异。"
+      },
+      "garment_material": {
+        "enum": [
+          "use_reference_only",
+          "cotton",
+          "cotton_linen",
+          "linen",
+          "silk_satin",
+          "chiffon_georgette",
+          "denim",
+          "wool_knit",
+          "cashmere",
+          "leather_suede",
+          "faux_leather",
+          "mesh_lace",
+          "tulle_organza",
+          "velvet",
+          "corduroy",
+          "tweed",
+          "down_puffy",
+          "functional_shell",
+          "sequin_embellished",
+          "synthetic_blend",
+          "metal_trim"
+        ],
+        "type": "string",
+        "title": "服装质感（补充）",
+        "default": "use_reference_only",
+        "x-ui-type": "selection",
+        "description": "参考图面料不清或识别错误时指定；默认「以参考图为准」不额外写入材质词。"
+      },
+      "environment_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "background"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            },
+            "groupKey": {
+              "type": "string",
+              "title": "槽位键"
+            },
+            "groupDesc": {
+              "type": "string",
+              "title": "分组说明（可选）"
+            },
+            "groupTitle": {
+              "type": "string",
+              "title": "分组标题"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "场景参考（可选）",
+        "maxItems": 6,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "有上传时以参考图的空间、光线与色调为准；「拍摄场景」仅作氛围补充，不得覆盖参考像素。"
+      },
+      "model_participation": {
+        "enum": [
+          "default",
+          "no_model"
+        ],
+        "type": "string",
+        "title": "展示方式",
+        "default": "default",
+        "x-ui-type": "selection",
+        "description": "默认模特穿拍；无模特仅用于挂拍/平铺 catalog。",
+        "x-enum-descriptions": {
+          "default": "真人模特穿着展示 SKU；有模特参考时须 identity lock（同一人）；面部自然入镜，姿态与景别服务于拍摄侧重点。",
+          "no_model": "无真人；衣架、鬼影人台或平铺，以多角度展示版型与细节，仍须 SKU 锁定。"
+        }
+      }
+    },
+    "x-grid-pose-scripts": {
+      "2x2": [
+        "Full-body cheerful stance, age-appropriate child proportions, natural smile, ~32mm eye-level, hem and shoe visible.",
+        "Three-quarter waist-up, playful hand on pocket or waving, ~70mm, emphasize print and cute collar details.",
+        "Back view full-body, hood or backpack optional, highlight back print/panel, ~40mm.",
+        "Seated on floor or small prop, comfortable natural kid pose, ~50mm, fabric softness readable."
+      ],
+      "3x3": [
+        "Full-body establishing, small step forward with natural expression, ~28mm, child-scale proportions clear.",
+        "Waist-up hero, cheerful gesture, bright expression, ~65mm, sell-point at chest print or graphic.",
+        "Macro of appliqué, patch, or soft knit texture, ~100mm.",
+        "Profile full-body, natural gaze, ~38mm, readable kid-fit silhouette.",
+        "Back full-body, natural arm swing, ~35mm.",
+        "Crouch or kneel play pose, pinch hem to show drape, ~55mm low angle.",
+        "Hands adjusting hood or zipper, face partially visible OK, ~85mm.",
+        "Mid-step hop or walk, dynamic hem, joyful energy, ~32mm.",
+        "Flat-lay adjacent detail: socks, hat, or small accessory with outfit context, ~50mm top-down."
+      ]
+    }
+  },
+  "inputDoc": {
+    "fieldHints": {
+      "prompt": "补充说明",
+      "output_grid": "0: 单张（1×1）; 1: 四宫格（2×2）; 2: 九宫格（3×3）",
+      "shoot_focus": "0: 尺码比例; 1: 印花图案; 2: 柔软舒适; 3: 活泼穿着; 4: 细节与辅料",
+      "model_images": "模特参考",
+      "shoot_preset": "0: 室内 · 马卡龙色背景纸; 1: 室内 · 纯白无缝棚; 2: 室内 · 暖米杏色棚; 3: 自然 · 公园草坪; 4: 自然 · 柔和日光; 5: 室内 · 极简 Loft",
+      "style_images": "风格参考（可选）",
+      "garment_images": "童装 SKU 参考",
+      "parallel_count": "生成份数",
+      "garment_material": "0: 以参考图为准; 1: 纯棉; 2: 棉麻; 3: 亚麻; 4: 真丝/缎面; 5: 雪纺/乔其; 6: 牛仔; 7: 羊毛/针织; 8: 羊绒; 9: 真皮/绒面革; 10: 仿皮革 PU; 11: 网纱/蕾丝; 12: 欧根纱/硬纱; 13: 丝绒; 14: 灯芯绒; 15: 粗花呢; 16: 羽绒/蓬松填充; 17: 机能防水防风; 18: 亮片/珠片; 19: 化纤/混纺; 20: 金属辅料/链饰",
+      "environment_images": "场景参考（可选）",
+      "model_participation": "0: 模特穿拍; 1: 无模特挂拍/平铺"
+    },
+    "referenceImageSlots": [
+      {
+        "field": "model_images",
+        "title": "模特参考",
+        "maxItems": 8,
+        "description": "「默认」时建议上传以锁定面部与身形；「去模特身份」时可选（仅作体态参考）；「无模特」时可不上传。"
+      },
+      {
+        "field": "style_images",
+        "title": "风格参考（可选）",
+        "maxItems": 8,
+        "description": "仅学习摄影/调色风格：色调、对比、景深、构图与氛围；不得复制参考中的具体商品、人物身份或品牌 Logo。若与 SKU/模特参考冲突，以 SKU/模特为准。"
+      },
+      {
+        "field": "garment_images",
+        "title": "童装 SKU 参考",
+        "maxItems": 14,
+        "description": "锁定童装款式、配色、印花/刺绣与结构：儿童穿着比例、袖长裤长、帽兜与辅料细节；须与参考为同一 SKU，禁止改图案或按成人比例改款。"
+      },
+      {
+        "field": "environment_images",
+        "title": "场景参考（可选）",
+        "maxItems": 6,
+        "description": "有上传时以参考图的空间、光线与色调为准；「拍摄场景」仅作氛围补充，不得覆盖参考像素。"
+      }
+    ]
+  }
+}

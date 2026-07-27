@@ -1,0 +1,151 @@
+{
+  "slug": "tools-hd",
+  "title": "工具 · 高清放大",
+  "description": null,
+  "kind": "task_v2",
+  "schemaVersion": 1,
+  "platformRef": {
+    "scope": "graph",
+    "taskKey": "tools",
+    "subtype": "hd"
+  },
+  "inputSchema": {
+    "type": "object",
+    "allOf": [
+      {
+        "if": {
+          "required": [
+            "is_grid"
+          ],
+          "properties": {
+            "is_grid": {
+              "const": true
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "grid_layout",
+            "grid_cell"
+          ]
+        }
+      }
+    ],
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "required": [
+      "source_images"
+    ],
+    "properties": {
+      "is_grid": {
+        "type": "boolean",
+        "title": "宫格联系表",
+        "default": false,
+        "x-ui-type": "switch",
+        "description": "开启表示上传的是 N×N 拼图，须选择宫格规格与要放大的格位（平台不自动识格）。"
+      },
+      "grid_cell": {
+        "type": "string",
+        "title": "放大格位（行-列）",
+        "default": "1-1",
+        "pattern": "^[1-4]-[1-4]$",
+        "description": "从左上角起算，行与列均从 1 开始，如 2-3 表示第 2 行第 3 列。"
+      },
+      "grid_layout": {
+        "enum": [
+          "2x2",
+          "3x3",
+          "4x4"
+        ],
+        "type": "string",
+        "title": "宫格规格",
+        "default": "3x3",
+        "x-ui-type": "selection",
+        "description": "与上游生图 output_grid 一致。商拍九宫格选 3×3。"
+      },
+      "aspect_ratio": {
+        "enum": [
+          "",
+          "1:1",
+          "3:4",
+          "4:3",
+          "16:9",
+          "9:16"
+        ],
+        "type": "string",
+        "title": "输出画幅（可选）",
+        "default": "",
+        "x-ui-type": "selection",
+        "description": "不选择则按裁切后单格/原图比例放大至 4K。"
+      },
+      "source_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "main-subject"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "说明（可选）"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "待放大图片",
+        "maxItems": 1,
+        "minItems": 1,
+        "x-ui-type": "referenceImages",
+        "description": "上传单张联系表或单图。宫格模式请上传完整联系表，并选择规格与格位。"
+      },
+      "parallel_count": {
+        "type": "integer",
+        "title": "生成份数",
+        "default": 1,
+        "maximum": 99,
+        "minimum": 1,
+        "x-ui-order": -100,
+        "description": "一次提交生成几份独立结果（1～99），每份内容须有差异。"
+      },
+      "source_graph_task_id": {
+        "type": "string",
+        "title": "原 Graph 任务 ID（可选）",
+        "description": "从商拍任务点 HD 时填入原任务 ID，便于 Worker 拉取联系表成片；手动上传联系表时可留空。"
+      }
+    }
+  },
+  "inputDoc": {
+    "fieldHints": {
+      "is_grid": "宫格联系表",
+      "grid_cell": "放大格位（行-列）",
+      "grid_layout": "0: 2×2（四宫格）; 1: 3×3（九宫格）; 2: 4×4（十六宫格）",
+      "aspect_ratio": "0: 保持原图比例; 1: 1:1; 2: 3:4; 3: 4:3; 4: 16:9; 5: 9:16",
+      "source_images": "待放大图片",
+      "parallel_count": "生成份数",
+      "source_graph_task_id": "原 Graph 任务 ID（可选）"
+    },
+    "referenceImageSlots": [
+      {
+        "field": "source_images",
+        "title": "待放大图片",
+        "maxItems": 1,
+        "description": "上传单张联系表或单图。宫格模式请上传完整联系表，并选择规格与格位。"
+      }
+    ]
+  }
+}

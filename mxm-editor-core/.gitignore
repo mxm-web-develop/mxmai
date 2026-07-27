@@ -1,0 +1,5 @@
+
+# accidental tsc emit next to TypeScript sources (package uses src/*.ts directly)
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts

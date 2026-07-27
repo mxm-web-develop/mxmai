@@ -1,0 +1,21 @@
+{
+  "root": true,
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["../*", "../../*", "../../../*"],
+            "message": "禁止引用 monorepo 父目录；数据须经 Open API / Gateway，见 docs/DATA_ACCESS.md"
+          },
+          {
+            "group": ["**/mxmcgi/**", "**/mxmdata/**", "**/web/**"],
+            "message": "禁止 import SuperMXMai 其它包路径"
+          }
+        ]
+      }
+    ]
+  }
+}

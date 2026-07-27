@@ -1,0 +1,71 @@
+{
+  "slug": "eshop-women-line",
+  "title": "女装专线",
+  "description": "女装专用商拍模板",
+  "kind": "task_v2",
+  "schemaVersion": 1,
+  "inputSchema": {
+    "type": "object",
+    "required": ["model_images", "garment_images"],
+    "properties": {
+      "model_images": {
+        "type": "array",
+        "title": "模特参考",
+        "minItems": 1,
+        "maxItems": 4,
+        "x-ui-type": "referenceImages",
+        "items": {
+          "type": "object",
+          "properties": {
+            "content": { "type": "string" },
+            "type": { "type": "string", "default": "main-subject" }
+          }
+        }
+      },
+      "garment_images": {
+        "type": "array",
+        "title": "女装 SKU 参考",
+        "minItems": 1,
+        "maxItems": 8,
+        "x-ui-type": "referenceImages",
+        "items": {
+          "type": "object",
+          "properties": {
+            "content": { "type": "string" },
+            "type": { "type": "string", "default": "outfits" }
+          }
+        }
+      },
+      "shoot_focus": {
+        "type": "string",
+        "title": "拍摄重点",
+        "default": "full_look",
+        "enum": ["full_look", "upper_body", "detail_fabric"],
+        "enumNames": ["全身造型", "上半身", "面料细节"],
+        "x-ui-type": "selection"
+      },
+      "shoot_preset": {
+        "type": "string",
+        "title": "场景",
+        "default": "studio_soft_gray",
+        "enum": ["studio_soft_gray", "garden_soft_light", "boutique_interior"],
+        "enumNames": ["棚拍柔灰", "花园柔光", "精品店内"],
+        "x-ui-type": "selection"
+      },
+      "output_grid": {
+        "type": "string",
+        "title": "输出布局",
+        "default": "2x2",
+        "enum": ["1x1", "2x2"],
+        "enumNames": ["单图", "四宫格"],
+        "x-ui-type": "selection"
+      }
+    }
+  },
+  "inputDoc": {
+    "referenceImageSlots": [
+      { "key": "model_images", "label": "模特" },
+      { "key": "garment_images", "label": "女装 SKU" }
+    ]
+  }
+}

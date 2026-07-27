@@ -1,0 +1,262 @@
+{
+  "slug": "eshop-vedio",
+  "title": "电商 · 上架图动效短片",
+  "description": null,
+  "kind": "task_v2",
+  "schemaVersion": 1,
+  "authentication": {
+    "type": "bearer",
+    "header": "Authorization",
+    "prefix": "mxm_"
+  },
+  "endpoints": {
+    "schema": "/api/v1/open/eshop-vedio",
+    "run": "/api/v1/open/eshop-vedio/run",
+    "jobStatus": "/api/v1/open/eshop-vedio/jobs/{jobId}"
+  },
+  "inputSchema": {
+    "type": "object",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "required": [
+      "motion_preset"
+    ],
+    "properties": {
+      "label": {
+        "type": "string",
+        "title": "任务名称",
+        "x-ui-type": "string"
+      },
+      "ratio": {
+        "enum": [
+          "9:16",
+          "1:1",
+          "16:9",
+          "adaptive"
+        ],
+        "type": "string",
+        "title": "画幅",
+        "default": "9:16",
+        "x-ui-type": "selection"
+      },
+      "prompt": {
+        "type": "string",
+        "title": "分镜 / 品牌补充（可选）",
+        "x-ui-type": "string",
+        "description": "卖点、禁止项、品牌调性（如「偏轻奢慢节奏」「强调领口细节」）等；不写则完全由运镜预设驱动。"
+      },
+      "duration": {
+        "type": "number",
+        "title": "时长（秒）",
+        "default": 5,
+        "x-ui-type": "number"
+      },
+      "resolution": {
+        "enum": [
+          "480p",
+          "720p",
+          "1080p"
+        ],
+        "type": "string",
+        "title": "分辨率",
+        "default": "720p",
+        "x-ui-type": "selection"
+      },
+      "scene_style": {
+        "enum": [
+          "taobao_clean",
+          "studio_soft",
+          "lifestyle_indoor"
+        ],
+        "type": "string",
+        "title": "场景 / 光感",
+        "default": "taobao_clean",
+        "x-ui-type": "selection"
+      },
+      "motion_preset": {
+        "enum": [
+          "gentle_turn",
+          "walk_in_place",
+          "detail_chest",
+          "hem_sway",
+          "runway_step"
+        ],
+        "type": "string",
+        "title": "运镜 / 展示预设",
+        "default": "gentle_turn",
+        "x-ui-type": "selection",
+        "description": "控制分镜节奏与镜头运动，突出版型与面料可读性。"
+      },
+      "product_title": {
+        "type": "string",
+        "title": "品牌 / 商品名（可选）",
+        "x-ui-type": "string",
+        "description": "用于运镜节奏与氛围（如轻奢、运动、童装），不写则仅按首帧与运镜预设生成。"
+      },
+      "generate_audio": {
+        "type": "boolean",
+        "title": "生成环境音",
+        "default": false,
+        "x-ui-type": "switch"
+      },
+      "parallel_count": {
+        "type": "number",
+        "title": "生成份数",
+        "default": 1,
+        "x-ui-type": "number"
+      },
+      "storyboard_grid": {
+        "type": "object",
+        "title": "宫格分镜图（可选）",
+        "default": {
+          "cells": [],
+          "layout": "2x2",
+          "enabled": false,
+          "source_image": null,
+          "last_frame_index": null,
+          "first_frame_index": 0,
+          "auto_detect_layout": true
+        },
+        "x-ui-type": "gridStoryboardImages",
+        "properties": {
+          "cells": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer"
+                },
+                "purpose": {
+                  "type": "string"
+                }
+              }
+            },
+            "title": "逐格描述"
+          },
+          "layout": {
+            "enum": [
+              "2x2",
+              "3x3",
+              "4x4"
+            ],
+            "type": "string",
+            "title": "布局",
+            "default": "3x3"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "启用宫格分镜",
+            "default": false
+          },
+          "source_image": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "title": "源图",
+            "properties": {
+              "type": {
+                "type": "string",
+                "default": "main-subject"
+              },
+              "content": {
+                "type": "string"
+              }
+            }
+          },
+          "last_frame_index": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "尾帧格位（可选）"
+          },
+          "first_frame_index": {
+            "type": "integer",
+            "title": "首帧格位",
+            "default": 0
+          }
+        },
+        "description": "开启后上传单张 2×2 / 3×3 / 4×4 分镜宫格源图，自动识别白缝裁切为多 reference_images（reference-to-video）。与「首帧」二选一。",
+        "x-supports-last-frame": true
+      },
+      "hero_still_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "content",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "main-subject",
+                "background",
+                "outfits",
+                "color-reference",
+                "style-reference"
+              ],
+              "type": "string",
+              "title": "用途类型",
+              "default": "main-subject"
+            },
+            "content": {
+              "type": "string",
+              "title": "图片 URL / Base64"
+            },
+            "purpose": {
+              "type": "string",
+              "title": "用途说明（可选）"
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "首帧（上架图）",
+        "maxItems": 14,
+        "minItems": 0,
+        "x-ui-type": "referenceImages",
+        "description": "单张首帧图生视频模式使用。来自 graph/eshop 的成片静帧；Smartflow 由上一节点自动填入。开启宫格分镜时请留空。"
+      },
+      "storyboard_prompt": {
+        "type": "string",
+        "x-ui-type": "string"
+      }
+    }
+  },
+  "inputDoc": {
+    "fieldHints": {
+      "label": "",
+      "ratio": "0: ",
+      "prompt": "",
+      "duration": "",
+      "resolution": "0: ",
+      "scene_style": "0: 货架白底 · 高 key; 1: 柔和棚拍 · 面料质感; 2: 简约室内 · 品牌生活感",
+      "motion_preset": "0: 缓慢转身 · 三向版型; 1: 轻步 / 垂坠摆围; 2: 胸腰推近 · 结构细节; 3: 低机位 · 下摆摆动; 4: T 台小步 · 主图视频感",
+      "product_title": "",
+      "generate_audio": "",
+      "parallel_count": "",
+      "storyboard_grid": "",
+      "hero_still_images": "",
+      "storyboard_prompt": ""
+    },
+    "referenceImageSlots": [
+      {
+        "field": "hero_still_images",
+        "title": "首帧（上架图）",
+        "maxItems": 14,
+        "description": "单张首帧图生视频模式使用。来自 graph/eshop 的成片静帧；Smartflow 由上一节点自动填入。开启宫格分镜时请留空。"
+      }
+    ]
+  },
+  "async": true,
+  "polling": {
+    "pathTemplate": "/api/v1/open/eshop-vedio/jobs/{jobId}",
+    "intervalMs": 2000
+  },
+  "curlExamples": {
+    "getManifest": "curl -sS \"http://localhost:4003/api/v1/open/eshop-vedio\" -H \"Authorization: Bearer mxm_YOUR_API_KEY\"",
+    "run": "curl -sS -X POST \"http://localhost:4003/api/v1/open/eshop-vedio/run\" -H \"Content-Type: application/json\" -H \"Authorization: Bearer mxm_YOUR_API_KEY\" -d '{\"params\":{\"motion_preset\":\"gentle_turn\"}}'",
+    "pollJob": "curl -sS \"http://localhost:4003/api/v1/open/eshop-vedio/jobs/JOB_ID\" -H \"Authorization: Bearer mxm_YOUR_API_KEY\""
+  }
+}
