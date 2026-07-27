@@ -75,19 +75,32 @@
 
 说明：
 
-- **流程中使用的 key**：创建任务与执行时统一使用 **`graph-photograph`**、**`graph-design`**、**`graph-painting`** 三个业务 key（见 `routes/graph.ts`、`graph-task.ts`）。人像/风景等子类型通过 `params.type`（如 portrait、landscape）区分，不再单独作为业务接口 key；若后续需为人像等子类型单独配置模型，可再扩展如 `graph-photograph-portrait`。
+- **流程中使用的 key**：Task V2 下由 `runTaskV2` 解析路由后写入任务；执行时 **`graph-task.ts`** 读取 `requestParams.graphType` + `params.type`（子业务）。对外入口为 **`POST /api/v2/tasks/run`**（`scope=graph`，`taskKey` = photograph|design|painting，`subtype` = 子类型如 portrait）。旧 **`/api/v1/cgi/graph/*`** 已 410。
 - **非业务接口**：`graph-seedream`、`graph-flux` 对应底层物理模型（Seedream、Flux），不属于业务接口。当前 graph 业务内部按 `quality`（high → nano-banana，fast → seedream-4）在模型间二选一，不通过业务 key 暴露。若存在「直接指定某模型」的 API 需求，可在 model-routing 中保留此类 key 供路由解析，但不列入业务接口清单。规范后业务层可按「业务 key + 可选 quality」解析为单一 (provider, model)，或拆成 `graph-photograph-high` / `graph-photograph-fast` 等由 Admin 配置。
 
 ### 1.3 音频 (audio)
 
 | 业务接口 key | 说明 | 当前默认 (model 为实际模型名) |
 |--------------|------|-------------------------------|
-| `audio-speak` | 语音/朗读（底层可用 MiniMax 等） | deer / minimax-speech-2.5-hd |
-| `audio-music` | 音乐生成（底层可用 Suno 等） | deer / suno-music |
+| `audio-speak` | 语音/朗读（底层可用 MiniMax 等） | maxplan / speech-2.8-hd |
 
-说明：业务命名用 **audio-speak**、**audio-music**，不把 minimax、suno 等模型名写进业务 key；路由层由「业务 key → (provider, model)」解析，model 为实际模型名（如 minimax-speech-2.5-hd、suno-music）。规范后创建任务时传业务 key，执行时通过路由解析得到 (provider, model) 再调用。
+说明：口播业务走独立 **`scope=audio`**（Task V2），路由表 `audio_scope_config`；物理模型如 `speech-2.8-hd` 仅出现在路由的 model 字段，不用于业务 key。
 
-### 1.4 视频 (video)
+### 1.4 音乐 (music)
+
+| 业务接口 key | 说明 | 当前默认 (model 为实际模型名) |
+|--------------|------|-------------------------------|
+| `music-compose-maxplan-direct` | 音乐直出（粘贴/召回 → music_generation） | maxplan / music-2.6 |
+| `music-compose-maxplan-test` | 音乐管线版（含 text 歌词草稿步） | maxplan / music-2.6 |
+
+说明：
+
+- 音乐生成使用独立 **`scope=music`**（非 `audio-music` 合并 scope），路由表 `music_scope_config`。
+- 底层 Provider：**maxplan** `POST /v1/music_generation`（`music-2.5` / `music-2.6`）。
+- 计费：`per_audio_second`（与口播相同计量维度）。
+- 历史文档中的 `audio-music` + Suno 为旧命名，新上架请使用 `scope=music` + bundle 导入。
+
+### 1.5 视频 (video)
 
 视频按**业务类型**区分接口，不使用模型名（如 Sora、Runway）作为业务 key；底层模型由路由解析得到。
 
@@ -105,9 +118,23 @@
 
 说明：业务命名与分镜脚本类型（如 `short-video-storyboard`、`movie-storyboard`）对齐；sora-2、runway 等为底层模型名，仅出现在路由的 model 字段，不用于业务 key。Admin 可为每种视频业务配置不同 provider/model。
 
-### 1.5 关于 text
+### 1.6 关于 text（scope=text 子业务）
 
-**text 类型已废弃**，不再作为独立业务模块。原有「通用文本/对话」能力归入 **writing**：需按业务使用时走 writing-* 业务 key（如 writing-articles、writing-outlines）；若仅需裸模型调用，由调用方直接指定物理模型名与 provider，不单独提供 text 业务接口。
+**text 不作为面向用户的独立产品模块**。Task V2 中 `scope=text` 的条目用于 **pipeline 前置 nestedText**（如口播写稿、TTS 优化、graph format），由 bundle 内独立 item 定义，经 `nestedTextTaskKey` 挂载到 audio/music/graph 等主业务。
+
+用户可见的「写作文本」仍走 **`scope=writing`** 与 writing-* 业务 key。裸模型 text 调用由 Admin 路由配置，不单独占业务接口清单。
+
+### 1.7 Task V2 可选执行管线（前置 / 人工审核 / 后置）
+
+**不强制**配置；默认「表单 → 核心模型 → 结果」。
+
+| 阶段 | 配置 | 何时选用 |
+|------|------|----------|
+| **前置 pre** | `taskTemplate.pipeline.pre` | 需先跑 text 子业务、或显式 pre 步骤 |
+| **人工审核** | `pipeline.pre/post` 中的 `manualReview` 步骤 | pre/post 任意位置暂停；text/json/image 草稿；`GET review-draft` / `POST approve-review` |
+| **后置 post** | `taskTemplate.pipeline.post` | 核心产出后还需步骤（少见） |
+
+audio/music **直出**可无 pipeline；**管线版**用 `afterPromptRender` nestedText。Agent 设计细则： [`.cursor/skills/mxmai_business_pipeline/SKILL.md`](../../.cursor/skills/mxmai_business_pipeline/SKILL.md)
 
 ---
 

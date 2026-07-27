@@ -12,7 +12,7 @@
 |----------|------|
 | 表       | `prompt_engineering_config`（单表） |
 | 唯一键   | `(scope, type, subtype)` |
-| 字段     | `rules_i18n`、`output_format_i18n`、`form_options_i18n`、`extra`、`is_active` |
+| 字段     | `output_format_i18n`、`form_options_i18n`、`extra`（**`taskTemplate.unifiedTemplate`**）、`is_active`；`rules_i18n` 列弃用（恒 `{}`） |
 | Writing  | scope=writing, type=writingType, subtype=outlineType（可为 null） |
 | Graph    | scope=graph, type=graphType, subtype=type（如 portrait、cinematic） |
 | Video    | 未使用 |
@@ -90,9 +90,9 @@ export async function getPromptConfigResolved(
     const repo = RepositoryFactory.createPromptEngineeringConfigRepository();
     const row = await repo.findByKey(scope, type, subtype ?? null);
     if (row?.is_active) {
-      const rules = langFallback(row.rules_i18n, lang);
+      // 实现见 mxmcgi/src/prompts/resolver.ts：写作从 extra.taskTemplate.unifiedTemplate 拆段，不再读 rules_i18n
       const outputFormat = langFallback(row.output_format_i18n, lang);
-      return { rules: rules || '', outputFormat: outputFormat || '' };
+      return { rules: '', outputFormat: outputFormat || '' };
     }
   } catch (_) {}
   // 按 scope 回退到代码配置

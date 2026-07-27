@@ -12,6 +12,21 @@ Gateway 是统一入口，负责路由转发、认证、限流等功能。
 - ✅ **CORS 支持**: 统一处理跨域请求
 - ✅ **错误处理**: 统一的错误响应格式
 - ✅ **请求日志**: 记录所有请求日志
+- ✅ **OpenAPI 文档**: Swagger UI 与 JSON 规范输出
+
+## API 文档（OpenAPI / Swagger）
+
+Gateway 对外提供统一的 OpenAPI 3.0 文档（由 `src/openapi/catalog.ts` 维护，与代理路由同步）：
+
+| 地址 | 说明 |
+|------|------|
+| `GET /docs` | Swagger UI 交互文档 |
+| `GET /openapi.json` | OpenAPI 3.0 JSON 规范 |
+| `GET /swagger` | 重定向至 `/docs` |
+
+本地示例：`http://localhost:3000/docs`
+
+> **说明**：mxmpay 服务在 4002 端口另有独立 Swagger（`/api`），但客户端应通过 Gateway 调用；Gateway 文档路径前缀为 `/api/v1/...`。
 
 ## 路由配置
 
@@ -21,7 +36,8 @@ Gateway 是统一入口，负责路由转发、认证、限流等功能。
 | `/api/v1/payment` | `mxmpay` | ✅ 已实现 | 支付订单创建/查询/确认/取消、统计、Webhook |
 | `/api/v1/wallets` | `mxmpay` | ✅ 已实现 | 多资产钱包：查询资产、余额、流水，充值/扣减 |
 | `/api/v1/generation` | `mxmcgi` | ⏳ 待实现 | AI 生成（文本/图像等） |
-| `/api/v1/agents` | `mxmagent` | ⏳ 待实现 | 助手列表、详情、启停、历史记录 |
+| `/api/v1/agents` | `mxmcgi` | ✅ 已实现 | 助手列表、Agent Chat |
+| `/api/v1/smartflows` | `mxmcgi` | ✅ 已实现 | Smartflow 工作流 |
 | `/api/v1/notifications` | `mxmnotify` | ⏳ 待实现 | 通知中心、推送、站内信 |
 | `/health`、`/` | Gateway | ✅ 已实现 | 网关自身健康检查、版本信息 |
 
@@ -86,7 +102,7 @@ Gateway 是统一入口，负责路由转发、认证、限流等功能。
 | `GET /api/v1/generation/tasks/:taskId` | 获取生成任务详情 | 是 | 用户 | - | ⏳ 待实现 |
 | `GET /api/v1/generation/media` | 查询媒体资源列表 | 是 | 用户 | - | ⏳ 待实现 |
 
-### mxmagent / 助手模块
+### mxmcgi / 助手与 Smartflow（原 mxmagent 已并入 mxmcgi）
 
 | 路由 | 说明 | 认证 | 权限 | 调用演示 | 状态 |
 |------|------|------|------|----------|------|
@@ -114,6 +130,8 @@ Gateway 是统一入口，负责路由转发、认证、限流等功能。
 |------|------|------|------|----------|------|
 | `GET /health` | 健康检查 | 否 | 所有人 | `curl http://localhost:3000/health` | ✅ 已实现 ✅ 已测试 |
 | `GET /` | 版本信息 | 否 | 所有人 | `curl http://localhost:3000/` | ✅ 已实现 ✅ 已测试 |
+| `GET /docs` | Swagger UI API 文档 | 否 | 所有人 | 浏览器打开 `http://localhost:3000/docs` | ✅ 已实现 |
+| `GET /openapi.json` | OpenAPI JSON 规范 | 否 | 所有人 | `curl http://localhost:3000/openapi.json` | ✅ 已实现 |
 
 ## 快速开始
 
@@ -439,8 +457,8 @@ JWT_SECRET=your-secret-key-change-in-production
 MXMAUTH_URL=http://localhost:4001
 MXMPAY_URL=http://localhost:4002
 MXMCGI_URL=http://localhost:4003
-MXMAGENT_URL=http://localhost:4004
 MXMNOTIFY_URL=http://localhost:4005
+# WORKER_PORT=4004 — mxmcgi-worker 健康检查（内网，非 MXMAGENT_URL）
 
 # 环境
 NODE_ENV=development

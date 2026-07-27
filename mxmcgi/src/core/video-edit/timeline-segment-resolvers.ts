@@ -20,6 +20,7 @@ const ROLE_VALUES = new Set<string>([
   'title-card',
   'outro-cta',
   'chapter-progress',
+  'show-badge',
 ]);
 import { roundToWholeSeconds, snapVisualSegmentsToWholeSeconds } from './timeline-whole-seconds';
 import {
@@ -28,6 +29,7 @@ import {
   resolveCutRhythmBounds,
   type CutRhythmId,
 } from './cut-rhythm';
+import { sparsifySegmentOverlays } from './overlay-sparsity';
 
 export type { CutRhythmId } from './cut-rhythm';
 export {
@@ -337,13 +339,23 @@ function parseShotList(raw: unknown, totalDuration: number): TimelineVisualSegme
     const visualStyle = String((item as { mxmVisualStyle?: unknown }).mxmVisualStyle ?? '').trim();
     const motionIntensity = String((item as { mxmMotionIntensity?: unknown }).mxmMotionIntensity ?? '').trim();
     const backgroundMode = String((item as { mxmBackgroundMode?: unknown }).mxmBackgroundMode ?? '').trim();
-    const rawPrompt = String((item as { mxmPrompt?: unknown }).mxmPrompt ?? '').trim();
+    const rawLegacyPrompt = String((item as { mxmPrompt?: unknown }).mxmPrompt ?? '').trim();
+    const rawVideoPrompt = String((item as { mxmVideoPrompt?: unknown }).mxmVideoPrompt ?? '').trim();
+    const rawImagePrompt = String((item as { mxmImagePrompt?: unknown }).mxmImagePrompt ?? '').trim();
     const rawStock = String((item as { mxmStockSearchQuery?: unknown }).mxmStockSearchQuery ?? '').trim();
     const keywords = (item as { keywords?: unknown }).keywords;
     const keywordQuery = Array.isArray(keywords)
       ? keywords.map((k) => String(k).trim()).filter(Boolean).join(' ')
       : '';
     const stockQuery = rawStock || keywordQuery || undefined;
+    const resolvedVideoPrompt =
+      mode === 'ai-video-gen' && aiOutputKind !== 'image'
+        ? rawVideoPrompt || rawLegacyPrompt || undefined
+        : undefined;
+    const resolvedImagePrompt =
+      mode === 'ai-video-gen' && aiOutputKind === 'image'
+        ? rawImagePrompt || rawLegacyPrompt || undefined
+        : rawImagePrompt || undefined;
     out.push({
       startSeconds: roundSec(start),
       endSeconds: roundSec(end),
@@ -353,7 +365,10 @@ function parseShotList(raw: unknown, totalDuration: number): TimelineVisualSegme
       overlayLayers: overlayLayers && overlayLayers.length ? overlayLayers : undefined,
       transition,
       mxmVideoMode,
-      mxmPrompt: mode === 'ai-video-gen' ? rawPrompt || undefined : undefined,
+      mxmVideoPrompt: resolvedVideoPrompt,
+      mxmImagePrompt: resolvedImagePrompt,
+      /** 仅透传旧字段，便于兜底；新构建优先写分字段 */
+      mxmPrompt: mode === 'ai-video-gen' ? rawLegacyPrompt || undefined : undefined,
       mxmStockSearchQuery:
         mode === 'static-image' ? stockQuery || text || undefined : stockQuery || undefined,
       mxmSourceImageUrl: imageUrl || undefined,
@@ -374,8 +389,10 @@ function parseShotList(raw: unknown, totalDuration: number): TimelineVisualSegme
       mxmVideoTaskKey: mode === 'ai-video-gen' && videoTaskKey ? videoTaskKey : undefined,
       mxmVideoSubtype: mode === 'ai-video-gen' && videoSubtype ? videoSubtype : undefined,
       mxmAiOutputKind: aiOutputKind,
-      mxmImageMotionEnabled: true,
-      mxmImageMotion: aiOutputKind === 'image' ? 'zoom-in' : mode === 'static-image' ? 'pan-left' : undefined,
+      /** 动效由 assignAlternatingImageMotion 统一分配，避免全片同一 pan-left */
+      mxmImageMotionEnabled:
+        mode === 'static-image' || aiOutputKind === 'image' ? true : undefined,
+      mxmImageMotion: undefined,
       mxmVisualStyle: mode === 'ai-video-gen' && visualStyle ? visualStyle : undefined,
       mxmMotionIntensity:
         mode === 'ai-video-gen' && motionIntensity
@@ -391,7 +408,7 @@ function parseShotList(raw: unknown, totalDuration: number): TimelineVisualSegme
   if (out.length && out[out.length - 1]!.endSeconds < totalDuration) {
     out[out.length - 1]!.endSeconds = roundSec(totalDuration);
   }
-  return out.length ? out : fixedChunkWindows(totalDuration, 8);
+  return sparsifySegmentOverlays(out.length ? out : fixedChunkWindows(totalDuration, 8));
 }
 
 function parseImageSequence(raw: unknown, totalDuration: number): TimelineVisualSegment[] {

@@ -81,6 +81,7 @@ export function createWalletRoutes(walletService: WalletService, walletTaskServi
   router.post(
     '/:assetCode/deposit',
     [
+      adminMiddleware,
       param('assetCode').isString().notEmpty(),
       body('amount').isString().notEmpty().withMessage('amount 不能为空'),
       body('referenceId').optional().isString(),

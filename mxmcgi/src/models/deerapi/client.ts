@@ -3,10 +3,28 @@
  * 统一封装 DeerAPI 的 LLM 调用（chat-completions & Anthropic Messages）
  */
 
+import { Agent } from 'undici';
+
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw == null || raw === '') return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+function readNonNegativeIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw == null || raw === '') return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
+}
+
 export interface DeerAPIConfig {
     baseUrl: string;
     apiKey: string;      // 直接使用密钥值，不需要 "Bearer " 前缀
     group?: string;      // 可选：令牌分组（如 default、官方原价等）
+    /** 错误信息前缀（启航等 OpenAI 兼容网关复用本客户端时使用） */
+    vendorLabel?: string;
   }
   
   export interface DeerAPIChatMessage {
@@ -108,6 +126,10 @@ export interface DeerAPIConfig {
   
   export class DeerAPIClient {
     private config: DeerAPIConfig;
+
+    private vendorLabel(): string {
+      return this.config.vendorLabel?.trim() || 'DeerAPI';
+    }
   
     constructor(config: DeerAPIConfig) {
       this.config = config;
@@ -234,7 +256,7 @@ export interface DeerAPIConfig {
       const maxRetries = opts?.maxRetries ?? 3;
       const baseDelayMs = opts?.baseDelayMs ?? 800;
       const retryOnStatuses = opts?.retryOnStatuses ?? [502, 503, 504];
-      const label = opts?.requestLabel ?? 'DeerAPI';
+      const label = opts?.requestLabel ?? this.vendorLabel();
   
       let lastError: unknown;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -278,6 +300,13 @@ export interface DeerAPIConfig {
       const extra = causeCode ? ` (cause=${causeCode})` : '';
       const msg = lastError instanceof Error ? lastError.message : String(lastError);
       throw new Error(`${label} 请求失败: ${msg}${extra} url=${url}`);
+    }
+
+    private wrapFetchFailed(label: string, url: string, error: unknown): Error {
+      const msg = error instanceof Error ? error.message : String(error);
+      const causeCode = (error as any)?.cause?.code ? String((error as any).cause.code) : '';
+      const extra = causeCode ? ` (cause=${causeCode})` : '';
+      return new Error(`${label} 网络请求失败: ${msg}${extra} url=${url}`);
     }
   
     /**
@@ -686,7 +715,9 @@ export interface DeerAPIConfig {
   
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`DeerAPI 请求失败: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(
+          `${this.vendorLabel()} 请求失败: ${response.status} ${response.statusText} - ${errorText}`
+        );
       }
   
       return (await response.json()) as DeerAPIChatResponse;
@@ -737,7 +768,9 @@ export interface DeerAPIConfig {
   
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`DeerAPI 流式请求失败: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(
+          `${this.vendorLabel()} 流式请求失败: ${response.status} ${response.statusText} - ${errorText}`
+        );
       }
   
       if (!response.body) {
@@ -824,7 +857,9 @@ export interface DeerAPIConfig {
   
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`DeerAPI 请求失败: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(
+          `${this.vendorLabel()} 请求失败: ${response.status} ${response.statusText} - ${errorText}`
+        );
       }
   
       return (await response.json()) as DeerAPIAnthropicMessage;
@@ -875,7 +910,9 @@ export interface DeerAPIConfig {
   
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`DeerAPI 流式请求失败: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(
+          `${this.vendorLabel()} 流式请求失败: ${response.status} ${response.statusText} - ${errorText}`
+        );
       }
   
       if (!response.body) {
@@ -993,43 +1030,33 @@ export interface DeerAPIConfig {
   
       // 调试：打印最终发送给 DeerAPI 的请求参数（脱敏/截断）
       this.debugLogRequest('gemini.generateContent', url, body);
-  
-      const maxRetries = 3;
-      let lastError: Error | null = null;
-  
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(body),
-        });
-  
-        const errorText = await response.text();
-  
-        if (response.ok) {
-          return JSON.parse(errorText || '{}') as any;
+
+      const bodyStr = JSON.stringify(body);
+      const bodySizeMB = Buffer.byteLength(bodyStr, 'utf8') / 1024 / 1024;
+      const maxRetries = readNonNegativeIntEnv('DEERAPI_GENERATE_CONTENT_MAX_RETRIES', 4);
+
+      const response = await this.fetchWithRetry(
+        url,
+        { method: 'POST', headers, body: bodyStr },
+        {
+          maxRetries,
+          baseDelayMs: 1000,
+          retryOnStatuses: [429, 500, 502, 503, 504],
+          requestLabel: 'generateContent',
+          bodySizeHintMB: bodySizeMB,
         }
-  
-        const is429 =
-          response.status === 429 ||
-          (response.status === 500 &&
-            (errorText.includes('"code":429') || errorText.includes('Resource exhausted')));
-  
-        lastError = new Error(`DeerAPI generateContent 失败: ${response.status} ${response.statusText} - ${errorText}`);
-  
-        if (is429 && attempt < maxRetries) {
-          const waitMs = Math.min(2000 * Math.pow(2, attempt), 15000);
-          console.warn(
-            `[DeerAPIClient] generateContent 限流/资源耗尽 (429)，${waitMs}ms 后重试 (${attempt + 1}/${maxRetries})`
-          );
-          await new Promise((r) => setTimeout(r, waitMs));
-          continue;
-        }
-  
-        throw lastError;
+      );
+
+      const errorText = await response.text();
+
+      if (response.ok) {
+        return JSON.parse(errorText || '{}') as any;
       }
-  
-      throw lastError ?? new Error('DeerAPI generateContent 失败: 重试次数已用尽');
+
+      const snippet = errorText.length > 800 ? `${errorText.slice(0, 800)}…` : errorText;
+      throw new Error(
+        `DeerAPI generateContent 失败: ${response.status} ${response.statusText} - ${snippet}`
+      );
     }
   
     /**
@@ -1313,6 +1340,230 @@ export interface DeerAPIConfig {
       };
     }
   
+    /**
+     * OpenAI 兼容图像生成接口
+     * 参考文档：https://apidoc.deerapi.com/api/image/openai/generate
+     * 端点：POST /v1/images/generations
+     */
+    async createOpenAIImageGeneration(request: {
+      model: string;
+      prompt: string;
+      n?: number;
+      size?: string;
+      background?: 'transparent' | 'opaque' | 'auto';
+      output_format?: 'png' | 'jpeg' | 'webp';
+      quality?: 'high' | 'medium' | 'low' | 'auto';
+      /** 启航 nano-banana / gpt-image 等：reference_images、aspect_ratio 等 */
+      extra_fields?: Record<string, unknown>;
+    }): Promise<{
+      created: number;
+      data: Array<{
+        url?: string;
+        b64_json?: string;
+      }>;
+    }> {
+      const authHeader = this.getAuthHeader();
+      const url = `${this.config.baseUrl}/v1/images/generations`;
+
+      const body: any = {
+        model: request.model,
+        prompt: request.prompt,
+      };
+
+      if (request.n !== undefined) body.n = request.n;
+      if (request.size) body.size = request.size;
+      if (request.background) body.background = request.background;
+      if (request.output_format) body.output_format = request.output_format;
+      if (request.quality) body.quality = request.quality;
+      if (request.extra_fields && Object.keys(request.extra_fields).length > 0) {
+        body.extra_fields = request.extra_fields;
+      }
+      // DeerAPI OpenAI 图像接口当前不接受 response_format（会返回 400 unknown_parameter）。
+      // 因此这里不传 response_format，由上游决定返回 url 或 b64_json；调用方解析两者均兼容。
+
+      const headers: Record<string, string> = {
+        Authorization: authHeader,
+        'Content-Type': 'application/json',
+      };
+      if (this.config.group) {
+        headers['x-group'] = this.config.group;
+      }
+      const bodyString = JSON.stringify(body);
+      const bodySizeHintMB = bodyString.length / 1024 / 1024;
+
+      let response: Response;
+      try {
+        response = await this.fetchWithRetry(
+          url,
+          {
+            method: 'POST',
+            headers,
+            body: bodyString,
+          },
+          {
+            requestLabel: 'openai/images/generations',
+            maxRetries: 2,
+            baseDelayMs: 900,
+            bodySizeHintMB,
+          }
+        );
+      } catch (e) {
+        throw this.wrapFetchFailed(`${this.vendorLabel()} OpenAI 图像生成`, url, e);
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `${this.vendorLabel()} OpenAI 图像生成失败: ${response.status} ${response.statusText} - ${errorText}`
+        );
+      }
+
+      return (await response.json()) as {
+        created: number;
+        data: Array<{
+          url?: string;
+          b64_json?: string;
+        }>;
+      };
+    }
+
+    /**
+     * OpenAI 兼容图像编辑接口（支持参考图，多图）
+     * 参考文档：https://apidoc.deerapi.com/api/image/openai/edit
+     * 端点：POST /v1/images/edits (multipart/form-data)
+     */
+    async createOpenAIImageEdit(request: {
+      model: string;
+      prompt: string;
+      /** 要编辑/参考的图片（按顺序） */
+      images: Array<{ data: Buffer; filename: string; contentType: string }>;
+      mask?: { data: Buffer; filename: string; contentType: string };
+      n?: number;
+      size?: string;
+      quality?: 'high' | 'medium' | 'low' | 'auto';
+      response_format?: 'url' | 'b64_json';
+      output_format?: 'png' | 'jpeg' | 'webp';
+      background?: 'transparent' | 'opaque' | 'auto';
+      quality?: 'high' | 'medium' | 'low' | 'auto';
+    }): Promise<{
+      created: number;
+      data: Array<{
+        url?: string;
+        b64_json?: string;
+      }>;
+      usage?: any;
+    }> {
+      const authHeader = this.getAuthHeader();
+      const url = `${this.config.baseUrl}/v1/images/edits`;
+      // 注意：FormData/Blob body 在一次 fetch 后会被消费；若请求被 abort 或重试，复用 body 会导致
+      // `ReadableStream is already closed` 这类 undici 异常。因此 edits 在此处自行实现“可重建 body”的重试。
+
+      const headersBase: Record<string, string> = { Authorization: authHeader };
+      if (this.config.group) headersBase['x-group'] = this.config.group;
+
+      const defaultEditTimeoutMs = 15 * 60 * 1000;
+      const editTimeoutMs = parseInt(process.env.DEERAPI_OPENAI_IMAGE_EDIT_TIMEOUT_MS || String(defaultEditTimeoutMs), 10);
+      const maxRetries = readNonNegativeIntEnv('DEERAPI_OPENAI_IMAGE_EDIT_MAX_RETRIES', 4);
+      const baseDelayMs = readPositiveIntEnv('DEERAPI_OPENAI_IMAGE_EDIT_RETRY_BASE_DELAY_MS', 1200);
+
+      const buildForm = (): FormData => {
+        // Node 22+ (undici) supports FormData / Blob
+        const form = new FormData();
+        form.append('model', request.model);
+        form.append('prompt', request.prompt);
+        if (request.n !== undefined) form.append('n', String(request.n));
+        if (request.size) form.append('size', request.size);
+        if (request.quality) form.append('quality', request.quality);
+        if (request.background) form.append('background', request.background);
+        if (request.response_format) form.append('response_format', request.response_format);
+        if (request.output_format) form.append('output_format', request.output_format);
+        for (const img of request.images) {
+          const blob = new Blob([img.data], { type: img.contentType });
+          form.append('image', blob, img.filename);
+        }
+        if (request.mask) {
+          const blob = new Blob([request.mask.data], { type: request.mask.contentType });
+          form.append('mask', blob, request.mask.filename);
+        }
+        return form;
+      };
+
+      // Debug log (do not dump binary)
+      if (this.shouldDebugRequest()) {
+        const totalBytes =
+          request.images.reduce((sum, i) => sum + i.data.byteLength, 0) + (request.mask?.data.byteLength || 0);
+        const bodySizeMB = totalBytes / 1024 / 1024;
+        const safeMeta = {
+          model: request.model,
+          n: request.n,
+          size: request.size,
+          quality: request.quality,
+          response_format: request.response_format,
+          output_format: request.output_format,
+          images: request.images.map((i, idx) => ({
+            index: idx + 1,
+            filename: i.filename,
+            contentType: i.contentType,
+            bytes: i.data.byteLength,
+          })),
+          mask: request.mask
+            ? { filename: request.mask.filename, contentType: request.mask.contentType, bytes: request.mask.data.byteLength }
+            : undefined,
+          prompt: this.sanitizeForLog(request.prompt, ['prompt']),
+        };
+        console.log(`[DeerAPIClient] 请求参数调试(openai/images/edits): ${url} body≈${bodySizeMB.toFixed(2)}MB`);
+        console.log(JSON.stringify(safeMeta, null, 2));
+      }
+
+      let lastErr: unknown;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), editTimeoutMs);
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: headersBase,
+            body: buildForm() as any,
+            signal: controller.signal,
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(
+              `${this.vendorLabel()} OpenAI 图像编辑失败: ${response.status} ${response.statusText} - ${errorText}`
+            );
+          }
+          return (await response.json()) as {
+            created: number;
+            data: Array<{ url?: string; b64_json?: string }>;
+            usage?: any;
+          };
+        } catch (e) {
+          lastErr = e;
+          const msg = e instanceof Error ? e.message : String(e);
+          const isAbort = msg.includes('aborted') || msg.includes('AbortError');
+          const isSocket = msg.includes('UND_ERR_SOCKET') || msg.includes('fetch failed');
+
+          // 最后一次不再重试
+          if (attempt >= maxRetries) break;
+
+          // 仅对网络/超时类错误重试
+          if (!isAbort && !isSocket) break;
+
+          const delay = Math.floor(baseDelayMs * Math.pow(2, attempt) + Math.random() * 250);
+          console.log(
+            `[DeerAPIClient] openai/images/edits 请求异常，准备重试（${attempt + 1}/${maxRetries}），等待 ${delay}ms。 url=${url} 错误: ${msg}`
+          );
+          await new Promise((r) => setTimeout(r, delay));
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      }
+
+      throw this.wrapFetchFailed(`${this.vendorLabel()} OpenAI 图像编辑`, url, lastErr);
+
+    }
+
     /**
      * Seedream 图像生成接口
      * 参考文档：https://apidoc.deerapi.com/seededit-image-generation-331149260e0

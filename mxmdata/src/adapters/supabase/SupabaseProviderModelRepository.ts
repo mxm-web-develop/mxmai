@@ -97,15 +97,24 @@ export class SupabaseProviderModelRepository implements IProviderModelRepository
     if (model.id) {
       payload.id = model.id;
     }
-    const { data, error } = await this.client
+    const { error } = await this.client
       .from('provider_models')
-      .upsert(payload, { onConflict: 'provider,scope,model_key' })
-      .select('*')
-      .maybeSingle();
+      .upsert(payload, { onConflict: 'provider,scope,model_key' });
     if (error) {
       throw new DataAccessError(`ProviderModelRepository.upsert failed: ${error.message}`, 'UPSERT_ERROR', error);
     }
-    return fromRow(data);
+    const saved = await this.findByKey({
+      provider: model.provider,
+      scope: model.scope,
+      model_key: model.model_key,
+    });
+    if (!saved) {
+      throw new DataAccessError(
+        'ProviderModelRepository.upsert succeeded but row not found after write',
+        'UPSERT_ERROR',
+      );
+    }
+    return saved;
   }
 
   async update(

@@ -7,7 +7,7 @@
 | **表单配置** | `clientServer/writing/*.ts` 写死字段、选项、_metadata | 改表单要发版，Admin 无法动态增删改字段/选项 |
 | **参数列表** | `wtconfigs` 里 `getParamsForType()` / `getArticlesParamsForSubtype()` 写死 | 哪些参数参与「写作指导」写死，无法按运营需求调整顺序或隐藏 |
 | **写作指导拼接** | `writing-service.ts` 里固定 `【写作指导】` + `label: value` + `⚠️ 关键要求` | 文案、格式、占位符都写死，无法做 A/B 或多语言策略 |
-| **Rules / OutputFormat** | 已支持 DB：`prompts/resolver.ts` 优先 `prompt_engineering_config` | 仅 rules/output_format 走 DB，表单和拼接未接 DB |
+| **Rules / OutputFormat** | 已支持 DB：`prompt_engineering_config` 的 `output_format_i18n`；**规则与 briefing 统一在 `extra.taskTemplate.prompt.unifiedTemplate`** | 不再使用 `rules_i18n` 列正文 |
 
 目标：在**不破坏现有逻辑**的前提下，让 Admin 能通过**已有**的 `prompt_engineering_config` 表动态配置「表单 + 参与提示词的参数 + 写作指导文案与格式」，代码只做「DB 优先，无则回退代码」的解析层。
 
@@ -16,9 +16,9 @@
 ## 二、已有能力（可直接复用）
 
 - **表**：`prompt_engineering_config`  
-  - 已存在字段：`scope`, `type`, `subtype`, `rules_i18n`, `output_format_i18n`, **`form_options_i18n`**, **`extra`**, `is_active`。
+  - 已存在字段：`scope`, `type`, `subtype`, **`output_format_i18n`**, **`form_options_i18n`**, **`extra`**（含 **`taskTemplate.unifiedTemplate`**）, `is_active`。`rules_i18n` 列仅存 `{}`。
 - **Admin 接口**：`PUT /system/prompt-config` 已支持写入 `form_options_i18n`、`extra`。
-- **解析**：`getWritingRulesAndFormatResolved(writingType, outlineType, lang)` 已实现「先 DB 再代码」的 rules/output_format。
+- **解析**：`getWritingRulesAndFormatResolved` 从 **`extra.taskTemplate.unifiedTemplate`** 拆出规则/输出段（无则回退 wtconfigs），不再读 `rules_i18n`。
 
 因此只需：
 1. 约定 `form_options_i18n`、`extra` 的**写作相关 schema**；

@@ -9,6 +9,9 @@ export type ProviderKeyKind =
   | 'replicate'
   | 'ppio'
   | 'openai'
+  | 'openrouter'
+  | 'qhai'
+  | 'jiekou'
   | 'google'
   | 'anthropic'
   | 'qwen'
@@ -30,6 +33,9 @@ const ENV_MAP: Record<string, { single: string; multi: string }> = {
   volc: { single: 'VOLC_API_KEY', multi: 'VOLC_API_KEYS' },
   atlascloud: { single: 'ATLASCLOUD_API_KEY', multi: 'ATLASCLOUD_API_KEYS' },
   maxplan: { single: 'MAXPLAN_API_KEY', multi: 'MAXPLAN_API_KEYS' },
+  openrouter: { single: 'OPENROUTER_API_KEY', multi: 'OPENROUTER_API_KEYS' },
+  qhai: { single: 'QHAI_API_KEY', multi: 'QHAI_API_KEYS' },
+  jiekou: { single: 'JIEKOU_API_KEY', multi: 'JIEKOU_API_KEYS' },
 };
 
 function parseEnvKeys(singleVar: string, multiVar: string): string[] {

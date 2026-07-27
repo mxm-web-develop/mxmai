@@ -3,10 +3,10 @@
  * 将生成的文本转换为不同格式（Markdown、TXT、PDF）
  */
 
-// PDF 功能需要安装 pdfkit: npm install pdfkit @types/pdfkit
-// import PDFDocument from 'pdfkit';
+import { renderMarkdownToPdf } from './markdown-pdf-renderer';
+import { normalizeMarkdownForPdf } from './markdown-normalize';
 
-export type StorageFormat = 'markdown' | 'txt' | 'pdf' | 'md' | 'json';
+export type StorageFormat = 'markdown' | 'txt' | 'pdf' | 'md' | 'json' | 'csv';
 
 /**
  * 格式化文档为 Markdown
@@ -90,74 +90,28 @@ export function formatToJson(
 }
 
 /**
- * 格式化文档为 PDF
- * 注意：需要安装 pdfkit: npm install pdfkit @types/pdfkit
+ * 格式化文档为 CSV（纯文本按行输出，若已是 CSV 则原样返回）
  */
-export async function formatToPdf(
-  text: string,
-  title?: string,
-  metadata?: Record<string, any>
-): Promise<Buffer> {
-  // TODO: 实现 PDF 生成（需要安装 pdfkit）
-  // 暂时返回 Markdown 格式的 Buffer
-  const markdown = formatToMarkdown(text, title, metadata);
-  return Buffer.from(markdown, 'utf-8');
-  
-  /* PDF 实现示例（需要安装 pdfkit）：
-  return new Promise((resolve, reject) => {
-    try {
-      const PDFDocument = require('pdfkit');
-      const doc = new PDFDocument({
-        margins: {
-          top: 50,
-          bottom: 50,
-          left: 50,
-          right: 50,
-        },
-      });
+export function formatToCsv(text: string, title?: string): string {
+  const trimmed = text.trim();
+  if (trimmed.includes(',') && trimmed.includes('\n')) {
+    return text;
+  }
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length <= 1) {
+    const header = title ? `"${title.replace(/"/g, '""')}"` : '"content"';
+    const body = `"${text.replace(/"/g, '""')}"`;
+    return `${header}\n${body}`;
+  }
+  return lines.map((line) => `"${line.replace(/"/g, '""')}"`).join('\n');
+}
 
-      const chunks: Buffer[] = [];
-
-      doc.on('data', (chunk: Buffer) => {
-        chunks.push(chunk);
-      });
-
-      doc.on('end', () => {
-        resolve(Buffer.concat(chunks));
-      });
-
-      doc.on('error', (error: Error) => {
-        reject(error);
-      });
-
-      if (title) {
-        doc.fontSize(20).font('Helvetica-Bold').text(title, { align: 'center' });
-        doc.moveDown(2);
-      }
-
-      if (metadata && Object.keys(metadata).length > 0) {
-        doc.fontSize(10).font('Helvetica').text('---', { align: 'center' });
-        doc.moveDown(0.5);
-        for (const [key, value] of Object.entries(metadata)) {
-          if (value !== undefined && value !== null) {
-            doc.text(`${key}: ${value}`, { align: 'left' });
-          }
-        }
-        doc.text('---', { align: 'center' });
-        doc.moveDown(1);
-      }
-
-      doc.fontSize(12).font('Helvetica').text(text, {
-        align: 'left',
-        lineGap: 5,
-      });
-
-      doc.end();
-    } catch (error) {
-      reject(error);
-    }
-  });
-  */
+export async function formatToPdf(text: string, title?: string): Promise<Buffer> {
+  let markdown = normalizeMarkdownForPdf(text);
+  if (title?.trim() && !/^#\s+/m.test(markdown.slice(0, 200))) {
+    markdown = `# ${title.trim()}\n\n${markdown}`;
+  }
+  return renderMarkdownToPdf(markdown);
 }
 
 /**
@@ -177,6 +131,8 @@ export async function formatDocument(
       return formatToTxt(text, title, metadata);
     case 'json':
       return formatToJson(text, title, metadata);
+    case 'csv':
+      return formatToCsv(text, title);
     case 'pdf':
       return await formatToPdf(text, title, metadata);
     default:
@@ -197,6 +153,8 @@ export function getFileExtension(format: StorageFormat): string {
       return 'txt';
     case 'json':
       return 'json';
+    case 'csv':
+      return 'csv';
     case 'pdf':
       return 'pdf';
     default:
@@ -216,6 +174,8 @@ export function getMimeType(format: StorageFormat): string {
       return 'text/plain';
     case 'json':
       return 'application/json';
+    case 'csv':
+      return 'text/csv';
     case 'pdf':
       return 'application/pdf';
     default:

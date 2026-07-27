@@ -2,16 +2,11 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { VideoEditScript } from './types';
 
 const mockRunTaskV2Single = vi.fn();
-const mockGsap = vi.fn();
 const mockStatic = vi.fn();
 const mockConcat = vi.fn();
 
 vi.mock('../../tasks/task-engine', () => ({
   runTaskV2Single: (...args: unknown[]) => mockRunTaskV2Single(...args),
-}));
-
-vi.mock('./gsap-renderer', () => ({
-  dispatchGsapAnimation: (...args: unknown[]) => mockGsap(...args),
 }));
 
 vi.mock('./static-image-renderer', () => ({
@@ -109,12 +104,6 @@ describe('dispatchVideoEdit', () => {
       renderMode: 'static-image',
       videoUrl: 'https://cdn/static.mp4',
       durationMs: 100,
-    });
-    mockGsap.mockResolvedValue({
-      clipId: 'c-gsap',
-      renderMode: 'gsap-html-animation',
-      videoUrl: 'https://cdn/gsap.mp4',
-      durationMs: 200,
     });
     mockConcat.mockResolvedValue('https://cdn/final.mp4');
   });

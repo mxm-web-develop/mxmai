@@ -1,9 +1,246 @@
 import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { taskManager } from '../task/task-manager';
-import { RepositoryFactory } from '@mxmai/mxmdata';
+import { RepositoryFactory, isUserUploadPublicAccessEnabled, loadStorageConfig, type StorageDomain } from '@mxmai/mxmdata';
+import { canUserAccessTask, canPartnerAccessStorageMetadata } from '../open-api/task-access';
+import { getPartnerContext } from '../open-api/authz';
+import type { StorageObjectRecord } from '@mxmai/mxmdata';
+import { createImagePreviewBuffer, parsePreviewMaxEdge } from '../core/media/image-preview';
+import {
+  streamHttpMediaToResponse,
+  streamStorageObjectToResponse,
+} from '../core/media/http-range-stream';
+
+import {
+  fetchSubtitleJsonFromUrl,
+  loadPersistedSubtitlePayload,
+  persistTtsSubtitleInResult,
+  pickSubtitleFileUrl,
+} from '../task/tts-subtitle-persist';
 
 const router = Router();
+
+function taskAccessOpts(req: Request): { partnerEndUserId?: string } | undefined {
+  const partner = getPartnerContext(req);
+  return partner ? { partnerEndUserId: partner.endUserId } : undefined;
+}
+
+const REMOTE_IMAGE_FETCH_MAX_BYTES = 48 * 1024 * 1024;
+const REMOTE_IMAGE_FETCH_TIMEOUT_MS = 45_000;
+const REMOTE_AUDIO_FETCH_TIMEOUT_MS = 120_000;
+
+function resolveStorageDomainForBucket(bucket: string): StorageDomain {
+  const domains = loadStorageConfig().domains;
+  const order: StorageDomain[] = ['generated', 'user_upload', 'system_static'];
+  for (const domain of order) {
+    if (domains[domain].bucket === bucket) return domain;
+  }
+  return 'generated';
+}
+
+/** ?download=1 → 触发浏览器另存为，避免前端整文件进内存 */
+function wantsAttachmentDownload(req: Request): boolean {
+  const q = req.query.download ?? req.query.attachment;
+  return q === '1' || q === 'true' || q === 'yes';
+}
+
+function buildAttachmentDisposition(filename: string): string {
+  const safe = filename.replace(/[^\w.\u4e00-\u9fff-]+/g, '_');
+  return `attachment; filename="${safe}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}
+
+function attachmentOptsForKey(req: Request, taskId: string, key: string): { contentDisposition?: string } {
+  if (!wantsAttachmentDownload(req)) return {};
+  const base = key.split('/').pop() || `${taskId}.bin`;
+  const filename = base.includes('.') ? base : `${taskId}-${base}`;
+  return { contentDisposition: buildAttachmentDisposition(filename) };
+}
+
+function canUserAccessMediaAssetKey(userId: string, key: string): boolean {
+  return (
+    key.startsWith(`${userId}/upload/`) ||
+    key.startsWith(`upload/${userId}/`) ||
+    key.startsWith(`upload/temp/${userId}/`) ||
+    key.startsWith(`temp/${userId}/`) ||
+    key.startsWith(`knowledge/${userId}/`) ||
+    key.startsWith(`${userId}/audio/`) ||
+    key.startsWith(`${userId}/video-edit/`) ||
+    (key.startsWith('gen/') && key.includes(`/${userId}/`))
+  );
+}
+
+function guessAssetContentType(key: string, metadataType?: string | null): string {
+  if (metadataType) return metadataType.split(';')[0].trim();
+  const lower = key.toLowerCase();
+  if (lower.endsWith('.mp3')) return 'audio/mpeg';
+  if (lower.endsWith('.wav')) return 'audio/wav';
+  if (lower.endsWith('.m4a')) return 'audio/mp4';
+  if (lower.endsWith('.ogg')) return 'audio/ogg';
+  if (lower.endsWith('.flac')) return 'audio/flac';
+  if (lower.endsWith('.aac')) return 'audio/aac';
+  if (lower.endsWith('.mp4') || lower.endsWith('.m4v') || lower.endsWith('.webm')) {
+    return lower.endsWith('.webm') ? 'video/webm' : 'video/mp4';
+  }
+  if (lower.endsWith('.mov')) return 'video/quicktime';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  return 'application/octet-stream';
+}
+
+function pickFirstHttpMediaUrl(task: {
+  result?: { mediaUrls?: unknown; storageInfo?: { urls?: unknown } };
+}): string | null {
+  const storageUrls = task.result?.storageInfo?.urls;
+  if (Array.isArray(storageUrls)) {
+    const u = storageUrls.find((x) => typeof x === 'string' && /^https?:\/\//i.test(x.trim()));
+    if (typeof u === 'string') return u.trim();
+  }
+  const mediaUrls = task.result?.mediaUrls;
+  if (Array.isArray(mediaUrls)) {
+    const u = mediaUrls.find((x) => typeof x === 'string' && /^https?:\/\//i.test(x.trim()));
+    if (typeof u === 'string') return u.trim();
+  }
+  return null;
+}
+
+async function streamHttpAudioToResponse(
+  req: Request,
+  res: Response,
+  url: string,
+  ctx: { taskId: string; reason: string }
+): Promise<void> {
+  await streamHttpMediaToResponse(req, res, url, ctx, {
+    timeoutMs: REMOTE_AUDIO_FETCH_TIMEOUT_MS,
+    defaultContentType: url.includes('.wav')
+      ? 'audio/wav'
+      : url.includes('.flac')
+        ? 'audio/flac'
+        : 'audio/mpeg',
+  });
+}
+
+async function sendUserUploadObjectBytes(
+  res: Response,
+  record: StorageObjectRecord,
+  cacheControl = 'public, max-age=86400'
+): Promise<void> {
+  const storageRepo = RepositoryFactory.createStorageRepository('user_upload');
+  const fileBuffer = await storageRepo.downloadFile(record.bucket, record.object_key);
+  const metadata = await storageRepo.getFileMetadata(record.bucket, record.object_key);
+  const key = record.object_key;
+  const contentType =
+    metadata?.contentType ||
+    record.content_type ||
+    (key.endsWith('.png')
+      ? 'image/png'
+      : key.endsWith('.webp')
+        ? 'image/webp'
+        : key.endsWith('.gif')
+          ? 'image/gif'
+          : 'image/jpeg');
+
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Length', String(fileBuffer.length));
+  res.setHeader('Cache-Control', cacheControl);
+  res.send(fileBuffer);
+}
+
+/**
+ * 前端通过 Gateway 使用 fetch(blob) 拉缩略图时不能 302 到内网 MinIO（HTTPS 页混合内容 / 浏览器不可达）。
+ * 在 mxmcgi 内拉取 http(s) 图片再原样返回。
+ */
+function graphContentTypeFromKey(key: string, metadataType?: string | null): string {
+  if (metadataType) return metadataType;
+  if (key.endsWith('.png')) return 'image/png';
+  if (key.endsWith('.jpg') || key.endsWith('.jpeg')) return 'image/jpeg';
+  if (key.endsWith('.webp')) return 'image/webp';
+  return 'application/octet-stream';
+}
+
+async function sendGraphImageBytes(
+  res: Response,
+  fileBuffer: Buffer,
+  req: Request,
+  keyForType: string,
+  metadataContentType?: string | null
+): Promise<void> {
+  const previewEdge = parsePreviewMaxEdge(req.query.preview ?? req.query.w);
+  if (previewEdge) {
+    try {
+      const { buffer, contentType } = await createImagePreviewBuffer(fileBuffer, previewEdge);
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Length', String(buffer.length));
+      res.setHeader('Cache-Control', 'private, max-age=86400');
+      res.send(buffer);
+      return;
+    } catch (previewError) {
+      console.warn('[Media Route] graph preview resize failed, fallback to original', {
+        previewEdge,
+        error: previewError instanceof Error ? previewError.message : String(previewError),
+      });
+    }
+  }
+
+  const contentType = graphContentTypeFromKey(keyForType, metadataContentType);
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Length', String(fileBuffer.length));
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  res.send(fileBuffer);
+}
+
+async function streamHttpImageToResponse(
+  res: Response,
+  imageUrl: string,
+  logContext: Record<string, unknown>
+): Promise<void> {
+  let u: URL;
+  try {
+    u = new URL(imageUrl);
+  } catch {
+    throw new Error('invalid image URL');
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+    throw new Error('unsupported URL protocol');
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REMOTE_IMAGE_FETCH_TIMEOUT_MS);
+  try {
+    const r = await fetch(imageUrl, { redirect: 'follow', signal: controller.signal });
+    if (!r.ok) {
+      throw new Error(`upstream HTTP ${r.status}`);
+    }
+    const ab = await r.arrayBuffer();
+    if (ab.byteLength > REMOTE_IMAGE_FETCH_MAX_BYTES) {
+      throw new Error('remote image exceeds size limit');
+    }
+    const buf = Buffer.from(ab);
+    const rawCt = r.headers.get('content-type')?.split(';')[0]?.trim();
+    const ct =
+      rawCt && rawCt.startsWith('image/')
+        ? rawCt
+        : /\.png(\?|$)/i.test(imageUrl)
+          ? 'image/png'
+          : /\.webp(\?|$)/i.test(imageUrl)
+            ? 'image/webp'
+            : /\.(jpe?g|jpeg)(\?|$)/i.test(imageUrl)
+              ? 'image/jpeg'
+              : 'application/octet-stream';
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Content-Length', String(buf.length));
+    res.send(buf);
+  } catch (e) {
+    console.error('[Media Route] streamHttpImageToResponse failed', {
+      ...logContext,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * 通过 CGI Task ID 访问图片内容
@@ -37,8 +274,8 @@ router.get('/graph/:taskId', async (req: Request, res: Response) => {
     // 查询任务
     const { task } = await taskManager.getTask(taskId);
 
-    // 权限校验：只能访问自己的任务
-    if (task.metadata?.userId && task.metadata.userId !== userId) {
+    // 权限：任务所有者或 Open API 第三方调用方（metadata.userId 为扣费账户）
+    if (!canUserAccessTask(task, userId, taskAccessOpts(req))) {
       return res.status(403).json({
         success: false,
         error: 'Forbidden: You can only access your own media',
@@ -46,7 +283,54 @@ router.get('/graph/:taskId', async (req: Request, res: Response) => {
     }
 
     const storageInfo = task.result?.storageInfo;
+    const mediaUrls = Array.isArray(task.result?.mediaUrls) ? task.result!.mediaUrls! : [];
+    const albumItems = (() => {
+      const meta = (task.result?.metadata ?? {}) as Record<string, unknown>;
+      const raw = meta.albumResult as { items?: Array<{ imageUrl?: string; status?: string }> } | undefined;
+      return Array.isArray(raw?.items) ? raw!.items! : [];
+    })();
+
+    const parseIndex = (): number => {
+      const raw = req.query.index ?? req.query.i;
+      const n = typeof raw === 'string' ? Number.parseInt(raw, 10) : Array.isArray(raw) ? Number.parseInt(String(raw[0]), 10) : 0;
+      return Number.isFinite(n) && n >= 0 ? n : 0;
+    };
+    const index = parseIndex();
+
+    const pickHttpFallback = (): string | undefined => {
+      const fromStorage =
+        Array.isArray(storageInfo?.urls) && typeof storageInfo!.urls![index] === 'string'
+          ? storageInfo!.urls![index]
+          : undefined;
+      if (fromStorage && /^https?:\/\//.test(fromStorage)) return fromStorage;
+      const fromMedia = typeof mediaUrls[index] === 'string' ? mediaUrls[index] : undefined;
+      if (fromMedia && /^https?:\/\//.test(fromMedia)) return fromMedia;
+      const readyAlbum = albumItems.filter((it) => it?.status === 'ready' || !!it?.imageUrl);
+      const fromAlbum = readyAlbum[index]?.imageUrl;
+      if (typeof fromAlbum === 'string' && /^https?:\/\//.test(fromAlbum)) return fromAlbum;
+      return undefined;
+    };
+
     if (!storageInfo || !storageInfo.bucket || !storageInfo.keys || storageInfo.keys.length === 0) {
+      const fallbackUrlEarly = pickHttpFallback();
+      if (fallbackUrlEarly) {
+        const previewEdge = parsePreviewMaxEdge(req.query.preview ?? req.query.w);
+        if (previewEdge) {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), REMOTE_IMAGE_FETCH_TIMEOUT_MS);
+          try {
+            const r = await fetch(fallbackUrlEarly, { redirect: 'follow', signal: controller.signal });
+            if (!r.ok) throw new Error(`upstream HTTP ${r.status}`);
+            const ab = await r.arrayBuffer();
+            await sendGraphImageBytes(res, Buffer.from(ab), req, fallbackUrlEarly);
+            return;
+          } finally {
+            clearTimeout(timer);
+          }
+        }
+        await streamHttpImageToResponse(res, fallbackUrlEarly, { taskId, reason: 'no_storage_info_http_fallback' });
+        return;
+      }
       return res.status(404).json({
         success: false,
         error: 'No storage info for this task',
@@ -54,28 +338,70 @@ router.get('/graph/:taskId', async (req: Request, res: Response) => {
     }
 
     const bucket = storageInfo.bucket;
-    const key = storageInfo.keys[0];
+    const key =
+      (typeof storageInfo.keys[index] === 'string' && storageInfo.keys[index].trim()
+        ? storageInfo.keys[index]
+        : storageInfo.keys[0]) || '';
+
+    const fallbackUrlEarly = pickHttpFallback();
+    const previewEdge = parsePreviewMaxEdge(req.query.preview ?? req.query.w);
+
+    if (!key || !String(key).trim()) {
+      if (fallbackUrlEarly && /^https?:\/\//.test(fallbackUrlEarly)) {
+        if (previewEdge) {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), REMOTE_IMAGE_FETCH_TIMEOUT_MS);
+          try {
+            const r = await fetch(fallbackUrlEarly, { redirect: 'follow', signal: controller.signal });
+            if (!r.ok) throw new Error(`upstream HTTP ${r.status}`);
+            const ab = await r.arrayBuffer();
+            await sendGraphImageBytes(res, Buffer.from(ab), req, fallbackUrlEarly);
+            return;
+          } finally {
+            clearTimeout(timer);
+          }
+        }
+        await streamHttpImageToResponse(res, fallbackUrlEarly, { taskId, reason: 'empty_storage_key' });
+        return;
+      }
+      return res.status(404).json({
+        success: false,
+        error: 'No storage key for this task',
+      });
+    }
 
     const storageRepo = RepositoryFactory.createStorageRepository();
 
-    // 下载文件内容（Buffer）
-    const fileBuffer = await storageRepo.downloadFile(bucket, key);
-    const metadata = await storageRepo.getFileMetadata(bucket, key);
+    try {
+      // 下载文件内容（Buffer）
+      const fileBuffer = await storageRepo.downloadFile(bucket, key);
+      const metadata = await storageRepo.getFileMetadata(bucket, key);
+      await sendGraphImageBytes(res, fileBuffer, req, key, metadata?.contentType);
+      return;
+    } catch (downloadError: any) {
+      const fallbackUrl = pickHttpFallback();
 
-    const contentType =
-      metadata?.contentType ||
-      (key.endsWith('.png')
-        ? 'image/png'
-        : key.endsWith('.jpg') || key.endsWith('.jpeg')
-        ? 'image/jpeg'
-        : key.endsWith('.webp')
-        ? 'image/webp'
-        : 'application/octet-stream');
+      if (fallbackUrl && /^https?:\/\//.test(fallbackUrl)) {
+        console.warn('[Media Route] graph MinIO download failed, streaming fallback URL', { taskId, bucket, key, fallbackUrl, index });
+        if (previewEdge) {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), REMOTE_IMAGE_FETCH_TIMEOUT_MS);
+          try {
+            const r = await fetch(fallbackUrl, { redirect: 'follow', signal: controller.signal });
+            if (!r.ok) throw new Error(`upstream HTTP ${r.status}`);
+            const ab = await r.arrayBuffer();
+            await sendGraphImageBytes(res, Buffer.from(ab), req, fallbackUrl);
+            return;
+          } finally {
+            clearTimeout(timer);
+          }
+        }
+        await streamHttpImageToResponse(res, fallbackUrl, { taskId, reason: 'minio_download_fallback' });
+        return;
+      }
 
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Length', fileBuffer.length.toString());
-
-    return res.send(fileBuffer);
+      throw downloadError;
+    }
   } catch (error: any) {
     if (error instanceof Error && error.message.includes('not found')) {
       return res.status(404).json({
@@ -110,13 +436,81 @@ router.get('/graph/:taskId', async (req: Request, res: Response) => {
 });
 
 /**
+ * 公网读用户上传参考图（无 JWT），仅当 STORAGE_USER_UPLOAD_ACCESS=public 时启用。
+ * GET /media/public/object/:objectId
+ */
+router.get('/public/object/:objectId', async (req: Request, res: Response) => {
+  try {
+    if (!isUserUploadPublicAccessEnabled()) {
+      return res.status(404).json({ success: false, error: 'Public user upload access is disabled' });
+    }
+
+    const { objectId } = req.params;
+    const repo = RepositoryFactory.createStorageObjectRepository();
+    const record = await repo.findById(objectId);
+    if (!record || record.domain !== 'user_upload') {
+      return res.status(404).json({ success: false, error: 'Not found' });
+    }
+
+    await sendUserUploadObjectBytes(res, record);
+  } catch (error) {
+    console.error('[Media Route] public object download failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
+ * 通过 storage_objects.id 访问用户上传资源
+ * GET /media/object/:objectId
+ */
+router.get('/object/:objectId', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.headers['x-user-id'] as string | undefined) || undefined;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Missing x-user-id header' });
+    }
+
+    const { objectId } = req.params;
+    const repo = RepositoryFactory.createStorageObjectRepository();
+    const record = await repo.findByIdForUser(objectId, userId);
+    if (!record || record.domain !== 'user_upload') {
+      return res.status(404).json({ success: false, error: 'Not found' });
+    }
+    if (!canPartnerAccessStorageMetadata(record.metadata as Record<string, unknown>, getPartnerContext(req))) {
+      return res.status(403).json({ success: false, error: 'Forbidden: partner end user mismatch' });
+    }
+
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    const storageRepo = RepositoryFactory.createStorageRepository('user_upload');
+    const meta = await storageRepo.getFileMetadata(record.bucket, record.object_key).catch(() => null);
+    await streamStorageObjectToResponse(
+      req,
+      res,
+      storageRepo,
+      record.bucket,
+      record.object_key,
+      meta?.contentType ?? record.content_type ?? undefined
+    );
+  } catch (error) {
+    console.error('[Media Route] object download failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
  * 通过 bucket + key 访问用户上传的资源
  * 用于 uploadAssets 上传的文件，路径格式：userId/upload/graph/xxx.jpg
  *
  * 路径示例：
  *   GET /media/asset?bucket=user-media&key=userId/upload/graph/xxx.jpg
  *
- * 权限：key 必须是以 {userId}/upload/ 开头，且 x-user-id 与 userId 一致
+ * 权限：key 须属于当前用户（含 user_upload 与 generated 口播 `{userId}/audio/...`）
  */
 router.get('/asset', async (req: Request, res: Response) => {
   try {
@@ -138,35 +532,21 @@ router.get('/asset', async (req: Request, res: Response) => {
       });
     }
 
-    // 权限校验：key 必须属于当前用户
-    if (!key.startsWith(`${userId}/upload/`)) {
+    if (!canUserAccessMediaAssetKey(userId, key)) {
       return res.status(403).json({
         success: false,
         error: 'Forbidden: You can only access your own uploads',
       });
     }
 
-    const storageRepo = RepositoryFactory.createStorageRepository();
+    const domain = resolveStorageDomainForBucket(bucket);
+    const storageRepo = RepositoryFactory.createStorageRepository(domain);
 
-    const fileBuffer = await storageRepo.downloadFile(bucket, key);
-    const metadata = await storageRepo.getFileMetadata(bucket, key);
+    const meta = await storageRepo.getFileMetadata(bucket, key);
+    const contentType = guessAssetContentType(key, meta?.contentType);
 
-    const contentType =
-      metadata?.contentType ||
-      (key.endsWith('.png')
-        ? 'image/png'
-        : key.endsWith('.jpg') || key.endsWith('.jpeg')
-        ? 'image/jpeg'
-        : key.endsWith('.webp')
-        ? 'image/webp'
-        : key.endsWith('.gif')
-        ? 'image/gif'
-        : 'application/octet-stream');
-
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Length', fileBuffer.length.toString());
-
-    return res.send(fileBuffer);
+    await streamStorageObjectToResponse(req, res, storageRepo, bucket, key, contentType);
+    return;
   } catch (error: any) {
     if (error instanceof Error && error.message.includes('not found')) {
       return res.status(404).json({
@@ -227,11 +607,9 @@ router.get('/video/:taskId', async (req: Request, res: Response) => {
       });
     }
 
-    // 查询任务
     const { task } = await taskManager.getTask(taskId);
 
-    // 权限校验：只能访问自己的任务
-    if (task.metadata?.userId && task.metadata.userId !== userId) {
+    if (!canUserAccessTask(task, userId, taskAccessOpts(req))) {
       return res.status(403).json({
         success: false,
         error: 'Forbidden: You can only access your own media',
@@ -239,7 +617,19 @@ router.get('/video/:taskId', async (req: Request, res: Response) => {
     }
 
     const storageInfo = task.result?.storageInfo;
+    const remoteFallback = pickFirstHttpMediaUrl(task);
+
     if (!storageInfo || !storageInfo.bucket || !storageInfo.keys || storageInfo.keys.length === 0) {
+      if (remoteFallback) {
+        if (wantsAttachmentDownload(req)) {
+          res.setHeader('Content-Disposition', buildAttachmentDisposition(`${taskId}.mp4`));
+        }
+        await streamHttpMediaToResponse(req, res, remoteFallback, {
+          taskId,
+          reason: 'no_storage_info',
+        });
+        return;
+      }
       return res.status(404).json({
         success: false,
         error: 'No storage info for this task',
@@ -248,29 +638,42 @@ router.get('/video/:taskId', async (req: Request, res: Response) => {
 
     const bucket = storageInfo.bucket;
     const key = storageInfo.keys[0];
-
     const storageRepo = RepositoryFactory.createStorageRepository();
 
-    // 下载文件内容（Buffer）
-    const fileBuffer = await storageRepo.downloadFile(bucket, key);
-    const metadata = await storageRepo.getFileMetadata(bucket, key);
-
-    const contentType =
-      metadata?.contentType ||
-      (key.endsWith('.mp4')
-        ? 'video/mp4'
-        : key.endsWith('.webm')
-        ? 'video/webm'
-        : key.endsWith('.mov')
-        ? 'video/quicktime'
-        : key.endsWith('.avi')
-        ? 'video/x-msvideo'
-        : 'application/octet-stream');
-
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Length', fileBuffer.length.toString());
-
-    return res.send(fileBuffer);
+    try {
+      const meta = await storageRepo.getFileMetadata(bucket, key);
+      await streamStorageObjectToResponse(
+        req,
+        res,
+        storageRepo,
+        bucket,
+        key,
+        meta?.contentType,
+        attachmentOptsForKey(req, taskId, key)
+      );
+      return;
+    } catch (downloadError: unknown) {
+      if (remoteFallback) {
+        console.warn('[Media Route] video MinIO stream failed, fallback URL', {
+          taskId,
+          bucket,
+          key,
+          fallback: remoteFallback.slice(0, 120),
+        });
+        if (wantsAttachmentDownload(req)) {
+          res.setHeader(
+            'Content-Disposition',
+            buildAttachmentDisposition(`${taskId}.mp4`)
+          );
+        }
+        await streamHttpMediaToResponse(req, res, remoteFallback, {
+          taskId,
+          reason: 'minio_download_fallback',
+        });
+        return;
+      }
+      throw downloadError;
+    }
   } catch (error: any) {
     if (error instanceof Error && error.message.includes('not found')) {
       return res.status(404).json({
@@ -297,6 +700,91 @@ router.get('/video/:taskId', async (req: Request, res: Response) => {
     }
 
     console.error('[Media Route] 获取视频失败:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
+ * 写作内容导出（按需转换，不改变存储）
+ *
+ *   GET /media/writing/:taskId/export?format=pdf|markdown|md|txt
+ */
+router.get('/writing/:taskId/export', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.headers['x-user-id'] as string | undefined) || undefined;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Missing x-user-id header' });
+    }
+
+    const { taskId } = req.params;
+    if (!taskId) {
+      return res.status(400).json({ success: false, error: 'Missing taskId' });
+    }
+
+    const rawFormat = String(req.query.format || 'markdown').toLowerCase();
+    const exportFormat =
+      rawFormat === 'pdf'
+        ? 'pdf'
+        : rawFormat === 'txt'
+          ? 'txt'
+          : rawFormat === 'md' || rawFormat === 'markdown'
+            ? 'markdown'
+            : null;
+
+    if (!exportFormat) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid format. Use pdf, markdown, md, or txt',
+      });
+    }
+
+    const { resolveWritingTaskContent } = await import('../core/writing/writing-content-resolver');
+    const { buildWritingExport } = await import('../core/writing/writing-export');
+
+    const resolved = await resolveWritingTaskContent(taskId, userId);
+    const { task } = await taskManager.getTask(taskId);
+    const resultMeta = (task.result?.metadata ?? {}) as Record<string, unknown>;
+    const taskMeta = (task.metadata ?? {}) as Record<string, unknown>;
+    const title =
+      (task.metadata?.requestLabel as string | undefined) ||
+      (task.metadata?.title as string | undefined) ||
+      undefined;
+
+    const { buffer, contentType, filename } = await buildWritingExport(resolved, exportFormat, {
+      title,
+      taskId,
+      documentRenderSpec: (resultMeta.documentRenderSpec ??
+        taskMeta.documentRenderSpec) as import('../core/document-render/types').DocumentRenderSpecV1 | undefined,
+      pdfRenderer: (resultMeta.pdf_renderer ?? taskMeta.pdf_renderer) as
+        | 'markdown'
+        | 'styled'
+        | 'html'
+        | undefined,
+      designStyle: String(resultMeta.designStyle ?? taskMeta.designStyle ?? ''),
+    });
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', buffer.length.toString());
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    return res.send(buffer);
+  } catch (error: unknown) {
+    const statusCode = (error as { statusCode?: number }).statusCode;
+    if (statusCode === 403) {
+      return res.status(403).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Forbidden',
+      });
+    }
+    if (statusCode === 404 || (error instanceof Error && error.message.includes('not found'))) {
+      return res.status(404).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Not found',
+      });
+    }
+    console.error('[Media Route] 写作导出失败:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -333,169 +821,42 @@ router.get('/writing/:taskId', async (req: Request, res: Response) => {
       });
     }
 
-    // 查询任务
-    const { task } = await taskManager.getTask(taskId);
+    const { resolveWritingTaskContent } = await import('../core/writing/writing-content-resolver');
+    const resolved = await resolveWritingTaskContent(taskId, userId);
 
-    // 权限校验：只能访问自己的任务
-    if (task.metadata?.userId && task.metadata.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Forbidden: You can only access your own media',
-      });
+    if (resolved.rawPdfBuffer) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', resolved.rawPdfBuffer.length.toString());
+      res.setHeader('Content-Disposition', `inline; filename="${resolved.suggestedFilename}"`);
+      return res.send(resolved.rawPdfBuffer);
     }
 
-    const storageInfo = task.result?.storageInfo as any; // 使用 any 以支持不同的 storageInfo 格式
-    const taskMetadata = task.result?.metadata || task.metadata || {};
-    
-    let content: string | Buffer | undefined;
-    let contentType: string | undefined;
-    let filename: string | undefined;
-
-    // 优先从 MinIO 获取内容
-    // 支持两种格式：{ key, bucket, url } 或 { keys: [], bucket, urls: [] }
-    if (storageInfo && storageInfo.bucket) {
-      let key: string | undefined;
-      
-      // 检查是否有 keys 数组（新格式）
-      if (storageInfo.keys && Array.isArray(storageInfo.keys) && storageInfo.keys.length > 0) {
-        key = storageInfo.keys[0];
-      }
-      // 检查是否有 key 字符串（旧格式）
-      else if (storageInfo.key && typeof storageInfo.key === 'string') {
-        key = storageInfo.key;
-      }
-      
-      if (key) {
-        const bucket = storageInfo.bucket;
-        filename = key.split('/').pop() || 'content';
-
-        const storageRepo = RepositoryFactory.createStorageRepository();
-
-        try {
-          // 下载文件内容（Buffer）
-          const fileBuffer = await storageRepo.downloadFile(bucket, key);
-          const fileMetadata = await storageRepo.getFileMetadata(bucket, key);
-
-          contentType =
-            fileMetadata?.contentType ||
-            (key.endsWith('.md')
-              ? 'text/markdown; charset=utf-8'
-              : key.endsWith('.txt')
-              ? 'text/plain; charset=utf-8'
-              : key.endsWith('.pdf')
-              ? 'application/pdf'
-              : 'text/plain; charset=utf-8');
-
-          content = fileBuffer;
-        } catch (error: any) {
-          // 如果是连接错误，记录日志但继续尝试从 metadata 获取内容
-          if (error?.code === 'CONNECTION_ERROR' || 
-              error?.originalError?.code === 'ECONNREFUSED' ||
-              error?.message?.includes('connection') ||
-              error?.message?.includes('ECONNREFUSED')) {
-            console.warn(`[Media Route] MinIO 连接失败，尝试从 metadata 获取内容: ${error.message}`);
-            // 不抛出错误，继续执行后续逻辑从 metadata 获取内容
-          } else {
-            // 其他错误（如文件不存在）也记录日志，继续尝试从 metadata 获取
-            console.warn(`[Media Route] 从 MinIO 获取文件失败，尝试从 metadata 获取内容: ${error.message}`);
-          }
-        }
-      }
-    } 
-    // 如果没有 storageInfo，从 metadata 中获取文本内容
-    // 优先级：formattedContent > text
-    if (!content && taskMetadata.formattedContent) {
-      const formattedContent = taskMetadata.formattedContent;
-      
-      // 判断是否是 base64 编码
-      // base64 字符串特征：
-      // 1. 只包含 A-Z, a-z, 0-9, +, /, = 字符（去除空白字符后）
-      // 2. 长度是 4 的倍数（去除空白字符后）
-      // 3. 不包含 markdown 格式字符（如 #, *, -, ` 等）
-      const cleanedContent = typeof formattedContent === 'string' 
-        ? formattedContent.replace(/\s/g, '') 
-        : '';
-      
-      const isBase64 = typeof formattedContent === 'string' && 
-        formattedContent.length > 100 &&
-        cleanedContent.length > 0 &&
-        /^[A-Za-z0-9+/=]+$/.test(cleanedContent) &&
-        cleanedContent.length % 4 === 0 &&
-        !formattedContent.includes('#') && // markdown 标题
-        !formattedContent.includes('*') && // markdown 强调
-        !formattedContent.includes('`') && // markdown 代码
-        !formattedContent.includes('[') && // markdown 链接
-        !formattedContent.includes('---'); // markdown 分隔符
-      
-      if (isBase64) {
-        try {
-          // 尝试 base64 解码
-          const decoded = Buffer.from(formattedContent, 'base64');
-          const decodedStr = decoded.toString('utf-8');
-          // 验证解码后的内容是否是有效的文本（包含可打印字符）
-          if (decodedStr && decodedStr.length > 0 && /[\x20-\x7E\u4e00-\u9fa5]/.test(decodedStr)) {
-            content = decodedStr;
-            console.log('[Media] 从 base64 解码 formattedContent 成功，长度:', decodedStr.length);
-          } else {
-            // 解码后不是有效文本，使用原字符串
-            content = formattedContent;
-            console.log('[Media] base64 解码后不是有效文本，使用原字符串');
-          }
-        } catch (error) {
-          // base64 解码失败，直接使用原字符串
-          console.warn('[Media] base64 解码失败，使用原字符串:', error);
-          content = formattedContent;
-        }
-      } else {
-        // 不是 base64，直接使用字符串
-        content = formattedContent;
-        console.log('[Media] formattedContent 不是 base64，直接使用，长度:', content.length);
-      }
-      
-      const format = taskMetadata.format || 'markdown';
-      contentType =
-        format === 'markdown'
-          ? 'text/markdown; charset=utf-8'
-          : format === 'txt'
+    const format = resolved.sourceFormat || 'markdown';
+    const contentType =
+      format === 'markdown' || format === 'md'
+        ? 'text/markdown; charset=utf-8'
+        : format === 'txt'
           ? 'text/plain; charset=utf-8'
-          : format === 'pdf'
-          ? 'application/pdf'
           : 'text/plain; charset=utf-8';
-      
-      filename = `content.${format === 'markdown' ? 'md' : format === 'txt' ? 'txt' : format === 'pdf' ? 'pdf' : 'txt'}`;
-    } 
-    // 最后尝试从 metadata.text 获取（如果 formattedContent 不存在或为空）
-    if (!content && taskMetadata.text) {
-      content = taskMetadata.text;
-      const format = taskMetadata.format || 'markdown';
-      contentType =
-        format === 'markdown'
-          ? 'text/markdown; charset=utf-8'
-          : 'text/plain; charset=utf-8';
-      filename = `content.${format === 'markdown' ? 'md' : 'txt'}`;
-      console.log('[Media] 从 metadata.text 获取内容，长度:', content.length);
-    } 
-    // 如果都没有，返回 404
-    if (!content || !contentType || !filename) {
-      return res.status(404).json({
-        success: false,
-        error: 'No content found for this task',
-      });
-    }
-
-    // 确保 content 是 Buffer
-    const contentBuffer = Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf-8');
+    const contentBuffer = Buffer.from(resolved.text, 'utf-8');
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', contentBuffer.length.toString());
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${resolved.suggestedFilename}"`);
 
     return res.send(contentBuffer);
-  } catch (error: any) {
-    if (error instanceof Error && error.message.includes('not found')) {
+  } catch (error: unknown) {
+    const statusCode = (error as { statusCode?: number }).statusCode;
+    if (statusCode === 403) {
+      return res.status(403).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Forbidden',
+      });
+    }
+    if (statusCode === 404 || (error instanceof Error && error.message.includes('not found'))) {
       return res.status(404).json({
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Not found',
       });
     }
 
@@ -560,8 +921,8 @@ router.put('/writing/:taskId', async (req: Request, res: Response) => {
     // 查询任务
     const { task } = await taskManager.getTask(taskId);
 
-    // 权限校验：只能访问自己的任务
-    if (task.metadata?.userId && task.metadata.userId !== userId) {
+    // 权限：任务所有者或 Open API 第三方调用方
+    if (!canUserAccessTask(task, userId, taskAccessOpts(req))) {
       return res.status(403).json({
         success: false,
         error: 'Forbidden: You can only update your own media',
@@ -657,7 +1018,13 @@ router.put('/writing/:taskId', async (req: Request, res: Response) => {
           ? 'text/plain; charset=utf-8'
           : 'application/pdf';
 
-      const buffer = Buffer.from(content, 'utf-8');
+      const buffer =
+        normalizedFormat === 'pdf'
+          ? await (async () => {
+              const { formatToPdf } = await import('../core/writing/document-formatter');
+              return formatToPdf(content, undefined);
+            })()
+          : Buffer.from(content, 'utf-8');
 
       await storageRepo.uploadFile(bucket, key, buffer, {
         contentType,
@@ -745,11 +1112,11 @@ async function serveAudioLike(req: Request, res: Response) {
       });
     }
 
-    // 查询任务
-    const { task } = await taskManager.getTask(taskId);
+    // 含 lazy 转存：历史任务内联 base64 首次播放时写入 MinIO
+    const { task } = await taskManager.getTaskForApi(taskId);
 
-    // 权限校验：只能访问自己的任务
-    if (task.metadata?.userId && task.metadata.userId !== userId) {
+    // 权限：任务所有者或 Open API 第三方调用方（metadata.userId 为扣费账户）
+    if (!canUserAccessTask(task, userId, taskAccessOpts(req))) {
       return res.status(403).json({
         success: false,
         error: 'Forbidden: You can only access your own media',
@@ -757,7 +1124,16 @@ async function serveAudioLike(req: Request, res: Response) {
     }
 
     const storageInfo = task.result?.storageInfo;
+    const remoteFallback = pickFirstHttpMediaUrl(task);
+
     if (!storageInfo || !storageInfo.bucket || !storageInfo.keys || storageInfo.keys.length === 0) {
+      if (remoteFallback) {
+        await streamHttpAudioToResponse(req, res, remoteFallback, {
+          taskId,
+          reason: 'no_storage_info',
+        });
+        return;
+      }
       return res.status(404).json({
         success: false,
         error: 'No storage info for this task',
@@ -769,26 +1145,40 @@ async function serveAudioLike(req: Request, res: Response) {
 
     const storageRepo = RepositoryFactory.createStorageRepository();
 
-    // 下载文件内容（Buffer）
-    const fileBuffer = await storageRepo.downloadFile(bucket, key);
-    const metadata = await storageRepo.getFileMetadata(bucket, key);
-
-    const contentType =
-      metadata?.contentType ||
-      (key.endsWith('.mp3')
-        ? 'audio/mpeg'
-        : key.endsWith('.wav')
-          ? 'audio/wav'
-          : key.endsWith('.flac')
-            ? 'audio/flac'
-            : key.endsWith('.pcm')
-              ? 'audio/pcm'
-              : 'application/octet-stream');
-
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Length', fileBuffer.length.toString());
-
-    return res.send(fileBuffer);
+    try {
+      const meta = await storageRepo.getFileMetadata(bucket, key);
+      await streamStorageObjectToResponse(
+        req,
+        res,
+        storageRepo,
+        bucket,
+        key,
+        meta?.contentType,
+        attachmentOptsForKey(req, taskId, key)
+      );
+      return;
+    } catch (downloadError: unknown) {
+      if (remoteFallback) {
+        console.warn('[Media Route] audio MinIO stream failed, streaming fallback URL', {
+          taskId,
+          bucket,
+          key,
+          fallback: remoteFallback.slice(0, 120),
+        });
+        if (wantsAttachmentDownload(req)) {
+          res.setHeader(
+            'Content-Disposition',
+            buildAttachmentDisposition(`${taskId}.mp3`)
+          );
+        }
+        await streamHttpAudioToResponse(req, res, remoteFallback, {
+          taskId,
+          reason: 'minio_download_fallback',
+        });
+        return;
+      }
+      throw downloadError;
+    }
   } catch (error: any) {
     if (error instanceof Error && error.message.includes('not found')) {
       return res.status(404).json({
@@ -822,12 +1212,74 @@ async function serveAudioLike(req: Request, res: Response) {
   }
 }
 
+async function serveAudioSubtitles(req: Request, res: Response) {
+  try {
+    const userId = (req.headers['x-user-id'] as string | undefined) || undefined;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Missing x-user-id header' });
+    }
+
+    const { taskId } = req.params;
+    if (!taskId) {
+      return res.status(400).json({ success: false, error: 'Missing taskId' });
+    }
+
+    const { task } = await taskManager.getTask(taskId);
+    if (!canUserAccessTask(task, userId, taskAccessOpts(req))) {
+      return res.status(403).json({ success: false, error: 'Forbidden: You can only access your own media' });
+    }
+
+    const meta = (task.result?.metadata ?? {}) as Record<string, unknown>;
+    let payload = await loadPersistedSubtitlePayload(meta);
+
+    if (payload == null) {
+      const subtitleUrl = pickSubtitleFileUrl(meta);
+      if (!subtitleUrl) {
+        return res.status(404).json({ success: false, error: 'No subtitles for this task' });
+      }
+
+      try {
+        payload = await fetchSubtitleJsonFromUrl(subtitleUrl);
+      } catch (error) {
+        return res.status(502).json({
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      if (task.result && (task.type === 'audio' || task.type === 'music')) {
+        void persistTtsSubtitleInResult(task, task.result)
+          .then(async (nextResult) => {
+            if (nextResult.metadata === task.result?.metadata) return;
+            await taskManager.update(taskId, { result: nextResult });
+          })
+          .catch((err) => {
+            console.warn('[Media Route] lazy subtitle persist failed', {
+              taskId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
+      }
+    }
+
+    return res.json({ success: true, data: payload });
+  } catch (error) {
+    console.error('[Media Route] 获取字幕失败:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 /**
  * 通过 CGI Task ID 访问音频内容
  *
  * 路径示例：
  *   GET /media/audio/:taskId
  */
+router.get('/audio/:taskId/subtitles', serveAudioSubtitles);
+
 router.get('/audio/:taskId', serveAudioLike);
 
 /**
@@ -836,6 +1288,8 @@ router.get('/audio/:taskId', serveAudioLike);
  * 路径示例：
  *   GET /media/music/:taskId
  */
+router.get('/music/:taskId/subtitles', serveAudioSubtitles);
+
 router.get('/music/:taskId', serveAudioLike);
 
 export default router;

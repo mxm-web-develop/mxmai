@@ -1,6 +1,6 @@
 /**
- * 预定义业务示例流程
- * 每个业务线至少一条完整流程
+ * 历史示例流程定义（仅作参考 / 单测引用，**不会**自动写入 DB）。
+ * 运行时在 DB 维护；请用 mxm-smartflow-bundle JSON + apply:smartflow-bundle 或 Admin 设计器。
  */
 
 import { Smartflow } from './models/types';
@@ -741,16 +741,138 @@ export const codeAssistantFlow: Smartflow = {
   },
 };
 
-/**
- * 导出所有预定义流程
- */
-export const PREDEFINED_EXAMPLE_FLOWS: Smartflow[] = [
-  writingArticleFlow,
-  writingScriptFlow,
-  designPosterFlow,
-  videoGenerateFlow,
-  audioTTSFlow,
-  audioMusicFlow,
-  smartSearchFlow,
-  codeAssistantFlow,
-];
+/** 反思环示例：对草稿多轮 critique + revise */
+export const reflectionDraftFlow: Smartflow = {
+  id: 'composite-reflection-draft',
+  name: '反思环 · 文案打磨',
+  description: 'Generate → Critique → Revise，输出 meta.passed 与终稿',
+  category: 'agent',
+  tags: ['reflection', 'composite', 'text'],
+  status: 'active',
+  version: '1.0.0',
+  is_public: true,
+  schema: {
+    version: '2.0.0',
+    nodes: [
+      {
+        id: 'start',
+        type: 'start',
+        name: '开始',
+        input: [
+          { name: 'task', type: 'text', content: 'Write a short product tagline.' },
+          { name: 'artifact', type: 'text', content: '' },
+        ],
+        expected_outputs: [{ type: 'text', name: 'result', required: true }],
+      },
+      {
+        id: 'reflect',
+        type: 'reflection',
+        name: '反思环',
+        task: '{{input.task}}',
+        artifact: '{{input.artifact}}',
+        max_rounds: 3,
+        pass_pattern: 'PASS',
+        critic: { kind: 'text', taskKey: 'think', subtype: 'critique' },
+        reviser: { kind: 'model', model: 'gpt-4o-mini' },
+      },
+      {
+        id: 'end',
+        type: 'end',
+        name: '结束',
+        output_mapping: { result: '{{reflect.output.result}}', passed: '{{reflect.output.meta.passed}}' },
+      },
+    ],
+    edges: [
+      { from: 'start', to: 'reflect' },
+      { from: 'reflect', to: 'end' },
+    ],
+  },
+};
+
+/** Plan-and-Execute 示例 */
+export const planExecuteFlow: Smartflow = {
+  id: 'composite-plan-execute',
+  name: '计划执行 · 多步摘要',
+  description: 'Planner 拆解步骤并逐步执行，输出 summary',
+  category: 'agent',
+  tags: ['plan', 'composite'],
+  status: 'active',
+  version: '1.0.0',
+  is_public: true,
+  schema: {
+    version: '2.0.0',
+    nodes: [
+      {
+        id: 'start',
+        type: 'start',
+        name: '开始',
+        input: [{ name: 'goal', type: 'text', content: 'Summarize benefits of solar energy for homeowners.' }],
+      },
+      {
+        id: 'plan_exec',
+        type: 'plan_execute',
+        name: '计划执行',
+        goal: '{{input.goal}}',
+        max_steps: 4,
+        planner: { kind: 'text', taskKey: 'plan', subtype: 'task-breakdown' },
+        executor: { kind: 'model', model: 'gpt-4o-mini' },
+        replan_on_failure: true,
+      },
+      {
+        id: 'end',
+        type: 'end',
+        name: '结束',
+        output_mapping: { summary: '{{plan_exec.output.result}}' },
+      },
+    ],
+    edges: [
+      { from: 'start', to: 'plan_exec' },
+      { from: 'plan_exec', to: 'end' },
+    ],
+  },
+};
+
+/** 调研摘要示例 */
+export const researchSummaryFlow: Smartflow = {
+  id: 'composite-research-summary',
+  name: '调研摘要',
+  description: '生成搜索词 → deep_search → Markdown 摘要',
+  category: 'agent',
+  tags: ['research', 'composite'],
+  status: 'active',
+  version: '1.0.0',
+  is_public: true,
+  schema: {
+    version: '2.0.0',
+    nodes: [
+      {
+        id: 'start',
+        type: 'start',
+        name: '开始',
+        input: [{ name: 'topic', type: 'text', content: 'AI image generation for e-commerce' }],
+      },
+      {
+        id: 'research',
+        type: 'research',
+        name: '调研',
+        topic: '{{input.topic}}',
+        search_depth: 'standard',
+        summarizer_model: 'gpt-4o-mini',
+        query_generator: { kind: 'model', model: 'gpt-4o-mini' },
+      },
+      {
+        id: 'end',
+        type: 'end',
+        name: '结束',
+        output_mapping: { report: '{{research.output.result}}' },
+      },
+    ],
+    edges: [
+      { from: 'start', to: 'research' },
+      { from: 'research', to: 'end' },
+    ],
+  },
+};
+
+/** @deprecated 已停用自动 seed，保留空数组避免旧 import 报错 */
+export const PREDEFINED_EXAMPLE_FLOWS: Smartflow[] = [];

@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-05-25T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "video",
+      "type": "generator",
+      "subtype": "default",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "生成",
+          "subtypeLabel": "通用短视频",
+          "taskLabelI18n": {
+            "zh": "生成",
+            "zh-TW": "產生"
+          },
+          "subtypeLabelI18n": {
+            "zh": "通用短视频",
+            "zh-TW": "通第三方應用短影圖片"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "prompt",
+              "uid"
+            ],
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "title": "视频创意 / 分镜描述",
+                "minLength": 1,
+                "x-user-visible": true
+              },
+              "duration": {
+                "type": "integer",
+                "title": "时长（秒）",
+                "minimum": 4,
+                "maximum": 60,
+                "default": 8,
+                "x-user-visible": true
+              },
+              "ratio": {
+                "type": "string",
+                "title": "画幅比例",
+                "enum": [
+                  "9:16",
+                  "16:9",
+                  "1:1",
+                  "adaptive"
+                ],
+                "default": "9:16",
+                "x-user-visible": true
+              },
+              "resolution": {
+                "type": "string",
+                "title": "分辨率",
+                "enum": [
+                  "480p",
+                  "720p",
+                  "1080p"
+                ],
+                "default": "720p",
+                "x-user-visible": true
+              },
+              "reference_images": {
+                "type": "array",
+                "title": "参考图（可选）",
+                "items": {
+                  "type": "string"
+                },
+                "x-user-visible": true
+              },
+              "generate_audio": {
+                "type": "boolean",
+                "title": "生成原生音轨",
+                "default": false,
+                "x-user-visible": true
+              },
+              "total_duration_seconds": {
+                "type": "integer",
+                "title": "计费时长（秒）",
+                "minimum": 1,
+                "default": 8,
+                "x-user-visible": false
+              },
+              "parallel_count": {
+                "type": "integer",
+                "title": "生成份数",
+                "minimum": 1,
+                "maximum": 99,
+                "default": 1,
+                "x-user-visible": true
+              },
+              "label": {
+                "type": "string",
+                "title": "任务名称",
+                "x-user-visible": true
+              },
+              "uid": {
+                "type": "string",
+                "title": "任务 UID",
+                "x-user-visible": false
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "视频生成需求：\n${prompt}\n\n目标时长约 ${duration} 秒；画幅 ${ratio}；分辨率 ${resolution}。",
+            "unifiedTemplateMarkup": "视频生成需求：\n${prompt}\n\n目标时长约 ${duration} 秒；画幅 ${ratio}；分辨率 ${resolution}。"
+          },
+          "storage": {
+            "scope": "video",
+            "extension": "mp4",
+            "mime": "video/mp4",
+            "bucket": "user-media",
+            "pathTemplate": "{userId}/video/{timestamp}-{randomId}/",
+            "filenameTemplate": "video_{taskId}_{randomId}.mp4"
+          }
+        }
+      },
+      "linkedTextFormat": null
+    }
+  ]
+}

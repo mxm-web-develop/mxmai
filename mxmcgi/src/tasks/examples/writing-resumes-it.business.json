@@ -1,0 +1,1217 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-03T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "structure",
+      "subtype": "resume-it-profile",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "internal": true,
+        "display": {
+          "taskLabel": "内部 · 结构化",
+          "subtypeLabel": "IT简历画像",
+          "userFacing": false,
+          "taskLabelI18n": {
+            "zh": "内部 · 结构化",
+            "zh-TW": "內部 · 結構化"
+          },
+          "subtypeLabelI18n": {
+            "zh": "IT简历画像",
+            "zh-TW": "IT简历畫圖像"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "target_roles",
+              "seniority",
+              "experience_raw"
+            ],
+            "properties": {
+              "target_roles": {
+                "type": "array",
+                "title": "意向岗位",
+                "minItems": 1,
+                "uniqueItems": true,
+                "x-ui-type": "multiSelection",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "backend",
+                    "frontend",
+                    "fullstack",
+                    "devops",
+                    "sre",
+                    "ml",
+                    "qa",
+                    "security",
+                    "architect",
+                    "data",
+                    "mobile",
+                    "product",
+                    "pm"
+                  ]
+                },
+                "x-enum-labels": [
+                  "后端开发 Backend",
+                  "前端开发 Frontend",
+                  "全栈 Full-stack",
+                  "DevOps 运维",
+                  "SRE 站点可靠性",
+                  "机器学习 ML",
+                  "测试 QA",
+                  "安全 Security",
+                  "架构师 Architect",
+                  "数据工程 Data",
+                  "移动开发 Mobile",
+                  "产品经理 Product",
+                  "项目经理 PM"
+                ]
+              },
+              "seniority": {
+                "type": "string",
+                "title": "职级",
+                "enum": [
+                  "junior",
+                  "mid",
+                  "senior",
+                  "lead",
+                  "principal"
+                ],
+                "x-enum-labels": [
+                  "初级 Junior",
+                  "中级 Mid",
+                  "高级 Senior",
+                  "负责人 Lead",
+                  "专家 Principal"
+                ],
+                "default": "mid",
+                "x-ui-type": "selection"
+              },
+              "education": {
+                "type": "string",
+                "title": "教育背景",
+                "x-ui-type": "textarea",
+                "x-min-rows": 6,
+                "x-max-rows": 20
+              },
+              "tech_stack": {
+                "type": "array",
+                "title": "技术栈",
+                "uniqueItems": true,
+                "x-ui-type": "checkboxGroup",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "react",
+                    "vue",
+                    "angular",
+                    "typescript",
+                    "javascript",
+                    "nextjs",
+                    "nuxt",
+                    "webpack",
+                    "vite",
+                    "tailwind",
+                    "html_css",
+                    "java",
+                    "spring_boot",
+                    "go",
+                    "python",
+                    "django",
+                    "fastapi",
+                    "nodejs",
+                    "express",
+                    "csharp",
+                    "dotnet",
+                    "rust",
+                    "php",
+                    "ruby",
+                    "kotlin",
+                    "mysql",
+                    "postgresql",
+                    "mongodb",
+                    "redis",
+                    "elasticsearch",
+                    "sqlite",
+                    "docker",
+                    "kubernetes",
+                    "aws",
+                    "azure",
+                    "gcp",
+                    "linux",
+                    "nginx",
+                    "cicd",
+                    "terraform",
+                    "jenkins",
+                    "ios",
+                    "android",
+                    "flutter",
+                    "react_native",
+                    "swift",
+                    "kafka",
+                    "rabbitmq",
+                    "graphql",
+                    "grpc",
+                    "microservices",
+                    "spark",
+                    "flink",
+                    "git",
+                    "agile",
+                    "scrum",
+                    "rest_api",
+                    "langchain",
+                    "langgraph",
+                    "llamaindex",
+                    "ragflow",
+                    "dify",
+                    "coze",
+                    "haystack",
+                    "autogen",
+                    "crewai",
+                    "semantic_kernel",
+                    "flowise",
+                    "maxkb",
+                    "anythingllm",
+                    "openai",
+                    "anthropic",
+                    "huggingface",
+                    "transformers",
+                    "pytorch",
+                    "tensorflow",
+                    "vllm",
+                    "ollama",
+                    "triton",
+                    "milvus",
+                    "pinecone",
+                    "qdrant",
+                    "chromadb",
+                    "weaviate",
+                    "pgvector",
+                    "rag",
+                    "embedding",
+                    "llmops",
+                    "model_finetune"
+                  ]
+                },
+                "x-enum-labels": [
+                  "React",
+                  "Vue",
+                  "Angular",
+                  "TypeScript",
+                  "JavaScript",
+                  "Next.js",
+                  "Nuxt",
+                  "Webpack",
+                  "Vite",
+                  "Tailwind CSS",
+                  "HTML / CSS",
+                  "Java",
+                  "Spring Boot",
+                  "Go",
+                  "Python",
+                  "Django",
+                  "FastAPI",
+                  "Node.js",
+                  "Express",
+                  "C#",
+                  ".NET",
+                  "Rust",
+                  "PHP",
+                  "Ruby",
+                  "Kotlin",
+                  "MySQL",
+                  "PostgreSQL",
+                  "MongoDB",
+                  "Redis",
+                  "Elasticsearch",
+                  "SQLite",
+                  "Docker",
+                  "Kubernetes",
+                  "AWS",
+                  "Azure",
+                  "GCP",
+                  "Linux",
+                  "Nginx",
+                  "CI/CD",
+                  "Terraform",
+                  "Jenkins",
+                  "iOS",
+                  "Android",
+                  "Flutter",
+                  "React Native",
+                  "Swift",
+                  "Kafka",
+                  "RabbitMQ",
+                  "GraphQL",
+                  "gRPC",
+                  "Microservices",
+                  "Spark",
+                  "Flink",
+                  "Git",
+                  "Agile",
+                  "Scrum",
+                  "REST API",
+                  "LangChain",
+                  "LangGraph",
+                  "LlamaIndex",
+                  "RAGFlow",
+                  "Dify",
+                  "Coze / 扣子",
+                  "Haystack",
+                  "AutoGen",
+                  "CrewAI",
+                  "Semantic Kernel",
+                  "Flowise",
+                  "MaxKB",
+                  "AnythingLLM",
+                  "OpenAI API",
+                  "Anthropic API",
+                  "Hugging Face",
+                  "Transformers",
+                  "PyTorch",
+                  "TensorFlow",
+                  "vLLM",
+                  "Ollama",
+                  "Triton Inference Server",
+                  "Milvus",
+                  "Pinecone",
+                  "Qdrant",
+                  "ChromaDB",
+                  "Weaviate",
+                  "pgvector",
+                  "RAG 检索增强",
+                  "Embedding / 向量化",
+                  "LLMOps",
+                  "模型微调 Fine-tuning"
+                ],
+                "x-option-groups": [
+                  {
+                    "label": "前端 Frontend",
+                    "items": [
+                      "react",
+                      "vue",
+                      "angular",
+                      "typescript",
+                      "javascript",
+                      "nextjs",
+                      "nuxt",
+                      "webpack",
+                      "vite",
+                      "tailwind",
+                      "html_css"
+                    ]
+                  },
+                  {
+                    "label": "后端 Backend",
+                    "items": [
+                      "java",
+                      "spring_boot",
+                      "go",
+                      "python",
+                      "django",
+                      "fastapi",
+                      "nodejs",
+                      "express",
+                      "csharp",
+                      "dotnet",
+                      "rust",
+                      "php",
+                      "ruby",
+                      "kotlin"
+                    ]
+                  },
+                  {
+                    "label": "数据库 Database",
+                    "items": [
+                      "mysql",
+                      "postgresql",
+                      "mongodb",
+                      "redis",
+                      "elasticsearch",
+                      "sqlite"
+                    ]
+                  },
+                  {
+                    "label": "DevOps / 云 Cloud",
+                    "items": [
+                      "docker",
+                      "kubernetes",
+                      "aws",
+                      "azure",
+                      "gcp",
+                      "linux",
+                      "nginx",
+                      "cicd",
+                      "terraform",
+                      "jenkins"
+                    ]
+                  },
+                  {
+                    "label": "移动 Mobile",
+                    "items": [
+                      "ios",
+                      "android",
+                      "flutter",
+                      "react_native",
+                      "swift"
+                    ]
+                  },
+                  {
+                    "label": "中间件 / 数据 / 工程 Middleware & Data",
+                    "items": [
+                      "kafka",
+                      "rabbitmq",
+                      "graphql",
+                      "grpc",
+                      "microservices",
+                      "spark",
+                      "flink",
+                      "git",
+                      "agile",
+                      "scrum",
+                      "rest_api"
+                    ]
+                  },
+                  {
+                    "label": "AI / LLM / RAG",
+                    "items": [
+                      "langchain",
+                      "langgraph",
+                      "llamaindex",
+                      "ragflow",
+                      "dify",
+                      "coze",
+                      "haystack",
+                      "autogen",
+                      "crewai",
+                      "semantic_kernel",
+                      "flowise",
+                      "maxkb",
+                      "anythingllm",
+                      "openai",
+                      "anthropic",
+                      "huggingface",
+                      "transformers",
+                      "pytorch",
+                      "tensorflow",
+                      "vllm",
+                      "ollama",
+                      "triton",
+                      "milvus",
+                      "pinecone",
+                      "qdrant",
+                      "chromadb",
+                      "weaviate",
+                      "pgvector",
+                      "rag",
+                      "embedding",
+                      "llmops",
+                      "model_finetune"
+                    ]
+                  }
+                ]
+              },
+              "tech_stack_other": {
+                "type": "string",
+                "title": "其他技术栈（可选）",
+                "x-ui-type": "textarea",
+                "x-min-rows": 2,
+                "x-max-rows": 8
+              },
+              "experience_raw": {
+                "type": "string",
+                "title": "工作经历（原始）",
+                "minLength": 1,
+                "x-ui-type": "textarea",
+                "x-min-rows": 10,
+                "x-max-rows": 24
+              },
+              "past_projects": {
+                "type": "string",
+                "title": "过往项目",
+                "description": "可选。补充项目背景、职责、技术栈与成果；与工作经历可分开填写。",
+                "x-ui-type": "textarea",
+                "x-min-rows": 8,
+                "x-max-rows": 24
+              },
+              "job_description": {
+                "type": "string",
+                "title": "目标 JD（可选）",
+                "x-ui-type": "textarea",
+                "x-min-rows": 6,
+                "x-max-rows": 16
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是 IT 简历结构化分析助手。只做信息抽取与量化整理，不写 Markdown 成稿。\n\n【意向岗位】${target_roles}\n【职级】${seniority}\n【教育】${education}\n【技术栈】${tech_stack}\n【其他技术栈】${tech_stack_other}\n【原始经历】\n${experience_raw}\n【过往项目】${past_projects}\n\n【目标 JD】${job_description}\n\n【任务】\n1. 解析经历与项目为结构化 JSON：meta、education[]、experience[]、projects[]、skills、highlights[]（3-6 条自动提炼卖点）、jd_alignment（若有 JD）。\n2. projects[] 需合并「过往项目」与经历中可识别项目；highlights 必须来自原始材料，可量化，禁止虚构。\n3. 只输出合法 JSON 对象，不要 Markdown 包裹，不要解释。\n\n【输出 schema 示意】\n{\"meta\":{\"title\":\"\",\"seniority\":\"\"},\"education\":[],\"experience\":[],\"projects\":[],\"skills\":{},\"highlights\":[],\"jd_alignment\":{}}"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.2,
+              "maxTokens": 8192
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-structure-resume-it-profile",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-structure-resume-it-profile",
+          "charge_metric": "per_request",
+          "price_in_tokens": 20,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "resume-it-profile",
+          "metadata": {
+            "margin": 0.2,
+            "stage": "resume-structure"
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "layout",
+      "subtype": "document-render-spec",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "internal": true,
+        "display": {
+          "taskLabel": "内部 · 排版",
+          "subtypeLabel": "文档渲染规格",
+          "userFacing": false,
+          "taskLabelI18n": {
+            "zh": "内部 · 排版",
+            "zh-TW": "內部 · 排版"
+          },
+          "subtypeLabelI18n": {
+            "zh": "文档渲染规格",
+            "zh-TW": "文電子郵件渲染规格"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "markdown",
+              "renderer",
+              "design_style"
+            ],
+            "properties": {
+              "markdown": {
+                "type": "string",
+                "title": "成稿 Markdown",
+                "minLength": 1
+              },
+              "structured": {
+                "type": "string",
+                "title": "结构化 JSON 字符串"
+              },
+              "renderer": {
+                "type": "string",
+                "enum": [
+                  "markdown",
+                  "styled",
+                  "html"
+                ],
+                "default": "styled"
+              },
+              "design_style": {
+                "type": "string",
+                "title": "设计风格"
+              },
+              "assets": {
+                "type": "string",
+                "title": "资源 JSON"
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是 PDF 版式编排编辑。只生成 RenderSpec JSON，禁止改写正文内容。\n\n【renderer】${renderer}\n【design_style】${design_style}\n【assets】${assets}\n\n【structured】\n${structured}\n\n【markdown 成稿 — 仅用于 contentBinding，禁止 paraphrase】\n${markdown}\n\n【规则】\n1. 输出 JSON：{\"documentRenderSpec\":{version,page,theme,assets,blocks}, \"documentLayoutHtml\":\"可选\"}。\n2. version 固定 \"1\"；page.size=A4；theme.paletteId 与 design_style 一致。\n3. blocks 可含 cover/toc/section/markdown/highlights/image/twoColumn/spacer。\n4. 正文块使用 contentBinding:\"markdown\" 或 structured 字段，禁止内联长文本。\n5. profile 照片引用 assets 中 id=profile_photo。\n6. renderer=markdown 时禁止 twoColumn 与 page.backgroundImage；renderer=html 可更丰富。\n7. 只输出 JSON，无 Markdown 代码块。"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.25,
+              "maxTokens": 16384
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-layout-document-render-spec",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-layout-document-render-spec",
+          "charge_metric": "per_request",
+          "price_in_tokens": 30,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "document-render-spec",
+          "metadata": {
+            "margin": 0.2,
+            "stage": "document-layout"
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "writing",
+      "type": "resumes",
+      "subtype": "it",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "写作",
+          "subtypeLabel": "IT简历",
+          "taskLabelI18n": {
+            "zh": "写作",
+            "zh-TW": "寫我的創作"
+          },
+          "subtypeLabelI18n": {
+            "zh": "IT简历",
+            "zh-TW": "IT简历"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "target_roles",
+              "seniority",
+              "experience_raw"
+            ],
+            "properties": {
+              "target_roles": {
+                "type": "array",
+                "title": "意向岗位",
+                "minItems": 1,
+                "uniqueItems": true,
+                "x-ui-type": "multiSelection",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "backend",
+                    "frontend",
+                    "fullstack",
+                    "devops",
+                    "sre",
+                    "ml",
+                    "qa",
+                    "security",
+                    "architect",
+                    "data",
+                    "mobile",
+                    "product",
+                    "pm"
+                  ]
+                },
+                "x-enum-labels": [
+                  "后端开发 Backend",
+                  "前端开发 Frontend",
+                  "全栈 Full-stack",
+                  "DevOps 运维",
+                  "SRE 站点可靠性",
+                  "机器学习 ML",
+                  "测试 QA",
+                  "安全 Security",
+                  "架构师 Architect",
+                  "数据工程 Data",
+                  "移动开发 Mobile",
+                  "产品经理 Product",
+                  "项目经理 PM"
+                ]
+              },
+              "seniority": {
+                "type": "string",
+                "title": "职级",
+                "enum": [
+                  "junior",
+                  "mid",
+                  "senior",
+                  "lead",
+                  "principal"
+                ],
+                "x-enum-labels": [
+                  "初级 Junior",
+                  "中级 Mid",
+                  "高级 Senior",
+                  "负责人 Lead",
+                  "专家 Principal"
+                ],
+                "default": "mid",
+                "x-ui-type": "selection"
+              },
+              "education": {
+                "type": "string",
+                "title": "教育背景",
+                "x-ui-type": "textarea",
+                "x-min-rows": 6,
+                "x-max-rows": 20
+              },
+              "tech_stack": {
+                "type": "array",
+                "title": "技术栈",
+                "uniqueItems": true,
+                "x-ui-type": "checkboxGroup",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "react",
+                    "vue",
+                    "angular",
+                    "typescript",
+                    "javascript",
+                    "nextjs",
+                    "nuxt",
+                    "webpack",
+                    "vite",
+                    "tailwind",
+                    "html_css",
+                    "java",
+                    "spring_boot",
+                    "go",
+                    "python",
+                    "django",
+                    "fastapi",
+                    "nodejs",
+                    "express",
+                    "csharp",
+                    "dotnet",
+                    "rust",
+                    "php",
+                    "ruby",
+                    "kotlin",
+                    "mysql",
+                    "postgresql",
+                    "mongodb",
+                    "redis",
+                    "elasticsearch",
+                    "sqlite",
+                    "docker",
+                    "kubernetes",
+                    "aws",
+                    "azure",
+                    "gcp",
+                    "linux",
+                    "nginx",
+                    "cicd",
+                    "terraform",
+                    "jenkins",
+                    "ios",
+                    "android",
+                    "flutter",
+                    "react_native",
+                    "swift",
+                    "kafka",
+                    "rabbitmq",
+                    "graphql",
+                    "grpc",
+                    "microservices",
+                    "spark",
+                    "flink",
+                    "git",
+                    "agile",
+                    "scrum",
+                    "rest_api",
+                    "langchain",
+                    "langgraph",
+                    "llamaindex",
+                    "ragflow",
+                    "dify",
+                    "coze",
+                    "haystack",
+                    "autogen",
+                    "crewai",
+                    "semantic_kernel",
+                    "flowise",
+                    "maxkb",
+                    "anythingllm",
+                    "openai",
+                    "anthropic",
+                    "huggingface",
+                    "transformers",
+                    "pytorch",
+                    "tensorflow",
+                    "vllm",
+                    "ollama",
+                    "triton",
+                    "milvus",
+                    "pinecone",
+                    "qdrant",
+                    "chromadb",
+                    "weaviate",
+                    "pgvector",
+                    "rag",
+                    "embedding",
+                    "llmops",
+                    "model_finetune"
+                  ]
+                },
+                "x-enum-labels": [
+                  "React",
+                  "Vue",
+                  "Angular",
+                  "TypeScript",
+                  "JavaScript",
+                  "Next.js",
+                  "Nuxt",
+                  "Webpack",
+                  "Vite",
+                  "Tailwind CSS",
+                  "HTML / CSS",
+                  "Java",
+                  "Spring Boot",
+                  "Go",
+                  "Python",
+                  "Django",
+                  "FastAPI",
+                  "Node.js",
+                  "Express",
+                  "C#",
+                  ".NET",
+                  "Rust",
+                  "PHP",
+                  "Ruby",
+                  "Kotlin",
+                  "MySQL",
+                  "PostgreSQL",
+                  "MongoDB",
+                  "Redis",
+                  "Elasticsearch",
+                  "SQLite",
+                  "Docker",
+                  "Kubernetes",
+                  "AWS",
+                  "Azure",
+                  "GCP",
+                  "Linux",
+                  "Nginx",
+                  "CI/CD",
+                  "Terraform",
+                  "Jenkins",
+                  "iOS",
+                  "Android",
+                  "Flutter",
+                  "React Native",
+                  "Swift",
+                  "Kafka",
+                  "RabbitMQ",
+                  "GraphQL",
+                  "gRPC",
+                  "Microservices",
+                  "Spark",
+                  "Flink",
+                  "Git",
+                  "Agile",
+                  "Scrum",
+                  "REST API",
+                  "LangChain",
+                  "LangGraph",
+                  "LlamaIndex",
+                  "RAGFlow",
+                  "Dify",
+                  "Coze / 扣子",
+                  "Haystack",
+                  "AutoGen",
+                  "CrewAI",
+                  "Semantic Kernel",
+                  "Flowise",
+                  "MaxKB",
+                  "AnythingLLM",
+                  "OpenAI API",
+                  "Anthropic API",
+                  "Hugging Face",
+                  "Transformers",
+                  "PyTorch",
+                  "TensorFlow",
+                  "vLLM",
+                  "Ollama",
+                  "Triton Inference Server",
+                  "Milvus",
+                  "Pinecone",
+                  "Qdrant",
+                  "ChromaDB",
+                  "Weaviate",
+                  "pgvector",
+                  "RAG 检索增强",
+                  "Embedding / 向量化",
+                  "LLMOps",
+                  "模型微调 Fine-tuning"
+                ],
+                "x-option-groups": [
+                  {
+                    "label": "前端 Frontend",
+                    "items": [
+                      "react",
+                      "vue",
+                      "angular",
+                      "typescript",
+                      "javascript",
+                      "nextjs",
+                      "nuxt",
+                      "webpack",
+                      "vite",
+                      "tailwind",
+                      "html_css"
+                    ]
+                  },
+                  {
+                    "label": "后端 Backend",
+                    "items": [
+                      "java",
+                      "spring_boot",
+                      "go",
+                      "python",
+                      "django",
+                      "fastapi",
+                      "nodejs",
+                      "express",
+                      "csharp",
+                      "dotnet",
+                      "rust",
+                      "php",
+                      "ruby",
+                      "kotlin"
+                    ]
+                  },
+                  {
+                    "label": "数据库 Database",
+                    "items": [
+                      "mysql",
+                      "postgresql",
+                      "mongodb",
+                      "redis",
+                      "elasticsearch",
+                      "sqlite"
+                    ]
+                  },
+                  {
+                    "label": "DevOps / 云 Cloud",
+                    "items": [
+                      "docker",
+                      "kubernetes",
+                      "aws",
+                      "azure",
+                      "gcp",
+                      "linux",
+                      "nginx",
+                      "cicd",
+                      "terraform",
+                      "jenkins"
+                    ]
+                  },
+                  {
+                    "label": "移动 Mobile",
+                    "items": [
+                      "ios",
+                      "android",
+                      "flutter",
+                      "react_native",
+                      "swift"
+                    ]
+                  },
+                  {
+                    "label": "中间件 / 数据 / 工程 Middleware & Data",
+                    "items": [
+                      "kafka",
+                      "rabbitmq",
+                      "graphql",
+                      "grpc",
+                      "microservices",
+                      "spark",
+                      "flink",
+                      "git",
+                      "agile",
+                      "scrum",
+                      "rest_api"
+                    ]
+                  },
+                  {
+                    "label": "AI / LLM / RAG",
+                    "items": [
+                      "langchain",
+                      "langgraph",
+                      "llamaindex",
+                      "ragflow",
+                      "dify",
+                      "coze",
+                      "haystack",
+                      "autogen",
+                      "crewai",
+                      "semantic_kernel",
+                      "flowise",
+                      "maxkb",
+                      "anythingllm",
+                      "openai",
+                      "anthropic",
+                      "huggingface",
+                      "transformers",
+                      "pytorch",
+                      "tensorflow",
+                      "vllm",
+                      "ollama",
+                      "triton",
+                      "milvus",
+                      "pinecone",
+                      "qdrant",
+                      "chromadb",
+                      "weaviate",
+                      "pgvector",
+                      "rag",
+                      "embedding",
+                      "llmops",
+                      "model_finetune"
+                    ]
+                  }
+                ]
+              },
+              "tech_stack_other": {
+                "type": "string",
+                "title": "其他技术栈（可选）",
+                "x-ui-type": "textarea",
+                "x-min-rows": 2,
+                "x-max-rows": 8
+              },
+              "experience_raw": {
+                "type": "string",
+                "title": "工作经历（原始）",
+                "minLength": 1,
+                "x-ui-type": "textarea",
+                "x-min-rows": 10,
+                "x-max-rows": 24
+              },
+              "past_projects": {
+                "type": "string",
+                "title": "过往项目",
+                "description": "可选。补充项目背景、职责、技术栈与成果；与工作经历可分开填写。",
+                "x-ui-type": "textarea",
+                "x-min-rows": 8,
+                "x-max-rows": 24
+              },
+              "job_description": {
+                "type": "string",
+                "title": "目标 JD（可选）",
+                "x-ui-type": "textarea",
+                "x-min-rows": 6,
+                "x-max-rows": 16
+              },
+              "design_style": {
+                "type": "string",
+                "title": "PDF 设计风格",
+                "enum": [
+                  "modern_sidebar",
+                  "classic_onesheet",
+                  "minimal_clean",
+                  "tech_blue",
+                  "compact_dense"
+                ],
+                "x-enum-labels": [
+                  "现代侧栏",
+                  "经典单页",
+                  "极简",
+                  "科技蓝",
+                  "紧凑密集"
+                ],
+                "default": "modern_sidebar",
+                "x-ui-type": "selection"
+              },
+              "pdf_renderer": {
+                "type": "string",
+                "title": "渲染方案",
+                "enum": [
+                  "markdown",
+                  "styled",
+                  "html"
+                ],
+                "x-enum-labels": [
+                  "快速",
+                  "普通",
+                  "精美"
+                ],
+                "default": "styled",
+                "x-ui-type": "selection"
+              },
+              "profile_photo": {
+                "type": "array",
+                "title": "头像",
+                "maxItems": 1,
+                "x-ui-type": "referenceImages",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "main-subject",
+                        "profile"
+                      ]
+                    }
+                  }
+                }
+              },
+              "writing_type": {
+                "type": "string",
+                "const": "resumes",
+                "default": "resumes",
+                "x-user-visible": false
+              },
+              "storage_form": {
+                "type": "string",
+                "const": "markdown",
+                "default": "markdown",
+                "x-user-visible": false
+              },
+              "resume_profile": {
+                "type": "string",
+                "x-user-visible": false
+              }
+            }
+          },
+          "uiSchema": {
+            "experience_raw": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 8
+              }
+            },
+            "job_description": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 4
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是资深 IT 简历写作顾问。根据结构化画像撰写**完整简历 Markdown 成稿**（不是 JSON，不是版式说明）。\n\n【结构化画像 resumeProfile】\n${resume_profile}\n\n【意向岗位】${target_roles}\n【职级】${seniority}\n【教育】${education}\n【技术栈】${tech_stack}\n【其他技术栈】${tech_stack_other}\n【原始经历】\n${experience_raw}\n【过往项目】\n${past_projects}\n【目标 JD】${job_description}\n\n【写作要求】\n1. 输出 Markdown：含 # 姓名/标题、## 各章节（简介、经历、项目、技能等）。\n2. 项目章节优先使用过往项目与 structured projects；量化成果、动词开头、对齐目标岗位；禁止虚构。\n3. 不写 CSS/多栏/封面/排版指令（Post 步负责 PDF 版式）。\n4. 只输出 Markdown 正文。"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.45,
+              "maxTokens": 12000
+            }
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/structure/resume-it-profile",
+                "params": {
+                  "outputStatePath": "pipeline.resumeProfile"
+                },
+                "inputMapping": {
+                  "target_roles": "${params.target_roles}",
+                  "seniority": "${params.seniority}",
+                  "education": "${params.education}",
+                  "tech_stack": "${params.tech_stack}",
+                  "experience_raw": "${params.experience_raw}",
+                  "job_description": "${params.job_description}",
+                  "tech_stack_other": "${params.tech_stack_other}",
+                  "past_projects": "${params.past_projects}"
+                }
+              }
+            ],
+            "post": [
+              {
+                "step": "renderDocumentPdf",
+                "layoutTaskKey": "text/layout/document-render-spec",
+                "params": {
+                  "layoutTaskKey": "text/layout/document-render-spec",
+                  "fallbackRenderer": "markdown",
+                  "maxRetries": 2,
+                  "validateSchema": "documentRenderSpec.v1"
+                },
+                "inputMapping": {
+                  "markdown": "${state.coreArtifact.text}",
+                  "structured": "${state.pipeline.resumeProfile}",
+                  "renderer": "${params.pdf_renderer}",
+                  "design_style": "${params.design_style}",
+                  "profile_photo": "${params.profile_photo}"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "writing-resumes-it",
+        "provider": "jiekou",
+        "model": "deepseek-v3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "writing-resumes-it",
+          "charge_metric": "per_request",
+          "price_in_tokens": 180,
+          "min_charge_tokens": 0,
+          "provider": "jiekou",
+          "model_key": "deepseek-v3",
+          "subtype": "it",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

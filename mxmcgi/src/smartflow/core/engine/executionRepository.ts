@@ -16,9 +16,11 @@ export interface ISmartflowExecutionRepository {
   findByUserId(userId: string, limit?: number, offset?: number): Promise<SmartflowExecution[]>;
   findBySmartflowId(smartflowId: string, limit?: number, offset?: number): Promise<SmartflowExecution[]>;
   updateStatus(id: string, status: SmartflowExecutionStatus): Promise<void>;
+  updateProgress(id: string, progress: number): Promise<void>;
   updateOutput(id: string, output: Record<string, any>): Promise<void>;
   updateError(id: string, error: string): Promise<void>;
   appendFlowChain(id: string, node: FlowChainNode): Promise<void>;
+  delete(id: string): Promise<void>;
 }
 
 /**
@@ -73,9 +75,18 @@ export class InMemorySmartflowExecutionRepository implements ISmartflowExecution
     
     if (status === 'running') {
       execution.started_at = new Date().toISOString();
-    } else if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+    } else if (status === 'completed' || status === 'failed' || status === 'cancelled' || status === 'paused') {
       execution.completed_at = new Date().toISOString();
     }
+  }
+
+  async updateProgress(id: string, progress: number): Promise<void> {
+    const execution = this.executions.get(id);
+    if (!execution) {
+      throw new Error(`Execution not found: ${id}`);
+    }
+    execution.progress = progress;
+    execution.updated_at = new Date().toISOString();
   }
 
   async updateOutput(id: string, output: Record<string, any>): Promise<void> {
@@ -104,6 +115,12 @@ export class InMemorySmartflowExecutionRepository implements ISmartflowExecution
     execution.flow_chain = execution.flow_chain || [];
     execution.flow_chain.push(node);
     execution.updated_at = new Date().toISOString();
+  }
+
+  async delete(id: string): Promise<void> {
+    if (!this.executions.delete(id)) {
+      throw new Error(`Execution not found: ${id}`);
+    }
   }
 }
 
@@ -177,11 +194,20 @@ export class SupabaseSmartflowExecutionRepository implements ISmartflowExecution
       updated_at: new Date().toISOString(),
     };
     if (status === 'running') patch.started_at = new Date().toISOString();
-    if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+    if (status === 'completed' || status === 'failed' || status === 'cancelled' || status === 'paused') {
       patch.completed_at = new Date().toISOString();
     }
     const { error } = await this.supabase.from('smartflow_executions').update(patch).eq('id', id);
     if (error) throw new Error(`Failed to update execution status: ${error.message}`);
+  }
+
+  async updateProgress(id: string, progress: number): Promise<void> {
+    const p = Math.max(0, Math.min(100, Math.round(progress)));
+    const { error } = await this.supabase
+      .from('smartflow_executions')
+      .update({ progress: p, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw new Error(`Failed to update execution progress: ${error.message}`);
   }
 
   async updateOutput(id: string, output: Record<string, any>): Promise<void> {
@@ -210,6 +236,11 @@ export class SupabaseSmartflowExecutionRepository implements ISmartflowExecution
       .update({ flow_chain: chain, updated_at: new Date().toISOString() })
       .eq('id', id);
     if (error) throw new Error(`Failed to append flow_chain: ${error.message}`);
+  }
+
+  async delete(id: string): Promise<void> {
+    const { error } = await this.supabase.from('smartflow_executions').delete().eq('id', id);
+    if (error) throw new Error(`Failed to delete execution: ${error.message}`);
   }
 }
 

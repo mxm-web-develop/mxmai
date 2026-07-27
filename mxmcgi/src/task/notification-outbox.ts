@@ -9,6 +9,7 @@
  */
 
 import { getSupabaseClient } from '@mxmai/mxmdata';
+import type { TaskSnapshot } from './task-snapshot';
 import type { TaskStatus, TaskType } from './types';
 
 export interface TaskStatusChangedEvent {
@@ -47,6 +48,7 @@ export function buildTaskStatusChangedEvent(input: {
   modelProvider: string;
   progress?: number;
   error?: string;
+  task_snapshot?: TaskSnapshot;
   // completed 时可选
   result?: { mediaUrls?: string[]; storageInfo?: any };
   notification_config?: Record<string, any>;
@@ -62,8 +64,13 @@ export function buildTaskStatusChangedEvent(input: {
     error: input.error,
   };
 
+  if (input.task_snapshot) {
+    metadata.task_snapshot = input.task_snapshot;
+  }
+
   if (input.status === 'completed' && input.result) {
     metadata.media_count = input.result.mediaUrls?.length || 0;
+    metadata.hasResult = (input.result.mediaUrls?.length || 0) > 0;
     metadata.result = {
       mediaUrls: input.result.mediaUrls,
       storageInfo: input.result.storageInfo,

@@ -8,7 +8,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { handleAgentChat, handleUserConfirmation, getAvailableTextModels } from './chat';
+import { handleAgentChat, handleUserConfirmation, getAvailableTextModels, resetSessionAndStoreMemory } from './chat';
 
 const router = Router();
 
@@ -52,6 +52,27 @@ router.post('/confirm', async (req: Request, res: Response) => {
 router.get('/models', (_req: Request, res: Response) => {
   const models = getAvailableTextModels();
   res.json({ success: true, models: models.map(name => ({ name })) });
+});
+
+/**
+ * POST /api/v1/agents/session/reset
+ * 重置会话并存储记忆
+ * 将当前会话历史摘要后存入记忆系统，然后清空会话历史
+ *
+ * 请求体：
+ * {
+ *   sessionId: string;   // 会话 ID（必需）
+ *   userId: string;     // 用户 ID（必需）
+ * }
+ */
+router.post('/session/reset', async (req: Request, res: Response) => {
+  const { sessionId, userId } = req.body as { sessionId?: string; userId?: string };
+  if (!sessionId || !userId) {
+    res.status(400).json({ success: false, error: 'sessionId and userId are required' });
+    return;
+  }
+  const result = await resetSessionAndStoreMemory(sessionId, userId);
+  res.json({ success: result.success, message: result.message });
 });
 
 /**

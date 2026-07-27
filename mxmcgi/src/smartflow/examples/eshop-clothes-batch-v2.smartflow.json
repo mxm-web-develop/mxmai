@@ -1,0 +1,498 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-smartflow-bundle",
+  "exportedAt": "2026-05-24T17:51:24.327Z",
+  "items": [
+    {
+      "id": "eshop-clothes-batch-v2",
+      "name": "电商服装批量上架",
+      "description": "1 组模特参考 + N 款服装 → LLM 按款规划 → 并行 graph/eshop/clothes（v2：start.input[] 与业务 formSchema 类型对齐）",
+      "category": "graph",
+      "tags": [
+        "eshop",
+        "clothes",
+        "batch",
+        "graph"
+      ],
+      "status": "active",
+      "version": "2.0.0",
+      "is_public": true,
+      "schema": {
+        "version": "1.0.0",
+        "nodes": [
+          {
+            "id": "start",
+            "type": "start",
+            "name": "开始",
+            "input": [
+              {
+                "name": "model_images",
+                "type": "referenceImages",
+                "content": []
+              },
+              {
+                "name": "garments",
+                "type": "eshopGarmentBatch",
+                "content": []
+              },
+              {
+                "name": "model_participation",
+                "type": "selection",
+                "content": "default"
+              },
+              {
+                "name": "output_grid",
+                "type": "selection",
+                "content": "1x1"
+              },
+              {
+                "name": "parallel_count",
+                "type": "number",
+                "content": 1
+              },
+              {
+                "name": "shoot_preset_mode",
+                "type": "selection",
+                "content": "auto"
+              },
+              {
+                "name": "shoot_preset_fixed",
+                "type": "string",
+                "content": "studio_soft_gray"
+              },
+              {
+                "name": "shoot_preset_fallback",
+                "type": "string",
+                "content": "studio_soft_gray"
+              },
+              {
+                "name": "garment_material_fallback",
+                "type": "string",
+                "content": "use_reference_only"
+              },
+              {
+                "name": "style_images",
+                "type": "referenceImages",
+                "content": []
+              },
+              {
+                "name": "environment_images",
+                "type": "referenceImages",
+                "content": []
+              },
+              {
+                "name": "prompt",
+                "type": "text",
+                "content": ""
+              }
+            ],
+            "smartflow_name": "电商服装批量上架",
+            "position": {
+              "x": 80,
+              "y": 80
+            },
+            "formSchema": {
+              "type": "object",
+              "required": [
+                "garments"
+              ],
+              "properties": {
+                "model_images": {
+                  "type": "array",
+                  "title": "模特参考",
+                  "description": "建议 1～3 张；用于锁定面部与身形。",
+                  "x-ui-type": "referenceImages",
+                  "minItems": 0,
+                  "maxItems": 8,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "content": {
+                        "type": "string",
+                        "title": "图片 URL / Base64"
+                      },
+                      "type": {
+                        "type": "string",
+                        "title": "用途类型",
+                        "enum": [
+                          "main-subject",
+                          "background",
+                          "outfits",
+                          "color-reference",
+                          "style-reference"
+                        ],
+                        "default": "main-subject"
+                      },
+                      "purpose": {
+                        "type": "string",
+                        "title": "用途说明（可选）"
+                      }
+                    },
+                    "required": [
+                      "content",
+                      "type"
+                    ]
+                  }
+                },
+                "garments": {
+                  "type": "array",
+                  "title": "服装 SKU 列表",
+                  "description": "每款 1～3 张服装图；与 model_images 组合后并行创建 graph/eshop/clothes 任务。",
+                  "x-ui-type": "eshopGarmentBatch",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "images"
+                    ],
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "title": "SKU 标签",
+                        "default": ""
+                      },
+                      "shoot_preset": {
+                        "type": "string",
+                        "title": "场景预设（可选）",
+                        "description": "shoot_preset_mode=按款 时生效；未填则用「场景回退预设」"
+                      },
+                      "garment_material": {
+                        "type": "string",
+                        "title": "面料质感（可选）",
+                        "description": "未填则用「面料质感回退」"
+                      },
+                      "prompt": {
+                        "type": "string",
+                        "title": "SKU 补充 prompt（可选）",
+                        "x-ui-type": "textarea",
+                        "default": ""
+                      },
+                      "images": {
+                        "type": "array",
+                        "title": "服装图",
+                        "minItems": 1,
+                        "maxItems": 3,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "content": {
+                              "type": "string",
+                              "title": "图片 URL / Base64"
+                            },
+                            "type": {
+                              "type": "string",
+                              "title": "用途类型",
+                              "enum": [
+                                "main-subject",
+                                "background",
+                                "outfits",
+                                "color-reference",
+                                "style-reference"
+                              ],
+                              "default": "outfits"
+                            },
+                            "purpose": {
+                              "type": "string",
+                              "title": "用途说明（可选）"
+                            }
+                          },
+                          "required": [
+                            "content",
+                            "type"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
+                "model_participation": {
+                  "type": "string",
+                  "title": "模特参与度",
+                  "x-ui-type": "selection",
+                  "enum": [
+                    "default",
+                    "face_hidden",
+                    "no_model"
+                  ],
+                  "x-enum-labels": {
+                    "default": "默认",
+                    "face_hidden": "去模特身份",
+                    "no_model": "无模特"
+                  },
+                  "default": "default"
+                },
+                "output_grid": {
+                  "type": "string",
+                  "title": "输出宫格",
+                  "x-ui-type": "selection",
+                  "enum": [
+                    "1x1",
+                    "2x2",
+                    "3x3"
+                  ],
+                  "x-enum-labels": {
+                    "1x1": "单张（1×1）",
+                    "2x2": "四宫格（2×2）",
+                    "3x3": "九宫格（3×3）"
+                  },
+                  "default": "1x1"
+                },
+                "shoot_preset_mode": {
+                  "type": "string",
+                  "title": "场景预设模式",
+                  "x-ui-type": "selection",
+                  "enum": [
+                    "auto",
+                    "fixed"
+                  ],
+                  "x-enum-labels": {
+                    "auto": "AI 按款识别后选场景",
+                    "fixed": "全部使用固定预设"
+                  },
+                  "default": "auto"
+                },
+                "shoot_preset_fixed": {
+                  "type": "string",
+                  "title": "固定场景预设",
+                  "description": "shoot_preset_mode=fixed 时全部 SKU 使用此项（与 graph/eshop/clothes 拍摄场景枚举一致）",
+                  "default": "studio_soft_gray"
+                },
+                "shoot_preset_fallback": {
+                  "type": "string",
+                  "title": "场景回退预设",
+                  "description": "AI 规划未返回 shoot_preset 时的兜底（非沿用服装图原背景）",
+                  "default": "studio_soft_gray"
+                },
+                "garment_material_fallback": {
+                  "type": "string",
+                  "title": "面料质感回退",
+                  "default": "use_reference_only"
+                },
+                "style_images": {
+                  "type": "array",
+                  "title": "风格参考（可选）",
+                  "x-ui-type": "referenceImages",
+                  "maxItems": 8,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "content": {
+                        "type": "string",
+                        "title": "图片 URL / Base64"
+                      },
+                      "type": {
+                        "type": "string",
+                        "title": "用途类型",
+                        "enum": [
+                          "main-subject",
+                          "background",
+                          "outfits",
+                          "color-reference",
+                          "style-reference"
+                        ]
+                      },
+                      "purpose": {
+                        "type": "string",
+                        "title": "用途说明（可选）"
+                      }
+                    },
+                    "required": [
+                      "content",
+                      "type"
+                    ]
+                  },
+                  "default": []
+                },
+                "environment_images": {
+                  "type": "array",
+                  "title": "场景参考（可选）",
+                  "x-ui-type": "referenceImages",
+                  "maxItems": 6,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "content": {
+                        "type": "string",
+                        "title": "图片 URL / Base64"
+                      },
+                      "type": {
+                        "type": "string",
+                        "title": "用途类型",
+                        "enum": [
+                          "main-subject",
+                          "background",
+                          "outfits",
+                          "color-reference",
+                          "style-reference"
+                        ]
+                      },
+                      "purpose": {
+                        "type": "string",
+                        "title": "用途说明（可选）"
+                      }
+                    },
+                    "required": [
+                      "content",
+                      "type"
+                    ]
+                  },
+                  "default": []
+                },
+                "prompt": {
+                  "type": "string",
+                  "title": "全局补充 prompt（可选）",
+                  "x-ui-type": "textarea",
+                  "default": ""
+                },
+                "parallel_count": {
+                  "type": "integer",
+                  "title": "生成份数",
+                  "description": "一次提交生成几份独立结果（1～99），每份内容须有差异。",
+                  "minimum": 1,
+                  "maximum": 99,
+                  "default": 1,
+                  "x-ui-order": -100
+                }
+              }
+            }
+          },
+          {
+            "id": "plan_garments",
+            "type": "business",
+            "name": "视觉规划",
+            "business_scope": "text",
+            "taskKey": "plan",
+            "subtype": "eshop-garment-batch",
+            "params": {
+              "referenceImage": "{{input._planning_images}}",
+              "garments": "{{input.garments}}",
+              "model_participation": "{{input.model_participation}}",
+              "output_grid": "{{input.output_grid}}",
+              "shoot_preset_mode": "{{input.shoot_preset_mode}}",
+              "shoot_preset_fixed": "{{input.shoot_preset_fixed}}",
+              "shoot_preset_fallback": "{{input.shoot_preset_fallback}}",
+              "garment_material_fallback": "{{input.garment_material_fallback}}",
+              "prompt": "{{input.prompt}}"
+            },
+            "position": {
+              "x": 280,
+              "y": 80
+            }
+          },
+          {
+            "id": "parse_plan",
+            "type": "variable",
+            "name": "解析规划 JSON",
+            "operation": "json_parse",
+            "source_node": "plan_garments",
+            "source_path": "syncResult.text",
+            "output_name": "parsed",
+            "default_value": {
+              "garment_tasks": []
+            },
+            "position": {
+              "x": 480,
+              "y": 80
+            }
+          },
+          {
+            "id": "assemble_tasks",
+            "type": "variable",
+            "name": "组装任务列表",
+            "operation": "map",
+            "source_path": "input.garments",
+            "plan_tasks_from": "{{parse_plan.parsed.garment_tasks}}",
+            "expression": "({\n  model_images: input.model_images || [],\n  garment_images: item.images,\n  shoot_preset: input.shoot_preset_mode === 'fixed'\n    ? input.shoot_preset_fixed\n    : (item.shoot_preset\n      ? item.shoot_preset\n      : ((planTasks[index] && planTasks[index].shoot_preset) || input.shoot_preset_fallback)),\n  garment_material: item.garment_material || (planTasks[index] && planTasks[index].garment_material) || input.garment_material_fallback,\n  model_participation: input.model_participation,\n  output_grid: input.output_grid,\n  parallel_count: (typeof input.parallel_count === 'number' && input.parallel_count > 0)\n    ? input.parallel_count\n    : (parseInt(String(input.parallel_count || '1'), 10) || 1),\n  style_images: input.style_images || [],\n  environment_images: input.environment_images || [],\n  prompt: item.prompt || (planTasks[index] && planTasks[index].prompt) || input.prompt || ''\n})",
+            "output_name": "garment_tasks",
+            "position": {
+              "x": 680,
+              "y": 80
+            }
+          },
+          {
+            "id": "loop_batch",
+            "type": "loop",
+            "name": "批量执行",
+            "loop_mode": "iteration",
+            "iterable": "{{assemble_tasks.garment_tasks}}",
+            "item_variable": "task",
+            "loop_nodes": [
+              "run_eshop"
+            ],
+            "parallel_iterations": true,
+            "max_concurrency": 3,
+            "collect_output": true,
+            "output_variable": "results",
+            "on_iteration_error": "collect_errors",
+            "position": {
+              "x": 880,
+              "y": 80
+            }
+          },
+          {
+            "id": "run_eshop",
+            "type": "business",
+            "name": "eshop/clothes",
+            "business_scope": "graph",
+            "taskKey": "eshop",
+            "subtype": "clothes",
+            "params": {
+              "model_images": "{{variables.task.model_images}}",
+              "garment_images": "{{variables.task.garment_images}}",
+              "shoot_preset": "{{variables.task.shoot_preset}}",
+              "garment_material": "{{variables.task.garment_material}}",
+              "model_participation": "{{variables.task.model_participation}}",
+              "output_grid": "{{variables.task.output_grid}}",
+              "parallel_count": "{{variables.task.parallel_count}}",
+              "style_images": "{{variables.task.style_images}}",
+              "environment_images": "{{variables.task.environment_images}}",
+              "prompt": "{{variables.task.prompt}}"
+            },
+            "position": {
+              "x": 880,
+              "y": 220
+            }
+          },
+          {
+            "id": "end",
+            "type": "end",
+            "name": "结束",
+            "output_mapping": {
+              "results": "{{loop_batch.results}}"
+            },
+            "position": {
+              "x": 1080,
+              "y": 80
+            }
+          }
+        ],
+        "edges": [
+          {
+            "from": "start",
+            "to": "plan_garments"
+          },
+          {
+            "from": "plan_garments",
+            "to": "parse_plan"
+          },
+          {
+            "from": "parse_plan",
+            "to": "assemble_tasks"
+          },
+          {
+            "from": "assemble_tasks",
+            "to": "loop_batch"
+          },
+          {
+            "from": "loop_batch",
+            "to": "end"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-17T09:37:53.134Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "vf-character-pack",
+      "is_active": true,
+      "form_options_i18n": null,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "extra": {
+        "display": {
+          "taskLabel": "内部 · 转换",
+          "subtypeLabel": "角色包汇总",
+          "taskLabelI18n": {
+            "en": "Internal · Transform",
+            "zh": "内部 · 转换",
+            "zh-TW": "內部 · 轉換",
+            "ja": "Internal · Transform"
+          },
+          "subtypeLabelI18n": {
+            "en": "Character pack summarize",
+            "zh": "角色包汇总",
+            "zh-TW": "角深色包汇總",
+            "ja": "Character pack summarize"
+          },
+          "userFacing": false
+        },
+        "internal": true,
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "temperature": 0.35,
+              "topP": 0.9,
+              "maxTokens": 8192
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "You are a character-bible data integration specialist with professional literacy in casting, costume, and visual identity systems.\n\n## Goal\nFrom a folder of mixed character materials (dossier text and/or reference images attached as pixels), emit ONE CharacterPackSummary JSON for downstream writing and image/video generation.\n\n## Output language\n- user_language: ${user_language} (zh | zh-TW | en | ja)\n- Default Chinese (zh) when absent.\n- All natural-language string values (display_name, character_brief, appearance_prompt, aliases, face, hair, clothing_default, personality, background, etc.) must be written in user_language.\n- Industry tokens — multi_view_sheet, is_multi_panel, panel_hints, suitability, provenance, schema_version, asset_count, media_kind enums (single_portrait / multi_view_sheet / expression_sheet / outfit_sheet / info_card / scene_with_character / other) — remain English (these are machine-stable identifiers).\n- voice_id is a platform identifier; do not localize.\n\n## Context (no other pipeline memory)\nYou do NOT know product UI or upstream job names. Inputs are raw folder materials assembled for this call only.\n- dossier_text: concatenated design notes / bios / scripts (may be empty).\n- media_manifest_json: list of assets with ref_key and kind (image|text).\n- Attached reference images (if any) correspond to image entries in the manifest (order may match image assets). Most images are single portraits. Multi-panel sheets are rare (turnaround / expression grid / outfit board / info card) — only when multiple panels are visible in one file.\n\n## Inputs\n- folder_name: ${folder_name}\n- asset_count: ${asset_count}\n- media_manifest_json:\n${media_manifest_json}\n- dossier_text:\n${dossier_text}\n\n## Provenance rules (hard)\nFor every Provenanced field use {\"value\":...,\"provenance\":\"extracted\"|\"inferred\",\"evidence\"?}.\n- extracted: supported by dossier or visible image evidence.\n- inferred: no direct evidence — invent a coherent completion consistent with known facts. Prefer filling fields over leaving them empty (except voice_id).\n- Never fabricate voice_id. Omit voice_id unless clearly present in text.\n- Do not use provenance \"user\" (reserved for human edits later).\n\n## Media classification (hard — look at PIXELS, not outfit/pose)\nFor EACH image asset in media_assets, classify by what is LITERALLY visible in the frame:\n\nDefault (most photos):\n- media_kind = single_portrait when the image shows ONE person from ONE camera angle in ONE frame (selfie, half-body, full-body, outdoor portrait, costume photo of a single look).\n- is_multi_panel = false\n- panel_hints: OMIT entirely (do not invent front/side/back)\n\nis_multi_panel = true ONLY when the SAME image file contains multiple distinct panels/cells/views (visible dividers, collage, turnaround sheet, expression grid, outfit board with ≥2 looks, info card with multiple framed sections). Then:\n- media_kind = multi_view_sheet | expression_sheet | outfit_sheet | info_card as appropriate\n- panel_hints: short tokens in user_language describing the visible panels (zh: [\"正面\",\"侧面\",\"背面\"]；en: [\"front\",\"side\",\"back\"])\n\nForbidden false positives:\n- Do NOT label a single-angle photo as multi_view_sheet / outfit_sheet / expression_sheet just because the subject wears a costume, poses, or \"could be used as\" a sheet.\n- Do NOT invent panel_hints for single photos.\n- scene_with_character: character is small / not identity-primary in a scene.\n\nsuitability.identity_lock / costume_ref / expression_ref in [0,1]. True multi-view sheets usually score high on identity_lock; single portraits score by face clarity.\n\n## Appearance references (1..10)\n- appearance_ref_ids: 1–10 ref_keys, identity-first (prefer clear face portraits / true multi_view sheets over scene_with_character).\n- appearance_primary_ref: best single identity lock (clearest front face; use a sheet only if it is truly multi-panel).\n- Entire multi-panel images may be selected as-is (do not require cropping panels).\n\n## Profile fields\nFill Provenanced fields when possible; write free-text values in user_language.\ndisplay_name, aliases, species_or_race, gender_presentation, age_band,\nphysique, face, hair, distinctive_marks, clothing_default, clothing_preferences, color_affinities,\npersonality, background, speech_style, likes, dislikes, relationships, abilities.\n\nAlso emit:\n- character_brief: a 1–3 paragraph dossier in user_language for downstream writing injection.\n- appearance_prompt: identity + wardrobe lock lines in user_language (suitable as an injection prefix for image/video generation).\n- media_assets: one entry per image ref_key (and optionally note text-only assets only in asset_count).\n- asset_count: must equal ${asset_count}.\n- schema_version: 1\n\n## Terminology\nPrefer professional phrasing appropriate to user_language (zh: 「轮廓分明的下颌、灰蓝色眼眸、修身利落的剪裁」；en: \"sharp jaw, cool grey eyes, tailored silhouette\"). Avoid colloquial slang; keep prose publication-quality.\n\n## Output (hard)\nExactly one JSON object. No Markdown, no fences, no prose before/after. JSON.parse-able.\nExample shape:\n{\"schema_version\":1,\"display_name\":{\"value\":\"Aria Vale\",\"provenance\":\"extracted\"},\"species_or_race\":{\"value\":\"human\",\"provenance\":\"inferred\"},\"gender_presentation\":{\"value\":\"feminine\",\"provenance\":\"extracted\"},\"age_band\":{\"value\":\"mid-20s\",\"provenance\":\"inferred\"},\"physique\":{\"value\":\"lean athletic\",\"provenance\":\"inferred\"},\"face\":{\"value\":\"sharp jaw, cool grey eyes\",\"provenance\":\"extracted\"},\"hair\":{\"value\":\"silver bob, blunt fringe\",\"provenance\":\"extracted\"},\"clothing_default\":{\"value\":\"charcoal structured coat over black knit\",\"provenance\":\"inferred\"},\"personality\":{\"value\":\"reserved strategist, dry humor\",\"provenance\":\"inferred\"},\"background\":{\"value\":\"…\",\"provenance\":\"inferred\"},\"character_brief\":\"…\",\"appearance_prompt\":\"…\",\"media_assets\":[{\"ref_key\":\"storage_object:uuid-a\",\"media_kind\":\"single_portrait\",\"is_multi_panel\":false,\"suitability\":{\"identity_lock\":0.9,\"costume_ref\":0.6,\"expression_ref\":0.7}},{\"ref_key\":\"storage_object:uuid-b\",\"media_kind\":\"multi_view_sheet\",\"is_multi_panel\":true,\"panel_hints\":[\"front\",\"side\",\"back\"],\"suitability\":{\"identity_lock\":0.95,\"costume_ref\":0.8,\"expression_ref\":0.4}}],\"appearance_primary_ref\":\"storage_object:uuid-a\",\"appearance_ref_ids\":[\"storage_object:uuid-a\",\"storage_object:uuid-b\"],\"asset_count\":2}\n\nOutput JSON now."
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "folder_name": {
+                "type": "string",
+                "default": ""
+              },
+              "asset_count": {
+                "type": "integer",
+                "default": 0
+              },
+              "dossier_text": {
+                "type": "string",
+                "default": ""
+              },
+              "media_manifest_json": {
+                "type": "string",
+                "default": "[]"
+              },
+              "user_language": {
+                "type": "string",
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "default": "zh",
+                "description": "用户 UI 语言，决定 prompt 中自由文本字段的输出语言（zh | zh-TW | en | ja）。由后端 vf runner 注入，前端无需填写。"
+              },
+              "prompt": {
+                "type": "string",
+                "default": ""
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-vf-character-pack",
+        "provider": "openrouter",
+        "model": "gemini-3.5-flash",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-transform-vf-character-pack",
+          "charge_metric": "per_request",
+          "price_in_tokens": 50,
+          "min_charge_tokens": 0,
+          "provider": "openrouter",
+          "model_key": "gemini-3.5-flash",
+          "subtype": "vf-character-pack",
+          "metadata": {
+            "internal": true,
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

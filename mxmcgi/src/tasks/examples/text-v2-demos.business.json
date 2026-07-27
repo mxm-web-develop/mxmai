@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-22T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "plan",
+      "subtype": "demo-outline",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "规划",
+          "subtypeLabel": "示范 · 大纲壳",
+          "userFacing": false,
+          "taskLabelI18n": {
+            "zh": "规划",
+            "zh-TW": "规划"
+          },
+          "subtypeLabelI18n": {
+            "zh": "示范 · 大纲壳",
+            "zh-TW": "顯示范 · 大綱壳"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "goal"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "goal": {
+                "type": "string",
+                "title": "规划目标",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "You are a planning specialist.\n\nGoal:\n${goal}\n\nContract (JSON):\n${contract}\n\nReturn ONE JSON object shell for a content outline. Keys: title (string), sections (array of { heading, bullets[] }). No markdown."
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.3,
+              "maxTokens": 4096
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-plan-demo-outline",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "demo-compress",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换",
+          "subtypeLabel": "示范 · 压缩为英文",
+          "userFacing": false,
+          "taskLabelI18n": {
+            "zh": "转换",
+            "zh-TW": "轉換"
+          },
+          "subtypeLabelI18n": {
+            "zh": "示范 · 压缩为英文",
+            "zh-TW": "顯示范 · 压縮為英文"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "input",
+              "instruction"
+            ],
+            "properties": {
+              "input": {
+                "type": "string",
+                "title": "输入内容",
+                "minLength": 1
+              },
+              "instruction": {
+                "type": "string",
+                "title": "转换说明",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "You are a text compressor.\n\nInstruction:\n${instruction}\n\nInput:\n${input}\n\nEmit ONLY the transformed plain text. No markdown fences."
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.2,
+              "maxTokens": 4096
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-demo-compress",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "demo-fill-business",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "示范 · 填 business",
+          "userFacing": false,
+          "taskLabelI18n": {
+            "zh": "专家填合同",
+            "zh-TW": "专家填合同"
+          },
+          "subtypeLabelI18n": {
+            "zh": "示范 · 填 business",
+            "zh-TW": "顯示范 · 填 business"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段说明",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "You fill business fields of a runtime contract.\n\nField specs (JSON):\n${field_specs}\n\nContract (JSON):\n${contract}\n\nReturn ONE JSON object whose keys are a subset of field_specs names. No markdown."
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.2,
+              "maxTokens": 8192
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-demo-fill-business",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "validation",
+      "subtype": "demo-contract-check",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "校验",
+          "subtypeLabel": "示范 · 合同检查",
+          "userFacing": false,
+          "taskLabelI18n": {
+            "zh": "校验",
+            "zh-TW": "校驗"
+          },
+          "subtypeLabelI18n": {
+            "zh": "示范 · 合同检查",
+            "zh-TW": "顯示范 · 合同檢查"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "rules"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "rules": {
+                "type": "string",
+                "title": "校验规则",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "You validate a runtime contract.\n\nRules:\n${rules}\n\nContract (JSON):\n${contract}\n\nReturn ONLY JSON: {\"ok\": boolean, \"errors\": string[]}. No markdown."
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.1,
+              "maxTokens": 2048
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-validation-demo-contract-check",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    }
+  ]
+}

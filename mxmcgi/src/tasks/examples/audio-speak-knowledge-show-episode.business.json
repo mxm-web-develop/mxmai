@@ -8,19 +8,36 @@
       "type": "transform",
       "subtype": "knowledge-show-script-draft",
       "is_active": true,
-      "rules_i18n": { "zh": "", "en": "" },
-      "output_format_i18n": { "zh": "", "en": "" },
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
       "form_options_i18n": null,
       "extra": {
         "display": {
           "taskLabel": "转换 · 节目稿撰写",
-          "subtypeLabel": "为知识节目生成节目级口播稿（开场欢迎·主稿·结束语）；可挂载为 audio/speak/knowledge-show-episode 执行管线前置 nestedText"
+          "subtypeLabel": "为知识节目生成节目级口播稿（开场欢迎·主稿·结束语）；可挂载为 audio/speak/knowledge-show-episode 执行管线前置 nestedText",
+          "taskLabelI18n": {
+            "zh": "转换 · 节目稿撰写",
+            "zh-TW": "轉換 · 节專案稿撰寫"
+          },
+          "subtypeLabelI18n": {
+            "zh": "为知识节目生成节目级口播稿（开场欢迎·主稿·结束语）；可挂载为 audio/speak/knowledge-show-episode 执行管线前置 nestedText",
+            "zh-TW": "為知識节專案產生节專案升級口播稿（開場欢迎·主稿·結束語）；可挂解除安裝為 audio/speak/knowledge-show-episode 执行管線前設定 nestedText"
+          }
         },
         "taskTemplate": {
           "formSchema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "required": ["show_name", "source_material"],
+            "required": [
+              "show_name",
+              "source_material"
+            ],
             "properties": {
               "show_name": {
                 "type": "string",
@@ -39,8 +56,14 @@
                 "type": "string",
                 "title": "节目语言",
                 "x-ui-type": "selection",
-                "enum": ["zh", "en"],
-                "x-enum-labels": ["中文", "English"],
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "x-enum-labels": [
+                  "中文",
+                  "English"
+                ],
                 "default": "zh"
               },
               "show_tone": {
@@ -120,7 +143,9 @@
               "temperature": 0.45,
               "maxTokens": 131072,
               "parameters": {
-                "thinking": { "type": "disabled" },
+                "thinking": {
+                  "type": "disabled"
+                },
                 "max_completion_tokens": 131072
               }
             }
@@ -143,7 +168,10 @@
           "provider": "maxplan",
           "model_key": "MiniMax-M3",
           "subtype": "knowledge-show-script-draft",
-          "metadata": { "margin": 0.2, "voiceOverStage": "draft_show" }
+          "metadata": {
+            "margin": 0.2,
+            "voiceOverStage": "draft_show"
+          }
         }
       ],
       "linkedTextFormat": null
@@ -153,19 +181,36 @@
       "type": "transform",
       "subtype": "knowledge-show-script-tts-markup",
       "is_active": true,
-      "rules_i18n": { "zh": "", "en": "" },
-      "output_format_i18n": { "zh": "", "en": "" },
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
       "form_options_i18n": null,
       "extra": {
         "display": {
           "taskLabel": "转换 · 节目稿 TTS 优化",
-          "subtypeLabel": "为 MiniMax Speech 2.8 插入停顿与口语助词；可挂载为 audio/speak/knowledge-show-episode 管线第二步 nestedText"
+          "subtypeLabel": "为 MiniMax Speech 2.8 插入停顿与口语助词；可挂载为 audio/speak/knowledge-show-episode 管线第二步 nestedText",
+          "taskLabelI18n": {
+            "zh": "转换 · 节目稿 TTS 优化",
+            "zh-TW": "轉換 · 节專案稿 TTS 优化"
+          },
+          "subtypeLabelI18n": {
+            "zh": "为 MiniMax Speech 2.8 插入停顿与口语助词；可挂载为 audio/speak/knowledge-show-episode 管线第二步 nestedText",
+            "zh-TW": "為 MiniMax Speech 2.8 插入暫停顿與口語說明敏感詞；可挂解除安裝為 audio/speak/knowledge-show-episode 管線第二下一步 nestedText"
+          }
         },
         "taskTemplate": {
           "formSchema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "required": ["script_draft", "voice_id"],
+            "required": [
+              "script_draft",
+              "voice_id"
+            ],
             "properties": {
               "script_draft": {
                 "type": "string",
@@ -181,23 +226,55 @@
               "show_tone": {
                 "type": "string",
                 "title": "节目语气基调",
-                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
-                "x-enum-labels": ["沉稳理性", "评论思辨", "故事叙事", "教练拆解", "轻松活泼", "激情澎湃"],
+                "enum": [
+                  "steady",
+                  "editorial",
+                  "narrative",
+                  "explanatory",
+                  "lively",
+                  "passionate"
+                ],
+                "x-enum-labels": [
+                  "沉稳理性",
+                  "评论思辨",
+                  "故事叙事",
+                  "教练拆解",
+                  "轻松活泼",
+                  "激情澎湃"
+                ],
                 "default": "explanatory"
               },
               "speech_rhythm": {
                 "type": "string",
                 "title": "口播节奏",
                 "description": "控制 <#秒数#> 停顿标签密度，与语速 speed 无关",
-                "enum": ["none", "fluent", "default", "slow", "recitation"],
-                "x-enum-labels": ["无停顿", "流顺", "默认", "慢节奏", "朗诵"],
+                "enum": [
+                  "none",
+                  "fluent",
+                  "default",
+                  "slow",
+                  "recitation"
+                ],
+                "x-enum-labels": [
+                  "无停顿",
+                  "流顺",
+                  "默认",
+                  "慢节奏",
+                  "朗诵"
+                ],
                 "default": "default"
               },
               "language": {
                 "type": "string",
                 "title": "节目语言",
-                "enum": ["zh", "en"],
-                "x-enum-labels": ["中文", "English"],
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "x-enum-labels": [
+                  "中文",
+                  "English"
+                ],
                 "default": "zh"
               }
             }
@@ -210,7 +287,9 @@
               "temperature": 0.32,
               "maxTokens": 131072,
               "parameters": {
-                "thinking": { "type": "disabled" },
+                "thinking": {
+                  "type": "disabled"
+                },
                 "max_completion_tokens": 131072
               }
             }
@@ -233,7 +312,10 @@
           "provider": "maxplan",
           "model_key": "MiniMax-M3",
           "subtype": "knowledge-show-script-tts-markup",
-          "metadata": { "margin": 0.2, "voiceOverStage": "tts_markup_show" }
+          "metadata": {
+            "margin": 0.2,
+            "voiceOverStage": "tts_markup_show"
+          }
         }
       ],
       "linkedTextFormat": null
@@ -243,19 +325,36 @@
       "type": "speak",
       "subtype": "knowledge-show-episode",
       "is_active": true,
-      "rules_i18n": { "zh": "", "en": "" },
-      "output_format_i18n": { "zh": "", "en": "" },
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
       "form_options_i18n": null,
       "extra": {
         "display": {
           "taskLabel": "音频 · 知识节目口播",
-          "subtypeLabel": "节目级口播音频（含开场欢迎·主稿·结束一键三连），可作为后续视频剪辑声轨"
+          "subtypeLabel": "节目级口播音频（含开场欢迎·主稿·结束一键三连），可作为后续视频剪辑声轨",
+          "taskLabelI18n": {
+            "zh": "音频 · 知识节目口播",
+            "zh-TW": "音訊 · 知識节專案口播"
+          },
+          "subtypeLabelI18n": {
+            "zh": "节目级口播音频（含开场欢迎·主稿·结束一键三连），可作为后续视频剪辑声轨",
+            "zh-TW": "节專案升級口播音訊（含開場欢迎·主稿·結束一键三连），可我的創作為後繼續影圖片剪辑聲轨"
+          }
         },
         "taskTemplate": {
           "formSchema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "required": ["show_name", "source_material"],
+            "required": [
+              "show_name",
+              "source_material"
+            ],
             "properties": {
               "show_name": {
                 "type": "string",
@@ -274,16 +373,36 @@
                 "type": "string",
                 "title": "节目语言",
                 "x-ui-type": "selection",
-                "enum": ["zh", "en"],
-                "x-enum-labels": ["中文", "English"],
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "x-enum-labels": [
+                  "中文",
+                  "English"
+                ],
                 "default": "zh"
               },
               "show_tone": {
                 "type": "string",
                 "title": "节目语气基调",
                 "x-ui-type": "selection",
-                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
-                "x-enum-labels": ["沉稳理性", "评论思辨", "故事叙事", "教练拆解", "轻松活泼", "激情澎湃"],
+                "enum": [
+                  "steady",
+                  "editorial",
+                  "narrative",
+                  "explanatory",
+                  "lively",
+                  "passionate"
+                ],
+                "x-enum-labels": [
+                  "沉稳理性",
+                  "评论思辨",
+                  "故事叙事",
+                  "教练拆解",
+                  "轻松活泼",
+                  "激情澎湃"
+                ],
                 "default": "explanatory",
                 "description": "影响整稿用词、句式与节奏；不可混用；不允许在中段切换为另一种基调"
               },
@@ -339,9 +458,19 @@
                 "x-ui-type": "minimaxVoice",
                 "x-voice-model": "speech-2.8-hd",
                 "properties": {
-                  "mode": { "type": "string", "enum": ["system", "clone"] },
-                  "voice_id": { "type": "string" },
-                  "label": { "type": "string" }
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "system",
+                      "clone"
+                    ]
+                  },
+                  "voice_id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
                 },
                 "default": {
                   "mode": "system",
@@ -354,8 +483,20 @@
                 "title": "口播节奏",
                 "description": "控制断句与 <#秒数#> 停顿密度，与语速无关",
                 "x-ui-type": "selection",
-                "enum": ["none", "fluent", "default", "slow", "recitation"],
-                "x-enum-labels": ["无停顿", "流顺", "默认", "慢节奏", "朗诵"],
+                "enum": [
+                  "none",
+                  "fluent",
+                  "default",
+                  "slow",
+                  "recitation"
+                ],
+                "x-enum-labels": [
+                  "无停顿",
+                  "流顺",
+                  "默认",
+                  "慢节奏",
+                  "朗诵"
+                ],
                 "default": "default"
               },
               "speed": {
@@ -378,11 +519,15 @@
           },
           "uiSchema": {
             "source_material": {
-              "ui:options": { "rows": 10 }
+              "ui:options": {
+                "rows": 10
+              }
             },
             "supplement": {
               "ui:widget": "textarea",
-              "ui:options": { "rows": 3 }
+              "ui:options": {
+                "rows": 3
+              }
             }
           },
           "prompt": {
@@ -400,7 +545,9 @@
               {
                 "step": "nestedText",
                 "nestedTextTaskKey": "text/transform/knowledge-show-script-draft",
-                "params": { "afterPromptRender": true },
+                "params": {
+                  "afterPromptRender": true
+                },
                 "inputMapping": {
                   "show_name": "${params.show_name}",
                   "host_name": "${params.host_name}",
@@ -431,7 +578,9 @@
               {
                 "step": "nestedText",
                 "nestedTextTaskKey": "text/transform/knowledge-show-script-tts-markup",
-                "params": { "afterPromptRender": true },
+                "params": {
+                  "afterPromptRender": true
+                },
                 "inputMapping": {
                   "script_draft": "${state.finalPrompt}",
                   "voice_id": "${params.voice_id}",
@@ -463,7 +612,10 @@
           "provider": "maxplan",
           "model_key": "speech-2.8-hd",
           "subtype": "knowledge-show-episode",
-          "metadata": { "margin": 0.25, "show": true }
+          "metadata": {
+            "margin": 0.25,
+            "show": true
+          }
         }
       ],
       "linkedTextFormat": null

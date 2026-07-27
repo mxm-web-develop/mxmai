@@ -11,6 +11,7 @@ import type { IUserAgentRepository } from '../interfaces/IUserAgentRepository';
 import type { IWalletRepository } from '../interfaces/IWalletRepository';
 import type { IPromptOptimizerRepository } from '../interfaces/IPromptOptimizerRepository';
 import type { IConversationRepository } from '../interfaces/IConversationRepository';
+import type { IAgentConversationRepository } from '../interfaces/IAgentConversationRepository';
 import type { ISmartflowRepository } from '../interfaces/ISmartflowRepository';
 import type { ISmartflowExecutionRepository } from '../interfaces/ISmartflowExecutionRepository';
 import type { IPromptTemplateRepository } from '../interfaces/IPromptTemplateRepository';
@@ -18,17 +19,26 @@ import type { ICGITaskRepository } from '../interfaces/ICGITaskRepository';
 import type { IKnowledgeBaseRepository } from '../interfaces/IKnowledgeBaseRepository';
 import type { IKnowledgeBaseDefaultsRepository } from '../interfaces/IKnowledgeBaseDefaultsRepository';
 import type { IFolderRepository } from '../interfaces/IFolderRepository';
-import type { ICharacterRepository } from '../interfaces/ICharacterRepository';
 import type { IPromptEngineeringConfigRepository } from '../interfaces/IPromptEngineeringConfigRepository';
 import type { IProviderApiKeyRepository } from '../interfaces/IProviderApiKeyRepository';
 import type { IUserApiKeyRepository } from '../interfaces/IUserApiKeyRepository';
+import type { IPublishedApiRepository } from '../interfaces/IPublishedApiRepository';
+import type { IPublishedApiUsageRepository } from '../interfaces/IPublishedApiUsageRepository';
 import type { IGraphModelConfigRepository } from '../interfaces/IGraphModelConfigRepository';
 import type { ISensitiveWordRepository } from '../interfaces/ISensitiveWordRepository';
 import type { IProviderModelRepository } from '../interfaces/IProviderModelRepository';
 import type { IModelConfigRepository } from '../interfaces/IModelConfigRepository';
-import { SupabaseUserRepository, SupabasePaymentRepository, SupabaseWalletRepository, SupabasePromptOptimizerRepository, SupabaseConversationRepository, SupabaseSmartflowRepository, SupabaseSmartflowExecutionRepository, SupabasePromptTemplateRepository, SupabaseCGITaskRepository, SupabaseKnowledgeBaseRepository, SupabaseKnowledgeBaseDefaultsRepository, SupabaseFolderRepository, SupabaseCharacterRepository, SupabasePromptEngineeringConfigRepository, SupabaseProviderApiKeyRepository, SupabaseUserApiKeyRepository, SupabaseSensitiveWordRepository, SupabaseGraphModelConfigRepository, SupabaseProviderModelRepository, SupabaseModelConfigRepository, initSupabaseClient } from '../adapters/supabase';
-import { MinIOStorageRepository, initMinIOClient } from '../adapters/minio';
+import type { IUserReferenceImageRepository } from '../interfaces/IUserReferenceImageRepository';
+import type { IStorageObjectRepository } from '../interfaces/IStorageObjectRepository';
+import type { IScopeConfigRepository } from '../interfaces/IScopeConfigRepository';
+import type { ISearchScopeConfigRepository } from '../interfaces/ISearchScopeConfigRepository';
+import type { IPartnerRepository } from '../interfaces/IPartnerRepository';
+import { SupabaseUserRepository, SupabasePaymentRepository, SupabaseWalletRepository, SupabasePromptOptimizerRepository, SupabaseConversationRepository, SupabaseAgentConversationRepository, SupabaseSmartflowRepository, SupabaseSmartflowExecutionRepository, SupabasePromptTemplateRepository, SupabaseCGITaskRepository, SupabaseKnowledgeBaseRepository, SupabaseKnowledgeBaseDefaultsRepository, SupabaseFolderRepository, SupabasePromptEngineeringConfigRepository, SupabaseProviderApiKeyRepository, SupabaseUserApiKeyRepository, SupabasePublishedApiRepository, SupabasePublishedApiUsageRepository, SupabaseSensitiveWordRepository, SupabaseGraphModelConfigRepository, SupabaseProviderModelRepository, SupabaseModelConfigRepository, SupabaseUserReferenceImageRepository, SupabaseStorageObjectRepository, SupabaseGraphScopeConfigRepository, SupabaseVideoScopeConfigRepository, SupabaseAudioScopeConfigRepository, SupabaseMusicScopeConfigRepository, SupabaseWritingScopeConfigRepository, SupabaseOutlineScopeConfigRepository, SupabaseTextScopeConfigRepository, SupabaseKnowledgeScopeConfigRepository, SupabaseSearchScopeConfigRepository, SupabasePartnerRepository, initSupabaseClient } from '../adapters/supabase';
+import { initMinIOClient } from '../adapters/minio';
 import { loadDataConfig, type DataLayerConfig } from '../config/dataConfig';
+import { getStorageService, StorageService } from '../storage/StorageService';
+import { S3StorageAdapter } from '../storage/adapters/S3StorageAdapter';
+import type { StorageDomain } from '../storage/StorageDomain';
 
 let config: DataLayerConfig | null = null;
 
@@ -74,11 +84,62 @@ export function createUserRepository(): IUserRepository {
 }
 
 /**
- * 创建存储 Repository
+ * Domain-scoped storage adapter wrapper for backward-compatible IStorageRepository
  */
-export function createStorageRepository(): IStorageRepository {
-  const cfg = getConfig();
-  return new MinIOStorageRepository();
+class DomainStorageRepository implements IStorageRepository {
+  constructor(private domain: StorageDomain = 'generated') {}
+
+  private adapter(): S3StorageAdapter {
+    return getStorageService().forDomain(this.domain);
+  }
+
+  private bucket(): string {
+    return getStorageService().getDomainConfig(this.domain).bucket;
+  }
+
+  async uploadFile(bucket: string, key: string, file: Buffer, options?: import('../interfaces/IStorageRepository').UploadOptions) {
+    return this.adapter().uploadFile(bucket || this.bucket(), key, file, options);
+  }
+
+  async downloadFile(bucket: string, key: string) {
+    return this.adapter().downloadFile(bucket, key);
+  }
+
+  async openReadStream(bucket: string, key: string, range?: import('../interfaces/ReadStreamRange').ReadStreamRange) {
+    return this.adapter().openReadStream(bucket, key, range);
+  }
+
+  async deleteFile(bucket: string, key: string) {
+    return this.adapter().deleteFile(bucket, key);
+  }
+
+  async getFileMetadata(bucket: string, key: string) {
+    return this.adapter().getFileMetadata(bucket, key);
+  }
+
+  async getPresignedUrl(bucket: string, key: string, expiresIn?: number) {
+    return this.adapter().getPresignedUrl(bucket, key, expiresIn);
+  }
+
+  async fileExists(bucket: string, key: string) {
+    return this.adapter().fileExists(bucket, key);
+  }
+
+  async listFiles(bucket: string, options?: import('../interfaces/IStorageRepository').ListFilesOptions) {
+    return this.adapter().listFiles(bucket, options);
+  }
+
+  async copyFile(sourceBucket: string, sourceKey: string, targetBucket: string, targetKey: string) {
+    return this.adapter().copyFile(sourceBucket, sourceKey, targetBucket, targetKey);
+  }
+}
+
+/**
+ * 创建存储 Repository（默认 generated 域；向后兼容 MinIO 调用方）
+ */
+export function createStorageRepository(domain: StorageDomain = 'generated'): IStorageRepository {
+  getConfig();
+  return new DomainStorageRepository(domain);
 }
 
 /**
@@ -128,10 +189,18 @@ export class RepositoryFactory {
   }
 
   /**
-   * 创建存储 Repository
+   * 创建存储 Repository（默认 generated 域）
    */
-  static createStorageRepository(): IStorageRepository {
-    return createStorageRepository();
+  static createStorageRepository(domain: StorageDomain = 'generated'): IStorageRepository {
+    return createStorageRepository(domain);
+  }
+
+  /**
+   * 获取 StorageService 门面
+   */
+  static getStorageService(): StorageService {
+    getConfig();
+    return getStorageService();
   }
 
   /**
@@ -156,7 +225,7 @@ export class RepositoryFactory {
 
   /**
    * 创建用户助手项目 Repository
-   * 注意：此接口需要业务模块（如 mxmagent）实现具体的适配器
+   * 注意：此接口需要业务模块（如 mxmcgi）实现具体的适配器
    */
   static createUserAgentRepository(): IUserAgentRepository {
     const cfg = getConfig();
@@ -186,6 +255,13 @@ export class RepositoryFactory {
    */
   static createConversationRepository(): IConversationRepository {
     return createConversationRepository();
+  }
+
+  /**
+   * 创建 Agent Chat v2 Repository
+   */
+  static createAgentConversationRepository(): IAgentConversationRepository {
+    return createAgentConversationRepository();
   }
 
   /**
@@ -238,13 +314,6 @@ export class RepositoryFactory {
   }
 
   /**
-   * 创建角色 Repository
-   */
-  static createCharacterRepository(): ICharacterRepository {
-    return createCharacterRepository();
-  }
-
-  /**
    * 创建提示词工程配置 Repository
    */
   static createPromptEngineeringConfigRepository(): IPromptEngineeringConfigRepository {
@@ -257,6 +326,14 @@ export class RepositoryFactory {
 
   static createUserApiKeyRepository(): IUserApiKeyRepository {
     return createUserApiKeyRepository();
+  }
+
+  static createPublishedApiRepository(): IPublishedApiRepository {
+    return createPublishedApiRepository();
+  }
+
+  static createPublishedApiUsageRepository(): IPublishedApiUsageRepository {
+    return createPublishedApiUsageRepository();
   }
 
   static createSensitiveWordRepository(): ISensitiveWordRepository {
@@ -272,6 +349,70 @@ export class RepositoryFactory {
       throw new Error('当前只支持 Supabase 适配器');
     }
     return new SupabaseGraphModelConfigRepository();
+  }
+
+  static createGraphScopeConfigRepository(): IScopeConfigRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabaseGraphScopeConfigRepository();
+  }
+
+  static createVideoScopeConfigRepository(): IScopeConfigRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabaseVideoScopeConfigRepository();
+  }
+
+  static createAudioScopeConfigRepository(): IScopeConfigRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabaseAudioScopeConfigRepository();
+  }
+
+  static createMusicScopeConfigRepository(): IScopeConfigRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabaseMusicScopeConfigRepository();
+  }
+
+  static createWritingScopeConfigRepository(): IScopeConfigRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabaseWritingScopeConfigRepository();
+  }
+
+  static createOutlineScopeConfigRepository(): IScopeConfigRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabaseOutlineScopeConfigRepository();
+  }
+
+  static createTextScopeConfigRepository(): IScopeConfigRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabaseTextScopeConfigRepository();
+  }
+
+  static createKnowledgeScopeConfigRepository(): IScopeConfigRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabaseKnowledgeScopeConfigRepository();
   }
 
   /**
@@ -291,6 +432,33 @@ export class RepositoryFactory {
       throw new Error('当前只支持 Supabase 适配器');
     }
     return new SupabaseProviderModelRepository();
+  }
+
+  static createUserReferenceImageRepository(): IUserReferenceImageRepository {
+    return createUserReferenceImageRepository();
+  }
+
+  static createStorageObjectRepository(): IStorageObjectRepository {
+    return createStorageObjectRepository();
+  }
+
+  /**
+   * 创建 Search 搜索引擎配置 Repository
+   */
+  static createSearchScopeConfigRepository(): ISearchScopeConfigRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabaseSearchScopeConfigRepository();
+  }
+
+  static createPartnerRepository(): IPartnerRepository {
+    const cfg = getConfig();
+    if (cfg.adapter !== 'supabase') {
+      throw new Error('当前只支持 Supabase 适配器');
+    }
+    return new SupabasePartnerRepository();
   }
 }
 
@@ -320,6 +488,17 @@ export function createConversationRepository(): IConversationRepository {
   }
 
   return new SupabaseConversationRepository();
+}
+
+/**
+ * 创建 Agent Chat v2 Repository
+ */
+export function createAgentConversationRepository(): IAgentConversationRepository {
+  const cfg = getConfig();
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+  return new SupabaseAgentConversationRepository();
 }
 
 /**
@@ -419,19 +598,6 @@ export function createFolderRepository(): IFolderRepository {
 }
 
 /**
- * 创建角色 Repository
- */
-export function createCharacterRepository(): ICharacterRepository {
-  const cfg = getConfig();
-
-  if (cfg.adapter !== 'supabase') {
-    throw new Error('当前只支持 Supabase 适配器');
-  }
-  
-  return new SupabaseCharacterRepository();
-}
-
-/**
  * 创建提示词工程配置 Repository
  */
 export function createPromptEngineeringConfigRepository(): IPromptEngineeringConfigRepository {
@@ -464,6 +630,26 @@ export function createUserApiKeyRepository(): IUserApiKeyRepository {
   return new SupabaseUserApiKeyRepository();
 }
 
+export function createPublishedApiRepository(): IPublishedApiRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+
+  return new SupabasePublishedApiRepository();
+}
+
+export function createPublishedApiUsageRepository(): IPublishedApiUsageRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+
+  return new SupabasePublishedApiUsageRepository();
+}
+
 export function createSensitiveWordRepository(): ISensitiveWordRepository {
   const cfg = getConfig();
 
@@ -482,4 +668,34 @@ export function createModelConfigRepository(): IModelConfigRepository {
   }
 
   return new SupabaseModelConfigRepository();
+}
+
+export function createUserReferenceImageRepository(): IUserReferenceImageRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+
+  return new SupabaseUserReferenceImageRepository();
+}
+
+export function createStorageObjectRepository(): IStorageObjectRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+
+  return new SupabaseStorageObjectRepository();
+}
+
+export function createPartnerRepository(): IPartnerRepository {
+  const cfg = getConfig();
+
+  if (cfg.adapter !== 'supabase') {
+    throw new Error('当前只支持 Supabase 适配器');
+  }
+
+  return new SupabasePartnerRepository();
 }

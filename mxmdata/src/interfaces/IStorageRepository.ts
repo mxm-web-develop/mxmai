@@ -3,6 +3,9 @@
  * 提供文件上传、下载、删除等操作
  */
 
+import type { ReadStreamRange } from './ReadStreamRange';
+import type { Readable } from 'stream';
+
 export interface UploadOptions {
   contentType?: string;
   metadata?: Record<string, string>;
@@ -61,6 +64,11 @@ export interface IStorageRepository {
    * @param key 文件键（路径）
    */
   downloadFile(bucket: string, key: string): Promise<Buffer>;
+
+  /**
+   * 以流方式读取对象；可选字节范围（含 end）
+   */
+  openReadStream(bucket: string, key: string, range?: ReadStreamRange): Promise<Readable>;
 
   /**
    * 删除文件

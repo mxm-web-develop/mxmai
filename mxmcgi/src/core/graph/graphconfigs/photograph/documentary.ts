@@ -1,52 +1,14 @@
 /**
- * 摄影 - 纪事（documentary）配置
- * 参考 portrait.ts 的设计：提供 rules + outputformat + 构造用户需求草稿的 helper
+ * 摄影 - 纪事（documentary）
+ * V2：规则与输出格式由 Admin「提示词工程」提供；此处仅保留结构化用户需求草稿 helper。
  */
 import type { PhotographParams } from '../../type';
 
 export type DocumentaryOutputLanguage = 'zh' | 'en';
 
-export const documentaryConfig = {
-  /**
-   * 角色设定 + 专业规范（给 LLM 看的规则）
-   */
-  rules: `你是一位顶级纪实摄影师，擅长创作真实的纪实摄影作品。请严格根据用户需求、业务参数和知识库内容，设计一条用于 AI 图像生成的纪实摄影提示词（prompt）。
-
-【纪实摄影专业要求】
-1. 事件类型：
-   - 根据用户选择的事件类型（新闻、社会、文化、历史等）调整拍摄方式
-   - 不同事件需要不同的记录重点和表现方式
-2. 纪实风格：
-   - 根据用户选择的纪实风格（抓拍、摆拍、环境肖像等）调整拍摄方式
-   - 抓拍：自然真实，捕捉瞬间；摆拍：精心构图，突出主题；环境肖像：人物与环境结合
-3. 真实性：
-   - 保持画面的真实性和自然性，避免过度修饰
-   - 真实记录事件和环境，展现真实场景
-4. 环境记录：
-   - 真实记录环境，展现事件发生的真实场景
-   - 环境信息有助于理解事件背景
-5. 情感表达：
-   - 捕捉真实的情感和瞬间
-   - 通过画面传达事件的情感和意义
-6. 构图原则：
-   - 使用纪实摄影的构图原则，突出故事性
-   - 构图应服务于内容，而非单纯追求美观
-
-【提示词生成要求】
-- 使用专业纪实摄影术语，语言自然流畅
-- 提示词应覆盖：事件描述、纪实风格、环境场景、情感表达、构图方式、真实性要求等核心要素
-- 结合业务参数（eventType、documentaryStyle 等）做有针对性的细化描述
-- 允许适度发挥创造力，但必须符合用户的核心需求和设定`,
-
-  /**
-   * 输出结构要求（让 LLM 知道 prompt 内部大概要包含哪些要素）
-   */
-  outputformat: `800字以内,要包含事件描述，纪实风格，环境场景，情感表达，构图方式，真实性要求等重要信息`,
-};
-
 /**
  * 根据业务参数 + 参考图 + 用户原始 prompt，生成结构化的 documentary 用户需求草稿
- * 实际用于传给大模型，由大模型根据 rules + outputformat 进行最终整合
+ * 供 graph-service 在部分类型下拼装 effectiveUserPrompt（与 DB rules 分离）
  */
 export function buildDocumentaryUserPrompt(
   params: PhotographParams,
@@ -162,68 +124,4 @@ export function buildDocumentaryUserPrompt(
     specLineEn,
     'Within about 300 English words, integrate the above elements into a single fluent documentary photography prompt text.',
   ].join('\n');
-}
-
-/**
- * 根据用户参数生成默认知识库内容（当召回失败时使用）
- * 根据用户的业务参数（eventType, documentaryStyle）动态生成对应的专业指导
- */
-export function generateDefaultDocumentaryKnowledge(params: PhotographParams): string {
-  const { eventType, documentaryStyle } = params;
-  
-  const parts: string[] = [];
-  
-  // 事件类型
-  const eventTips: string[] = [];
-  if (eventType) {
-    eventTips.push(`事件类型：${eventType}`);
-    if (eventType.includes('新闻') || eventType.includes('news')) {
-      eventTips.push('新闻事件，注重时效性和真实性，突出事件关键信息');
-    } else if (eventType.includes('社会') || eventType.includes('social')) {
-      eventTips.push('社会事件，注重人文关怀和社会意义，展现社会真实');
-    } else if (eventType.includes('文化') || eventType.includes('culture')) {
-      eventTips.push('文化事件，注重文化内涵和传统价值，展现文化特色');
-    } else if (eventType.includes('历史') || eventType.includes('history')) {
-      eventTips.push('历史事件，注重历史价值和纪念意义，展现历史真实');
-    }
-  } else {
-    eventTips.push('根据事件类型调整拍摄方式，真实记录事件和环境');
-  }
-  parts.push(`【事件类型】\n${eventTips.join('，')}。`);
-  
-  // 纪实风格
-  const styleTips: string[] = [];
-  if (documentaryStyle === 'candid') {
-    styleTips.push('抓拍风格，自然真实，捕捉瞬间，展现真实情感');
-    styleTips.push('不干扰被摄对象，捕捉自然瞬间');
-  } else if (documentaryStyle === 'posed') {
-    styleTips.push('摆拍风格，精心构图，突出主题，展现事件意义');
-    styleTips.push('精心构图，突出主题和意义');
-  } else if (documentaryStyle === 'environmental') {
-    styleTips.push('环境肖像风格，人物与环境结合，展现事件背景');
-    styleTips.push('人物与环境结合，展现事件背景');
-  } else if (documentaryStyle === 'street') {
-    styleTips.push('街头纪实风格，捕捉日常生活，展现社会真实');
-    styleTips.push('捕捉日常生活，展现社会真实');
-  } else {
-    styleTips.push('根据事件需求营造相应的纪实风格');
-  }
-  parts.push(`【纪实风格】\n${styleTips.join('，')}。`);
-  
-  // 真实性
-  parts.push(`【真实性】\n保持画面的真实性和自然性，避免过度修饰，真实记录环境，展现真实场景。`);
-  
-  // 环境记录
-  parts.push(`【环境记录】\n真实记录环境，展现事件发生的真实场景，环境信息有助于理解事件背景。`);
-  
-  // 情感表达
-  parts.push(`【情感表达】\n捕捉真实的情感和瞬间，通过画面传达事件的情感和意义，展现人文关怀。`);
-  
-  // 构图原则
-  parts.push(`【构图原则】\n使用纪实摄影的构图原则，突出故事性，构图应服务于内容，而非单纯追求美观。`);
-  
-  // 镜头与画质
-  parts.push(`【镜头与画质】\n使用标准镜头（35mm、50mm）或广角镜头（24mm），自然透视，整体画质专业级，具有纪实价值和人文意义。`);
-  
-  return parts.join('\n\n');
 }

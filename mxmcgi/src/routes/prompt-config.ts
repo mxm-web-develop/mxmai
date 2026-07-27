@@ -69,7 +69,6 @@ router.get('/by-key', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'Not found' });
     }
     if (lang) {
-      const rules = row.rules_i18n && typeof row.rules_i18n[lang] !== 'undefined' ? row.rules_i18n[lang] : (row.rules_i18n as Record<string, string>)?.['zh'] ?? (row.rules_i18n as Record<string, string>)?.['en'] ?? '';
       const output_format = row.output_format_i18n && typeof (row.output_format_i18n as Record<string, string>)[lang] !== 'undefined' ? (row.output_format_i18n as Record<string, string>)[lang] : (row.output_format_i18n as Record<string, string>)?.['zh'] ?? (row.output_format_i18n as Record<string, string>)?.['en'] ?? '';
       return res.json({
         success: true,
@@ -78,7 +77,7 @@ router.get('/by-key', async (req: Request, res: Response) => {
           scope: row.scope,
           type: row.type,
           subtype: row.subtype,
-          rules: rules,
+          rules: '',
           output_format: output_format,
           form_options_i18n: row.form_options_i18n,
           extra: row.extra,
@@ -96,7 +95,7 @@ router.get('/by-key', async (req: Request, res: Response) => {
   }
 });
 
-/** PUT /system/prompt-config — upsert，body: scope, type, subtype?, rules_i18n?, output_format_i18n?, form_options_i18n?, extra?, is_active? */
+/** PUT /system/prompt-config — upsert，body: scope, type, subtype?, output_format_i18n?, form_options_i18n?, extra?, is_active?（rules_i18n 已弃用，写入恒为 {}） */
 router.put('/', async (req: Request, res: Response) => {
   if (!(await isAdminUser(req))) {
     return res.status(403).json({ success: false, error: 'Admin only' });
@@ -123,7 +122,7 @@ router.put('/', async (req: Request, res: Response) => {
       scope,
       type,
       subtype: body.subtype ?? null,
-      rules_i18n: body.rules_i18n,
+      rules_i18n: {} as Record<string, string>,
       output_format_i18n: body.output_format_i18n,
       form_options_i18n: body.form_options_i18n ?? null,
       extra: body.extra ?? null,

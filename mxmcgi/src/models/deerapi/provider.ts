@@ -32,6 +32,11 @@ import {
 } from '../provider-model-catalog';
 import { requireUpstreamPhysicalId } from '../physical-model-id';
 import { ProviderBalanceService } from '../../statistics/provider-balance-service';
+import { extname } from 'node:path';
+import {
+  filterReferenceEchoUrls,
+  normalizeHttpUrlForCompare,
+} from '../../core/graph/graph-reference-echo-guard';
 
 export class DeerProvider implements ModelProvider {
   readonly provider: ProviderType = 'deer';
@@ -366,6 +371,154 @@ export class DeerProvider implements ModelProvider {
     };
   }
 
+  private isGeminiTextModel(modelName: string, deerModel: string): boolean {
+    const s = `${modelName} ${deerModel}`.toLowerCase();
+    return s.includes('gemini') && !s.includes('-image') && !s.includes('image-');
+  }
+
+  private pushGeminiImageInputFromString(
+    imageInputs: Array<{ mime_type: string; data: string }>,
+    imageValue: string,
+  ): void {
+    let base64Data = '';
+    let mimeType = 'image/jpeg';
+    if (imageValue.startsWith('data:')) {
+      const [header, data] = imageValue.split(',');
+      base64Data = data;
+      const mimeMatch = header.match(/data:([^;]+)/);
+      if (mimeMatch) mimeType = mimeMatch[1];
+    } else if (imageValue.startsWith('http://') || imageValue.startsWith('https://')) {
+      return;
+    } else {
+      base64Data = imageValue;
+    }
+    if (base64Data) imageInputs.push({ mime_type: mimeType, data: base64Data });
+  }
+
+  private collectGeminiImageInputsFromParams(
+    params: GenerateParams,
+  ): Array<{ mime_type: string; data: string }> {
+    const imageInputs: Array<{ mime_type: string; data: string }> = [];
+    if (params.parameters?.image) {
+      this.pushGeminiImageInputFromString(imageInputs, String(params.parameters.image));
+    }
+    if (params.parameters?.image_base64s && Array.isArray(params.parameters.image_base64s)) {
+      for (const base64 of params.parameters.image_base64s) {
+        this.pushGeminiImageInputFromString(imageInputs, String(base64));
+      }
+    }
+    const ref = (params as { referenceImage?: unknown }).referenceImage;
+    if (Array.isArray(ref)) {
+      for (const row of ref) {
+        const c =
+          row && typeof row === 'object' && 'content' in (row as object)
+            ? String((row as { content?: string }).content || '')
+            : '';
+        if (c.trim()) this.pushGeminiImageInputFromString(imageInputs, c.trim());
+      }
+    }
+    return imageInputs;
+  }
+
+  private async resolveGeminiImageInputsFromParams(
+    params: GenerateParams,
+  ): Promise<Array<{ mime_type: string; data: string }>> {
+    const sync = this.collectGeminiImageInputsFromParams(params);
+    const pendingUrls: string[] = [];
+    const addUrl = (v: string) => {
+      if (v.startsWith('http://') || v.startsWith('https://')) pendingUrls.push(v);
+    };
+    if (params.parameters?.image) addUrl(String(params.parameters.image));
+    if (Array.isArray(params.parameters?.image_base64s)) {
+      for (const b of params.parameters.image_base64s) addUrl(String(b));
+    }
+    const ref = (params as { referenceImage?: unknown }).referenceImage;
+    if (Array.isArray(ref)) {
+      for (const row of ref) {
+        const c =
+          row && typeof row === 'object' && 'content' in (row as object)
+            ? String((row as { content?: string }).content || '')
+            : '';
+        if (c.trim()) addUrl(c.trim());
+      }
+    }
+    const out = [...sync];
+    for (const url of pendingUrls) {
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) continue;
+        const ct = resp.headers.get('content-type') || 'image/jpeg';
+        const ab = await resp.arrayBuffer();
+        const b64 = Buffer.from(ab).toString('base64');
+        out.push({ mime_type: ct.split(';')[0] || 'image/jpeg', data: b64 });
+      } catch (e) {
+        console.warn('[DeerProvider] 下载参考图失败，跳过:', url, e);
+      }
+    }
+    return out;
+  }
+
+  private extractTextFromGeminiGenerateContentResponse(response: any): string {
+    const parts: string[] = [];
+    const candidates = response?.candidates;
+    if (Array.isArray(candidates)) {
+      for (const candidate of candidates) {
+        const contentParts = candidate?.content?.parts;
+        if (!Array.isArray(contentParts)) continue;
+        for (const part of contentParts) {
+          if (typeof part?.text === 'string' && part.text.trim()) {
+            parts.push(part.text.trim());
+          }
+        }
+      }
+    }
+    return parts.join('\n\n');
+  }
+
+  /**
+   * Gemini 多模态文本：DeerAPI generateContent，仅返回 TEXT（用于产品图理解 + 文案）
+   */
+  private async generateTextWithGeminiVision(
+    modelName: string,
+    deerModel: string,
+    params: GenerateParams,
+    client: DeerAPIClient,
+  ): Promise<GenerateResult> {
+    const imageInputs = await this.resolveGeminiImageInputsFromParams(params);
+    const response = await client.generateContent({
+      model: deerModel,
+      prompt: params.prompt,
+      imageInputs: imageInputs.length > 0 ? imageInputs : undefined,
+      responseModalities: ['TEXT'],
+    });
+    const text = this.extractTextFromGeminiGenerateContentResponse(response);
+    if (!text) {
+      throw new Error('DeerAPI Gemini 多模态返回为空，请检查模型是否支持视觉理解');
+    }
+    const usageMeta = response?.usageMetadata || response?.usage_metadata;
+    const usage = usageMeta
+      ? {
+          prompt_tokens: usageMeta.promptTokenCount ?? usageMeta.prompt_token_count ?? 0,
+          completion_tokens: usageMeta.candidatesTokenCount ?? usageMeta.candidates_token_count ?? 0,
+          total_tokens:
+            (usageMeta.totalTokenCount ?? usageMeta.total_token_count) ??
+            ((usageMeta.promptTokenCount ?? 0) + (usageMeta.candidatesTokenCount ?? 0)),
+        }
+      : undefined;
+    return {
+      mediaUrls: [text],
+      metadata: {
+        model: modelName,
+        provider: this.provider,
+        outputFormat: 'json',
+        text,
+        usage,
+      },
+      text,
+      ...(usage ? { usage } : {}),
+    } as any;
+  }
+
   private async generateText(
     modelName: string,
     deerModel: string,
@@ -373,6 +526,19 @@ export class DeerProvider implements ModelProvider {
     outputFormat: 'stream' | 'json',
     client: DeerAPIClient,
   ): Promise<GenerateResult> {
+    if (outputFormat === 'json' && this.isGeminiTextModel(modelName, deerModel)) {
+      const imageInputs = this.collectGeminiImageInputsFromParams(params);
+      const hasRefUrls =
+        (params.parameters?.image && String(params.parameters.image).startsWith('http')) ||
+        (Array.isArray((params as any).referenceImage) &&
+          (params as any).referenceImage.some(
+            (r: any) => typeof r?.content === 'string' && /^https?:\/\//.test(r.content),
+          ));
+      if (imageInputs.length > 0 || hasRefUrls) {
+        return await this.generateTextWithGeminiVision(modelName, deerModel, params, client);
+      }
+    }
+
     const messages: DeerAPIChatMessage[] = [];
     const systemPrompt = params.parameters?.system_prompt || params.parameters?.system_instruction;
     if (systemPrompt) {
@@ -596,6 +762,7 @@ export class DeerProvider implements ModelProvider {
         modelName === 'nano-banana-2-pro';
       const isFluxModel = modelName.startsWith('flux-');
       const isSeedreamModel = modelName === 'seedream-4' || modelName === 'seedream-5';
+      const isGptImageModel = modelName.startsWith('gpt-image');
 
       if (isGeminiModel) {
         return await this.generateImageWithGemini(modelName, deerModel, params, client);
@@ -603,6 +770,8 @@ export class DeerProvider implements ModelProvider {
         return await this.generateImageWithReplicate(modelName, deerModel, params, client);
       } else if (isSeedreamModel) {
         return await this.generateImageWithSeedream(modelName, deerModel, params, client);
+      } else if (isGptImageModel) {
+        return await this.generateImageWithOpenAI(modelName, deerModel, params, client);
       } else {
         throw new Error(`DeerAPI 暂不支持模型 ${modelName} 的图像生成`);
       }
@@ -1282,6 +1451,338 @@ export class DeerProvider implements ModelProvider {
   }
 
   /**
+   * 使用 OpenAI 兼容接口生成图像（gpt-image-2 等）
+   * 端点：POST /v1/images/generations
+   * 参考文档：https://apidoc.deerapi.com/api/image/openai/generate
+   */
+  private async generateImageWithOpenAI(
+    modelName: string,
+    deerModel: string,
+    params: GenerateParams,
+    client: DeerAPIClient,
+  ): Promise<GenerateResult> {
+    // 若携带参考图，优先走 OpenAI 图像编辑接口 /v1/images/edits（multipart）
+    // DeerAPI 的 /v1/images/generations（OpenAI兼容）不支持传图，因此参考图在该路径必然无效。
+    // 注意：DB default_parameters 可能出现 image_input: []；空数组在 JS 中为 truthy，旧逻辑会误判「有图」
+    // 从而既不消费顶层 image、也无法从空数组解析像素。必须用「非空字符串内容」判断。
+    const hasNonemptyImageSlot = (v: unknown): boolean => {
+      if (v == null) return false;
+      if (typeof v === 'string') return v.trim().length > 0;
+      if (Array.isArray(v)) return v.some((x) => typeof x === 'string' && String(x).trim().length > 0);
+      return false;
+    };
+
+    const hasAnyImageInput = (() => {
+      const p = (params.parameters || {}) as any;
+      const top = params as any;
+      return (
+        hasNonemptyImageSlot(p.image_input) ||
+        hasNonemptyImageSlot(p.image_urls) ||
+        hasNonemptyImageSlot(p.image_base64s) ||
+        hasNonemptyImageSlot(p.image) ||
+        hasNonemptyImageSlot(p.images) ||
+        hasNonemptyImageSlot(top.image_input) ||
+        hasNonemptyImageSlot(top.image_urls) ||
+        hasNonemptyImageSlot(top.image_base64s) ||
+        hasNonemptyImageSlot(top.image) ||
+        hasNonemptyImageSlot(top.images)
+      );
+    })();
+
+    // 构建 OpenAI 兼容的请求参数
+    const p = (params.parameters || {}) as Record<string, unknown>;
+    const openaiRequest: {
+      model: string;
+      prompt: string;
+      n?: number;
+      size?: string;
+      background?: 'transparent' | 'opaque' | 'auto';
+      output_format?: 'png' | 'jpeg' | 'webp';
+      quality?: 'high' | 'medium' | 'low' | 'auto';
+    } = {
+      model: deerModel,
+      prompt: params.prompt,
+    };
+
+    // 处理 n（生成图片数量）
+    if (params.parameters?.n !== undefined) {
+      openaiRequest.n = Number(params.parameters.n);
+    } else if (params.parameters?.num_outputs !== undefined) {
+      openaiRequest.n = Number(params.parameters.num_outputs);
+    } else if (params.parameters?.max_images !== undefined) {
+      openaiRequest.n = Number(params.parameters.max_images);
+    }
+
+    // 处理 size：gpt-image-2 支持 1024x1024, 1024x1792, 1792x1024 等
+    if (params.parameters?.size) {
+      openaiRequest.size = params.parameters.size as string;
+    } else if (params.parameters?.image_size) {
+      openaiRequest.size = params.parameters.image_size as string;
+    } else if (params.parameters?.aspect_ratio) {
+      // 将 aspect_ratio 转换为 size
+      const ar = params.parameters.aspect_ratio as string;
+      if (ar === '1:1') {
+        openaiRequest.size = '1024x1024';
+      } else if (ar === '16:9') {
+        openaiRequest.size = '1792x1024';
+      } else if (ar === '9:16') {
+        openaiRequest.size = '1024x1792';
+      } else if (ar === '3:4') {
+        openaiRequest.size = '1024x1536';
+      } else if (ar === '4:3') {
+        openaiRequest.size = '1536x1024';
+      }
+    }
+    // graph-service 把 aspect_ratio 写在顶层；此前仅读 parameters.aspect_ratio，3:4 等会落不到 size。
+    if (!openaiRequest.size) {
+      const topAr =
+        ((params as any).aspect_ratio as string | undefined) ||
+        (params.parameters?.aspectRatio as string | undefined);
+      if (topAr === '1:1') openaiRequest.size = '1024x1024';
+      else if (topAr === '16:9') openaiRequest.size = '1792x1024';
+      else if (topAr === '9:16') openaiRequest.size = '1024x1792';
+      else if (topAr === '3:4') openaiRequest.size = '1024x1536';
+      else if (topAr === '4:3') openaiRequest.size = '1536x1024';
+    }
+
+    if (p.background === 'transparent' || p.background === 'opaque' || p.background === 'auto') {
+      openaiRequest.background = p.background;
+    }
+    if (p.output_format === 'png' || p.output_format === 'jpeg' || p.output_format === 'webp') {
+      openaiRequest.output_format = p.output_format;
+    }
+    if (p.quality === 'high' || p.quality === 'medium' || p.quality === 'low' || p.quality === 'auto') {
+      openaiRequest.quality = p.quality;
+    }
+
+    // DeerAPI OpenAI 图像接口当前不接受 response_format（会返回 400 unknown_parameter）。
+    // 因此这里不传 response_format，由上游决定返回 url 或 b64_json；下方解析逻辑两者都兼容。
+
+    const pushMaybe = (imageUrls: string[], item: any) => {
+      if (!item) return;
+      // URL 格式
+      if (typeof item === 'string' && (item.startsWith('http://') || item.startsWith('https://'))) {
+        imageUrls.push(item);
+        return;
+      }
+      const obj = item as Record<string, any>;
+      // 尝试多种可能的字段名
+      if (typeof obj.url === 'string') imageUrls.push(obj.url);
+      else if (obj.b64_json) {
+        const b64 = typeof obj.b64_json === 'string' ? obj.b64_json : JSON.stringify(obj.b64_json);
+        imageUrls.push(`data:image/png;base64,${b64}`);
+      } else if (obj.base64) {
+        const b64 = typeof obj.base64 === 'string' ? obj.base64 : JSON.stringify(obj.base64);
+        imageUrls.push(`data:image/png;base64,${b64}`);
+      }
+    };
+
+    const extractImagesFromResponse = (response: any): string[] => {
+      const imageUrls: string[] = [];
+      const candidates = [response?.data, response?.images, response?.output, response?.result];
+      for (const c of candidates) {
+        if (Array.isArray(c)) c.forEach((it) => pushMaybe(imageUrls, it));
+        else if (c) pushMaybe(imageUrls, c);
+      }
+      return imageUrls;
+    };
+
+    if (hasAnyImageInput) {
+      const p = (params.parameters || {}) as any;
+      const top = params as any;
+
+      // 统一收集图像输入（保持顺序）
+      // 注意：上游（graph-service）为了兼容不同 provider，可能同时设置 image_input 与 image（同一批数据）。
+      // 对 OpenAI edits 场景，重复上传同一张图会造成 4 -> 8 这类“倍增”，这里必须去重/择一。
+      const rawInputs: string[] = [];
+      const addAny = (v: any) => {
+        if (!v) return;
+        if (Array.isArray(v)) v.forEach((x) => typeof x === 'string' && rawInputs.push(x));
+        else if (typeof v === 'string') rawInputs.push(v);
+      };
+
+      // 选择“主来源”：
+      // - 优先 image_input（Graph 已统一填充）
+      // - 其次 image_urls / image_base64s / images（Atlas 兼容）
+      // - 最后才是 image（Seedream/兼容字段）
+      // 空数组必须用 hasNonemptyImageSlot，否则会挡住顶层 image（见函数开头注释）
+      if (hasNonemptyImageSlot(p.image_input)) addAny(p.image_input);
+      else if (hasNonemptyImageSlot(p.image_urls) || hasNonemptyImageSlot(p.image_base64s)) {
+        addAny(p.image_urls);
+        addAny(p.image_base64s);
+      } else if (hasNonemptyImageSlot(p.image)) {
+        addAny(p.image);
+      } else if (hasNonemptyImageSlot(p.images)) {
+        addAny(p.images);
+      } else {
+        // 兼容少数调用链直接传 top-level 字段
+        if (hasNonemptyImageSlot(top.image_input)) addAny(top.image_input);
+        else if (hasNonemptyImageSlot(top.image_urls) || hasNonemptyImageSlot(top.image_base64s)) {
+          addAny(top.image_urls);
+          addAny(top.image_base64s);
+        } else if (hasNonemptyImageSlot(top.image)) {
+          addAny(top.image);
+        } else if (hasNonemptyImageSlot(top.images)) {
+          addAny(top.images);
+        }
+      }
+
+      // 可选：上游传入的 meta（用于在 filename/prompt 中保留 main-subject/outfits 等标识）
+      // 形状：与 rawInputs 同长度，元素例如 { groupKey:'model_images', type:'main-subject', purpose:'...' }
+      // 兼容：可能在 parameters 或 top-level
+      const metaCandidate = Array.isArray(p.image_input_meta)
+        ? (p.image_input_meta as any[])
+        : Array.isArray((top as any).image_input_meta)
+          ? ((top as any).image_input_meta as any[])
+          : [];
+
+      // 去重（保持首次出现的顺序），避免同图多传；同时保持 meta 与输入对齐
+      const seen = new Set<string>();
+      const deduped: string[] = [];
+      const dedupedMeta: any[] = [];
+      for (let i = 0; i < rawInputs.length; i++) {
+        const x = rawInputs[i];
+        const k = x.trim();
+        if (!k) continue;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        deduped.push(x);
+        dedupedMeta.push(metaCandidate[i] ?? undefined);
+      }
+      rawInputs.length = 0;
+      rawInputs.push(...deduped);
+
+      if (rawInputs.length === 0) {
+        throw new Error('检测到参考图字段，但未能解析出任何图像输入（image_input/image_urls/image_base64s/image）');
+      }
+
+      const decodeDataUri = (s: string): { mimeType: string; base64: string } => {
+        const m = s.match(/^data:([^;]+);base64,(.*)$/s);
+        if (!m) return { mimeType: 'image/png', base64: s };
+        return { mimeType: m[1] || 'image/png', base64: m[2] || '' };
+      };
+
+      const extFromMime = (ct: string): string => {
+        const v = (ct || '').toLowerCase();
+        if (v.includes('png')) return 'png';
+        if (v.includes('webp')) return 'webp';
+        if (v.includes('gif')) return 'gif';
+        if (v.includes('jpg') || v.includes('jpeg')) return 'jpg';
+        return 'png';
+      };
+
+      const downloadToBuffer = async (url: string): Promise<{ buf: Buffer; contentType: string; filename: string }> => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`下载参考图失败: ${res.status} ${res.statusText}`);
+        const ct = res.headers.get('content-type') || 'image/png';
+        const ab = await res.arrayBuffer();
+        const buf = Buffer.from(ab);
+        const pth = new URL(url).pathname;
+        const ext = extname(pth) || '.' + extFromMime(ct);
+        return { buf, contentType: ct, filename: `ref${Date.now()}${ext}` };
+      };
+
+      const images: Array<{ data: Buffer; filename: string; contentType: string }> = [];
+
+      const metaList = dedupedMeta;
+      const normalizeTag = (s: unknown): string =>
+        String(s || '')
+          .trim()
+          .replace(/[^a-zA-Z0-9_-]+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+      for (let i = 0; i < rawInputs.length; i++) {
+        const v = rawInputs[i];
+        const meta = metaList[i] || {};
+        const groupTag = normalizeTag(meta.groupKey);
+        const typeTag = normalizeTag(meta.type);
+        const tagPrefix = [groupTag, typeTag].filter(Boolean).join('_');
+        if (/^https?:\/\//i.test(v)) {
+          const { buf, contentType, filename } = await downloadToBuffer(v);
+          images.push({
+            data: buf,
+            contentType,
+            filename: `ref_${i + 1}${tagPrefix ? `_${tagPrefix}` : ''}_${filename}`,
+          });
+        } else if (v.startsWith('data:')) {
+          const { mimeType, base64 } = decodeDataUri(v);
+          const buf = Buffer.from(base64, 'base64');
+          images.push({
+            data: buf,
+            contentType: mimeType,
+            filename: `ref_${i + 1}${tagPrefix ? `_${tagPrefix}` : ''}.${extFromMime(mimeType)}`,
+          });
+        } else {
+          // assume pure base64
+          const buf = Buffer.from(v, 'base64');
+          images.push({
+            data: buf,
+            contentType: 'image/png',
+            filename: `ref_${i + 1}${tagPrefix ? `_${tagPrefix}` : ''}.png`,
+          });
+        }
+      }
+
+      console.log(`[DeerProvider] 检测到参考图(${images.length}张)，改走 OpenAI 图像编辑接口 /v1/images/edits，模型: ${deerModel}`);
+      const editResp = await client.createOpenAIImageEdit({
+        model: deerModel,
+        prompt: openaiRequest.prompt,
+        images,
+        n: openaiRequest.n,
+        size: openaiRequest.size,
+        output_format: openaiRequest.output_format,
+        background: openaiRequest.background,
+        quality: openaiRequest.quality,
+      });
+
+      const inputHttpRefSet = new Set(
+        rawInputs
+          .filter((u) => /^https?:\/\//i.test(String(u).trim()))
+          .map((u) => normalizeHttpUrlForCompare(String(u)))
+      );
+      let imageUrls = extractImagesFromResponse(editResp);
+      const rawCount = imageUrls.length;
+      imageUrls = filterReferenceEchoUrls(imageUrls, inputHttpRefSet);
+      if (imageUrls.length === 0) {
+        const keys = Object.keys((editResp || {}) as Record<string, unknown>).join(', ');
+        throw new Error(
+          `DeerAPI 图像编辑未返回新图（${rawCount} 条输出均为参考图 URL 或为空，keys: ${keys || 'none'}）`
+        );
+      }
+
+      return {
+        mediaUrls: imageUrls,
+        metadata: {
+          model: modelName,
+          provider: this.provider,
+          outputFormat: 'json',
+          usage: (editResp as any)?.usage,
+        },
+      };
+    }
+
+    console.log(`[DeerProvider] 调用 OpenAI 图像生成接口，模型: ${deerModel}`);
+
+    // 调用 OpenAI 兼容接口
+    const response = await client.createOpenAIImageGeneration(openaiRequest);
+
+    // 提取图片 URL 或 Base64
+    const imageUrls: string[] = extractImagesFromResponse(response);
+    if (imageUrls.length === 0) {
+      throw new Error('DeerAPI 图像生成未返回图像数据');
+    }
+
+    return {
+      mediaUrls: imageUrls,
+      metadata: {
+        model: modelName,
+        provider: this.provider,
+        outputFormat: 'json',
+      },
+    };
+  }
+
+  /**
    * 生成视频（异步任务）
    */
   private async generateVideo(
@@ -1370,6 +1871,28 @@ export class DeerProvider implements ModelProvider {
   }
 
   /**
+   * 解析可交付的视频 URL（status.video_url 或 /content 接口）
+   */
+  private async resolveDeerVideoDeliverableUrl(
+    videoId: string,
+    client: DeerAPIClient,
+    statusHint?: { video_url?: string },
+  ): Promise<string> {
+    if (statusHint?.video_url && typeof statusHint.video_url === 'string') {
+      return statusHint.video_url;
+    }
+    try {
+      const content = await client.getVideoContent(videoId);
+      if (content?.video_url && typeof content.video_url === 'string' && content.video_url.length > 0) {
+        return content.video_url;
+      }
+    } catch (e) {
+      console.warn(`[Deer Provider] getVideoContent 失败 (${videoId}):`, e);
+    }
+    throw new Error(`DeerAPI 视频任务 ${videoId} 已完成但未返回可访问的视频 URL`);
+  }
+
+  /**
    * 创建视频生成进度流
    */
   private async *createVideoProgressStream(videoId: string, client: DeerAPIClient): AsyncIterable<ProgressEvent> {
@@ -1420,13 +1943,20 @@ export class DeerProvider implements ModelProvider {
             return;
           }
 
-          // 没有拿到 video_url，只标记任务成功，不附带 URL
-          console.warn(`[Deer Provider] ⚠️  视频任务完成，但未返回 video_url`);
-          console.warn(`[Deer Provider] 完整状态对象:`, JSON.stringify(status, null, 2));
+          // 无 video_url 时于 Provider 内拉取 /content（不在 task-executor 二次下载）
+          const resolvedUrl = await this.resolveDeerVideoDeliverableUrl(videoId, client, status);
+          console.log(`[Deer Provider] ✅ 通过 content/状态 解析视频 URL: ${resolvedUrl.substring(0, 80)}...`);
           yield {
             status: 'succeeded' as ProgressStatus,
             progress: 100,
-            logs: ['视频生成完成，但未返回视频 URL'],
+            logs: ['视频生成完成'],
+            output: {
+              mediaUrls: [resolvedUrl],
+              metadata: {
+                videoId,
+                videoUrl: resolvedUrl,
+              },
+            },
           };
           return;
         }

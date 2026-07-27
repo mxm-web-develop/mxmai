@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-06-28T12:00:00.000Z",
+  "items": [
+    {
+      "scope": "writing",
+      "type": "articles",
+      "subtype": "tech-intelligence",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "写作",
+          "subtypeLabel": "AI科技情报报道",
+          "taskLabelI18n": {
+            "zh": "写作",
+            "zh-TW": "寫我的創作"
+          },
+          "subtypeLabelI18n": {
+            "zh": "AI科技情报报道",
+            "zh-TW": "AI科技情報報道"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "title": "报道话题",
+                "description": "你想写的 AI/科技情报主题，可含角度、时间范围、希望回答的问题",
+                "minLength": 1,
+                "x-ui-type": "text"
+              },
+              "report_title": {
+                "type": "string",
+                "title": "文稿标题（选填）",
+                "description": "留空则由模型根据话题自动生成标题"
+              },
+              "intel_web": {
+                "type": "object",
+                "title": "联网资料检索",
+                "description": "默认根据「报道话题」自动联网检索；可选择检索深度（快速/标准/深度），具体引擎由平台 Admin 配置自动选择",
+                "x-ui-type": "webSearch",
+                "x-auto-from-prompt": true,
+                "x-context-max-chars": 6000,
+                "x-max-items": 5,
+                "properties": {
+                  "searchDepth": {
+                    "type": "string",
+                    "title": "检索深度",
+                    "enum": [
+                      "quick",
+                      "standard",
+                      "deep"
+                    ],
+                    "x-enum-labels": [
+                      "快速",
+                      "标准",
+                      "深度"
+                    ],
+                    "default": "standard"
+                  },
+                  "query": {
+                    "type": "string",
+                    "title": "检索问题",
+                    "description": "留空则使用报道话题"
+                  },
+                  "maxResults": {
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 1,
+                    "maximum": 15,
+                    "x-user-visible": false
+                  }
+                }
+              },
+              "intel_kb": {
+                "type": "object",
+                "title": "知识库召回（可选）",
+                "description": "从已向量化虚拟文件夹召回内部资料、历史稿件、行业笔记",
+                "x-ui-type": "kbRecall",
+                "x-max-items": 5,
+                "properties": {
+                  "folderId": {
+                    "type": "string",
+                    "title": "虚拟文件夹"
+                  },
+                  "query": {
+                    "type": "string",
+                    "title": "召回问题"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "default": 8,
+                    "minimum": 1,
+                    "maximum": 20,
+                    "x-user-visible": false
+                  }
+                }
+              },
+              "audience": {
+                "type": "string",
+                "title": "目标读者",
+                "enum": [
+                  "general",
+                  "practitioner",
+                  "investor"
+                ],
+                "x-enum-labels": [
+                  "泛科技自媒体读者",
+                  "开发者/产品经理",
+                  "投资与产业观察"
+                ],
+                "default": "general",
+                "x-ui-type": "selection"
+              },
+              "depth": {
+                "type": "string",
+                "title": "报道深度",
+                "enum": [
+                  "brief",
+                  "standard",
+                  "deep"
+                ],
+                "x-enum-labels": [
+                  "快讯（约800–1200字）",
+                  "标准（约1800–2500字）",
+                  "深度（约3500–4500字）"
+                ],
+                "default": "standard",
+                "x-ui-type": "selection"
+              },
+              "tone": {
+                "type": "string",
+                "title": "叙述风格",
+                "enum": [
+                  "sharp",
+                  "balanced",
+                  "explainer"
+                ],
+                "x-enum-labels": [
+                  "犀利评论",
+                  "平衡报道",
+                  "科普解读"
+                ],
+                "default": "balanced",
+                "x-ui-type": "selection"
+              },
+              "writing_type": {
+                "type": "string",
+                "default": "articles",
+                "const": "articles",
+                "x-user-visible": false
+              },
+              "storage_form": {
+                "type": "string",
+                "default": "pdf",
+                "const": "pdf",
+                "x-user-visible": false
+              }
+            }
+          },
+          "uiSchema": {
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 5
+              }
+            },
+            "report_title": {
+              "ui:placeholder": "例：GPT-5 发布前夜：算力、开源与监管的三方博弈"
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】\n你是资深 AI/科技自媒体作者。你的任务是围绕用户指定话题，基于下方联网检索与知识库材料，写一篇**可直接发布**的深度报道。\n\n【用户话题 — 全文必须紧扣此主题】\n${prompt}\n\n【可选标题】${report_title}\n【目标读者】${audience}｜【篇幅档位】${depth}｜【叙述风格】${tone}\n\n【事实材料 · 写作时必须优先使用】\n以下检索结果是主要事实依据。正文中的具体事件、数据、产品名、机构名应尽量来自此处；可交叉印证，**不得捏造**检索中未出现且无法核实的细节。不确定处写「据公开信息/尚待证实」。\n\n--- 联网检索 ---\n${intel_web}\n\n--- 知识库 ---\n${intel_kb}\n\n【篇幅（汉字，不含标题）】\nbrief：800–1200｜standard：1800–2500｜deep：3500–4500\n\n【写作要求 — 极其重要】\n1. 输出**完整文章正文**，不是写作计划、大纲、规范说明或编辑内部备忘。禁止「我将…」「以下是结构」「开篇：三个问题」「30秒情报速览」等模板化编辑用语作小节标题。\n2. 文章必须回答用户话题「${prompt}」——读者读完应获得对该话题的具体认知，而不是一份空泛框架。\n3. 若联网检索有内容：每个主要论点至少引用 1 条检索中的具体事实（公司/产品/数据/时间）；把检索信息**改写融入**叙述段落，不要整段复制摘要列表。\n4. 除可选的「关键事实速览」（3～5 条 bullet，每条含具体信息）外，其余小节均以**连贯段落**为主；每个 ## 小节至少 2 段完整叙述。\n5. 禁止只输出小标题 + bullet 清单而无展开段落。\n\n【输出格式 — Markdown，用于 PDF】\n1. 只输出一篇 Markdown 文稿；第一行 `# 标题`（优先 report_title，否则自拟且紧扣话题）。\n2. 正文 4～6 个 `##` 小节，**小节标题由你根据话题自拟**（如具体公司动态、技术路线之争、监管影响），不要用固定九段式模板名。\n3. 建议结构：开篇 1～2 段直入主题 → 主体若干节深入分析 → 结尾 1 段总结与展望。可选一节「## 关键事实速览」。\n4. 可用 **加粗** 与 bullet；禁止 HTML、禁止用 ``` 包裹全文、禁止表格。\n5. tone=sharp 观点更鲜明；tone=explainer 多用类比；audience=practitioner 增加技术细节；audience=investor 增加商业格局。"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.65,
+              "maxTokens": 12000
+            }
+          },
+          "knowledge": {
+            "useKnowledge": false,
+            "defaultKnowledgeBaseIds": [],
+            "strategy": "none"
+          },
+          "pipeline": {
+            "post": []
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "writing-articles-tech-intelligence",
+        "provider": "jiekou",
+        "model": "deepseek-v3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "writing-articles-tech-intelligence",
+          "charge_metric": "per_request",
+          "price_in_tokens": 150,
+          "min_charge_tokens": 0,
+          "provider": "jiekou",
+          "model_key": "deepseek-v3",
+          "subtype": "tech-intelligence",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

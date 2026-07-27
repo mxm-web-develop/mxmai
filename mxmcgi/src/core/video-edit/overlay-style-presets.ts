@@ -1,5 +1,6 @@
 /**
  * YouTube / B站风格文字叠加预设（生成侧默认）
+ * 开场/结尾对齐热门知识解说类布局：冷开场大标题卡 + 结束卡 CTA
  * 与 web overlayStylePresets 对齐
  */
 import type { TextStyle } from '@mxmai/mxm-editor-core/text/types';
@@ -13,7 +14,13 @@ export type OverlayLayoutId =
   | 'center-right'
   | 'bottom-left'
   | 'bottom-center'
-  | 'bottom-right';
+  | 'bottom-right'
+  /** 开场主标题：略偏上，避开正中与字幕带（类 YT cold open / B站封面字） */
+  | 'title-hero'
+  /** 开场副标题：主标题下方一行较小字 */
+  | 'title-sub'
+  /** 结尾 CTA：字幕带上方的 end-card 区 */
+  | 'end-card';
 
 export type OverlayStylePresetId =
   | 'yt-headline'
@@ -27,7 +34,9 @@ export type OverlayStylePresetId =
   | 'keyword-pop'
   | 'fact-card'
   | 'chapter-progress'
-  | 'outro-cta';
+  | 'outro-cta'
+  /** 开场节目角标（小字，顶栏） */
+  | 'show-badge';
 
 /** shot-list 用 role 枚举 → 自动映射到具体 preset + 位置 */
 export type OverlayLayerRole =
@@ -37,7 +46,8 @@ export type OverlayLayerRole =
   | 'lower-third'
   | 'title-card'
   | 'outro-cta'
-  | 'chapter-progress';
+  | 'chapter-progress'
+  | 'show-badge';
 
 export type OverlayEmphasis = 'soft' | 'normal' | 'hot';
 
@@ -51,6 +61,12 @@ const LAYOUT_POS: Record<OverlayLayoutId, { x: number; y: number }> = {
   'bottom-left': { x: 0.18, y: 0.82 },
   'bottom-center': { x: 0.5, y: 0.82 },
   'bottom-right': { x: 0.82, y: 0.82 },
+  // YouTube/B站封面字：中上三分之一，不压正中脸/主体
+  'title-hero': { x: 0.5, y: 0.36 },
+  // 副标题贴在主标题下方
+  'title-sub': { x: 0.5, y: 0.48 },
+  // 结束卡：明显高于底部硬字幕/安全区
+  'end-card': { x: 0.5, y: 0.66 },
 };
 
 const FONT =
@@ -106,12 +122,12 @@ export function styleForOverlayPreset(preset: OverlayStylePresetId): TextStyle {
         strokeWidth: 3,
         shadowColor: 'rgba(2,6,23,0.7)',
         shadowBlur: 8,
-        shadowOffsetX: 0,
         shadowOffsetY: 2,
+        shadowOffsetX: 0,
       });
     case 'lower-third':
       return baseStyle({
-        fontSize: 36,
+        fontSize: 44,
         fontWeight: 700,
         color: '#F8FAFC',
         backgroundColor: 'rgba(15, 23, 42, 0.72)',
@@ -131,42 +147,49 @@ export function styleForOverlayPreset(preset: OverlayStylePresetId): TextStyle {
         shadowOffsetX: 3,
         shadowOffsetY: 3,
       });
-    case 'soft-caption':
-    default:
-      return baseStyle({
-        fontSize: 40,
-        fontWeight: 700,
-        color: '#F8FAFC',
-        backgroundColor: 'rgba(15, 23, 42, 0.55)',
-        strokeWidth: 0,
-        letterSpacing: 0,
-      });
+    /**
+     * 开场主标题 — 参考 YT 冷开场 / B站知识区片头字：
+     * 白字厚描边、无半透明底（避免糊画面），字号大、字距略开。
+     */
     case 'title-card':
       return baseStyle({
-        fontSize: 132,
+        fontSize: 120,
         fontWeight: 900,
+        color: '#FFFFFF',
+        strokeColor: '#0a0a0a',
+        strokeWidth: 7,
+        shadowColor: 'rgba(0,0,0,0.9)',
+        shadowBlur: 0,
+        shadowOffsetX: 5,
+        shadowOffsetY: 5,
+        backgroundColor: undefined,
+        letterSpacing: 2.5,
+        lineHeight: 1.12,
+      });
+    /** 开场节目角标 — 顶栏小 chip，对标频道/系列名露出 */
+    case 'show-badge':
+      return baseStyle({
+        fontSize: 34,
+        fontWeight: 700,
+        color: '#F8FAFC',
+        backgroundColor: 'rgba(15, 23, 42, 0.78)',
+        strokeWidth: 0,
+        letterSpacing: 2,
+        textAlign: 'center',
+      });
+    case 'chapter-cover':
+      return baseStyle({
+        fontSize: 92,
+        fontWeight: 800,
         color: '#F8FAFC',
         strokeColor: '#020617',
         strokeWidth: 4,
         shadowColor: 'rgba(2,6,23,0.75)',
-        shadowBlur: 14,
+        shadowBlur: 6,
         shadowOffsetX: 0,
         shadowOffsetY: 3,
-        backgroundColor: 'rgba(2, 6, 23, 0.42)',
-        letterSpacing: 2,
-      });
-    case 'chapter-cover':
-      return baseStyle({
-        fontSize: 100,
-        fontWeight: 800,
-        color: '#F8FAFC',
-        strokeColor: '#020617',
-        strokeWidth: 3,
-        shadowColor: 'rgba(2,6,23,0.7)',
-        shadowBlur: 8,
-        shadowOffsetX: 0,
-        shadowOffsetY: 2,
         backgroundColor: undefined,
+        letterSpacing: 1.5,
       });
     case 'keyword-pop':
       return baseStyle({
@@ -197,26 +220,41 @@ export function styleForOverlayPreset(preset: OverlayStylePresetId): TextStyle {
       });
     case 'chapter-progress':
       return baseStyle({
-        fontSize: 22,
+        fontSize: 36,
         fontWeight: 700,
         color: '#F8FAFC',
         backgroundColor: 'rgba(15, 23, 42, 0.55)',
         strokeWidth: 0,
         letterSpacing: 2,
       });
+    /**
+     * 结尾 CTA — 参考 YT end screen / B站「点赞投币」结束卡：
+     * 实心底条 + 大字，落在字幕带上方。
+     */
     case 'outro-cta':
       return baseStyle({
-        fontSize: 56,
+        fontSize: 68,
         fontWeight: 900,
-        color: '#F8FAFC',
-        strokeColor: '#020617',
-        strokeWidth: 3,
-        shadowColor: 'rgba(2,6,23,0.85)',
-        shadowBlur: 12,
+        color: '#FFFFFF',
+        strokeColor: undefined,
+        strokeWidth: 0,
+        shadowColor: 'rgba(0,0,0,0.55)',
+        shadowBlur: 10,
         shadowOffsetX: 0,
         shadowOffsetY: 4,
-        backgroundColor: 'rgba(190, 24, 93, 0.85)',
-        letterSpacing: 1,
+        backgroundColor: 'rgba(251, 113, 133, 0.92)',
+        letterSpacing: 2,
+        lineHeight: 1.2,
+      });
+    case 'soft-caption':
+    default:
+      return baseStyle({
+        fontSize: 48,
+        fontWeight: 700,
+        color: '#F8FAFC',
+        backgroundColor: 'rgba(15, 23, 42, 0.55)',
+        strokeWidth: 0,
+        letterSpacing: 0,
       });
   }
 }
@@ -230,17 +268,19 @@ const ROLE_PRESET_MAP: Record<OverlayLayerRole, OverlayStylePresetId> = {
   'title-card': 'title-card',
   'outro-cta': 'outro-cta',
   'chapter-progress': 'chapter-progress',
+  'show-badge': 'show-badge',
 };
 
 /** role → 默认 layout */
 const ROLE_LAYOUT_MAP: Record<OverlayLayerRole, OverlayLayoutId> = {
-  'chapter-cover': 'top-center',
+  'chapter-cover': 'title-hero',
   'keyword-pop': 'center-right',
   'fact-card': 'bottom-center',
   'lower-third': 'bottom-left',
   'chapter-progress': 'top-center',
-  'title-card': 'center',
-  'outro-cta': 'bottom-center',
+  'title-card': 'title-hero',
+  'outro-cta': 'end-card',
+  'show-badge': 'top-center',
 };
 
 /** emphasis 给字号 / 描边的临时缩放系数 */
@@ -295,14 +335,14 @@ export function pickDefaultOverlayStyle(text: string, position?: string): {
   if (t.length <= 18) {
     return {
       style: styleForOverlayPreset('yt-headline'),
-      layout: position === 'bottom' ? 'bottom-center' : 'center',
+      layout: position === 'bottom' ? 'bottom-center' : 'title-hero',
     };
   }
   if (position === 'top') {
     return { style: styleForOverlayPreset('chapter-title'), layout: 'top-center' };
   }
   if (position === 'center') {
-    return { style: styleForOverlayPreset('chapter-title'), layout: 'center' };
+    return { style: styleForOverlayPreset('chapter-title'), layout: 'title-hero' };
   }
   return { style: styleForOverlayPreset('lower-third'), layout: 'bottom-left' };
 }

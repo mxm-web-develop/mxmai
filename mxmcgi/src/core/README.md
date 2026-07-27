@@ -135,7 +135,7 @@ try {
 | flux-kontext-fast | black-forest-labs/flux-kontext-pro | ❌ | ✅ | 快速图片编辑（兼容） |
 | flux-fast | black-forest-labs/flux-1.1-pro | ❌ | ✅ | 快速图片生成（兼容） |
 | ideogram-v2a | ideogram-ai/ideogram-v2 | ❌ | ❌ | 擅长生成包含文字的图片 |
-| recraft-crisp-upscale | recraft-ai/recraft-v3 | ❌ | ❌ | 高质量图片放大 |
+| recraft-crisp-upscale | recraft-ai/recraft-crisp-upscale | ❌ | ❌ | 高质量图片放大 |
 
 ### 文本生成模型 (text/)
 

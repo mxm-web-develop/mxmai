@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-24T08:30:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "industry-search-track",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "日报·检索赛道分类",
+          "description": "根据 industry / industry_custom 判断检索赛道 track（finance|tech|entertainment|sports|general）。",
+          "taskLabelI18n": {
+            "zh": "专家填合同",
+            "en": "Expert",
+            "zh-TW": "專家填合同",
+            "ja": "Expert"
+          },
+          "subtypeLabelI18n": {
+            "zh": "日报·检索赛道分类",
+            "en": "Industry search track",
+            "zh-TW": "日報·檢索賽道分類",
+            "ja": "Industry search track"
+          },
+          "userFacing": false
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": ["contract", "field_specs"],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段",
+                "items": { "type": "object", "additionalProperties": true }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "You classify an industry label into a search track for news retrieval.\n\nRead contract.basic.industry, industry_custom, sector_label.\n\nReturn ONE JSON object only (keys ⊆ field_specs): track, sector_label, reason.\n\ntrack MUST be exactly one of:\n- finance — banking, markets, securities, insurance, fintech\n- tech — software, AI, chips, internet, digital products\n- entertainment — film, TV, celebrities, pop culture\n- sports — athletics, F1/motorsport, football, basketball, Olympics, esports competitions\n- general — everything else / cross-industry\n\nRules:\n- Custom labels like「F1赛事」「一级方程式」「赛车」→ sports\n- Do not invent other track values\n- Output JSON only, no markdown fences\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+          },
+          "pipeline": { "pre": [], "enrich": [], "post": [] },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.1,
+              "maxTokens": 512
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-industry-search-track",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    }
+  ]
+}

@@ -4,6 +4,7 @@
  */
 
 import { ProviderType } from './types';
+import { resolveDefaultLlmProvider } from '../../config/default-llm';
 
 export interface RoutingEntry {
   provider: ProviderType;
@@ -50,7 +51,7 @@ export function getResolvedRouting(
   return {
     // 注意：当 fromRouting=false 时，provider 字段不应被用于强制选择；
     // ProviderFactory.getProviderAndModel 会用调用方的 preferredProvider 决定是否限定。
-    provider: preferredProvider ?? 'replicate',
+    provider: preferredProvider ?? resolveDefaultLlmProvider(),
     model: logicalOrPhysicalName,
     fromRouting: false,
   };

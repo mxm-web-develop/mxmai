@@ -4,6 +4,7 @@
  */
 
 import { Server } from 'http';
+import { createHash } from 'crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger';
@@ -37,50 +38,74 @@ function getTokenFromRequest(url: string, headers: any): string | null {
   return null;
 }
 
-/**
- * 验证 JWT Token 并获取用户信息
- * 使用与 authMiddleware 相同的验证逻辑
- */
-function authenticateToken(token: string): { userId: string; username: string } | null {
-  try {
-    const secret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-    
-    // 检查 ADMIN_TOKEN（用于测试）
-    const adminToken = process.env.ADMIN_TOKEN;
-    if (adminToken && token === adminToken) {
-      return {
-        userId: 'admin-test-user',
-        username: 'admin-test',
-      };
-    }
+type WsAuthUser = { userId: string; username: string };
 
-    // 验证 JWT Token
+/**
+ * 验证 JWT / ADMIN_TOKEN / 用户 API Key（与 authMiddleware 一致，供第三方 Open API + H5）
+ */
+async function authenticateToken(token: string): Promise<WsAuthUser | null> {
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (adminToken && token === adminToken) {
+    return { userId: 'admin-test-user', username: 'admin-test' };
+  }
+
+  const secret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+  try {
     const decoded = jwt.verify(token, secret) as {
       userId: string;
       username: string;
       type: 'access' | 'refresh';
     };
-
-    // 只接受 access token
     if (decoded.type !== 'access') {
       logger.warn(`[WebSocketProxy] Invalid token type: expected 'access', got '${decoded.type}'`);
       return null;
     }
-
-    return {
-      userId: decoded.userId,
-      username: decoded.username,
-    };
-  } catch (error: any) {
-    if (error.name === 'TokenExpiredError') {
+    return { userId: decoded.userId, username: decoded.username };
+  } catch (error: unknown) {
+    const err = error as { name?: string; message?: string };
+    if (err.name === 'TokenExpiredError') {
       logger.warn('[WebSocketProxy] Token expired');
       return null;
     }
-    if (error.name === 'JsonWebTokenError') {
-      logger.warn(`[WebSocketProxy] Invalid JWT token: ${error.message}`);
+    if (err.name !== 'JsonWebTokenError') {
+      logger.error('[WebSocketProxy] Failed to authenticate token:', error);
       return null;
     }
-    logger.error('[WebSocketProxy] Failed to authenticate token:', error);
+  }
+
+  try {
+    const { RepositoryFactory } = require('@mxmai/mxmdata');
+    const keyHash = createHash('sha256').update(token).digest('hex');
+    const userApiKeyRepo = RepositoryFactory.createUserApiKeyRepository();
+    const keyRecord = await userApiKeyRepo.findByKeyHash(keyHash);
+    if (!keyRecord) return null;
+
+    const expiresAt = keyRecord.expires_at ? new Date(keyRecord.expires_at).getTime() : null;
+    if (expiresAt != null && Date.now() > expiresAt) {
+      logger.warn('[WebSocketProxy] API Key expired');
+      return null;
+    }
+
+    const userRepo = RepositoryFactory.createUserRepository();
+    const user = await userRepo.findById(keyRecord.user_id);
+    if (!user) return null;
+
+    if (keyRecord.key_type === 'integration') {
+      logger.warn('[WebSocketProxy] integration API Key cannot use WebSocket');
+      return null;
+    }
+
+    await userApiKeyRepo.updateLastUsedAt(keyRecord.id).catch(() => {});
+    logger.debug(`[WebSocketProxy] API Key authenticated for user ${user.username ?? user.id}`);
+    return {
+      userId: user.id,
+      username: user.username ?? user.id,
+    };
+  } catch (apiKeyErr) {
+    logger.debug(
+      '[WebSocketProxy] API Key lookup failed:',
+      apiKeyErr instanceof Error ? apiKeyErr.message : apiKeyErr
+    );
     return null;
   }
 }
@@ -92,6 +117,8 @@ export function setupWebSocketProxy(server: Server): void {
   const wss = new WebSocketServer({
     server,
     path: '/api/v1/ws/notifications',
+    // 双层 WS 代理 + 默认 perMessageDeflate 会在部分环境下触发 RSV1 / Invalid frame header
+    perMessageDeflate: false,
   });
 
   wss.on('connection', async (socket: WebSocket, req: any) => {
@@ -108,8 +135,8 @@ export function setupWebSocketProxy(server: Server): void {
         return;
       }
 
-      // 2. 验证 token
-      const user = authenticateToken(token);
+      // 2. 验证 token（JWT 或 mxm_ API Key）
+      const user = await authenticateToken(token);
       if (!user) {
         logger.warn('[WebSocketProxy] Token validation failed, closing connection');
         socket.close(1008, 'Unauthorized: Invalid token');
@@ -123,7 +150,7 @@ export function setupWebSocketProxy(server: Server): void {
       
       logger.info(`[WebSocketProxy] Connecting to mxmnotify: ${notifyUrl.replace(/token=[^&]+/, 'token=***')}`);
       
-      const notifySocket = new WebSocket(notifyUrl);
+      const notifySocket = new WebSocket(notifyUrl, { perMessageDeflate: false });
 
       // 先设置错误处理，避免连接失败时没有处理
       notifySocket.on('error', (error) => {
@@ -153,12 +180,10 @@ export function setupWebSocketProxy(server: Server): void {
         }
       });
 
-      notifySocket.on('message', (data: Buffer) => {
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.send(data);
-        } else {
-          logger.warn(`[WebSocketProxy] Cannot forward message: client socket not open (state: ${socket.readyState})`);
-        }
+      notifySocket.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
+        if (socket.readyState !== WebSocket.OPEN) return;
+        const text = Buffer.isBuffer(data) ? data.toString('utf8') : String(data);
+        socket.send(text);
       });
 
       // 5. 处理连接关闭

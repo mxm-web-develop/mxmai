@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-05-24T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "plan",
+      "subtype": "eshop-garment-batch",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "规划 · 电商服装批量",
+          "subtypeLabel": "eshop-garment-batch（按款视觉规划 shoot_preset / 面料 / prompt）",
+          "taskLabelI18n": {
+            "zh": "规划 · 电商服装批量",
+            "zh-TW": "规划 · 电商服安裝批品質"
+          },
+          "subtypeLabelI18n": {
+            "zh": "eshop-garment-batch（按款视觉规划 shoot_preset / 面料 / prompt）",
+            "zh-TW": "eshop-garment-batch（按款視觉规划 shoot_preset / 無封面料 / prompt）"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "type": "object",
+            "required": [
+              "garments"
+            ],
+            "properties": {
+              "referenceImage": {
+                "type": "array",
+                "title": "规划参考图",
+                "description": "模特参考 + 各 SKU 首图（Smartflow 传入 input._planning_images）",
+                "x-ui-type": "referenceImages",
+                "minItems": 0,
+                "maxItems": 24,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "title": "图片 URL / Base64"
+                    },
+                    "type": {
+                      "type": "string",
+                      "title": "用途类型",
+                      "enum": [
+                        "main-subject",
+                        "background",
+                        "outfits",
+                        "color-reference",
+                        "style-reference"
+                      ]
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "title": "用途说明（可选）"
+                    }
+                  }
+                }
+              },
+              "garments": {
+                "type": "array",
+                "title": "服装 SKU 列表",
+                "description": "与 Smartflow start.garments 一致，按 index 与规划结果对齐（勿在 Admin 表单页改为 string）",
+                "x-user-visible": false,
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "images"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "title": "SKU 标签"
+                    },
+                    "shoot_preset": {
+                      "type": "string",
+                      "title": "场景预设（可选）"
+                    },
+                    "garment_material": {
+                      "type": "string",
+                      "title": "面料质感（可选）"
+                    },
+                    "prompt": {
+                      "type": "string",
+                      "title": "SKU 补充 prompt（可选）"
+                    },
+                    "images": {
+                      "type": "array",
+                      "title": "服装图",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "content",
+                          "type"
+                        ],
+                        "properties": {
+                          "content": {
+                            "type": "string",
+                            "title": "图片 URL / Base64"
+                          },
+                          "type": {
+                            "type": "string",
+                            "title": "用途类型",
+                            "enum": [
+                              "main-subject",
+                              "background",
+                              "outfits",
+                              "color-reference",
+                              "style-reference"
+                            ]
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "title": "用途说明（可选）"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "model_participation": {
+                "type": "string",
+                "title": "模特参与度",
+                "enum": [
+                  "default",
+                  "face_hidden",
+                  "no_model"
+                ],
+                "default": "default"
+              },
+              "output_grid": {
+                "type": "string",
+                "title": "输出宫格",
+                "enum": [
+                  "1x1",
+                  "2x2",
+                  "3x3"
+                ],
+                "default": "1x1"
+              },
+              "shoot_preset_mode": {
+                "type": "string",
+                "title": "场景预设模式",
+                "enum": [
+                  "auto",
+                  "fixed"
+                ],
+                "default": "auto"
+              },
+              "shoot_preset_fixed": {
+                "type": "string",
+                "title": "固定场景预设",
+                "default": "studio_soft_gray"
+              },
+              "shoot_preset_fallback": {
+                "type": "string",
+                "title": "场景回退预设",
+                "default": "studio_soft_gray"
+              },
+              "garment_material_fallback": {
+                "type": "string",
+                "title": "面料质感回退",
+                "default": "use_reference_only"
+              },
+              "prompt": {
+                "type": "string",
+                "title": "全局补充 prompt",
+                "default": ""
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是电商服装商拍参数规划助手。根据附带的参考图（若有）与各款服装信息，为每一款输出独立的 graph/eshop/clothes 任务参数。\n\n## 全局\n- 模特参与度：${model_participation}\n- 输出宫格：${output_grid}\n- 场景预设模式：${shoot_preset_mode}（fixed 时下游会强制使用 ${shoot_preset_fixed}，你仍可为每款给出建议值）\n- 场景回退：${shoot_preset_fallback}\n- 面料回退：${garment_material_fallback}\n- 全局补充 prompt：${prompt}\n\n## 服装列表（JSON，按 index 0 起与 garment_tasks 对齐）\n${garments}\n\n## 合法枚举\n- shoot_preset（auto 模式必须为下列之一，按款式/季节/品类/价位感从预设列表中选择，禁止沿用服装图原背景）：studio_white_seamless, studio_soft_gray, studio_warm_beige, studio_concrete_industrial, studio_pastel_backdrop, studio_dual_tone_corner, studio_window_side_light, indoor_minimal_loft, indoor_luxury_hotel_lobby, indoor_cafe_window, indoor_art_gallery_white, beach_sunny_pier, beach_sandy_shoreline, beach_golden_sunset, coastal_rocky_cliff, resort_poolside, nature_meadow_park, nature_lakeside_promenade, nature_forest_dappled, urban_street_day, urban_street_night, urban_rooftop_golden, urban_subway_concourse, urban_old_alley, urban_glass_facade, urban_riverside_boardwalk\n- garment_material：use_reference_only, cotton, cotton_linen, linen, silk_satin, chiffon_georgette, denim, wool_knit, cashmere, leather_suede, faux_leather, mesh_lace, tulle_organza, velvet, corduroy, tweed, down_puffy, functional_shell, sequin_embellished, synthetic_blend, metal_trim\n\n## 规则\n1. 每款按 garments 数组顺序输出一条，index 从 0 开始\n2. 结合 SKU 服装图识别款式/季节/品类/价位感，从 shoot_preset 枚举中为每款选择最合适的**商拍场景**（棚拍/户外/城市等），下游会替换背景，不得描述或保留参考图中的原始环境\n3. 不确定面料时用 use_reference_only\n4. shoot_preset_mode=fixed 时各款 shoot_preset 仍输出建议值，下游会使用 fixed\n5. prompt 为可选英文补充（构图/卖点/背景替换提示），可写 replace background with selected shoot_preset scene\n6. 若 garments[i] 已手工填写 shoot_preset / garment_material / prompt，可沿用或按视觉微调\n\n## 输出格式（仅 JSON，无 markdown 包裹、无其它文字）\n{\n  \"garment_tasks\": [\n    { \"index\": 0, \"shoot_preset\": \"studio_soft_gray\", \"garment_material\": \"use_reference_only\", \"prompt\": \"\" }\n  ]\n}"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.3,
+              "topP": 0.9
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-plan-eshop-garment-batch",
+        "provider": "openrouter",
+        "model": "gemini-3.5-flash",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-plan-eshop-garment-batch",
+          "charge_metric": "per_request",
+          "price_in_tokens": 50,
+          "min_charge_tokens": 0,
+          "provider": "openrouter",
+          "model_key": "gemini-3.5-flash",
+          "subtype": "eshop-garment-batch",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

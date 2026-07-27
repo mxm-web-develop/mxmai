@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-05T15:10:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "plan",
+      "subtype": "video-edit-script",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "规划 · 视频剪辑脚本（OpenReel ProjectFile + supermxmai 扩展）",
+          "subtypeLabel": "video-edit-script（输入主题 + 口播稿 → 输出 OpenReel ProjectFile v1.0.0 JSON + mxm* 扩展字段；人工审核用 VideoTimelineReviewModal 加载时间轴，三种渲染模式可选调整）",
+          "taskLabelI18n": {
+            "zh": "规划 · 视频剪辑脚本（OpenReel ProjectFile + supermxmai 扩展）",
+            "zh-TW": "规划 · 影圖片剪辑脚文字（OpenReel ProjectFile + supermxmai 擴展）"
+          },
+          "subtypeLabelI18n": {
+            "zh": "video-edit-script（输入主题 + 口播稿 → 输出 OpenReel ProjectFile v1.0.0 JSON + mxm* 扩展字段；人工审核用 VideoTimelineReviewModal 加载时间轴，三种渲染模式可选调整）",
+            "zh-TW": "video-edit-script（輸入主題 + 口播稿 → 輸登出 OpenReel ProjectFile v1.0.0 JSON + mxm* 擴展字段；人工審待審核第三方應用 VideoTimelineReviewModal 加解除安裝時間轴，三种渲染模式可多選調整）"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "topic",
+              "script",
+              "duration",
+              "aspectRatio"
+            ],
+            "properties": {
+              "topic": {
+                "type": "string",
+                "title": "节目主题",
+                "description": "一句话描述本期主题",
+                "minLength": 4,
+                "maxLength": 200
+              },
+              "script": {
+                "type": "string",
+                "title": "完整口播稿",
+                "description": "完整中文口播文本。脚本生成器会按语义自动分段，每段分配一种渲染模式。",
+                "minLength": 50,
+                "ui:widget": "textarea",
+                "ui:options": {
+                  "rows": 16
+                }
+              },
+              "duration": {
+                "type": "number",
+                "title": "目标总时长（秒）",
+                "minimum": 10,
+                "maximum": 1800,
+                "default": 180
+              },
+              "aspectRatio": {
+                "type": "string",
+                "title": "画幅比例",
+                "enum": [
+                  "16:9",
+                  "9:16",
+                  "1:1"
+                ],
+                "default": "16:9"
+              },
+              "style": {
+                "type": "string",
+                "title": "GSAP 视觉风格（GSAP 动画段参考）",
+                "description": "graphics track 的 GSAP 动画段参考此风格",
+                "enum": [
+                  "warm-grain",
+                  "swiss-grid",
+                  "vignelli",
+                  "decision-tree",
+                  "kinetic-type",
+                  "product-promo",
+                  "custom"
+                ],
+                "default": "warm-grain"
+              }
+            }
+          },
+          "uiSchema": {
+            "script": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 16
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是 supermxmai 平台的视频剪辑脚本生成器。给定节目主题 + 完整口播稿，输出 **OpenReel ProjectFile v1.0.0 JSON + supermxmai mxm* 扩展字段**，可被 mxm-editor-core 时间轴加载（ProjectSerializer.importFromJson 解析），人工审核阶段用 VideoTimelineReviewModal 显示时间轴 + 预览框，用户可在时间轴里选择调整三种渲染模式。\n\n## 节目参数\n- 主题：${topic}\n- 目标时长：${duration} 秒\n- 画幅：${aspectRatio}\n- GSAP 视觉风格：${style}\n\n## 完整口播稿\n${script}\n\n## 输出格式：OpenReel ProjectFile v1.0.0 + mxm* 扩展\n\n你必须输出符合 OpenReel ProjectFile 格式的 JSON（projectSerializer.exportToJson 输出格式），**基础结构完全继承 OpenReel**，**在 clip.metadata 上用 mxm* 前缀扩展** supermxmai 自有字段。\n\n### 顶层结构（OpenReel 标准）\n\n```json\n{\n  \"version\": \"1.0.0\",\n  \"project\": {\n    \"id\": \"<uuid>\",\n    \"name\": \"<节目名>\",\n    \"createdAt\": <unix_ms>,\n    \"modifiedAt\": <unix_ms>,\n    \"settings\": {\n      \"width\": 1920,\n      \"height\": 1080,\n      \"frameRate\": 30,\n      \"sampleRate\": 48000,\n      \"channels\": 2\n    },\n    \"mediaLibrary\": { \"items\": [] },\n    \"timeline\": {\n      \"tracks\": [\n        // 5 种 OpenReel Track 任选\n        // 视频/图像类 clip.metadata 加 mxm* 字段声明渲染模式\n      ],\n      \"subtitles\": [],\n      \"duration\": <总时长>,\n      \"markers\": []\n    }\n  }\n}\n```\n\n### 5 种 OpenReel Track 用途\n\n| Track type | 用途 | 说明 |\n|-----------|------|------|\n| `video` | 视频片段（最终 mp4） | AI 视频生成 + 静态图片视频都输出到这里 |\n| `audio` | 音频片段 | 口播主轨 + BGM |\n| `image` | 图片片段 | 静态图片视频的源图（i2v 模式） |\n| `text` | 文字片段 | 字幕、标题文字 |\n| `graphics` | 图形片段 | GSAP 动画视频渲染目标 |\n\n## 三种渲染模式（必填，clip.metadata.mxmRenderMode 三选一）\n\n### 模式 1：AI 视频生成（ai-video-gen）\n**后端**：Task V2 `scope=video` text-to-video 模式（Seedance 2.0 / Sora）\n**Track type**: `video`\n**典型场景**：人物动作、场景叙事、动态画面、产品演示\n**clip.metadata.mxm* 字段**：\n\n```json\n{\n  \"mediaId\": \"mxm-ai-video-gen:seg-001\",\n  \"type\": \"video\",\n  \"startTime\": 0,\n  \"duration\": 8,\n  \"transform\": { \"position\": {\"x\":0,\"y\":0}, \"scale\": {\"x\":1,\"y\":1}, \"rotation\": 0, \"anchor\": {\"x\":0.5,\"y\":0.5}, \"opacity\": 1 },\n  \"volume\": 0,\n  \"keyframes\": [],\n  \"effects\": [],\n  \"audioEffects\": [],\n\n  \"metadata\": {\n    \"mxmRenderMode\": \"ai-video-gen\",\n    \"mxmVideoTaskKey\": \"short\",            // supermxmai video 业务 taskKey\n    \"mxmVideoMode\": \"text-to-video\",        // Atlas Seedance 2.0 三子接口之一\n    \"mxmPrompt\": \"<英文视频生成 prompt>\",\n    \"mxmDuration\": 8,\n    \"mxmRatio\": \"16:9\",\n    \"mxmResolution\": \"720p\",\n    \"mxmReferenceImages\": [],               // text-to-video 时为空\n    \"mxmGenerateAudio\": false\n  }\n}\n```\n\n### 模式 2：静态图片视频（static-image）\n**后端**：Task V2 `scope=video` image-to-video 模式（Seedance 2.0 i2v）\n**Track type**: `video`\n**典型场景**：把已有静态图（AI 生成的 / 用户上传的）转为带运镜和动效的视频\n**clip.metadata.mxm* 字段**：\n\n```json\n{\n  \"mediaId\": \"mxm-static-image:seg-002\",\n  \"type\": \"video\",\n  \"startTime\": 8,\n  \"duration\": 12,\n  \"transform\": { \"position\": {\"x\":0,\"y\":0}, \"scale\": {\"x\":1,\"y\":1}, \"rotation\": 0, \"anchor\": {\"x\":0.5,\"y\":0.5}, \"opacity\": 1 },\n  \"volume\": 0,\n  \"keyframes\": [],\n  \"effects\": [],\n  \"audioEffects\": [],\n\n  \"metadata\": {\n    \"mxmRenderMode\": \"static-image\",\n    \"mxmVideoTaskKey\": \"short\",            // supermxmai video 业务 taskKey\n    \"mxmVideoMode\": \"image-to-video\",       // Atlas Seedance 2.0 i2v\n    \"mxmPrompt\": \"<英文视频生成 prompt，描述从静态图变为什么动态效果>\",\n    \"mxmSourceImageUrl\": \"https://minio.supermxmai.com/assets/xxx.png\",  // 源图 URL\n    \"mxmSourceImageTaskId\": \"<可选：源图来自哪个 taskId，便于关联审核>\",\n    \"mxmDuration\": 12,\n    \"mxmRatio\": \"16:9\",\n    \"mxmResolution\": \"720p\"\n  }\n}\n```\n\n**说明**：如果源图还不存在，可标记 `mxmSourceImageTaskId` 让后端先调 graph 业务生成源图，再调 i2v 业务。或者源图已是 MinIO URL，直接传 `mxmSourceImageUrl`。\n\n### 模式 3：GSAP 动画视频（gsap-html-animation）\n**后端**：mxm-editor-core `gsap-engine.ts` + `composition-renderer.ts`（OffscreenCanvas + GSAP timeline）\n**Track type**: `graphics`\n**典型场景**：开场 logo / 比分展示 / 数据柱状图 / 动态信息卡 / 收尾动画 / 标题排版\n**clip.metadata.mxm* 字段**：\n\n```json\n{\n  \"mediaId\": \"mxm-gsap-html-animation:seg-003\",\n  \"type\": \"graphics\",\n  \"startTime\": 20,\n  \"duration\": 6,\n  \"transform\": { \"position\": {\"x\":0,\"y\":0}, \"scale\": {\"x\":1,\"y\":1}, \"rotation\": 0, \"anchor\": {\"x\":0.5,\"y\":0.5}, \"opacity\": 1 },\n  \"volume\": 0,\n  \"keyframes\": [\n    { \"id\": \"kf-1\", \"time\": 0, \"property\": \"opacity\", \"value\": 0, \"easing\": \"easeOutQuad\" },\n    { \"id\": \"kf-2\", \"time\": 0.6, \"property\": \"opacity\", \"value\": 1, \"easing\": \"easeOutQuad\" },\n    { \"id\": \"kf-3\", \"time\": 0, \"property\": \"transform.scale\", \"value\": 0.92, \"easing\": \"easeOutQuad\" },\n    { \"id\": \"kf-4\", \"time\": 0.8, \"property\": \"transform.scale\", \"value\": 1.0, \"easing\": \"easeOutQuad\" }\n  ],\n  \"effects\": [],\n  \"audioEffects\": [],\n\n  \"metadata\": {\n    \"mxmRenderMode\": \"gsap-html-animation\",\n    \"mxmHtmlContent\": \"<div class=\\\"scene-content\\\" style=\\\"background:#09090e;color:#f5a97f;padding:120px 160px\\\"><h1 class=\\\"title\\\" style=\\\"font-size:120px\\\">节目标题</h1><p class=\\\"subtitle\\\" style=\\\"font-size:42px\\\">副标题</p></div>\",\n    \"mxmGsapTimeline\": \"tl.from('.title',{y:80,opacity:0,duration:0.8,ease:'power3.out'},0).from('.subtitle',{y:40,opacity:0,duration:0.6,ease:'power3.out'},0.3)\",\n    \"mxmGsapEase\": \"power3.out\",\n    \"mxmDesignRef\": \"${style}\",             // 引用 prompt 里的 style 参数\n    \"mxmRenderFps\": 30,\n    \"mxmRenderPixelRatio\": 1\n  }\n}\n```\n\n## 必含的辅助 Track\n\n### audio track（口播主轨）\n\n```json\n{\n  \"type\": \"audio\",\n  \"name\": \"口播音频\",\n  \"locked\": false, \"hidden\": false, \"muted\": false, \"solo\": false,\n  \"clips\": [\n    {\n      \"id\": \"clip-audio-main\",\n      \"mediaId\": \"tts:https://minio.supermxmai.com/assets/tts-output.mp3\",\n      \"trackId\": \"<track_id>\",\n      \"startTime\": 0,\n      \"duration\": <总时长>,\n      \"transform\": { \"position\": {\"x\":0,\"y\":0}, \"scale\": {\"x\":1,\"y\":1}, \"rotation\": 0, \"anchor\": {\"x\":0.5,\"y\":0.5}, \"opacity\": 1 },\n      \"volume\": 1, \"effects\": [], \"audioEffects\": [], \"keyframes\": []\n    }\n  ]\n}\n```\n\n### text track 或 timeline.subtitles（字幕）\n\n```json\n\"subtitles\": [\n  {\n    \"id\": \"cap-001\",\n    \"startTime\": 0,\n    \"endTime\": 8,\n    \"text\": \"<字幕文字>\",\n    \"style\": {\n      \"fontFamily\": \"PingFang SC\",\n      \"fontSize\": 56,\n      \"color\": \"#FFFFFF\",\n      \"backgroundColor\": \"rgba(0,0,0,0.6)\",\n      \"position\": \"bottom\",\n      \"highlightColor\": \"#FF6B2C\"\n    },\n    \"relateClipId\": \"<对应视频 clip id>\"\n  }\n]\n```\n\n## 模式选择策略\n\n1. **按语义断句**，每 6-15 秒一段，开场 1 段（推荐 `gsap-html-animation`），结尾 1 段（推荐 `gsap-html-animation`）\n2. **数据展示段**（比分 / 柱状图 / 排行榜 / 信息卡）→ `gsap-html-animation`（graphics track + GSAP）\n3. **真人动作 / 场景叙事 / 动态产品演示** → `ai-video-gen`（text-to-video）\n4. **已有静态图想做动态效果**（Ken Burns 推拉 / 局部动起来） → `static-image`（image-to-video）\n5. **subtitles 必填**，跟口播稿对齐（中文约 4 字/秒）\n6. **markers 在段间切换点**（可选）\n\n## 关键约束\n\n1. **必须输出有效 JSON**，不要 markdown 包裹，不要任何解释\n2. **version 必须是 \"1.0.0\"**，对齐 ProjectSerializer.SCHEMA_VERSION\n3. **5 种 Track 按需**，但 audio track 必含（口播主轨）\n4. **clip.metadata.mxmRenderMode 必填三选一**：`ai-video-gen` / `static-image` / `gsap-html-animation`\n5. **ai-video-gen**：必填 `mxmPrompt` + `mxmVideoMode='text-to-video'`\n6. **static-image**：必填 `mxmPrompt` + `mxmVideoMode='image-to-video'` + `mxmSourceImageUrl`\n7. **gsap-html-animation**：必填 `mxmHtmlContent` + `mxmGsapTimeline` + keyframes（GSAP 用 OpenReel 32 种 easing）\n8. **timeline.subtitles 必填**，匹配口播稿节奏\n9. **timeline.duration** = 所有 clip duration 累加\n10. **mxm* 字段必须带前缀**，避免和 OpenReel 标准字段冲突\n\n## Few-shot 示例\n\n### 示例 1（AI 模型世界杯第 4 期 · GSAP 开场 + AI 视频 + 静态图片视频）\n\n输入：主题「AI 模型世界杯第 4 期」，口播稿 30 秒（开场 + 上期积分榜 + 参赛模型）\n\n```json\n{\n  \"version\": \"1.0.0\",\n  \"project\": {\n    \"id\": \"demo-001\",\n    \"name\": \"AI 模型世界杯第 4 期\",\n    \"createdAt\": 1720156800000,\n    \"modifiedAt\": 1720156800000,\n    \"settings\": { \"width\": 1920, \"height\": 1080, \"frameRate\": 30, \"sampleRate\": 48000, \"channels\": 2 },\n    \"mediaLibrary\": { \"items\": [] },\n    \"timeline\": {\n      \"tracks\": [\n        {\n          \"type\": \"graphics\",\n          \"name\": \"开场 GSAP 动画\",\n          \"locked\": false, \"hidden\": false, \"muted\": false, \"solo\": false,\n          \"clips\": [\n            {\n              \"id\": \"clip-gsap-opener\",\n              \"mediaId\": \"mxm-gsap-html-animation:opener\",\n              \"trackId\": \"track-graphics\",\n              \"startTime\": 0, \"duration\": 6,\n              \"inPoint\": 0, \"outPoint\": 6,\n              \"transform\": { \"position\": {\"x\":0,\"y\":0}, \"scale\": {\"x\":1,\"y\":1}, \"rotation\": 0, \"anchor\": {\"x\":0.5,\"y\":0.5}, \"opacity\": 1 },\n              \"volume\": 0,\n              \"keyframes\": [\n                { \"id\": \"kf-op-1\", \"time\": 0, \"property\": \"opacity\", \"value\": 0, \"easing\": \"easeOutQuad\" },\n                { \"id\": \"kf-op-2\", \"time\": 0.5, \"property\": \"opacity\", \"value\": 1, \"easing\": \"easeOutQuad\" }\n              ],\n              \"effects\": [], \"audioEffects\": [],\n              \"metadata\": {\n                \"mxmRenderMode\": \"gsap-html-animation\",\n                \"mxmHtmlContent\": \"<div class=\\\"scene-content\\\" style=\\\"background:#09090e;color:#f5a97f;padding:120px 160px;display:flex;flex-direction:column;justify-content:center;height:100%\\\"><h1 class=\\\"title\\\" style=\\\"font-size:140px;font-weight:700;margin:0\\\">AI 模型世界杯</h1><p class=\\\"subtitle\\\" style=\\\"font-size:48px;margin:24px 0 0;opacity:0.8\\\">第 4 期 · 2026-06-26</p></div>\",\n                \"mxmGsapTimeline\": \"tl.from('.title',{y:80,opacity:0,duration:0.8,ease:'power3.out'},0).from('.subtitle',{y:40,opacity:0,duration:0.6,ease:'power3.out'},0.3)\",\n                \"mxmGsapEase\": \"power3.out\",\n                \"mxmDesignRef\": \"warm-grain\",\n                \"mxmRenderFps\": 30\n              }\n            }\n          ]\n        },\n        {\n          \"type\": \"video\",\n          \"name\": \"AI 视频生成段\",\n          \"locked\": false, \"hidden\": false, \"muted\": false, \"solo\": false,\n          \"clips\": [\n            {\n              \"id\": \"clip-aiv-001\",\n              \"mediaId\": \"mxm-ai-video-gen:seg-001\",\n              \"trackId\": \"track-video\",\n              \"startTime\": 6, \"duration\": 14,\n              \"inPoint\": 0, \"outPoint\": 14,\n              \"transform\": { \"position\": {\"x\":0,\"y\":0}, \"scale\": {\"x\":1,\"y\":1}, \"rotation\": 0, \"anchor\": {\"x\":0.5,\"y\":0.5}, \"opacity\": 1 },\n              \"volume\": 0,\n              \"keyframes\": [],\n              \"effects\": [], \"audioEffects\": [],\n              \"metadata\": {\n                \"mxmRenderMode\": \"ai-video-gen\",\n                \"mxmVideoTaskKey\": \"short\",\n                \"mxmVideoMode\": \"text-to-video\",\n                \"mxmPrompt\": \"anchor in studio discussing sports predictions, sports broadcast style, dark studio with orange highlight, 8 AI model logos floating around, dynamic camera, 16:9, cinematic lighting\",\n                \"mxmDuration\": 14,\n                \"mxmRatio\": \"16:9\",\n                \"mxmResolution\": \"720p\",\n                \"mxmReferenceImages\": [],\n                \"mxmGenerateAudio\": false\n              }\n            }\n          ]\n        },\n        {\n          \"type\": \"image\",\n          \"name\": \"源图素材\",\n          \"locked\": false, \"hidden\": false, \"muted\": false, \"solo\": false,\n          \"clips\": [\n            {\n              \"id\": \"clip-i-source\",\n              \"mediaId\": \"image-cdn:https://minio.supermxmai.com/assets/leaderboard-static.png\",\n              \"trackId\": \"track-image\",\n              \"startTime\": 6, \"duration\": 14,\n              \"inPoint\": 0, \"outPoint\": 14,\n              \"transform\": { \"position\": {\"x\":0,\"y\":0}, \"scale\": {\"x\":1,\"y\":1}, \"rotation\": 0, \"anchor\": {\"x\":0.5,\"y\":0.5}, \"opacity\": 1 },\n              \"volume\": 0,\n              \"keyframes\": [],\n              \"effects\": [], \"audioEffects\": [],\n              \"metadata\": {\n                \"mxmSourceImageTaskId\": \"<关联 graph 业务的 taskId，生成本段用到的静态图>\"\n              }\n            }\n          ]\n        },\n        {\n          \"type\": \"video\",\n          \"name\": \"静态图片转视频段\",\n          \"locked\": false, \"hidden\": false, \"muted\": false, \"solo\": false,\n          \"clips\": [\n            {\n              \"id\": \"clip-siv-001\",\n              \"mediaId\": \"mxm-static-image:seg-002\",\n              \"trackId\": \"track-video\",\n              \"startTime\": 20, \"duration\": 10,\n              \"inPoint\": 0, \"outPoint\": 10,\n              \"transform\": { \"position\": {\"x\":0,\"y\":0}, \"scale\": {\"x\":1,\"y\":1}, \"rotation\": 0, \"anchor\": {\"x\":0.5,\"y\":0.5}, \"opacity\": 1 },\n              \"volume\": 0,\n              \"keyframes\": [],\n              \"effects\": [], \"audioEffects\": [],\n              \"metadata\": {\n                \"mxmRenderMode\": \"static-image\",\n                \"mxmVideoTaskKey\": \"short\",\n                \"mxmVideoMode\": \"image-to-video\",\n                \"mxmPrompt\": \"camera slowly zooms into the leaderboard chart, highlights top 3 models with smooth transitions, dark theme with orange accent, data visualization style, 16:9 cinematic\",\n                \"mxmSourceImageUrl\": \"https://minio.supermxmai.com/assets/leaderboard-static.png\",\n                \"mxmSourceImageTaskId\": \"<关联 graph 业务的 taskId>\",\n                \"mxmDuration\": 10,\n                \"mxmRatio\": \"16:9\",\n                \"mxmResolution\": \"720p\"\n              }\n            }\n          ]\n        },\n        {\n          \"type\": \"audio\",\n          \"name\": \"口播音频\",\n          \"locked\": false, \"hidden\": false, \"muted\": false, \"solo\": false,\n          \"clips\": [\n            {\n              \"id\": \"clip-audio-main\",\n              \"mediaId\": \"tts:https://minio.supermxmai.com/assets/tts-output.mp3\",\n              \"trackId\": \"track-audio\",\n              \"startTime\": 0, \"duration\": 30,\n              \"inPoint\": 0, \"outPoint\": 30,\n              \"transform\": { \"position\": {\"x\":0,\"y\":0}, \"scale\": {\"x\":1,\"y\":1}, \"rotation\": 0, \"anchor\": {\"x\":0.5,\"y\":0.5}, \"opacity\": 1 },\n              \"volume\": 1, \"effects\": [], \"audioEffects\": [], \"keyframes\": []\n            }\n          ]\n        }\n      ],\n      \"subtitles\": [\n        {\n          \"id\": \"cap-001\",\n          \"startTime\": 0, \"endTime\": 6,\n          \"text\": \"哈喽, 欢迎回到《AI模型世界杯预测赛》\",\n          \"style\": { \"fontFamily\": \"PingFang SC\", \"fontSize\": 56, \"color\": \"#FFFFFF\", \"backgroundColor\": \"rgba(0,0,0,0.6)\", \"position\": \"bottom\", \"highlightColor\": \"#FF6B2C\" },\n          \"relateClipId\": \"clip-gsap-opener\"\n        },\n        {\n          \"id\": \"cap-002\",\n          \"startTime\": 6, \"endTime\": 20,\n          \"text\": \"先看上期积分榜, 三期累计八家, Grok 凭十七分稳坐榜首\",\n          \"style\": { \"fontFamily\": \"PingFang SC\", \"fontSize\": 56, \"color\": \"#FFFFFF\", \"backgroundColor\": \"rgba(0,0,0,0.6)\", \"position\": \"bottom\", \"highlightColor\": \"#FF6B2C\" },\n          \"relateClipId\": \"clip-aiv-001\"\n        },\n        {\n          \"id\": \"cap-003\",\n          \"startTime\": 20, \"endTime\": 30,\n          \"text\": \"今天出战的八家阵容: Claude、智普、Gemini、GPT、Grok、DeepSeek、Qwen、还有 minimax\",\n          \"style\": { \"fontFamily\": \"PingFang SC\", \"fontSize\": 56, \"color\": \"#FFFFFF\", \"backgroundColor\": \"rgba(0,0,0,0.6)\", \"position\": \"bottom\", \"highlightColor\": \"#FF6B2C\" },\n          \"relateClipId\": \"clip-siv-001\"\n        }\n      ],\n      \"duration\": 30,\n      \"markers\": [\n        { \"id\": \"mk-001\", \"time\": 6, \"label\": \"上期复盘\", \"color\": \"#FF6B2C\" },\n        { \"id\": \"mk-002\", \"time\": 20, \"label\": \"参赛模型\", \"color\": \"#FF6B2C\" }\n      ]\n    }\n  }\n}\n```\n\n### 示例 2（短科普 · 三种模式混搭）\n\n输入：主题「黑巧克力对心血管的益处」，口播 60 秒\n输出结构：\n- GSAP 开场（6s，graphics track）\n- AI 视频生成（22s，video track + mxmRenderMode=ai-video-gen，text-to-video，展示巧克力产品）\n- GSAP 数据卡（12s，graphics track，柱状图）\n- 静态图片视频（15s，video track + mxmRenderMode=static-image，image-to-video，把产品特写图转为推拉特写视频）\n- GSAP 收尾（5s，graphics track）\n\n### 示例 3（GSAP 为主 · 长访谈）\n\n输入：主题「摄影器材开箱」，口播 120 秒\n输出结构：\n- GSAP 开场（5s，graphics track）\n- 静态图片视频 × 多段（每段对应一个器材，video track + mxmRenderMode=static-image）\n- GSAP 信息卡（10s，graphics track，对比表格）\n- GSAP 收尾（5s，graphics track）\n\n## 开始生成\n\n为本期【${topic}】生成完整 ProjectFile JSON。",
+            "unifiedTemplateMarkup": "你是 supermxmai 平台的视频剪辑脚本生成器... [完整 prompt 同上]"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "topP": 0.9,
+              "maxTokens": 16384
+            }
+          },
+          "pipeline": {
+            "post": [
+              {
+                "step": "manualReview",
+                "params": {
+                  "id": "video-edit-script-review",
+                  "label": "视频剪辑脚本审核（OpenReel 时间轴）",
+                  "hint": "调整分镜：切换画面类型、选择素材或 AI 生成内容，可剪切合并；通过后逐段渲染（不含文字动效/转场）。",
+                  "kind": "video-timeline",
+                  "timelinePhase": "plan",
+                  "draftFrom": "${state.finalArtifact.text}",
+                  "applyMapping": {
+                    "state.videoEditScriptJson": "${review.json}",
+                    "state.videoEditScriptMetadata": "${review.metadata}"
+                  },
+                  "editable": true
+                }
+              },
+              {
+                "step": "videoTimelineRender",
+                "params": {
+                  "renderOptions": {
+                    "concatFinal": false,
+                    "applyOverlays": false,
+                    "applySubtitleBurn": false
+                  },
+                  "inputMapping": {
+                    "videoEditScriptJson": "${state.videoEditScriptJson}",
+                    "label": "${params.topic}"
+                  }
+                }
+              },
+              {
+                "step": "manualReview",
+                "params": {
+                  "id": "video-edit-render-review",
+                  "label": "成片精修审核（时间轴）",
+                  "hint": "各段已生成。在此精修转场、文字叠加与动效；确认后导出完整成片。",
+                  "kind": "video-timeline",
+                  "timelinePhase": "rendered",
+                  "draftFrom": "${state.videoEditScriptJson}",
+                  "applyMapping": {
+                    "state.videoEditScriptJson": "${review.json}"
+                  },
+                  "editable": true
+                }
+              },
+              {
+                "step": "videoTimelineRender",
+                "params": {
+                  "renderOptions": {
+                    "concatFinal": true,
+                    "skipReadyClips": true,
+                    "applySubtitleBurn": true,
+                    "applyOverlays": true,
+                    "applyTransitions": true
+                  },
+                  "inputMapping": {
+                    "videoEditScriptJson": "${state.videoEditScriptJson}",
+                    "label": "${params.topic}"
+                  }
+                }
+              }
+            ]
+          },
+          "storage": {
+            "scope": "text",
+            "extension": "json",
+            "mime": "application/json",
+            "bucket": "user-media",
+            "pathTemplate": "{userId}/video-edit-script/{timestamp}-{randomId}/",
+            "filenameTemplate": "project_{taskId}_{randomId}.json"
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-plan-video-edit-script",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-plan-video-edit-script",
+          "charge_metric": "per_request",
+          "price_in_tokens": 100,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "video-edit-script",
+          "metadata": {
+            "margin": 0.25
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

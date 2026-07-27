@@ -5,6 +5,19 @@ import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+/** 从 ffmpeg stderr 抽出可读错误（避免只截到配置行 banner） */
+export function summarizeFfmpegStderr(stderr: string, maxLen = 800): string {
+  const lines = stderr
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const interesting = lines.filter((l) =>
+    /error|invalid|option .+ not found|no such|failed|denied|unable/i.test(l)
+  );
+  const pick = (interesting.length > 0 ? interesting : lines).slice(-12).join(' | ');
+  return pick.length > maxLen ? pick.slice(-maxLen) : pick;
+}
+
 export function runFfmpeg(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn("ffmpeg", args, { stdio: ["ignore", "pipe", "pipe"] });
@@ -15,7 +28,7 @@ export function runFfmpeg(args: string[]): Promise<void> {
     child.on("error", reject);
     child.on("exit", (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exit ${code}: ${stderr.slice(-1500)}`));
+      else reject(new Error(`ffmpeg exit ${code}: ${summarizeFfmpegStderr(stderr)}`));
     });
   });
 }
@@ -75,40 +88,42 @@ export function buildImageMotionFilter(
   /** zoompan 的 on 为 0..d-1，用 d-1 作分母使末帧刚好走完动效 */
   const steps = Math.max(1, d - 1);
   const prep = buildImageFitFilter(fit, W, H);
-  const panZoom = 1.22;
+  /** ease-in-out：呼吸感更强，避免匀速横移的传送带感 */
+  const ease = `(1-cos(PI*on/${steps}))/2`;
+  const panZoom = 1.18;
   let zp: string;
   let xp: string;
   let yp: string;
   switch (motion) {
     case "zoom-in":
-      zp = `'1+0.2*on/${steps}'`;
+      zp = `'1+0.16*${ease}'`;
       xp = `'iw/2-(iw/zoom/2)'`;
       yp = `'ih/2-(ih/zoom/2)'`;
       break;
     case "zoom-out":
-      zp = `'1.2-0.2*on/${steps}'`;
+      zp = `'1.16-0.16*${ease}'`;
       xp = `'iw/2-(iw/zoom/2)'`;
       yp = `'ih/2-(ih/zoom/2)'`;
       break;
     case "pan-left":
       zp = `'${panZoom}'`;
-      xp = `'max(0,(iw-iw/zoom)*(1-on/${steps}))'`;
+      xp = `'max(0,(iw-iw/zoom)*(1-${ease}))'`;
       yp = `'ih/2-(ih/zoom/2)'`;
       break;
     case "pan-right":
       zp = `'${panZoom}'`;
-      xp = `'min(iw-iw/zoom,(iw-iw/zoom)*on/${steps})'`;
+      xp = `'min(iw-iw/zoom,(iw-iw/zoom)*${ease})'`;
       yp = `'ih/2-(ih/zoom/2)'`;
       break;
     case "pan-up":
       zp = `'${panZoom}'`;
       xp = `'iw/2-(iw/zoom/2)'`;
-      yp = `'max(0,(ih-ih/zoom)*(1-on/${steps}))'`;
+      yp = `'max(0,(ih-ih/zoom)*(1-${ease}))'`;
       break;
     case "pan-down":
       zp = `'${panZoom}'`;
       xp = `'iw/2-(iw/zoom/2)'`;
-      yp = `'min(ih-ih/zoom,(ih-ih/zoom)*on/${steps})'`;
+      yp = `'min(ih-ih/zoom,(ih-ih/zoom)*${ease})'`;
       break;
     default:
       return prep;
@@ -131,7 +146,9 @@ export async function imageToHoldMp4(input: {
   const durationSec = Math.max(0.5, input.durationSec);
   const frameCount = Math.max(1, Math.ceil(durationSec * fps));
   mkdirSync(dirname(input.outputPath), { recursive: true });
-  const args = ["-y", "-loop", "1", "-i", input.imagePath];
+  // AVIF/WebP 等（Pexels 常见）走 demuxer，不支持 image2 的 -loop；
+  // -stream_loop -1 对静态图与常规 jpeg/png 均可用（FFmpeg 8+）。
+  const args = ["-y", "-stream_loop", "-1", "-i", input.imagePath];
   const motion = input.motion ?? "none";
   if (input.targetWidth && input.targetHeight) {
     const vf =
@@ -307,6 +324,84 @@ export async function concatMp4WithXfade(
     'libx264',
     '-pix_fmt',
     'yuv420p',
+    '-movflags',
+    '+faststart',
+    '-an',
+    outPath,
+  ]);
+}
+
+/**
+ * 将一条或多条音轨混到无声/少声音视频上（口播 + 可选 BGM）。
+ * 输出时长以视频为准（-shortest），避免 xfade 缩短画面后仍拖着冗长音轨。
+ */
+export async function muxAudioOntoMp4(opts: {
+  videoPath: string;
+  audioPaths: string[];
+  outPath: string;
+  /** 多音轨时的相对音量，默认全 1；BGM 常传 0.35 */
+  volumes?: number[];
+}): Promise<void> {
+  const { videoPath, audioPaths, outPath, volumes } = opts;
+  if (audioPaths.length === 0) {
+    throw new Error('muxAudioOntoMp4: audioPaths empty');
+  }
+
+  mkdirSync(dirname(outPath), { recursive: true });
+
+  if (audioPaths.length === 1) {
+    await runFfmpeg([
+      '-y',
+      '-i',
+      videoPath,
+      '-i',
+      audioPaths[0]!,
+      '-map',
+      '0:v:0',
+      '-map',
+      '1:a:0',
+      '-c:v',
+      'copy',
+      '-c:a',
+      'aac',
+      '-b:a',
+      '192k',
+      '-shortest',
+      '-movflags',
+      '+faststart',
+      outPath,
+    ]);
+    return;
+  }
+
+  const args = ['-y', '-i', videoPath];
+  for (const p of audioPaths) args.push('-i', p);
+
+  const volFilters: string[] = [];
+  const mixInputs: string[] = [];
+  for (let i = 0; i < audioPaths.length; i++) {
+    const vol = volumes?.[i] ?? 1;
+    const label = `a${i}`;
+    volFilters.push(`[${i + 1}:a]volume=${vol.toFixed(3)}[${label}]`);
+    mixInputs.push(`[${label}]`);
+  }
+  const filter = `${volFilters.join(';')};${mixInputs.join('')}amix=inputs=${audioPaths.length}:duration=longest:dropout_transition=0[aout]`;
+
+  await runFfmpeg([
+    ...args,
+    '-filter_complex',
+    filter,
+    '-map',
+    '0:v:0',
+    '-map',
+    '[aout]',
+    '-c:v',
+    'copy',
+    '-c:a',
+    'aac',
+    '-b:a',
+    '192k',
+    '-shortest',
     '-movflags',
     '+faststart',
     outPath,

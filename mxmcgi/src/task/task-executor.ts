@@ -40,6 +40,64 @@ function taskTypeToModelScope(taskType: string | undefined): ModelScope | undefi
   }
 }
 
+/** 从进度事件 output 提取媒体 URL（含 Atlas Seedance `outputs`） */
+export function extractMediaUrlsFromProgressOutput(output: unknown): string[] {
+  if (output == null) return [];
+  if (typeof output === 'string' && output.trim()) {
+    const t = output.trim();
+    if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('data:')) return [t];
+    return [];
+  }
+  if (Array.isArray(output)) {
+    return output.filter((u): u is string => typeof u === 'string' && u.trim().length > 0).map((u) => u.trim());
+  }
+  if (typeof output !== 'object') return [];
+  const o = output as Record<string, unknown>;
+  const out: string[] = [];
+  const push = (v: unknown) => {
+    if (typeof v !== 'string') return;
+    const t = v.trim();
+    if (!t) return;
+    if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('data:')) out.push(t);
+  };
+  if (Array.isArray(o.mediaUrls)) for (const u of o.mediaUrls) push(u);
+  if (Array.isArray(o.image_urls)) for (const u of o.image_urls) push(u);
+  if (Array.isArray(o.video_urls)) for (const u of o.video_urls) push(u);
+  push(o.video_url);
+  push(o.videoUrl);
+  push(o.image_url);
+  push(o.imageUrl);
+  push(o.output_url);
+  push(o.outputUrl);
+  push(o.url);
+  const outputs = o.outputs;
+  if (Array.isArray(outputs)) {
+    for (const item of outputs) {
+      if (typeof item === 'string') push(item);
+      else if (item && typeof item === 'object') {
+        const it = item as Record<string, unknown>;
+        push(it.url ?? it.output_url ?? it.image_url ?? it.video_url ?? it.href ?? it.uri);
+      }
+    }
+  }
+  if (Array.isArray(o.items)) {
+    for (const item of o.items) {
+      if (typeof item === 'string') push(item);
+      else if (item && typeof item === 'object') {
+        const it = item as Record<string, unknown>;
+        push(it.url ?? it.image_url ?? it.image ?? it.video_url);
+        if (out.length === 0) {
+          for (const key of Object.keys(it)) {
+            push(it[key]);
+            if (out.length > 0) break;
+          }
+        }
+      }
+    }
+  }
+  return [...new Set(out)];
+}
+
 export interface ExecuteTaskOptions {
   taskId: string;
   modelName: string;
@@ -266,7 +324,7 @@ export class TaskExecutor {
       }
       if (taskType === 'video') {
         const { startVideoTask } = await import('../core/video/video-task');
-        await startVideoTask(taskId, execParams);
+        await startVideoTask(taskId, execParams, { awaitFullCompletion });
         return;
       }
       if (taskType === 'text') {
@@ -434,83 +492,17 @@ export class TaskExecutor {
             currentMetadata.provider = currentProvider;
           }
           
-          // 从进度事件中提取 mediaUrls
-          if (event.output && typeof event.output === 'object') {
-            const outputAny = event.output as any;
-            
-            if (Array.isArray(outputAny)) {
-              // 直接是 URL 数组
-              finalResult = { ...finalResult, mediaUrls: outputAny, metadata: currentMetadata };
-            } else if (outputAny.mediaUrls && Array.isArray(outputAny.mediaUrls)) {
-              finalResult = { ...finalResult, mediaUrls: outputAny.mediaUrls, metadata: currentMetadata };
-            } else if (outputAny.image_urls && Array.isArray(outputAny.image_urls)) {
-              finalResult = { ...finalResult, mediaUrls: outputAny.image_urls, metadata: currentMetadata };
-            } else if (outputAny.video_urls && Array.isArray(outputAny.video_urls)) {
-              // 处理视频 URL 数组
-              finalResult = { ...finalResult, mediaUrls: outputAny.video_urls, metadata: currentMetadata };
-            } else if (outputAny.video_url && typeof outputAny.video_url === 'string') {
-              // 处理单个视频 URL
-              finalResult = { ...finalResult, mediaUrls: [outputAny.video_url], metadata: currentMetadata };
-            } else if (outputAny.items && Array.isArray(outputAny.items)) {
-              // 处理 seedream-4 等模型的 { items: [...] } 格式
-              const extractedUrls: string[] = [];
-              for (const item of outputAny.items) {
-                if (typeof item === 'string' && item.length > 0) {
-                  extractedUrls.push(item);
-                } else if (item && typeof item === 'object') {
-                  // 可能是 { url: "..." } 或 { image_url: "..." } 格式
-                  if (item.url && typeof item.url === 'string') {
-                    extractedUrls.push(item.url);
-                  } else if (item.image_url && typeof item.image_url === 'string') {
-                    extractedUrls.push(item.image_url);
-                  } else if (item.image && typeof item.image === 'string') {
-                    extractedUrls.push(item.image);
-                  } else {
-                    // 尝试查找任何以 http 开头的字符串属性
-                    for (const key in item) {
-                      if (typeof item[key] === 'string' && (item[key].startsWith('http://') || item[key].startsWith('https://'))) {
-                        extractedUrls.push(item[key]);
-                        break;
-                      }
-                    }
-                  }
-                }
-              }
-              if (extractedUrls.length > 0) {
-                finalResult = { 
-                  ...finalResult, 
-                  mediaUrls: extractedUrls,
-                  metadata: currentMetadata,
-                };
-              }
-            }
-            
-            // 如果 output 中包含 metadata，合并到 finalResult
-            if (outputAny.metadata) {
-              finalResult = { 
-                ...finalResult, 
-                metadata: { 
-                  ...currentMetadata, 
-                  ...outputAny.metadata 
-                },
-              };
-            }
-          } else if (typeof event.output === 'string' && event.output.length > 0) {
-            // 直接是字符串 URL
-            finalResult = { 
-              ...finalResult, 
-              mediaUrls: [event.output],
-              metadata: currentMetadata,
-            };
+          // 从进度事件中提取 mediaUrls（含 Atlas `outputs`）
+          const extractedFromEvent = extractMediaUrlsFromProgressOutput(event.output);
+          if (extractedFromEvent.length > 0) {
+            finalResult = { ...finalResult, mediaUrls: extractedFromEvent, metadata: currentMetadata };
           }
-          
-          // 如果 event.output 包含 metadata，合并到 finalResult（无论 output 是对象还是字符串）
           if (event.output && typeof event.output === 'object' && (event.output as any).metadata) {
             finalResult = {
               ...finalResult,
-              metadata: { 
-                ...currentMetadata, 
-                ...(event.output as any).metadata 
+              metadata: {
+                ...currentMetadata,
+                ...(event.output as any).metadata,
               },
             };
           }
@@ -533,68 +525,18 @@ export class TaskExecutor {
           if (finalResult.mediaUrls && finalResult.mediaUrls.length > 0) {
             console.log(`[TaskExecutor] 第一个 mediaUrl: ${finalResult.mediaUrls[0].substring(0, 80)}...`);
           }
-          // 确保 finalResult 包含 mediaUrls（从进度事件的 output 中提取）
-          if (event.output) {
-            const outputAny = event.output as any;
-            let extractedUrls: string[] = [];
-            
-            if (Array.isArray(outputAny)) {
-              // 直接是 URL 数组
-              extractedUrls = outputAny.filter(
-                (url: any): url is string => typeof url === 'string' && url.length > 0,
-              );
-            } else if (outputAny && typeof outputAny === 'object') {
-              // 处理对象格式
-              if (outputAny.items && Array.isArray(outputAny.items)) {
-                // seedream-4 格式：{ items: [...] }
-                for (const item of outputAny.items) {
-                  if (typeof item === 'string' && item.length > 0) {
-                    extractedUrls.push(item);
-                  } else if (item && typeof item === 'object') {
-                    if (item.url && typeof item.url === 'string') {
-                      extractedUrls.push(item.url);
-                    } else if (item.image_url && typeof item.image_url === 'string') {
-                      extractedUrls.push(item.image_url);
-                    } else if (item.image && typeof item.image === 'string') {
-                      extractedUrls.push(item.image);
-                    } else {
-                      // 尝试查找任何以 http 开头的字符串属性
-                      for (const key in item) {
-                        if (
-                          typeof item[key] === 'string' &&
-                          (item[key].startsWith('http://') || item[key].startsWith('https://'))
-                        ) {
-                          extractedUrls.push(item[key]);
-                          break;
-                        }
-                      }
-                    }
-                  }
-                }
-              } else if (outputAny.mediaUrls && Array.isArray(outputAny.mediaUrls)) {
-                extractedUrls = outputAny.mediaUrls.filter(
-                  (url: any): url is string => typeof url === 'string' && url.length > 0,
-                );
-              } else if (outputAny.image_urls && Array.isArray(outputAny.image_urls)) {
-                extractedUrls = outputAny.image_urls.filter(
-                  (url: any): url is string => typeof url === 'string' && url.length > 0,
-                );
-              } else if (typeof outputAny === 'string' && outputAny.length > 0) {
-                extractedUrls = [outputAny];
-              }
-            } else if (typeof outputAny === 'string' && outputAny.length > 0) {
-              extractedUrls = [outputAny];
-            }
-            
-            if (extractedUrls.length > 0) {
-              // 确保 metadata 存在
-              const currentMetadata = finalResult.metadata || { model: modelName || 'unknown', provider: 'unknown' };
-              finalResult = { 
-                ...finalResult, 
-                mediaUrls: extractedUrls,
-                metadata: currentMetadata,
-              };
-            }
+          // 确保 finalResult 包含 mediaUrls（从进度事件的 output 中提取，含 Atlas outputs）
+          const extractedUrls = extractMediaUrlsFromProgressOutput(event.output);
+          if (extractedUrls.length > 0) {
+            const currentMetadata = finalResult.metadata || {
+              model: modelName || 'unknown',
+              provider: 'unknown',
+            };
+            finalResult = {
+              ...finalResult,
+              mediaUrls: extractedUrls,
+              metadata: currentMetadata,
+            };
           }
 
           // 检查是否有 Base64 数据，如果有则强制使用 MinIO
@@ -759,7 +701,7 @@ export class TaskExecutor {
         }
       }
 
-      // Business Pipeline 后置步骤（text 改写 / post 阶段 context / 格式化 / manualReview）
+      // Business Pipeline 后置步骤（text 改写 / post 阶段 context / 格式化 / manualReview / albumImageBatch）
       let processedResult = result;
       try {
         const postOutcome = await this.applyBusinessPostPipeline(taskId, result, userId, taskType);
@@ -776,12 +718,113 @@ export class TaskExecutor {
         return;
       }
 
-      const resultText =
-        typeof (processedResult as { text?: string }).text === 'string'
-          ? (processedResult as { text?: string }).text
-          : undefined;
-      if (resultText && resultText.trim()) {
-        mediaUrls = processedResult.mediaUrls || mediaUrls;
+      // post 可能新产生媒体（如 albumImageBatch）：始终合并 mediaUrls，不只依赖 text
+      if (Array.isArray(processedResult.mediaUrls) && processedResult.mediaUrls.length > 0) {
+        mediaUrls = processedResult.mediaUrls;
+      }
+
+      const isImageAlbum =
+        (processedResult.metadata as Record<string, unknown> | undefined)?.resultKind === 'image-album' ||
+        (result.metadata as Record<string, unknown> | undefined)?.resultKind === 'image-album';
+
+      // 图集等：core 阶段常无图，post 才有 URL；须在 post 之后落父任务 MinIO，才能用 /media/graph/:id 访问
+      const needPostStore =
+        mediaUrls.length > 0 &&
+        (!storageInfo?.keys?.length || storageInfo.keys.length !== mediaUrls.length);
+      if (needPostStore && (storeToMinio || shouldForceMinIO || isImageAlbum)) {
+        if (!finalStorageConfig) {
+          finalStorageConfig = {
+            bucket: getGeneratedBucket(),
+            pathTemplate:
+              taskType === 'video'
+                ? '{userId}/video/{timestamp}-{randomId}-{index}.{ext}'
+                : taskType === 'audio'
+                  ? '{userId}/audio/{timestamp}-{randomId}-{index}.{ext}'
+                  : taskType === 'music'
+                    ? '{userId}/music/{timestamp}-{randomId}-{index}.{ext}'
+                    : '{userId}/graph/{timestamp}-{randomId}-{index}.{ext}',
+          };
+        } else if (!String(finalStorageConfig.pathTemplate).includes('{index}')) {
+          finalStorageConfig = {
+            ...finalStorageConfig,
+            pathTemplate: `${finalStorageConfig.pathTemplate.replace(/\.\{ext\}$/, '')}-{index}.{ext}`,
+          };
+        }
+
+        const { storeFromGenerateResult } = await import('./data-store');
+        const finalModelName =
+          modelName ||
+          (processedResult.metadata && (processedResult.metadata as { model?: string }).model) ||
+          (result.metadata && result.metadata.model) ||
+          'unknown';
+        const storageResults = await storeFromGenerateResult(
+          { mediaUrls, metadata: processedResult.metadata as Record<string, unknown> },
+          finalStorageConfig,
+          userId,
+          finalModelName
+        );
+        mediaUrls = storageResults.map((r) => {
+          let url = r.url;
+          url = url.replace(/http:+\/\//g, 'http://');
+          url = url.replace(/https:+\/\//g, 'https://');
+          return url;
+        });
+        const keys = storageResults.map((r) => r.key);
+        const bucket = storageResults[0]!.bucket;
+        const proxyType =
+          taskType === 'video'
+            ? 'video'
+            : taskType === 'audio'
+              ? 'audio'
+              : taskType === 'music'
+                ? 'music'
+                : 'graph';
+        const proxyBasePath = `/api/v1/media/${proxyType}/${taskId}`;
+        storageInfo = {
+          keys,
+          bucket,
+          urls: mediaUrls,
+          proxyUrls: keys.map((_, i) =>
+            keys.length > 1 ? `${proxyBasePath}?index=${i}` : proxyBasePath
+          ),
+        };
+
+        // 同步 albumResult.items[].imageUrl → 父任务可代理 URL，避免指向已软删子任务
+        const meta = (processedResult.metadata ?? {}) as Record<string, unknown>;
+        const albumResult = meta.albumResult as
+          | { items?: Array<Record<string, unknown>>; coverUrl?: string; [k: string]: unknown }
+          | undefined;
+        if (albumResult && Array.isArray(albumResult.items)) {
+          let readyIdx = 0;
+          const items = albumResult.items.map((item) => {
+            if (item?.status === 'ready' && readyIdx < mediaUrls.length) {
+              const imageUrl = storageInfo!.proxyUrls![readyIdx] ?? mediaUrls[readyIdx];
+              readyIdx += 1;
+              return { ...item, imageUrl };
+            }
+            return item;
+          });
+          processedResult = {
+            ...processedResult,
+            mediaUrls,
+            metadata: {
+              ...meta,
+              albumResult: {
+                ...albumResult,
+                items,
+                coverUrl: storageInfo.proxyUrls?.[0] ?? mediaUrls[0],
+              },
+              albumReadyCount: mediaUrls.length,
+            },
+          };
+        } else {
+          processedResult = { ...processedResult, mediaUrls };
+        }
+
+        await this.taskManager.updateTaskProgress(taskId, {
+          progress: 100,
+          logs: [`已转存 ${mediaUrls.length} 个媒体文件到存储`],
+        });
       }
 
       // 设置任务结果
@@ -836,62 +879,70 @@ export class TaskExecutor {
         metadata: finalMetadata,
       });
 
-      // 记录底层 Provider Usage 并按 provider_pricing 扣减余额（无定价/余额不足时抛错截断）
-      const taskSnapForUsage = await this.taskManager.getTask(taskId, true);
-      const metaForUsage = taskSnapForUsage?.task?.metadata as Record<string, unknown> | undefined;
-      const { costUsd } = await UsageService.logProviderUsage({
-        taskId,
-        userId,
-        logicalModel: modelName,
-        taskType: taskResponse?.task?.type,
-        result: {
-          ...result,
-          mediaUrls,
-          metadata: finalMetadata,
-        },
-        providerOverride: finalMetadata.provider as ProviderType | undefined,
-        usageContext: resolveUsageContextFromTaskMetadata(metaForUsage),
-      });
+      // 结果已落库：后续计费/用量失败不得再标 failed（否则有图也看不到）
+      try {
+        // 记录底层 Provider Usage 并按 provider_pricing 扣减余额（无定价/余额不足时抛错截断）
+        const taskSnapForUsage = await this.taskManager.getTask(taskId, true);
+        const metaForUsage = taskSnapForUsage?.task?.metadata as Record<string, unknown> | undefined;
+        const { costUsd } = await UsageService.logProviderUsage({
+          taskId,
+          userId,
+          logicalModel: modelName,
+          taskType: taskResponse?.task?.type,
+          result: {
+            ...result,
+            mediaUrls,
+            metadata: finalMetadata,
+          },
+          providerOverride: finalMetadata.provider as ProviderType | undefined,
+          usageContext: resolveUsageContextFromTaskMetadata(metaForUsage),
+        });
 
-      // 扣减用户 MXM-TOKEN（所有任务类型统一入口）
-      if (userId) {
-        const usageMetadata = finalMetadata as Record<string, any>;
-        const mediaCount = Array.isArray(mediaUrls) ? mediaUrls.length : 0;
-        const durationRaw = usageMetadata.duration ?? usageMetadata.duration_sec ?? usageMetadata.seconds;
-        const duration = typeof durationRaw === 'number' ? durationRaw : Number(durationRaw) || 0;
-        const scope = UsageService.inferScopePublic(
-          modelName || '',
-          usageMetadata,
-          taskResponse?.task?.type
-        );
-
-        try {
-          const meta = metaForUsage;
-          await BillingService.consumeForTask({
-            taskId,
-            userId,
-            provider: String(finalMetadata.provider || 'unknown'),
-            modelKey: String(finalMetadata.model || modelName || 'unknown'),
-            scope,
-            inputTokens: Number((usageMetadata.usage as any)?.prompt_tokens ?? (usageMetadata.usage as any)?.input_tokens ?? 0),
-            outputTokens: Number((usageMetadata.usage as any)?.completion_tokens ?? (usageMetadata.usage as any)?.output_tokens ?? 0),
-            totalTokens: Number((usageMetadata.usage as any)?.total_tokens ?? 0),
-            imageCount: scope === 'graph' ? mediaCount : 0,
-            audioSeconds: scope === 'audio' || scope === 'music' ? duration : 0,
-            videoSeconds: scope === 'video' ? duration : 0,
-            requestCount: 1,
-            providerCostUsd: costUsd,
-            publishedSlug: typeof meta?.publishedSlug === 'string' ? meta.publishedSlug : undefined,
-            publishedApiId: typeof meta?.publishedApiId === 'string' ? meta.publishedApiId : undefined,
-            openApiCallerId: typeof meta?.openApiCallerId === 'string' ? meta.openApiCallerId : undefined,
-          });
-        } catch (billingErr) {
-          // 余额不足：记录日志但不影响已完成任务的结果落库
-          console.warn(
-            `[TaskExecutor] 用户扣费失败 (taskId: ${taskId}):`,
-            billingErr instanceof Error ? billingErr.message : String(billingErr),
+        // 扣减用户 MXM-TOKEN（所有任务类型统一入口）
+        if (userId) {
+          const usageMetadata = finalMetadata as Record<string, any>;
+          const mediaCount = Array.isArray(mediaUrls) ? mediaUrls.length : 0;
+          const durationRaw = usageMetadata.duration ?? usageMetadata.duration_sec ?? usageMetadata.seconds;
+          const duration = typeof durationRaw === 'number' ? durationRaw : Number(durationRaw) || 0;
+          const scope = UsageService.inferScopePublic(
+            modelName || '',
+            usageMetadata,
+            taskResponse?.task?.type
           );
+
+          try {
+            const meta = metaForUsage;
+            await BillingService.consumeForTask({
+              taskId,
+              userId,
+              provider: String(finalMetadata.provider || 'unknown'),
+              modelKey: String(finalMetadata.model || modelName || 'unknown'),
+              scope,
+              inputTokens: Number((usageMetadata.usage as any)?.prompt_tokens ?? (usageMetadata.usage as any)?.input_tokens ?? 0),
+              outputTokens: Number((usageMetadata.usage as any)?.completion_tokens ?? (usageMetadata.usage as any)?.output_tokens ?? 0),
+              totalTokens: Number((usageMetadata.usage as any)?.total_tokens ?? 0),
+              imageCount: scope === 'graph' ? mediaCount : 0,
+              audioSeconds: scope === 'audio' || scope === 'music' ? duration : 0,
+              videoSeconds: scope === 'video' ? duration : 0,
+              requestCount: 1,
+              providerCostUsd: costUsd,
+              publishedSlug: typeof meta?.publishedSlug === 'string' ? meta.publishedSlug : undefined,
+              publishedApiId: typeof meta?.publishedApiId === 'string' ? meta.publishedApiId : undefined,
+              openApiCallerId: typeof meta?.openApiCallerId === 'string' ? meta.openApiCallerId : undefined,
+            });
+          } catch (billingErr) {
+            // 余额不足：记录日志但不影响已完成任务的结果落库
+            console.warn(
+              `[TaskExecutor] 用户扣费失败 (taskId: ${taskId}):`,
+              billingErr instanceof Error ? billingErr.message : String(billingErr),
+            );
+          }
         }
+      } catch (usageErr) {
+        console.warn(
+          `[TaskExecutor] 用量/计费后置失败（结果已保留 completed）taskId=${taskId}:`,
+          usageErr instanceof Error ? usageErr.message : String(usageErr),
+        );
       }
     } catch (error) {
       console.error('[TaskExecutor] ❌ 处理结果失败', {
@@ -907,6 +958,8 @@ export class TaskExecutor {
               }
             : String(error),
       });
+      // 若结果已有媒体（部分落库后失败），尽量不要用 setTaskError 盖住可展示结果：
+      // 仅在此阶段尚未 setTaskResult 时标记失败。
       await this.taskManager.setTaskError(
         taskId,
         `处理结果失败: ${error instanceof Error ? error.message : String(error)}`
@@ -978,6 +1031,32 @@ export class TaskExecutor {
       } catch (error) {
         console.warn(`[TaskExecutor] 更新任务 metadata 失败 (taskId: ${taskId}):`, error);
       }
+    }
+
+    // generate() 已同步拿到 mediaUrls（典型：Atlas prediction 轮询完成）时直接落库。
+    // 若再只挂 progress 且未 await，调用方会读到空结果，自动剪辑误判失败并重试烧费。
+    const hasSyncMedia =
+      Array.isArray(result.mediaUrls) &&
+      result.mediaUrls.some((u) => typeof u === 'string' && u.trim().length > 0);
+    if (hasSyncMedia) {
+      if (storeToMinio) {
+        await this.taskManager.updateTaskProgress(taskId, {
+          progress: 90,
+          logs: ['媒体生成完成，正在上传到存储...'],
+        });
+      } else {
+        await this.taskManager.updateTaskProgress(taskId, { progress: 100 });
+      }
+      await this.processResult(
+        taskId,
+        result,
+        storeToMinio,
+        storageConfig,
+        userId,
+        modelName,
+        provider,
+      );
+      return;
     }
 
     if (result.progress) {
@@ -1394,9 +1473,87 @@ export class TaskExecutor {
     }
 
     const processedResult = postOutcome;
-    const mediaUrls = processedResult.mediaUrls ?? pendingResult.mediaUrls ?? [];
+    let mediaUrls = processedResult.mediaUrls ?? pendingResult.mediaUrls ?? [];
     const taskMetadata = taskResponse?.task?.metadata ?? {};
-    const resultMetadata = processedResult.metadata ?? {};
+    let resultMetadata = processedResult.metadata ?? {};
+    const isImageAlbum =
+      (resultMetadata as Record<string, unknown>).resultKind === 'image-album' ||
+      (pendingResult.metadata as Record<string, unknown> | undefined)?.resultKind === 'image-album';
+
+    let storageInfo:
+      | { keys: string[]; bucket: string; urls: string[]; proxyUrls?: string[] }
+      | undefined;
+
+    if (mediaUrls.length > 0 && (options.storeToMinio !== false || isImageAlbum)) {
+      const pathTemplate =
+        taskType === 'video'
+          ? '{userId}/video/{timestamp}-{randomId}-{index}.{ext}'
+          : taskType === 'audio'
+            ? '{userId}/audio/{timestamp}-{randomId}-{index}.{ext}'
+            : taskType === 'music'
+              ? '{userId}/music/{timestamp}-{randomId}-{index}.{ext}'
+              : '{userId}/graph/{timestamp}-{randomId}-{index}.{ext}';
+      const { storeFromGenerateResult } = await import('./data-store');
+      const storageResults = await storeFromGenerateResult(
+        { mediaUrls, metadata: resultMetadata as Record<string, unknown> },
+        {
+          bucket: getGeneratedBucket(),
+          pathTemplate: options.storageConfig?.pathTemplate?.includes('{index}')
+            ? options.storageConfig.pathTemplate
+            : pathTemplate,
+        },
+        userId,
+        modelName
+      );
+      mediaUrls = storageResults.map((r) => {
+        let url = r.url;
+        url = url.replace(/http:+\/\//g, 'http://');
+        url = url.replace(/https:+\/\//g, 'https://');
+        return url;
+      });
+      const keys = storageResults.map((r) => r.key);
+      const proxyType =
+        taskType === 'video'
+          ? 'video'
+          : taskType === 'audio'
+            ? 'audio'
+            : taskType === 'music'
+              ? 'music'
+              : 'graph';
+      const proxyBasePath = `/api/v1/media/${proxyType}/${taskId}`;
+      storageInfo = {
+        keys,
+        bucket: storageResults[0]!.bucket,
+        urls: mediaUrls,
+        proxyUrls: keys.map((_, i) =>
+          keys.length > 1 ? `${proxyBasePath}?index=${i}` : proxyBasePath
+        ),
+      };
+
+      const albumResult = (resultMetadata as Record<string, unknown>).albumResult as
+        | { items?: Array<Record<string, unknown>>; coverUrl?: string; [k: string]: unknown }
+        | undefined;
+      if (albumResult && Array.isArray(albumResult.items)) {
+        let readyIdx = 0;
+        const items = albumResult.items.map((item) => {
+          if (item?.status === 'ready' && readyIdx < mediaUrls.length) {
+            const imageUrl = storageInfo!.proxyUrls![readyIdx] ?? mediaUrls[readyIdx];
+            readyIdx += 1;
+            return { ...item, imageUrl };
+          }
+          return item;
+        });
+        resultMetadata = {
+          ...resultMetadata,
+          albumResult: {
+            ...albumResult,
+            items,
+            coverUrl: storageInfo.proxyUrls?.[0] ?? mediaUrls[0],
+          },
+          albumReadyCount: mediaUrls.length,
+        };
+      }
+    }
 
     const { scrubPersistedReviewArtifacts } = await import('../tasks/manual-review');
     const cleaned = scrubPersistedReviewArtifacts(params);
@@ -1418,6 +1575,7 @@ export class TaskExecutor {
 
     await this.taskManager.setTaskResult(taskId, {
       mediaUrls,
+      storageInfo,
       metadata: finalMetadata,
     });
 

@@ -11,16 +11,42 @@ export * from './interfaces/IWalletRepository';
 export * from './interfaces/IUserMediaRepository';
 export * from './interfaces/IUserAgentRepository';
 export * from './interfaces/IConversationRepository';
+export * from './interfaces/IAgentConversationRepository';
 export * from './interfaces/ISmartflowRepository';
 export * from './interfaces/ISmartflowExecutionRepository';
 export * from './interfaces/ICGITaskRepository';
-export * from './interfaces/ICharacterRepository';
 export * from './interfaces/IPromptEngineeringConfigRepository';
 export * from './interfaces/IKnowledgeBaseRepository';
 export * from './interfaces/IKnowledgeBaseDefaultsRepository';
 export * from './interfaces/IPromptTemplateRepository';
 export * from './interfaces/ISensitiveWordRepository';
+export * from './interfaces/IPublishedApiRepository';
+export * from './interfaces/IPublishedApiUsageRepository';
+export * from './interfaces/IPartnerRepository';
+export * from './interfaces/IUserReferenceImageRepository';
+export * from './interfaces/IStorageObjectRepository';
+export * from './interfaces/ISearchScopeConfigRepository';
 export * from './interfaces/errors';
+
+export type {
+  FolderKind,
+  FolderIndexStatus,
+  FolderItemRefType,
+  FolderIndexEntryStatus,
+  FolderCardTag,
+  FolderCardStatus,
+  FolderAssetRole,
+  Folder,
+  FolderItem,
+  FolderIndexEntry,
+  CreateFolderDto,
+  UpdateFolderDto,
+  UpdateFolderIndexDto,
+  UpsertFolderIndexEntryDto,
+  FolderQueryOptions,
+  FolderItemsQueryOptions,
+} from './interfaces/IFolderRepository';
+export type { IFolderRepository } from './interfaces/IFolderRepository';
 
 // 导出 IPromptOptimizerRepository 接口（排除与 models 重复的类型：PromptTemplate, CreatePromptTemplateDto, UpdatePromptTemplateDto）
 export type {
@@ -51,3 +77,10 @@ export * from './factories';
 
 // 导出配置
 export * from './config/dataConfig';
+export * from './env';
+
+// 导出应用语言（四语）
+export * from './i18n';
+
+// 导出存储层
+export * from './storage';

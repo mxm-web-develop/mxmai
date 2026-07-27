@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   pickDefaultOverlayStyle,
   positionForLayout,
+  styleForOverlayLayer,
   styleForOverlayPreset,
 } from './overlay-style-presets';
 
@@ -23,5 +24,21 @@ describe('overlay-style-presets', () => {
   it('price-like text maps to price-tag', () => {
     const { layout } = pickDefaultOverlayStyle('¥99,000');
     expect(layout).toBe('center-right');
+  });
+
+  it('chapter-progress stays readable at 1080p', () => {
+    expect(styleForOverlayPreset('chapter-progress').fontSize).toBeGreaterThanOrEqual(32);
+  });
+
+  it('styleForOverlayLayer maps keyword-pop to large cyan', () => {
+    const { style, layout } = styleForOverlayLayer({
+      role: 'keyword-pop',
+      text: 'Optimus',
+      enterAt: 0,
+      exitAt: 2,
+      emphasis: 'hot',
+    });
+    expect(layout).toBe('center-right');
+    expect(style.fontSize).toBeGreaterThanOrEqual(88);
   });
 });

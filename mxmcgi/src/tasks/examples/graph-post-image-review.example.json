@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle-note",
+  "description": "Graph 后置人工审核示例：核心生图完成后 post 末尾暂停，用户确认图片再继续落库",
+  "pipelineSnippet": {
+    "post": [
+      {
+        "step": "manualReview",
+        "params": {
+          "id": "image-confirm",
+          "label": "图片确认",
+          "hint": "确认生成图片无误后完成任务",
+          "kind": "image",
+          "draftFrom": "${state.coreArtifact.mediaUrls}",
+          "editable": false
+        }
+      }
+    ]
+  },
+  "api": {
+    "getDraft": "GET /api/v2/tasks/:id/review-draft",
+    "approve": "POST /api/v2/tasks/:id/approve-review"
+  }
+}

@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at DESC);
 CREATE TABLE IF NOT EXISTS user_settings (
   user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   theme VARCHAR(10) DEFAULT 'system', -- light, dark, system
-  language VARCHAR(10) DEFAULT 'zh', -- zh, en
+  language VARCHAR(10) DEFAULT 'zh', -- zh | zh-TW | en | ja
   notifications_enabled BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
@@ -93,21 +93,26 @@ CREATE INDEX IF NOT EXISTS idx_user_media_user_id ON user_media(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_media_type ON user_media(type);
 CREATE INDEX IF NOT EXISTS idx_user_media_task_id ON user_media(task_id);
 
--- 用户文件夹表
+-- 用户文件夹表（upload=上传管理器目录树，virtual=虚拟文件夹收藏树）
 CREATE TABLE IF NOT EXISTS folders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   parent_id UUID REFERENCES folders(id) ON DELETE CASCADE,
+  folder_kind VARCHAR(20) NOT NULL DEFAULT 'upload' CHECK (folder_kind IN ('upload', 'virtual')),
+  index_status VARCHAR(20) DEFAULT 'none',
+  indexed_at TIMESTAMPTZ,
+  knowledge_base_id VARCHAR(50),
+  index_error TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
-  -- 同一用户在同一父目录下不能有重名文件夹
-  CONSTRAINT unique_folder_name_per_parent UNIQUE (user_id, parent_id, name)
+  CONSTRAINT unique_folder_name_per_parent_kind UNIQUE (user_id, parent_id, name, folder_kind)
 );
 
 -- 文件夹索引
 CREATE INDEX IF NOT EXISTS idx_folders_user_id ON folders(user_id);
 CREATE INDEX IF NOT EXISTS idx_folders_parent_id ON folders(parent_id);
+CREATE INDEX IF NOT EXISTS idx_folders_user_kind ON folders(user_id, folder_kind);
 CREATE INDEX IF NOT EXISTS idx_folders_created_at ON folders(created_at DESC);
 
 -- 文件夹更新时间戳触发器
@@ -118,16 +123,44 @@ CREATE TRIGGER update_folders_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
--- 文件夹项关联表（多对多：文件夹 <-> 任务）
--- 直接使用 cgi-tasks 表的 task_id，不再依赖 user_media 表
+-- 文件夹项关联表（软链：task_id 或 storage_object_id 二选一）
 CREATE TABLE IF NOT EXISTS folder_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   folder_id UUID NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
-  task_id VARCHAR(64) NOT NULL,  -- 任务 ID（来自 cgi-tasks 表）
+  task_id VARCHAR(64),
+  storage_object_id UUID REFERENCES storage_objects(id) ON DELETE CASCADE,
   created_at TIMESTAMP DEFAULT NOW(),
-  PRIMARY KEY (folder_id, task_id)
+  CONSTRAINT folder_items_ref_check CHECK (
+    (task_id IS NOT NULL AND storage_object_id IS NULL)
+    OR (task_id IS NULL AND storage_object_id IS NOT NULL)
+  )
 );
 
--- 文件夹项索引
+CREATE UNIQUE INDEX IF NOT EXISTS folder_items_folder_task_unique
+  ON folder_items (folder_id, task_id) WHERE task_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS folder_items_folder_storage_unique
+  ON folder_items (folder_id, storage_object_id) WHERE storage_object_id IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_folder_items_folder_id ON folder_items(folder_id);
 CREATE INDEX IF NOT EXISTS idx_folder_items_task_id ON folder_items(task_id);
+CREATE INDEX IF NOT EXISTS idx_folder_items_storage_object_id ON folder_items(storage_object_id);
+
+-- 虚拟文件夹向量化索引条目
+CREATE TABLE IF NOT EXISTS folder_index_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  folder_id UUID NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  ref_type VARCHAR(20) NOT NULL CHECK (ref_type IN ('task', 'storage_object')),
+  ref_id VARCHAR(64) NOT NULL,
+  content_hash VARCHAR(128),
+  status VARCHAR(20) NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'indexed', 'failed', 'skipped')),
+  chunk_count INTEGER DEFAULT 0,
+  indexed_at TIMESTAMPTZ,
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (folder_id, ref_type, ref_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_folder_index_entries_folder_id ON folder_index_entries(folder_id);
 

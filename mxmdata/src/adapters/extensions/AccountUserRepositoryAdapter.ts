@@ -87,6 +87,15 @@ export class AccountUserRepositoryAdapter implements IAccountUserRepository {
     return this.baseRepo.getSettings(userId);
   }
 
+  async findByPhone(phone: string): Promise<User | null> {
+    return this.baseRepo.findByPhone(phone);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async findAll(options?: any): Promise<{ users: User[]; total: number; page: number; limit: number }> {
+    return this.baseRepo.findAll(options);
+  }
+
   // 扩展方法实现
   async updateProfile(userId: string, profile: UserProfile): Promise<User> {
     const updateData: UpdateUserDto = {

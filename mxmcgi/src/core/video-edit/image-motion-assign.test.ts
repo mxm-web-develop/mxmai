@@ -45,11 +45,12 @@ function makeScript(clips: Array<{ id: string; mode: string; aiKind?: string }>)
 }
 
 describe('assignAlternatingImageMotion', () => {
-  it('alternates pan-left and pan-right for static-image clips', () => {
+  it('uses breath sequence (zoom/pan mix) for static-image clips by default', () => {
     const script = makeScript([
       { id: 'c1', mode: 'static-image' },
       { id: 'c2', mode: 'static-image' },
       { id: 'c3', mode: 'static-image' },
+      { id: 'c4', mode: 'static-image' },
     ]);
     assignAlternatingImageMotion(script);
     const meta = (id: string) =>
@@ -58,9 +59,29 @@ describe('assignAlternatingImageMotion', () => {
         unknown
       >;
     expect(meta('c1').mxmImageMotionEnabled).toBe(true);
-    expect(meta('c1').mxmImageMotion).toBe('pan-left');
+    expect(meta('c1').mxmImageMotion).toBe('zoom-in');
     expect(meta('c2').mxmImageMotion).toBe('pan-right');
-    expect(meta('c3').mxmImageMotion).toBe('pan-left');
+    expect(meta('c3').mxmImageMotion).toBe('zoom-out');
+    expect(meta('c4').mxmImageMotion).toBe('pan-left');
+  });
+
+  it('overwrites uniform pan-left when respectExisting=false', () => {
+    const script = makeScript([
+      { id: 'c1', mode: 'static-image' },
+      { id: 'c2', mode: 'static-image' },
+    ]);
+    for (const clip of script.project.timeline.tracks[0]!.clips) {
+      clip.metadata = {
+        mxmRenderMode: 'static-image',
+        mxmImageMotionEnabled: true,
+        mxmImageMotion: 'pan-left',
+      };
+    }
+    assignAlternatingImageMotion(script, { respectExisting: false });
+    const motions = script.project.timeline.tracks[0]!.clips.map(
+      (c) => (c.metadata as { mxmImageMotion?: string }).mxmImageMotion
+    );
+    expect(motions).toEqual(['zoom-in', 'pan-right']);
   });
 
   it('uses zoom alternate for ai image clips', () => {

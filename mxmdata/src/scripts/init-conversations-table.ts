@@ -1,6 +1,6 @@
 /**
  * 初始化 conversations 表
- * 执行 mxmagent.sql 中的 SQL 语句
+ * 执行 mxmagent.sql（历史文件名）中的 SQL 语句
  */
 
 import dotenv from 'dotenv';

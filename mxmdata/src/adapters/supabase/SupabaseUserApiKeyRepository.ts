@@ -8,11 +8,17 @@ import type {
   UserApiKeyRecord,
   UserApiKeyByHash,
   UserApiKeyListItem,
+  UserApiKeyType,
+  CountUserApiKeysByTypeResult,
 } from '../../interfaces/IUserApiKeyRepository';
 import { DataAccessError } from '../../interfaces/errors';
 import { getSupabaseClient } from './SupabaseClient';
 
 const TABLE = 'user_api_keys';
+
+function normalizeKeyType(v: unknown): UserApiKeyType {
+  return v === 'integration' ? 'integration' : 'personal';
+}
 
 function toRecord(row: any): UserApiKeyRecord {
   return {
@@ -20,6 +26,7 @@ function toRecord(row: any): UserApiKeyRecord {
     user_id: row.user_id,
     key_hash: row.key_hash,
     key_prefix: row.key_prefix,
+    key_type: normalizeKeyType(row.key_type),
     name: row.name ?? null,
     created_at: row.created_at,
     last_used_at: row.last_used_at ?? null,
@@ -32,6 +39,7 @@ function toByHash(row: any): UserApiKeyByHash {
     id: row.id,
     user_id: row.user_id,
     key_prefix: row.key_prefix,
+    key_type: normalizeKeyType(row.key_type),
     name: row.name ?? null,
     created_at: row.created_at,
     last_used_at: row.last_used_at ?? null,
@@ -43,6 +51,7 @@ function toListItem(row: any): UserApiKeyListItem {
   return {
     id: row.id,
     key_prefix: row.key_prefix,
+    key_type: normalizeKeyType(row.key_type),
     name: row.name ?? null,
     created_at: row.created_at,
     last_used_at: row.last_used_at ?? null,
@@ -58,6 +67,7 @@ export class SupabaseUserApiKeyRepository implements IUserApiKeyRepository {
       user_id: data.userId,
       key_hash: data.keyHash,
       key_prefix: data.keyPrefix,
+      key_type: data.keyType,
       name: data.name ?? null,
       expires_at: data.expiresAt ?? null,
     };
@@ -69,7 +79,7 @@ export class SupabaseUserApiKeyRepository implements IUserApiKeyRepository {
   async findByKeyHash(keyHash: string): Promise<UserApiKeyByHash | null> {
     const { data, error } = await this.client
       .from(TABLE)
-      .select('id, user_id, key_prefix, name, created_at, last_used_at, expires_at')
+      .select('id, user_id, key_prefix, key_type, name, created_at, last_used_at, expires_at')
       .eq('key_hash', keyHash)
       .maybeSingle();
     if (error) throw new DataAccessError(`user_api_keys findByKeyHash failed: ${error.message}`, 'QUERY_ERROR', error);
@@ -79,11 +89,28 @@ export class SupabaseUserApiKeyRepository implements IUserApiKeyRepository {
   async listByUserId(userId: string): Promise<UserApiKeyListItem[]> {
     const { data, error } = await this.client
       .from(TABLE)
-      .select('id, key_prefix, name, created_at, last_used_at, expires_at')
+      .select('id, key_prefix, key_type, name, created_at, last_used_at, expires_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     if (error) throw new DataAccessError(`user_api_keys listByUserId failed: ${error.message}`, 'QUERY_ERROR', error);
     return (data || []).map(toListItem);
+  }
+
+  async countByUserIdAndType(userId: string): Promise<CountUserApiKeysByTypeResult> {
+    const { data, error } = await this.client
+      .from(TABLE)
+      .select('key_type')
+      .eq('user_id', userId);
+    if (error) {
+      throw new DataAccessError(`user_api_keys countByUserIdAndType failed: ${error.message}`, 'QUERY_ERROR', error);
+    }
+    let personal = 0;
+    let integration = 0;
+    for (const row of data ?? []) {
+      if (normalizeKeyType(row.key_type) === 'integration') integration += 1;
+      else personal += 1;
+    }
+    return { personal, integration };
   }
 
   async delete(id: string, userId: string): Promise<boolean> {

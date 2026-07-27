@@ -96,6 +96,38 @@ describe('clip-render-readiness', () => {
     expect(bad?.metadata?.mxmRenderedVideoUrl).toBeUndefined();
     expect(bad?.metadata?.mxmRenderError).toBeUndefined();
   });
+
+  it('invalidateClipsForRerender clears all stock urls including expired internal media', () => {
+    const script = makeScript([
+      {
+        id: 'stock-fail',
+        meta: {
+          mxmRenderMode: 'static-image',
+          mxmRenderStatus: 'failed',
+          mxmRenderError: 'HTTP 502',
+          mxmSourceImageUrl: 'https://live.staticflickr.com/8405/x_b.jpg',
+          mxmStockUpstreamUrl: 'https://live.staticflickr.com/8405/x_b.jpg',
+        },
+      },
+      {
+        id: 'stock-expired-internal',
+        meta: {
+          mxmRenderMode: 'static-image',
+          mxmRenderStatus: 'failed',
+          mxmSourceImageUrl: '/api/v1/media/object/abc',
+          mxmRenderError: '媒体 storage object 不存在: abc',
+        },
+      },
+    ]);
+    const { script: next } = invalidateClipsForRerender(script);
+    const failed = next.project.timeline.tracks[0]!.clips.find((c) => c.id === 'stock-fail');
+    const expired = next.project.timeline.tracks[0]!.clips.find(
+      (c) => c.id === 'stock-expired-internal'
+    );
+    expect(failed?.metadata?.mxmSourceImageUrl).toBeUndefined();
+    expect(failed?.metadata?.mxmStockUpstreamUrl).toBeUndefined();
+    expect(expired?.metadata?.mxmSourceImageUrl).toBeUndefined();
+  });
 });
 
 describe('validateRenderedReviewApproval', () => {

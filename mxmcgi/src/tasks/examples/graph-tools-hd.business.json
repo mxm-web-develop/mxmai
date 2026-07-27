@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-06-03T06:00:00.000Z",
+  "items": [
+    {
+      "scope": "graph",
+      "type": "tools",
+      "subtype": "hd",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "工具 · 高清放大",
+          "subtypeLabel": "hd（宫格须选规格 + 图生放大）",
+          "taskLabelI18n": {
+            "zh": "工具 · 高清放大",
+            "zh-TW": "工具 · 高清放大"
+          },
+          "subtypeLabelI18n": {
+            "zh": "hd（宫格须选规格 + 图生放大）",
+            "zh-TW": "hd（宫格须多選规格 + 圖生放大）"
+          }
+        },
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {}
+          },
+          "knowledge": {
+            "strategy": "global",
+            "useKnowledge": false,
+            "defaultKnowledgeBaseIds": []
+          },
+          "uiSchema": {
+            "source_images": {
+              "ui:widget": "referenceImages",
+              "ui:options": {
+                "maxCount": 1
+              }
+            },
+            "is_grid": {
+              "ui:widget": "switch",
+              "ui:help": "开启后须选择宫格规格与放大格位；平台不会自动识别几×几。"
+            },
+            "grid_layout": {
+              "ui:widget": "select",
+              "ui:placeholder": "请选择宫格规格"
+            },
+            "grid_cell": {
+              "ui:options": {
+                "placeholder": "例如 1-1、2-3（行-列，从 1 开始）"
+              }
+            },
+            "source_graph_task_id": {
+              "ui:options": {
+                "placeholder": "可选：原 Graph 商拍任务 ID，用于拉取联系表成片"
+              }
+            },
+            "aspect_ratio": {
+              "ui:widget": "select",
+              "ui:placeholder": "不选则保持原图比例"
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【工具 · 高清放大】不走 text/format。宫格须填写 grid_layout（2x2/3x3/4x4）与 grid_cell；服务端按规格裁格后图生放大。\n\n- 待放大图：${source_images}\n- 是否宫格图：${is_grid}\n- 宫格规格：${grid_layout}\n- 放大格位：${grid_cell}\n- 原任务 ID（可选）：${source_graph_task_id}\n- 输出画幅（可选）：${aspect_ratio}"
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "source_images"
+            ],
+            "properties": {
+              "source_images": {
+                "type": "array",
+                "title": "待放大图片",
+                "description": "上传单张联系表或单图。宫格模式请上传完整联系表，并选择规格与格位。",
+                "x-ui-type": "referenceImages",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "title": "图片 URL / Base64"
+                    },
+                    "type": {
+                      "type": "string",
+                      "title": "用途类型",
+                      "enum": [
+                        "main-subject",
+                        "background",
+                        "style-reference"
+                      ],
+                      "default": "main-subject"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "title": "说明（可选）"
+                    }
+                  }
+                }
+              },
+              "is_grid": {
+                "type": "boolean",
+                "title": "宫格联系表",
+                "description": "开启表示上传的是 N×N 拼图，须选择宫格规格与要放大的格位（平台不自动识格）。",
+                "default": false,
+                "x-ui-type": "switch"
+              },
+              "grid_layout": {
+                "type": "string",
+                "title": "宫格规格",
+                "description": "与上游生图 output_grid 一致。商拍九宫格选 3×3。",
+                "enum": [
+                  "2x2",
+                  "3x3",
+                  "4x4"
+                ],
+                "x-enum-labels": [
+                  "2×2（四宫格）",
+                  "3×3（九宫格）",
+                  "4×4（十六宫格）"
+                ],
+                "default": "3x3",
+                "x-ui-type": "selection"
+              },
+              "grid_cell": {
+                "type": "string",
+                "title": "放大格位（行-列）",
+                "description": "从左上角起算，行与列均从 1 开始，如 2-3 表示第 2 行第 3 列。",
+                "pattern": "^[1-4]-[1-4]$",
+                "default": "1-1"
+              },
+              "source_graph_task_id": {
+                "type": "string",
+                "title": "原 Graph 任务 ID（可选）",
+                "description": "从商拍任务点 HD 时填入原任务 ID，便于 Worker 拉取联系表成片；手动上传联系表时可留空。"
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "title": "输出画幅（可选）",
+                "description": "不选择则按裁切后单格/原图比例放大至 4K。",
+                "x-ui-type": "selection",
+                "enum": [
+                  "",
+                  "1:1",
+                  "3:4",
+                  "4:3",
+                  "16:9",
+                  "9:16"
+                ],
+                "x-enum-labels": [
+                  "保持原图比例",
+                  "1:1",
+                  "3:4",
+                  "4:3",
+                  "16:9",
+                  "9:16"
+                ],
+                "default": ""
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "is_grid": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "is_grid"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "grid_layout",
+                    "grid_cell"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "graph-tools-hd",
+        "provider": "qhai",
+        "model": "nano-banana-2",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "graph-tools-hd",
+          "charge_metric": "per_image",
+          "price_in_tokens": 80,
+          "min_charge_tokens": 0,
+          "provider": "qhai",
+          "model_key": "nano-banana-2",
+          "subtype": "hd",
+          "metadata": {
+            "note": "4K 图生放大；宫格须传 grid_layout + grid_cell"
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

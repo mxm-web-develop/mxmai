@@ -1,7 +1,7 @@
 /**
  * 将 OpenReel textClips 烧录进基底 mp4（ffmpeg drawtext，无需 headless 浏览器）
  */
-import { accessSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TextClip } from '@mxmai/mxm-editor-core/text/types';
@@ -9,15 +9,10 @@ import type { VideoEditScript } from './types';
 import { runFfmpeg } from './ffmpeg-runner';
 import { fetchMediaBuffer } from './media-fetch';
 import { persistLocalFileToStorage } from './storage-upload';
+import { resolveOverlayFontFile } from './overlay-font';
 import { subtitlesToTextClips } from './subtitle-overlay';
 
-const DEFAULT_FONT_CANDIDATES = [
-  process.env.VIDEO_EDIT_FONT_PATH,
-  '/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc',
-  '/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc',
-  '/usr/share/fonts/opentype/noto/NotoSansSC-Bold.otf',
-  '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-].filter(Boolean) as string[];
+export { resolveOverlayFontFile } from './overlay-font';
 
 export function escapeDrawtext(text: string): string {
   return text
@@ -58,7 +53,7 @@ export function buildDrawtextFilter(
   const preset = clip.animation?.preset ?? 'fade';
   const inDur = clip.animation?.inDuration ?? 0.55;
   const outDur = clip.animation?.outDuration ?? 0.35;
-  const fontsize = Math.max(12, Math.round(clip.style.fontSize));
+  const fontsize = Math.max(28, Math.round(Number(clip.style.fontSize) || 56));
   const fontcolor = hexToFfmpegColor(clip.style.color ?? '#ffffff');
   const text = escapeDrawtext(clip.text);
   const nx = clip.transform.position.x;
@@ -163,18 +158,6 @@ export function subtitleTextClipsForVisualClip(
   return subtitlesToTextClips(script).filter(
     (tc) => tc.startTime < clipEnd && tc.startTime + tc.duration > clipStart
   );
-}
-
-export function resolveOverlayFontFile(): string {
-  for (const p of DEFAULT_FONT_CANDIDATES) {
-    try {
-      accessSync(p);
-      return p;
-    } catch {
-      /* try next */
-    }
-  }
-  return '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
 }
 
 export async function compositeTextClipsOnVideoFile(input: {
@@ -315,7 +298,12 @@ export async function applySubtitleBurnToScript(
         mx.mxmRenderedVideoUrl = url;
         mx.mxmRenderStatus = 'ready';
       } catch (e) {
-        mx.mxmRenderStatus = 'failed';
+        // 字幕烧录失败不应毁掉已就绪的基底成片（否则审核页会掉进「正在匹配画面素材」）
+        console.warn(
+          `[subtitle-burn] clip ${clip.id} 烧录失败，保留无字幕底片:`,
+          e instanceof Error ? e.message : e
+        );
+        mx.mxmRenderStatus = 'ready';
         mx.mxmRenderError = e instanceof Error ? e.message : '字幕烧录失败';
       }
     }
@@ -351,7 +339,11 @@ export async function applyTextOverlaysToScript(
         mx.mxmRenderedVideoUrl = url;
         mx.mxmRenderStatus = 'ready';
       } catch (e) {
-        mx.mxmRenderStatus = 'failed';
+        console.warn(
+          `[text-overlay-burn] clip ${clip.id} 烧录失败，保留未叠字底片:`,
+          e instanceof Error ? e.message : e
+        );
+        mx.mxmRenderStatus = 'ready';
         mx.mxmRenderError =
           e instanceof Error ? e.message : '文字叠加烧录失败';
       }

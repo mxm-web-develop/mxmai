@@ -50,7 +50,7 @@
 | 能力 | 说明 |
 |------|------|
 | **Provider 选择** | `DEFAULT_PROVIDER` 环境变量、请求里 `providerOverride`、或 `getProviderForModel` 结合已注册模型与 `provider_models` 选择。 |
-| **逻辑模型路由** | `model-routing.ts` 提供 `setRoutingOverride` / `clearRoutingOverride`，admin 可在内存中覆盖「逻辑名 → provider + model」；注释里预留“可选后续改为 DB”。 |
+| **逻辑模型路由（业务侧）** | 各 scope 的 `*_scope_config`（Supabase）为运行时主源；Admin「模型与定价」保存时同步 `setRoutingOverride` 供进程内读取。`model-routing.ts` 的 `defaultRouting` 为空表，勿再依赖代码内默认映射。 |
 | **API Key** | `getFirstProviderKey()` 优先从 DB 读，再回退 .env，便于运维动态配置 key。 |
 
 ---

@@ -17,6 +17,10 @@ import type {
 } from '@mxmai/mxmdata';
 import { EmbeddingService } from './embedding/service';
 import { FileParser, ParsedDocument } from './file-parser';
+import {
+  defaultKnowledgeEmbeddingModelKey,
+  resolveKnowledgeEmbedding,
+} from '../core/knowledge/knowledge-embedding-routing';
 
 export interface CreateKnowledgeBaseParams {
   name: string;
@@ -119,12 +123,14 @@ export class KnowledgeService {
    * 创建知识库
    */
   async createKnowledgeBase(params: CreateKnowledgeBaseParams): Promise<KnowledgeBase> {
+    const embeddingModel =
+      params.embedding_model || (await defaultKnowledgeEmbeddingModelKey());
     const dto: CreateKnowledgeBaseDto = {
       name: params.name,
       display_name: params.display_name,
       description: params.description,
       type: params.type || 'hybrid',
-      embedding_model: params.embedding_model || 'text-embedding-3-small',
+      embedding_model: embeddingModel,
       agent_id: params.agent_id,
       agent_name: params.agent_name,
       is_builtin: params.is_builtin || false,
@@ -199,23 +205,14 @@ export class KnowledgeService {
 
     // 4. 为每个 chunk 生成 embedding
     const chunkTexts = parsed.chunks.map((chunk) => chunk.text);
-    
-    // 根据知识库配置确定 embedding 模型和维度
-    const embeddingModel = knowledgeBase.embedding_model || 'text-embedding-3-small';
-    // 如果使用 text-embedding-3-large 且数据库 schema 是 1536 维，降维到 1536
-    // 注意：当前数据库 schema 固定为 vector(1536)，如果后续支持 3072 维，可以移除降维
-    const dimensions = 
-      embeddingModel === 'text-embedding-3-large' 
-        ? (knowledgeBase.config?.dimensions || 1536) // 默认降维到 1536 以兼容当前 schema
-        : undefined;
-    
-    // 使用知识库配置的模型生成 embedding
+
+    const emb = await resolveKnowledgeEmbedding(knowledgeBase.embedding_model);
     const embeddings = await this.embeddingService.embedBatch(
       chunkTexts,
-      100, // batchSize
-      embeddingModel, // model
-      undefined, // provider (使用默认)
-      dimensions // dimensions (仅 text-embedding-3-large 支持)
+      100,
+      emb.modelKey,
+      undefined,
+      emb.dimensions
     );
 
     // 5. 创建文档（每个 chunk 作为一个文档）
@@ -338,21 +335,17 @@ export class KnowledgeService {
       throw new Error(`知识库 "${knowledgeBaseName}" 不存在`);
     }
 
-    // 根据知识库配置确定 embedding 模型和维度
-    const embeddingModel = knowledgeBase.embedding_model || 'text-embedding-3-small';
-    const dimensions = 
-      embeddingModel === 'text-embedding-3-large' 
-        ? (knowledgeBase.config?.dimensions || 1536) // 默认降维到 1536 以兼容当前 schema
-        : undefined;
+    // 根据知识库配置确定 embedding 模型和维度（Admin provider_models + knowledge_scope_config）
+    const emb = await resolveKnowledgeEmbedding(knowledgeBase.embedding_model);
 
     switch (searchType) {
       case 'vector': {
         // 向量检索
         const queryEmbedding = await this.embeddingService.embedQuery(
           query,
-          embeddingModel,
-          undefined, // provider
-          dimensions
+          emb.modelKey,
+          undefined,
+          emb.dimensions
         );
         return await this.repository.searchDocuments(queryEmbedding, knowledgeBaseName, {
           limit,
@@ -373,9 +366,9 @@ export class KnowledgeService {
         // 混合检索
         const queryEmbedding = await this.embeddingService.embedQuery(
           query,
-          embeddingModel,
-          undefined, // provider
-          dimensions
+          emb.modelKey,
+          undefined,
+          emb.dimensions
         );
         return await this.repository.hybridSearch(queryEmbedding, query, knowledgeBaseName, {
           limit,

@@ -49,4 +49,10 @@ export interface ICGITaskRepository {
    * 根据用户 ID 查询任务列表
    */
   findByUserId(userId: string, options?: Omit<ListCGITasksOptions, 'user_id'>): Promise<{ tasks: CGITask[]; total: number }>;
+
+  /**
+   * 原子领取 pending/queued 任务（FOR UPDATE SKIP LOCKED）
+   * 需要 Supabase RPC：claim_pending_cgi_tasks
+   */
+  claimPendingTasks(workerId: string, limit?: number): Promise<CGITask[]>;
 }

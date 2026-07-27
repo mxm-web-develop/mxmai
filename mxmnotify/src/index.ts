@@ -1,8 +1,6 @@
 import express from 'express';
-import dotenv from 'dotenv';
-import { resolve } from 'path';
 import { createServer } from 'http';
-import { RepositoryFactory, initSupabaseClient, getSupabaseClient } from '@mxmai/mxmdata';
+import { RepositoryFactory, initSupabaseClient, getSupabaseClient, loadMonorepoEnv } from '@mxmai/mxmdata';
 import healthRouter from './routes/health';
 import tasksRouter from './routes/tasks';
 import notificationsRouter from './routes/notifications';
@@ -12,12 +10,7 @@ import taskEventsRouter from './routes/task-events';
 import notificationsBroadcastRouter from './routes/notifications-broadcast';
 import { logger } from './utils/logger';
 
-// 禁用 dotenv 的提示信息
-process.env.DOTENV_CONFIG_DEBUG = 'false';
-
-// 加载环境变量（优先加载项目根目录的 .env）
-dotenv.config({ path: resolve(__dirname, '../../.env') });
-dotenv.config(); // 也加载当前目录的 .env（如果有）
+loadMonorepoEnv({ service: 'mxmnotify' });
 
 // 初始化 RepositoryFactory（必须在导入路由之前）
 try {
@@ -71,7 +64,7 @@ try {
 
 const app = express();
 const server = createServer(app);
-const port = process.env.PORT ? Number(process.env.PORT) : 4005;
+const port = Number(process.env.MXMNOTIFY_PORT || process.env.PORT || 4005);
 
 app.use(express.json());
 

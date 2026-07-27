@@ -8,47 +8,44 @@ import { CaptchaService } from '../services/captcha.service';
 const captchaService = new CaptchaService();
 
 /**
- * 验证码验证中间件
- * 从请求 body 中读取 captchaId 和 captchaAnswer 进行验证
- * 默认禁用验证码（正式上线前可通过设置 CAPTCHA_ENABLE=true 启用）
+ * 滑动拼图验证中间件
+ * 登录/注册前须先 POST /captcha/verify 完成拼图，再携带 captchaId 提交
  */
 export function captchaMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
 ): void {
-  // 检查是否启用验证码（默认禁用，正式上线前可通过 CAPTCHA_ENABLE=true 启用）
   const captchaEnabled = process.env.CAPTCHA_ENABLE === 'true';
-  
+
   if (!captchaEnabled) {
-    // 验证码已禁用，直接通过
     return next();
   }
 
-  const { captchaId, captchaAnswer } = req.body;
+  const { captchaId } = req.body;
 
-  if (!captchaId || !captchaAnswer) {
+  if (!captchaId) {
     res.status(400).json({
       code: 400,
-      message: '验证码不能为空',
+      message: '请先完成滑动验证',
       error: 'CAPTCHA_REQUIRED',
     });
     return;
   }
 
-  // 异步验证
   captchaService
-    .verify(captchaId, captchaAnswer)
-    .then((isValid) => {
+    .isVerified(captchaId)
+    .then(async (isValid) => {
       if (!isValid) {
         res.status(400).json({
           code: 400,
-          message: '验证码错误或已过期',
+          message: '请先完成滑动验证或验证已过期',
           error: 'CAPTCHA_INVALID',
         });
         return;
       }
-      // 验证通过，继续处理
+
+      await captchaService.consumeVerified(captchaId);
       next();
     })
     .catch((error) => {
@@ -60,4 +57,3 @@ export function captchaMiddleware(
       });
     });
 }
-

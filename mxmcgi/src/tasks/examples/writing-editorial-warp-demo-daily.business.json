@@ -12,8 +12,18 @@
         "display": {
           "taskLabel": "文稿",
           "subtypeLabel": "Warp演示日报",
-          "taskLabelI18n": { "en": "Editorial" },
-          "subtypeLabelI18n": { "en": "Warp demo daily" }
+          "taskLabelI18n": {
+            "en": "Editorial",
+            "zh": "文稿",
+            "zh-TW": "文稿",
+            "ja": "Editorial"
+          },
+          "subtypeLabelI18n": {
+            "en": "Warp demo daily",
+            "zh": "Warp演示日报",
+            "zh-TW": "Warp演顯示日報",
+            "ja": "Warp demo daily"
+          }
         },
         "executionMode": "mxm-warp",
         "taskTemplate": {
@@ -40,10 +50,14 @@
                 "title": "正文结构要求",
                 "description": "专业交付结构，由 enrich 专家 text 回填，input 不填",
                 "x-zone": "business",
-                "items": { "type": "object" }
+                "items": {
+                  "type": "object"
+                }
               }
             },
-            "required": ["topic"]
+            "required": [
+              "topic"
+            ]
           },
           "contractSchema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -66,10 +80,14 @@
                 "title": "正文结构要求",
                 "description": "专业交付结构，由 enrich 专家 text 回填，input 不填",
                 "x-zone": "business",
-                "items": { "type": "object" }
+                "items": {
+                  "type": "object"
+                }
               }
             },
-            "required": ["topic"]
+            "required": [
+              "topic"
+            ]
           },
           "prompt": {
             "unifiedTemplate": "你是职场写作助手。根据下方完整业务合同撰写可直接发送的工作日报 Markdown。只依据合同事实，不要编造。"

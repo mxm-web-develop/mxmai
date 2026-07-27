@@ -3,84 +3,50 @@
  * 提供统一入口、路由转发、认证、限流等功能
  */
 
-import express from 'express';
-import dotenv from 'dotenv';
-import { resolve } from 'path';
+import { loadMonorepoEnv } from '@mxmai/mxmdata';
+import express, { type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 import { createServer } from 'http';
 import { setupWebSocketProxy } from './routes/websocket-proxy';
+import { setupOpenApiWebSocketProxy } from './routes/open-websocket-proxy';
 import healthRouter from './routes/health';
-import { authMiddleware } from './middleware/auth';
+import clientHintsRouter from './routes/client-hints';
+import { authMiddleware, type AuthRequest } from './middleware/auth';
+import { apiKeyScopeMiddleware } from './middleware/api-key-scope';
+import { partnerSlugMiddleware, partnerSessionScopeMiddleware } from './middleware/partner-auth';
+import { integrationPartnerAclMiddleware } from './middleware/integration-partner-acl';
+import { partnerRateLimitMiddleware } from './middleware/partner-rate-limit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { responseMiddleware } from './middleware/response';
 import { createProxyRouter } from './routes/proxy';
 import { logger } from './utils/logger';
+import { setupOpenApiDocs } from './openapi/setup';
 
-// 禁用 dotenv 的提示信息
-process.env.DOTENV_CONFIG_DEBUG = 'false';
+loadMonorepoEnv({ service: 'gateway' });
 
-// 加载环境变量
-// 优先从 mxmdata/.env 加载（与 mxmauth 保持一致，确保 JWT_SECRET 一致）
-// 注意：__dirname 在 tsx watch 模式下指向 src 目录，在编译后指向 dist 目录
-// 使用与 mxmauth 完全相同的路径解析逻辑：从 src/dist 向上三级到项目根目录，然后进入 mxmdata
-// mxmauth 使用: resolve(__dirname, '../../../mxmdata/.env')
-const workspaceEnvPath = resolve(__dirname, '../../../mxmdata/.env');
-
-logger.info(`[Gateway] 尝试从以下路径加载环境变量: ${workspaceEnvPath}`);
-logger.info(`[Gateway] __dirname: ${__dirname}`);
-
-const envResult1 = dotenv.config({ path: workspaceEnvPath });
-if (envResult1.error) {
-  logger.warn(`[Gateway] 未能从 mxmdata/.env 加载环境变量: ${envResult1.error.message}`);
-  logger.warn(`[Gateway] 尝试的路径: ${workspaceEnvPath}`);
-  logger.warn(`[Gateway] 文件是否存在: ${require('fs').existsSync(workspaceEnvPath) ? '是' : '否'}`);
-} else if (envResult1.parsed) {
-  logger.info(`[Gateway] ✅ 已从 mxmdata/.env 加载环境变量`);
-  logger.info(`[Gateway] 加载的路径: ${workspaceEnvPath}`);
-  logger.info(`[Gateway] 加载的变量数量: ${Object.keys(envResult1.parsed).length}`);
-}
-
-// 然后加载 gateway/.env（如果有的话，会覆盖上面的配置）
-const gatewayEnvPath = resolve(__dirname, '../.env');
-const envResult2 = dotenv.config({ path: gatewayEnvPath });
-if (envResult2.parsed) {
-  logger.info(`[Gateway] ✅ 已从 gateway/.env 加载环境变量（覆盖 mxmdata/.env）`);
-  logger.info(`[Gateway] gateway/.env 路径: ${gatewayEnvPath}`);
-}
-
-// 最后尝试从当前工作目录加载（兼容性）
-dotenv.config();
-
-// 初始化数据层（API Key 校验需查 user_api_keys / users）
+// 初始化数据层
 try {
   const { RepositoryFactory } = require('@mxmai/mxmdata');
   RepositoryFactory.init();
-  logger.info('[Gateway] ✅ mxmdata RepositoryFactory 已初始化');
 } catch (e) {
-  logger.warn('[Gateway] mxmdata 初始化失败（API Key 认证将不可用）:', e instanceof Error ? e.message : String(e));
+  logger.warn('[Gateway] ⚠️  mxmdata 初始化失败:', e instanceof Error ? e.message : String(e));
 }
 
-// 验证 JWT_SECRET 是否已加载
-if (process.env.JWT_SECRET) {
-  const secretLength = process.env.JWT_SECRET.length;
-  logger.info(`[Gateway] ✅ JWT_SECRET 已配置 (length: ${secretLength})`);
-
-  // 检查是否使用默认值
-  if (process.env.JWT_SECRET === 'your-secret-key-change-in-production') {
-    logger.warn(`[Gateway] ⚠️  警告: 正在使用默认 JWT_SECRET，这会导致认证失败！`);
-    logger.warn(`[Gateway] 💡 请立即在 mxmdata/.env 中配置 JWT_SECRET`);
-  }
-} else {
-  logger.warn(`[Gateway] ⚠️  JWT_SECRET 未配置，将使用默认值（会导致认证失败）`);
-  logger.warn(`[Gateway] 💡 建议: 在 mxmdata/.env 中配置 JWT_SECRET`);
-  logger.warn(`[Gateway] 💡 检查路径: ${workspaceEnvPath}`);
-  logger.warn(`[Gateway] 💡 运行诊断脚本: ./check_jwt_secret.sh`);
+// 验证 JWT_SECRET
+if (process.env.JWT_SECRET === 'your-secret-key-change-in-production') {
+  logger.warn(`[Gateway] ⚠️  使用默认 JWT_SECRET，请在项目根 .env 中配置 JWT_SECRET`);
+} else if (!process.env.JWT_SECRET) {
+  logger.warn(`[Gateway] ⚠️  JWT_SECRET 未配置`);
 }
 
 const app = express();
 const server = createServer(app);
-const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+const port = Number(process.env.GATEWAY_PORT || process.env.PORT || 3000);
+
+// WebSocket 须在 HTTP 代理路由之前挂载（生产环境 Nginx 对 /api/v1/ws/notifications 直连 mxmnotify）
+setupWebSocketProxy(server);
+setupOpenApiWebSocketProxy(server);
 
 // CORS 配置（开发时前端多为 5173，生产为 3000 或实际域名）
 const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173';
@@ -89,7 +55,7 @@ app.use(
     origin: corsOrigin.split(',').map((s) => s.trim()).filter(Boolean),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Partner-Key', 'X-Device-Id', 'X-Partner-Timestamp', 'X-Partner-Signature', 'X-Partner-Secret'],
   })
 );
 
@@ -117,9 +83,9 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 请求日志（避免 cgi-tasks 轮询刷屏）
+// 请求日志（避免任务状态轮询刷屏）
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/v1/cgi-tasks')) {
+  if (req.path.startsWith('/api/v2/tasks/') && req.method === 'GET') {
     return next();
   }
   logger.info(`${req.method} ${req.path}`, {
@@ -134,51 +100,62 @@ app.use(responseMiddleware);
 
 // 健康检查路由（不需要认证）
 app.use('/', healthRouter);
+app.use('/', clientHintsRouter);
 
-// 代理路由配置
-const proxyRouter = createProxyRouter();
-app.use('/api/v1', proxyRouter);
+// OpenAPI / Swagger UI（不需要认证）
+setupOpenApiDocs(app);
 
-// Task v2 路由 (/api/v2/tasks) - 需要认证，直接代理到 mxmcgi
+// Task v2 / 开放 API / 发布管理 — 须在 /api/v1 通用代理之前注册（避免 /account 落到 mxmauth）
+// scope=text 等为同步 LLM，思考模型常 >60s；过短会导致 Vite/Gateway 侧 socket hang up
+const tasksV2ProxyMs = Math.max(
+  60_000,
+  Number(process.env.GATEWAY_TASKS_V2_PROXY_TIMEOUT_MS || 600_000)
+);
 const mxmcgiUrl = process.env.MXMCGI_URL || 'http://localhost:4003';
-app.use(
-  '/api/v2/tasks',
-  authMiddleware as any,
-  createProxyMiddleware({
+const mxmauthUrl = process.env.MXMAUTH_URL || 'http://localhost:4001';
+
+function injectAuthHeaders(proxyReq: any, req: AuthRequest): void {
+  const user = req.user;
+  if (user) {
+    proxyReq.setHeader('x-user-id', user.userId);
+    proxyReq.setHeader('x-username', user.username);
+    if (user.role) proxyReq.setHeader('x-user-role', user.role);
+  }
+  if (req.partner) {
+    proxyReq.setHeader('x-partner-app-id', req.partner.partnerAppId);
+    proxyReq.setHeader('x-partner-end-user-id', req.partner.endUserId);
+    if (req.partner.allowedSlugs.length > 0) {
+      proxyReq.setHeader('x-partner-allowed-slugs', req.partner.allowedSlugs.join(','));
+    }
+  }
+}
+
+function mxmcgiAuthProxy(label: string) {
+  return createProxyMiddleware({
     target: mxmcgiUrl,
     changeOrigin: true,
-    timeout: 60000,
-    proxyTimeout: 60000,
-    pathRewrite: (path, req) => {
-      // 直接透传 /api/v2/tasks 前缀给 mxmcgi
-      return (req as any).originalUrl || path;
-    },
+    timeout: tasksV2ProxyMs,
+    proxyTimeout: tasksV2ProxyMs,
+    pathRewrite: (_path, req) => (req as any).originalUrl || _path,
     on: {
       proxyReq: (proxyReq, req: any) => {
-        const user = (req as any).user;
-        if (user) {
-          proxyReq.setHeader('x-user-id', user.userId);
-          proxyReq.setHeader('x-username', user.username);
-        }
-        // Gateway 顶层已经用 express.json() 解析过 body，必须用 fixRequestBody 重新写入代理请求
-        // 否则下游（mxmcgi）的 express.json() 可能读不到 body，出现挂起/UND_ERR_SOCKET
+        injectAuthHeaders(proxyReq, req as AuthRequest);
         fixRequestBody(proxyReq as any, req);
       },
       proxyRes: (proxyRes, req: any) => {
-        logger.debug(`[TasksV2 Proxy] ${req.method} ${req.originalUrl || req.url} -> ${proxyRes.statusCode}`);
+        logger.debug(`[${label}] ${req.method} ${req.originalUrl || req.url} -> ${proxyRes.statusCode}`);
       },
       error: (err: any, req: any, res: any) => {
-        logger.error(`[TasksV2 Proxy] Error: ${req?.method} ${req?.originalUrl || req?.url}`, {
+        logger.error(`[${label}] Error: ${req?.method} ${req?.originalUrl || req?.url}`, {
           message: err?.message,
           code: err?.code,
-          stack: err?.stack,
           target: mxmcgiUrl,
         });
         try {
           if (res && typeof res.status === 'function' && !res.headersSent) {
             res.status(502).json({
               success: false,
-              error: { code: 'PROXY_ERROR', message: `Task v2 service unavailable: ${err?.message || 'unknown error'}` },
+              error: { code: 'PROXY_ERROR', message: `${label} unavailable: ${err?.message || 'unknown error'}` },
             });
           }
         } catch {
@@ -186,8 +163,99 @@ app.use(
         }
       },
     },
+  });
+}
+
+function runAuthWithScope(req: AuthRequest, res: Response, next: NextFunction): void {
+  authMiddleware(req, res, (err?: unknown) => {
+    if (err) return next(err);
+    if (res.headersSent) return;
+    partnerSessionScopeMiddleware(req, res, () => {
+      if (res.headersSent) return;
+      apiKeyScopeMiddleware(req, res, () => {
+        if (res.headersSent) return;
+        void integrationPartnerAclMiddleware(req, res, () => {
+          if (res.headersSent) return;
+          partnerSlugMiddleware(req, res, () => {
+            if (res.headersSent) return;
+            void partnerRateLimitMiddleware(req, res, next);
+          });
+        });
+      });
+    });
+  });
+}
+
+/** Partner 终端用户上传 — mxmcgi（须在 /api/v1/partner → mxmauth 之前注册） */
+app.use('/api/v1/partner/me/uploads', runAuthWithScope, mxmcgiAuthProxy('Partner Me Uploads Proxy'));
+
+/** Partner API — 匿名/delegate 等由 mxmauth 自行校验 Key，不经 Gateway JWT */
+app.use(
+  '/api/v1/partner',
+  createProxyMiddleware({
+    target: mxmauthUrl,
+    changeOrigin: true,
+    pathRewrite: (_path, req) => (req as any).originalUrl || _path,
+    on: {
+      proxyReq: (proxyReq, req: any) => {
+        injectAuthHeaders(proxyReq, req as AuthRequest);
+        fixRequestBody(proxyReq as any, req);
+      },
+    },
   })
 );
+
+app.use('/api/v2/tasks', runAuthWithScope, mxmcgiAuthProxy('TasksV2 Proxy'));
+app.use('/api/v2/agent', runAuthWithScope, mxmcgiAuthProxy('AgentV2 Proxy'));
+app.use('/api/v1/open', runAuthWithScope, mxmcgiAuthProxy('Open API Proxy'));
+app.use('/api/v1/agent', runAuthWithScope, mxmcgiAuthProxy('Agent Catalog Proxy'));
+app.use(
+  '/api/v1/account/published-apis',
+  runAuthWithScope,
+  mxmcgiAuthProxy('Published APIs Account Proxy')
+);
+app.use(
+  '/api/v1/account/usage',
+  runAuthWithScope,
+  mxmcgiAuthProxy('Account Usage Proxy')
+);
+app.use(
+  '/api/v1/cgi/upload',
+  runAuthWithScope,
+  (req: AuthRequest, _res, next) => {
+    if (req.user) {
+      req.headers['x-user-id'] = req.user.userId;
+      req.headers['x-username'] = req.user.username;
+      if (req.user.role) req.headers['x-user-role'] = req.user.role;
+    }
+    if (req.partner) {
+      req.headers['x-partner-app-id'] = req.partner.partnerAppId;
+      req.headers['x-partner-end-user-id'] = req.partner.endUserId;
+    }
+    next();
+  },
+  createProxyMiddleware({
+    target: mxmcgiUrl,
+    changeOrigin: true,
+    pathRewrite: (_path, req) => {
+      const originalPath = (req as express.Request).originalUrl || _path;
+      return originalPath.replace('/api/v1/cgi/upload', '/upload');
+    },
+    on: {
+      proxyReq: (proxyReq, req: express.Request) => {
+        injectAuthHeaders(proxyReq, req as AuthRequest);
+        const ct = String(req.headers['content-type'] ?? '');
+        if (!ct.includes('multipart/form-data')) {
+          fixRequestBody(proxyReq as any, req);
+        }
+      },
+    },
+  })
+);
+
+// 代理路由配置（/api/v1/account/api-keys 等 → mxmauth）
+const proxyRouter = createProxyRouter();
+app.use('/api/v1', proxyRouter);
 
 // 404 处理
 app.use(notFoundHandler);
@@ -195,30 +263,6 @@ app.use(notFoundHandler);
 // 错误处理（必须在最后）
 app.use(errorHandler);
 
-// 设置 WebSocket 代理
-setupWebSocketProxy(server);
-
 server.listen(port, () => {
-  logger.info(`🚀 Gateway service listening on port ${port}`);
-  logger.info(`📡 Routes configured:`);
-  logger.info(`   - /api/v1/account -> mxmauth (${process.env.MXMAUTH_URL || 'http://localhost:4001'})`);
-  logger.info(`   - /api/v1/assets -> mxmauth (${process.env.MXMAUTH_URL || 'http://localhost:4001'})`);
-  logger.info(`   - /api/v1/payment -> mxmpay (${process.env.MXMPAY_URL || 'http://localhost:4002'})`);
-  logger.info(`   - /api/v1/wallets -> mxmpay (${process.env.MXMPAY_URL || 'http://localhost:4002'})`);
-  logger.info(`   - /api/v1/generation -> mxmcgi (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
-  logger.info(`   - /api/v1/cgi/graph -> mxmcgi/graph (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
-  logger.info(`   - /api/v1/cgi/text -> mxmcgi/text (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
-  logger.info(`   - /api/v1/cgi/audio -> mxmcgi/audio (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
-  logger.info(`   - /api/v1/cgi/video -> mxmcgi/video (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
-  logger.info(`   - /api/v1/system -> mxmcgi/system (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
-  logger.info(`   - /api/v1/knowledge -> mxmcgi/knowledge (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
-  logger.info(`   - /api/v1/characters -> mxmcgi/characters (${process.env.MXMCGI_URL || 'http://localhost:4003'})`);
-  logger.info(`   - /api/v1/agents -> mxmagent (${process.env.MXMAGENT_URL || 'http://localhost:4004'})`);
-  logger.info(`   - /api/v1/smartflows -> mxmagent (${process.env.MXMAGENT_URL || 'http://localhost:4004'})`);
-  logger.info(`   - /api/v1/smartflow-tasks -> mxmagent/tasks (${process.env.MXMAGENT_URL || 'http://localhost:4004'})`);
-  logger.info(`   - /api/v1/notifications -> mxmnotify (${process.env.MXMNOTIFY_URL || 'http://localhost:4005'})`);
-  logger.info(`   - /api/v1/tasks -> mxmnotify (${process.env.MXMNOTIFY_URL || 'http://localhost:4005'})`);
-  logger.info(`   - /api/v1/sse -> mxmnotify SSE (${process.env.MXMNOTIFY_URL || 'http://localhost:4005'})`);
-  logger.info(`   - /api/v1/task-events -> mxmnotify (${process.env.MXMNOTIFY_URL || 'http://localhost:4005'})`);
-  logger.info(`   - WS /api/v1/ws/notifications -> mxmnotify WebSocket (${process.env.MXMNOTIFY_URL || 'http://localhost:4005'})`);
+  logger.info(`🚀 Gateway listening on port ${port}`);
 });

@@ -79,8 +79,24 @@ pnpm --filter @mxmai/mxmdata run migrate:kb-defaults
 | add_wallet_user_fk.sql | 钱包用户外键 | `pnpm --filter @mxmai/mxmdata run migrate:wallet-user-fk` |
 | add_character_relations.sql | 角色关联 | `pnpm --filter @mxmai/mxmdata run migrate:character-relations` |
 | add_provider_api_keys.sql | Provider API Key 表 | 手动执行 SQL |
+| add_published_apis.sql | 开放 API 发布（slug / schema 快照） | `pnpm --filter @mxmai/mxmdata run migrate:published-apis` |
+| add_published_api_usage.sql | 开放 API 调用统计 | `pnpm --filter @mxmai/mxmdata run migrate:published-api-usage`（须先 published-apis） |
+
+### 开放 API 发布（两步）
+
+```bash
+# 1. 发布登记表
+pnpm --filter @mxmai/mxmdata run migrate:published-apis
+
+# 2. 调用统计表（依赖 published_apis）
+pnpm --filter @mxmai/mxmdata run migrate:published-api-usage
+
+# 可选：刷新 PostgREST schema cache
+pnpm --filter @mxmai/mxmdata run reload-schema
+```
 
 ---
+
 
 ## 敏感词管理 502/500 的常见原因
 

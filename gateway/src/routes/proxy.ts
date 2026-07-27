@@ -7,7 +7,60 @@ import { ServerResponse } from 'http';
 import { Router, Request, Response, NextFunction } from 'express';
 import { createProxyMiddleware, Options, fixRequestBody } from 'http-proxy-middleware';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { apiKeyScopeMiddleware } from '../middleware/api-key-scope';
 import { logger } from '../utils/logger';
+
+/** JWT / personal API Key；integration Key 在 scope 中间件中限制路径 */
+const authProtected = [authMiddleware, apiKeyScopeMiddleware];
+
+function runAuthProtected(req: AuthRequest, res: Response, next: NextFunction): void {
+  authMiddleware(req, res, (err?: unknown) => {
+    if (err) return next(err);
+    if (res.headersSent) return;
+    apiKeyScopeMiddleware(req, res, next);
+  });
+}
+
+/** /api/v1/system/* → mxmcgi /system/* */
+function rewriteSystemProxyPath(path: string, req: Request): string {
+  const originalPath = req.originalUrl || path;
+  return originalPath.replace(/^\/api\/v1\/system/, '/system');
+}
+
+function createSystemProxyHandlers(): NonNullable<Options['on']> {
+  return {
+    proxyReq: (proxyReq, req) => {
+      const authReq = req as AuthRequest;
+      if (authReq.user) {
+        proxyReq.setHeader('x-user-id', authReq.user.userId);
+        proxyReq.setHeader('x-username', authReq.user.username);
+        if (authReq.user.role) {
+          proxyReq.setHeader('x-user-role', authReq.user.role);
+        }
+      }
+      fixRequestBody(proxyReq, req as Request);
+    },
+    proxyRes: (proxyRes, req) => {
+      logger.debug(
+        `Proxy response: ${(req as Request).method} ${(req as Request).path} -> ${proxyRes.statusCode}`,
+      );
+    },
+    error: (err: Error, req, res) => {
+      const r = req as Request;
+      logger.error(`Proxy error: ${r.method} ${r.path}`, err);
+      const response = res as Response;
+      if (response && typeof response.status === 'function' && !response.headersSent) {
+        response.status(502).json({
+          success: false,
+          error: {
+            code: 'PROXY_ERROR',
+            message: 'Service unavailable',
+          },
+        });
+      }
+    },
+  };
+}
 
 function isLegacyGatewayTaskNotificationEnabled(): boolean {
   // 默认关闭：由 mxmcgi 统一发送任务事件到 mxmnotify，避免双写/重复通知
@@ -30,7 +83,6 @@ export function createProxyRouter(): Router {
     account: process.env.MXMAUTH_URL || 'http://localhost:4001',
     payment: process.env.MXMPAY_URL || 'http://localhost:4002',
     generation: process.env.MXMCGI_URL || 'http://localhost:4003',
-    agents: process.env.MXMAGENT_URL || 'http://localhost:4004',
     notifications: process.env.MXMNOTIFY_URL || 'http://localhost:4005',
   };
 
@@ -39,7 +91,7 @@ export function createProxyRouter(): Router {
   // 将 /api/v1/notifications/* 代理到 mxmnotify 的 /notifications/*
   router.use(
     '/notifications',
-    authMiddleware,
+    ...authProtected,
     createProxyMiddleware({
       target: services.notifications,
       changeOrigin: true,
@@ -88,7 +140,7 @@ export function createProxyRouter(): Router {
   // 将 /api/v1/tasks/* 代理到 mxmnotify 的 /tasks/*
   router.use(
     '/tasks',
-    authMiddleware,
+    ...authProtected,
     createProxyMiddleware({
       target: services.notifications,
       changeOrigin: true,
@@ -104,7 +156,7 @@ export function createProxyRouter(): Router {
   // 将 /api/v1/sse/* 代理到 mxmnotify 的 /sse/*
   router.use(
     '/sse',
-    authMiddleware,
+    ...authProtected,
     (req: Request, res: Response, next: NextFunction) => {
       const authReq = req as AuthRequest;
       
@@ -234,11 +286,29 @@ export function createProxyRouter(): Router {
     '/account',
     (req: Request, res: Response, next: NextFunction) => {
       // 注册、登录、验证码、健康检查接口不需要认证
-      if (req.path === '/register' || req.path === '/login' || req.path === '/captcha' || req.path === '/health') {
+      if (
+        req.path === '/register' ||
+        req.path === '/login' ||
+        req.path === '/captcha' ||
+        req.path === '/captcha/config' ||
+        req.path === '/captcha/verify' ||
+        req.path === '/health' ||
+        req.path === '/refresh-token' ||
+        req.path === '/auth/providers' ||
+        req.path === '/verify-email' ||
+        req.path === '/resend-verification' ||
+        req.path === '/forgot-password' ||
+        req.path === '/reset-password' ||
+        req.path === '/oauth/google/start' ||
+        req.path === '/oauth/google/callback' ||
+        req.path === '/oauth/github/start' ||
+        req.path === '/oauth/github/callback' ||
+        req.path === '/auth/mfa/verify'
+      ) {
         return next();
       }
       // 其他接口需要认证
-      return authMiddleware(req as AuthRequest, res, next);
+      return runAuthProtected(req as AuthRequest, res, next);
     },
     createProxyMiddleware(createProxyConfig(services.account))
   );
@@ -247,7 +317,7 @@ export function createProxyRouter(): Router {
   // 文件夹管理接口，代理到 mxmauth 服务
   router.use(
     '/assets',
-    authMiddleware,
+    ...authProtected,
     createProxyMiddleware(createProxyConfig(services.account))
   );
 
@@ -262,7 +332,7 @@ export function createProxyRouter(): Router {
         return next();
       }
       // 其他接口需要认证
-      return authMiddleware(req as AuthRequest, res, next);
+      return runAuthProtected(req as AuthRequest, res, next);
     },
     createProxyMiddleware(createProxyConfig(services.payment, true))
   );
@@ -271,22 +341,49 @@ export function createProxyRouter(): Router {
   // mxmpay 的路由是 /wallets（没有 /api/v1 前缀），所以需要去掉前缀
   router.use(
     '/wallets',
-    authMiddleware,
+    ...authProtected,
     createProxyMiddleware(createProxyConfig(services.payment, true))
   );
 
   // 生成服务路由 (/api/v1/generation) - 需要认证
   router.use(
     '/generation',
-    authMiddleware,
+    ...authProtected,
     createProxyMiddleware(createProxyConfig(services.generation))
   );
 
-  // mxmcgi 图片生成路由 (/cgi/graph) - 需要认证
-  // 将 /api/v1/cgi/graph/* 代理到 mxmcgi 的 /graph/*
+  // mxmcgi 搜索引擎路由 (/api/v1/search) - 需要认证
+  // 将 /api/v1/search/* 代理到 mxmcgi 的 /api/v1/search/*
+  router.use(
+    '/search',
+    ...authProtected,
+    createProxyMiddleware({
+      target: services.generation,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = (req as Request).originalUrl || path;
+        return originalPath;
+      },
+      on: {
+        proxyReq: (proxyReq, req: Request) => {
+          const authReq = req as AuthRequest;
+          if (authReq.user) {
+            proxyReq.setHeader('x-user-id', authReq.user.userId);
+            proxyReq.setHeader('x-username', authReq.user.username);
+            if (authReq.user.role) {
+              proxyReq.setHeader('x-user-role', authReq.user.role);
+            }
+          }
+          fixRequestBody(proxyReq, req);
+        },
+      },
+    })
+  );
+
+  // mxmcgi 旧图片路由 (/cgi/graph) — 透传至 mxmcgi；mxmcgi 对 /graph/* 统一返回 410，请改用 /api/v2/tasks
   router.use(
     '/cgi/graph',
-    authMiddleware,
+    ...authProtected,
     (req: Request, res: Response, next: NextFunction) => {
       const authReq = req as AuthRequest;
       // 遗留逻辑：网关层创建/更新任务、拦截响应体做存储（默认关闭）
@@ -369,7 +466,7 @@ export function createProxyRouter(): Router {
   // 将 /api/v1/cgi/upload/* 代理到 mxmcgi 的 /upload/*
   router.use(
     '/cgi/upload',
-    authMiddleware,
+    runAuthProtected,
     createProxyMiddleware({
       target: services.generation,
       changeOrigin: true,
@@ -385,6 +482,10 @@ export function createProxyRouter(): Router {
             proxyReq.setHeader('x-user-id', authReq.user.userId);
             proxyReq.setHeader('x-username', authReq.user.username);
           }
+          const ct = String(req.headers['content-type'] ?? '');
+          if (!ct.includes('multipart/form-data')) {
+            fixRequestBody(proxyReq, req);
+          }
         },
         proxyRes: (proxyRes: any, req: Request, res: Response) => {
           logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
@@ -397,7 +498,7 @@ export function createProxyRouter(): Router {
   // 将 /api/v1/cgi/text/* 代理到 mxmcgi 的 /text/*
   router.use(
     '/cgi/text',
-    authMiddleware,
+    ...authProtected,
     (req: Request, res: Response, next: NextFunction) => {
       const authReq = req as AuthRequest;
       const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
@@ -486,7 +587,7 @@ export function createProxyRouter(): Router {
   // 将 /api/v1/cgi/audio/* 代理到 mxmcgi 的 /audio/*
   router.use(
     '/cgi/audio',
-    authMiddleware,
+    ...authProtected,
     (req: Request, res: Response, next: NextFunction) => {
       const authReq = req as AuthRequest;
       const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
@@ -580,7 +681,7 @@ export function createProxyRouter(): Router {
   // 将 /api/v1/cgi/video/* 代理到 mxmcgi 的 /video/*
   router.use(
     '/cgi/video',
-    authMiddleware,
+    ...authProtected,
     (req: Request, res: Response, next: NextFunction) => {
       const authReq = req as AuthRequest;
       const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
@@ -658,24 +759,87 @@ export function createProxyRouter(): Router {
     }
   );
 
+  // Provider 物理模型连通性测试（音乐生成等上游常 >60s，须先于 /system 注册更长超时）
+  router.use(
+    '/system/admin/providers/models/test',
+    ...authProtected,
+    createProxyMiddleware({
+      target: services.generation,
+      changeOrigin: true,
+      timeout: 300_000,
+      proxyTimeout: 300_000,
+      pathRewrite: rewriteSystemProxyPath,
+      on: createSystemProxyHandlers(),
+    })
+  );
+
+  // 写作质量评估（双次 LLM，可能 >60s）
+  router.use(
+    '/system/admin/quality-eval',
+    ...authProtected,
+    createProxyMiddleware({
+      target: services.generation,
+      changeOrigin: true,
+      timeout: 300_000,
+      proxyTimeout: 300_000,
+      pathRewrite: rewriteSystemProxyPath,
+      on: createSystemProxyHandlers(),
+    })
+  );
+
   // mxmcgi 系统信息路由 (/system) - 需要认证
   // 将 /api/v1/system/* 代理到 mxmcgi 的 /system/*
   router.use(
     '/system',
-    authMiddleware,
+    ...authProtected,
     createProxyMiddleware({
       target: services.generation,
       changeOrigin: true,
       timeout: 60000, // 60 秒（敏感词等 admin 操作）
       proxyTimeout: 60000,
+      pathRewrite: rewriteSystemProxyPath,
+      on: createSystemProxyHandlers(),
+    })
+  );
+
+  // mxmcgi 用户存储管理 (/storage) - 需要认证
+  router.use(
+    '/storage',
+    ...authProtected,
+    createProxyMiddleware({
+      target: services.generation,
+      changeOrigin: true,
       pathRewrite: (path, req) => {
         const originalPath = (req as Request).originalUrl || path;
-        // /api/v1/system/admin/sensitive-words/lists -> /system/admin/sensitive-words/lists
-        return originalPath.replace(/^\/api\/v1\/system/, '/system');
+        return originalPath.replace('/api/v1/storage', '/storage');
       },
       on: {
         proxyReq: (proxyReq, req: Request) => {
-          // 转发用户信息（如果已认证）；x-user-role 由 mxmauth JWT 写入，下游可免查库校验 admin
+          const authReq = req as AuthRequest;
+          if (authReq.user) {
+            proxyReq.setHeader('x-user-id', authReq.user.userId);
+            proxyReq.setHeader('x-username', authReq.user.username);
+          }
+          // POST /objects/move 等带 body 的路由：Gateway 已 parse JSON，须 fixRequestBody 否则 mxmcgi 收不到 body 会挂起
+          fixRequestBody(proxyReq, req);
+        },
+      },
+    })
+  );
+
+  // mxmcgi Admin 系统存储 (/admin/storage) - 需要认证
+  router.use(
+    '/admin/storage',
+    ...authProtected,
+    createProxyMiddleware({
+      target: services.generation,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = (req as Request).originalUrl || path;
+        return originalPath.replace('/api/v1/admin/storage', '/admin/storage');
+      },
+      on: {
+        proxyReq: (proxyReq, req: Request) => {
           const authReq = req as AuthRequest;
           if (authReq.user) {
             proxyReq.setHeader('x-user-id', authReq.user.userId);
@@ -684,24 +848,34 @@ export function createProxyRouter(): Router {
               proxyReq.setHeader('x-user-role', authReq.user.role);
             }
           }
-          // Gateway 已用 express.json() 解析 body，必须用 fixRequestBody 重新写入代理请求，否则 mxmcgi 收不到 body 会挂起并 request aborted
           fixRequestBody(proxyReq, req);
         },
-        proxyRes: (proxyRes: any, req: Request, res: Response) => {
-          logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
-        },
-        error: (err: Error, req: Request, res: any) => {
-          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
-          if (res && typeof res.status === 'function' && !res.headersSent) {
-            res.status(502).json({
-              success: false,
-              error: {
-                code: 'PROXY_ERROR',
-                message: 'Service unavailable',
-              },
-            });
-          }
-        },
+      },
+    })
+  );
+
+  // mxmcgi 系统静态资源 (/static) - 公开读
+  router.use(
+    '/static',
+    createProxyMiddleware({
+      target: services.generation,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = (req as Request).originalUrl || path;
+        return originalPath.replace('/api/v1/static', '/static');
+      },
+    })
+  );
+
+  // 用户上传参考图公网读（STORAGE_USER_UPLOAD_ACCESS=public 时，供大模型等外网拉取）
+  router.use(
+    '/media/public',
+    createProxyMiddleware({
+      target: services.generation,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = (req as Request).originalUrl || path;
+        return originalPath.replace('/api/v1/media', '/media');
       },
     })
   );
@@ -713,7 +887,7 @@ export function createProxyRouter(): Router {
   // - 请求路径：/api/v1/media/* -> /media/*
   router.use(
     '/media',
-    authMiddleware,
+    ...authProtected,
     createProxyMiddleware({
       target: services.generation,
       changeOrigin: true,
@@ -762,50 +936,6 @@ export function createProxyRouter(): Router {
     })
   );
 
-  // mxmcgi 生成任务路由 (/cgi-tasks) - 需要认证
-  // 说明：
-  // - Gateway 对外暴露 /api/v1/cgi-tasks，用于查询/管理图文等异步生成任务
-  // - 直接将路径原样转发到 mxmcgi 的 /api/v1/cgi-tasks（mxmcgi 已挂载 app.use('/api/v1/cgi-tasks', ...)）
-  // - 通过 authMiddleware 注入的 user 信息，转成 x-user-id/x-username 头部，供 mxmcgi 做权限校验
-  router.use(
-    '/cgi-tasks',
-    authMiddleware,
-    createProxyMiddleware({
-      target: services.generation,
-      changeOrigin: true,
-      pathRewrite: (path, req) => {
-        // 保持 /api/v1/cgi-tasks 前缀不变，直接透传给 mxmcgi
-        const originalPath = (req as Request).originalUrl || path;
-        return originalPath;
-      },
-      on: {
-        proxyReq: (proxyReq, req: Request) => {
-          // 转发用户信息（如果已认证）
-          const authReq = req as AuthRequest;
-          if (authReq.user) {
-            proxyReq.setHeader('x-user-id', authReq.user.userId);
-            proxyReq.setHeader('x-username', authReq.user.username);
-          }
-        },
-        proxyRes: (proxyRes, req: Request, res: Response) => {
-          // logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
-        },
-        error: (err: Error, req: Request, res: any) => {
-          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
-          if (res && typeof res.status === 'function' && !res.headersSent) {
-            res.status(502).json({
-              success: false,
-              error: {
-                code: 'PROXY_ERROR',
-                message: 'Service unavailable',
-              },
-            });
-          }
-        },
-      },
-    })
-  );
-
   // 助手服务路由 (/api/v1/agents)
   // 列表和详情不需要认证，启动和历史需要
   router.use(
@@ -819,16 +949,9 @@ export function createProxyRouter(): Router {
         return next();
       }
       // 其他接口需要认证
-      return authMiddleware(req as AuthRequest, res, next);
+      return runAuthProtected(req as AuthRequest, res, next);
     },
-    createProxyMiddleware(createProxyConfig(services.agents))
-  );
-
-  // 模型列表服务路由 (/api/v1/models) - 不需要认证（公开信息）
-  // 将 /api/v1/models/* 代理到 mxmagent 的 /api/v1/models/*
-  router.use(
-    '/models',
-    createProxyMiddleware(createProxyConfig(services.agents))
+    createProxyMiddleware(createProxyConfig(services.generation))
   );
 
   // Smartflow 服务路由 (/api/v1/smartflows) - mxmcgi 实现
@@ -842,14 +965,14 @@ export function createProxyRouter(): Router {
       }
       // GET /status 或 GET /execute 需要认证（查询任务状态）
       if (req.method === 'GET' && (/^\/[^/]+\/status$/.test(req.path) || /^\/[^/]+\/execute$/.test(req.path))) {
-        return authMiddleware(req as AuthRequest, res, next);
+        return runAuthProtected(req as AuthRequest, res, next);
       }
       // POST /execute 需要认证
       if (req.method === 'POST' && /^\/[^/]+\/execute$/.test(req.path)) {
-        return authMiddleware(req as AuthRequest, res, next);
+        return runAuthProtected(req as AuthRequest, res, next);
       }
       // 其他操作（POST, PUT, DELETE）需要认证
-      return authMiddleware(req as AuthRequest, res, next);
+      return runAuthProtected(req as AuthRequest, res, next);
     },
     createProxyMiddleware({
       target: services.generation,  // mxmcgi (port 4003)
@@ -887,7 +1010,7 @@ export function createProxyRouter(): Router {
   // Smartflow Task 服务路由 (/api/v1/smartflow-tasks) - mxmcgi 实现
   router.use(
     '/smartflow-tasks',
-    authMiddleware,
+    ...authProtected,
     createProxyMiddleware({
       target: services.generation,  // mxmcgi (port 4003)
       changeOrigin: true,
@@ -926,7 +1049,7 @@ export function createProxyRouter(): Router {
   // 注意：支持流式响应（SSE），需要确保响应头正确转发
   router.use(
     '/writing',
-    authMiddleware,
+    ...authProtected,
     createProxyMiddleware({
       target: services.generation,
       changeOrigin: true,
@@ -992,73 +1115,6 @@ export function createProxyRouter(): Router {
     })
   );
 
-  // Character角色服务路由 (/api/v1/characters) - 需要认证
-  // 将 /api/v1/characters/* 代理到 mxmcgi 的 /api/v1/characters/*
-  router.use(
-    '/characters',
-    authMiddleware,
-    createProxyMiddleware({
-      target: services.generation,
-      changeOrigin: true,
-      timeout: 30000, // 30秒超时
-      proxyTimeout: 30000,
-      pathRewrite: (path, req) => {
-        // 保持路径不变，因为mxmcgi的路由已经是 /api/v1/characters
-        const originalPath = (req as Request).originalUrl || path;
-        logger.debug(`[Character Proxy] Path rewrite: ${originalPath} -> ${originalPath}`);
-        return originalPath;
-      },
-      on: {
-        proxyReq: (proxyReq, req: Request) => {
-          // 转发原始请求头
-          if (req.headers['x-forwarded-for']) {
-            proxyReq.setHeader('x-forwarded-for', req.headers['x-forwarded-for']);
-          }
-          if (req.headers['x-real-ip']) {
-            proxyReq.setHeader('x-real-ip', req.headers['x-real-ip']);
-          }
-          // 转发用户信息（如果已认证）
-          const authReq = req as AuthRequest;
-          if (authReq.user) {
-            proxyReq.setHeader('x-user-id', authReq.user.userId);
-            proxyReq.setHeader('x-username', authReq.user.username);
-            logger.debug(`[Character Proxy] Forwarding user: ${authReq.user.userId}`);
-          }
-
-          // 重要：使用 fixRequestBody 修复请求体
-          // 当 Express 已经解析了请求体（通过 express.json()）时，
-          // 原始请求流已经被消费，需要使用 fixRequestBody 重新构建请求体
-          fixRequestBody(proxyReq, req);
-        },
-        proxyRes: (proxyRes: any, req: Request, res: Response) => {
-          logger.debug(`[Character Proxy] Response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
-          // 确保响应头正确设置，避免Postman卡住
-          // 移除可能导致问题的响应头
-          if (proxyRes.headers['transfer-encoding']) {
-            delete proxyRes.headers['transfer-encoding'];
-          }
-          // 确保Connection头正确
-          if (!proxyRes.headers['connection']) {
-            proxyRes.headers['connection'] = 'close';
-          }
-        },
-        error: (err: Error, req: Request, res: any) => {
-          logger.error(`[Character Proxy] Error: ${req.method} ${req.path}`, err);
-          if (res && typeof res.status === 'function' && !res.headersSent) {
-            res.status(502).json({
-              success: false,
-              error: {
-                code: 'PROXY_ERROR',
-                message: 'Character service unavailable',
-                details: err.message,
-              },
-            });
-          }
-        },
-      },
-    })
-  );
-
   // 知识库服务路由 (/api/v1/knowledge)
   // 所有接口需要认证
   router.use(
@@ -1067,7 +1123,7 @@ export function createProxyRouter(): Router {
       logger.info(`[Knowledge Proxy] Incoming request: ${req.method} ${req.originalUrl || req.path}`);
       next();
     },
-    authMiddleware,
+    ...authProtected,
     (req: Request, res: Response, next: NextFunction) => {
       logger.info(`[Knowledge Proxy] After auth, proceeding to proxy: ${req.method} ${req.originalUrl || req.path}`);
       next();
@@ -1132,27 +1188,37 @@ export function createProxyRouter(): Router {
     })
   );
 
-  // Prompt Template 服务路由 (/api/v1/prompt-templates)
-  // 列表和详情不需要认证，创建、更新、删除需要认证
+  // 虚拟文件夹向量化 (/api/v1/virtual-folder-index)
   router.use(
-    '/prompt-templates',
-    (req: Request, res: Response, next: NextFunction) => {
-      // GET 列表和详情不需要认证
-      if (req.method === 'GET') {
-        return next();
-      }
-      // 其他操作（POST, PUT, DELETE）需要认证
-      return authMiddleware(req as AuthRequest, res, next);
-    },
-    createProxyMiddleware(createProxyConfig(services.agents))
+    '/virtual-folder-index',
+    ...authProtected,
+    createProxyMiddleware({
+      target: services.generation,
+      changeOrigin: true,
+      timeout: 120000,
+      proxyTimeout: 120000,
+      pathRewrite: (path, req) => {
+        const originalPath = (req as Request).originalUrl || path;
+        return originalPath.replace(/^\/api\/v1\/virtual-folder-index/, '/virtual-folder-index');
+      },
+      on: {
+        proxyReq: (proxyReq, req: Request) => {
+          const authReq = req as AuthRequest;
+          if (authReq.user) {
+            proxyReq.setHeader('x-user-id', authReq.user.userId);
+            proxyReq.setHeader('x-username', authReq.user.username);
+          }
+          fixRequestBody(proxyReq, req);
+        },
+      },
+    })
   );
-
 
   // mxmnotify 任务事件路由 (/api/v1/task-events) - 需要认证
   // 将 /api/v1/task-events/* 代理到 mxmnotify 的 /task-events/*
   router.use(
     '/task-events',
-    authMiddleware,
+    ...authProtected,
     createProxyMiddleware({
       target: services.notifications,
       changeOrigin: true,

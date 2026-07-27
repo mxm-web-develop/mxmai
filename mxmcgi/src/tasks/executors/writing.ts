@@ -1,5 +1,5 @@
 import type { ProviderType } from '../../models/providers';
-import { getResolvedRouting } from '../../models/providers';
+import { resolveWritingModel } from '../../core/writing/writing-model-routing';
 import { runByModelKey } from '../../models/run';
 
 export async function runWritingTask(params: {
@@ -11,11 +11,9 @@ export async function runWritingTask(params: {
   const { taskKey, prompt, providerOverride, extraParams } = params;
 
   // Task v2 的 taskKey = prompt_engineering_config.type（如 outlines/articles...）
-  // 现有路由表使用 writing-xxx 作为业务逻辑模型名（如 writing-outlines）
-  const routingKey = taskKey.startsWith('writing-') ? taskKey : `writing-${taskKey}`;
-  const resolved = getResolvedRouting(routingKey);
+  const resolved = await resolveWritingModel(taskKey, 'default');
   const provider = (providerOverride || resolved.provider) as ProviderType;
-  const modelKey = resolved.model; // 物理模型 key（writing scope）
+  const modelKey = resolved.modelName; // 物理模型 key（writing scope）
 
   const result = await runByModelKey(
     'writing',

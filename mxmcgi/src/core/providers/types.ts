@@ -7,13 +7,17 @@ export type ProviderType =
   | 'ppio'
   | 'deer'
   | 'openai'
+  | 'openrouter'
+  | 'qhai'
+  | 'jiekou'
   | 'google'
   | 'anthropic'
   | 'qwen'
   | 'volc'
   | 'minimax'
   | 'atlascloud'
-  | 'maxplan';
+  | 'maxplan'
+  | 'mcp';
 
 export interface ModelConfig {
   provider?: ProviderType;
@@ -86,6 +90,10 @@ export interface ProviderBillingInfo {
   /** 重置时间等说明 */
   resetAt?: string;
   raw?: Record<string, unknown>;
+  /** 计费模式：usage=按量计费，subscription=包月/订阅（不参与余额扣费） */
+  billingMode?: 'usage' | 'subscription';
+  /** 计费说明（用于展示） */
+  billingNote?: string;
 }
 
 export interface ModelProvider {

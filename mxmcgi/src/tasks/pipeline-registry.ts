@@ -1,7 +1,7 @@
 /**
  * pipeline-registry.ts
  * Pipeline step runner 的注册表。
- * 作为一个无环依赖的中心模块，供 pipeline.ts 和 pipeline-llm-plugin.ts 共同引用。
+ * 无环依赖中心模块，供 pipeline.ts / business-pipeline-steps.ts 等注册与执行。
  */
 
 import type { PipelineRunner, TaskContext, PipelineStep } from './types';

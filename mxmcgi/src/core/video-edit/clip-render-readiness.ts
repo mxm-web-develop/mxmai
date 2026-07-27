@@ -4,6 +4,7 @@
 import type { MxmClipMetadata, VideoEditScript } from './types';
 import { parseManualReviewStepParams } from '../../tasks/manual-review-types';
 import type { PipelineStep } from '../../tasks/types';
+import { isInternalPersistedMediaUrl } from './stock-media-persist';
 
 export type ClipRenderBlockReason = 'failed' | 'pending' | 'rendering' | 'missing';
 
@@ -89,6 +90,10 @@ export function invalidateClipsForRerender(
       clip.metadata.mxmRenderStatus = 'pending';
       clip.metadata.mxmRenderedVideoUrl = undefined;
       clip.metadata.mxmRenderError = undefined;
+
+      // 失败重试：清掉全部库存源（含已过期的 temp media object），强制重搜并重新转存
+      clearStockSourceUrlsForRerender(clip.metadata);
+
       retriedClipIds.push(clip.id);
     }
   }
@@ -98,6 +103,32 @@ export function invalidateClipsForRerender(
   }
 
   return { script: next, retriedClipIds };
+}
+
+/** 仅清除外链库存源；已转存到平台 media 的保留 */
+export function clearExternalStockSourceUrls(meta: MxmClipMetadata): void {
+  const clearIfExternal = (key: 'mxmSourceImageUrl' | 'mxmSourceVideoUrl') => {
+    const v = meta[key]?.trim();
+    if (!v) return;
+    if (!isInternalPersistedMediaUrl(v)) {
+      meta[key] = undefined;
+    }
+  };
+  clearIfExternal('mxmSourceImageUrl');
+  clearIfExternal('mxmSourceVideoUrl');
+  if (meta.mxmStockUpstreamUrl?.trim()) {
+    meta.mxmStockUpstreamUrl = undefined;
+  }
+}
+
+/**
+ * 审核页「重试失败片段」：连同平台 media URL 一并清掉。
+ * 库存曾落 temp，过期后 object 已删时，死磕旧 URL 只会报「storage object 不存在」。
+ */
+export function clearStockSourceUrlsForRerender(meta: MxmClipMetadata): void {
+  meta.mxmSourceImageUrl = undefined;
+  meta.mxmSourceVideoUrl = undefined;
+  meta.mxmStockUpstreamUrl = undefined;
 }
 
 /** 成片审核 approve 前校验 */

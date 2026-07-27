@@ -1,9 +1,9 @@
 /**
  * HTTP 客户端 - mxmcgi 内部服务调用
  *
- * 包含两大类方法：
- * 1. CGI 方法（text/image/embedding）- 保留用于兼容
- * 2. Business v2 方法 - 统一的 /api/v2/tasks 动态业务路由
+ * Task V2：/api/v2/tasks/form-config、/api/v2/tasks/run
+ * 裸 LLM：POST /writing/completion/:modelName（Smartflow model 节点 text / embedding）
+ * 音/视频：/video/generate、/audio、/audio/music
  */
 
 const MXMCGI_URL = process.env.MXMCGI_URL || 'http://localhost:4003';
@@ -60,34 +60,8 @@ export class MxmCGIHttpClient {
     }
   }
 
-  // ==================== CGI 兼容方法（保留） ====================
-  async textGeneration(model: string, prompt: string, params: Record<string, any> = {}): Promise<any> {
-    return this.request(`/cgi/text/${model}`, {
-      method: 'POST',
-      body: { prompt, ...params },
-    });
-  }
-
-  async imageGeneration(model: string, prompt: string, params: Record<string, any> = {}): Promise<any> {
-    return this.request(`/cgi/image/${model}`, {
-      method: 'POST',
-      body: { prompt, ...params },
-    });
-  }
-
-  async embeddingGeneration(model: string, input: string, params: Record<string, any> = {}): Promise<any> {
-    return this.request(`/cgi/embedding/${model}`, {
-      method: 'POST',
-      body: { input, ...params },
-    });
-  }
-
-  // ==================== Business v2 方法 ====================
-  // 统一的动态业务架构：scope + taskKey + subtype + params
-
   /**
    * GET /api/v2/tasks/form-config/list?scope=xxx
-   * 获取指定 scope 下所有 taskKey 列表
    */
   async listFormConfigs(scope: string): Promise<{
     success: boolean;
@@ -107,7 +81,6 @@ export class MxmCGIHttpClient {
 
   /**
    * GET /api/v2/tasks/form-config?scope=xxx&taskKey=yyy&subtype=zzz
-   * 获取指定业务的表单配置（用于前端渲染参数表单）
    */
   async getFormConfig(
     scope: string,
@@ -132,7 +105,6 @@ export class MxmCGIHttpClient {
 
   /**
    * POST /api/v2/tasks/run
-   * 执行动态业务任务（business 节点统一调用此方法）
    */
   async runTask(
     scope: string,
@@ -159,113 +131,21 @@ export class MxmCGIHttpClient {
     });
   }
 
-  // ==================== Legacy Business 方法（保留兼容） ====================
-  // 以下方法保留用于旧版兼容，新开发应使用 runTask v2 方法
-
+  /**
+   * POST /writing/completion/:modelName — 按模型名直接调 LLM（text / 部分 embedding 模型）
+   */
   async writingCompletion(
     modelName: string,
     params: {
       prompt?: string;
+      input?: string;
       title?: string;
       content?: string;
       [key: string]: any;
     },
     userId: string
   ): Promise<any> {
-    return this.request(`/writing/completion/${modelName}`, {
-      method: 'POST',
-      headers: { 'X-User-Id': userId },
-      body: params,
-    });
-  }
-
-  async writingOutline(
-    params: {
-      title: string;
-      type?: string;
-      [key: string]: any;
-    },
-    userId: string
-  ): Promise<any> {
-    return this.request('/writing/outline', {
-      method: 'POST',
-      headers: { 'X-User-Id': userId },
-      body: params,
-    });
-  }
-
-  async writingGenerate(
-    params: {
-      title?: string;
-      type?: string;
-      content?: string;
-      [key: string]: any;
-    },
-    userId: string
-  ): Promise<any> {
-    return this.request('/writing/generate', {
-      method: 'POST',
-      headers: { 'X-User-Id': userId },
-      body: params,
-    });
-  }
-
-  async graphPhotograph(
-    params: {
-      prompt: string;
-      style?: string;
-      [key: string]: any;
-    },
-    userId: string
-  ): Promise<any> {
-    return this.request('/graph/photograph', {
-      method: 'POST',
-      headers: { 'X-User-Id': userId },
-      body: params,
-    });
-  }
-
-  async graphDesign(
-    params: {
-      prompt: string;
-      style?: string;
-      [key: string]: any;
-    },
-    userId: string
-  ): Promise<any> {
-    return this.request('/graph/design', {
-      method: 'POST',
-      headers: { 'X-User-Id': userId },
-      body: params,
-    });
-  }
-
-  async graphPainting(
-    params: {
-      prompt: string;
-      style?: string;
-      [key: string]: any;
-    },
-    userId: string
-  ): Promise<any> {
-    return this.request('/graph/painting', {
-      method: 'POST',
-      headers: { 'X-User-Id': userId },
-      body: params,
-    });
-  }
-
-  async graphImage(
-    modelName: string,
-    params: {
-      prompt: string;
-      aspect_ratio?: string;
-      quality?: string;
-      [key: string]: any;
-    },
-    userId: string
-  ): Promise<any> {
-    return this.request(`/graph/${modelName}`, {
+    return this.request(`/writing/completion/${encodeURIComponent(modelName)}`, {
       method: 'POST',
       headers: { 'X-User-Id': userId },
       body: params,
@@ -319,10 +199,7 @@ export class MxmCGIHttpClient {
     });
   }
 
-  // ==================== 上传方法 ====================
-
   /**
-   * 上传 base64 图片到 R2
    * POST /upload/r2-reference
    */
   async uploadR2Reference(
@@ -346,5 +223,4 @@ export class MxmCGIHttpClient {
   }
 }
 
-// 导出单例
 export const mxmCGIHttpClient = new MxmCGIHttpClient();

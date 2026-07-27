@@ -10,11 +10,18 @@ import { runMxmWarp } from './warp-runner';
 import type { TaskContext, TaskTemplate } from '../types';
 
 describe('mxm-warp unit-series', () => {
-  it('maps proposal/autocut to series', () => {
-    expect(resolveWarpShape('writing', 'proposal')).toBe('series');
-    expect(resolveWarpShape('video', 'autocut')).toBe('series');
-    expect(resolveWarpShape('writing', 'editorial')).toBe('unit');
-    expect(resolveWarpShape('video', 'synthesis')).toBe('unit');
+  it('maps canonical + legacy taskKeys to generator|group|series', () => {
+    expect(resolveWarpShape('writing', 'generator')).toBe('generator');
+    expect(resolveWarpShape('writing', 'group')).toBe('group');
+    expect(resolveWarpShape('writing', 'series')).toBe('series');
+    expect(resolveWarpShape('video', 'group')).toBe('group');
+    // 历史别名
+    expect(resolveWarpShape('writing', 'editorial')).toBe('generator');
+    expect(resolveWarpShape('writing', 'proposal')).toBe('group');
+    expect(resolveWarpShape('video', 'synthesis')).toBe('generator');
+    expect(resolveWarpShape('video', 'autocut')).toBe('group');
+    expect(resolveWarpShape('graph', 'gallery')).toBe('group');
+    expect(resolveWarpShape('audio', 'voiceover')).toBe('generator');
   });
 });
 
@@ -129,5 +136,90 @@ describe('mxm-warp input/output runner', () => {
     expect(c.basic.topic).toBe('ok');
     expect(c.basic.body_spec).toBeUndefined();
     expect(c.business.body_spec).toBeUndefined();
+  });
+
+  it('requires enrich_search.query and synthesizes when LLM omits it', async () => {
+    const ctx: TaskContext = {
+      scope: 'writing',
+      taskKey: 'editorial',
+      subtype: 'industry-daily',
+      taskId: 't1',
+      params: {
+        industry: '科技',
+        core_topic: '美国禁售含中国高风险企业关键硬件设备',
+        sources: {
+          websource: {
+            query: '科技行业 2026年7月22日 要闻 头条 新闻',
+            hitCount: 6,
+            items: [{ title: 'a' }],
+          },
+        },
+      },
+      state: {},
+    };
+    const next = await runInputStage({
+      ctx,
+      contractSchema: {
+        type: 'object',
+        properties: {
+          industry: { type: 'string', 'x-zone': 'basic' },
+          core_topic: { type: 'string', 'x-zone': 'basic' },
+        },
+      },
+      requireEnrichSearchPlan: true,
+      llm: async () => JSON.stringify({ basic: { industry: '科技' } }),
+    });
+    const c = next.state.contract as { enrich_search: { query: string }; basic: { core_topic?: string } };
+    expect(c.enrich_search.query).toBeTruthy();
+    expect(c.enrich_search.query).toContain('美国禁售');
+    expect(c.enrich_search.query).toContain('科技');
+  });
+
+  it('keeps LLM enrich_search.query when provided', async () => {
+    const ctx: TaskContext = {
+      scope: 'writing',
+      taskKey: 'editorial',
+      taskId: 't1',
+      params: { industry: '科技', core_topic: '芯片' },
+      state: {},
+    };
+    const next = await runInputStage({
+      ctx,
+      contractSchema: {
+        type: 'object',
+        properties: {
+          industry: { type: 'string', 'x-zone': 'basic' },
+          core_topic: { type: 'string', 'x-zone': 'basic' },
+        },
+      },
+      requireEnrichSearchPlan: true,
+      llm: async () =>
+        JSON.stringify({
+          enrich_search: { query: '美国对华硬件禁令 供应链影响', mode: 'deep' },
+        }),
+    });
+    const c = next.state.contract as { enrich_search: { query: string; mode: string } };
+    expect(c.enrich_search.query).toBe('美国对华硬件禁令 供应链影响');
+    expect(c.enrich_search.mode).toBe('deep');
+  });
+});
+
+describe('enrichPipelineNeedsSearchPlan', () => {
+  it('detects enrich webSearch targeting enrich_search', async () => {
+    const { enrichPipelineNeedsSearchPlan } = await import('./input-stage');
+    expect(
+      enrichPipelineNeedsSearchPlan([
+        {
+          step: 'webSearch',
+          params: { queryFrom: 'contract.enrich_search.query', target: 'enrich_search.result' },
+        },
+      ])
+    ).toBe(true);
+    expect(enrichPipelineNeedsSearchPlan([{ step: 'nestedText' }])).toBe(false);
+    expect(
+      enrichPipelineNeedsSearchPlan([
+        { step: 'webSearch', params: { queryBuilder: 'industryTrend', target: 'sources.websource' } },
+      ])
+    ).toBe(false);
   });
 });

@@ -126,14 +126,15 @@ export class SupabaseUserRepository implements IUserRepository {
           username: user.username,
           email: user.email,
           phone: user.phone,
-          password_hash: user.password_hash,
+          password_hash: user.password_hash ?? null,
           avatar_url: user.avatar_url,
           level: user.level ?? 1,
           balance: user.balance ?? 0,
           membership_type: user.membership_type ?? 'free',
           membership_expires_at: user.membership_expires_at,
           status: user.status ?? 'active',
-          role: user.role ?? 'user', // 添加 role 字段支持
+          role: user.role ?? 'user',
+          email_verified_at: user.email_verified_at ?? null,
         })
         .select()
         .single();
@@ -175,7 +176,9 @@ export class SupabaseUserRepository implements IUserRepository {
       if (data.membership_type !== undefined) updateData.membership_type = data.membership_type;
       if (data.membership_expires_at !== undefined) updateData.membership_expires_at = data.membership_expires_at;
       if (data.status !== undefined) updateData.status = data.status;
-      if (data.role !== undefined) updateData.role = data.role; // 添加 role 字段支持
+      if (data.role !== undefined) updateData.role = data.role;
+      if (data.email_verified_at !== undefined) updateData.email_verified_at = data.email_verified_at;
+      if (data.mfa_totp_enabled !== undefined) updateData.mfa_totp_enabled = data.mfa_totp_enabled;
       updateData.updated_at = new Date().toISOString();
 
       const { data: updatedData, error } = await this.client
@@ -352,7 +355,7 @@ export class SupabaseUserRepository implements IUserRepository {
       username: data.username,
       email: data.email,
       phone: data.phone,
-      password_hash: data.password_hash,
+      password_hash: data.password_hash ?? null,
       avatar_url: data.avatar_url,
       level: data.level ?? 1,
       balance: parseFloat(data.balance ?? 0),
@@ -360,6 +363,8 @@ export class SupabaseUserRepository implements IUserRepository {
       membership_expires_at: data.membership_expires_at,
       status: data.status ?? 'active',
       role: data.role ?? 'user',
+      email_verified_at: data.email_verified_at ?? null,
+      mfa_totp_enabled: Boolean(data.mfa_totp_enabled),
       created_at: data.created_at,
       updated_at: data.updated_at,
     };

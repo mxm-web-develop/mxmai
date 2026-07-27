@@ -18,8 +18,9 @@ export async function runOutputStage(args: {
   const system = [
     args.outputPrompt.trim() || 'You produce the final deliverable for this business.',
     '',
-    'The filled business contract JSON below is the sole factual basis. Use it fully.',
-    'Do not ignore enrich_search or sources when present.',
+    'The filled business contract JSON below is the sole factual basis.',
+    'Deliver exactly the scope planned by the business prompt and the contract (e.g. business.body_sections / user-selected fields).',
+    'enrich_search and sources are supporting evidence for that planned scope — do NOT surface source items outside it as extra chapters, paragraphs, or lead mentions.',
   ].join('\n');
 
   const user = JSON.stringify({ contract }, null, 2);

@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-06-24T12:00:00.000Z",
+  "items": [
+    {
+      "scope": "graph",
+      "type": "design",
+      "subtype": "architecture-diagram",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "设计 · 架构图",
+          "subtypeLabel": "architecture-diagram（产品功能 / 代码 / 模块架构 · 专业信息图）",
+          "taskLabelI18n": {
+            "zh": "设计 · 架构图",
+            "zh-TW": "設計 · 架構圖"
+          },
+          "subtypeLabelI18n": {
+            "zh": "architecture-diagram（产品功能 / 代码 / 模块架构 · 专业信息图）",
+            "zh-TW": "architecture-diagram（產品登入成功能 / 程式碼 / 模块架構 · 专業資訊圖）"
+          }
+        },
+        "promptTextTaskKey": "text/format/gpt-image-2",
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "maxTokens": 2048,
+              "temperature": 0.3
+            }
+          },
+          "knowledge": {
+            "strategy": "global",
+            "useKnowledge": false,
+            "defaultKnowledgeBaseIds": []
+          },
+          "uiSchema": {
+            "architecture_brief": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 8
+              }
+            },
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 4
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是资深「企业级架构图 / Technical Architecture Diagram」信息设计师 + 英文 image prompt 撰稿人。下游把你的英文正文交给 gpt-image-2 类模型；风格参考图像素已由系统随请求提交，你不得粘贴 base64/URL。\n\n【text/format 生成契约】①「一、重要的用户要求」永远优先；②**架构说明**是整张图的唯一事实来源，节点名、层级、连线方向须忠实于用户描述；③用户未写的维度才允许用「四、相关参考」补全版式与配色；④与参考像素矛盾的一律不写；⑤输出为**单张**可直接用于 PRD、技术方案、评审 PPT 或 Wiki 的专业架构信息图。\n\n一、重要的用户要求（表单插值，本单硬约束）\n- 架构图类型：${diagram_category}\n- 架构说明（节点 / 层级 / 关系）：${architecture_brief}\n- 画幅：${aspect_ratio}\n- 视觉风格：${visual_style}\n- 画面文字语言：${on_screen_text_language}\n- 风格 / 版式参考图（摘要/占位）：${style_ref_images}\n- 用户补充说明：${prompt}\n\n二、任务定义（专业架构图是什么）\n- **目标**：将「一」中的架构说明可视化为**易读、美观、可投影**的单张架构信息图——观众须在 3–5 秒内看懂层级关系与主要数据/调用流向。\n- **与「装饰性插画 / 氛围图」区别**：画面是**结构化图解**（方框、圆角矩形、圆柱、泳道、分组框、箭头、图例），不是人物场景或无关风景。\n- **与「思维导图涂鸦」区别**：节点对齐、间距统一、连线正交或统一圆角曲线；字号层级分明；配色克制专业。\n- **按 diagram_category 的语义（硬）**：\n  - **product_functional（产品功能架构）**：以**业务能力 / 用户可见功能 / 用户旅程**为主——常用分层：用户触点 → 功能域 / 能力模块 → 支撑能力（账号、支付、消息等）；强调「用户做什么、系统提供什么能力」；可用泳道或自上而下业务分层；避免暴露过多实现细节（如不写具体框架名除非用户在「架构说明」中写明）。\n  - **code_architecture（代码架构）**：以**技术分层与运行时边界**为主——常见：客户端 / 网关 / 服务 / 数据 / 第三方；须体现调用方向、同步/异步可辨（实线/虚线或箭头样式）；数据库、队列、对象存储用约定图形（圆柱、管道）；服务名、仓库名、协议（HTTP/gRPC/SSE）照抄「架构说明」可核实内容。\n  - **product_modules（产品模块架构）**：以**产品内模块划分与依赖**为主——模块为一级节点，子能力可嵌套；用分组框表达 bounded context；依赖箭头方向明确（谁依赖谁）；适合表达「前台 / 中台 / 后台」或「创作 / 交易 / 运营」等产品域切分；禁止画成无关的网络拓扑艺术图。\n\n三、任务要求（怎样算优秀的架构图）\n- **内容忠实（最高优先级，硬）**：英文 prompt 必须写入 **architecture fidelity lock**：图中每一个**可见标签**须来自「架构说明」或其中可合理缩写的中英文专名（如「用户服务」→ User Service）；**禁止**编造用户未提及的微服务、数据库、第三方；若关系未写明，用「…」省略或虚线「待定义」语义，**禁止**虚构调用链。\n- **可读性（硬）**：\n  - 主标题区：图顶部或左上角有简短图题（照抄架构说明中的系统/产品名，或「Architecture Overview」类中性标题）；\n  - 字号三级：图题 > 分组标题 > 节点内文字；节点内文字尽量 2–6 个词；\n  - 对比度：文字与底色 WCAG 友好；投影场景下背景勿用大面积浅灰细字；\n  - 对齐：同类节点等宽或等高网格；分组框内留白一致；\n  - 连线：箭头指向明确；避免交叉混乱——必要时用桥接或分层布局；同一语义用同一种线型。\n- **美观与专业（硬）**：\n  - 遵循「一」中 visual_style（见下）；\n  - 主色不超过 3 种功能色 + 中性灰；层级越深饱和度越低或边框越细；\n  - 统一圆角、统一描边粗细、统一箭头样式；\n  - 可选右下角极简图例（仅当架构说明含多种线型/颜色语义时）。\n- **visual_style 对齐**：\n  - corporate_blue：白底、蓝灰主色、企业 PPT 评审风；\n  - minimal_clean：大留白、细线框、黑白灰 + 单一强调色；\n  - dark_tech：深灰底、霓虹蓝绿点缀、开发者文档风；\n  - blueprint：深蓝底、浅蓝线框、工程蓝图感；\n  - color_coded_layers：按层分色（展示/业务/数据/基础设施）；\n  - whiteboard_sketch：手绘白板风但**仍保持对齐与可读**，适合敏捷评审。\n- **画幅**：英文须显式写出 square 1:1 / wide 16:9 / classic 4:3 / tall 9:16 等，与「一」严格一致；横向优先用于分层架构，竖向可用于模块长列表。\n- **文字语言**：画面内标签语言须与 on_screen_text_language 一致（中文 / English）；专有名词可保留英文缩写若用户原文如此。\n- **参考图**：若 style_ref_images 非空，写入 **layout/color lock**：节点形状、配色、线型与参考一致；**不得**用参考图替换「架构说明」中的业务内容。\n\n四、相关参考（仅用户未指定时补全，不得覆盖「一」）\n- 布局：产品功能架构倾向**自上而下**；代码架构倾向**左→右或上→下分层**；模块架构可用**中心辐射或矩阵**。\n- 图形词汇：服务=圆角矩形；数据库=圆柱；用户/外部系统=人像或云形；队列=管道；缓存=叠层矩形。\n- 禁用：照片背景、人物大片、营销 slogan、水印、二维码、虚假品牌 Logo、与架构无关的 isometric 城市场景。\n\n五、Prompt 输出参考（英文正文结构与禁忌）\n- 写成**一段连续英文**（无 Markdown、无中文）：architecture fidelity lock paraphrasing architecture_brief faithfully → diagram_category layout rules (functional layers / code tiers / module dependency graph) → visual_style palette & node/edge styling → explicit aspect ratio → on-image labels in chosen language → optional legend → negatives（no watermark, no fabricated services, no decorative stock art, no illegible microtext, no chaotic crossing lines, professional technical diagram, crisp alignment, readable hierarchy）。\n- 禁止：中文解释、Markdown、编号清单；禁止用默认装饰元素覆盖用户架构事实。\n\n【输出】只输出最终生图用英文 prompt 正文，不要解释或 Markdown。"
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "diagram_category",
+              "architecture_brief",
+              "aspect_ratio"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "poster"
+                ],
+                "default": "poster",
+                "x-user-visible": false
+              },
+              "diagram_category": {
+                "type": "string",
+                "title": "架构图类型",
+                "description": "决定节点语义、分层方式与图形词汇；三种类型共用专业信息图规范，但布局与标注重点不同。",
+                "enum": [
+                  "product_functional",
+                  "code_architecture",
+                  "product_modules"
+                ],
+                "default": "product_functional",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "产品功能架构图",
+                  "代码架构图",
+                  "产品模块架构图"
+                ],
+                "x-enum-descriptions": {
+                  "product_functional": "业务能力、用户功能域、用户旅程与支撑能力；适合 PRD、产品评审。",
+                  "code_architecture": "客户端、服务、网关、数据存储、第三方；调用链与技术分层；适合技术方案、开发 onboarding。",
+                  "product_modules": "产品内模块划分、依赖关系、域边界；适合模块化规划、路线图沟通。"
+                }
+              },
+              "architecture_brief": {
+                "type": "string",
+                "title": "架构说明",
+                "description": "请写清要画的内容：系统/产品名、各层或各模块名称、它们之间的关系（谁调用谁、谁依赖谁）。示例：「SuperMXMai：Gateway → mxmauth/mxmcgi/mxmpay/mxmnotify；mxmcgi 含 Task V2、Graph、Smartflow；数据层 Supabase + MinIO + Redis」。写得越具体，图越准确。",
+                "x-ui-type": "string",
+                "minLength": 1,
+                "maxLength": 6000
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "title": "画幅",
+                "enum": [
+                  "16:9",
+                  "4:3",
+                  "1:1",
+                  "9:16"
+                ],
+                "default": "16:9",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "16:9 宽屏（PPT / Wiki 横版，默认）",
+                  "4:3 经典横版（投影友好）",
+                  "1:1 方图（文档内嵌 / 社媒）",
+                  "9:16 竖屏（移动端长图 / 竖版说明）"
+                ]
+              },
+              "visual_style": {
+                "type": "string",
+                "title": "视觉风格",
+                "description": "在保持架构图可读性的前提下的整体美术气质。",
+                "enum": [
+                  "corporate_blue",
+                  "minimal_clean",
+                  "dark_tech",
+                  "blueprint",
+                  "color_coded_layers",
+                  "whiteboard_sketch"
+                ],
+                "default": "corporate_blue",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "企业蓝灰（默认，评审 PPT）",
+                  "极简线框",
+                  "深色科技",
+                  "蓝图工程风",
+                  "分层配色",
+                  "手绘白板"
+                ],
+                "x-enum-descriptions": {
+                  "corporate_blue": "白底蓝灰，稳重可信，适合对外方案。",
+                  "minimal_clean": "黑白灰 + 单一强调色，适合打印与文档。",
+                  "dark_tech": "深底高对比，适合开发者文档与内部分享。",
+                  "blueprint": "深蓝底浅蓝线，工程制图感。",
+                  "color_coded_layers": "按展示/业务/数据/基础设施分色，层级一眼可辨。",
+                  "whiteboard_sketch": "手绘线条但保持对齐，适合敏捷站会。"
+                }
+              },
+              "on_screen_text_language": {
+                "type": "string",
+                "title": "画面文字语言",
+                "description": "架构图中节点标签、分组标题、图题使用的书写语言。",
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "default": "zh",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "中文",
+                  "English"
+                ]
+              },
+              "style_ref_images": {
+                "type": "array",
+                "title": "风格 / 版式参考图（可选）",
+                "description": "上传喜欢的架构图样例、品牌色或节点形状参考；锁定视觉语言，不改变「架构说明」中的业务内容。",
+                "x-ui-type": "referenceImages",
+                "minItems": 0,
+                "maxItems": 4,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "title": "图片 URL / Base64"
+                    },
+                    "type": {
+                      "type": "string",
+                      "title": "用途类型",
+                      "enum": [
+                        "main-subject",
+                        "background",
+                        "outfits",
+                        "color-reference",
+                        "style-reference"
+                      ],
+                      "default": "style-reference"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "title": "用途说明（可选）"
+                    }
+                  }
+                },
+                "x-enum-labels": []
+              },
+              "prompt": {
+                "type": "string",
+                "title": "补充说明",
+                "description": "必须出现的缩写图例、禁止出现的元素、是否要高亮某条链路、品牌色值等。",
+                "x-ui-type": "string",
+                "default": ""
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "graph-design-architecture-diagram",
+        "provider": "atlascloud",
+        "model": "gpt-image-2",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "graph-design-architecture-diagram",
+          "charge_metric": "per_image",
+          "price_in_tokens": 120,
+          "min_charge_tokens": 0,
+          "provider": "atlascloud",
+          "model_key": "gpt-image-2",
+          "subtype": "architecture-diagram",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

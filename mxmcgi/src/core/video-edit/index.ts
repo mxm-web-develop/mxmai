@@ -6,6 +6,5 @@
 
 export * from "./types";
 export { dispatchVideoEdit } from "./dispatcher";
-export { dispatchGsapAnimation } from "./gsap-renderer";
 export { concatClipsToFinal, buildConcatListFile } from "./concat-engine";
 export { startVideoEditRenderTask } from "./video-edit-task";

@@ -1,49 +1,14 @@
 /**
- * 绘画 - 插图（illustration）配置
- * 参考 portrait.ts 的设计：提供 rules + outputformat + 构造用户需求草稿的 helper
+ * 绘画 - 插图（illustration）
+ * V2：规则与输出格式由 Admin「提示词工程」提供；此处仅保留结构化用户需求草稿 helper。
  */
 import type { PaintingParams } from '../../type';
 
 export type IllustrationOutputLanguage = 'zh' | 'en';
 
-export const illustrationConfig = {
-  /**
-   * 角色设定 + 专业规范（给 LLM 看的规则）
-   */
-  rules: `你是一位顶级插画师，擅长创作高质量的插画作品。请严格根据用户需求、业务参数和知识库内容，设计一条用于 AI 图像生成的插画提示词（prompt）。
-
-【插画专业要求】
-1. 插图风格：
-   - 根据用户选择的插图风格（扁平、写实、水彩、数字绘画等）调整设计
-   - 不同风格传达不同的视觉感受和艺术表现
-2. 色彩搭配：
-   - 根据用户选择的色彩搭配（温暖、冷调、高饱和、低饱和等）调整色彩
-   - 色彩应与主题和风格协调统一
-3. 构图方式：
-   - 使用创意的构图方式，突出主题
-   - 构图应服务于内容，增强表现力
-4. 细节表现：
-   - 注重细节表现，确保画面质量
-   - 细节应与整体风格协调统一
-5. 艺术性：
-   - 保持作品的艺术性和表现力
-   - 艺术表现应与主题和风格协调统一
-
-【提示词生成要求】
-- 使用专业插画术语，语言自然流畅
-- 提示词应覆盖：主题描述、插图风格、色彩搭配、构图方式、细节表现、艺术性要求等核心要素
-- 结合业务参数（illustrationStyle、colorPalette 等）做有针对性的细化描述
-- 允许适度发挥创造力，但必须符合用户的核心需求和设定`,
-
-  /**
-   * 输出结构要求（让 LLM 知道 prompt 内部大概要包含哪些要素）
-   */
-  outputformat: `800字以内,要包含主题描述，插图风格，色彩搭配，构图方式，细节表现，艺术性要求等重要信息`,
-};
-
 /**
  * 根据业务参数 + 参考图 + 用户原始 prompt，生成结构化的 illustration 用户需求草稿
- * 实际用于传给大模型，由大模型根据 rules + outputformat 进行最终整合
+ * 供 graph-service 在部分类型下拼装 effectiveUserPrompt（与 DB rules 分离）
  */
 export function buildIllustrationUserPrompt(
   params: PaintingParams,
@@ -159,67 +124,4 @@ export function buildIllustrationUserPrompt(
     specLineEn,
     'Within about 300 English words, integrate the above elements into a single fluent illustration prompt text.',
   ].join('\n');
-}
-
-/**
- * 根据用户参数生成默认知识库内容（当召回失败时使用）
- * 根据用户的业务参数（illustrationStyle, colorPalette）动态生成对应的专业指导
- */
-export function generateDefaultIllustrationKnowledge(params: PaintingParams): string {
-  const { illustrationStyle, colorPalette } = params;
-  
-  const parts: string[] = [];
-  
-  // 插图风格
-  const styleTips: string[] = [];
-  if (illustrationStyle === 'flat') {
-    styleTips.push('扁平风格，简洁现代，色彩丰富');
-    styleTips.push('简洁的几何形状，统一的色彩');
-  } else if (illustrationStyle === 'realistic') {
-    styleTips.push('写实风格，真实质感，细节丰富');
-    styleTips.push('真实的光影和材质，丰富的细节');
-  } else if (illustrationStyle === 'watercolor') {
-    styleTips.push('水彩风格，柔和自然，艺术感强');
-    styleTips.push('柔和的色彩过渡，自然的笔触');
-  } else if (illustrationStyle === 'digital') {
-    styleTips.push('数字绘画风格，精细质感，现代感强');
-    styleTips.push('精细的笔触，现代的数字质感');
-  } else {
-    styleTips.push('根据设计需求营造相应的插图风格');
-  }
-  parts.push(`【插图风格】\n${styleTips.join('，')}。`);
-  
-  // 色彩搭配
-  const colorTips: string[] = [];
-  if (colorPalette === 'warm') {
-    colorTips.push('温暖色调，温馨舒适，情感丰富');
-    colorTips.push('温暖的色彩，舒适的氛围');
-  } else if (colorPalette === 'cool') {
-    colorTips.push('冷色调，清新冷静，现代感强');
-    colorTips.push('清新的色彩，冷静的氛围');
-  } else if (colorPalette === 'high-saturation') {
-    colorTips.push('高饱和色彩，视觉冲击力强，活力四射');
-    colorTips.push('鲜艳的色彩，强烈的视觉冲击');
-  } else if (colorPalette === 'low-saturation') {
-    colorTips.push('低饱和色彩，柔和优雅，高级感强');
-    colorTips.push('柔和的色彩，优雅的氛围');
-  } else {
-    colorTips.push('根据设计需求营造相应的色彩搭配');
-  }
-  colorTips.push('色彩应与主题和风格协调统一');
-  parts.push(`【色彩搭配】\n${colorTips.join('，')}。`);
-  
-  // 构图方式
-  parts.push(`【构图方式】\n使用创意的构图方式，突出主题，构图应服务于内容，增强表现力。`);
-  
-  // 细节表现
-  parts.push(`【细节表现】\n注重细节表现，确保画面质量，细节应与整体风格协调统一。`);
-  
-  // 艺术性
-  parts.push(`【艺术性】\n保持作品的艺术性和表现力，艺术表现应与主题和风格协调统一，具有艺术价值。`);
-  
-  // 绘画技巧
-  parts.push(`【绘画技巧】\n使用专业的插画技巧，整体画质专业级，具有艺术价值和视觉吸引力。`);
-  
-  return parts.join('\n\n');
 }

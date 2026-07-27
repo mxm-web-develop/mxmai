@@ -131,19 +131,26 @@ export class SupabaseCGITaskRepository implements ICGITaskRepository {
       if (data.metadata !== undefined) {
         updateData.metadata = data.metadata;
       }
+      if (data.input_data !== undefined) {
+        updateData.input_data = data.input_data;
+      }
+      if (data.prompt !== undefined) {
+        updateData.prompt = data.prompt;
+      }
 
-      const { data: updated, error } = await this.client
-        .from('cgi_tasks')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
+      const { data: updated, error } = await runWithSingleUpdateRetry(() =>
+        this.client.from('cgi_tasks').update(updateData).eq('id', id).select().single()
+      );
 
       if (error) {
         if (error.code === 'PGRST116') {
           throw new NotFoundError('CGI task', id);
         }
-        throw new DataAccessError(`Failed to update CGI task: ${error.message}`, 'UPDATE_ERROR', error);
+        throw new DataAccessError(
+          `Failed to update CGI task: ${error.message}`,
+          'UPDATE_ERROR',
+          error instanceof Error ? error : new Error(error.message)
+        );
       }
 
       return this.mapToCGITask(updated);
@@ -196,7 +203,10 @@ export class SupabaseCGITaskRepository implements ICGITaskRepository {
 
   async findMany(options?: ListCGITasksOptions): Promise<{ tasks: CGITask[]; total: number }> {
     try {
-      let query = this.client.from('cgi_tasks').select('*', { count: 'exact' });
+      const listColumns = options?.summary
+        ? 'id, user_id, task_type, model_name, model_provider, status, progress, error_message, prompt, result_format, metadata, storage_info, started_at, completed_at, created_at, updated_at, deleted_at'
+        : '*';
+      let query = this.client.from('cgi_tasks').select(listColumns, { count: 'exact' });
 
       if (options?.user_id) {
         query = query.eq('user_id', options.user_id);
@@ -227,6 +237,13 @@ export class SupabaseCGITaskRepository implements ICGITaskRepository {
         query = query.lte('created_at', endDate.toISOString());
       }
 
+      // 创作来源：open_api 有 publishedSlug；web 无（兼容历史无 creationSource 字段）
+      if (options?.creationSource === 'open_api') {
+        query = query.not('metadata->>publishedSlug', 'is', null).neq('metadata->>publishedSlug', '');
+      } else if (options?.creationSource === 'web') {
+        query = query.or('metadata->>publishedSlug.is.null,metadata->>publishedSlug.eq.');
+      }
+
       query = query.order('created_at', { ascending: false });
 
       if (options?.limit) {
@@ -242,107 +259,9 @@ export class SupabaseCGITaskRepository implements ICGITaskRepository {
         throw new DataAccessError(`Failed to list CGI tasks: ${error.message}`, 'QUERY_ERROR', error);
       }
 
-      // 先映射所有任务
-      const allTasks = (data || []).map(item => this.mapToCGITask(item));
-      
-      // 过滤掉九宫格父任务：使用 metadata.grid9Type === 'parent' 来判断
-      const tasks = allTasks.filter(task => {
-        // 如果 metadata 中标记为父任务，过滤掉
-        if (task.metadata && typeof task.metadata === 'object' && task.metadata.grid9Type === 'parent') {
-          return false;
-        }
-        // 如果 output_data.metadata 中标记为父任务，也过滤掉（双重保险）
-        if (task.output_data && typeof task.output_data === 'object' && task.output_data.metadata?.grid9Type === 'parent') {
-          return false;
-        }
-        // 检查是否有 childTaskIds 字段（父任务的标识）
-        if (task.metadata && typeof task.metadata === 'object' && task.metadata.childTaskIds && Array.isArray(task.metadata.childTaskIds) && task.metadata.childTaskIds.length > 0) {
-          return false;
-        }
-        if (task.output_data && typeof task.output_data === 'object' && task.output_data.metadata?.childTaskIds && Array.isArray(task.output_data.metadata.childTaskIds) && task.output_data.metadata.childTaskIds.length > 0) {
-          return false;
-        }
-        return true;
-      });
-      
-      // 计算过滤后的总数
-      // 由于我们在应用层过滤父任务，原始 count 可能包含父任务
-      // 为了准确计算总数，我们需要重新查询（不应用分页，但应用所有过滤条件，包括排除父任务）
-      let total: number;
-      const filteredCount = tasks.length;
-      const originalCount = count || 0;
-      
-      // 如果过滤后的数量等于原始数量，说明没有父任务被过滤，总数就是原始 count
-      if (filteredCount === allTasks.length && originalCount === allTasks.length) {
-        total = originalCount;
-      } else {
-        // 有父任务被过滤，需要重新查询总数
-        // 为了性能，我们使用一个简化的方法：查询总数时不应用分页，但应用所有其他过滤条件
-        try {
-          const countQuery = this.client.from('cgi_tasks').select('*', { count: 'exact', head: true });
-          
-          if (options?.user_id) {
-            countQuery.eq('user_id', options.user_id);
-          }
-          if (options?.task_type) {
-            countQuery.eq('task_type', options.task_type);
-          }
-          if (options?.status) {
-            countQuery.eq('status', options.status);
-          }
-          if (options?.model_name) {
-            countQuery.eq('model_name', options.model_name);
-          }
-          if (!options?.includeDeleted) {
-            countQuery.is('deleted_at', null);
-          }
-          if (options?.startDate) {
-            const startDate = typeof options.startDate === 'string' ? new Date(options.startDate) : options.startDate;
-            countQuery.gte('created_at', startDate.toISOString());
-          }
-          if (options?.endDate) {
-            const endDate = typeof options.endDate === 'string' ? new Date(options.endDate) : options.endDate;
-            countQuery.lte('created_at', endDate.toISOString());
-          }
-          
-          // 排除父任务：使用 JSONB 查询
-          // Supabase JSONB 查询语法：metadata->>'grid9Type' != 'parent'
-          // 注意：我们需要排除 metadata.grid9Type === 'parent' 或 output_data.metadata.grid9Type === 'parent' 的任务
-          // 使用 or 条件：metadata->>'grid9Type' != 'parent' OR (metadata->>'grid9Type' IS NULL AND output_data->'metadata'->>'grid9Type' != 'parent')
-          // 更简单的方法：使用 not 条件排除父任务
-          // 但由于 Supabase 的限制，我们使用应用层过滤后的估算
-          // 实际应用中，如果父任务数量不多，这个估算值是可以接受的
-          
-          const { count: totalCount, error: countError } = await countQuery;
-          if (countError) {
-            throw countError;
-          }
-          
-          // 由于我们无法在 SQL 层面排除父任务（JSONB 查询复杂），
-          // 我们使用一个估算：假设被过滤的比例在整个数据集中是一致的
-          // 如果当前页有父任务被过滤，我们按比例估算总数
-          if (filteredCount < allTasks.length && totalCount) {
-            // 当前页被过滤的比例
-            const filterRatio = filteredCount / allTasks.length;
-            // 估算总数：总数 * 过滤比例
-            total = Math.floor(totalCount * filterRatio);
-          } else {
-            // 没有父任务被过滤，或无法估算，使用原始 count
-            total = totalCount || originalCount;
-          }
-        } catch (error) {
-          // 如果查询失败，使用原始 count 作为近似值
-          console.warn('[SupabaseCGITaskRepository] 重新查询总数失败，使用原始 count:', error);
-          // 使用估算：如果当前页有父任务被过滤，按比例估算
-          if (filteredCount < allTasks.length) {
-            const filterRatio = filteredCount / allTasks.length;
-            total = Math.floor(originalCount * filterRatio);
-          } else {
-            total = originalCount;
-          }
-        }
-      }
-      
+      const tasks = (data || []).map(item => this.mapToCGITask(item));
+      const total = count ?? tasks.length;
+
       return {
         tasks,
         total,
@@ -357,6 +276,36 @@ export class SupabaseCGITaskRepository implements ICGITaskRepository {
 
   async findByUserId(userId: string, options?: Omit<ListCGITasksOptions, 'user_id'>): Promise<{ tasks: CGITask[]; total: number }> {
     return this.findMany({ ...options, user_id: userId });
+  }
+
+  async claimPendingTasks(workerId: string, limit: number = 1): Promise<CGITask[]> {
+    try {
+      const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 50) : 1;
+      const { data, error } = await this.client.rpc('claim_pending_cgi_tasks', {
+        p_worker_id: workerId,
+        p_limit: safeLimit,
+      });
+
+      if (error) {
+        throw new DataAccessError(
+          `Failed to claim pending CGI tasks: ${error.message}`,
+          'RPC_ERROR',
+          error
+        );
+      }
+
+      const rows = Array.isArray(data) ? data : data ? [data] : [];
+      return rows.map((row) => this.mapToCGITask(row));
+    } catch (error) {
+      if (error instanceof DataAccessError) {
+        throw error;
+      }
+      throw new DataAccessError(
+        `Unexpected error claiming pending CGI tasks: ${error}`,
+        'UNEXPECTED_ERROR',
+        error as Error
+      );
+    }
   }
 
   private mapToCGITask(data: any): CGITask {
@@ -383,4 +332,41 @@ export class SupabaseCGITaskRepository implements ICGITaskRepository {
       metadata: data.metadata,
     };
   }
+}
+
+type SupabaseQueryResult<T> = { data: T | null; error: { code?: string; message: string } | null };
+
+/**
+ * 单次 cgi_tasks update 在以下情况重试一次：
+ * - Supabase / PostgREST 命中 PG `statement_timeout`（错误信息含 `canceling statement`）
+ * - 网络瞬断（错误 code `PGRST000` / `ECONNRESET` / `fetch failed`）
+ * 单次重试 + 100ms 退避，避免无限重试放大 DB 压力。
+ * 注意：retry 内仍可能瞬时失败（DB 真实并发），最终 throw 让上层 catch。
+ */
+async function runWithSingleUpdateRetry<T>(
+  fn: () => PromiseLike<SupabaseQueryResult<T>>
+): Promise<SupabaseQueryResult<T>> {
+  const first = await fn();
+  if (!first.error) return first;
+
+  const msg = first.error.message || '';
+  const code = first.error.code || '';
+  const retriable =
+    msg.includes('canceling statement due to statement timeout') ||
+    msg.includes('canceling statement due to conflict') ||
+    msg.toLowerCase().includes('fetch failed') ||
+    code === 'PGRST000' ||
+    code === '408' ||
+    code === '503' ||
+    code === '504' ||
+    code === 'ECONNRESET';
+  if (!retriable) return first;
+
+  await sleep(150);
+  const second = await fn();
+  return second;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

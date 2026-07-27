@@ -4,6 +4,7 @@ export * from './contract-from-schema';
 export * from './input-stage';
 export * from './output-stage';
 export * from './warp-runner';
+export * from './warp-progress';
 export * from './llm-adapter';
 export * from './execute-warp-task';
 export * from './web-search-step';

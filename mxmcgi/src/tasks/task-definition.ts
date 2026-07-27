@@ -1,11 +1,32 @@
-import { RepositoryFactory } from '@mxmai/mxmdata';
+import { RepositoryFactory, pickLocalizedString } from '@mxmai/mxmdata';
 import type { TaskDefinitionRow, TaskScope, TaskTemplate } from './types';
 import { ConfigurationError } from './errors';
 import { composeLegacyPromptToUnified } from './prompt-template';
+import { mergePlatformFieldsIntoTemplateFormSchema } from './platform-fields';
+import { normalizeTaskTemplatePipeline } from './business-pipeline-defaults';
+
+/**
+ * Graph 子业务由请求体 taskKey + subtype 路由；`subtype` 同时出现在 formSchema 里会与顶部业务选择重复，
+ * 且 unifiedTemplate 的 ${subtype} 由 task-engine contextVars 注入，不依赖表单 params。
+ * 加载定义时剥离历史配置里误加的 properties.subtype，避免用户端仍出现多余输入框。
+ */
+function stripGraphSubtypeDupFromFormSchema(scope: TaskScope, template: TaskTemplate): void {
+  if (scope !== 'graph') return;
+  const fs = template.formSchema as Record<string, unknown> | undefined;
+  if (!fs || typeof fs !== 'object') return;
+  const props = fs.properties;
+  if (!props || typeof props !== 'object' || Array.isArray(props)) return;
+  if (!Object.prototype.hasOwnProperty.call(props, 'subtype')) return;
+  const nextProps = { ...(props as Record<string, unknown>) };
+  delete nextProps.subtype;
+  fs.properties = nextProps;
+  if (Array.isArray(fs.required)) {
+    fs.required = (fs.required as unknown[]).map(String).filter((k) => k !== 'subtype');
+  }
+}
 
 function langFallback(i18n: Record<string, string> | undefined, lang: string): string {
-  if (!i18n || typeof i18n !== 'object') return '';
-  return i18n[lang] ?? i18n['zh'] ?? i18n['en'] ?? '';
+  return pickLocalizedString(i18n, lang) ?? '';
 }
 
 export async function loadTaskDefinition(params: {
@@ -35,11 +56,11 @@ export async function loadTaskDefinition(params: {
   if (!template.formSchema || typeof template.formSchema !== 'object') {
     throw new ConfigurationError(`TaskTemplate.formSchema 缺失或无效：scope=${scope} taskKey=${taskKey}`);
   }
+  stripGraphSubtypeDupFromFormSchema(scope, template);
   if (!template.prompt || typeof template.prompt !== 'object') {
     throw new ConfigurationError(`TaskTemplate.prompt 缺失或无效：scope=${scope} taskKey=${taskKey}`);
   }
 
-  const rules = langFallback(row.rules_i18n, lang);
   const outFmt = langFallback(row.output_format_i18n, lang);
 
   const unifiedTrim = (template.prompt.unifiedTemplate || '').trim();
@@ -50,13 +71,12 @@ export async function loadTaskDefinition(params: {
       systemTemplate: template.prompt.systemTemplate,
       userTemplate: template.prompt.userTemplate,
       outputFormatTemplate: template.prompt.outputFormatTemplate,
-      rulesFallback: rules,
       outputFormatFallback: outFmt,
     });
   }
 
   if (!template.prompt.unifiedTemplate?.trim()) {
-    throw new ConfigurationError(`unifiedTemplate 为空（且无法从 rules/旧三段生成）：scope=${scope} taskKey=${taskKey}`);
+    throw new ConfigurationError(`unifiedTemplate 为空（且无法从旧三段模板或 output_format 生成）：scope=${scope} taskKey=${taskKey}`);
   }
 
   const pr = template.prompt as Record<string, unknown>;
@@ -76,6 +96,10 @@ export async function loadTaskDefinition(params: {
       (template.storage as any).scope = scope;
     }
   }
+
+  mergePlatformFieldsIntoTemplateFormSchema(template, scope);
+
+  normalizeTaskTemplatePipeline(template, scope, extra);
 
   return { row, template };
 }

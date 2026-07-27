@@ -1,10 +1,25 @@
 /**
- * 静图 / AI 配图 Ken Burns 动效：默认开启，按时间轴顺序交替分配
+ * 静图 / AI 配图 Ken Burns 动效：默认开启，按时间轴分配有节奏的呼吸序列
  */
 import type { MxmClipMetadata, VideoEditScript } from './types';
 
 const PAN_MOTIONS = ['pan-left', 'pan-right'] as const;
 const ZOOM_MOTIONS = ['zoom-in', 'zoom-out'] as const;
+
+/**
+ * 设计向默认序列：推近 / 横移 / 拉远 / 反向横移 / 微仰 / 微俯，
+ * 避免全片同一方向横移带来的「传送带」感。
+ */
+const BREATH_SEQUENCE = [
+  'zoom-in',
+  'pan-right',
+  'zoom-out',
+  'pan-left',
+  'pan-up',
+  'zoom-in',
+  'pan-down',
+  'pan-right',
+] as const;
 
 export type ImageMotionPreset = 'pan-alternate' | 'zoom-alternate' | 'auto';
 
@@ -23,7 +38,7 @@ function defaultMotionForClip(
   index: number,
   preset: ImageMotionPreset
 ): NonNullable<MxmClipMetadata['mxmImageMotion']> {
-  // 开场白 / 结尾语用轻微 zoom-in，避免横向平移的「B-roll 感」，更像标题卡
+  // 开场白 / 结尾语用轻微 zoom-in，更像标题卡留白
   if (meta.mxmBeatRole === 'opening' || meta.mxmBeatRole === 'closing') {
     return 'zoom-in';
   }
@@ -33,17 +48,15 @@ function defaultMotionForClip(
   if (preset === 'pan-alternate') {
     return PAN_MOTIONS[index % PAN_MOTIONS.length]!;
   }
-  // auto：静图 pan 交替，AI 配图 zoom 交替
-  if (meta.mxmRenderMode === 'ai-video-gen' && meta.mxmAiOutputKind === 'image') {
-    return ZOOM_MOTIONS[index % ZOOM_MOTIONS.length]!;
-  }
-  return PAN_MOTIONS[index % PAN_MOTIONS.length]!;
+  // auto：呼吸序列（zoom ↔ pan 混搭）
+  return BREATH_SEQUENCE[index % BREATH_SEQUENCE.length]!;
 }
 
 /**
- * 按时间轴顺序为静图段分配交替 Ken Burns（pan-left↔pan-right 或 zoom-in↔zoom-out）
+ * 按时间轴顺序为静图段分配 Ken Burns
  * - 默认开启（mxmImageMotionEnabled=true）
- * - 用户已显式关闭或指定动效时保留（respectExisting=true）
+ * - respectExisting=true 时：用户已关闭或显式指定动效则保留
+ * - 初建时间轴应传 respectExisting=false，覆盖解析阶段误写的统一 pan-left
  */
 export function assignAlternatingImageMotion(
   script: VideoEditScript,

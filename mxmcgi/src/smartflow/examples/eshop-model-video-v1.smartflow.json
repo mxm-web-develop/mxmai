@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-smartflow-bundle",
+  "exportedAt": "2026-05-27T00:00:00.000Z",
+  "items": [
+    {
+      "id": "eshop-model-video-v1",
+      "name": "电商 · 上架图 → 动效短片",
+      "description": "graph/eshop/clothes 生成上架图 → 首帧自动传入 video/commercial/eshop-i2v，仅配置运镜/场景/品牌（无需模特或服装参考图）",
+      "category": "eshop",
+      "tags": ["eshop", "video", "seedance", "taobao"],
+      "status": "active",
+      "version": "1.0.0",
+      "is_public": true,
+      "schema": {
+        "version": "1.0.0",
+        "nodes": [
+          {
+            "id": "start",
+            "type": "start",
+            "name": "开始",
+            "input": [
+              { "name": "garment_brief", "type": "text", "content": "女装针织开衫，米色，V领" },
+              { "name": "motion_preset", "type": "text", "content": "gentle_turn" },
+              { "name": "duration", "type": "number", "content": 5 }
+            ],
+            "position": { "x": 80, "y": 80 }
+          },
+          {
+            "id": "graph_eshop",
+            "type": "business",
+            "name": "生成上架图",
+            "business_scope": "graph",
+            "taskKey": "eshop",
+            "subtype": "clothes",
+            "params": {
+              "prompt": "{{input.garment_brief}}",
+              "output_grid": "1x1",
+              "shoot_preset": "studio_clean",
+              "model_participation": "default"
+            },
+            "position": { "x": 280, "y": 80 }
+          },
+          {
+            "id": "video_showcase",
+            "type": "business",
+            "name": "上架图动效（运镜）",
+            "business_scope": "video",
+            "taskKey": "commercial",
+            "subtype": "eshop-i2v",
+            "params": {
+              "product_title": "{{input.garment_brief}}",
+              "motion_preset": "{{input.motion_preset}}",
+              "duration": "{{input.duration}}",
+              "total_duration_seconds": "{{input.duration}}",
+              "ratio": "9:16",
+              "resolution": "720p",
+              "scene_style": "taobao_clean",
+              "hero_still_images": [
+                {
+                  "content": "{{graph_eshop.syncResult.mediaUrls[0]}}",
+                  "type": "main-subject"
+                }
+              ],
+              "prompt": "电商主图视频：运镜克制，突出版型与面料，服装为绝对主体，无水印无贴纸"
+            },
+            "position": { "x": 520, "y": 80 }
+          },
+          {
+            "id": "end",
+            "type": "end",
+            "name": "结束",
+            "output_mapping": {
+              "still_image": "{{graph_eshop.syncResult.mediaUrls[0]}}",
+              "showcase_video": "{{video_showcase.syncResult.mediaUrls[0]}}"
+            },
+            "position": { "x": 760, "y": 80 }
+          }
+        ],
+        "edges": [
+          { "from": "start", "to": "graph_eshop" },
+          { "from": "graph_eshop", "to": "video_showcase" },
+          { "from": "video_showcase", "to": "end" }
+        ],
+        "settings": {
+          "timeout": 7200,
+          "retry_count": 0,
+          "error_handling": "stop"
+        }
+      }
+    }
+  ]
+}

@@ -99,7 +99,7 @@ export async function startVideoEditRenderTask(
     if (clipStats.renderable > 0 && clipStats.ready === 0) {
       throw new Error(
         `逐段渲染全部失败（${clipStats.failed}/${clipStats.renderable} 段）。` +
-          `常见原因：GSAP_RENDER_ENDPOINT 未配置、AI 片段时长超限、存储 URL 不可访问（含 Gateway 相对路径 /api/v1/media/* 未解析）、或 ffmpeg/Playwright 未安装。`
+          `常见原因：AI 片段时长超限、存储 URL 不可访问（含 Gateway 相对路径 /api/v1/media/* 未解析）、或 ffmpeg 未安装。`
       );
     }
 

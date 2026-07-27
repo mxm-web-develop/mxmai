@@ -3,6 +3,8 @@
  * 处理参考图的上传、类型识别、提示词补充等功能
  */
 
+import { parseReferenceImageLocator } from '../../task/reference-image';
+
 /**
  * 压缩图片（用于减少 Base64 数据大小，避免 API 请求失败）
  * @param imageData Base64 图片数据（支持 data URI 格式）
@@ -163,6 +165,12 @@ export type ReferenceImageType =
 export interface ReferenceImage {
   content: string; // URL 或 base64 数据（支持 data URI 格式）
   type: ReferenceImageType;
+  /** 分组字段名（来自 schema properties 的 key，如 clothing_images / accessories_images） */
+  groupKey?: string;
+  /** 分组标题（来自 schema.title） */
+  groupTitle?: string;
+  /** 分组描述（来自 schema.description） */
+  groupDesc?: string;
   /**
    * 可选：这张参考图的用途说明（给人类看的语义标签）。
    * 例如：`主图模特脸+发型一致`、`衣服面料/版型细节`、`场景光线氛围`。
@@ -172,6 +180,8 @@ export interface ReferenceImage {
    * 可选：业务侧标记（GraphService 内部可能写入 subject/background），不影响提示词构建。
    */
   role?: string;
+  /** 前端/存储元信息（如 isUrl），不参与模型侧必填字段 */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -222,16 +232,49 @@ export function buildReferenceImagePrompt(
     lines.push('使用上传的参考图如下：');
   }
 
-  referenceImages.forEach((ref, index) => {
-    const imageNum = index + 1;
-    const description = descriptions[ref.type];
-    const purpose = typeof ref.purpose === 'string' ? ref.purpose.trim() : '';
-    if (language === 'en') {
-      lines.push(`- Image ${imageNum}: ${description}${purpose ? ` (Purpose: ${purpose})` : ''}`);
-    } else {
-      lines.push(`- 图片 ${imageNum}：${description}${purpose ? `（用途：${purpose}）` : ''}`);
+  // 先按 groupKey 分组输出（未分组的落入 Ungrouped）
+  const groupOrder: string[] = [];
+  const groups = new Map<string, ReferenceImage[]>();
+  for (const ref of referenceImages) {
+    const k = typeof ref.groupKey === 'string' && ref.groupKey.trim() ? ref.groupKey.trim() : 'Ungrouped';
+    if (!groups.has(k)) {
+      groups.set(k, []);
+      groupOrder.push(k);
     }
-  });
+    groups.get(k)!.push(ref);
+  }
+
+  let globalIndex = 0;
+  for (const gk of groupOrder) {
+    const items = groups.get(gk) || [];
+    if (items.length === 0) continue;
+
+    const groupTitleRaw = items[0]?.groupTitle;
+    const groupDescRaw = items[0]?.groupDesc;
+    const groupTitle =
+      typeof groupTitleRaw === 'string' && groupTitleRaw.trim() ? groupTitleRaw.trim() : gk;
+    const groupDesc =
+      typeof groupDescRaw === 'string' && groupDescRaw.trim() ? groupDescRaw.trim() : '';
+
+    if (gk !== 'Ungrouped') {
+      if (language === 'en') {
+        lines.push(`\n[Group] ${groupTitle}${groupDesc ? ` — ${groupDesc}` : ''}`);
+      } else {
+        lines.push(`\n【分组】${groupTitle}${groupDesc ? `：${groupDesc}` : ''}`);
+      }
+    }
+
+    for (const ref of items) {
+      globalIndex += 1;
+      const description = descriptions[ref.type];
+      const purpose = typeof ref.purpose === 'string' ? ref.purpose.trim() : '';
+      if (language === 'en') {
+        lines.push(`- Image ${globalIndex}: ${description}${purpose ? ` (Purpose: ${purpose})` : ''}`);
+      } else {
+        lines.push(`- 图片 ${globalIndex}：${description}${purpose ? `（用途：${purpose}）` : ''}`);
+      }
+    }
+  }
 
   return lines.join('\n');
 }
@@ -278,18 +321,18 @@ export function extractBase64FromDataUri(dataUri: string): string {
 /**
  * 处理参考图数组，转换为模型可接受的格式
  * @param referenceImages 参考图数组
- * @param modelName 模型名称 ('nano-banana' | 'nano-banana-pro' | 'nano-banana-2' | 'nano-banana-2-pro' | 'seedream-4' | 'seedream-5')
+ * @param _modelName 预留：路由模型名（当前实现不分支，仅保持调用签名稳定）
  * @returns 处理后的图片数组（URL 或 base64）
  */
 export function processReferenceImages(
   referenceImages: ReferenceImage[],
-  modelName: 'nano-banana' | 'nano-banana-pro' | 'nano-banana-2' | 'nano-banana-2-pro' | 'seedream-4' | 'seedream-5'
+  _modelName?: string
 ): { urls: string[]; base64s: string[] } {
   const urls: string[] = [];
   const base64s: string[] = [];
 
   for (const ref of referenceImages) {
-    if (isUrl(ref.content)) {
+    if (isUrl(ref.content) || parseReferenceImageLocator(ref.content)) {
       urls.push(ref.content);
     } else if (isBase64(ref.content)) {
       // 提取纯 base64 数据（去除 data URI 前缀）
@@ -333,10 +376,19 @@ export function convertLegacyReferenceImage(
 export function sanitizeReferenceImagesForStorage(
   referenceImages: ReferenceImage[]
 ): Array<{ type: ReferenceImageType; content?: string; metadata?: { size?: number; format?: string; isBase64?: boolean; isUrl?: boolean } }> {
-  return referenceImages.map(ref => {
+  return referenceImages.map((ref: any) => {
     const sanitized: any = {
       type: ref.type,
     };
+
+    const copyStr = (k: string) => {
+      const v = ref[k];
+      if (typeof v === 'string' && v.trim()) sanitized[k] = v.trim();
+    };
+    copyStr('groupKey');
+    copyStr('groupTitle');
+    copyStr('groupDesc');
+    copyStr('purpose');
 
     if (isUrl(ref.content)) {
       // URL 可以保留

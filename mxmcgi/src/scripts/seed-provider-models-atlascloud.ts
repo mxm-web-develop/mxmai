@@ -187,6 +187,42 @@ const ATLAS_MODELS: SeedRow[] = [
             display_name: 'GPT-OSS 120B',
             description: 'OpenAI gpt-oss-120b（Atlas Chat Completions）',
           },
+          {
+            model_key: 'deepseek-ai/deepseek-v4-flash',
+            upstream_model: 'deepseek-ai/deepseek-v4-flash',
+            display_name: 'DeepSeek V4 Flash',
+            description: 'DeepSeek V4 Flash（Atlas Chat Completions，$0.14/$0.28 per M）',
+          },
+          {
+            model_key: 'deepseek-ai/deepseek-v4-pro',
+            upstream_model: 'deepseek-ai/deepseek-v4-pro',
+            display_name: 'DeepSeek V4 Pro',
+            description: 'DeepSeek V4 Pro（Atlas Chat Completions，$1.68/$3.38 per M）',
+          },
+          {
+            model_key: 'openai/gpt-5.6-luna',
+            upstream_model: 'openai/gpt-5.6-luna',
+            display_name: 'GPT 5.6 Luna',
+            description: 'OpenAI GPT 5.6 Luna（Atlas Chat Completions，$1/$6 per M）',
+          },
+          {
+            model_key: 'openai/gpt-5.6-terra',
+            upstream_model: 'openai/gpt-5.6-terra',
+            display_name: 'GPT 5.6 Terra',
+            description: 'OpenAI GPT 5.6 Terra（Atlas Chat Completions，$2.5/$15 per M）',
+          },
+          {
+            model_key: 'openai/gpt-5.6-sol',
+            upstream_model: 'openai/gpt-5.6-sol',
+            display_name: 'GPT 5.6 Sol',
+            description: 'OpenAI GPT 5.6 Sol（Atlas Chat Completions，$5/$30 per M）',
+          },
+          {
+            model_key: 'zai-org/glm-5.2',
+            upstream_model: 'zai-org/glm-5.2',
+            display_name: 'GLM 5.2',
+            description: 'Zhipu GLM-5.2（Atlas Chat Completions，$1.40/$4.40 per M）',
+          },
         ] as const
       ).map((m) =>
         withCapabilities<SeedRow>(

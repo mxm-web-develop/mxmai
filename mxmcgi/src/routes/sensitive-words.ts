@@ -6,7 +6,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { RepositoryFactory, createSensitiveWordRepository } from '@mxmai/mxmdata';
+import { RepositoryFactory, createSensitiveWordRepository, getSupabaseClient } from '@mxmai/mxmdata';
 
 const router = Router();
 
@@ -280,6 +280,20 @@ router.put('/bindings/slot', async (req: Request, res: Response) => {
     const listIds = Array.isArray(body.list_ids) ? body.list_ids : [];
     const repo = createSensitiveWordRepository();
     await repo.setBindingsForSlot(body.scope, body.type, body.subtype ?? null, listIds);
+
+    // 同步写入 *scope_config.sensitive_word_list_ids
+    const supabase = getSupabaseClient();
+    const tableName = `${body.scope}_scope_config`;
+    const subType = body.subtype ?? 'default';
+    const upsertRow: Record<string, unknown> = {
+      scope: body.scope,
+      task_key: body.type,
+      sub_type: subType,
+      sensitive_word_list_ids: listIds,
+      updated_at: new Date().toISOString(),
+    };
+    await supabase.from(tableName).upsert(upsertRow, { onConflict: 'scope,task_key,sub_type' });
+
     return res.json({ success: true, data: { scope: body.scope, type: body.type, subtype: body.subtype ?? null, list_ids: listIds } });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -296,7 +310,27 @@ router.delete('/bindings/:bindingId', async (req: Request, res: Response) => {
     const bindingId = req.params.bindingId;
     if (!bindingId) return res.status(400).json({ success: false, error: 'bindingId required' });
     const repo = createSensitiveWordRepository();
+
+    // 先查到 binding 的 scope/type/subtype，用于后续同步 scope_config
+    const supabase = getSupabaseClient();
+    const { data: binding } = await supabase.from('sensitive_word_list_bindings').select('scope,type,subtype').eq('id', bindingId).maybeSingle();
     await repo.removeBinding(bindingId);
+
+    // 同步更新 scope_config.sensitive_word_list_ids
+    if (binding) {
+      const tableName = `${binding.scope}_scope_config`;
+      const remainingBindings = await repo.listBindings(binding.scope, binding.type, binding.subtype);
+      const listIds = remainingBindings.map((b: any) => b.list_id);
+      const subType = binding.subtype ?? 'default';
+      await supabase.from(tableName).upsert({
+        scope: binding.scope,
+        task_key: binding.type,
+        sub_type: subType,
+        sensitive_word_list_ids: listIds,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'scope,task_key,sub_type' });
+    }
+
     return res.status(204).send();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

@@ -49,3 +49,10 @@ export class TransactionError extends DataAccessError {
   }
 }
 
+export class UnauthorizedError extends DataAccessError {
+  constructor(message: string = 'Unauthorized') {
+    super(message, 'UNAUTHORIZED');
+    this.name = 'UnauthorizedError';
+  }
+}
+

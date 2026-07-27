@@ -261,6 +261,236 @@ export async function compressImage(
       return false;
     }
   }
+
+  export type ReferenceImageLocator =
+    | { kind: 'http'; url: string }
+    | { kind: 'media-object'; objectId: string }
+    | { kind: 'media-asset'; bucket: string; key: string };
+
+  function guessContentTypeFromKey(key: string): string {
+    if (key.endsWith('.png')) return 'image/png';
+    if (key.endsWith('.webp')) return 'image/webp';
+    if (key.endsWith('.gif')) return 'image/gif';
+    return 'image/jpeg';
+  }
+
+  /** 解析 Gateway 代理路径或绝对 URL（Web/H5 上传常落库为 /api/v1/media/object/:id） */
+  export function parseReferenceImageLocator(content: string): ReferenceImageLocator | null {
+    const c = content.trim();
+    if (!c || isBase64(c)) return null;
+
+    const fromPathname = (pathname: string, searchParams: URLSearchParams): ReferenceImageLocator | null => {
+      const publicObjectMatch = pathname.match(/\/api\/v1\/media\/public\/object\/([^/?#]+)/);
+      if (publicObjectMatch?.[1]) {
+        return { kind: 'media-object', objectId: decodeURIComponent(publicObjectMatch[1]) };
+      }
+      const objectMatch = pathname.match(/\/api\/v1\/media\/object\/([^/?#]+)/);
+      if (objectMatch?.[1]) {
+        return { kind: 'media-object', objectId: decodeURIComponent(objectMatch[1]) };
+      }
+      if (pathname.endsWith('/api/v1/media/asset') || pathname.endsWith('/media/asset')) {
+        const bucket = searchParams.get('bucket') || '';
+        const key = searchParams.get('key') || '';
+        if (bucket && key) return { kind: 'media-asset', bucket, key };
+      }
+      return null;
+    };
+
+    if (c.startsWith('/api/v1/media/') || c.startsWith('/media/')) {
+      try {
+        const parsed = new URL(c, 'http://local');
+        return fromPathname(parsed.pathname, parsed.searchParams);
+      } catch {
+        return null;
+      }
+    }
+
+    try {
+      const parsed = new URL(c);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        const media = fromPathname(parsed.pathname, parsed.searchParams);
+        if (media) return media;
+        return { kind: 'http', url: c };
+      }
+    } catch {
+      // ignore
+    }
+
+    return null;
+  }
+
+  /** 可作为参考图定位符：http(s)、Gateway 代理路径或 base64 */
+  export function isReferenceImageLocator(content: string): boolean {
+    return isBase64(content) || parseReferenceImageLocator(content) !== null;
+  }
+
+  /** 落库 sanitize 后的占位文案，不可参与 merge / 生图 */
+  export function isSanitizedReferencePlaceholder(content: string): boolean {
+    const s = content.trim();
+    return s.startsWith('[Base64数据已过滤') || s === '[base64 filtered]' || s === '[filtered]';
+  }
+
+  /** 可作为参考图传入生图链路（URL、Gateway 代理路径或有效 base64，排除 sanitize 占位） */
+  export function isUsableReferenceImageContent(content: unknown): boolean {
+    if (typeof content !== 'string' || !content.trim()) return false;
+    const c = content.trim();
+    if (isSanitizedReferencePlaceholder(c)) return false;
+    return isReferenceImageLocator(c);
+  }
+
+  /**
+   * 将参考图定位符解析为二进制（Worker 内直连 MinIO，无需 HTTP 鉴权头）
+   */
+  export async function downloadReferenceImageBuffer(
+    content: string,
+    userId?: string
+  ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
+    const c = content.trim();
+    if (isBase64(c)) {
+      const b64 = extractBase64FromDataUri(c);
+      const buffer = Buffer.from(b64, 'base64');
+      const contentType = c.startsWith('data:image/')
+        ? c.substring(5, c.indexOf(';'))
+        : 'image/jpeg';
+      return { buffer, contentType, filename: 'reference.jpg' };
+    }
+
+    const loc = parseReferenceImageLocator(c);
+    if (!loc) {
+      throw new Error(`无法识别的参考图格式: ${c.substring(0, 80)}`);
+    }
+
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+
+    if (loc.kind === 'media-object') {
+      const repo = RepositoryFactory.createStorageObjectRepository();
+      const record = userId
+        ? await repo.findByIdForUser(loc.objectId, userId)
+        : await repo.findById(loc.objectId);
+      if (!record) {
+        throw new Error(
+          `参考图不可用（storage object 不存在或已清理: ${loc.objectId}）。` +
+            `临时文件约 7 天有效，且在其他任务结束后可能被清理；请重新上传或从资产库选择。`
+        );
+      }
+      if (record.domain !== 'user_upload') {
+        throw new Error(`storage object 无权作为用户参考图: ${loc.objectId}`);
+      }
+      const storageRepo = RepositoryFactory.createStorageRepository('user_upload');
+      const bufAny = await storageRepo.downloadFile(record.bucket, record.object_key);
+      const meta = await storageRepo.getFileMetadata(record.bucket, record.object_key);
+      const key = record.object_key;
+      const contentType =
+        meta?.contentType || record.content_type || guessContentTypeFromKey(key);
+      const buffer = Buffer.isBuffer(bufAny) ? bufAny : Buffer.from(bufAny as ArrayBuffer);
+      return {
+        buffer,
+        contentType,
+        filename: key.split('/').pop() || 'reference.jpg',
+      };
+    }
+
+    if (loc.kind === 'media-asset') {
+      if (!userId) {
+        throw new Error('解析 media asset 参考图需要 userId');
+      }
+      const allowed =
+        loc.key.startsWith(`${userId}/upload/`) ||
+        loc.key.startsWith(`upload/${userId}/`) ||
+        loc.key.startsWith(`upload/temp/${userId}/`) ||
+        loc.key.startsWith(`temp/${userId}/`) ||
+        loc.key.startsWith(`knowledge/${userId}/`);
+      if (!allowed) {
+        throw new Error(`media asset key 不属于当前用户: ${loc.key}`);
+      }
+      const storageRepo = RepositoryFactory.createStorageRepository('user_upload');
+      const bufAny = await storageRepo.downloadFile(loc.bucket, loc.key);
+      const meta = await storageRepo.getFileMetadata(loc.bucket, loc.key);
+      const contentType = meta?.contentType || guessContentTypeFromKey(loc.key);
+      const buffer = Buffer.isBuffer(bufAny) ? bufAny : Buffer.from(bufAny as ArrayBuffer);
+      return {
+        buffer,
+        contentType,
+        filename: loc.key.split('/').pop() || 'reference.jpg',
+      };
+    }
+
+    const hit = parseReferenceImageLocator(loc.url);
+    if (hit && hit.kind !== 'http') {
+      return downloadReferenceImageBuffer(loc.url, userId);
+    }
+
+    const resp = await fetch(loc.url);
+    if (!resp.ok) {
+      throw new Error(`下载参考图失败: ${resp.status} ${resp.statusText}`);
+    }
+    const contentType = resp.headers.get('content-type') || 'image/jpeg';
+    const ab = await resp.arrayBuffer();
+    return {
+      buffer: Buffer.from(ab),
+      contentType,
+      filename: 'reference.jpg',
+    };
+  }
+
+  /** 将任意可用参考图定位符转为 data URI（供 Deer/OpenRouter 等 provider） */
+  export async function referenceImageContentToDataUri(
+    content: string,
+    userId?: string
+  ): Promise<string> {
+    if (isBase64(content)) {
+      return content.startsWith('data:') ? content : `data:image/jpeg;base64,${extractBase64FromDataUri(content)}`;
+    }
+    const { buffer, contentType } = await downloadReferenceImageBuffer(content, userId);
+    return `data:${contentType};base64,${buffer.toString('base64')}`;
+  }
+
+  /**
+   * Worker 生图前：将 storage object / 内网代理路径参考图下载为 data URI，
+   * 避免 deferred 前置管线耗时期间临时文件过期或被清理。
+   */
+  export async function hydrateReferenceImageParamsInPlace(
+    params: Record<string, unknown>,
+    userId: string,
+    formSchema?: { properties?: Record<string, unknown> }
+  ): Promise<void> {
+    const fieldKeys = new Set<string>();
+    if (Array.isArray(params.referenceImage)) fieldKeys.add('referenceImage');
+
+    const props = formSchema?.properties ?? {};
+    for (const [key, sch] of Object.entries(props)) {
+      if (sch && typeof sch === 'object' && !Array.isArray(sch) && (sch as Record<string, unknown>)['x-ui-type'] === 'referenceImages') {
+        fieldKeys.add(key);
+      }
+    }
+
+    if (fieldKeys.size <= (params.referenceImage ? 1 : 0)) {
+      for (const [key, val] of Object.entries(params)) {
+        if (!Array.isArray(val) || val.length === 0) continue;
+        const first = val[0];
+        if (first && typeof first === 'object' && 'content' in (first as object)) {
+          fieldKeys.add(key);
+        }
+      }
+    }
+
+    for (const key of fieldKeys) {
+      const arr = params[key];
+      if (!Array.isArray(arr)) continue;
+      for (let i = 0; i < arr.length; i++) {
+        const item = arr[i];
+        if (!item || typeof item !== 'object') continue;
+        const content = (item as { content?: unknown }).content;
+        if (!isUsableReferenceImageContent(content)) continue;
+        const str = String(content).trim();
+        if (isBase64(str)) continue;
+        const loc = parseReferenceImageLocator(str);
+        if (!loc) continue;
+        if (loc.kind === 'http') continue;
+        (item as { content: string }).content = await referenceImageContentToDataUri(str, userId);
+      }
+    }
+  }
   
   /**
    * 从 data URI 中提取 base64 数据
@@ -289,7 +519,7 @@ export async function compressImage(
     const base64s: string[] = [];
   
     for (const ref of referenceImages) {
-      if (isUrl(ref.content)) {
+      if (isUrl(ref.content) || parseReferenceImageLocator(ref.content)) {
         urls.push(ref.content);
       } else if (isBase64(ref.content)) {
         // 提取纯 base64 数据（去除 data URI 前缀）
@@ -333,13 +563,23 @@ export async function compressImage(
   export function sanitizeReferenceImagesForStorage(
     referenceImages: ReferenceImage[]
   ): Array<{ type: ReferenceImageType; content?: string; metadata?: { size?: number; format?: string; isBase64?: boolean; isUrl?: boolean } }> {
-    return referenceImages.map(ref => {
+    return referenceImages.map((ref: any) => {
       const sanitized: any = {
         type: ref.type,
       };
+
+      // 落库/返回前须保留槽位语义，否则「查看数据」里 referenceImage 只剩 type+URL，丢失 groupKey 与服饰/模特区分
+      const copyStr = (k: string) => {
+        const v = ref[k];
+        if (typeof v === 'string' && v.trim()) sanitized[k] = v.trim();
+      };
+      copyStr('groupKey');
+      copyStr('groupTitle');
+      copyStr('groupDesc');
+      copyStr('purpose');
   
-      if (isUrl(ref.content)) {
-        // URL 可以保留
+      if (isUrl(ref.content) || parseReferenceImageLocator(ref.content)) {
+        // URL / Gateway 代理路径可以保留
         sanitized.content = ref.content;
         sanitized.metadata = {
           isUrl: true,
@@ -368,6 +608,12 @@ export async function compressImage(
    * 清理任意对象中的 base64 数据（递归处理）
    * 用于清理 requestParams 中的 base64 数据
    */
+  function isReferenceImagesSlotArray(value: unknown): boolean {
+    if (!Array.isArray(value) || value.length === 0) return false;
+    const first = value[0];
+    return !!first && typeof first === 'object' && 'content' in (first as object);
+  }
+
   export function sanitizeBase64InObject(obj: any): any {
     if (obj === null || obj === undefined) {
       return obj;
@@ -388,8 +634,10 @@ export async function compressImage(
     if (typeof obj === 'object') {
       const sanitized: any = {};
       for (const key in obj) {
-        if (key === 'referenceImage' && Array.isArray(obj[key])) {
-          // 特殊处理 referenceImage 数组
+        if (
+          (key === 'referenceImage' || isReferenceImagesSlotArray(obj[key])) &&
+          Array.isArray(obj[key])
+        ) {
           sanitized[key] = sanitizeReferenceImagesForStorage(obj[key] as ReferenceImage[]);
         } else {
           sanitized[key] = sanitizeBase64InObject(obj[key]);

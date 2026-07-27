@@ -654,7 +654,9 @@ export class SupabaseKnowledgeBaseRepository implements IKnowledgeBaseRepository
         .or(`content.ilike.%${keyword}%,title.ilike.%${keyword}%`);
 
       if (options?.userId) {
-        query = query.or(`is_public.eq.true,user_id.eq.${options.userId}`);
+        // 优先使用 metadata->>'user_id' 过滤（TEXT in JSONB）
+        // 备选使用 user_id 列（UUID类型，可能不兼容字符串 userId）
+        query = query.or(`is_public.eq.true,metadata->>user_id.eq.${options.userId}`);
       } else {
         query = query.eq('is_public', true);
       }

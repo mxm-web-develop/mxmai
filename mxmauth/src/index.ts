@@ -4,6 +4,7 @@ import cors from 'cors';
 import healthRouter from './routes/health';
 import accountRouter from './routes/account';
 import assetsRouter from './routes/assets';
+import partnerRouter from './routes/partner';
 import { responseMiddleware } from './middleware/response';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { RepositoryFactory, loadDataConfig } from '@mxmai/mxmdata';
@@ -19,7 +20,7 @@ try {
 }
 
 const app = express();
-const port = process.env.PORT ? Number(process.env.PORT) : 4001;
+const port = Number(process.env.MXMAUTH_PORT || process.env.PORT || 4001);
 
 // CORS 配置（开发时前端可能为 5173，Gateway 为 3000）
 const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173';
@@ -41,6 +42,7 @@ app.use(responseMiddleware);
 app.use('/', healthRouter);
 app.use('/api/v1/account', accountRouter);
 app.use('/api/v1/assets', assetsRouter);
+app.use('/api/v1/partner', partnerRouter);
 
 // 404 处理
 app.use(notFoundHandler);
@@ -49,5 +51,5 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 app.listen(port, () => {
-  console.log(`mxmauth service listening on port ${port}`);
+  console.log(`[mxmauth] 🚀 Listening on port ${port}`);
 });

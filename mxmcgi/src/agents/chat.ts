@@ -6,11 +6,15 @@
 import type { Request, Response } from 'express';
 import type { ProviderType } from '../models/providers';
 import type { AgentChatRequest, AgentChatEvent, SessionContext } from './types';
-import { detectIntent, detectIntentEnhanced, getBusinessNode, getNextFieldToAsk, businessNodes } from './intent-detector';
-import { runByModelKey } from '../models/run';
-import { listEnabledModelKeysByScope } from '../models/provider-model-catalog';
+import { detectIntent, detectIntentEnhanced, getBusinessNode, getNextFieldToAsk, getNodeNameByKey } from './intent-detector';
+import { runByModelKey, getModelContextWindow } from '../models/run';
+import { findEnabledModel, listEnabledModelKeysByScope } from '../models/provider-model-catalog';
 import { mxmCGIHttpClient } from '../smartflow/services/httpClient';
-import { taskExecutor } from '../task/task-executor';
+import { AgentMemoryService, MemorySummarizer } from './memory';
+import { SmartflowIntentDetector } from './SmartflowIntentDetector';
+import { smartflowRepository } from '../smartflow/core/engine/repository';
+import { executionRepository } from '../smartflow/core/engine/executionRepository';
+import { SmartflowEngine } from '../smartflow/core/engine/engine';
 import crypto from 'crypto';
 
 // ==================== Admin Model Config ====================
@@ -77,6 +81,13 @@ async function getAdminModelConfig(): Promise<AdminModelConfig> {
 export function clearAdminModelConfigCache(): void {
   _cachedAdminConfig = null;
   _cacheTimestamp = 0;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { clearAgentAdminConfigCache } = require('../agent-core/types');
+    clearAgentAdminConfigCache();
+  } catch {
+    /* agent-core optional during bootstrap */
+  }
 }
 
 // ==================== Session Store ====================
@@ -84,6 +95,16 @@ export function clearAdminModelConfigCache(): void {
 const sessions: Map<string, SessionContext> = new Map();
 const SESSION_MAX_MESSAGES = 20;
 const SESSION_TTL_MS = 30 * 60 * 1000;
+
+// ==================== Memory Service ====================
+
+const memoryService = new AgentMemoryService();
+const memorySummarizer = new MemorySummarizer();
+
+// ==================== Smartflow Service ====================
+
+const smartflowIntentDetector = new SmartflowIntentDetector();
+const smartflowEngine = new SmartflowEngine(smartflowRepository, executionRepository);
 
 function getOrCreateSession(sessionId?: string): SessionContext {
   if (sessionId && sessions.has(sessionId)) {
@@ -256,7 +277,7 @@ async function* simulateTaskExecution(
   const scope = parts[0] as 'graph' | 'writing' | 'audio' | 'video' | 'text' | 'outline';
   const taskKey = parts[1] || nodeType;
 
-  const nodeName = businessNodes[nodeType]?.name || nodeType;
+  const nodeName = getNodeNameByKey(nodeType);
 
   // 步骤 1: 调用 runTask 创建任务
   yield {
@@ -305,66 +326,101 @@ async function* simulateTaskExecution(
     return;
   }
 
-  // 异步类型: 轮询任务状态直到完成
   const realTaskId = runResult.taskId;
-  const maxPolls = 60; // 最多等 60 * 2s = 120s
-  let pollCount = 0;
 
   yield {
     type: 'task_progress',
     task: { taskId: realTaskId, nodeType, nodeName, status: 'progress', progress: 20, text: '任务已创建，正在排队…' },
   };
 
-  while (pollCount < maxPolls) {
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    pollCount++;
+  const { iterateTaskCompletion } = await import('../task/wait-for-task');
+  let lastProgress = 20;
+  let task: Awaited<ReturnType<typeof import('../task/wait-for-task').waitForTaskCompletion>>['task'] =
+    null;
+  let timedOut = false;
 
-    const taskManager = taskExecutor.getTaskManager();
-    const { task } = await taskManager.getTask(realTaskId);
+  const iter = iterateTaskCompletion(realTaskId, {
+    timeoutMs: Number(process.env.AGENT_TASK_WAIT_TIMEOUT_MS || 120_000),
+    pollIntervalMs: Number(process.env.TASK_WAIT_POLL_MS || 3000),
+  });
 
-    if (!task) {
-      yield {
-        type: 'task_done',
-        task: { taskId: realTaskId, nodeType, nodeName, status: 'error', progress: 0, resultUrls: [], text: '任务不存在' },
-      };
-      return;
-    }
-
-    const progress = Math.min(90, 20 + Math.floor((pollCount / maxPolls) * 70));
-    const statusText =
-      task.status === 'queued' ? '任务排队中…' :
-      task.status === 'processing' ? '正在生成内容…' :
-      task.status === 'completed' ? '生成完成！' :
-      task.status === 'failed' ? '生成失败' :
-      `处理中 (${task.status})`;
-
+  let step = await iter.next();
+  while (!step.done) {
+    const snap = step.value;
+    const pct =
+      typeof snap.progress?.progress === 'number'
+        ? Math.min(90, Math.max(lastProgress, snap.progress.progress))
+        : snap.status === 'processing'
+          ? 70
+          : snap.status === 'queued'
+            ? 40
+            : lastProgress;
+    lastProgress = pct;
     yield {
       type: 'task_progress',
-      task: { taskId: realTaskId, nodeType, nodeName, status: task.status === 'completed' ? 'done' : 'progress', progress, text: statusText },
+      task: {
+        taskId: realTaskId,
+        nodeType,
+        nodeName,
+        status: 'progress',
+        progress: pct,
+        text:
+          snap.status === 'processing'
+            ? `生成中 ${snap.progress?.progress ?? pct}%`
+            : snap.status === 'queued'
+              ? '排队中…'
+              : '处理中…',
+      },
     };
-
-    if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') {
-      const resultUrls = task.result?.mediaUrls || [];
-      yield {
-        type: 'task_done',
-        task: {
-          taskId: realTaskId,
-          nodeType,
-          nodeName,
-          status: task.status === 'completed' ? 'done' : task.status === 'failed' ? 'error' : task.status === 'cancelled' ? 'cancelled' : 'error',
-          progress: task.status === 'completed' ? 100 : progress,
-          resultUrls,
-          text: task.status === 'completed' ? (resultUrls.length > 0 ? '生成完成！' : '生成完成（无结果）') : `生成${task.status === 'failed' ? '失败' : '取消'}`,
-        },
-      };
-      return;
-    }
+    step = await iter.next();
   }
 
-  // 超时
+  const waitResult = step.value;
+  task = waitResult.task;
+  timedOut = waitResult.timedOut;
+
+  if (!task) {
+    yield {
+      type: 'task_done',
+      task: { taskId: realTaskId, nodeType, nodeName, status: 'error', progress: 0, resultUrls: [], text: '任务不存在' },
+    };
+    return;
+  }
+
+  if (timedOut) {
+    yield {
+      type: 'task_done',
+      task: {
+        taskId: realTaskId,
+        nodeType,
+        nodeName,
+        status: 'error',
+        progress: lastProgress,
+        resultUrls: [],
+        text: '任务处理中，请通过通知或任务列表查看结果（taskId 已创建）',
+      },
+    };
+    return;
+  }
+
+  const resultUrls = task.result?.mediaUrls || [];
+  const statusText =
+    task.status === 'completed' ? (resultUrls.length > 0 ? '生成完成！' : '生成完成（无结果）') :
+    task.status === 'failed' ? (task.progress?.error || '生成失败') :
+    task.status === 'cancelled' ? '任务已取消' :
+    '处理结束';
+
   yield {
     type: 'task_done',
-    task: { taskId: realTaskId, nodeType, nodeName, status: 'error', progress: 0, resultUrls: [], text: '任务超时，请稍后重试' },
+    task: {
+      taskId: realTaskId,
+      nodeType,
+      nodeName,
+      status: task.status === 'completed' ? 'done' : task.status === 'failed' ? 'error' : task.status === 'cancelled' ? 'cancelled' : 'error',
+      progress: task.status === 'completed' ? 100 : lastProgress,
+      resultUrls,
+      text: typeof statusText === 'string' ? statusText : String(statusText),
+    },
   };
 }
 
@@ -392,6 +448,9 @@ export async function handleAgentChat(
   res.write(':\n\n');
 
   const session = getOrCreateSession(sessionId);
+
+  // 提取 userId（用于 Memory 服务）
+  const userId = (req.headers['x-user-id'] as string | undefined) || 'anonymous';
 
   try {
     // 处理图片上传
@@ -423,7 +482,7 @@ export async function handleAgentChat(
     // 所有用户统一使用 Admin 配置（不再接受前端传递的 modelKey/provider）
     const adminConfig = await getAdminModelConfig();
     const modelKey = adminConfig.model_key || getDefaultTextModel();
-    const provider = (providerOverride || 'deer') as ProviderType;
+    const provider = (providerOverride || 'openrouter') as ProviderType;
 
     // === 流程状态机 ===
     const pendingNode = session.pendingNode;
@@ -433,7 +492,7 @@ export async function handleAgentChat(
       const node = getBusinessNode(pendingNode.nodeType);
       if (!node) {
         session.pendingNode = undefined;
-        await handleGeneralChat(res, session, message, modelKey, provider);
+        await handleGeneralChat(res, session, message, modelKey, provider, userId);
         return;
       }
 
@@ -601,8 +660,48 @@ export async function handleAgentChat(
       }
     }
 
+    // === Smartflow 复杂意图检测 ===
+    const smartflowTrigger = await smartflowIntentDetector.detect(message, {
+      conversationHistory: session.messages,
+      businessNode: intentResult.businessNode,
+    });
+
+    if (smartflowTrigger) {
+      // 复杂意图 → 触发 Smartflow
+      try {
+        const sfResult = await smartflowEngine.execute(smartflowTrigger.smartflow_id, {
+          smartflow_id: smartflowTrigger.smartflow_id,
+          user_id: userId,
+          conversation_id: session.id,
+          input_data: smartflowTrigger.input_data,
+        });
+
+        if (sfResult.success) {
+          const outputText = JSON.stringify(sfResult.execution.output_data || {}, null, 2);
+          emit(res, {
+            type: 'text',
+            content: `Smartflow 执行完成:\n${outputText}`,
+          });
+        } else {
+          emit(res, {
+            type: 'error',
+            error: sfResult.error || 'Smartflow 执行失败',
+          });
+        }
+      } catch (sfErr) {
+        console.error('[AgentChat] Smartflow execution failed:', sfErr);
+        emit(res, {
+          type: 'error',
+          error: `Smartflow 执行错误: ${sfErr instanceof Error ? sfErr.message : String(sfErr)}`,
+        });
+      }
+      emit(res, { type: 'done' });
+      res.end();
+      return;
+    }
+
     // === 通用问答 ===
-    await handleGeneralChat(res, session, message, modelKey, provider);
+    await handleGeneralChat(res, session, message, modelKey, provider, userId);
 
   } catch (error) {
     console.error('[AgentChat] 处理消息失败:', error);
@@ -622,7 +721,8 @@ async function handleGeneralChat(
   session: SessionContext,
   message: string,
   modelKey: string,
-  provider: ProviderType
+  provider: ProviderType,
+  userId: string
 ): Promise<void> {
   const { getSystemPromptForIntent } = await import('./intent-detector');
   const intentResult = detectIntent(message);
@@ -630,12 +730,38 @@ async function handleGeneralChat(
 
   addMessageToSession(session, 'user', message);
 
-  const combinedPrompt = buildChatPrompt(session, message, systemPrompt);
+  // === Memory Recall ===
+  let memoryContext = '';
+  try {
+    const memories = await memoryService.recall({
+      user_id: userId,
+      query: message,
+      limit: 3,
+      threshold: 0.6,
+    });
+    if (memories.length > 0) {
+      const memoryText = memories
+        .map((m) => `[相关记忆] ${m.content}`)
+        .join('\n');
+      memoryContext = `\n${memoryText}\n`;
+    }
+  } catch (err) {
+    console.warn('[AgentChat] Memory recall failed:', err);
+  }
+
+  const combinedPrompt = buildChatPrompt(session, message, systemPrompt) + memoryContext;
+
+  // === Context Window 截断 ===
+  const modelRow = findEnabledModel({ modelKey, scope: 'text', provider });
+  const contextWindow = modelRow ? getModelContextWindow(modelRow) : null;
+  const promptToSend = (contextWindow && combinedPrompt.length > contextWindow)
+    ? `...[截断 ${combinedPrompt.length - contextWindow} 字符]...\n\n` + combinedPrompt.slice(combinedPrompt.length - contextWindow)
+    : combinedPrompt;
 
   const result = await runByModelKey(
     'text',
     modelKey,
-    { prompt: combinedPrompt, outputFormat: 'stream' },
+    { prompt: promptToSend, outputFormat: 'stream' },
     { providerOverride: provider }
   ) as { stream?: AsyncIterable<any>; streamString?: AsyncIterable<string> };
 
@@ -660,8 +786,50 @@ async function handleGeneralChat(
     addMessageToSession(session, 'assistant', assistantMessage);
   }
 
+  // === Memory Store ===
+  try {
+    const { shouldStore } = memoryService.shouldStoreConversation(
+      session.messages.slice(-10),
+      assistantMessage
+    );
+    if (shouldStore) {
+      const summary = await memorySummarizer.summarizeConversation(session.messages.slice(-10));
+      await memoryService.storeSummary(userId, summary, session.id);
+    }
+  } catch (err) {
+    console.warn('[AgentChat] Memory store failed:', err);
+  }
+
   emit(res, { type: 'done' });
   res.end();
+}
+
+/**
+ * 重置会话并存储记忆
+ * 将当前会话历史摘要后存入记忆系统，然后清空会话历史
+ */
+export async function resetSessionAndStoreMemory(
+  sessionId: string,
+  userId: string
+): Promise<{ success: boolean; message: string }> {
+  const session = sessions.get(sessionId);
+  if (!session) {
+    return { success: false, message: 'Session not found' };
+  }
+
+  if (session.messages.length === 0) {
+    return { success: true, message: 'No messages to summarize' };
+  }
+
+  try {
+    const summary = await memorySummarizer.summarizeConversation(session.messages);
+    await memoryService.storeSummary(userId, summary, session.id);
+    session.messages = [];
+    return { success: true, message: 'Session summarized and stored to memory' };
+  } catch (err) {
+    console.warn('[AgentChat] resetSessionAndStoreMemory failed:', err);
+    return { success: false, message: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 /**

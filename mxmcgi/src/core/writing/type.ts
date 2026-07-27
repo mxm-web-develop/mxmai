@@ -12,7 +12,8 @@ export type WritingType =
   | 'storyboard-scripts'
   | 'reviews'
   | 'resumes'
-  | 'voice-scripts';
+  | 'voice-scripts'
+  | 'business';
 
 /** 大纲要用于生成的内容类型，与 WritingType 支持大纲的子集对齐 */
 export type OutlineApplyTo = Extract<
@@ -243,10 +244,8 @@ export interface OutlineParams {
   process_style?: 'silent' | 'strict' | 'explain';
   /** 参演角色人数（可选，仅用于非学术论文类型） */
   cast_character_count?: number;
-  /** 参演角色列表（可选，角色ID数组，仅用于非学术论文类型） */
-  cast_character_ids?: string[];
-  /** 输出语言：'zh' 中文 | 'en' 英文，默认 'zh'；影响大纲/写作生成内容的语言 */
-  language?: 'zh' | 'en';
+  /** 输出语言：zh | zh-TW | en | ja，默认 zh；影响大纲/写作生成内容的语言 */
+  language?: import('@mxmai/mxmdata').AppLocale | 'zh' | 'en';
   /**
    * 由 Task v2 / Admin 配置写入：用于大纲的模型路由（logicalModel）。
    * 建议形如 `outline-<taskKey>`。
@@ -293,9 +292,13 @@ export interface WritingGenerateParams {
    * - 'auto': 自动选择，大纲节点 < 5 个用 sequential，>= 5 个用 parallel
    */
   generation_mode?: 'parallel' | 'sequential' | 'auto';
+  /** LLM 调用参数（temperature / maxTokens / topP），通常从 extra.generateParams 传入 */
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
   metadata?: Record<string, any>;
-  /** 输出语言：'zh' 中文 | 'en' 英文，默认 'zh'；影响生成内容的语言 */
-  language?: 'zh' | 'en';
+  /** 输出语言：zh | zh-TW | en | ja，默认 zh；影响生成内容的语言 */
+  language?: import('@mxmai/mxmdata').AppLocale | 'zh' | 'en';
   /** 全局知识库配置（如果大纲节点没有配置，则使用全局配置） */
   knowledgeBase?: {
     knowledgeBaseId: string;
@@ -360,10 +363,11 @@ export interface WritingGenerateParams {
    * - 'fast': 快节奏（停顿短、频率高、文字多）
    */
   voice_script_rhythm?: string;
-  /** 角色ID列表（优先使用，从Character模块获取）
-   * 如果指定了characterIds，将忽略metadata.characters
+  /**
+   * 由 Task v2 / Admin 配置写入：用于写作的模型路由（物理模型 key）。
+   * 未提供时使用历史逻辑（selectModelWithRouting 兜底）。
    */
-  characterIds?: string[];
+  logicalModel?: string;
 }
 
 //POST /api/v1/writing/sync-to-task

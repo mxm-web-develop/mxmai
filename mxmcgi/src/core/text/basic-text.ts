@@ -1,7 +1,8 @@
 import type { ProviderType, GenerateParams, GenerateResult } from '../providers/types';
-import { getResolvedRouting } from '../providers/model-routing';
+import { resolveWritingModel } from '../writing/writing-model-routing';
 import { runByModelKey } from '../../models/run';
 import { UsageService } from '../usage/usage-service';
+import { resolveUsageContextFromTaskMetadata } from '../../statistics/usage-context';
 
 export interface RunBasicTextOptions {
   userId?: string;
@@ -45,10 +46,14 @@ export async function runBasicText(
 ): Promise<RunBasicTextResult> {
   const { userId, parentTaskId, flowId, flowStepId, providerOverride, llmParams } = options;
 
-  // 1. 解析路由：logicalModel -> { provider, physicalModel }
-  const resolved = getResolvedRouting(logicalModel, providerOverride);
-  const provider = resolved.provider as ProviderType;
-  const physicalModelKey = resolved.model;
+  // 1. V2动态路由：解析 logicalModel（格式：writing-{taskKey}）-> { provider, physicalModel }
+  // 例如：writing-basic-text -> taskKey=basic-text
+  const taskKey = logicalModel.startsWith('writing-')
+    ? logicalModel.slice('writing-'.length)
+    : logicalModel;
+  const resolved = await resolveWritingModel(taskKey, 'default');
+  const provider = (providerOverride ?? resolved.provider) as ProviderType;
+  const physicalModelKey = resolved.modelName;
 
   // 2. 调用文本模型（writing scope）
   const params: GenerateParams = {
@@ -77,6 +82,20 @@ export async function runBasicText(
 
   result.metadata = metadata;
 
+  let usageContext = parentTaskId ? { parentTaskId } : undefined;
+  if (parentTaskId) {
+    try {
+      const { taskExecutor } = await import('../../task/task-executor');
+      const snap = await taskExecutor.getTaskManager().getTask(parentTaskId, true);
+      usageContext = {
+        ...resolveUsageContextFromTaskMetadata(snap?.task?.metadata as Record<string, unknown>),
+        parentTaskId,
+      };
+    } catch {
+      // keep parentTaskId only
+    }
+  }
+
   // 4. 记录 Provider usage + 扣减 Provider 余额
   const { costUsd } = await UsageService.logProviderUsage({
     taskId: parentTaskId,
@@ -84,6 +103,7 @@ export async function runBasicText(
     logicalModel,
     result,
     providerOverride: provider,
+    usageContext,
   });
 
   // 5. 尽可能稳定地抽取文本内容

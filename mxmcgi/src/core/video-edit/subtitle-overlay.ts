@@ -4,7 +4,7 @@
  *
  * 设计原则（参考 YouTube 自动字幕 / B 站知识区 / Netflix 纪录片）：
  * - 单条字幕最长 18 个汉字的"舒适阅读宽度"，>14 字强制按词拆成 2 行
- * - 字号 48px @ 1080p，移动端可读、不抢占注意力
+ * - 字号 56px @ 1080p，移动端可读、不抢占注意力
  * - 默认仅在章节画面文字为零时显示（与 textClips 互斥）
  * - 半透明黑底 0.62 + 圆角 8px，避免硬切
  */
@@ -56,19 +56,19 @@ function wrapSubtitleTwoLines(raw: string): string {
   return text.slice(0, cut).trimEnd() + '\n' + text.slice(cut + 1).trimStart();
 }
 
-/** OpenReel DEFAULT_SUBTITLE_STYLE 语义，字号按 1080p 可读性略放大 */
+/** OpenReel DEFAULT_SUBTITLE_STYLE 语义，字号按 1080p 可读性放大 */
 function subtitleTextStyle(editStyle?: string) {
   const dark =
     editStyle === 'science-minimal' ||
     editStyle === 'documentary' ||
     editStyle === 'motion-infographic';
   return {
-    fontFamily: 'Inter, "PingFang SC", "Microsoft YaHei", sans-serif',
-    fontSize: editStyle === 'classroom' ? 56 : 48,
+    fontFamily: '"PingFang SC", "Noto Sans SC", "Microsoft YaHei", Inter, sans-serif',
+    fontSize: editStyle === 'classroom' ? 64 : 56,
     fontWeight: 700 as const,
     fontStyle: 'normal' as const,
     color: '#ffffff',
-    backgroundColor: dark ? 'rgba(0, 0, 0, 0.72)' : 'rgba(0, 0, 0, 0.62)',
+    backgroundColor: dark ? 'rgba(0, 0, 0, 0.78)' : 'rgba(15, 23, 42, 0.72)',
     /** 圆角矩形背景 ffmpeg drawtext 用 box=1 + line_spacing 0 即可；
      * 这里仅记录品牌设计，实际烧录由 overlay-compositor 渲染（processShotListOpenReel） */
     textAlign: 'center' as const,

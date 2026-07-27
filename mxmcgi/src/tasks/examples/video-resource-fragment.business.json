@@ -1,0 +1,381 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-06-15T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "video",
+      "type": "generator",
+      "subtype": "fragment",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "生成",
+          "subtypeLabel": "UP主素材片段",
+          "routeHint": "Admin：provider=atlascloud，upstream_model=bytedance/seedance-2.0；自动剪辑 ai-video-gen 经 dispatcher 传 source=video-edit-pipeline + broll 参数",
+          "taskLabelI18n": {
+            "zh": "生成",
+            "zh-TW": "產生"
+          },
+          "subtypeLabelI18n": {
+            "zh": "UP主素材片段",
+            "zh-TW": "UP主素材圖片段"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "x-video-reference-optional": true,
+            "required": [
+              "uid"
+            ],
+            "properties": {
+              "source": {
+                "type": "string",
+                "title": "调用来源",
+                "enum": [
+                  "standalone",
+                  "video-edit-pipeline"
+                ],
+                "x-enum-labels": [
+                  "UP 主独立提交",
+                  "自动剪辑管线（内部）"
+                ],
+                "default": "standalone",
+                "x-user-visible": false
+              },
+              "fragment_role": {
+                "type": "string",
+                "title": "片段用途",
+                "description": "决定镜头节奏、构图重心与是否预留后期合成安全区。自动剪辑默认 broll。",
+                "x-ui-type": "selection",
+                "enum": [
+                  "broll",
+                  "opening",
+                  "outro",
+                  "transition",
+                  "bumper",
+                  "overlay"
+                ],
+                "x-enum-labels": [
+                  "时间轴 B-roll · 配合口播的可视化镜头",
+                  "开场动画 · 片头钩子",
+                  "片尾动画 · 关注/订阅引导",
+                  "转场过渡 · 章节/场景切换",
+                  "频道 bumper · 短标识闪屏",
+                  "画面穿插 · 强调/划重点"
+                ],
+                "default": "broll",
+                "x-user-visible": true
+              },
+              "platform_preset": {
+                "type": "string",
+                "title": "发布平台 / 画幅",
+                "description": "选择目标平台常用画幅，便于直接拖进时间线。",
+                "x-ui-type": "selection",
+                "enum": [
+                  "douyin_9_16",
+                  "bilibili_16_9",
+                  "youtube_shorts_9_16",
+                  "wechat_channels_9_16",
+                  "square_1_1"
+                ],
+                "x-enum-labels": [
+                  "9:16 竖屏 · 抖音 / 快手 / 小红书",
+                  "16:9 横屏 · B站 / YouTube 横版",
+                  "9:16 竖屏 · YouTube Shorts",
+                  "9:16 竖屏 · 微信视频号",
+                  "1:1 方形 · 信息流 / 封面动效"
+                ],
+                "default": "bilibili_16_9",
+                "x-user-visible": true
+              },
+              "ratio": {
+                "type": "string",
+                "title": "画幅比例（内部）",
+                "enum": [
+                  "9:16",
+                  "16:9",
+                  "1:1"
+                ],
+                "default": "16:9",
+                "x-user-visible": false
+              },
+              "channel_name": {
+                "type": "string",
+                "title": "频道 / UP 名（可选）",
+                "description": "用于片头片尾品牌字与角标气质，不写则仅按创意描述生成。",
+                "maxLength": 40,
+                "x-user-visible": true
+              },
+              "global_topic": {
+                "type": "string",
+                "title": "全片主题（自动剪辑）",
+                "description": "口播自动剪辑时由管线注入 global_topic，约束 B-roll 与主题一致。",
+                "maxLength": 120,
+                "x-user-visible": false
+              },
+              "voiceover_context": {
+                "type": "string",
+                "title": "本段口播语义（自动剪辑）",
+                "description": "供模型理解本段旁白，禁止把原文烧录成画面字幕。",
+                "maxLength": 500,
+                "x-user-visible": false
+              },
+              "edit_style": {
+                "type": "string",
+                "title": "自动剪辑画面风格",
+                "description": "science-minimal / documentary / motion-infographic / classroom",
+                "x-user-visible": false
+              },
+              "clip_id": {
+                "type": "string",
+                "title": "时间轴 clip ID",
+                "x-user-visible": false
+              },
+              "atlas_video_mode": {
+                "type": "string",
+                "title": "Seedance 子接口",
+                "enum": [
+                  "text-to-video",
+                  "image-to-video",
+                  "reference-to-video"
+                ],
+                "default": "text-to-video",
+                "x-user-visible": false
+              },
+              "generate_audio": {
+                "type": "boolean",
+                "title": "生成原生音轨",
+                "default": false,
+                "x-user-visible": false
+              },
+              "reference_images": {
+                "type": "array",
+                "title": "参考图（可选）",
+                "description": "Logo、角色立绘、上一镜截图等。单张走图生视频，多张走多参考；不上传则纯文生视频。",
+                "x-ui-type": "referenceImages",
+                "minItems": 0,
+                "maxItems": 4,
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "title": "图片 URL / Base64"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "content",
+                        "type"
+                      ],
+                      "properties": {
+                        "content": {
+                          "type": "string",
+                          "title": "图片 URL / Base64"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "main-subject",
+                            "style",
+                            "logo",
+                            "character"
+                          ],
+                          "default": "main-subject"
+                        },
+                        "purpose": {
+                          "type": "string",
+                          "title": "用途说明（可选）",
+                          "description": "如「频道 Logo」「虚拟形象」「上一段画面色调参考」"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "x-user-visible": true
+              },
+              "visual_style": {
+                "type": "string",
+                "title": "视觉风格",
+                "x-ui-type": "selection",
+                "enum": [
+                  "motion_graphics",
+                  "cinematic",
+                  "neon_cyber",
+                  "minimal_clean",
+                  "retro_vhs",
+                  "anime_pop",
+                  "3d_clay"
+                ],
+                "x-enum-labels": [
+                  "MG 动效 · 图形化片头片尾",
+                  "电影感 · 慢镜与景深",
+                  "霓虹赛博 · 高对比光效",
+                  "极简留白 · 知识区 UP",
+                  "复古 VHS · 怀旧颗粒",
+                  "二次元流行 · 角色向",
+                  "3D 黏土 · 可爱质感"
+                ],
+                "default": "motion_graphics",
+                "x-user-visible": true
+              },
+              "motion_intensity": {
+                "type": "string",
+                "title": "运动强度",
+                "x-ui-type": "selection",
+                "enum": [
+                  "subtle",
+                  "moderate",
+                  "dynamic"
+                ],
+                "x-enum-labels": [
+                  "克制 · 适合知识/访谈",
+                  "适中 · 常规 vlog",
+                  "动感 · 游戏/整活"
+                ],
+                "default": "moderate",
+                "x-user-visible": true
+              },
+              "background_mode": {
+                "type": "string",
+                "title": "背景 / 合成意图",
+                "description": "提示模型留出后期抠像或叠化空间（Seedance 输出仍为 MP4，无真透明通道）。",
+                "x-ui-type": "selection",
+                "enum": [
+                  "dark_clean",
+                  "light_clean",
+                  "gradient_brand",
+                  "blur_extend",
+                  "full_scene"
+                ],
+                "x-enum-labels": [
+                  "深色纯净 · 易叠字",
+                  "浅色纯净 · 知识区",
+                  "品牌渐变 · 片头片尾",
+                  "虚化延展 · 转场友好",
+                  "完整场景 · 穿插小剧场"
+                ],
+                "default": "dark_clean",
+                "x-user-visible": true
+              },
+              "prompt": {
+                "type": "string",
+                "title": "创意描述",
+                "description": "UP 独立提交时可填中文/英文。自动剪辑管线注入英文 mxmPrompt（subject/action/scene/camera）。",
+                "x-ui-type": "textarea",
+                "maxLength": 1200,
+                "default": "",
+                "x-user-visible": true
+              },
+              "duration": {
+                "type": "integer",
+                "title": "时长（秒）",
+                "description": "UP 素材 2–12 秒；自动剪辑 B-roll 最长 15 秒（与切镜节奏对齐）。",
+                "minimum": 2,
+                "maximum": 15,
+                "default": 4,
+                "x-user-visible": true
+              },
+              "resolution": {
+                "type": "string",
+                "title": "分辨率",
+                "enum": [
+                  "480p",
+                  "720p",
+                  "1080p"
+                ],
+                "default": "720p",
+                "x-user-visible": true
+              },
+              "total_duration_seconds": {
+                "type": "integer",
+                "title": "计费时长（秒）",
+                "minimum": 1,
+                "default": 4,
+                "x-user-visible": false
+              },
+              "parallel_count": {
+                "type": "integer",
+                "title": "生成份数",
+                "minimum": 1,
+                "maximum": 9,
+                "default": 1,
+                "x-user-visible": true
+              },
+              "label": {
+                "type": "string",
+                "title": "任务名称",
+                "x-user-visible": true
+              },
+              "uid": {
+                "type": "string",
+                "title": "任务 UID",
+                "x-user-visible": false
+              }
+            }
+          },
+          "uiSchema": {
+            "reference_images": {
+              "ui:options": {
+                "maxFiles": 4
+              }
+            },
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 5
+              }
+            },
+            "channel_name": {
+              "ui:options": {
+                "placeholder": "例：某某实验室、游戏解说君"
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【视频素材片段 · Seedance 2.0 · source=${source}】\n\n你是短视频剪辑师兼动效导演。产出**可直插时间线**的短 MP4（${duration}s，${ratio}，${resolution}），供后期与口播/正片合成——不是长叙事正片。\n\n═══════════════════════════════════════\nA. 自动剪辑管线（source=video-edit-pipeline 时优先）\n═══════════════════════════════════════\n- 全片主题（硬约束）：${global_topic}\n- 本段口播语义（理解用，**禁止**把原文烧录成画面字幕/大字）：${voiceover_context}\n- 自动剪辑风格 edit_style=${edit_style} → visual=${visual_style}，motion=${motion_intensity}，bg=${background_mode}\n- 片段用途 fragment_role=${fragment_role}（broll=配合旁白的可视化 B-roll，须服务 global_topic）\n- clip_id=${clip_id}；Seedance 模式 atlas_video_mode=${atlas_video_mode}\n\n**英文 Seedance 主 prompt（须完整执行，勿删改主体/运镜/negative）：**\n${prompt}\n\nB-roll 硬性要求：\n1. 画面语义与 voiceover_context 一致，但用可视化场景/动作表达，不复读口播。\n2. 与 global_topic 强相关，禁止无关风景、抽象粒子、随机 celebrity。\n3. 无屏幕大段文字；科普/知识类用场景、实验、产品、人物动作表达。\n4. 首尾帧简洁，便于与时间轴前后 clip 硬切或叠化。\n5. generate_audio=${generate_audio}；默认 false，由正片口播轨主导。\n\n═══════════════════════════════════════\nB. UP 主独立提交（source=standalone）\n═══════════════════════════════════════\n- 片段用途：${fragment_role}\n- 平台 / 画幅：${platform_preset}（ratio=${ratio}）\n- 频道名：${channel_name}\n- 视觉 ${visual_style}；运动 ${motion_intensity}；背景 ${background_mode}\n- 用户创意：${prompt}\n\n片段要点：opening 片头气质；outro 关注引导+安全区；transition 1–3s 转场；bumper 短标识；overlay 划重点；**broll** 配合正片的可视化镜头。\n\n═══════════════════════════════════════\n通用 · 参考图 / 画幅 / 禁止项\n═══════════════════════════════════════\n- 有 reference_images：身份/配色/关键图形守恒；禁止换脸改款。\n- 竖屏 9:16 避开底部 15%；横屏 16:9 右下预留进度条区。\n- 禁止：平台假 Logo、水印、二维码、无关 celebrity、超长多场景叙事。\n\n【输出】${duration}s ${ratio} ${resolution} MP4；匹配 fragment_role=${fragment_role}；风格 ${visual_style}。"
+          },
+          "storage": {
+            "scope": "video",
+            "extension": "mp4",
+            "mime": "video/mp4",
+            "bucket": "user-media",
+            "pathTemplate": "{userId}/video/{timestamp}-{randomId}/",
+            "filenameTemplate": "up_fragment_{taskId}_{randomId}.mp4"
+          }
+        }
+      },
+      "linkedTextFormat": null,
+      "routing": {
+        "logical_model": "video-generator-fragment",
+        "provider": "atlascloud",
+        "model": "bytedance/seedance-2.0",
+        "enabled": true,
+        "sensitive_word_lists": [],
+        "margin": 0.2,
+        "charge_metric": "per_second_video",
+        "price_in_tokens": 0,
+        "min_charge_tokens": 0
+      },
+      "businessPricing": [
+        {
+          "business_type": "video-generator-fragment",
+          "charge_metric": "per_second_video",
+          "price_in_tokens": 0,
+          "min_charge_tokens": 0,
+          "provider": "atlascloud",
+          "model_key": "bytedance/seedance-2.0",
+          "subtype": "fragment",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ]
+    }
+  ]
+}

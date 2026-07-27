@@ -19,7 +19,7 @@ dotenv.config();
 import { RepositoryFactory } from '../factories/RepositoryFactory';
 import type { CreatePromptTemplateDto } from '../models/PromptTemplate';
 
-// 内置模板定义（从 mxmagent 的内置模板复制）
+// 内置模板定义（Smartflow 模板，原 mxmagent 已并入 mxmcgi）
 const BUILTIN_TEMPLATES: CreatePromptTemplateDto[] = [
   {
     id: 'nano-banana-photo-prompt',

@@ -1,3 +1,7 @@
+import { loadMonorepoEnv } from '@mxmai/mxmdata';
+
+loadMonorepoEnv({ service: 'mxmpay', warnLegacy: false });
+
 function parseJSONSafe<T>(raw: string | undefined, fallback: T): T {
   if (!raw) return fallback;
   try {
@@ -8,7 +12,7 @@ function parseJSONSafe<T>(raw: string | undefined, fallback: T): T {
 }
 
 export const env = {
-  port: Number(process.env.PORT ?? 4002),
+  port: Number(process.env.MXMPAY_PORT || process.env.PORT || 4002),
   payment: {
     expireMinutes: Number(process.env.PAYMENT_EXPIRE_MINUTES || 15),
   },

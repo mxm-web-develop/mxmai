@@ -75,7 +75,20 @@ export interface MxmClipMetadata {
   mxmVideoSubtype?: string;
   /** Atlas Seedance 2.0 三子接口：text-to-video / image-to-video / reference-to-video */
   mxmVideoMode?: "text-to-video" | "image-to-video" | "reference-to-video";
-  /** 视频生成 prompt（英文） */
+  /**
+   * Seedance 等生视频专用英文 prompt（运镜/场景/动作）。
+   * 与 mxmImagePrompt 分开，勿混写配图锚点文案。
+   */
+  mxmVideoPrompt?: string;
+  /**
+   * gpt-image-2 / nano-banana 等生图专用「核心展示内容」→ graph core_content。
+   * 勿写 Seedance 运镜句。
+   */
+  mxmImagePrompt?: string;
+  /**
+   * @deprecated 旧分镜共用字段；新产出请用 mxmVideoPrompt / mxmImagePrompt。
+   * 读取时：video ← mxmVideoPrompt ?? mxmPrompt；image ← mxmImagePrompt ?? mxmPrompt。
+   */
   mxmPrompt?: string;
   /** 视频时长（秒） */
   mxmDuration?: number;
@@ -129,6 +142,12 @@ export interface MxmClipMetadata {
   mxmSourceImageUrl?: string;
   /** 虚拟文件夹 storage objectId（可选，审核 UI 写入） */
   mxmSourceAssetId?: string;
+  /** 库存素材原始外链（转存 MinIO 前），便于排查 */
+  mxmStockUpstreamUrl?: string;
+  /** 库存素材提供方（openverse / pexels 等） */
+  mxmStockProvider?: string;
+  /** 库存素材署名 */
+  mxmStockAttribution?: string;
   /** 静态图在画面中的适配方式（对应 CSS object-fit / ffmpeg scale+pad+crop），默认 cover */
   mxmImageFit?: "cover" | "contain" | "fill" | "none";
   /** 是否启用静态图 Ken Burns 动效（默认 true，用户可关闭） */
@@ -141,7 +160,7 @@ export interface MxmClipMetadata {
   mxmAutoStockImage?: boolean;
   /** 无手动插图时自动从视频素材库配视频（默认 false；开启时优先于配图） */
   mxmAutoStockVideo?: boolean;
-  /** 自动配图/配视频的检索词（默认可从 mxmPrompt / 字幕推导） */
+  /** 自动配图/配视频的检索词（优先本字段；勿用视频/生图长 prompt） */
   mxmStockSearchQuery?: string;
   /** 本段英文关键词（含核心实体/专名），供检索归一化与结果相关性重排 */
   mxmStockKeywords?: string[];
@@ -211,7 +230,7 @@ export interface VideoEditRenderOptions {
   concatOnly?: boolean;
   /** 烧录 project.textClips 文字叠加（成片精修阶段） */
   applyOverlays?: boolean;
-  /** 烧录 timeline.subtitles 口播字幕（分镜首次渲染默认 true） */
+  /** 烧录 timeline.subtitles 口播字幕。成片审核前建议 false（审核页用 HTML 字幕）；最终导出 true */
   applySubtitleBurn?: boolean;
   /** 拼接时使用 track.transitions xfade（成片精修阶段） */
   applyTransitions?: boolean;

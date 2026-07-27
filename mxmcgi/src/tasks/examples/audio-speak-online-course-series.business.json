@@ -8,19 +8,35 @@
       "type": "transform",
       "subtype": "course-glossary-extract",
       "is_active": true,
-      "rules_i18n": { "zh": "", "en": "" },
-      "output_format_i18n": { "zh": "", "en": "" },
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
       "form_options_i18n": null,
       "extra": {
         "display": {
           "taskLabel": "转换 · 课程术语表抽取",
-          "subtypeLabel": "从原文抽取专有名词并附口语化释义；可挂载为 audio/speak/online-course-series 管线第一步 nestedText"
+          "subtypeLabel": "从原文抽取专有名词并附口语化释义；可挂载为 audio/speak/online-course-series 管线第一步 nestedText",
+          "taskLabelI18n": {
+            "zh": "转换 · 课程术语表抽取",
+            "zh-TW": "轉換 · 课程术語表抽取"
+          },
+          "subtypeLabelI18n": {
+            "zh": "从原文抽取专有名词并附口语化释义；可挂载为 audio/speak/online-course-series 管线第一步 nestedText",
+            "zh-TW": "從原文抽取专有名敏感詞並附口語化释义；可挂解除安裝為 audio/speak/online-course-series 管線第一下一步 nestedText"
+          }
         },
         "taskTemplate": {
           "formSchema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "required": ["source_material"],
+            "required": [
+              "source_material"
+            ],
             "properties": {
               "source_material": {
                 "type": "string",
@@ -33,8 +49,14 @@
                 "type": "string",
                 "title": "课程语言",
                 "x-ui-type": "selection",
-                "enum": ["zh", "en"],
-                "x-enum-labels": ["中文", "English"],
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "x-enum-labels": [
+                  "中文",
+                  "English"
+                ],
                 "default": "zh"
               }
             }
@@ -66,7 +88,10 @@
           "provider": "maxplan",
           "model_key": "MiniMax-M3",
           "subtype": "course-glossary-extract",
-          "metadata": { "margin": 0.2, "coursePipelineStage": "glossary" }
+          "metadata": {
+            "margin": 0.2,
+            "coursePipelineStage": "glossary"
+          }
         }
       ],
       "linkedTextFormat": null
@@ -76,19 +101,36 @@
       "type": "transform",
       "subtype": "course-outline-from-doc",
       "is_active": true,
-      "rules_i18n": { "zh": "", "en": "" },
-      "output_format_i18n": { "zh": "", "en": "" },
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
       "form_options_i18n": null,
       "extra": {
         "display": {
           "taskLabel": "转换 · 课程大纲生成",
-          "subtypeLabel": "从原文抽取 5-8 节课程结构，输出 JSON；可挂载为 audio/speak/online-course-series 管线第二步 nestedText"
+          "subtypeLabel": "从原文抽取 5-8 节课程结构，输出 JSON；可挂载为 audio/speak/online-course-series 管线第二步 nestedText",
+          "taskLabelI18n": {
+            "zh": "转换 · 课程大纲生成",
+            "zh-TW": "轉換 · 课程大綱產生"
+          },
+          "subtypeLabelI18n": {
+            "zh": "从原文抽取 5-8 节课程结构，输出 JSON；可挂载为 audio/speak/online-course-series 管线第二步 nestedText",
+            "zh-TW": "從原文抽取 5-8 节课程結構，輸登出 JSON；可挂解除安裝為 audio/speak/online-course-series 管線第二下一步 nestedText"
+          }
         },
         "taskTemplate": {
           "formSchema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "required": ["course_title", "source_material"],
+            "required": [
+              "course_title",
+              "source_material"
+            ],
             "properties": {
               "course_title": {
                 "type": "string",
@@ -112,8 +154,22 @@
                 "type": "string",
                 "title": "目标受众",
                 "x-ui-type": "selection",
-                "enum": ["general", "tech", "finance_biz", "academic", "kids", "senior"],
-                "x-enum-labels": ["通用大众", "技术从业者", "金融/商业人士", "学术研究", "青少年儿童", "老年群体"],
+                "enum": [
+                  "general",
+                  "tech",
+                  "finance_biz",
+                  "academic",
+                  "kids",
+                  "senior"
+                ],
+                "x-enum-labels": [
+                  "通用大众",
+                  "技术从业者",
+                  "金融/商业人士",
+                  "学术研究",
+                  "青少年儿童",
+                  "老年群体"
+                ],
                 "default": "general",
                 "description": "影响术语密度、类比风格、节奏；kids 类偏慢、多类比；academic 类偏快、术语原貌"
               },
@@ -127,16 +183,36 @@
                 "type": "string",
                 "title": "课程语气基调",
                 "x-ui-type": "selection",
-                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
-                "x-enum-labels": ["沉稳理性", "评论思辨", "故事叙事", "教练拆解", "轻松活泼", "激情澎湃"],
+                "enum": [
+                  "steady",
+                  "editorial",
+                  "narrative",
+                  "explanatory",
+                  "lively",
+                  "passionate"
+                ],
+                "x-enum-labels": [
+                  "沉稳理性",
+                  "评论思辨",
+                  "故事叙事",
+                  "教练拆解",
+                  "轻松活泼",
+                  "激情澎湃"
+                ],
                 "default": "explanatory"
               },
               "language": {
                 "type": "string",
                 "title": "课程语言",
                 "x-ui-type": "selection",
-                "enum": ["zh", "en"],
-                "x-enum-labels": ["中文", "English"],
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "x-enum-labels": [
+                  "中文",
+                  "English"
+                ],
                 "default": "zh"
               },
               "episode_target_minutes": {
@@ -194,7 +270,10 @@
           "provider": "maxplan",
           "model_key": "MiniMax-M3",
           "subtype": "course-outline-from-doc",
-          "metadata": { "margin": 0.2, "coursePipelineStage": "outline" }
+          "metadata": {
+            "margin": 0.2,
+            "coursePipelineStage": "outline"
+          }
         }
       ],
       "linkedTextFormat": null
@@ -204,19 +283,35 @@
       "type": "transform",
       "subtype": "course-lecture-script-draft",
       "is_active": true,
-      "rules_i18n": { "zh": "", "en": "" },
-      "output_format_i18n": { "zh": "", "en": "" },
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
       "form_options_i18n": null,
       "extra": {
         "display": {
           "taskLabel": "转换 · 课程讲稿撰写",
-          "subtypeLabel": "基于大纲节展开口播讲稿（含 hook·概念·案例·小结）；可挂载为 audio/speak/online-course-series 管线第四步 nestedText"
+          "subtypeLabel": "基于大纲节展开口播讲稿（含 hook·概念·案例·小结）；可挂载为 audio/speak/online-course-series 管线第四步 nestedText",
+          "taskLabelI18n": {
+            "zh": "转换 · 课程讲稿撰写",
+            "zh-TW": "轉換 · 课程讲稿撰寫"
+          },
+          "subtypeLabelI18n": {
+            "zh": "基于大纲节展开口播讲稿（含 hook·概念·案例·小结）；可挂载为 audio/speak/online-course-series 管线第四步 nestedText",
+            "zh-TW": "基關於大綱节展開口播讲稿（含 hook·概念·案例·小結）；可挂解除安裝為 audio/speak/online-course-series 管線第四下一步 nestedText"
+          }
         },
         "taskTemplate": {
           "formSchema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "required": ["episode_outline_json"],
+            "required": [
+              "episode_outline_json"
+            ],
             "properties": {
               "course_title": {
                 "type": "string",
@@ -231,13 +326,27 @@
               "course_tone": {
                 "type": "string",
                 "title": "课程语气基调",
-                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
+                "enum": [
+                  "steady",
+                  "editorial",
+                  "narrative",
+                  "explanatory",
+                  "lively",
+                  "passionate"
+                ],
                 "default": "explanatory"
               },
               "target_audience": {
                 "type": "string",
                 "title": "目标受众",
-                "enum": ["general", "tech", "finance_biz", "academic", "kids", "senior"],
+                "enum": [
+                  "general",
+                  "tech",
+                  "finance_biz",
+                  "academic",
+                  "kids",
+                  "senior"
+                ],
                 "default": "general"
               },
               "course_glossary_json": {
@@ -253,7 +362,10 @@
               "language": {
                 "type": "string",
                 "title": "课程语言",
-                "enum": ["zh", "en"],
+                "enum": [
+                  "zh",
+                  "en"
+                ],
                 "default": "zh"
               }
             }
@@ -266,7 +378,9 @@
               "temperature": 0.45,
               "maxTokens": 131072,
               "parameters": {
-                "thinking": { "type": "disabled" },
+                "thinking": {
+                  "type": "disabled"
+                },
                 "max_completion_tokens": 131072
               }
             }
@@ -289,7 +403,10 @@
           "provider": "maxplan",
           "model_key": "MiniMax-M3",
           "subtype": "course-lecture-script-draft",
-          "metadata": { "margin": 0.2, "coursePipelineStage": "lecture_draft" }
+          "metadata": {
+            "margin": 0.2,
+            "coursePipelineStage": "lecture_draft"
+          }
         }
       ],
       "linkedTextFormat": null
@@ -299,19 +416,35 @@
       "type": "transform",
       "subtype": "course-qa-card-gen",
       "is_active": true,
-      "rules_i18n": { "zh": "", "en": "" },
-      "output_format_i18n": { "zh": "", "en": "" },
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
       "form_options_i18n": null,
       "extra": {
         "display": {
           "taskLabel": "转换 · 课程问答题生成",
-          "subtypeLabel": "基于原文 / 大纲生成 5-10 道课程配套问答题；可选，不进入主流程但可单跑"
+          "subtypeLabel": "基于原文 / 大纲生成 5-10 道课程配套问答题；可选，不进入主流程但可单跑",
+          "taskLabelI18n": {
+            "zh": "转换 · 课程问答题生成",
+            "zh-TW": "轉換 · 课程問答題產生"
+          },
+          "subtypeLabelI18n": {
+            "zh": "基于原文 / 大纲生成 5-10 道课程配套问答题；可选，不进入主流程但可单跑",
+            "zh-TW": "基關於原文 / 大綱產生 5-10 道课程配套問答題；可多選，不進入主流程但可單跑"
+          }
         },
         "taskTemplate": {
           "formSchema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "required": ["source_material"],
+            "required": [
+              "source_material"
+            ],
             "properties": {
               "source_material": {
                 "type": "string",
@@ -323,13 +456,23 @@
               "target_audience": {
                 "type": "string",
                 "title": "目标受众",
-                "enum": ["general", "tech", "finance_biz", "academic", "kids", "senior"],
+                "enum": [
+                  "general",
+                  "tech",
+                  "finance_biz",
+                  "academic",
+                  "kids",
+                  "senior"
+                ],
                 "default": "general"
               },
               "language": {
                 "type": "string",
                 "title": "课程语言",
-                "enum": ["zh", "en"],
+                "enum": [
+                  "zh",
+                  "en"
+                ],
                 "default": "zh"
               }
             }
@@ -361,7 +504,10 @@
           "provider": "maxplan",
           "model_key": "MiniMax-M3",
           "subtype": "course-qa-card-gen",
-          "metadata": { "margin": 0.2, "coursePipelineStage": "qa" }
+          "metadata": {
+            "margin": 0.2,
+            "coursePipelineStage": "qa"
+          }
         }
       ],
       "linkedTextFormat": null
@@ -371,19 +517,36 @@
       "type": "transform",
       "subtype": "course-lecture-tts-markup",
       "is_active": true,
-      "rules_i18n": { "zh": "", "en": "" },
-      "output_format_i18n": { "zh": "", "en": "" },
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
       "form_options_i18n": null,
       "extra": {
         "display": {
           "taskLabel": "转换 · 讲稿 TTS 优化",
-          "subtypeLabel": "为 MiniMax Speech 2.8 插入停顿与节切点；可挂载为 audio/speak/online-course-series 管线第六步 nestedText"
+          "subtypeLabel": "为 MiniMax Speech 2.8 插入停顿与节切点；可挂载为 audio/speak/online-course-series 管线第六步 nestedText",
+          "taskLabelI18n": {
+            "zh": "转换 · 讲稿 TTS 优化",
+            "zh-TW": "轉換 · 讲稿 TTS 优化"
+          },
+          "subtypeLabelI18n": {
+            "zh": "为 MiniMax Speech 2.8 插入停顿与节切点；可挂载为 audio/speak/online-course-series 管线第六步 nestedText",
+            "zh-TW": "為 MiniMax Speech 2.8 插入暫停顿與节切點；可挂解除安裝為 audio/speak/online-course-series 管線第六下一步 nestedText"
+          }
         },
         "taskTemplate": {
           "formSchema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "required": ["script_draft", "voice_id"],
+            "required": [
+              "script_draft",
+              "voice_id"
+            ],
             "properties": {
               "script_draft": {
                 "type": "string",
@@ -398,26 +561,55 @@
               "course_tone": {
                 "type": "string",
                 "title": "课程语气基调",
-                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
+                "enum": [
+                  "steady",
+                  "editorial",
+                  "narrative",
+                  "explanatory",
+                  "lively",
+                  "passionate"
+                ],
                 "default": "explanatory"
               },
               "speech_rhythm": {
                 "type": "string",
                 "title": "口播节奏",
-                "enum": ["none", "fluent", "default", "slow", "recitation"],
-                "x-enum-labels": ["无停顿", "流顺", "默认", "慢节奏", "朗诵"],
+                "enum": [
+                  "none",
+                  "fluent",
+                  "default",
+                  "slow",
+                  "recitation"
+                ],
+                "x-enum-labels": [
+                  "无停顿",
+                  "流顺",
+                  "默认",
+                  "慢节奏",
+                  "朗诵"
+                ],
                 "default": "default"
               },
               "target_audience": {
                 "type": "string",
                 "title": "目标受众",
-                "enum": ["general", "tech", "finance_biz", "academic", "kids", "senior"],
+                "enum": [
+                  "general",
+                  "tech",
+                  "finance_biz",
+                  "academic",
+                  "kids",
+                  "senior"
+                ],
                 "default": "general"
               },
               "language": {
                 "type": "string",
                 "title": "课程语言",
-                "enum": ["zh", "en"],
+                "enum": [
+                  "zh",
+                  "en"
+                ],
                 "default": "zh"
               }
             }
@@ -430,7 +622,9 @@
               "temperature": 0.32,
               "maxTokens": 131072,
               "parameters": {
-                "thinking": { "type": "disabled" },
+                "thinking": {
+                  "type": "disabled"
+                },
                 "max_completion_tokens": 131072
               }
             }
@@ -453,7 +647,10 @@
           "provider": "maxplan",
           "model_key": "MiniMax-M3",
           "subtype": "course-lecture-tts-markup",
-          "metadata": { "margin": 0.2, "coursePipelineStage": "tts_markup" }
+          "metadata": {
+            "margin": 0.2,
+            "coursePipelineStage": "tts_markup"
+          }
         }
       ],
       "linkedTextFormat": null
@@ -463,19 +660,36 @@
       "type": "speak",
       "subtype": "online-course-series",
       "is_active": true,
-      "rules_i18n": { "zh": "", "en": "" },
-      "output_format_i18n": { "zh": "", "en": "" },
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
       "form_options_i18n": null,
       "extra": {
         "display": {
           "taskLabel": "音频 · 网络课程口播",
-          "subtypeLabel": "基于文档/说明书的网络课单期口播（术语表+大纲+讲稿+TTS），适合多期系列"
+          "subtypeLabel": "基于文档/说明书的网络课单期口播（术语表+大纲+讲稿+TTS），适合多期系列",
+          "taskLabelI18n": {
+            "zh": "音频 · 网络课程口播",
+            "zh-TW": "音訊 · 網路课程口播"
+          },
+          "subtypeLabelI18n": {
+            "zh": "基于文档/说明书的网络课单期口播（术语表+大纲+讲稿+TTS），适合多期系列",
+            "zh-TW": "基關於文電子郵件/說說明书的網路课單期口播（术語表+大綱+讲稿+TTS），适合多期系列"
+          }
         },
         "taskTemplate": {
           "formSchema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "required": ["course_title", "source_material"],
+            "required": [
+              "course_title",
+              "source_material"
+            ],
             "properties": {
               "course_title": {
                 "type": "string",
@@ -506,8 +720,22 @@
                 "type": "string",
                 "title": "目标受众",
                 "x-ui-type": "selection",
-                "enum": ["general", "tech", "finance_biz", "academic", "kids", "senior"],
-                "x-enum-labels": ["通用大众", "技术从业者", "金融/商业人士", "学术研究", "青少年儿童", "老年群体"],
+                "enum": [
+                  "general",
+                  "tech",
+                  "finance_biz",
+                  "academic",
+                  "kids",
+                  "senior"
+                ],
+                "x-enum-labels": [
+                  "通用大众",
+                  "技术从业者",
+                  "金融/商业人士",
+                  "学术研究",
+                  "青少年儿童",
+                  "老年群体"
+                ],
                 "default": "general",
                 "description": "决定术语密度、类比、节奏；kids 偏慢多用类比；senior 句子短"
               },
@@ -521,16 +749,36 @@
                 "type": "string",
                 "title": "课程语气基调",
                 "x-ui-type": "selection",
-                "enum": ["steady", "editorial", "narrative", "explanatory", "lively", "passionate"],
-                "x-enum-labels": ["沉稳理性", "评论思辨", "故事叙事", "教练拆解", "轻松活泼", "激情澎湃"],
+                "enum": [
+                  "steady",
+                  "editorial",
+                  "narrative",
+                  "explanatory",
+                  "lively",
+                  "passionate"
+                ],
+                "x-enum-labels": [
+                  "沉稳理性",
+                  "评论思辨",
+                  "故事叙事",
+                  "教练拆解",
+                  "轻松活泼",
+                  "激情澎湃"
+                ],
                 "default": "explanatory"
               },
               "language": {
                 "type": "string",
                 "title": "课程语言",
                 "x-ui-type": "selection",
-                "enum": ["zh", "en"],
-                "x-enum-labels": ["中文", "English"],
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "x-enum-labels": [
+                  "中文",
+                  "English"
+                ],
                 "default": "zh"
               },
               "episode_target_minutes": {
@@ -569,9 +817,19 @@
                 "x-ui-type": "minimaxVoice",
                 "x-voice-model": "speech-2.8-hd",
                 "properties": {
-                  "mode": { "type": "string", "enum": ["system", "clone"] },
-                  "voice_id": { "type": "string" },
-                  "label": { "type": "string" }
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "system",
+                      "clone"
+                    ]
+                  },
+                  "voice_id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
                 },
                 "default": {
                   "mode": "system",
@@ -584,8 +842,20 @@
                 "title": "口播节奏",
                 "description": "控制断句与 <#秒数#> 停顿密度",
                 "x-ui-type": "selection",
-                "enum": ["none", "fluent", "default", "slow", "recitation"],
-                "x-enum-labels": ["无停顿", "流顺", "默认", "慢节奏", "朗诵"],
+                "enum": [
+                  "none",
+                  "fluent",
+                  "default",
+                  "slow",
+                  "recitation"
+                ],
+                "x-enum-labels": [
+                  "无停顿",
+                  "流顺",
+                  "默认",
+                  "慢节奏",
+                  "朗诵"
+                ],
                 "default": "default"
               },
               "speed": {
@@ -607,8 +877,17 @@
             }
           },
           "uiSchema": {
-            "source_material": { "ui:options": { "rows": 10 } },
-            "supplement": { "ui:widget": "textarea", "ui:options": { "rows": 3 } }
+            "source_material": {
+              "ui:options": {
+                "rows": 10
+              }
+            },
+            "supplement": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 3
+              }
+            }
           },
           "prompt": {
             "unifiedTemplate": "【课程元数据占位 - 由 6 步 pipeline 产出最终 prompt】\n\n课程名：${course_title}\n期数：${episode_index}\n本期主题：${episode_title}\n目标受众：${target_audience}\n语气：${course_tone}\n语言：${language}\n目标时长：${episode_target_minutes} 分钟\n术语表开启：${course_gloss_enabled}\n\n开场主题：${course_topic_blurb}\n源文档：${source_material}\n补充：${supplement}\n\n最终 prompt 由 pre 末段（TTS markup）输出。"
@@ -625,17 +904,29 @@
               {
                 "step": "nestedText",
                 "nestedTextTaskKey": "text/transform/course-glossary-extract",
-                "params": { "afterPromptRender": true, "outputStatePath": "courseGlossaryJson" },
+                "params": {
+                  "afterPromptRender": true,
+                  "outputStatePath": "courseGlossaryJson"
+                },
                 "inputMapping": {
                   "source_material": "${params.source_material}",
                   "language": "${params.language}"
                 },
-                "when": { "all": [{ "field": "params.course_gloss_enabled", "op": "truthy" }] }
+                "when": {
+                  "all": [
+                    {
+                      "field": "params.course_gloss_enabled",
+                      "op": "truthy"
+                    }
+                  ]
+                }
               },
               {
                 "step": "nestedText",
                 "nestedTextTaskKey": "text/transform/course-outline-from-doc",
-                "params": { "afterPromptRender": true },
+                "params": {
+                  "afterPromptRender": true
+                },
                 "inputMapping": {
                   "course_title": "${params.course_title}",
                   "episode_index": "${params.episode_index}",
@@ -658,13 +949,17 @@
                   "hint": "本期 5-8 节课程结构；可增删节、调整 teaching_objectives；确认后进入讲稿撰写。",
                   "kind": "text",
                   "draftFrom": "${state.finalPrompt}",
-                  "applyMapping": { "prompt": "${review.text}" }
+                  "applyMapping": {
+                    "prompt": "${review.text}"
+                  }
                 }
               },
               {
                 "step": "nestedText",
                 "nestedTextTaskKey": "text/transform/course-lecture-script-draft",
-                "params": { "afterPromptRender": true },
+                "params": {
+                  "afterPromptRender": true
+                },
                 "inputMapping": {
                   "course_title": "${params.course_title}",
                   "episode_index": "${params.episode_index}",
@@ -683,13 +978,17 @@
                   "hint": "本期完整逐节讲稿（Markdown，开头 hook + s1…sN 节 + 总结 + 下期预告）；总时长上限 20 分钟。确认后进入 TTS 优化与合成。",
                   "kind": "text",
                   "draftFrom": "${state.finalPrompt}",
-                  "applyMapping": { "prompt": "${review.text}" }
+                  "applyMapping": {
+                    "prompt": "${review.text}"
+                  }
                 }
               },
               {
                 "step": "nestedText",
                 "nestedTextTaskKey": "text/transform/course-lecture-tts-markup",
-                "params": { "afterPromptRender": true },
+                "params": {
+                  "afterPromptRender": true
+                },
                 "inputMapping": {
                   "script_draft": "${state.finalPrompt}",
                   "voice_id": "${params.voice_id}",
@@ -722,7 +1021,10 @@
           "provider": "maxplan",
           "model_key": "speech-2.8-hd",
           "subtype": "online-course-series",
-          "metadata": { "margin": 0.25, "course": true }
+          "metadata": {
+            "margin": 0.25,
+            "course": true
+          }
         }
       ],
       "linkedTextFormat": null

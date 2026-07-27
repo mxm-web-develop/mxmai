@@ -10,6 +10,7 @@ import {
   ValidationError,
   ConnectionError,
   TransactionError,
+  UnauthorizedError,
 } from '@mxmai/mxmdata';
 import { ApiErrorResponse } from './response';
 
@@ -26,7 +27,14 @@ export function errorHandler(
   let errorResponse: ApiErrorResponse;
 
   // 处理已知错误类型
-  if (error instanceof NotFoundError) {
+  if (error instanceof UnauthorizedError) {
+    statusCode = 401;
+    errorResponse = {
+      code: 401,
+      message: error.message,
+      error: 'UNAUTHORIZED',
+    };
+  } else if (error instanceof NotFoundError) {
     statusCode = 404;
     errorResponse = {
       code: 404,

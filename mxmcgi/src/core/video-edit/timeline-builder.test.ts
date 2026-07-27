@@ -111,7 +111,7 @@ describe('timeline-segment-resolvers', () => {
     expect(segs[1]?.endSeconds).toBe(30);
   });
 
-  it('shot-list 解析 mxmRenderMode/mxmPrompt/mxmGsapSceneBrief', () => {
+  it('shot-list 解析 mxmRenderMode/mxmVideoPrompt（兼容旧 mxmPrompt）', () => {
     const segs = resolveTimelineVisualSegments({
       strategy: 'shot-list',
       totalDurationSeconds: 30,
@@ -145,11 +145,42 @@ describe('timeline-segment-resolvers', () => {
     expect(segs).toHaveLength(3);
     expect(segs[0]?.mxmRenderMode).toBe('static-image');
     expect(segs[0]?.mxmGsapSceneBrief).toContain('标题卡');
-    expect(segs[1]?.mxmPrompt).toContain('cocoa beans');
+    expect(segs[1]?.mxmVideoPrompt).toContain('cocoa beans');
     expect(segs[2]?.mxmRenderMode).toBe('static-image');
     expect(segs[2]?.mxmStockSearchQuery).toContain('心血管');
-    expect(segs[2]?.mxmPrompt).toBeUndefined();
+    expect(segs[2]?.mxmVideoPrompt).toBeUndefined();
     expect(segs[segs.length - 1]?.endSeconds).toBe(30);
+  });
+
+  it('shot-list 解析分字段 mxmVideoPrompt / mxmImagePrompt', () => {
+    const segs = resolveTimelineVisualSegments({
+      strategy: 'shot-list',
+      totalDurationSeconds: 16,
+      segmentsRaw: {
+        segments: [
+          {
+            text: '机器人行走',
+            startSeconds: 0,
+            durationSeconds: 8,
+            mxmRenderMode: 'ai-video-gen',
+            mxmAiOutputKind: 'video',
+            mxmVideoPrompt: 'humanoid robot walking, tracking shot',
+          },
+          {
+            text: '产能对比图',
+            startSeconds: 8,
+            durationSeconds: 8,
+            mxmRenderMode: 'ai-video-gen',
+            mxmAiOutputKind: 'image',
+            mxmImagePrompt: '中美人形机器人产能对比扁平信息图',
+          },
+        ],
+      },
+    });
+    expect(segs[0]?.mxmVideoPrompt).toContain('humanoid robot');
+    expect(segs[0]?.mxmImagePrompt).toBeUndefined();
+    expect(segs[1]?.mxmImagePrompt).toContain('产能对比');
+    expect(segs[1]?.mxmVideoPrompt).toBeUndefined();
   });
 
   it('shot-list 解析 mxmGsapSceneType / mxmGsapStyleId', () => {
@@ -213,7 +244,8 @@ describe('timeline-builder-core', () => {
             startSeconds: 0,
             durationSeconds: 10,
             mxmRenderMode: 'static-image',
-            mxmStockSearchQuery: '太阳能 工厂 屋顶',
+            mxmStockSearchQuery: 'solar panel factory rooftop innovation',
+            keywords: ['solar panel', 'rooftop'],
             mxmPrompt: 'should be ignored for static',
           },
         ],
@@ -227,11 +259,12 @@ describe('timeline-builder-core', () => {
       aspectRatio: '16:9',
     });
     const clip = pf.project.timeline.tracks.find((t) => t.type === 'video')?.clips[0];
-    expect(clip?.metadata?.mxmStockSearchQuery).toContain('太阳能');
+    expect(clip?.metadata?.mxmStockSearchQuery).toContain('solar');
+    expect(clip?.metadata?.mxmStockSearchQuery).not.toContain('innovation');
     expect(clip?.metadata?.mxmPrompt).toBeUndefined();
   });
 
-  it('ai-video-gen 无 mxmPrompt 时自动补齐英文 prompt 与统一风格', () => {
+  it('ai-video-gen 无 prompt 时自动补齐 mxmVideoPrompt 与统一风格', () => {
     const segments = resolveTimelineVisualSegments({
       strategy: 'shot-list',
       totalDurationSeconds: 8,
@@ -256,8 +289,8 @@ describe('timeline-builder-core', () => {
       aspectRatio: '16:9',
     });
     const meta = pf.project.timeline.tracks.find((t) => t.type === 'video')?.clips[0]?.metadata;
-    expect(meta?.mxmPrompt?.length).toBeGreaterThan(30);
-    expect(meta?.mxmPrompt).toMatch(/Video about/i);
+    expect(meta?.mxmVideoPrompt?.length).toBeGreaterThan(30);
+    expect(meta?.mxmVideoPrompt).toMatch(/Video about/i);
     expect(meta?.mxmVisualStyle).toBe('minimal_clean');
   });
 

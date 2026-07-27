@@ -16,6 +16,11 @@ import {
   type PromptCoherenceContext,
 } from './clip-prompt-coherence';
 import { assignAlternatingImageMotion } from './image-motion-assign';
+import {
+  OPENING_CLOSING_STOCK_QUERY,
+  isOpeningOrClosingBeat,
+  normalizeStockQuery,
+} from './stock-media-query';
 
 export type TimelineBuildConfig = {
   title: string;
@@ -30,8 +35,12 @@ export type TimelineBuildConfig = {
   aiVideoSubtype?: string;
   /** 全片主题（写入 clip metadata，供 AI 片段生成） */
   globalTopic?: string;
-  /** 自动剪辑 edit_style */
-  editStyle?: string;
+  /** 副标题 / 本期角度（开场 overlay） */
+  episodeSubtitle?: string;
+  /** 节目名（开场角标 / 结尾关注） */
+  showName?: string;
+  /** UP主 / 主持人（开场 lower-third） */
+  hostName?: string;
   segments: TimelineVisualSegment[];
   /** 句级字幕（可选，写入 timeline.subtitles） */
   subtitleSegments?: { text: string; startSeconds: number; endSeconds: number }[];
@@ -106,7 +115,14 @@ export function buildVideoEditProjectFile(config: TimelineBuildConfig): VideoEdi
     if (mode === 'ai-video-gen') {
       const aiOutputKind = w.mxmAiOutputKind ?? 'video';
       metadata.mxmAiOutputKind = aiOutputKind;
-      metadata.mxmPrompt = w.mxmPrompt;
+      if (aiOutputKind === 'image') {
+        if (w.mxmImagePrompt?.trim()) metadata.mxmImagePrompt = w.mxmImagePrompt.trim();
+        // 兼容：旧段只写了 mxmPrompt
+        else if (w.mxmPrompt?.trim()) metadata.mxmImagePrompt = w.mxmPrompt.trim();
+      } else {
+        if (w.mxmVideoPrompt?.trim()) metadata.mxmVideoPrompt = w.mxmVideoPrompt.trim();
+        else if (w.mxmPrompt?.trim()) metadata.mxmVideoPrompt = w.mxmPrompt.trim();
+      }
       metadata.mxmVideoMode = w.mxmVideoMode ?? 'text-to-video';
       metadata.mxmVideoTaskKey = w.mxmVideoTaskKey ?? config.aiVideoTaskKey ?? 'generator';
       metadata.mxmVideoSubtype = w.mxmVideoSubtype ?? config.aiVideoSubtype ?? 'fragment';
@@ -124,8 +140,9 @@ export function buildVideoEditProjectFile(config: TimelineBuildConfig): VideoEdi
         metadata.mxmGraphTaskKey = w.mxmGraphTaskKey ?? 'design';
         metadata.mxmGraphSubtype = w.mxmGraphSubtype ?? 'content-illustration';
         metadata.mxmImageMotionEnabled = w.mxmImageMotionEnabled ?? true;
+        // 未指定时留给 assignAlternatingImageMotion，避免全片默认 zoom-in
         metadata.mxmImageMotion =
-          w.mxmImageMotion && w.mxmImageMotion !== 'none' ? w.mxmImageMotion : 'zoom-in';
+          w.mxmImageMotion && w.mxmImageMotion !== 'none' ? w.mxmImageMotion : undefined;
       }
     } else {
       metadata.mxmAutoStockImage = true;
@@ -134,12 +151,21 @@ export function buildVideoEditProjectFile(config: TimelineBuildConfig): VideoEdi
       metadata.mxmImageMotionEnabled = w.mxmImageMotionEnabled ?? true;
       metadata.mxmImageMotion =
         w.mxmImageMotion && w.mxmImageMotion !== 'none' ? w.mxmImageMotion : undefined;
-      const stockQuery = w.mxmStockSearchQuery?.trim() || w.text.trim();
-      if (stockQuery) metadata.mxmStockSearchQuery = stockQuery;
       const stockKeywords = (w.keywords ?? [])
         .map((k) => k.trim())
         .filter(Boolean);
       if (stockKeywords.length) metadata.mxmStockKeywords = stockKeywords;
+      // 入库前收紧：只要英文实体词；中文原句不透传（避免图库无效检索）
+      // 开场/结尾固定 empty background（叠字用空镜）
+      const stockQuery = isOpeningOrClosingBeat({
+        mxmBeatRole: w.mxmBeatRole,
+        mxmFragmentRole: w.mxmFragmentRole,
+      })
+        ? OPENING_CLOSING_STOCK_QUERY
+        : normalizeStockQuery(w.mxmStockSearchQuery?.trim() ?? '') ||
+          normalizeStockQuery(stockKeywords.join(' ')) ||
+          undefined;
+      if (stockQuery) metadata.mxmStockSearchQuery = stockQuery;
       if (w.mxmGsapSceneBrief) {
         metadata.mxmGsapSceneBrief = w.mxmGsapSceneBrief;
       }
@@ -164,6 +190,10 @@ export function buildVideoEditProjectFile(config: TimelineBuildConfig): VideoEdi
     projectWidth: width,
     projectHeight: height,
     editStyle: config.editStyle,
+    title: config.globalTopic ?? config.title,
+    subtitle: config.episodeSubtitle,
+    showName: config.showName,
+    hostName: config.hostName,
   });
 
   const tracks: VideoEditScript['project']['timeline']['tracks'] = [
@@ -242,7 +272,8 @@ export function buildVideoEditProjectFile(config: TimelineBuildConfig): VideoEdi
     },
   };
 
-  return assignAlternatingImageMotion(
-    enrichVideoEditScriptAiPrompts(baseScript, promptCtx)
-  );
+  // 初建时间轴强制按设计序列重排动效（忽略解析/LLM 留下的统一 pan-left）
+  return assignAlternatingImageMotion(enrichVideoEditScriptAiPrompts(baseScript, promptCtx), {
+    respectExisting: false,
+  });
 }

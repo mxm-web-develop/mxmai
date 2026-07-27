@@ -158,6 +158,5 @@ Prompt要求：英文撰写、细节丰富、专业摄影术语准确。`,
   },
 };
 
-export const PREDEFINED_SMARTFLOWS: Smartflow[] = [
-  photographyAnalysisV2,
-];
+/** @deprecated 已停用自动 seed；请用 bundle 导入 photography 相关工作流 */
+export const PREDEFINED_SMARTFLOWS: Smartflow[] = [];

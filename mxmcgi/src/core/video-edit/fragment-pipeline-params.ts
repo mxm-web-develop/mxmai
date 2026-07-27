@@ -8,6 +8,7 @@ import {
   normalizeReferenceAssets,
   resolveVideoModeFromReferenceAssets,
 } from './reference-media-assets';
+import { resolveAiVideoPrompt } from './ai-prompt-fields';
 
 export type FragmentVisualStyle =
   | 'motion_graphics'
@@ -105,7 +106,7 @@ export function buildFragmentParamsFromClipMetadata(
   const editStyle = meta.mxmEditStyle ?? ctx?.editStyle;
   const globalTopic = (meta.mxmGlobalTopic ?? ctx?.globalTopic ?? '').trim();
   const voiceover = meta.mxmVoiceoverText?.trim() ?? '';
-  let englishPrompt = meta.mxmPrompt?.trim() ?? '';
+  let englishPrompt = resolveAiVideoPrompt(meta);
   const purposeSuffix = buildReferencePurposeSuffix(referenceAssets);
   if (purposeSuffix) {
     englishPrompt = englishPrompt

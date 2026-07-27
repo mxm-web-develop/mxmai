@@ -17,6 +17,9 @@ const WRITING_TYPE_TO_BUSINESS_KEY: Record<string, string> = {
   'media-post': 'writing-media-post',
   reviews: 'writing-reviews',
   resumes: 'writing-resumes',
+  business: 'writing-business',
+  // 自定义业务（scope=writing, task_key=xxx）
+  academy: 'writing-academy',
 };
 
 /**

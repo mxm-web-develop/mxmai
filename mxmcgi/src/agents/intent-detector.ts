@@ -1,12 +1,13 @@
 /**
  * Agent Chat API - Intent Detector
- * 支持通用意图 + 业务节点识别
+ * 动态从 DB 加载所有业务节点，支持 LLM 语义路由
  */
 
 import type { IntentResult, BusinessNodeResult } from './types';
 import { runByModelKey } from '../models/run';
 import { listEnabledModelKeysByScope } from '../models/provider-model-catalog';
 import { RepositoryFactory } from '@mxmai/mxmdata';
+// Note: PromptEngineeringConfig type used for documentation only
 
 // ==================== Types ====================
 
@@ -15,188 +16,167 @@ export interface BusinessField {
   key: string;
   label: string;
   type: 'string' | 'number' | 'boolean' | 'select';
-  /** select 类型时可选值 */
   options?: string[];
-  /** 默认值 */
   defaultValue?: string | number | boolean;
-  /** 是否必填 */
   required?: boolean;
 }
 
 /** 业务节点定义 */
 export interface BusinessNode {
-  name: string;            // 展示名称
-  agent_rule: string;      // LLM 兜底匹配用的自然语言描述规则
-  keywords: string[];       // 命中关键词（与顺序无关）
-  fields: BusinessField[];  // 参数字段列表
-  /** 生成确认文案 */
+  scope: string;
+  type: string;
+  subtype: string | null;
+  name: string;
+  agent_rule: string;
+  keywords: string[];
+  fields: BusinessField[];
+  smartflow_id?: string;
   confirmTemplate: (params: Record<string, string | number | boolean>) => string;
-  /** 从用户消息中提取参数的-pattern 列表 */
-  extractors?: Array<{
-    field: string;
-    patterns: RegExp[];
-  }>;
-  /** 默认参数 */
+  extractors?: Array<{ field: string; patterns: RegExp[] }>;
   defaultParams?: Record<string, string | number | boolean>;
 }
 
-// ==================== Business Node Registry ====================
-
-export const businessNodes: Record<string, BusinessNode> = {
-  'graph/photograph': {
-    name: '淘宝女装摄影',
-    agent_rule: '当用户想要生成电商产品图片、模特图、商业摄影时触发，例如"生成淘宝女装图""棚拍一套""拍电商主图""做一套模特上身图""女装棚拍"等，涉及商品展示、模特拍摄、电商主图等需求',
-    keywords: ['淘宝女装摄影', '棚拍', '模特图', '女装棚拍', '电商主图', '服装摄影', '模特拍摄', '女装拍摄', '淘宝棚拍', '春装棚拍', '夏装棚拍', '秋装棚拍', '冬装棚拍'],
-    fields: [
-      { key: 'count', label: '数量', type: 'select', options: ['2', '4', '6', '8'], defaultValue: '4', required: true },
-      { key: 'ratio', label: '比例', type: 'select', options: ['3:4', '1:1', '16:9'], defaultValue: '3:4', required: true },
-      { key: 'style', label: '风格', type: 'select', options: ['韩系清新', '韩系清冷', '欧美高级', '日系自然', '法式慵懒', '中性极简'], defaultValue: '韩系清新', required: true },
-      { key: 'hasRef', label: '是否有参考图', type: 'boolean', defaultValue: false },
-    ],
-    confirmTemplate: (params) =>
-      `生成 ${params.count} 张${params.ratio}淘宝女装棚拍图，风格「${params.style}」${params.hasRef === true || params.hasRef === 'true' ? '，有参考图' : '，无参考图'}，是否开始？`,
-    extractors: [
-      { field: 'count', patterns: [/(\d+)张/, /(\d+)张图/, /数量(\d+)/] },
-      { field: 'ratio', patterns: [/(\d+:\d+)/, /比例(\d+:\d+)/] },
-      {
-        field: 'style',
-        patterns: [/([韩欧美日法中性]+系[\w]+)/, /风格"?([^"\n，,]+)"?/],
-      },
-    ],
-  },
-
-  'graph/design': {
-    name: '设计海报',
-    agent_rule: '当用户想要制作海报、宣传图、广告图、主视觉（KV）、Banner、活动封面等平面设计作品时触发，例如"帮我做一张海报""设计活动主视觉""做个宣传图""节日海报""广告Banner"等',
-    keywords: ['海报', '设计图', '宣传图', '主视觉', 'KV', 'key visual', 'Banner', 'banner', '广告图', '活动海报', '节日海报', '促销海报', '封面图', '配图'],
-    fields: [
-      { key: 'width', label: '宽度(px)', type: 'string', defaultValue: '1080' },
-      { key: 'height', label: '高度(px)', type: 'string', defaultValue: '1920' },
-      { key: 'theme', label: '主题', type: 'string', required: true },
-      { key: 'style', label: '风格', type: 'select', options: ['科技感', '简约', '复古', '可爱', '高级感', '国潮', '赛博朋克'], defaultValue: '简约' },
-      { key: 'hasText', label: '是否需要文字', type: 'boolean', defaultValue: true },
-    ],
-    confirmTemplate: (params) =>
-      `生成一张${params.width}x${params.height}「${params.theme}」主题海报，风格「${params.style}」，是否开始？`,
-    extractors: [
-      { field: 'width', patterns: [/(\d+)x\d+/, /宽(\d+)/] },
-      { field: 'height', patterns: [/\d+x(\d+)/, /高(\d+)/] },
-      { field: 'theme', patterns: [/主题"?([^"\n，,]+)"?/, /做一张([^张\n]+)海报/] },
-    ],
-  },
-
-  'video/generate': {
-    name: '视频生成',
-    agent_rule: '当用户想要生成短视频、广告视频、产品视频、种草视频、口播视频、模特展示视频等视频内容时触发，例如"生成一个短视频""做个30秒广告""拍产品视频""种草视频""口播视频""视频剪辑"等',
-    keywords: ['短视频', '视频', '30秒视频', '产品视频', '种草视频', '广告视频', '宣传视频', '剪辑', '分镜', '脚本生成视频', '口播视频', '商品视频', '模特视频'],
-    fields: [
-      { key: 'duration', label: '时长', type: 'select', options: ['15秒', '30秒', '60秒', '90秒', '120秒'], defaultValue: '30秒', required: true },
-      { key: 'content', label: '内容描述', type: 'string', required: true },
-      { key: 'hasScript', label: '是否需要分镜脚本', type: 'boolean', defaultValue: true },
-      { key: 'aspectRatio', label: '比例', type: 'select', options: ['9:16', '16:9', '1:1', '3:4'], defaultValue: '9:16' },
-    ],
-    confirmTemplate: (params) =>
-      `生成一条${params.duration}「${params.content}」${params.aspectRatio}视频，${params.hasScript ? '包含分镜脚本' : '直接生成视频'}，是否开始？`,
-    extractors: [
-      { field: 'duration', patterns: [/(\d+)[秒秒]+/, /时长(\d+)/] },
-      { field: 'content', patterns: [/做.*?([^"\n，,]+)视频/, /视频.*?([^"\n，,]+)/] },
-      { field: 'aspectRatio', patterns: [/(\d+:\d+)/] },
-    ],
-  },
-
-  'audio/tts': {
-    name: 'TTS配音',
-    agent_rule: '当用户想把文字转成语音、需要配音服务、制作口播旁白、语音合成时触发，例如"把这段文字配音""生成语音""TTS""文字转语音""朗读这段话""做个旁白"等',
-    keywords: ['配音', '口播稿', '文字转语音', 'TTS', '语音合成', '录音', '配音生成', '文字配音', '旁白', '朗读'],
-    fields: [
-      { key: 'text', label: '配音文本', type: 'string', required: true },
-      { key: 'voice', label: '音色', type: 'select', options: ['女声温柔', '女声活泼', '男声磁性', '男声沉稳', '童声'], defaultValue: '女声温柔' },
-      { key: 'speed', label: '语速', type: 'select', options: ['慢', '正常', '快'], defaultValue: '正常' },
-    ],
-    confirmTemplate: (params) =>
-      `将以下文案转为语音：${String(params.text).slice(0, 30)}...（音色：${params.voice}，语速：${params.speed}），是否开始？`,
-    extractors: [
-      { field: 'text', patterns: [/(.+)/] },
-    ],
-  },
-
-  'audio/music': {
-    name: '音乐生成',
-    agent_rule: '当用户想要生成音乐、创作歌曲、制作背景音乐/BGM、作曲编曲时触发，例如"生成一段背景音乐""写首歌""做个BGM""作曲""配乐""生成音乐"等',
-    keywords: ['音乐', '写首歌', '生成音乐', '作曲', '配乐', '背景音乐', 'BGM', '歌曲', '编曲'],
-    fields: [
-      { key: 'genre', label: '风格', type: 'select', options: ['流行', '电子', '民谣', '摇滚', '古典', '爵士', '嘻哈', '轻音乐'], defaultValue: '流行', required: true },
-      { key: 'mood', label: '情绪', type: 'select', options: ['欢快', '舒缓', '悲伤', '励志', '浪漫', '神秘'], defaultValue: '舒缓', required: true },
-      { key: 'duration', label: '时长', type: 'select', options: ['30秒', '60秒', '90秒', '120秒'], defaultValue: '60秒', required: true },
-      { key: 'hasLyrics', label: '是否需要歌词', type: 'boolean', defaultValue: false },
-    ],
-    confirmTemplate: (params) =>
-      `生成一段${params.duration}${params.genre}风格「${params.mood}」音乐${params.hasLyrics ? '（含歌词）' : '（纯音乐）'}，是否开始？`,
-    extractors: [
-      { field: 'genre', patterns: [/([\w]+)风格/, /风格"?([^"\n，,]+)"?/] },
-      { field: 'mood', patterns: [/情绪"?([^"\n，,]+)"?/, /(\w+)的/] },
-      { field: 'duration', patterns: [/(\d+)[秒秒]+/] },
-    ],
-  },
-
-  'writing/script': {
-    name: '写作脚本',
-    agent_rule: '当用户需要撰写短视频脚本、口播稿、直播话术、广告文案、分镜脚本时触发，例如"写个口播脚本""帮我写分镜""直播脚本怎么写""短视频脚本""广告文案""台词"等',
-    keywords: ['脚本', '分镜', '分镜脚本', '口播稿', '文案', '剧本', '短视频脚本', '直播脚本', '台词'],
-    fields: [
-      { key: 'type', label: '脚本类型', type: 'select', options: ['口播脚本', '分镜脚本', '直播话术', '广告文案', '产品介绍'], defaultValue: '口播脚本', required: true },
-      { key: 'product', label: '产品/主题', type: 'string', required: true },
-      { key: 'duration', label: '时长(秒)', type: 'string', defaultValue: '60' },
-      { key: 'tone', label: '语气风格', type: 'select', options: ['专业', '亲切', '幽默', '感性', '硬核'], defaultValue: '亲切' },
-    ],
-    confirmTemplate: (params) =>
-      `撰写一个${params.type}：主题「${params.product}」，时长约${params.duration}秒，语气「${params.tone}」，是否开始？`,
-    extractors: [
-      { field: 'product', patterns: [/主题"?([^"\n，,]+)"?/, /产品"?([^"\n，,]+)"?/] },
-      { field: 'duration', patterns: [/(\d+)[秒秒]+/] },
-    ],
-  },
-
-  'writing/article': {
-    name: '文章写作',
-    agent_rule: '当用户想要写文章、博客、小红书笔记、公众号推文、种草文案、评测文章、攻略等内容时触发，例如"写一篇小红书""帮我写篇文章""公众号文案""种草文""写个评测""攻略"等',
-    keywords: ['文章', '写作', '文案', '博客', '小红书', '公众号', '推文', '笔记', '软文', '种草文', '评测', '攻略'],
-    fields: [
-      { key: 'platform', label: '平台', type: 'select', options: ['小红书', '微信公众号', '微博', '知乎', '抖音', '快手', 'B站'], defaultValue: '小红书', required: true },
-      { key: 'topic', label: '主题', type: 'string', required: true },
-      { key: 'length', label: '篇幅', type: 'select', options: ['短(300字内)', '中(500-800字)', '长(1000字以上)'], defaultValue: '中(500-800字)' },
-      { key: 'tone', label: '文风', type: 'select', options: ['种草安利', '客观评测', '干货分享', '情感共鸣', '幽默搞笑'], defaultValue: '种草安利' },
-    ],
-    confirmTemplate: (params) =>
-      `撰写一篇${params.platform}${params.length}「${params.topic}」主题文章，文风「${params.tone}」，是否开始？`,
-    extractors: [
-      { field: 'topic', patterns: [/主题"?([^"\n，,]+)"?/, /关于([^"\n，,]+)/] },
-      { field: 'platform', patterns: [/小红书|微信公众号|微博|知乎|抖音|B站/] },
-    ],
-  },
-};
-
-// ==================== DB 覆盖层 ====================
+// ==================== DB 动态加载 ====================
 
 /** 内存缓存：5 分钟 TTL */
-let businessNodesCache: { expiresAt: number; data: Record<string, BusinessNode> } | null = null;
-
-/** 代码默认值快照（用于缓存未命中或 DB 异常时的回退） */
-const DEFAULT_BUSINESS_NODES: Record<string, BusinessNode> = { ...businessNodes };
+let businessNodesCache: { expiresAt: number; data: BusinessNode[] } | null = null;
+const BUSINESS_NODES_CACHE_TTL_MS = 5 * 60 * 1000;
 
 /**
- * 将 extra.agent_rule 规范化为字符串，非法值返回 null
+ * 从 formSchema (JSON Schema) 解析出 BusinessField[]
  */
-function normalizeAgentRule(value: unknown): string | null {
-  if (typeof value === 'string' && value.trim().length > 0) {
-    return value.trim();
+function parseFormSchemaToFields(formSchema: any): BusinessField[] {
+  if (!formSchema || typeof formSchema !== 'object') return [];
+
+  const properties = formSchema.properties as Record<string, any> | undefined;
+  if (!properties) return [];
+
+  const requiredFields = new Set(formSchema.required || []);
+  const fields: BusinessField[] = [];
+
+  for (const [key, prop] of Object.entries(properties)) {
+    if (!prop || typeof prop !== 'object') continue;
+
+    let type: BusinessField['type'] = 'string';
+    if (prop.type === 'integer' || prop.type === 'number') type = 'number';
+    else if (prop.type === 'boolean') type = 'boolean';
+    else if (prop.enum) type = 'select';
+
+    const field: BusinessField = {
+      key,
+      label: prop.title || key,
+      type,
+      required: requiredFields.has(key),
+    };
+
+    if (prop.enum && Array.isArray(prop.enum)) {
+      field.options = prop.enum.map((e: any) => String(e));
+      if (prop['x-enum-labels'] && Array.isArray(prop['x-enum-labels'])) {
+        // Use labels if available
+        field.options = prop['x-enum-labels'].map((l: any) => String(l));
+      }
+    }
+
+    if (prop.default !== undefined) {
+      field.defaultValue = prop.default;
+    }
+
+    fields.push(field);
   }
-  return null;
+
+  return fields;
 }
 
 /**
- * 将 extra.agent_keywords 规范化为字符串数组，非法值返回 null
+ * 生成默认的 confirmTemplate（可后续优化）
  */
+function generateConfirmTemplate(name: string, fields: BusinessField[]): (params: Record<string, string | number | boolean>) => string {
+  return (params) => {
+    const fieldDescs = fields
+      .filter(f => f.required && params[f.key] !== undefined)
+      .map(f => `${f.label}：${params[f.key]}`)
+      .join('，');
+    return `执行「${name}」任务${fieldDescs ? '（' + fieldDescs + '）' : ''}，是否继续？`;
+  };
+}
+
+/**
+ * 从 DB 加载所有 active 业务节点（动态，无硬编码）
+ */
+async function loadAllBusinessNodesFromDB(): Promise<BusinessNode[]> {
+  const now = Date.now();
+
+  if (businessNodesCache && businessNodesCache.expiresAt > now) {
+    return businessNodesCache.data;
+  }
+
+  try {
+    const repo = RepositoryFactory.createPromptEngineeringConfigRepository();
+    const result = await repo.list({ limit: 500 });
+
+    const nodes: BusinessNode[] = [];
+
+    for (const row of result.items ?? []) {
+      if (!row.is_active) continue;
+      // 本期只处理主配置（无 subtype）
+      if (row.subtype !== null) continue;
+
+      const extra = (row.extra ?? {}) as Record<string, unknown>;
+
+      // agent_rule 是必需，用于 LLM 匹配
+      const agentRule = (extra.agent_rule as string | undefined)?.trim();
+      if (!agentRule) continue; // 没有 agent_rule 跳过（不参与意图匹配）
+
+      // keywords 可选，没有关键词时纯靠 LLM 匹配
+      const keywords = normalizeAgentKeywords(extra.agent_keywords) ?? [];
+
+      // display.taskLabel 作为名称
+      const display = (extra.display as Record<string, unknown> | undefined);
+      const name = (display?.taskLabel as string | undefined) || `${row.scope}/${row.type}`;
+
+      // 从 taskTemplate.formSchema 解析 fields
+      const taskTemplate = (extra.taskTemplate as Record<string, unknown> | undefined);
+      const formSchema = (taskTemplate?.formSchema as any);
+      const fields = parseFormSchemaToFields(formSchema);
+
+      // 生成 extractors（简单实现：每个 string/select 字段创建一个通用 extractor）
+      const extractors = fields
+        .filter(f => f.type === 'string' || f.type === 'select')
+        .map(f => ({
+          field: f.key,
+          patterns: [
+            // 通用模式：尝试匹配 key 或 label
+            new RegExp(`${f.label}[：:]([^\\n，,。]+)`, 'i'),
+            new RegExp(`${f.key}[：:]([^\\n，,。]+)`, 'i'),
+          ],
+        }));
+
+      nodes.push({
+        scope: row.scope,
+        type: row.type,
+        subtype: row.subtype,
+        name,
+        agent_rule: agentRule,
+        keywords,
+        fields,
+        smartflow_id: extra.smartflow_id as string | undefined,
+        confirmTemplate: generateConfirmTemplate(name, fields),
+        extractors,
+      });
+    }
+
+    businessNodesCache = {
+      expiresAt: now + BUSINESS_NODES_CACHE_TTL_MS,
+      data: nodes,
+    };
+
+    return nodes;
+  } catch (err) {
+    console.error('[intent-detector] loadAllBusinessNodesFromDB failed:', err);
+    return [];
+  }
+}
+
 function normalizeAgentKeywords(value: unknown): string[] | null {
   if (Array.isArray(value)) {
     const normalized = value
@@ -207,124 +187,136 @@ function normalizeAgentKeywords(value: unknown): string[] | null {
   return null;
 }
 
-/**
- * 将 DB 配置行映射为 businessNodes key，只匹配 scope/type，忽略 subtype
- * 返回 null 表示该行不参与业务节点覆盖
- */
-function mapPromptConfigToBusinessNodeKey(scope: string, type: string): string | null {
-  const key = `${scope}/${type}`;
-  return DEFAULT_BUSINESS_NODES[key] ? key : null;
+// ==================== 关键词匹配 ====================
+
+interface NodeMatch {
+  node: BusinessNode;
+  score: number;
+  matchedKeywords: string[];
 }
 
 /**
- * 从 DB 加载运行时业务节点配置（带 5 分钟内存缓存）
+ * 关键词快速匹配，返回所有匹配节点（按得分降序）
  */
-async function loadBusinessNodesFromDB(): Promise<Record<string, BusinessNode>> {
-  const now = Date.now();
+function matchByKeywords(message: string, nodes: BusinessNode[]): NodeMatch[] {
+  const lowerMsg = message.toLowerCase();
+  const results: NodeMatch[] = [];
 
-  // 缓存命中
-  if (businessNodesCache && businessNodesCache.expiresAt > now) {
-    return businessNodesCache.data;
-  }
+  for (const node of nodes) {
+    let score = 0;
+    const matchedKeywords: string[] = [];
 
-  // 从代码默认值克隆一份，作为 merge 底稿
-  const merged: Record<string, BusinessNode> = { ...DEFAULT_BUSINESS_NODES };
-
-  try {
-    const repo = RepositoryFactory.createPromptEngineeringConfigRepository();
-    const result = await repo.list({ limit: 500 });
-
-    for (const row of result.items ?? []) {
-      // 本期只使用 subtype == null 的主配置行
-      if (row.subtype !== null) continue;
-      if (!row.is_active) continue;
-
-      const nodeKey = mapPromptConfigToBusinessNodeKey(row.scope, row.type);
-      if (!nodeKey || !merged[nodeKey]) continue;
-
-      const extra = (row.extra ?? {}) as Record<string, unknown>;
-      const rule = normalizeAgentRule(extra.agent_rule);
-      const keywords = normalizeAgentKeywords(extra.agent_keywords);
-
-      // 仅当 DB 有合法值时才覆盖对应字段
-      if (rule !== null || keywords !== null) {
-        merged[nodeKey] = {
-          ...merged[nodeKey],
-          agent_rule: rule ?? merged[nodeKey].agent_rule,
-          keywords: keywords ?? merged[nodeKey].keywords,
-        };
+    for (const keyword of node.keywords) {
+      if (keyword && lowerMsg.includes(keyword.toLowerCase())) {
+        score += keyword.length; // 更长的关键词权重更高
+        matchedKeywords.push(keyword);
       }
     }
-  } catch (err) {
-    console.error('[intent-detector] loadBusinessNodesFromDB failed, using defaults:', err);
-    return DEFAULT_BUSINESS_NODES;
+
+    if (score > 0) {
+      results.push({ node, score, matchedKeywords });
+    }
   }
 
-  businessNodesCache = {
-    expiresAt: now + 5 * 60 * 1000,
-    data: merged,
-  };
-
-  return merged;
+  results.sort((a, b) => b.score - a.score);
+  return results;
 }
 
-// ==================== 通用意图模式 ====================
+// ==================== LLM 语义路由 ====================
 
-interface IntentPattern {
-  intent: string;
-  keywords: string[];
-  weight: number;
-  extractParams?: (message: string) => Record<string, string> | undefined;
+function getDefaultTextModel(): string {
+  const models = listEnabledModelKeysByScope('text');
+  const fastModel = models.find(m =>
+    m.toLowerCase().includes('mini') ||
+    m.toLowerCase().includes('fast') ||
+    m.toLowerCase().includes('quick')
+  );
+  return fastModel || models[0] || 'GLM-5-Turbo';
 }
 
-const GENERAL_PATTERNS: IntentPattern[] = [
-  {
-    intent: 'greeting',
-    keywords: ['你好', 'hello', 'hi', '嗨', '您好', 'hey', '早上好', '晚上好', '午安'],
-    weight: 1.0,
-  },
-  {
-    intent: 'weather',
-    keywords: ['天气', 'weather', '温度', '下雨', '晴天', '气温'],
-    weight: 0.9,
-  },
-  {
-    intent: 'search',
-    keywords: ['搜索', '查找', '找一下', 'search', '帮我找', '查一下', '有没有'],
-    weight: 0.8,
-  },
-  {
-    intent: 'code',
-    keywords: ['代码', 'code', '编程', '写程序', '函数', 'class', '写个', '开发'],
-    weight: 0.9,
-  },
-  {
-    intent: 'translate',
-    keywords: ['翻译', 'translate', '英文', '中文', '译成', '翻译成'],
-    weight: 0.85,
-  },
-  {
-    intent: 'summary',
-    keywords: ['总结', 'summarize', '概括', '要点', '汇总', '摘要'],
-    weight: 0.8,
-  },
-  {
-    intent: 'question',
-    keywords: ['什么是', '怎么', '如何', '为什么', 'who', 'what', 'how', 'why', '？', '?'],
-    weight: 0.7,
-  },
-  {
-    intent: 'help',
-    keywords: ['帮助', 'help', '帮忙', '你能做什么', '功能', '有什么'],
-    weight: 0.8,
-  },
-];
-
-// ==================== 辅助函数 ====================
+interface LLMScoreResult {
+  winnerIndex: number;
+  scores: number[];
+}
 
 /**
- * 从用户消息中提取参数
+ * 用 LLM 对多个候选节点打分，选出最匹配的一个
+ * 提示：参考截屏中用户提到的 agent路由规则 + agent关键词 评分方式
  */
+async function scoreNodesByLLM(
+  message: string,
+  candidates: BusinessNode[]
+): Promise<LLMScoreResult | null> {
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return { winnerIndex: 0, scores: [1.0] };
+
+  try {
+    const modelKey = getDefaultTextModel();
+
+    const nodeList = candidates
+      .map((n, i) => `[${i}] ${n.scope}/${n.type} - ${n.name}\n  路由规则: ${n.agent_rule}\n  关键词: ${n.keywords.join(', ') || '无'}`)
+      .join('\n\n');
+
+    const prompt = `用户消息：「${message}」
+
+请从以下候选业务节点中选择最匹配的一个，并给出每个节点的相似度评分（0-1之间，越高越匹配）。
+
+候选节点：
+${nodeList}
+
+评分要求：
+1. 仔细阅读每个节点的"路由规则"（描述何时触发）和"关键词"
+2. 判断用户消息与哪个节点最相关
+3. 考虑关键词匹配程度和语义相关性
+
+输出格式（必须为有效 JSON）：
+{
+  "scores": [0.85, 0.30, ...],  // 每个候选的评分，按候选顺序
+  "winnerIndex": 0  // 最高分候选的索引
+}`;
+
+    const result = await runByModelKey(
+      'text',
+      modelKey,
+      { prompt, outputFormat: 'json' },
+      { providerOverride: 'openrouter' }
+    ) as { text?: string };
+
+    const raw = result?.text;
+    if (!raw) return null;
+
+    // 解析 JSON
+    let parsed: LLMScoreResult;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      // 尝试从 markdown 代码块提取
+      const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[1].trim());
+        } catch {
+          return null;
+        }
+      } else {
+        return null;
+      }
+    }
+
+    // 校验 winnerIndex
+    if (parsed.winnerIndex < 0 || parsed.winnerIndex >= candidates.length) {
+      parsed.winnerIndex = 0;
+    }
+
+    return parsed;
+  } catch (err) {
+    console.error('[scoreNodesByLLM] LLM 调用失败:', err);
+    return null;
+  }
+}
+
+// ==================== 参数提取 ====================
+
 function extractParamsFromMessage(
   message: string,
   node: BusinessNode
@@ -346,65 +338,74 @@ function extractParamsFromMessage(
   return params;
 }
 
-/**
- * 匹配关键词并返回命中的节点及其得分
- */
-function matchBusinessNodes(message: string, nodes?: Record<string, BusinessNode>): Array<{ nodeType: string; node: BusinessNode; score: number; matchedKeywords: string[] }> {
-  const lowerMessage = message.toLowerCase();
-  const results: Array<{ nodeType: string; node: BusinessNode; score: number; matchedKeywords: string[] }> = [];
-  const nodeMap = nodes ?? businessNodes;
+// ==================== 通用意图模式 ====================
 
-  for (const [nodeType, node] of Object.entries(nodeMap)) {
-    let score = 0;
-    const matchedKeywords: string[] = [];
-
-    for (const keyword of node.keywords) {
-      if (lowerMessage.includes(keyword.toLowerCase())) {
-        score += keyword.length; // 更长的关键词权重更高
-        matchedKeywords.push(keyword);
-      }
-    }
-
-    if (score > 0) {
-      results.push({ nodeType, node, score, matchedKeywords });
-    }
-  }
-
-  // 按得分降序排列
-  results.sort((a, b) => b.score - a.score);
-  return results;
+interface IntentPattern {
+  intent: string;
+  keywords: string[];
+  weight: number;
 }
+
+const GENERAL_PATTERNS: IntentPattern[] = [
+  { intent: 'greeting', keywords: ['你好', 'hello', 'hi', '嗨', '您好', 'hey', '早上好', '晚上好', '午安'], weight: 1.0 },
+  { intent: 'weather', keywords: ['天气', 'weather', '温度', '下雨', '晴天', '气温'], weight: 0.9 },
+  { intent: 'search', keywords: ['搜索', '查找', '找一下', 'search', '帮我找', '查一下', '有没有'], weight: 0.8 },
+  { intent: 'code', keywords: ['代码', 'code', '编程', '写程序', '函数', 'class', '写个', '开发'], weight: 0.9 },
+  { intent: 'translate', keywords: ['翻译', 'translate', '英文', '中文', '译成', '翻译成'], weight: 0.85 },
+  { intent: 'summary', keywords: ['总结', 'summarize', '概括', '要点', '汇总', '摘要'], weight: 0.8 },
+  { intent: 'question', keywords: ['什么是', '怎么', '如何', '为什么', 'who', 'what', 'how', 'why', '？', '?'], weight: 0.7 },
+  { intent: 'help', keywords: ['帮助', 'help', '帮忙', '你能做什么', '功能', '有什么'], weight: 0.8 },
+];
 
 // ==================== 主入口 ====================
 
+function getNodeKey(node: BusinessNode): string {
+  return `${node.scope}/${node.type}`;
+}
+
 /**
- * 检测消息意图
- * @param message 用户消息
- * @returns 意图检测结果
+ * 检测消息意图（动态版）
+ * 1. 关键词快速匹配 → 得到候选列表
+ * 2. 候选 > 1 时，用 LLM 语义打分选最优
+ * 3. 候选 = 1 时，直接使用
+ * 4. 候选 = 0 时，尝试纯 LLM 匹配
  */
-export function detectIntent(message: string): IntentResult {
-  const lowerMessage = message.toLowerCase().trim();
+export async function detectIntentEnhanced(message: string): Promise<IntentResult> {
+  // 1. 从 DB 加载所有业务节点
+  const allNodes = await loadAllBusinessNodesFromDB();
 
-  // 1. 先尝试匹配业务节点
-  const nodeMatches = matchBusinessNodes(message);
+  // 2. 关键词快速匹配
+  const keywordMatches = matchByKeywords(message, allNodes);
 
-  if (nodeMatches.length > 0) {
-    const best = nodeMatches[0];
+  let bestNode: BusinessNode | null = null;
 
-    // 提取参数
-    const extractedParams = extractParamsFromMessage(message, best.node);
+  if (keywordMatches.length === 1) {
+    // 唯一匹配，直接使用
+    bestNode = keywordMatches[0].node;
+  } else if (keywordMatches.length > 1) {
+    // 多个候选 → LLM 语义打分
+    const candidates = keywordMatches.map(m => m.node);
+    const llmResult = await scoreNodesByLLM(message, candidates);
+    if (llmResult) {
+      bestNode = candidates[llmResult.winnerIndex];
+    } else {
+      // LLM 失败，fallback 到得分最高的关键词匹配
+      bestNode = keywordMatches[0].node;
+    }
+  } else {
+    // 无关键词匹配 → 尝试纯 LLM 匹配
+    bestNode = await detectByLLMOnly(message, allNodes);
+  }
 
-    // 合并默认参数
-    const allParams = { ...best.node.defaultParams, ...extractedParams };
-
-    // 计算缺失字段
-    const missingFields = best.node.fields
+  if (bestNode) {
+    const extractedParams = extractParamsFromMessage(message, bestNode);
+    const allParams = { ...bestNode.defaultParams, ...extractedParams };
+    const missingFields = bestNode.fields
       .filter(f => f.required && !allParams[f.key])
       .map(f => f.key);
 
-    // 置信度判断
+    const coverage = 1 - missingFields.length / Math.max(1, bestNode.fields.filter(f => f.required).length);
     let confidenceLevel: 'high' | 'medium' | 'low';
-    const coverage = 1 - missingFields.length / best.node.fields.filter(f => f.required).length;
     if (coverage >= 0.75 && missingFields.length <= 1) {
       confidenceLevel = 'high';
     } else if (coverage >= 0.4) {
@@ -414,26 +415,99 @@ export function detectIntent(message: string): IntentResult {
     }
 
     const businessNode: BusinessNodeResult = {
-      nodeType: best.nodeType,
-      nodeName: best.node.name,
-      matchedKeywords: best.matchedKeywords,
+      nodeType: getNodeKey(bestNode),
+      nodeName: bestNode.name,
+      matchedKeywords: keywordMatches.find(m => m.node === bestNode)?.matchedKeywords || [],
       extractedParams: allParams,
       missingFields,
       confidenceLevel,
+      matchSource: keywordMatches.length > 0 ? 'keyword' : 'llm',
+      smartflow_id: bestNode.smartflow_id,
     };
 
-    // 置信度 = 基础分 + 覆盖率
-    const confidence = Math.min(0.5 + coverage * 0.5, 1.0);
-
     return {
-      intent: best.nodeType,
-      confidence,
+      intent: getNodeKey(bestNode),
+      confidence: Math.min(0.5 + coverage * 0.5, 1.0),
       businessNode,
       params: allParams,
     };
   }
 
-  // 2. 通用模式匹配
+  // 3. 无业务节点匹配 → 通用模式
+  return detectGeneralIntent(message);
+}
+
+/**
+ * 纯 LLM 业务节点匹配（无关键词命中时）
+ */
+async function detectByLLMOnly(message: string, nodes: BusinessNode[]): Promise<BusinessNode | null> {
+  if (nodes.length === 0) return null;
+
+  try {
+    const modelKey = getDefaultTextModel();
+
+    const nodeList = nodes
+      .map((n, i) => `[${i}] ${n.scope}/${n.type} - ${n.name}\n  路由规则: ${n.agent_rule}\n  关键词: ${n.keywords.join(', ') || '无'}`)
+      .join('\n\n');
+
+    const prompt = `用户消息：「${message}」
+
+请从以下已注册业务节点中选择最匹配的一个。如果都不匹配，返回 unmatched。
+
+已注册业务节点：
+${nodeList}
+
+输出格式（必须为有效 JSON）：
+{
+  "matched": true或false,
+  "nodeType": "匹配的 scope/type，如 graph/photograph，不匹配时可不返回",
+  "confidence": 0到1之间的数值
+}`;
+
+    const result = await runByModelKey(
+      'text',
+      modelKey,
+      { prompt, outputFormat: 'json' },
+      { providerOverride: 'openrouter' }
+    ) as { text?: string };
+
+    const raw = result?.text;
+    if (!raw) return null;
+
+    let parsed: { matched: boolean; nodeType?: string; confidence?: number };
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[1].trim());
+        } catch {
+          return null;
+        }
+      } else {
+        return null;
+      }
+    }
+
+    if (parsed.matched && parsed.nodeType) {
+      const matched = nodes.find(n => getNodeKey(n) === parsed.nodeType);
+      return matched || null;
+    }
+
+    return null;
+  } catch (err) {
+    console.error('[detectByLLMOnly] LLM 调用失败:', err);
+    return null;
+  }
+}
+
+/**
+ * 通用意图检测（无业务节点匹配时）
+ */
+function detectGeneralIntent(message: string): IntentResult {
+  const lowerMessage = message.toLowerCase().trim();
+
   const scores: Map<string, number> = new Map();
 
   for (const pattern of GENERAL_PATTERNS) {
@@ -459,39 +533,30 @@ export function detectIntent(message: string): IntentResult {
     return { intent: 'general', confidence: 0.5 };
   }
 
-  const confidence = Math.min(bestScore / 2, 1.0);
-  const matchedPattern = GENERAL_PATTERNS.find(p => p.intent === bestIntent);
-  const params = matchedPattern?.extractParams?.(message);
-
   return {
     intent: bestIntent,
-    confidence,
-    params,
+    confidence: Math.min(bestScore / 2, 1.0),
   };
 }
 
-/**
- * 根据意图构建系统提示词
- */
-export function getSystemPromptForIntent(intent: string): string {
-  // 业务节点提示词
-  if (businessNodes[intent]) {
-    const node = businessNodes[intent];
-    return `你是一个专业的「${node.name}」任务助手。
-当用户表达的需求涉及 ${node.name} 时，你应该：
-1. 先确认你理解的需求是否正确（说出你理解的内容）
-2. 如果缺少必要参数，向用户提问获取
-3. 收集完所有必要参数后，用自然语言总结确认单
-4. 获得用户确认后才执行任务
-注意：始终站在用户角度，用简洁自然的语言交流。`;
-  }
+// ==================== 辅助函数（兼容旧接口） ====================
 
+/**
+ * @deprecated 请使用 detectIntentEnhanced
+ */
+export function detectIntent(message: string): IntentResult {
+  // 同步版本仅做关键词匹配，不支持动态加载和 LLM
+  // 保留向后兼容
+  return detectGeneralIntent(message);
+}
+
+export function getSystemPromptForIntent(intent: string): string {
   const prompts: Record<string, string> = {
     greeting: '你是一个友好的 AI 助手，请用轻松的方式与用户交流。',
     weather: '你是一个天气助手，请根据用户询问提供准确的天气信息。',
     search: '你是一个搜索助手，请根据用户的搜索需求提供相关信息。',
     code: '你是一个编程助手，请提供清晰、正确的代码示例和解释。',
-    translate: '你是一个翻译助手，请提供准确、自然的翻译结果。',
+    translate: '你是一个翻译助手，请提供准确，自然的翻译结果。',
     summary: '你是一个文本总结助手，请简洁地概括要点。',
     question: '你是一个知识问答助手，请准确回答用户的问题。',
     help: '你是一个 AI 助手，可以帮助用户完成图像生成、视频制作、音乐创作、文案写作等任务。请询问用户想做什么。',
@@ -501,209 +566,28 @@ export function getSystemPromptForIntent(intent: string): string {
   return prompts[intent] || prompts['general'];
 }
 
-/**
- * 根据节点类型获取节点定义
- */
 export function getBusinessNode(nodeType: string): BusinessNode | undefined {
-  return businessNodes[nodeType];
+  // 同步接口，从缓存查找（缓存5分钟刷新）
+  const cached = businessNodesCache?.data;
+  if (cached) {
+    return cached.find(n => getNodeKey(n) === nodeType);
+  }
+  return undefined;
 }
 
-/**
- * 获取补问字段（返回下一个需要询问的字段）
- */
+export function getNodeNameByKey(nodeKey: string): string {
+  const node = getBusinessNode(nodeKey);
+  return node?.name || nodeKey;
+}
+
 export function getNextFieldToAsk(
-  nodeType: string,
-  currentParams: Record<string, string | number | boolean>
+  _nodeType: string,
+  _currentParams: Record<string, string | number | boolean>
 ): BusinessField | null {
-  const node = businessNodes[nodeType];
-  if (!node) return null;
-
-  for (const field of node.fields) {
-    if (field.required && currentParams[field.key] === undefined) {
-      return field;
-    }
-  }
-
+  // 同步接口，保留向后兼容（实际逻辑在 detectIntentEnhanced 返回的 missingFields 中）
   return null;
 }
 
-// ==================== LLM 兜底业务节点匹配 ====================
-
-function getDefaultTextModel(): string {
-  const models = listEnabledModelKeysByScope('text');
-  const fastModel = models.find(m =>
-    m.toLowerCase().includes('mini') ||
-    m.toLowerCase().includes('fast') ||
-    m.toLowerCase().includes('quick')
-  );
-  return fastModel || models[0] || 'GLM-5-Turbo';
-}
-
-interface LLMMatchResult {
-  matched: boolean;
-  nodeType?: string;
-  confidence?: number;
-  reason?: string;
-}
-
-/**
- * 用 LLM 基于 agent_rule 描述匹配最合适的业务节点
- * 仅在关键词未命中时调用
- * @param message 用户原始消息
- * @returns 匹配结果，包含 nodeType、confidence、reason
- */
-export async function matchBusinessNodeByLLM(
-  message: string,
-  runtimeNodes?: Record<string, BusinessNode>
-): Promise<LLMMatchResult | null> {
-  try {
-    const modelKey = getDefaultTextModel();
-    const nodeMap = runtimeNodes ?? businessNodes;
-
-    // 构建节点列表供 LLM 参考
-    const nodeList = Object.entries(nodeMap)
-      .map(([nodeType, node]) => `- ${nodeType}: ${node.name}\n  规则: ${node.agent_rule}`)
-      .join('\n\n');
-
-    const prompt = `你是业务路由器，只能从以下已注册节点中选一个匹配用户需求，无法确定时返回 unmatched。
-
-用户消息：「${message}」
-
-已注册业务节点：
-${nodeList}
-
-请根据用户消息的语义，匹配最合适的一个业务节点。
-
-输出格式（必须为有效 JSON）：
-{
-  "matched": true或false,
-  "nodeType": "匹配的节点类型，如 graph/photograph，不匹配时可不返回",
-  "confidence": 0到1之间的数值，表示匹配置信度，unmatched 时可不返回,
-  "reason": "简要说明匹配或未匹配的理由"
-}
-`;
-
-    const result = await runByModelKey(
-      'text',
-      modelKey,
-      { prompt, outputFormat: 'json' },
-      { providerOverride: 'deer' }
-    ) as { text?: string };
-
-    const raw = result?.text;
-    if (!raw) return null;
-
-    // 尝试从响应中提取 JSON
-    let parsed: LLMMatchResult;
-    try {
-      parsed = JSON.parse(raw) as LLMMatchResult;
-    } catch {
-      // 尝试从 markdown 代码块中提取
-      const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        try {
-          parsed = JSON.parse(jsonMatch[1].trim()) as LLMMatchResult;
-        } catch {
-          return null;
-        }
-      } else {
-        return null;
-      }
-    }
-
-    // 安全校验：matched=true 时必须返回合法的 nodeType
-    if (parsed.matched && parsed.nodeType) {
-      if (!nodeMap[parsed.nodeType]) {
-        // 返回了未知节点，不匹配
-        return { matched: false, reason: `LLM 返回了未知节点类型: ${parsed.nodeType}` };
-      }
-      return parsed;
-    }
-
-    return { matched: false, reason: parsed.reason || '未匹配到明确业务节点' };
-  } catch (err) {
-    console.error('[matchBusinessNodeByLLM] LLM 调用失败:', err);
-    return null; // 失败时返回 null，调用方走通用聊天
-  }
-}
-
-/**
- * 检测消息意图（增强版：关键词优先 + LLM 兜底）
- * @param message 用户消息
- * @returns 意图检测结果（businessNode.matchSource 标识命中来源）
- */
-export async function detectIntentEnhanced(message: string): Promise<IntentResult> {
-  // 加载 DB 覆盖后的运行时业务节点
-  const runtimeNodes = await loadBusinessNodesFromDB();
-
-  // 1. 先尝试关键词快速匹配
-  const nodeMatches = matchBusinessNodes(message, runtimeNodes);
-
-  if (nodeMatches.length > 0) {
-    const best = nodeMatches[0];
-    const extractedParams = extractParamsFromMessage(message, best.node);
-    const allParams = { ...best.node.defaultParams, ...extractedParams };
-    const missingFields = best.node.fields
-      .filter(f => f.required && !allParams[f.key])
-      .map(f => f.key);
-
-    const coverage = 1 - missingFields.length / best.node.fields.filter(f => f.required).length;
-    let confidenceLevel: 'high' | 'medium' | 'low';
-    if (coverage >= 0.75 && missingFields.length <= 1) {
-      confidenceLevel = 'high';
-    } else if (coverage >= 0.4) {
-      confidenceLevel = 'medium';
-    } else {
-      confidenceLevel = 'low';
-    }
-
-    const businessNode: BusinessNodeResult = {
-      nodeType: best.nodeType,
-      nodeName: best.node.name,
-      matchedKeywords: best.matchedKeywords,
-      extractedParams: allParams,
-      missingFields,
-      confidenceLevel,
-      matchSource: 'keyword',
-    };
-
-    const confidence = Math.min(0.5 + coverage * 0.5, 1.0);
-    return { intent: best.nodeType, confidence, businessNode, params: allParams };
-  }
-
-  // 2. 关键词未命中 → LLM 兜底
-  const llmResult = await matchBusinessNodeByLLM(message, runtimeNodes);
-
-  if (llmResult && llmResult.matched && llmResult.nodeType) {
-    const node = runtimeNodes[llmResult.nodeType];
-    if (!node) {
-      // 防御：LLM 返回了未知节点
-      return detectIntent(message);
-    }
-
-    const extractedParams = extractParamsFromMessage(message, node);
-    const allParams = { ...node.defaultParams, ...extractedParams };
-    const missingFields = node.fields
-      .filter(f => f.required && !allParams[f.key])
-      .map(f => f.key);
-
-    // LLM 命中统一使用 medium 置信度，避免误触发直接下任务
-    const confidenceLevel: 'medium' | 'low' = llmResult.confidence && llmResult.confidence >= 0.8 ? 'medium' : 'low';
-
-    const businessNode: BusinessNodeResult = {
-      nodeType: llmResult.nodeType,
-      nodeName: node.name,
-      matchedKeywords: [],
-      extractedParams: allParams,
-      missingFields,
-      confidenceLevel,
-      matchSource: 'llm',
-    };
-
-    const confidence = llmResult.confidence ?? 0.6;
-    return { intent: llmResult.nodeType, confidence, businessNode, params: allParams };
-  }
-
-  // 3. LLM 也未命中 → 回退到通用模式匹配
-  return detectIntent(message);
+export function getBusinessNodes(): Promise<BusinessNode[]> {
+  return loadAllBusinessNodesFromDB();
 }

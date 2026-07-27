@@ -1,0 +1,5 @@
+# Worker 宿主机 ASR（FunASR Paraformer，中文口播）
+# 安装：python3 -m venv .venv-asr && .venv-asr/bin/pip install -r requirements-asr.txt
+#        .venv-asr/bin/pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+funasr>=1.1.0
+modelscope>=1.15.0

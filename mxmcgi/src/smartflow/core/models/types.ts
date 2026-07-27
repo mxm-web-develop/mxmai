@@ -11,14 +11,47 @@ export type NodeType =
   | 'variable'         // 变量节点
   | 'condition'        // 条件节点
   | 'loop'             // 循环节点
+  | 'plan_execute'     // 复合：Plan-and-Execute
+  | 'reflection'       // 复合：Generate → Critique → Revise
+  | 'react'            // 复合：ReAct 工具环
+  | 'research'         // 复合：调研摘要（think + deep_search + summarize）
   | 'end';             // 结束节点
+
+// ============= Loop iteration =============
+export type LoopIterationErrorPolicy = 'skip' | 'fail_fast' | 'collect_errors';
+
+export interface LoopIterationResultRow {
+  index: number;
+  success: boolean;
+  taskId?: string;
+  /** 生图/音视频等业务完成后的资源 URL */
+  mediaUrls?: string[];
+  error?: string;
+  output?: unknown;
+}
 
 // ============= 业务 Scope 类型 =============
 // scope 由 mxmcgi 管理员在数据库定义，business 节点通过 v2 接口动态获取可用业务
-export type BusinessScope = 'writing' | 'graph' | 'audio' | 'video' | 'character' | 'knowledge';
+export type BusinessScope = 'writing' | 'outline' | 'text' | 'graph' | 'audio' | 'video' | 'character' | 'knowledge';
 
 // ============= 工具类型 =============
-export type ToolType = 'web_search' | 'web_scraper' | 'http_request' | 'embedding' | 'code_executor' | 'deep_search' | 'multi_dimension_search' | 'custom';
+export type ToolType =
+  | 'web_search'
+  | 'web_scraper'
+  | 'deep_search'
+  | 'code_executor'
+  | 'vector_store'
+  | 'vector_recall'
+  // legacy / advanced
+  | 'http_request'
+  | 'embedding'
+  | 'multi_dimension_search'
+  | 'domain_search'
+  | 'legal_search'
+  | 'stock_lookup'
+  | 'crypto_lookup'
+  | 'company_lookup'
+  | 'custom';
 
 // ============= Smartflow 节点 =============
 export interface SmartflowNode {
@@ -32,6 +65,9 @@ export interface SmartflowNode {
     type: 'text' | 'file' | 'image' | 'video' | 'audio' | 'json' | 'url' | 'other';
     name?: string;
   }>;
+  /** 与 Task V2 一致的 JSON Schema，用于运行页动态表单与 Open API 入参文档 */
+  formSchema?: Record<string, unknown>;
+  uiSchema?: Record<string, unknown>;
   trigger_words?: string[];
   expected_outputs?: Array<{
     type: 'text' | 'image' | 'video' | 'sound' | 'embedding';
@@ -67,12 +103,14 @@ export interface SmartflowNode {
   else?: string;
 
   // Variable 节点配置
-  operation?: 'select' | 'map' | 'filter' | 'reduce' | 'merge' | 'assign';
+  operation?: 'select' | 'map' | 'filter' | 'reduce' | 'merge' | 'assign' | 'json_parse';
   source_node?: string;
   source_path?: string;
   output_name?: string;
   default_value?: any;
   description?: string;
+  /** map 时从上下文解析规划结果数组，注入 planTasks 参数 */
+  plan_tasks_from?: string;
 
   // Loop 节点配置
   loop_mode?: 'iteration' | 'loop';
@@ -82,6 +120,12 @@ export interface SmartflowNode {
   index_variable?: string;
   loop_nodes?: string[];
   max_iterations?: number;
+  /** iteration 模式下并行执行各轮（默认 false 保持串行） */
+  parallel_iterations?: boolean;
+  /** 并行迭代最大并发（默认 3） */
+  max_concurrency?: number;
+  /** iteration 失败策略（默认 collect_errors） */
+  on_iteration_error?: LoopIterationErrorPolicy;
   collect_output?: boolean;
   output_variable?: string;
   break_condition?: string;
@@ -97,6 +141,29 @@ export interface SmartflowNode {
   model?: string;
   prompt?: string;
   model_params?: Record<string, any>;
+
+  // 复合节点：各模式配置（与 composite-types 对齐）
+  goal?: string;
+  task?: string;
+  artifact?: string;
+  context?: string;
+  topic?: string;
+  max_rounds?: number;
+  max_steps?: number;
+  max_replans?: number;
+  pass_pattern?: string;
+  replan_on_failure?: boolean;
+  planner?: Record<string, any>;
+  executor?: Record<string, any>;
+  replanner?: Record<string, any>;
+  generator?: Record<string, any>;
+  critic?: Record<string, any>;
+  reviser?: Record<string, any>;
+  query_generator?: Record<string, any>;
+  tools?: ToolType[];
+  system_prompt?: string;
+  search_depth?: string;
+  summarizer_model?: string;
 
   // 扩展配置
   options?: Record<string, any>;
@@ -146,6 +213,7 @@ export interface Smartflow {
 export type SmartflowExecutionStatus =
   | 'pending'
   | 'running'
+  | 'paused'
   | 'completed'
   | 'failed'
   | 'cancelled';

@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-05-28T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "video",
+      "type": "generator",
+      "subtype": "grid-r2v",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "生成",
+          "subtypeLabel": "宫格分镜成片",
+          "routeHint": "开启宫格分镜后仅上传一张源图；裁切块临时存 R2 systemtemp，任务结束后自动清理",
+          "taskLabelI18n": {
+            "zh": "生成",
+            "zh-TW": "產生"
+          },
+          "subtypeLabelI18n": {
+            "zh": "宫格分镜成片",
+            "zh-TW": "宫格分鏡產生圖片"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "prompt",
+              "uid"
+            ],
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "title": "整体创意 / 运镜补充",
+                "minLength": 1,
+                "x-user-visible": true
+              },
+              "storyboard_grid": {
+                "type": "object",
+                "title": "宫格分镜图",
+                "description": "上传单张 2×2 / 3×3 / 4×4 宫格源图，系统裁切后按左上→右下顺序作为 reference_images",
+                "x-ui-type": "gridStoryboardImages",
+                "x-supports-last-frame": true,
+                "default": {
+                  "enabled": false,
+                  "layout": "3x3",
+                  "source_image": null,
+                  "cells": [],
+                  "first_frame_index": 0,
+                  "last_frame_index": null
+                },
+                "properties": {
+                  "enabled": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "layout": {
+                    "type": "string",
+                    "enum": [
+                      "2x2",
+                      "3x3",
+                      "4x4"
+                    ],
+                    "default": "3x3"
+                  },
+                  "source_image": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "content": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string",
+                        "default": "main-subject"
+                      }
+                    }
+                  },
+                  "cells": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "index": {
+                          "type": "integer"
+                        },
+                        "purpose": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "first_frame_index": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "last_frame_index": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "x-user-visible": true
+              },
+              "duration": {
+                "type": "integer",
+                "title": "时长（秒）",
+                "minimum": 4,
+                "maximum": 60,
+                "default": 8,
+                "x-user-visible": true
+              },
+              "ratio": {
+                "type": "string",
+                "title": "画幅比例",
+                "enum": [
+                  "9:16",
+                  "16:9",
+                  "1:1",
+                  "adaptive"
+                ],
+                "default": "9:16",
+                "x-user-visible": true
+              },
+              "resolution": {
+                "type": "string",
+                "title": "分辨率",
+                "enum": [
+                  "480p",
+                  "720p",
+                  "1080p"
+                ],
+                "default": "720p",
+                "x-user-visible": true
+              },
+              "generate_audio": {
+                "type": "boolean",
+                "title": "生成原生音轨",
+                "default": false,
+                "x-user-visible": true
+              },
+              "total_duration_seconds": {
+                "type": "integer",
+                "title": "计费时长（秒）",
+                "minimum": 1,
+                "default": 8,
+                "x-user-visible": false
+              },
+              "parallel_count": {
+                "type": "integer",
+                "title": "生成份数",
+                "minimum": 1,
+                "maximum": 99,
+                "default": 1,
+                "x-user-visible": true
+              },
+              "label": {
+                "type": "string",
+                "title": "任务名称",
+                "x-user-visible": true
+              },
+              "uid": {
+                "type": "string",
+                "title": "任务 UID",
+                "x-user-visible": false
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "视频分镜生成需求：\n${prompt}\n\n${storyboard_prompt}\n\n目标时长约 ${duration} 秒；画幅 ${ratio}；分辨率 ${resolution}。",
+            "unifiedTemplateMarkup": "视频分镜生成需求：\n${prompt}\n\n${storyboard_prompt}\n\n目标时长约 ${duration} 秒；画幅 ${ratio}；分辨率 ${resolution}。"
+          },
+          "storage": {
+            "scope": "video",
+            "extension": "mp4",
+            "mime": "video/mp4",
+            "bucket": "user-media",
+            "pathTemplate": "{userId}/video/{timestamp}-{randomId}/",
+            "filenameTemplate": "video_{taskId}_{randomId}.mp4"
+          }
+        }
+      },
+      "linkedTextFormat": null
+    }
+  ]
+}

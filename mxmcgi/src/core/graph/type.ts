@@ -70,11 +70,11 @@ export interface PhotographParams {
   referenceImage?: string | string[] | ReferenceImage[]; // Reference image(s) - 支持旧格式和新格式
   quality?: 'high' | 'fast';
   aspect_ratio?: string;
-  // Grid9 parameters
-  grid9?: boolean; // 是否启用九宫格模式
-  grid9Mode?: 'variation' | 'sequence' | 'combination'; // 变体模式（可选，系统会根据类型自动选择）
-  grid9Purpose?: 'options' | 'storyboard' | 'variants' | 'character'; // 多图用途：9方案 / 分镜 / 同set变体 / 角色画像多角度
-  grid9Split?: boolean; // 是否切图为9张并创建子任务，默认 true
+  // 宫格：output_grid / grid9 等由表单与任务定义驱动；逐格文案由 DB prompt（text/format）负责，服务端不再根据 grid9Mode 生成 prompt
+  grid9?: boolean;
+  grid9Mode?: 'variation' | 'sequence' | 'combination';
+  grid9Purpose?: 'options' | 'storyboard' | 'variants' | 'character';
+  grid9Split?: boolean;
   [key: string]: any; // Support future extension
 }
 
@@ -125,11 +125,11 @@ export interface DesignParams {
   referenceImage?: string | string[] | ReferenceImage[]; // Reference image(s) - 支持旧格式和新格式
   quality?: 'high' | 'fast';
   aspect_ratio?: string;
-  // Grid9 parameters
-  grid9?: boolean; // 是否启用九宫格模式
-  grid9Mode?: 'variation' | 'sequence' | 'combination'; // 变体模式（可选，系统会根据类型自动选择）
-  grid9Purpose?: 'options' | 'storyboard' | 'variants' | 'character'; // 多图用途：9方案 / 分镜 / 同set变体 / 角色画像多角度
-  grid9Split?: boolean; // 是否切图为9张并创建子任务，默认 true
+  // 宫格：output_grid / grid9 等由表单与任务定义驱动；逐格文案由 DB prompt（text/format）负责，服务端不再根据 grid9Mode 生成 prompt
+  grid9?: boolean;
+  grid9Mode?: 'variation' | 'sequence' | 'combination';
+  grid9Purpose?: 'options' | 'storyboard' | 'variants' | 'character';
+  grid9Split?: boolean;
   [key: string]: any; // Support future extension
 }
 
@@ -160,10 +160,13 @@ export interface PaintingParams {
   referenceImage?: string | string[] | ReferenceImage[]; // Reference image(s) - 支持旧格式和新格式
   quality?: 'high' | 'fast';
   aspect_ratio?: string;
-  // Grid9 parameters
-  grid9?: boolean; // 是否启用九宫格模式
-  grid9Mode?: 'variation' | 'sequence' | 'combination'; // 变体模式（可选，系统会根据类型自动选择）
-  grid9Purpose?: 'options' | 'storyboard' | 'variants' | 'character'; // 多图用途：9方案 / 分镜 / 同set变体 / 角色画像多角度
-  grid9Split?: boolean; // 是否切图为9张并创建子任务，默认 true
+  // 宫格：output_grid / grid9 等由表单与任务定义驱动；逐格文案由 DB prompt（text/format）负责，服务端不再根据 grid9Mode 生成 prompt
+  grid9?: boolean;
+  grid9Mode?: 'variation' | 'sequence' | 'combination';
+  grid9Purpose?: 'options' | 'storyboard' | 'variants' | 'character';
+  grid9Split?: boolean;
   [key: string]: any; // Support future extension
 }
+
+/** Graph 任务入参：由 DB 任务定义 + 表单 schema 驱动，不在此用 TS 枚举锁死业务线 */
+export type GraphRuntimeParams = Record<string, unknown>;

@@ -99,8 +99,10 @@ export interface BusinessNodeResult {
   missingFields: string[];
   /** 置信度: high/medium/low */
   confidenceLevel: 'high' | 'medium' | 'low';
-  /** 命中来源（本期不暴露到前端） */
+  /** 命中来源 */
   matchSource?: 'keyword' | 'llm';
+  /** 如果配置了 smartflow_id，则触发 Smartflow 执行 */
+  smartflow_id?: string;
 }
 
 /** 会话消息 */

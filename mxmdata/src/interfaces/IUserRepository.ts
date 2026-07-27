@@ -8,7 +8,7 @@ export interface User {
   username: string;
   email?: string;
   phone?: string;
-  password_hash: string;
+  password_hash?: string | null;
   avatar_url?: string;
   level: number;
   balance: number;
@@ -16,6 +16,8 @@ export interface User {
   membership_expires_at?: Date | string;
   status: 'active' | 'suspended' | 'banned';
   role?: 'user' | 'admin';
+  email_verified_at?: Date | string | null;
+  mfa_totp_enabled?: boolean;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -24,7 +26,7 @@ export interface CreateUserDto {
   username: string;
   email?: string;
   phone?: string;
-  password_hash: string;
+  password_hash?: string | null;
   avatar_url?: string;
   level?: number;
   balance?: number;
@@ -32,13 +34,15 @@ export interface CreateUserDto {
   membership_expires_at?: Date | string;
   status?: 'active' | 'suspended' | 'banned';
   role?: 'user' | 'admin';
+  email_verified_at?: Date | string | null;
+  mfa_totp_enabled?: boolean;
 }
 
 export interface UpdateUserDto {
   username?: string;
   email?: string;
   phone?: string;
-  password_hash?: string;
+  password_hash?: string | null;
   avatar_url?: string;
   level?: number;
   balance?: number;
@@ -46,12 +50,17 @@ export interface UpdateUserDto {
   membership_expires_at?: Date | string;
   status?: 'active' | 'suspended' | 'banned';
   role?: 'user' | 'admin';
+  email_verified_at?: Date | string | null;
+  mfa_totp_enabled?: boolean;
 }
+
+import type { AppLocale } from '../i18n/app-locale';
 
 export interface UserSettings {
   user_id: string;
   theme: 'light' | 'dark' | 'system';
-  language: 'zh' | 'en';
+  /** 产品语言：zh | zh-TW | en | ja */
+  language: AppLocale;
   notifications_enabled: boolean;
   created_at: Date | string;
   updated_at: Date | string;
@@ -59,7 +68,7 @@ export interface UserSettings {
 
 export interface UpdateUserSettingsDto {
   theme?: 'light' | 'dark' | 'system';
-  language?: 'zh' | 'en';
+  language?: AppLocale;
   notifications_enabled?: boolean;
 }
 

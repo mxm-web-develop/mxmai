@@ -7,6 +7,9 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { createHash } from 'crypto';
 import { logger } from '../utils/logger';
+import { attachPartnerFromToken, type PartnerSessionJwtPayload } from './partner-auth';
+
+export type UserApiKeyType = 'personal' | 'integration';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -14,6 +17,18 @@ export interface AuthRequest extends Request {
     username: string;
     type: 'access' | 'refresh';
     role?: 'user' | 'admin';
+    /** 仅 API Key 鉴权时存在 */
+    apiKeyType?: UserApiKeyType;
+    apiKeyId?: string;
+    authViaApiKey?: boolean;
+    /** Partner session JWT */
+    authViaPartnerSession?: boolean;
+  };
+  partner?: {
+    partnerAppId: string;
+    endUserId: string;
+    allowedSlugs: string[];
+    sessionId?: string;
   };
 }
 
@@ -23,13 +38,27 @@ export interface AuthRequest extends Request {
  * 1. ADMIN_TOKEN（用于测试，生产环境应移除）
  * 2. JWT Token（正常用户认证）
  */
+/** 从 Authorization 或 GET ?token= 解析 Bearer/API Key（img 标签无法带 Header） */
+function extractBearerToken(req: AuthRequest): string | null {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7).trim();
+    return token || null;
+  }
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    const q = req.query.token;
+    const fromQuery = typeof q === 'string' ? q.trim() : Array.isArray(q) ? String(q[0] ?? '').trim() : '';
+    return fromQuery || null;
+  }
+  return null;
+}
+
 export async function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const authHeader = req.headers.authorization;
+    const token = extractBearerToken(req);
 
-    // 增强日志：记录收到的 authorization header（隐藏敏感信息）
-    if (!authHeader) {
-      logger.warn(`[Auth] Missing authorization header for ${req.method} ${req.path}`);
+    if (!token) {
+      logger.warn(`[Auth] Missing authorization for ${req.method} ${req.path}`);
       res.status(401).json({
         success: false,
         error: {
@@ -40,36 +69,6 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       return;
     }
 
-    // 检查格式：必须是 "Bearer <token>"
-    if (!authHeader.startsWith('Bearer ')) {
-      // 检查是否是拼写错误
-      const lowerHeader = authHeader.toLowerCase();
-      if (lowerHeader.startsWith('bearer') || lowerHeader.startsWith('beaerer')) {
-        logger.warn(`[Auth] Authorization header format error: expected "Bearer <token>", got "${authHeader.substring(0, 20)}..."`);
-        res.status(401).json({
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Invalid authorization header format. Expected: "Bearer <token>"',
-            hint: 'Make sure there is a space after "Bearer" and the spelling is correct.',
-          },
-        });
-        return;
-      }
-      
-      logger.warn(`[Auth] Invalid authorization header format for ${req.method} ${req.path}: "${authHeader.substring(0, 20)}..."`);
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Missing or invalid authorization header',
-        },
-      });
-      return;
-    }
-
-    const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
-    
     if (!token || token.trim().length === 0) {
       logger.warn(`[Auth] Empty token provided for ${req.method} ${req.path}`);
       res.status(401).json({
@@ -105,7 +104,7 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       logger.warn(`[Auth] JWT_SECRET not set in environment, using default value`);
       logger.warn(`[Auth] ⚠️  警告: 使用默认 JWT_SECRET 可能导致认证失败`);
       logger.warn(`[Auth] 💡 提示: 请确保 gateway 和 mxmauth 使用相同的 JWT_SECRET`);
-      logger.warn(`[Auth] 💡 建议: 在 mxmdata/.env 中配置 JWT_SECRET`);
+      logger.warn(`[Auth] 💡 建议: 在项目根 .env 中配置 JWT_SECRET`);
     } else {
       // logger.debug(`[Auth] JWT_SECRET is configured (length: ${process.env.JWT_SECRET.length})`);
       // logger.debug(`[Auth] JWT_SECRET 前10个字符: ${process.env.JWT_SECRET.substring(0, 10)}...`);
@@ -117,9 +116,21 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       const decoded = jwt.verify(token, secret, { clockTolerance }) as {
         userId: string;
         username: string;
-        type: 'access' | 'refresh';
+        type: 'access' | 'refresh' | 'partner_session';
         role?: 'user' | 'admin';
-      };
+      } & Partial<PartnerSessionJwtPayload>;
+
+      if (decoded.type === 'partner_session') {
+        const ok = await attachPartnerFromToken(req, token, decoded as PartnerSessionJwtPayload);
+        if (!ok) {
+          res.status(401).json({
+            success: false,
+            error: { code: 'INVALID_PARTNER_SESSION', message: 'Partner session 无效或已撤销' },
+          });
+          return;
+        }
+        return next();
+      }
 
       // 只接受 access token
       if (decoded.type !== 'access') {
@@ -169,14 +180,21 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
             });
             return;
           }
+          const keyType: UserApiKeyType =
+            keyRecord.key_type === 'integration' ? 'integration' : 'personal';
           req.user = {
             userId: user.id,
             username: user.username ?? user.id,
             type: 'access',
             role: user.role === 'admin' ? 'admin' : 'user',
+            apiKeyType: keyType,
+            apiKeyId: keyRecord.id,
+            authViaApiKey: true,
           };
           await userApiKeyRepo.updateLastUsedAt(keyRecord.id).catch(() => {});
-          logger.debug(`[Auth] API Key authenticated for user ${req.user.username} (${req.method} ${req.path})`);
+          logger.debug(
+            `[Auth] API Key (${keyType}) authenticated for user ${req.user.username} (${req.method} ${req.path})`
+          );
           return next();
         }
       } catch (apiKeyErr) {

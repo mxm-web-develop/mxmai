@@ -1,0 +1,341 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-05-08T12:00:00.000Z",
+  "items": [
+    {
+      "scope": "graph",
+      "type": "design",
+      "subtype": "productposter",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "设计 · 产品宣传海报",
+          "subtypeLabel": "productposter（产品/表单锁死 + 电商上屏字）",
+          "taskLabelI18n": {
+            "zh": "设计 · 产品宣传海报",
+            "zh-TW": "設計 · 產品宣上傳海報"
+          },
+          "subtypeLabelI18n": {
+            "zh": "productposter（产品/表单锁死 + 电商上屏字）",
+            "zh-TW": "productposter（產品/表單锁死 + 电商上屏字）"
+          }
+        },
+        "promptTextTaskKey": "text/format/gpt-image-2",
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "maxTokens": 2048,
+              "temperature": 0.35
+            }
+          },
+          "knowledge": {
+            "strategy": "global",
+            "useKnowledge": false,
+            "defaultKnowledgeBaseIds": []
+          },
+          "uiSchema": {
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 4
+              }
+            },
+            "selling_points": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 3
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是资深「电商产品宣传海报」美术指导 + 英文 image prompt 撰稿人。下游把你的英文正文交给 gpt-image-2 类模型；产品/Logo 参考图像素已由系统随请求提交，你不得粘贴 base64/URL。\n\n【text/format 生成契约】①「一、重要的用户要求」永远优先；②用户未写的维度才允许用「四、相关参考」与内嵌词表补全；③与参考像素矛盾的一律不写。\n\n一、重要的用户要求（表单 schema 插值，本单硬约束）\n- 产品参考（摘要/占位）：${product_images}\n- Logo 参考（摘要/占位）：${logo_images}\n- 产品名称：${product_name}\n- 价格/优惠展示文案：${product_price}\n- 主标题：${headline}\n- 副标题：${subheadline}\n- 核心卖点：${selling_points}\n- 版式风格：${layout_style}\n- 画幅：${aspect_ratio}\n- 画面文字语言：${on_screen_text_language}\n- 色彩气质：${color_mood}\n- 目标受众/语气：${target_audience}\n- 行动号召：${cta}\n- 促销角标：${promo_badge}\n- 用户补充说明：${prompt}\n\n二、任务定义（产品宣传海报是什么）\n- 面向货架与转化的电商/信息流**单张成品海报**：买家须在数秒内读懂**卖什么、什么价、核心价值**；主画面须与「一」及附件产品参考一致，为**可上架质感**，非艺术画廊空想图。\n- 与「纯情绪样张」区别：即使走生活方式场景，仍须是**产品的广告**，禁止用无关人物或无关场景替换主商品叙事。\n- 与「杂乱传单」区别：信息层级清晰，主视觉与上屏字可读；避免满屏贴纸风。\n\n三、任务要求（怎样算优秀的产品宣传海报）\n- **产品身份锁定（硬）**：只要「一」中产品参考非空，最终英文 prompt 必须写入可执行的 **product identity lock**：主画面中的产品须与参考为**同一件商品**——锁定包装外形、主色与材质层次、印刷/标签位置感；允许角度与光影在「同一 SKU 的连拍」范围内变化，**禁止**换成无关 SKU、无关道具或「神似但不同款」的漂移。\n- **上屏字**：当「一」给出 headline / product_name / product_price / cta 等时，须在英文中写明**清晰排版与层级**，且**字面文案与用户填写完全一致**；画面内**额外生成的**辅助小字、角标说明、装饰性文案的书写语言须与「一」中 on_screen_text_language 一致（中文 / English / 日本語）。**禁止**再写「avoid all text / no typography」等与「一」矛盾的指令。\n- **版式与 layout_style 对齐**：hero/price/minimal 路线以产品+字为核；lifestyle/cinematic 路线场景须与品类调性相容且人物须**使用/穿戴附件同款产品**；split 路线左右信息分区须清楚。\n- **光影与材质**：高 key 干净或柔和侧光须与 color_mood、用户补充一致；忌脏灰、忌塑料假材质。\n\n四、相关参考（graph/design 产品海报版式与用光；仅用户未指定时补全，不得覆盖「一」）\n- 主视觉占比：单品主图路线常见约 35–55% 画面宽度；情境路线产品仍须占显著权重。\n- 文字排版：主标题粗、副标或卖点次级、价格与 CTA 用高对比色块或底托；若非用户要求，避免超过 2–3 种字型气质混用。\n- 焦段语义（英文须写 full-frame equivalent；仅当「一」未写焦段时采纳）：全身/带台面约 35mm；胸像与包装主卖点约 50–85mm；细节纹理可用中长焦微距感词汇；眼平或略俯以展示盒体顶面/正面。\n- 若用户已写明镜头/排版，本节只补未覆盖的细粒度，不得改写产品与价格文案。\n\n五、Prompt 输出参考（英文正文结构与禁忌）\n- 建议信息顺序（写成一段连续英文，不用 Markdown）：product hero & identity lock tied to submitted references → on-image typography（headline, product name, price line, CTA as literal short strings in quotes）→ setting/lighting/material only as allowed by 「一」→ lens + camera + DoF if stated → composition & framing（显式写出与画幅行一致的 tall portrait 9:16 / wide 16:9 等）→ negatives（no watermark, no fake logos, legible type, realistic materials）。**不得**输出与「一」要求上屏字相矛盾的 no-text 表述。\n- 禁止：中文解释、Markdown、编号清单；禁止用行业惯性默认（无端无关模特大片、无端替换 SKU）覆盖「一」。\n\n【输出】只输出最终生图用英文 prompt 正文，不要解释或 Markdown。"
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "product_name",
+              "product_price",
+              "product_images",
+              "headline",
+              "layout_style",
+              "aspect_ratio"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "poster"
+                ],
+                "default": "poster",
+                "x-user-visible": false
+              },
+              "product_name": {
+                "type": "string",
+                "title": "产品名称",
+                "description": "将出现在海报主文案区，如商品全称或系列名。",
+                "x-ui-type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "product_price": {
+                "type": "string",
+                "title": "价格 / 优惠信息",
+                "description": "展示用文案，如：¥199、限时 8 折、From $29.9；将指导画面中的价格条或角标。",
+                "x-ui-type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "product_images": {
+                "type": "array",
+                "title": "产品参考图",
+                "description": "至少一张：产品本体/包装/白底主图；像素会进生图模型，摘要会进文案 briefing。",
+                "x-ui-type": "referenceImages",
+                "minItems": 1,
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "title": "图片 URL / Base64"
+                    },
+                    "type": {
+                      "type": "string",
+                      "title": "用途类型",
+                      "enum": [
+                        "main-subject",
+                        "background",
+                        "outfits",
+                        "color-reference",
+                        "style-reference"
+                      ],
+                      "default": "main-subject"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "title": "用途说明（可选）"
+                    }
+                  }
+                },
+                "x-enum-labels": []
+              },
+              "logo_images": {
+                "type": "array",
+                "title": "品牌 Logo（可选）",
+                "description": "若有品牌标识参考，请上传透明底 PNG；未上传则不在画面中添加虚构 Logo。",
+                "x-ui-type": "referenceImages",
+                "minItems": 0,
+                "maxItems": 3,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "title": "图片 URL / Base64"
+                    },
+                    "type": {
+                      "type": "string",
+                      "title": "用途类型",
+                      "enum": [
+                        "main-subject",
+                        "background",
+                        "outfits",
+                        "color-reference",
+                        "style-reference"
+                      ],
+                      "default": "style-reference"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "title": "用途说明（可选）"
+                    }
+                  }
+                },
+                "x-enum-labels": []
+              },
+              "headline": {
+                "type": "string",
+                "title": "主标题",
+                "description": "海报最大字号的主文案，如「轻到忘了戴」。",
+                "x-ui-type": "string",
+                "maxLength": 80
+              },
+              "subheadline": {
+                "type": "string",
+                "title": "副标题",
+                "description": "可选：一句副文案或品类定位。",
+                "x-ui-type": "string",
+                "default": "",
+                "maxLength": 120
+              },
+              "selling_points": {
+                "type": "string",
+                "title": "核心卖点",
+                "description": "多条可用换行或分号分隔，如：40h 续航；IPX7；亲肤硅胶。",
+                "x-ui-type": "string",
+                "default": ""
+              },
+              "layout_style": {
+                "type": "string",
+                "title": "版式风格",
+                "description": "默认「大产品主视觉」最稳；需要电影感场景时再选生活方式类。",
+                "enum": [
+                  "hero_product",
+                  "cinematic_lifestyle",
+                  "lifestyle_scene",
+                  "split_compare",
+                  "price_focus",
+                  "minimal_typography"
+                ],
+                "default": "hero_product",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "大产品主视觉（默认）",
+                  "电影感生活方式",
+                  "场景化生活方式",
+                  "左右对比/前后对比",
+                  "价格与促销主导",
+                  "极简大字排版"
+                ]
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "title": "画幅",
+                "enum": [
+                  "1:1",
+                  "3:4",
+                  "4:3",
+                  "4:5",
+                  "16:9",
+                  "9:16"
+                ],
+                "default": "3:4",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "1:1 方图",
+                  "3:4 竖版（电商常用）",
+                  "4:3 横版",
+                  "4:5 社媒竖版",
+                  "16:9 横版 Banner",
+                  "9:16 全屏竖版"
+                ]
+              },
+              "on_screen_text_language": {
+                "type": "string",
+                "title": "画面文字语言",
+                "description": "除你填写的主标题/价格/CTA 等原文外，海报上**额外生成**的装饰字、小字说明、辅助标签使用何种书写语言。",
+                "enum": [
+                  "zh",
+                  "en",
+                  "ja"
+                ],
+                "default": "zh",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "中文",
+                  "English",
+                  "日本語"
+                ],
+                "x-enum-descriptions": {
+                  "zh": "辅助与装饰性上屏字以简体中文为主。",
+                  "en": "Auxiliary on-image copy in English.",
+                  "ja": "補助テキストは日本語。"
+                }
+              },
+              "color_mood": {
+                "type": "string",
+                "title": "色彩气质",
+                "enum": [
+                  "brand_neutral",
+                  "high_key_clean",
+                  "cinematic_warm_cool",
+                  "dark_premium",
+                  "pop_contrast",
+                  "pastel_soft",
+                  "mono_luxury"
+                ],
+                "default": "brand_neutral",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "跟随参考图",
+                  "明亮干净（电商白底感）",
+                  "电影感冷暖分离",
+                  "深色高级感",
+                  "高对比撞色",
+                  "柔和马卡龙",
+                  "黑白金奢华"
+                ]
+              },
+              "target_audience": {
+                "type": "string",
+                "title": "目标受众 / 语气",
+                "description": "如：Gen Z 女性、数码极客、宝妈；影响文案语气与画面氛围。",
+                "x-ui-type": "string",
+                "default": "泛电商用户",
+                "maxLength": 80
+              },
+              "cta": {
+                "type": "string",
+                "title": "行动号召",
+                "description": "如：立即购买、加入购物车、扫码领券。",
+                "x-ui-type": "string",
+                "default": "立即购买",
+                "maxLength": 40
+              },
+              "promo_badge": {
+                "type": "string",
+                "title": "促销角标（可选）",
+                "description": "如：新品、限时、热卖 TOP1；留空则不加角标。",
+                "x-ui-type": "string",
+                "default": "",
+                "maxLength": 20
+              },
+              "prompt": {
+                "type": "string",
+                "title": "补充说明",
+                "description": "禁忌、渠道（天猫/抖音）、必须出现的卖点、不要出现的元素等。",
+                "x-ui-type": "string",
+                "default": ""
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "graph-design-productposter",
+        "provider": "atlascloud",
+        "model": "gpt-image-2",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "graph-design-productposter",
+          "charge_metric": "per_image",
+          "price_in_tokens": 120,
+          "min_charge_tokens": 0,
+          "provider": "atlascloud",
+          "model_key": "gpt-image-2",
+          "subtype": "productposter",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

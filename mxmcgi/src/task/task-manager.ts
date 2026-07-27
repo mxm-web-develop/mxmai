@@ -18,7 +18,37 @@ import {
 } from './types';
 import { DatabaseTaskStorage } from './database-storage';
 import { sanitizeBase64InObject } from './reference-image';
+import { mediaUrlNeedsObjectStorage, persistTaskResultInlineMedia, sanitizeTaskResultForApiResponse } from './task-result-media-persist';
+import { persistTtsSubtitleInResult } from './tts-subtitle-persist';
+import { slimTtsTaskResultMetadata } from './tts-result-metadata';
+import { normalizeStaleTaskStatus } from './task-status-normalize';
 import { deductForTask } from './payment-client';
+import { extractRequestLabelFromParams } from './extract-request-label';
+import { cleanupStoryboardTempForTaskMetadata } from '../core/video/video-grid-storyboard';
+import { cleanupUserUploadTempForTask } from '../storage/user-upload-temp-cleanup';
+import {
+  isOpenApiTaskMetadata,
+  TASK_CREATION_SOURCE_OPEN_API,
+  TASK_CREATION_SOURCE_WEB,
+  pickOpenApiMetadataFromParams,
+} from './creation-source';
+import { mergeMetadataWithProgressUx } from './progress-ux';
+import {
+  extractContentPreviewFromResult,
+  extractOutputFormatFromResult,
+} from './task-list-summary';
+
+/** 生成类任务完成后 result.mediaUrls 必须为可引用的 http(s)，禁止 data:/纯 base64 落库 */
+function taskTypeMustPersistRemoteMediaUrls(type: TaskType): boolean {
+  return (
+    type === 'graph' ||
+    type === 'graph-grid9-parent' ||
+    type === 'image' ||
+    type === 'video' ||
+    type === 'audio' ||
+    type === 'music'
+  );
+}
 
 /**
  * 任务列表结果
@@ -68,6 +98,11 @@ export class MemoryTaskStorage implements TaskStorage {
     }
     if (params.model) {
       tasks = tasks.filter(t => t.metadata.model === params.model);
+    }
+    if (params.creationSource === 'open_api') {
+      tasks = tasks.filter((t) => isOpenApiTaskMetadata(t.metadata as Record<string, unknown>));
+    } else if (params.creationSource === 'web') {
+      tasks = tasks.filter((t) => !isOpenApiTaskMetadata(t.metadata as Record<string, unknown>));
     }
 
     // 排序（最新的在前）
@@ -196,11 +231,8 @@ export class TaskManager {
       }
     }
 
-    // label 统一入口：前端可传 params.label 或 params.metadata.label
-    const requestLabel =
-      (request.params?.metadata && typeof request.params.metadata.label === 'string' ? request.params.metadata.label : undefined) ||
-      (typeof (request.params as any)?.label === 'string' ? (request.params as any).label : undefined) ||
-      undefined;
+    // label 统一入口：前端可传 params.label / params.metadata.label；Task V2 亦可能写在 params.params.metadata.label
+    const requestLabel = extractRequestLabelFromParams(request.params as Record<string, unknown>);
 
     // 如果 provider 未指定，尝试通过 providerFactory 确定应该使用的 provider
     let provider: string | undefined = request.provider;
@@ -274,16 +306,21 @@ export class TaskManager {
         });
       }
       
-      // 任务创建时发送通知
-      const { sendTaskStatusNotification } = await import('./notification-hook');
-      sendTaskStatusNotification(
-        createdTask,
-        'pending',
-        '任务已创建'
-      ).catch((error) => {
-        // 通知失败不影响主流程
-        console.error(`[TaskManager] Failed to send task creation notification for task ${taskId}:`, error);
-      });
+      const refreshed = await this.storage.get(taskId);
+      if (refreshed) {
+        const { maybeNotifyTaskSnapshot } = await import('./task-notify');
+        maybeNotifyTaskSnapshot(refreshed, 'pending', {
+          statusMessage: '任务已创建',
+          reason: 'create',
+          force: true,
+        }).catch((error) => {
+          console.error(`[TaskManager] Failed to send task creation notification for task ${taskId}:`, error);
+        });
+        const { enqueueTaskWake } = await import('./task-queue');
+        enqueueTaskWake(taskId).catch((error) => {
+          console.warn(`[TaskManager] enqueueTaskWake failed for ${taskId}:`, error instanceof Error ? error.message : error);
+        });
+      }
       
       return {
         taskId: createdTask.id,
@@ -295,10 +332,49 @@ export class TaskManager {
     // 内存存储：使用 UID
     const now = new Date();
     const taskId = uid(21); // 生成 21 字符长度的唯一 ID
+
+    let params = request.params ? ({ ...request.params } as Record<string, unknown>) : {};
+    if (request.type === 'video') {
+      const { prepareStoryboardGridForTaskPersist, STORYBOARD_TEMP_KEYS_META } = await import(
+        '../core/video/video-grid-storyboard'
+      );
+      const storyMeta = await prepareStoryboardGridForTaskPersist(taskId, params, {
+        provider: provider as string | undefined,
+      });
+      if (storyMeta) {
+        const meta = (params.metadata as Record<string, unknown>) ?? {};
+        params = {
+          ...params,
+          metadata: {
+            ...meta,
+            [STORYBOARD_TEMP_KEYS_META]: storyMeta.tempR2Keys,
+            storyboardTempR2Bucket: storyMeta.bucket,
+          },
+        };
+      }
+    }
+    if (request.type === 'graph') {
+      const { prepareGraphToolsHdForTaskPersist, HD_SOURCE_TEMP_R2_META } = await import(
+        '../core/graph/tools/graph-tools-hd-persist'
+      );
+      const hdMeta = await prepareGraphToolsHdForTaskPersist(taskId, params);
+      if (hdMeta) {
+        const meta = (params.metadata as Record<string, unknown>) ?? {};
+        params = {
+          ...params,
+          metadata: {
+            ...meta,
+            [HD_SOURCE_TEMP_R2_META]: hdMeta.tempR2Key,
+            hdSourceTempR2Bucket: hdMeta.bucket,
+          },
+        };
+      }
+    }
     
     // 清理 requestParams 中的 base64 数据（避免存储和返回时数据过大）
-    const sanitizedParams = sanitizeBase64InObject(request.params);
-    
+    const sanitizedParams = sanitizeBase64InObject(params);
+    const openApiMeta = pickOpenApiMetadataFromParams(request.params);
+
     const task: Task = {
       id: taskId,
       type: request.type,
@@ -315,6 +391,9 @@ export class TaskManager {
         storageConfig: request.storageConfig,
         ...(requestLabel ? { label: requestLabel } : {}),
         ...(idempotencyKey ? { idempotencyKey } : {}),
+        ...openApiMeta,
+        creationSource: openApiMeta.creationSource ?? TASK_CREATION_SOURCE_WEB,
+        ...((params.metadata as Record<string, unknown>) ?? {}),
       },
       createdAt: now,
       updatedAt: now,
@@ -323,15 +402,18 @@ export class TaskManager {
 
     await this.storage.save(task);
 
-    // 任务创建时发送通知
-    const { sendTaskStatusNotification } = await import('./notification-hook');
-    sendTaskStatusNotification(
-      task,
-      'pending',
-      '任务已创建'
-    ).catch((error) => {
-      // 通知失败不影响主流程
+    const { maybeNotifyTaskSnapshot } = await import('./task-notify');
+    maybeNotifyTaskSnapshot(task, 'pending', {
+      statusMessage: '任务已创建',
+      reason: 'create',
+      force: true,
+    }).catch((error) => {
       console.error(`[TaskManager] Failed to send task creation notification for task ${taskId}:`, error);
+    });
+
+    const { enqueueTaskWake } = await import('./task-queue');
+    enqueueTaskWake(taskId).catch((error) => {
+      console.warn(`[TaskManager] enqueueTaskWake failed for ${taskId}:`, error instanceof Error ? error.message : error);
     });
 
     return {
@@ -350,6 +432,55 @@ export class TaskManager {
     if (!task) {
       throw new Error(`Task ${taskId} not found`);
     }
+    return { task };
+  }
+
+  /**
+   * 详情 API：修正陈旧 awaiting_review、lazy 转存内联媒体，响应体不含巨型 base64
+   */
+  async getTaskForApi(taskId: string, includeDeleted: boolean = false): Promise<GetTaskResponse> {
+    const raw = await this.storage.get(taskId, includeDeleted);
+    if (!raw) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+
+    let task = raw;
+    const { task: normalized, repaired: statusRepaired } = normalizeStaleTaskStatus(task);
+    task = normalized;
+
+    let mediaRepaired = false;
+    const hasInlineMedia = task.result?.mediaUrls?.some(
+      (u) => typeof u === 'string' && mediaUrlNeedsObjectStorage(u)
+    );
+
+    if (hasInlineMedia && task.result) {
+      try {
+        const persisted = await persistTaskResultInlineMedia(task, task.result);
+        task = { ...task, result: persisted };
+        mediaRepaired = true;
+      } catch (err) {
+        console.warn('[TaskManager] getTaskForApi 内联媒体转存失败，仅净化响应体', {
+          taskId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        task = sanitizeTaskResultForApiResponse(task);
+      }
+    } else {
+      task = sanitizeTaskResultForApiResponse(task);
+    }
+
+    if (statusRepaired || mediaRepaired) {
+      const updates: Partial<Task> = {};
+      if (statusRepaired) {
+        updates.status = task.status;
+        updates.progress = task.progress;
+      }
+      if (mediaRepaired && task.result) {
+        updates.result = task.result;
+      }
+      await this.storage.update(taskId, updates);
+    }
+
     return { task };
   }
 
@@ -376,8 +507,31 @@ export class TaskManager {
       updatedAt: new Date(),
     };
 
-    // 如果状态重置为 queued 或 processing，清空之前的错误信息
-    if (status === 'queued' || status === 'processing') {
+    const metaWithUx = mergeMetadataWithProgressUx(
+      task.metadata as Record<string, unknown> | undefined,
+      progress
+    );
+    if (metaWithUx) {
+      updates.metadata = metaWithUx as Task['metadata'];
+    }
+
+    // 重新入队（如前置审核通过后继续 TTS）：清空 started_at，否则 claim RPC 无法领取
+    if (status === 'pending') {
+      updates.progress = {
+        ...updates.progress,
+        startedAt: null,
+        completedAt: null,
+      } as TaskProgress;
+    }
+
+    // 非 failed 终态：清空历史 error（重试/进入审核后列表不应再显示旧失败信息）
+    if (
+      status === 'queued' ||
+      status === 'processing' ||
+      status === 'pending' ||
+      status === 'awaiting_review' ||
+      status === 'completed'
+    ) {
       updates.progress = {
         ...updates.progress,
         error: undefined,
@@ -398,23 +552,36 @@ export class TaskManager {
         ...updates.progress,
         completedAt: new Date(),
       } as TaskProgress;
+      if (status === 'cancelled') {
+        void cleanupStoryboardTempForTaskMetadata(task.metadata as Record<string, unknown>).catch((err) => {
+          console.warn('[TaskManager] storyboard temp cleanup on cancel failed:', err);
+        });
+        const uid = (task.metadata as Record<string, unknown>)?.userId;
+        if (typeof uid === 'string' && uid) {
+          void cleanupUserUploadTempForTask(taskId, uid).catch((err) => {
+            console.warn('[TaskManager] user upload temp cleanup on cancel failed:', err);
+          });
+        }
+      }
     }
 
     await this.storage.update(taskId, updates);
 
-    // 只在关键状态变化时发送通知：创建（pending）、完成（completed）、失败（failed）
-    // 其他状态（queued、processing）不发送通知，避免通知过多
-    const shouldNotify = status === 'pending' || status === 'completed' || status === 'failed';
-    
-    if (shouldNotify) {
+    const notifyStatuses: TaskStatus[] = [
+      'pending',
+      'queued',
+      'processing',
+      'awaiting_review',
+      'completed',
+      'failed',
+      'cancelled',
+    ];
+
+    if (notifyStatuses.includes(status)) {
       const updatedTask = await this.storage.get(taskId);
       if (updatedTask) {
-        // 根据状态生成通知消息
-        let statusMessage: string;
+        let statusMessage: string | undefined;
         switch (status) {
-          case 'pending':
-            statusMessage = '任务已创建';
-            break;
           case 'completed':
             statusMessage = progress?.logs?.[progress.logs.length - 1] || '任务已完成';
             break;
@@ -422,30 +589,32 @@ export class TaskManager {
             statusMessage = progress?.logs?.[progress.logs.length - 1] || progress?.error || '任务失败';
             break;
           default:
-            statusMessage = `任务状态变更为 ${status}`;
+            break;
         }
 
-        console.log(`[TaskManager] Sending status notification for task ${taskId}, status: ${status}, userId: ${updatedTask.metadata.userId}`);
-        const { sendTaskStatusNotification } = await import('./notification-hook');
-        sendTaskStatusNotification(
-          updatedTask,
-          status,
-          statusMessage
-        ).catch((err) => {
-          // 通知失败不影响主流程
+        const reason =
+          status === 'completed' || status === 'failed' || status === 'cancelled'
+            ? 'terminal'
+            : 'status';
+
+        const { maybeNotifyTaskSnapshot } = await import('./task-notify');
+        maybeNotifyTaskSnapshot(updatedTask, status, {
+          statusMessage,
+          reason,
+          force:
+            status === 'pending' ||
+            status === 'completed' ||
+            status === 'failed' ||
+            status === 'cancelled',
+        }).catch((err) => {
           console.error(`[TaskManager] Failed to send status notification for task ${taskId}:`, err);
         });
-      } else {
-        console.warn(`[TaskManager] Task ${taskId} not found after status update, cannot send notification`);
       }
-    } else {
-      // 其他状态变化不发送通知，只记录日志
-      console.log(`[TaskManager] Task ${taskId} status changed to ${status}, skipping notification (only notify on pending/completed/failed)`);
     }
   }
 
   /**
-   * 更新任务进度
+   * 更新任务进度（非终态下百分比单调不减，避免管道阶段硬编码回跳）
    */
   async updateTaskProgress(
     taskId: string,
@@ -456,13 +625,49 @@ export class TaskManager {
       throw new Error(`Task ${taskId} not found`);
     }
 
-    await this.storage.update(taskId, {
-      progress: {
-        ...task.progress,
-        ...progress,
-      },
+    const prevPct = typeof task.progress?.progress === 'number' ? task.progress.progress : 0;
+    const nextPct = typeof progress.progress === 'number' ? progress.progress : undefined;
+    const terminal =
+      task.status === 'completed' ||
+      task.status === 'failed' ||
+      task.status === 'cancelled' ||
+      task.status === 'network_error';
+    const mergedPct =
+      nextPct == null
+        ? task.progress?.progress
+        : terminal
+          ? nextPct
+          : Math.max(prevPct, nextPct);
+
+    const nextProgress: TaskProgress = {
+      ...task.progress,
+      ...progress,
+      ...(mergedPct != null ? { progress: mergedPct } : {}),
+      status: progress.status ?? task.status,
+    };
+
+    const updates: Partial<Task> = {
+      progress: nextProgress,
       updatedAt: new Date(),
-    });
+    };
+    const metaWithUx = mergeMetadataWithProgressUx(
+      task.metadata as Record<string, unknown> | undefined,
+      progress
+    );
+    if (metaWithUx) {
+      updates.metadata = metaWithUx as Task['metadata'];
+    }
+
+    await this.storage.update(taskId, updates);
+
+    const updatedTask = await this.storage.get(taskId);
+    if (updatedTask) {
+      const notifyStatus = updatedTask.status;
+      const { maybeNotifyTaskSnapshot } = await import('./task-notify');
+      maybeNotifyTaskSnapshot(updatedTask, notifyStatus, { reason: 'progress' }).catch((err) => {
+        console.error(`[TaskManager] Failed to send progress notification for task ${taskId}:`, err);
+      });
+    }
   }
 
   /**
@@ -475,10 +680,82 @@ export class TaskManager {
       throw new Error(`Task ${taskId} not found`);
     }
 
+    let resultToSave = result;
+    if (result?.mediaUrls?.length) {
+      try {
+        resultToSave = await persistTaskResultInlineMedia(task, result);
+      } catch (e) {
+        console.error('[TaskManager] result 内联媒体转存失败（避免将大 base64 写入 DB）', {
+          taskId,
+          error: e instanceof Error ? e.message : String(e),
+        });
+        throw e;
+      }
+    }
+
+    if (task.type === 'audio' || task.type === 'music') {
+      try {
+        resultToSave = await persistTtsSubtitleInResult(task, resultToSave);
+      } catch (e) {
+        console.error('[TaskManager] TTS 字幕持久化失败', {
+          taskId,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+      if (resultToSave.metadata) {
+        const hasPersistedMedia = Boolean(
+          resultToSave.storageInfo?.keys?.length ||
+            resultToSave.mediaUrls?.some(
+              (u) => typeof u === 'string' && /^https?:\/\//i.test(u.trim())
+            )
+        );
+        resultToSave = {
+          ...resultToSave,
+          metadata: slimTtsTaskResultMetadata(
+            task.type,
+            resultToSave.metadata as Record<string, unknown>,
+            hasPersistedMedia
+          ),
+        };
+      }
+    }
+
+    if (
+      resultToSave.mediaUrls?.length &&
+      taskTypeMustPersistRemoteMediaUrls(task.type) &&
+      task.metadata?.storeToMinio !== false
+    ) {
+      const leftover = resultToSave.mediaUrls.filter(
+        (u) => typeof u === 'string' && mediaUrlNeedsObjectStorage(u)
+      );
+      if (leftover.length > 0) {
+        throw new Error(
+          `[TaskManager] 禁止将内联媒体写入已完成任务（${leftover.length} 条）taskId=${taskId} type=${task.type}`
+        );
+      }
+    }
+
     // 先更新结果和状态
+    const listOutputFormat = extractOutputFormatFromResult(resultToSave);
+    const listContentPreview = extractContentPreviewFromResult(resultToSave);
+    const listMediaCount = Array.isArray(resultToSave.mediaUrls)
+      ? resultToSave.mediaUrls.length
+      : Array.isArray(resultToSave.storageInfo?.keys)
+        ? resultToSave.storageInfo.keys.length
+        : 0;
+    const { scrubTaskMetadataReviewFlags } = await import('../tasks/manual-review');
+    const mergedMetadata = scrubTaskMetadataReviewFlags({
+      ...(task.metadata as Record<string, unknown>),
+      ...(listOutputFormat ? { listOutputFormat } : {}),
+      ...(listContentPreview ? { listContentPreview } : {}),
+      listHasMedia: listMediaCount > 0,
+      listMediaCount,
+    });
+
     await this.storage.update(taskId, {
-      result,
+      result: resultToSave,
       status: 'completed',
+      metadata: mergedMetadata,
       progress: {
         ...task.progress,
         status: 'completed',
@@ -488,6 +765,33 @@ export class TaskManager {
       },
       updatedAt: new Date(),
     });
+
+    void cleanupStoryboardTempForTaskMetadata(task.metadata as Record<string, unknown>).catch((err) => {
+      console.warn('[TaskManager] storyboard temp cleanup on complete failed:', err);
+    });
+    const completeUserId = (task.metadata as Record<string, unknown>)?.userId;
+    if (typeof completeUserId === 'string' && completeUserId) {
+      void cleanupUserUploadTempForTask(taskId, completeUserId).catch((err) => {
+        console.warn('[TaskManager] user upload temp cleanup on complete failed:', err);
+      });
+    }
+
+    try {
+      const { deleteAllManualReviewDrafts } = await import('../tasks/manual-review-store');
+      const { scrubPersistedReviewArtifacts, scrubTaskMetadataReviewFlags } = await import(
+        '../tasks/manual-review'
+      );
+      await deleteAllManualReviewDrafts(taskId);
+      const fresh = await this.storage.get(taskId);
+      if (fresh) {
+        await this.storage.update(taskId, {
+          requestParams: scrubPersistedReviewArtifacts(fresh.requestParams as Record<string, any>),
+          metadata: scrubTaskMetadataReviewFlags(fresh.metadata as Record<string, unknown>),
+        });
+      }
+    } catch (scrubErr) {
+      console.warn('[TaskManager] 清理前置审核草稿失败:', scrubErr);
+    }
 
     // 通过 updateTaskStatus 发送通知（统一处理所有状态变化）
     // 这样可以确保通知逻辑一致，并且可以获取到最新的任务数据（包括 result）
@@ -521,12 +825,31 @@ export class TaskManager {
       updatedAt: new Date(),
     });
 
+    void cleanupStoryboardTempForTaskMetadata(task.metadata as Record<string, unknown>).catch((err) => {
+      console.warn('[TaskManager] storyboard temp cleanup on failed failed:', err);
+    });
+    const failedUserId = (task.metadata as Record<string, unknown>)?.userId;
+    if (typeof failedUserId === 'string' && failedUserId) {
+      void cleanupUserUploadTempForTask(taskId, failedUserId).catch((err) => {
+        console.warn('[TaskManager] user upload temp cleanup on failed failed:', err);
+      });
+    }
+
     // 通过 updateTaskStatus 发送通知（统一处理所有状态变化）
     await this.updateTaskStatus(taskId, 'failed', {
       error,
       completedAt,
       logs: [error],
     });
+
+    if (isOpenApiTaskMetadata(task.metadata as Record<string, unknown>)) {
+      try {
+        const { failOpenApiUsage } = await import('../open-api/usage');
+        await failOpenApiUsage(taskId, error);
+      } catch (usageErr) {
+        console.warn('[TaskManager] failOpenApiUsage failed:', usageErr);
+      }
+    }
   }
 
   /**
@@ -542,6 +865,20 @@ export class TaskManager {
     await this.storage.update(taskId, {
       result: { ...current, metadata: newMetadata },
       updatedAt: new Date(),
+    });
+  }
+
+  /**
+   * 更新任务 requestParams（持久化到 input_data）
+   */
+  async updateTaskRequestParams(taskId: string, requestParams: Record<string, any>): Promise<void> {
+    const task = await this.storage.get(taskId);
+    if (!task) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+    const sanitized = sanitizeBase64InObject(requestParams);
+    await this.storage.update(taskId, {
+      requestParams: sanitized,
     });
   }
 
@@ -590,6 +927,13 @@ export class TaskManager {
    * 普通用户查询时自动过滤已软删除的任务（deleted_at IS NULL）
    * Admin 用户可以通过 includeDeleted 选项查看所有任务
    */
+  async claimPendingTasks(workerId: string, limit: number = 1): Promise<Task[]> {
+    if (!(this.storage instanceof DatabaseTaskStorage)) {
+      return [];
+    }
+    return this.storage.claimPendingTasks(workerId, limit);
+  }
+
   async listTasks(params: ListTasksParams): Promise<ListTasksResponse> {
     // 默认不包含已删除的任务（普通用户）
     const listParams = {

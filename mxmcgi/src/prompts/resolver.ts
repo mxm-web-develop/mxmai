@@ -3,64 +3,83 @@
  * 与 BUSINESS_INTERFACE_SPEC 提示词工程衔接
  */
 
-import { RepositoryFactory } from '@mxmai/mxmdata';
+import { RepositoryFactory, pickLocalizedString } from '@mxmai/mxmdata';
 import { getWritingTypeRules, getWritingTypeOutputFormat } from '../clientServer/writing';
-import { getGraphRulesForType } from '../clientServer/graph';
+import { splitUnifiedTemplateForLegacyParts } from './split-unified-template-legacy';
 
 const langFallback = (i18n: Record<string, string> | undefined, lang: string): string => {
-  if (!i18n || typeof i18n !== 'object') return '';
-  return i18n[lang] ?? i18n['zh'] ?? i18n['en'] ?? '';
+  return pickLocalizedString(i18n, lang) ?? '';
 };
 
+/** 从 taskTemplate.pipeline.pre 或 legacy extra.promptTextTaskKey 解析 graph 前置 text 格式化 */
+export function resolvePromptTextTaskKeyFromExtra(extra: Record<string, unknown>): string | undefined {
+  const tpl = extra.taskTemplate as Record<string, unknown> | undefined;
+  const pipe = tpl?.pipeline as { pre?: Array<{ step?: string; nestedTextTaskKey?: string; params?: Record<string, unknown> }> } | undefined;
+  const nested = pipe?.pre?.find(
+    (s) =>
+      s.step === 'nestedText' &&
+      (s.params?.graphPreFormat === true || s.params?.afterPromptRender === true) &&
+      typeof s.nestedTextTaskKey === 'string' &&
+      s.nestedTextTaskKey.trim()
+  );
+  if (nested?.nestedTextTaskKey) return nested.nestedTextTaskKey.trim();
+  const legacy = extra.promptTextTaskKey;
+  return typeof legacy === 'string' && legacy.trim() ? legacy.trim() : undefined;
+}
+
 /**
- * 解析写作类型的 rules 与 output_format（先查 DB，再回退代码配置）
+ * 解析写作类型的 rules 与 output_format。
+ * 不再读取 DB `rules_i18n`；若存在 `extra.taskTemplate.prompt.unifiedTemplate`，按其标准段落拆出规则/输出段；
+ * 否则回退到代码内 wtconfigs。
  */
 export async function getWritingRulesAndFormatResolved(
   writingType: string,
   outlineType?: string | null,
   lang: string = 'zh'
 ): Promise<{ rules: string; outputFormat: string }> {
+  const typeRules = getWritingTypeRules(writingType as any);
+  const typeOutputFormat = getWritingTypeOutputFormat(writingType as any);
   try {
     const repo = RepositoryFactory.createPromptEngineeringConfigRepository();
     const row = await repo.findByKey('writing', writingType, outlineType ?? null);
     if (row?.is_active) {
-      const rules = langFallback(row.rules_i18n as Record<string, string>, lang);
-      const outputFormat = langFallback(row.output_format_i18n as Record<string, string>, lang);
-      if (rules || outputFormat) {
-        return { rules: rules || '', outputFormat: outputFormat || '' };
+      const outputFromDb = langFallback(row.output_format_i18n as Record<string, string>, lang);
+      const extra = (row.extra ?? {}) as Record<string, unknown>;
+      const taskTemplate = extra.taskTemplate as { prompt?: { unifiedTemplate?: string } } | undefined;
+      const uni =
+        typeof taskTemplate?.prompt?.unifiedTemplate === 'string' ? taskTemplate.prompt.unifiedTemplate.trim() : '';
+      if (uni) {
+        const { preamble, outputFormatTail } = splitUnifiedTemplateForLegacyParts(uni);
+        return {
+          rules: (preamble || typeRules).trim(),
+          outputFormat: (outputFormatTail || outputFromDb || typeOutputFormat).trim(),
+        };
       }
+      return {
+        rules: typeRules,
+        outputFormat: (outputFromDb || typeOutputFormat).trim(),
+      };
     }
   } catch (_) {
     // 忽略 DB 错误，使用回退
   }
-  const rules = getWritingTypeRules(writingType as any);
-  const outputFormat = getWritingTypeOutputFormat(writingType as any);
-  return { rules, outputFormat };
+  return { rules: typeRules, outputFormat: typeOutputFormat };
 }
 
 /**
- * 解析图文类型的 rules（先查 DB，再回退代码配置）
+ * Graph 旧式「rules 正文」拼接入口：产品侧已弃用 DB rules 列，恒返回空字符串（契约以 unifiedTemplate / text-format 为准）。
  */
 export async function getGraphRulesResolved(
-  graphType: string,
-  type: string,
-  lang: string = 'zh'
+  _graphType: string,
+  _type: string,
+  _lang: string = 'zh'
 ): Promise<string> {
-  try {
-    const repo = RepositoryFactory.createPromptEngineeringConfigRepository();
-    const row = await repo.findByKey('graph', graphType, type || null);
-    if (row?.is_active) {
-      const rules = langFallback(row.rules_i18n as Record<string, string>, lang);
-      if (rules) return rules;
-    }
-  } catch (_) {
-    // 忽略 DB 错误，使用回退
-  }
-  return getGraphRulesForType(graphType, type);
+  return '';
 }
 
 /** 写作/图文的完整配置（含 extra 中的 use_knowledge、default_knowledge_base_ids、模板等） */
 export interface PromptFullConfig {
+  /** 已弃用列，恒为空；规则见 extra.taskTemplate.unifiedTemplate */
   rules: string;
   outputFormat: string;
   use_knowledge?: boolean;
@@ -92,13 +111,26 @@ export async function getPromptFullConfig(
 ): Promise<PromptFullConfig | null> {
   try {
     const repo = RepositoryFactory.createPromptEngineeringConfigRepository();
-    const row = await repo.findByKey(scope, type, subtype ?? null);
+    const effectiveSubtype = subtype ?? null;
+
+    // v2 动态逻辑：优先精确匹配 subtype，若无匹配则回落查询 subtype=NULL（通用配置）
+    let row = await repo.findByKey(scope, type, effectiveSubtype);
+    if (!row && effectiveSubtype !== null) {
+      // 精确匹配无结果，且 subtype 非空，尝试回落 subtype=NULL 的通用配置
+      row = await repo.findByKey(scope, type, null);
+      if (scope === 'graph') {
+        console.log(`[getPromptFullConfig] graph fallback: subtype=${JSON.stringify(effectiveSubtype)} 无匹配，尝试 subtype=NULL -> rowFound=${!!row}`);
+      }
+    }
+    // [DEBUG] trace graph promptTextTaskKey lookup
+    if (scope === 'graph') {
+      console.log(`[getPromptFullConfig] graph lookup: scope=${scope}, type=${type}, subtype=${JSON.stringify(effectiveSubtype)} -> rowFound=${!!row}, extra=${JSON.stringify(row?.extra ?? null)}, promptTextTaskKey=${(row?.extra as any)?.promptTextTaskKey ?? 'NOT_IN_EXTRA'}`);
+    }
     if (!row?.is_active) return null;
-    const rules = langFallback(row.rules_i18n as Record<string, string>, lang);
     const outputFormat = langFallback(row.output_format_i18n as Record<string, string>, lang);
     const extra = (row.extra ?? {}) as Record<string, unknown>;
     return {
-      rules: rules || '',
+      rules: '',
       outputFormat: outputFormat || '',
       use_knowledge: extra.use_knowledge as boolean | undefined,
       default_knowledge_base_ids: extra.default_knowledge_base_ids as string[] | undefined,
@@ -107,10 +139,7 @@ export async function getPromptFullConfig(
       storyboard_output_format_template_zh: extra.storyboard_output_format_template_zh as string | undefined,
       prompt_text_mode:
         typeof extra.prompt_text_mode === 'string' ? extra.prompt_text_mode : undefined,
-      promptTextTaskKey:
-        typeof extra.promptTextTaskKey === 'string' && extra.promptTextTaskKey.trim()
-          ? extra.promptTextTaskKey.trim()
-          : undefined,
+      promptTextTaskKey: resolvePromptTextTaskKeyFromExtra(extra),
     };
   } catch (_) {
     return null;

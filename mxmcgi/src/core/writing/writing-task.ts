@@ -7,6 +7,7 @@ import { TaskManager } from '../../task/task-manager';
 import { taskExecutor } from '../../task/task-executor';
 import { UsageService } from '../usage/usage-service';
 import { BillingService } from '../billing/billing-service';
+import { resolveUsageContextFromTaskMetadata } from '../../statistics/usage-context';
 import {
   generateOutline,
   generateWriting,
@@ -16,6 +17,215 @@ import type {
   WritingGenerateParams,
 } from './type';
 import { OUTLINE_APPLY_TO_VALUES } from './type';
+import type { TaskContext } from '../../tasks/types';
+import { RepositoryFactory } from '@mxmai/mxmdata';
+import { getGeneratedBucket } from '../../storage/generated-temp';
+
+/** 写作统一落盘 Markdown 到 MinIO（静态对象存储），供预览/下载；PDF 由 Markdown 即时转换。 */
+async function uploadWritingMarkdownToMinio(args: {
+  userId?: string;
+  taskId: string;
+  markdown: string;
+}): Promise<{ key: string; bucket: string; url: string } | undefined> {
+  const text = args.markdown?.trim();
+  if (!text) return undefined;
+  const storageRepo = RepositoryFactory.createStorageRepository();
+  const bucket = getGeneratedBucket();
+  const timestamp = Date.now();
+  const randomStr = Math.random().toString(36).substring(2, 8);
+  const uid = args.userId || 'anonymous';
+  const key = `${uid}/writing/${timestamp}-${randomStr}.md`;
+  await storageRepo.uploadFile(bucket, key, Buffer.from(text, 'utf-8'), {
+    contentType: 'text/markdown; charset=utf-8',
+    metadata: {
+      'user-id': uid,
+      format: 'markdown',
+      'task-id': args.taskId,
+      'word-count': String(text.length),
+    },
+  });
+  const url = await storageRepo.getPresignedUrl(bucket, key, 7 * 24 * 60 * 60);
+  return { key, bucket, url };
+}
+
+async function applyWritingPostPipelineIfNeeded(args: {
+  taskId: string;
+  userId: string;
+  taskParams: Record<string, unknown>;
+  result: {
+    text?: string;
+    metadata?: Record<string, unknown>;
+    storageInfo?: { key?: string; bucket?: string; url?: string };
+    format?: string;
+  };
+  taskManager: TaskManager;
+}): Promise<{ paused: true } | { paused: false; result: typeof args.result }> {
+  const nestedParams = (args.taskParams.params ?? args.taskParams) as Record<string, unknown>;
+  const taskV2 = (nestedParams.taskV2 ?? args.taskParams.taskV2) as
+    | { scope?: string; taskKey?: string; subtype?: string | null }
+    | undefined;
+  if (!taskV2?.scope || !taskV2.taskKey) {
+    return { paused: false, result: args.result };
+  }
+
+  const { loadTaskDefinition } = await import('../../tasks/task-definition');
+  const { mergeEffectivePipeline } = await import('../../tasks/business-pipeline-defaults');
+  const { buildCoreArtifactFromResult, applyFinalArtifactToGenerateResult } = await import(
+    '../../tasks/business-pipeline'
+  );
+  const {
+    runPostPipelineWithCheckpoints,
+    persistManualReviewPause,
+    buildPersistedParamsForAwaitingReview,
+    buildTaskMetadataForAwaitingReview,
+  } = await import('../../tasks/manual-review');
+
+  const { row, template } = await loadTaskDefinition({
+    scope: taskV2.scope as import('../../tasks/types').TaskScope,
+    taskKey: taskV2.taskKey,
+    subtype: taskV2.subtype ?? null,
+  });
+
+  const { post } = mergeEffectivePipeline(
+    taskV2.scope,
+    template,
+    (row.extra ?? null) as Record<string, unknown> | null
+  );
+  if (!post.length) {
+    return { paused: false, result: args.result };
+  }
+
+  const pipelineState = (nestedParams.businessPipelineState ??
+    args.taskParams.businessPipelineState) as Record<string, unknown> | undefined;
+
+  const coreArtifact = buildCoreArtifactFromResult(taskV2.scope, {
+    text: args.result.text,
+    metadata: args.result.metadata,
+  });
+
+  let ctx: TaskContext = {
+    scope: taskV2.scope,
+    taskKey: taskV2.taskKey,
+    subtype: taskV2.subtype ?? null,
+    userId: args.userId,
+    taskId: args.taskId,
+    params: { ...nestedParams, metadata: args.result.metadata },
+    state: {
+      ...(pipelineState ?? {}),
+      coreArtifact,
+      finalArtifact: coreArtifact,
+      _formSchema: template.formSchema,
+    },
+  };
+
+  const outcome = await runPostPipelineWithCheckpoints({
+    ctx,
+    template,
+    scope: taskV2.scope,
+    rowExtra: (row.extra ?? null) as Record<string, unknown> | null,
+  });
+
+  if (outcome.kind === 'paused') {
+    const execParams = {
+      ...(args.taskParams as Record<string, unknown>),
+      businessPipelineState: {
+        ...(pipelineState ?? {}),
+        ...outcome.ctx.state,
+        pendingPostResult: args.result,
+        businessPipelinePostDeferred: true,
+      },
+    };
+    const pausedParams = await persistManualReviewPause({
+      taskId: args.taskId,
+      gate: outcome.gate,
+      draft: outcome.draft,
+      execParams: execParams as Record<string, any>,
+      taskType: 'writing',
+    });
+    const persisted = buildPersistedParamsForAwaitingReview(pausedParams);
+    await args.taskManager.updateTaskRequestParams(args.taskId, persisted);
+
+    const taskMeta = (await args.taskManager.getTask(args.taskId))?.task?.metadata ?? {};
+    try {
+      const storage = (args.taskManager as any).storage;
+      if (storage) {
+        await storage.update(args.taskId, {
+          metadata: buildTaskMetadataForAwaitingReview(
+            taskMeta as Record<string, unknown>,
+            outcome.gate
+          ),
+        });
+      }
+    } catch {
+      /* ignore metadata write errors */
+    }
+
+    await args.taskManager.updateTaskStatus(args.taskId, 'awaiting_review', {
+      progress: 85,
+      logs: [`${outcome.gate.label ?? '产出审核'}，等待人工审核`],
+    });
+    return { paused: true };
+  }
+
+  ctx = outcome.ctx;
+  const finalArtifact = ctx.state.finalArtifact as import('../../tasks/types').CoreArtifact | undefined;
+  const merged = applyFinalArtifactToGenerateResult(finalArtifact, {
+    text: args.result.text,
+    metadata: {
+      ...(args.result.metadata ?? {}),
+      pipelineTrace: ctx.state.pipelineTrace,
+      pipelineNestedUsage: ctx.state.pipelineNestedUsage,
+    },
+  });
+
+  const pdfStorage = ctx.state.renderDocumentPdfStorage as
+    | { key?: string; bucket?: string; url?: string }
+    | undefined;
+
+  return {
+    paused: false,
+    result: {
+      ...args.result,
+      text: merged.text ?? args.result.text,
+      metadata: merged.metadata as Record<string, unknown>,
+      storageInfo: pdfStorage?.key
+        ? {
+            key: pdfStorage.key,
+            bucket: pdfStorage.bucket,
+            url: pdfStorage.url,
+          }
+        : args.result.storageInfo,
+      format: (merged.metadata as Record<string, unknown> | undefined)?.format
+        ? String((merged.metadata as Record<string, unknown>).format)
+        : args.result.format,
+    },
+  };
+}
+
+async function writingPostPipelineHasRenderPdf(taskParams: Record<string, unknown>): Promise<boolean> {
+  const nestedParams = (taskParams.params ?? taskParams) as Record<string, unknown>;
+  const taskV2 = (nestedParams.taskV2 ?? taskParams.taskV2) as
+    | { scope?: string; taskKey?: string; subtype?: string | null }
+    | undefined;
+  if (!taskV2?.scope || !taskV2.taskKey) return false;
+  try {
+    const { loadTaskDefinition } = await import('../../tasks/task-definition');
+    const { mergeEffectivePipeline } = await import('../../tasks/business-pipeline-defaults');
+    const { row, template } = await loadTaskDefinition({
+      scope: taskV2.scope as import('../../tasks/types').TaskScope,
+      taskKey: taskV2.taskKey,
+      subtype: taskV2.subtype ?? null,
+    });
+    const { post } = mergeEffectivePipeline(
+      taskV2.scope,
+      template,
+      (row.extra ?? null) as Record<string, unknown> | null
+    );
+    return post.some((s) => s.step === 'renderDocumentPdf');
+  } catch {
+    return false;
+  }
+}
 
 export interface WritingTaskParams {
   taskType: 'outline' | 'generate';
@@ -55,15 +265,11 @@ export async function startWritingTask(taskId: string): Promise<void> {
       return;
     }
 
-    await taskManager.updateTaskStatus(taskId, 'queued', {
-      progress: 0,
-      logs: [`写作任务已创建，类型: ${params.taskType}`],
-    });
-
-    await taskManager.updateTaskStatus(taskId, 'processing', {
-      progress: 10,
-      logs: ['开始处理写作任务'],
-      startedAt: new Date(),
+    // 状态/进度由 TaskExecutor 统一推进（含 deferred 前置）；此处仅追加业务日志，勿硬抬到 25%
+    await taskManager.updateTaskProgress(taskId, {
+      progress: Math.max(taskResponse.task.progress?.progress ?? 0, 10),
+      message: '准备生成…',
+      logs: [`开始写作生成，类型: ${params.taskType}`],
     });
 
     let result: any;
@@ -110,7 +316,6 @@ export async function startWritingTask(taskId: string): Promise<void> {
             rhythm: outlineParams.rhythm,
             knowledgeBase: outlineParams.knowledgeBase,
             cast_character_count: outlineParams.cast_character_count,
-            cast_character_ids: outlineParams.cast_character_ids,
             language: outlineParams.language,
             useConfiguredPrompt: outlineParams.useConfiguredPrompt,
           },
@@ -219,6 +424,228 @@ export async function startWritingTask(taskId: string): Promise<void> {
           break;
         }
 
+        // mxm-warp：pre→input→enrich→[审核暂停]→output→post
+        {
+          const nested = (taskParams.params ?? taskParams) as Record<string, unknown>;
+          const taskV2 = (nested.taskV2 ?? taskParams.taskV2) as
+            | { scope?: string; taskKey?: string; subtype?: string | null }
+            | undefined;
+          const bps = (nested.businessPipelineState ??
+            taskParams.businessPipelineState) as Record<string, unknown> | undefined;
+          if (taskV2?.scope && taskV2.taskKey) {
+            const { loadTaskDefinition } = await import('../../tasks/task-definition');
+            const { detectMxmWarp, executeMxmWarpTask, contractSnapshotFromCtx } = await import(
+              '../../tasks/mxm-warp/execute-warp-task'
+            );
+            const {
+              persistManualReviewPause,
+              buildPersistedParamsForAwaitingReview,
+              buildTaskMetadataForAwaitingReview,
+            } = await import('../../tasks/manual-review');
+            const { row, template } = await loadTaskDefinition({
+              scope: taskV2.scope as import('../../tasks/types').TaskScope,
+              taskKey: taskV2.taskKey,
+              subtype: taskV2.subtype ?? null,
+            });
+            if (detectMxmWarp(template, (row.extra ?? null) as Record<string, unknown> | null) || bps?.executionMode === 'mxm-warp') {
+              const completedGateIds =
+                ((bps?.reviewCheckpoint as { completedGateIds?: string[] } | undefined)
+                  ?.completedGateIds ?? []) as string[];
+              // 有 warpCursor 则按游标续跑；仅 enrich 成文审核后的旧路径用 output
+              const resumeAt: 'start' | 'output' =
+                bps?.mxmWarpResumeAt === 'output' && !bps?.warpCursor ? 'output' : 'start';
+
+              await taskManager.updateTaskProgress(taskId, {
+                progress: resumeAt === 'output' ? 68 : 12,
+                phase: resumeAt === 'output' ? 'output' : 'pre',
+                phaseIndex: resumeAt === 'output' ? 3 : 0,
+                phaseTotal: 5,
+                message:
+                  resumeAt === 'output'
+                    ? '撰写成稿中…'
+                    : completedGateIds.length
+                      ? '继续生成…'
+                      : '检索资讯中…',
+                logs: [
+                  resumeAt === 'output'
+                    ? 'mxm-warp：审核通过，继续 output/post'
+                    : completedGateIds.length
+                      ? 'mxm-warp：继续五段业务流'
+                      : 'mxm-warp：执行五段业务流',
+                ],
+              });
+              const modelKey =
+                (typeof generateParams.logicalModel === 'string' && generateParams.logicalModel.trim()
+                  ? generateParams.logicalModel.trim()
+                  : '') ||
+                String((params as { model?: string }).model || '');
+              if (!modelKey) {
+                throw new Error('mxm-warp：缺少物理模型 key（logicalModel）');
+              }
+              const provider = String(params.provider || 'unknown');
+              const warpCtx: TaskContext = {
+                scope: taskV2.scope,
+                taskKey: taskV2.taskKey,
+                subtype: taskV2.subtype ?? null,
+                userId: params.userId,
+                taskId,
+                params: {
+                  ...generateParams,
+                  ...(nested as Record<string, unknown>),
+                  // groupItemBatch 等同任务并发步需要宿主模型键
+                  model: modelKey,
+                  logicalModel: modelKey,
+                  provider,
+                },
+                state: {
+                  ...(bps ?? {}),
+                  executionMode: 'mxm-warp',
+                  // 续跑时清掉「下次从 output」误标记（交互卡续跑应走 cursor）
+                  ...(bps?.warpCursor ? { mxmWarpResumeAt: undefined } : {}),
+                },
+              };
+              const reportWarpProgress = async (u: {
+                progress: number;
+                message: string;
+                phase: string;
+                phaseIndex: number;
+                phaseTotal: number;
+              }) => {
+                await taskManager.updateTaskProgress(taskId, {
+                  progress: u.progress,
+                  message: u.message,
+                  phase: u.phase,
+                  phaseIndex: u.phaseIndex,
+                  phaseTotal: u.phaseTotal,
+                  logs: [u.message],
+                });
+              };
+              const { ctx: afterWarp, text, usageBag, paused } = await executeMxmWarpTask({
+                ctx: warpCtx,
+                template,
+                modelScope: 'writing',
+                modelKey,
+                provider,
+                resumeAt,
+                onProgress: reportWarpProgress,
+              });
+
+              if (paused) {
+                const nextResume =
+                  paused.gate.kind === 'interactive-card' || paused.gate.kind === 'basic-form'
+                    ? 'start'
+                    : 'output';
+                const execParams = {
+                  ...(taskParams as Record<string, unknown>),
+                  businessPipelineState: {
+                    ...(bps ?? {}),
+                    ...afterWarp.state,
+                    executionMode: 'mxm-warp',
+                    mxmWarpResumeAt: nextResume,
+                    contract: contractSnapshotFromCtx(afterWarp) ?? afterWarp.state.contract,
+                  },
+                };
+                const pausedParams = await persistManualReviewPause({
+                  taskId,
+                  gate: paused.gate,
+                  draft: paused.draft,
+                  execParams: execParams as Record<string, any>,
+                  taskType: 'writing',
+                });
+                const persisted = buildPersistedParamsForAwaitingReview(pausedParams);
+                await taskManager.updateTaskRequestParams(taskId, persisted);
+                const taskMeta = (await taskManager.getTask(taskId))?.task?.metadata ?? {};
+                try {
+                  const storage = (taskManager as any).storage;
+                  if (storage) {
+                    await storage.update(taskId, {
+                      metadata: buildTaskMetadataForAwaitingReview(
+                        taskMeta as Record<string, unknown>,
+                        paused.gate
+                      ),
+                    });
+                  }
+                } catch {
+                  /* ignore */
+                }
+                await taskManager.updateTaskStatus(taskId, 'awaiting_review', {
+                  progress: 55,
+                  phase: 'enrich',
+                  phaseIndex: 2,
+                  phaseTotal: 5,
+                  message: `${paused.gate.label ?? '内容确认'}，等待你确认`,
+                  logs: [`${paused.gate.label ?? 'enrich 审核'}，等待人工审核后再成文`],
+                });
+                return;
+              }
+
+              await taskManager.updateTaskProgress(taskId, {
+                progress: 95,
+                phase: 'save',
+                phaseIndex: 4,
+                phaseTotal: 5,
+                message: '保存文稿中…',
+                logs: ['mxm-warp：产出完成，保存 Markdown'],
+              });
+              const storageInfo = await uploadWritingMarkdownToMinio({
+                userId: params.userId,
+                taskId,
+                markdown: text,
+              });
+              const coreMeta =
+                afterWarp.state.coreArtifact &&
+                typeof afterWarp.state.coreArtifact === 'object' &&
+                (afterWarp.state.coreArtifact as { metadata?: unknown }).metadata &&
+                typeof (afterWarp.state.coreArtifact as { metadata?: unknown }).metadata === 'object'
+                  ? ((afterWarp.state.coreArtifact as { metadata: Record<string, unknown> }).metadata)
+                  : {};
+              const collectionMeta: Record<string, unknown> = {};
+              if (coreMeta.resultKind === 'writing-collection') {
+                collectionMeta.resultKind = 'writing-collection';
+                if (typeof coreMeta.collectionTitle === 'string') {
+                  collectionMeta.collectionTitle = coreMeta.collectionTitle;
+                }
+                if (typeof coreMeta.collectionItemCount === 'number') {
+                  collectionMeta.collectionItemCount = coreMeta.collectionItemCount;
+                }
+                if (typeof coreMeta.collectionReadyCount === 'number') {
+                  collectionMeta.collectionReadyCount = coreMeta.collectionReadyCount;
+                }
+                if (typeof coreMeta.collectionFailedCount === 'number') {
+                  collectionMeta.collectionFailedCount = coreMeta.collectionFailedCount;
+                }
+                if (coreMeta.collectionResult && typeof coreMeta.collectionResult === 'object') {
+                  collectionMeta.collectionResult = coreMeta.collectionResult;
+                }
+                if (coreMeta.assembledFromGroup === true) {
+                  collectionMeta.assembledFromGroup = true;
+                }
+              }
+              result = {
+                text,
+                format: 'markdown',
+                storageInfo,
+                metadata: {
+                  type: writingType,
+                  text,
+                  format: 'markdown',
+                  storage_form: 'markdown',
+                  mxmWarp: true,
+                  contract: contractSnapshotFromCtx(afterWarp),
+                  pipelineTrace: afterWarp.state.pipelineTrace,
+                  ...collectionMeta,
+                },
+                _llmMetadata: {
+                  usage: usageBag.usage,
+                  model: usageBag.model ?? modelKey,
+                  provider: usageBag.provider ?? provider,
+                },
+              };
+              break;
+            }
+          }
+        }
+
         // 其他类型使用正常的 generateWriting
         await taskManager.updateTaskProgress(taskId, {
           progress: 10,
@@ -233,8 +660,12 @@ export async function startWritingTask(taskId: string): Promise<void> {
           });
         };
 
+        const skipCoreMinio = await writingPostPipelineHasRenderPdf(taskParams as Record<string, unknown>);
         const writingResult = await generateWriting(
-          generateParams,
+          {
+            ...generateParams,
+            ...(skipCoreMinio ? { storeToMinio: false } : {}),
+          },
           params.userId,
           params.provider as any,
           onProgress
@@ -254,10 +685,22 @@ export async function startWritingTask(taskId: string): Promise<void> {
           storageInfo: writingResult.storageInfo,
           metadata: {
             ...writingResult.metadata,
-            type: writingType, // 确保 metadata.type 设置为 writing_type
+            type: writingType,
           },
           _llmMetadata: (writingResult as { _llmMetadata?: unknown })._llmMetadata,
         };
+
+        const postOutcome = await applyWritingPostPipelineIfNeeded({
+          taskId,
+          userId: params.userId,
+          taskParams: taskParams as Record<string, unknown>,
+          result,
+          taskManager,
+        });
+        if (postOutcome.paused) {
+          return;
+        }
+        result = postOutcome.result;
         break;
       }
 
@@ -273,7 +716,7 @@ export async function startWritingTask(taskId: string): Promise<void> {
 
     // 对于 outline 任务，将大纲内容直接存储在 metadata 中
     const taskResult: any = {
-      mediaUrls: [],
+      mediaUrls: result.storageInfo?.url ? [result.storageInfo.url] : [],
       metadata: result.metadata || {},
       ...(result.storageInfo ? { storageInfo: result.storageInfo } : {}),
     };
@@ -287,12 +730,14 @@ export async function startWritingTask(taskId: string): Promise<void> {
       taskResult.metadata.characters = (result as any).metadata.characters;
     }
 
-    // 如果是其他任务类型，将文本内容存储在 metadata 中（如果没有存储到 MinIO）
-    if (params.taskType !== 'outline' && result.text && !result.storageInfo) {
+    // 文本/Markdown 始终写入 metadata，便于 PDF 预览时重新排版
+    if (params.taskType !== 'outline' && result.text) {
       taskResult.metadata.text = result.text;
-      if (result.formattedContent) {
-        taskResult.metadata.formattedContent = result.formattedContent;
+      if (result.format) {
         taskResult.metadata.format = result.format;
+      }
+      if (!result.storageInfo && result.formattedContent) {
+        taskResult.metadata.formattedContent = result.formattedContent;
       }
     }
 
@@ -318,11 +763,16 @@ export async function startWritingTask(taskId: string): Promise<void> {
           },
         } as any,
         providerOverride: llmMeta.provider as any,
+        usageContext: resolveUsageContextFromTaskMetadata(
+          (await taskManager.getTask(taskId))?.task?.metadata as Record<string, unknown>
+        ),
       });
 
       // 扣减用户 MXM-TOKEN
       if (params.userId) {
         const usageAny = llmMeta.usage as any;
+        const taskSnap = await taskManager.getTask(taskId);
+        const taskMeta = (taskSnap?.task?.metadata ?? {}) as Record<string, unknown>;
         try {
           await BillingService.consumeForTask({
             taskId,
@@ -335,6 +785,12 @@ export async function startWritingTask(taskId: string): Promise<void> {
             totalTokens: Number(usageAny?.total_tokens ?? 0),
             requestCount: 1,
             providerCostUsd: costUsd,
+            publishedSlug:
+              typeof taskMeta.publishedSlug === 'string' ? taskMeta.publishedSlug : undefined,
+            publishedApiId:
+              typeof taskMeta.publishedApiId === 'string' ? taskMeta.publishedApiId : undefined,
+            openApiCallerId:
+              typeof taskMeta.openApiCallerId === 'string' ? taskMeta.openApiCallerId : undefined,
           });
         } catch (billingErr) {
           console.warn('[WritingTask] 用户扣费失败:', billingErr instanceof Error ? billingErr.message : String(billingErr));

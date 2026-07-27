@@ -13,15 +13,8 @@ export interface FallbackRule {
   fallbackModel: string; // 备用模型，如 'gpt-5-nano'
 }
 
-/** 默认 Fallback 规则 */
-export const FALLBACK_RULES: FallbackRule[] = [
-  {
-    provider: 'maxplan',
-    model: 'MiniMax-M2.7-highspeed',
-    fallbackProvider: 'openai',
-    fallbackModel: 'gpt-5-nano',
-  },
-];
+/** 默认 Fallback 规则（空：由 Admin / 后续 DB 配置扩展，不在代码写死 model） */
+export const FALLBACK_RULES: FallbackRule[] = [];
 
 /** Fallback 触发状态码 */
 const TRIGGER_STATUS_CODES = new Set([401, 403, 429, 500, 502, 503, 504]);

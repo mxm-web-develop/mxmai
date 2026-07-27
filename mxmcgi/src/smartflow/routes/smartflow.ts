@@ -3,87 +3,116 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { smartflowRepository, InMemorySmartflowRepository } from '../core/engine/repository';
+import { smartflowRepository } from '../core/engine/repository';
 import { executionRepository } from '../core/engine/executionRepository';
 import { SmartflowEngine } from '../core/engine/engine';
-import { PREDEFINED_SMARTFLOWS } from '../core/photographyV2';
-import { PREDEFINED_EXAMPLE_FLOWS } from '../core/predefined-flows';
 import { CreateSmartflowDto, UpdateSmartflowDto } from '../core/models/types';
+import { validateSmartflowSchema } from '../core/smartflow-schema-validator';
+import {
+  applyMxmSmartflowBundleImport,
+  buildSmartflowBundle,
+  smartflowToBundleItem,
+} from '../core/smartflow-bundle-import-apply';
+import type { SmartflowBundle, SmartflowBundleImportPolicy } from '../core/smartflow-bundle-types';
 
 const router = Router();
 
 // 初始化引擎
 const engine = new SmartflowEngine(smartflowRepository, executionRepository);
 
-const ALLOWED_NODE_TYPES = new Set([
-  'start',
-  'end',
-  'model', // 业务
-  'tools',
-  'condition',
-  'variable',
-  'loop',
-]);
+const SCHEMA_VALIDATE_OPTS = { requireBusinessSubtype: true } as const;
 
-function validateSmartflowSchema(schema: any): { ok: true } | { ok: false; message: string } {
-  if (!schema || typeof schema !== 'object') return { ok: false, message: 'schema 必须是对象' };
-  const nodes = schema.nodes;
-  const edges = schema.edges;
-  if (!Array.isArray(nodes) || !Array.isArray(edges)) {
-    return { ok: false, message: 'schema 必须包含 nodes / edges 数组' };
-  }
+// Smartflow 列表与 CRUD 仅以 DB 为准；不再在启动时注入 predefined-flows / photographyV2 硬编码。
+// 上架流程请用 bundle 导入：pnpm run apply:smartflow-bundle -- path/to/*.smartflow.json
 
-  const ids = new Set<string>();
-  let hasStart = false;
-  let hasEnd = false;
+// ============= Bundle 导出 / 导入（须在 /:id 之前注册） =============
 
-  for (const n of nodes) {
-    if (!n || typeof n !== 'object') return { ok: false, message: 'nodes 中存在非对象节点' };
-    if (typeof n.id !== 'string' || !n.id.trim()) return { ok: false, message: '节点 id 必须是非空字符串' };
-    if (ids.has(n.id)) return { ok: false, message: `节点 id 重复: ${n.id}` };
-    ids.add(n.id);
-
-    const t = String(n.type ?? '');
-    if (!ALLOWED_NODE_TYPES.has(t)) {
-      return { ok: false, message: `不支持的节点类型: ${t}（仅允许 ${Array.from(ALLOWED_NODE_TYPES).join(', ')}）` };
+router.get('/bundle', async (req: Request, res: Response) => {
+  try {
+    const id = String(req.query.id ?? '').trim();
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'query.id 必填' },
+      });
     }
-    if (t === 'start') hasStart = true;
-    if (t === 'end') hasEnd = true;
-  }
-
-  if (!hasStart) return { ok: false, message: 'schema 必须包含 start 节点' };
-  if (!hasEnd) return { ok: false, message: 'schema 必须包含 end 节点' };
-
-  for (const e of edges) {
-    if (!e || typeof e !== 'object') return { ok: false, message: 'edges 中存在非对象边' };
-    const from = String(e.from ?? '');
-    const to = String(e.to ?? '');
-    if (!from || !to) return { ok: false, message: 'edge 必须包含 from/to' };
-    if (!ids.has(from)) return { ok: false, message: `edge.from 不存在: ${from}` };
-    if (!ids.has(to)) return { ok: false, message: `edge.to 不存在: ${to}` };
-  }
-
-  return { ok: true };
-}
-
-// 初始化预定义工作流
-async function initPredefinedSmartflows() {
-  for (const sf of PREDEFINED_SMARTFLOWS) {
-    const existing = await smartflowRepository.findById(sf.id);
-    if (!existing) {
-      await smartflowRepository.create(sf as any);
-      console.log(`[mxmcgi/smartflow] Created predefined smartflow: ${sf.id}`);
+    const sf = await smartflowRepository.findById(id);
+    if (!sf) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: `Smartflow not found: ${id}` },
+      });
     }
+    const bundle = buildSmartflowBundle([smartflowToBundleItem(sf)]);
+    res.json({ success: true, data: bundle });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: error.message },
+    });
   }
-  for (const sf of PREDEFINED_EXAMPLE_FLOWS) {
-    const existing = await smartflowRepository.findById(sf.id);
-    if (!existing) {
-      await smartflowRepository.create(sf as any);
-      console.log(`[mxmcgi/smartflow] Created example smartflow: ${sf.id}`);
+});
+
+router.post('/bundle/export', async (req: Request, res: Response) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? (req.body.ids as string[]).map(String).filter(Boolean) : [];
+    if (ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'body.ids 必须为非空字符串数组' },
+      });
     }
+    const warnings: string[] = [];
+    const items = [];
+    for (const id of ids) {
+      const sf = await smartflowRepository.findById(id);
+      if (!sf) {
+        warnings.push(`未找到: ${id}`);
+        continue;
+      }
+      items.push(smartflowToBundleItem(sf));
+    }
+    if (items.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: '未导出任何工作流' },
+        warnings,
+      });
+    }
+    res.json({ success: true, data: buildSmartflowBundle(items), warnings });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: error.message },
+    });
   }
-}
-initPredefinedSmartflows();
+});
+
+router.post('/bundle/import', async (req: Request, res: Response) => {
+  try {
+    const bundle = req.body?.bundle as SmartflowBundle | undefined;
+    const conflictPolicy = (req.body?.conflictPolicy ?? 'upsert') as SmartflowBundleImportPolicy;
+    if (!bundle) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'body.bundle 必填' },
+      });
+    }
+    const authorId = (req.headers['x-user-id'] as string) || req.body?.author_id || null;
+    const data = await applyMxmSmartflowBundleImport({
+      bundle,
+      conflictPolicy,
+      repository: smartflowRepository,
+      authorId,
+    });
+    res.json({ success: true, data });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: error.message },
+    });
+  }
+});
 
 // ============= 获取 Smartflow 列表 =============
 router.get('/', async (req: Request, res: Response) => {
@@ -148,7 +177,7 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    const schemaCheck = validateSmartflowSchema(dto.schema as any);
+    const schemaCheck = validateSmartflowSchema(dto.schema as any, SCHEMA_VALIDATE_OPTS);
     if (!schemaCheck.ok) {
       return res.status(400).json({
         success: false,
@@ -181,7 +210,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     const dto: UpdateSmartflowDto = req.body;
 
     if (dto.schema) {
-      const schemaCheck = validateSmartflowSchema(dto.schema as any);
+      const schemaCheck = validateSmartflowSchema(dto.schema as any, SCHEMA_VALIDATE_OPTS);
       if (!schemaCheck.ok) {
         return res.status(400).json({
           success: false,
@@ -248,19 +277,9 @@ router.post('/:id/execute', async (req: Request, res: Response) => {
       mode,
     };
 
-    const result = await engine.execute(req.params.id, executionDto as any);
-
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        error: { code: 'EXECUTION_ERROR', message: result.error },
-        data: result.execution,
-      });
-    }
-
     res.json({
       success: true,
-      data: result.execution,
+      data: (await engine.start(req.params.id, executionDto as any)).execution,
     });
   } catch (error: any) {
     res.status(500).json({

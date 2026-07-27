@@ -5,7 +5,8 @@
 1. `loadTaskDefinition` → `validateWithJsonSchema`
 2. `runFixedTaskV2Prelude`（[`task-v2-prelude.ts`](./task-v2-prelude.ts)）
    - `sensitiveCheck`：检查 `params.prompt`（与原先 `inputPipeline` 默认一致）
-   - `knowledgeRetrieve`：当且仅当 `template.knowledge?.useKnowledge === true` 且 `defaultKnowledgeBaseIds` 非空时执行；召回结果写入 `state.enhancedPrompt` 时，会 **合并进 `params.prompt`**，再进入模板渲染
+   - **`resolveContextFields`**（`scope=writing|outline`）：对 formSchema 中 `x-ui-type: kbRecall | webSearch` 字段并行召回/检索，结果格式化为字符串写回 `params[fieldName]`，供 unifiedTemplate 插值
+   - `knowledgeRetrieve`：当且仅当 `template.knowledge?.useKnowledge === true` 且 `defaultKnowledgeBaseIds` 非空时执行（旧业务）；召回结果写入 `state.enhancedPrompt` 时，会 **合并进 `params.prompt`**
 3. `renderPromptFromTemplate`
 4. `finalPromptEnhanced`：`state.finalPrompt` 优先，否则为渲染结果
 5. 余额预检 → `createTask` → `executeTask`

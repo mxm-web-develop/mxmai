@@ -1,0 +1,492 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-06-30T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "music-lyrics-draft",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换 · 音乐歌词创作",
+          "subtypeLabel": "根据源材料与风格生成完整歌词（音乐管线内部，供 lyrics 传入）",
+          "taskLabelI18n": {
+            "zh": "转换 · 音乐歌词创作",
+            "zh-TW": "轉換 · 音樂歌敏感詞創我的創作"
+          },
+          "subtypeLabelI18n": {
+            "zh": "根据源材料与风格生成完整歌词（音乐管线内部，供 lyrics 传入）",
+            "zh-TW": "根據源材料與风格產生完整歌敏感詞（音樂管線內部，供 lyrics 上傳入）"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "source_material",
+              "music_style"
+            ],
+            "properties": {
+              "source_material": {
+                "type": "string",
+                "title": "源材料",
+                "description": "用户粘贴或虚拟文件夹召回的原始文本 / 主题",
+                "minLength": 1
+              },
+              "music_style": {
+                "type": "string",
+                "title": "音乐风格",
+                "enum": [
+                  "pop",
+                  "cinematic",
+                  "lofi",
+                  "electronic",
+                  "folk"
+                ],
+                "x-enum-labels": [
+                  "流行",
+                  "影视",
+                  "Lo-Fi",
+                  "电子",
+                  "民谣"
+                ],
+                "default": "pop"
+              },
+              "language": {
+                "type": "string",
+                "title": "歌词语言",
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "x-enum-labels": [
+                  "中文",
+                  "英文"
+                ],
+                "default": "zh"
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充要求",
+                "description": "可选：情绪、主题、押韵、段落结构提示等"
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是资深作词人，擅长把零散材料写成可直接演唱的完整歌词。\n\n【源材料 / 主题】\n${source_material}\n\n【音乐风格】${music_style}\n（pop=朗朗上口、影视=史诗氛围、lofi=慵懒叙事、electronic=律动重复、folk=质朴叙事）\n\n【歌词语言】${language}（zh=中文，en=英文）\n\n【补充要求】${supplement}\n\n【任务】\n1. 紧扣源材料的核心意象与情绪，写一首结构完整、可演唱的歌词。\n2. 使用段落标记组织结构：[Verse]、[Chorus]、[Bridge]、[Outro]（副歌至少出现两次，主歌 2~3 段）。\n3. 每行一句，句子长度适中、有韵律感；避免生僻字与拗口表达。\n4. 严格按【歌词语言】输出全部歌词。\n\n【输出格式（严格遵守）】\n- 只输出歌词正文与段落标记，逐行换行。\n- **禁止**输出标题、曲风描述、乐器/节奏说明、解释、JSON、Markdown 代码块、以及「以下是」「好的」等任何前缀。"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.7,
+              "maxTokens": 4096
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-music-lyrics-draft",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-transform-music-lyrics-draft",
+          "charge_metric": "per_request",
+          "price_in_tokens": 15,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "music-lyrics-draft",
+          "metadata": {
+            "margin": 0.2,
+            "internal": true
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "music",
+      "type": "compose",
+      "subtype": "maxplan-direct",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "音乐 · Maxplan 直出（测试）",
+          "subtypeLabel": "粘贴描述/歌词 → music-2.6 直出 MP3（无 text 管线）",
+          "taskLabelI18n": {
+            "zh": "音乐 · Maxplan 直出（测试）",
+            "zh-TW": "音樂 · Maxplan 直登出（测重試）"
+          },
+          "subtypeLabelI18n": {
+            "zh": "粘贴描述/歌词 → music-2.6 直出 MP3（无 text 管线）",
+            "zh-TW": "粘貼描述/歌敏感詞 → music-2.6 直登出 MP3（無 text 管線）"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "source_text": {
+                "type": "string",
+                "title": "粘贴描述/歌词意向",
+                "description": "直接描述想要的音乐，或粘贴歌词意向",
+                "x-ui-type": "text"
+              },
+              "source_ref": {
+                "type": "object",
+                "title": "虚拟文件夹召回",
+                "description": "从已向量化虚拟文件夹召回相关文本片段",
+                "x-ui-type": "kbRecall",
+                "x-resolve-phase": "pre",
+                "x-auto-from": "source_text",
+                "properties": {
+                  "folderId": {
+                    "type": "string",
+                    "title": "虚拟文件夹"
+                  },
+                  "query": {
+                    "type": "string",
+                    "title": "召回问题",
+                    "description": "描述你想从文件夹里找什么；可留空则使用下方粘贴文本"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "default": 12,
+                    "minimum": 1,
+                    "maximum": 20,
+                    "x-user-visible": false
+                  }
+                }
+              },
+              "music_style": {
+                "type": "string",
+                "title": "音乐风格",
+                "x-ui-type": "selection",
+                "enum": [
+                  "pop",
+                  "cinematic",
+                  "lofi",
+                  "electronic",
+                  "folk"
+                ],
+                "x-enum-labels": [
+                  "流行",
+                  "影视",
+                  "Lo-Fi",
+                  "电子",
+                  "民谣"
+                ],
+                "default": "pop"
+              },
+              "lyrics": {
+                "type": "string",
+                "title": "完整歌词（可选）",
+                "description": "若填写则优先作为 lyrics 传入模型"
+              },
+              "make_instrumental": {
+                "type": "boolean",
+                "title": "纯器乐",
+                "default": false
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充要求",
+                "description": "可选：情绪、节奏、乐器等"
+              },
+              "total_duration_seconds": {
+                "type": "integer",
+                "title": "预估时长（秒，计费参考）",
+                "minimum": 1,
+                "default": 60,
+                "x-user-visible": false
+              }
+            }
+          },
+          "uiSchema": {
+            "source_text": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 8
+              }
+            },
+            "lyrics": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 6
+              }
+            },
+            "supplement": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 3
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【描述/意向】\n${source_text}\n\n【虚拟文件夹召回】\n${source_ref}\n\n【风格】${music_style}\n【补充】${supplement}\n\n【歌词（若已填）】\n${lyrics}"
+          },
+          "storage": {
+            "scope": "music",
+            "extension": "mp3",
+            "mime": "audio/mpeg",
+            "pathTemplate": "{userId}/music/{timestamp}-{randomId}/",
+            "filenameTemplate": "music_{taskId}_{randomId}.mp3"
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "music-compose-maxplan-direct",
+        "provider": "maxplan",
+        "model": "music-2.6",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "music-compose-maxplan-direct",
+          "charge_metric": "per_audio_second",
+          "price_in_tokens": 2,
+          "min_charge_tokens": 30,
+          "provider": "maxplan",
+          "model_key": "music-2.6",
+          "subtype": "maxplan-direct",
+          "metadata": {
+            "margin": 0.25
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "music",
+      "type": "compose",
+      "subtype": "maxplan-test",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "音乐 · Maxplan 管线（测试）",
+          "subtypeLabel": "虚拟文件夹/粘贴 → 歌词草稿 → music-2.6 生成 MP3",
+          "taskLabelI18n": {
+            "zh": "音乐 · Maxplan 管线（测试）",
+            "zh-TW": "音樂 · Maxplan 管線（测重試）"
+          },
+          "subtypeLabelI18n": {
+            "zh": "虚拟文件夹/粘贴 → 歌词草稿 → music-2.6 生成 MP3",
+            "zh-TW": "虚拟資料夾/粘貼 → 歌敏感詞草稿 → music-2.6 產生 MP3"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "source_text": {
+                "type": "string",
+                "title": "粘贴描述/歌词意向",
+                "x-ui-type": "text"
+              },
+              "source_ref": {
+                "type": "object",
+                "title": "虚拟文件夹召回",
+                "x-ui-type": "kbRecall",
+                "x-resolve-phase": "pre",
+                "x-auto-from": "source_text",
+                "properties": {
+                  "folderId": {
+                    "type": "string",
+                    "title": "虚拟文件夹"
+                  },
+                  "query": {
+                    "type": "string",
+                    "title": "召回问题"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "default": 12,
+                    "minimum": 1,
+                    "maximum": 20,
+                    "x-user-visible": false
+                  }
+                }
+              },
+              "music_style": {
+                "type": "string",
+                "title": "音乐风格",
+                "x-ui-type": "selection",
+                "enum": [
+                  "pop",
+                  "cinematic",
+                  "lofi",
+                  "electronic",
+                  "folk"
+                ],
+                "x-enum-labels": [
+                  "流行",
+                  "影视",
+                  "Lo-Fi",
+                  "电子",
+                  "民谣"
+                ],
+                "default": "pop"
+              },
+              "language": {
+                "type": "string",
+                "title": "歌词语言",
+                "x-ui-type": "selection",
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "x-enum-labels": [
+                  "中文",
+                  "英文"
+                ],
+                "default": "zh"
+              },
+              "lyrics": {
+                "type": "string",
+                "title": "完整歌词（可选）",
+                "description": "填写后跳过管线歌词生成，直接作为 lyrics"
+              },
+              "make_instrumental": {
+                "type": "boolean",
+                "title": "纯器乐",
+                "default": false
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充要求"
+              },
+              "total_duration_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 60,
+                "x-user-visible": false
+              }
+            }
+          },
+          "uiSchema": {
+            "source_text": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 8
+              }
+            },
+            "lyrics": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 6
+              }
+            },
+            "supplement": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 3
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "音乐风格：${music_style}。\n补充要求：${supplement}\n参考主题：${source_text}"
+          },
+          "storage": {
+            "scope": "music",
+            "extension": "mp3",
+            "mime": "audio/mpeg",
+            "pathTemplate": "{userId}/music/{timestamp}-{randomId}/",
+            "filenameTemplate": "music_{taskId}_{randomId}.mp3"
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/transform/music-lyrics-draft",
+                "params": {
+                  "afterPromptRender": true,
+                  "outputTarget": "lyrics"
+                },
+                "when": {
+                  "all": [
+                    {
+                      "field": "params.make_instrumental",
+                      "op": "falsy"
+                    },
+                    {
+                      "field": "params.is_instrumental",
+                      "op": "falsy"
+                    },
+                    {
+                      "field": "params.lyrics",
+                      "op": "empty"
+                    }
+                  ]
+                },
+                "inputMapping": {
+                  "source_material": "${params.source_text}\n\n${params.source_ref}",
+                  "music_style": "${params.music_style}",
+                  "language": "${params.language}",
+                  "supplement": "${params.supplement}"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "music-compose-maxplan-test",
+        "provider": "maxplan",
+        "model": "music-2.6",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "music-compose-maxplan-test",
+          "charge_metric": "per_audio_second",
+          "price_in_tokens": 2,
+          "min_charge_tokens": 30,
+          "provider": "maxplan",
+          "model_key": "music-2.6",
+          "subtype": "maxplan-test",
+          "metadata": {
+            "margin": 0.25
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

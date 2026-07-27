@@ -9,14 +9,28 @@ export type SegmentOverlayLayerRole =
   | 'lower-third'
   | 'title-card'
   | 'outro-cta'
-  | 'chapter-progress';
+  | 'chapter-progress'
+  /** 开场顶栏节目角标（频道/系列名） */
+  | 'show-badge';
 
 export type SegmentOverlayLayerEmphasis = 'soft' | 'normal' | 'hot';
 
 export type SegmentOverlayLayerSpec = {
   role: SegmentOverlayLayerRole;
   text: string;
-  position?: 'top-left' | 'top-center' | 'top-right' | 'center-left' | 'center' | 'center-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+  position?:
+    | 'top-left'
+    | 'top-center'
+    | 'top-right'
+    | 'center-left'
+    | 'center'
+    | 'center-right'
+    | 'bottom-left'
+    | 'bottom-center'
+    | 'bottom-right'
+    | 'title-hero'
+    | 'title-sub'
+    | 'end-card';
   enterAt?: number;
   exitAt?: number;
   emphasis?: SegmentOverlayLayerEmphasis;
@@ -34,13 +48,25 @@ export type TimelineVisualSegment = {
   overlayLayers?: SegmentOverlayLayerSpec[];
   /** 与下一段之间的转场（OpenReel Transition） */
   transition?: SegmentTransitionSpec;
-  /** ai-video-gen：视频生成 prompt（英文） */
+  /** ai-video-gen：输出形态 video=Seedance / image=graph 配图 */
+  mxmAiOutputKind?: 'video' | 'image';
+  /** ai-video-gen + video：Seedance 英文 prompt */
+  mxmVideoPrompt?: string;
+  /** ai-video-gen + image：配图核心展示内容（→ graph core_content） */
+  mxmImagePrompt?: string;
+  /**
+   * @deprecated 兼容旧 shot-list；新产出用 mxmVideoPrompt / mxmImagePrompt
+   */
   mxmPrompt?: string;
   /** ai-video-gen：text-to-video | image-to-video | reference-to-video */
   mxmVideoMode?: 'text-to-video' | 'image-to-video' | 'reference-to-video';
   /** static-image（素材引用）：图库/视频素材库检索词 */
   mxmStockSearchQuery?: string;
   mxmSourceImageUrl?: string;
+  mxmImageMotionEnabled?: boolean;
+  mxmImageMotion?: 'none' | 'zoom-in' | 'zoom-out' | 'pan-left' | 'pan-right' | 'pan-up' | 'pan-down';
+  mxmGraphTaskKey?: string;
+  mxmGraphSubtype?: string;
   /** @deprecated 遗留 GSAP 段；构建时转为 overlays */
   mxmGsapSceneBrief?: string;
   mxmGsapStyleId?: string;

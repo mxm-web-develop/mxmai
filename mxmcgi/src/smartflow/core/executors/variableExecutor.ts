@@ -5,8 +5,9 @@
 import { SmartflowNode, ExecutionContext } from '../models/types';
 import { BaseExecutor, ExecutorResult } from './base';
 import { VariableResolver } from '../variables/resolver';
+import { extractJsonFromLlmText } from '../utils/extract-json-from-llm';
 
-export type VariableOperation = 'select' | 'map' | 'filter' | 'reduce' | 'merge' | 'assign';
+export type VariableOperation = 'select' | 'map' | 'filter' | 'reduce' | 'merge' | 'assign' | 'json_parse';
 
 export class VariableExecutor extends BaseExecutor {
   async execute(node: SmartflowNode, context: ExecutionContext): Promise<ExecutorResult> {
@@ -32,7 +33,7 @@ export class VariableExecutor extends BaseExecutor {
           result = this.executeAssign(source_node, source_path, expression, context, default_value);
           break;
         case 'map':
-          result = this.executeMap(source_node, source_path, expression, context);
+          result = this.executeMap(node, source_node, source_path, expression, context);
           break;
         case 'filter':
           result = this.executeFilter(source_node, source_path, expression, context);
@@ -42,6 +43,9 @@ export class VariableExecutor extends BaseExecutor {
           break;
         case 'merge':
           result = this.executeMerge(source_node, source_path, iterable, context);
+          break;
+        case 'json_parse':
+          result = this.executeJsonParse(source_node, source_path, context, default_value);
           break;
         default:
           return this.createErrorResult(`Unknown operation: ${operation}`);
@@ -118,6 +122,7 @@ export class VariableExecutor extends BaseExecutor {
    * map: 对数组每个元素执行表达式映射
    */
   private executeMap(
+    node: SmartflowNode,
     sourceNode: string | undefined,
     sourcePath: string | undefined,
     expression: string | undefined,
@@ -142,16 +147,52 @@ export class VariableExecutor extends BaseExecutor {
     }
 
     const resolvedExpr = VariableResolver.resolve(expression, context);
+    const input = (context.variables.input ?? {}) as Record<string, unknown>;
+
+    let planTasks: unknown[] = [];
+    const planTasksFrom = (node as SmartflowNode & { plan_tasks_from?: string }).plan_tasks_from;
+    if (planTasksFrom) {
+      const resolved = VariableResolver.resolve(planTasksFrom, context);
+      try {
+        planTasks = JSON.parse(resolved);
+      } catch {
+        const v = VariableResolver.resolvePath(planTasksFrom.replace(/\{\{|\}\}/g, '').trim(), context);
+        planTasks = Array.isArray(v) ? v : [];
+      }
+      if (!Array.isArray(planTasks)) planTasks = [];
+    }
 
     return array.map((item, index) => {
       try {
-        // 创建安全的执行上下文
-        const func = new Function('item', 'index', `return ${resolvedExpr}`);
-        return func(item, index);
+        const func = new Function('item', 'index', 'input', 'planTasks', `return ${resolvedExpr}`);
+        return func(item, index, input, planTasks);
       } catch (error: any) {
         return { _map_error: error.message, item, index };
       }
     });
+  }
+
+  private executeJsonParse(
+    sourceNode: string | undefined,
+    sourcePath: string | undefined,
+    context: ExecutionContext,
+    defaultValue: unknown
+  ): unknown {
+    let raw: unknown;
+    if (sourceNode && sourcePath) {
+      raw = this.executeSelect(sourceNode, sourcePath, context, null);
+    } else if (sourcePath) {
+      raw = VariableResolver.resolvePath(sourcePath, context);
+    } else {
+      return defaultValue ?? null;
+    }
+
+    if (raw == null) return defaultValue ?? null;
+    if (typeof raw === 'object') return raw;
+    if (typeof raw !== 'string') return defaultValue ?? null;
+
+    const parsed = extractJsonFromLlmText(raw);
+    return parsed ?? defaultValue ?? null;
   }
 
   /**

@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-05-14T12:00:00.000Z",
+  "items": [
+    {
+      "scope": "graph",
+      "type": "design",
+      "subtype": "characterInfocard",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "设计 · 角色展示卡",
+          "subtypeLabel": "characterInfocard（多角度设定卡 · 16:9 / 9:16）",
+          "taskLabelI18n": {
+            "zh": "设计 · 角色展示卡",
+            "zh-TW": "設計 · 角深色展顯示卡"
+          },
+          "subtypeLabelI18n": {
+            "zh": "characterInfocard（多角度设定卡 · 16:9 / 9:16）",
+            "zh-TW": "characterInfocard（多角度設定卡 · 16:9 / 9:16）"
+          }
+        },
+        "promptTextTaskKey": "text/format/gpt-image-2",
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "maxTokens": 2048,
+              "temperature": 0.35
+            }
+          },
+          "knowledge": {
+            "strategy": "global",
+            "useKnowledge": false,
+            "defaultKnowledgeBaseIds": []
+          },
+          "uiSchema": {
+            "character_description": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 6
+              }
+            },
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 4
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是资深影视/动画/时尚「角色设定卡（Character Info Card）」美术指导 + 英文 image prompt 撰稿人。下游把你的英文正文交给 gpt-image-2 类模型；参考图像素已由系统随请求提交，你不得粘贴 base64/URL。\n\n【text/format 生成契约】①「一、重要的用户要求」永远优先；②用户未写的维度才允许用「四、相关参考」补全；③与参考像素矛盾的一律不写；④输出为**单张**整图（非多文件），用**分镜格/信息图**排满画幅。\n\n一、重要的用户要求（表单插值，本单硬约束）\n- 画幅：${aspect_ratio}\n- 画面文字语言：${on_screen_text_language}\n- 角色领域：${character_domain}\n- 角色设定（文字）：${character_description}\n- 角色参考图（摘要/占位）：${character_ref_images}\n- 用户补充说明：${prompt}\n\n二、任务定义（角色展示卡是什么）\n- **单张**信息图式设定卡：在「一」指定画幅内，用清晰分区展示**同一角色**的**多角度面部特写**、**多角度半身**、**多角度全身**，并在版面中可读地呈现**身高、肤色、年龄**等档案信息（画面内标签的书写语言须与「一」中 on_screen_text_language 一致；数值与事实照抄「一」可核实内容）。\n- 适用：电影卡司、动画人设、模特/艺人模卡等「给制片/客户一眼读懂人」的用途；不是零散拼图表情包，也不是剧情分镜条。\n- 与「单张人像写真」区别：本任务强调**多视角陈列 + 档案字段**，人物占比与格子排布需像专业 turnaround / model comp sheet。\n\n三、任务要求（怎样算优秀的角色展示卡）\n- **身份一致（硬）**：只要「一」中角色参考图非空，最终英文 prompt 必须写入可执行的 **identity lock**：全图所有格子中的角色须与参考为**同一人/同一造型**——锁定脸型与五官比例、肤质与年龄段、发型发色、身形与肩宽；允许角度与微表情在「同一人的连拍」范围内变化，**禁止**换脸、换年龄段、换种族特征或「神似但不同人」的漂移。\n- **纯文字无参考时**：严格按「角色设定」文字生成一致角色；不得凭空添加与文字矛盾的体征。\n- **版式（硬）**：建议自上而下或自左而右分三大行（或三大列，取决于画幅）：(1) **面部行**：至少 3 个角度（如正面、左 3/4、右 3/4 或侧脸择二）；(2) **半身行**：至少 3 个角度；(3) **全身行**：至少 2–3 个角度（站姿可微变）。格子之间留白与对齐线专业、像设定集 PDF 的一页。\n- **档案文字**：将身高、肤色、年龄等写成**画面内标签**（短词组），位置不遮挡面部关键结构；若「一」未给某项，可省略该项标签，**禁止编造**与「一」冲突的数字；**标签书写语言**须与「一」中 on_screen_text_language 一致（中文 / English / 日本語）。\n- **画幅**：英文须显式写出 wide 16:9 或 tall 9:16 等，与「一」画幅字段严格一致。\n- **左右视角（硬）**：凡版面含左 vs 右成对视点（如左 3/4 与右 3/4、左正侧与右正侧），各格须为**机位在角色身体真实左侧 vs 真实右侧**得到的非对称视图——发际线分叉、双耳可见性、鼻影与面颊高光朝向、下颌与肩颈前后关系等须随视角合理变化，**不得**左右两格像同一张照片水平翻转。**纯文字无参考时**亦须遵守。下游英文须显式写 *camera placed on the subject's anatomical left vs anatomical right*, *asymmetric cheek, ear, and nose-bridge occlusion per viewpoint*, **explicitly forbid mirrored / horizontally flipped duplicate panels** 来冒充左右。\n- **领域气质**：电影偏写实表演感与镜头质感；动画允许风格化但须整卡统一；模特/艺人模卡偏时尚灯光与干净背景。\n\n四、相关参考（仅用户未指定时轻量补全，不得覆盖「一」）\n- 背景：中性灰/浅纸纹/棚拍无缝纸，避免抢角色的花哨场景。\n- 光线：柔和主光 + 轻轮廓光，保证多格肤色一致。\n- 镜头语义：全身格偏 35–50mm 等效；面部格偏 85–135mm 等效压缩感（仅当用户未指定焦段时可采纳）。\n\n五、Prompt 输出参考（英文正文结构与禁忌）\n- 写成**一段连续英文**（无 Markdown、无中文）：先写 identity lock / 无参考时的外观硬约束 → 再写 layout：rows/columns of head / half-body / full-body panels with approximate grid counts → 再写 wardrobe & grooming from briefing → lighting & background → explicit aspect ratio → on-image typography（身高/肤色/年龄等**照抄「一」可核实内容**，短标签）→ negatives（no watermark, no duplicate unrelated faces, no collage chaos, legible small labels, consistent skin tones across panels; **paired left vs right panels must be true anatomical views**, not mirror images—*forbid horizontal flip* to fake left/right turnaround; lighting on cheeks/nose must follow each stated camera side）。\n- 禁止：中文解释、Markdown、编号清单；禁止与参考像素矛盾的体征描述；禁止用镜像复制冒充左/右不同机位。\n\n【输出】只输出最终生图用英文 prompt 正文，不要解释或 Markdown。"
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "aspect_ratio",
+              "character_domain",
+              "character_description"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "poster"
+                ],
+                "default": "poster",
+                "x-user-visible": false
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "title": "画幅",
+                "description": "设定卡整图画布比例；9:16 为竖屏全画幅。",
+                "enum": [
+                  "16:9",
+                  "9:16"
+                ],
+                "default": "16:9",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "16:9 横版（电影/横屏模卡）",
+                  "9:16 竖版（手机全屏 / 竖屏模卡）"
+                ]
+              },
+              "on_screen_text_language": {
+                "type": "string",
+                "title": "画面文字语言",
+                "description": "设定卡上档案标签、小号说明使用何种文字（身高/年龄等数值仍以「角色设定」为准）。",
+                "enum": [
+                  "zh",
+                  "en",
+                  "ja"
+                ],
+                "default": "zh",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "中文",
+                  "English",
+                  "日本語"
+                ],
+                "x-enum-descriptions": {
+                  "zh": "画面内标签以简体中文为主。",
+                  "en": "On-card labels in English.",
+                  "ja": "カード上のラベルは日本語。"
+                }
+              },
+              "character_domain": {
+                "type": "string",
+                "title": "角色领域",
+                "description": "影响用光、写实度与版式气质。",
+                "enum": [
+                  "film",
+                  "animation",
+                  "fashion_model"
+                ],
+                "default": "film",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "电影 / 写实卡司",
+                  "动画 / 风格化人设",
+                  "模特 / 艺人模卡"
+                ]
+              },
+              "character_description": {
+                "type": "string",
+                "title": "角色设定（文字）",
+                "description": "须写清或可推断的外观与档案：身高、肤色/人种气质、年龄段、性别表现、发型、体态、服装等。若已上传参考图，可写「与参考一致」并补充参考未体现的文字标签（如身高数字）。仅传图时至少写一句锚点如「造型以参考为准」。",
+                "x-ui-type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              "character_ref_images": {
+                "type": "array",
+                "title": "角色参考图（可选）",
+                "description": "上传则全卡人物与参考锁定一致；不上传则完全按文字设定生成。像素进生图模型，摘要进 briefing。",
+                "x-ui-type": "referenceImages",
+                "minItems": 0,
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "title": "图片 URL / Base64"
+                    },
+                    "type": {
+                      "type": "string",
+                      "title": "用途类型",
+                      "enum": [
+                        "main-subject",
+                        "background",
+                        "outfits",
+                        "color-reference",
+                        "style-reference"
+                      ],
+                      "default": "main-subject"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "title": "用途说明（可选）"
+                    }
+                  }
+                },
+                "x-enum-labels": []
+              },
+              "prompt": {
+                "type": "string",
+                "title": "补充说明",
+                "description": "禁忌、必须统一的画风、不要出现的元素、指定服装年代等。",
+                "x-ui-type": "string",
+                "default": ""
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "graph-design-characterInfocard",
+        "provider": "atlascloud",
+        "model": "gpt-image-2",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "graph-design-characterInfocard",
+          "charge_metric": "per_image",
+          "price_in_tokens": 120,
+          "min_charge_tokens": 0,
+          "provider": "atlascloud",
+          "model_key": "gpt-image-2",
+          "subtype": "characterInfocard",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

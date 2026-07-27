@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-06-25T12:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "format",
+      "subtype": "gpt-image-2",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "格式化 · gpt-image-2",
+          "subtypeLabel": "gpt-image-2（Graph 生图 Briefing → 英文 prompt · 通读分析 + 智能压缩，禁止截断）",
+          "taskLabelI18n": {
+            "zh": "格式化 · gpt-image-2",
+            "zh-TW": "格式化 · gpt-image-2"
+          },
+          "subtypeLabelI18n": {
+            "zh": "gpt-image-2（Graph 生图 Briefing → 英文 prompt · 通读分析 + 智能压缩，禁止截断）",
+            "zh-TW": "gpt-image-2（Graph 生圖 Briefing → 英文 prompt · 通讀分析 + 智能压縮，禁停止截断）"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "prompt"
+            ],
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "title": "Briefing",
+                "description": "Graph 业务 unifiedTemplate 插值后的完整 briefing（可含 TEXT_FORMAT_LOCK 前缀）。formatter 须通读全文后智能压缩，不得简单截断。",
+                "minLength": 1
+              }
+            }
+          },
+          "uiSchema": {
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 12
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "You are a formatter for gpt-image-2: turn the Briefing below into ONE final English image prompt used by an image editor with reference pixels attached separately.\n\nOutput shape (hard):\n- Emit ONLY the final English prompt as plain prose. No markdown, no headings, no bullet lists, no code fences, no wrapping quotation marks around the entire prompt.\n\nStep 1 — Analyze the full Briefing (required before writing):\n- Read the ENTIRE Briefing end-to-end. Identify: task genre (poster, video thumbnail, architecture diagram, character card, lookbook, etc.); every user-filled field under sections like \"一、重要的用户要求\" / important user requirements; literal on-image text; aspect ratio; reference-image semantics (identity lock / product lock / style-only); rules marked 硬 / 必须 / MUST / 禁止; explicit negatives.\n- Long Briefings often mix template boilerplate with user facts. Separate **user facts** (must keep) from **meta-instructions** (role descriptions, text/format workflow, section headers for humans).\n\nStep 2 — Intelligent compression (NOT truncation):\n- Compression means **analyze → dedupe → merge → prioritize**. It does **NOT** mean keeping only the opening lines, cutting off later sections, or summarizing with \"etc.\" when the Briefing lists concrete names, modules, or labels.\n- **Never drop** because of length: literal headlines / prices / CTAs / show names; product or SKU identity; every node, service, or module name in architecture or diagram briefs; aspect ratio; identity-lock language when reference images are declared non-empty; hard wardrobe/scene rules the user added in 补充说明; Briefing-stated negatives.\n- **Safe to remove or shorten**: repeated role paragraphs; duplicate bullets saying the same fact; generic adjective stacks; instructions about how YOU (the formatter) should behave; URLs, base64, placeholder tokens.\n- When the Briefing is very long, extract a **checklist of hard facts** first, then write dense English that still includes **all checklist items**—merge related items into clauses instead of omitting them.\n\nFidelity (hard):\n- The Briefing is authoritative. Do not contradict it; do not swap in unrelated subjects, products, wardrobes, or locations. If the Briefing names a commercial poster (product name, price, headline, CTA, typography), you MUST carry those into the English prompt as explicit short on-image text instructions (legible hierarchy). **Never** output phrases like \"avoid text\", \"no text\", \"without typography\", or \"no logos\" when the Briefing requires on-image copy—only honor \"no text\" if the Briefing itself forbids typography.\n- E‑commerce / product posters: treat reference summaries in the Briefing as identity anchors for the SAME product (shape, packaging, colorway). Do not replace the product with a different SKU or generic prop.\n- Video thumbnails / virtual hosts: when reference images are present (虚拟角色/主播参考图 / character_ref / identity lock), preserve identity continuity in English (face structure, hairstyle/color, skin tone, signature accessories). Do not invent a different person to satisfy scene or costume changes—state costume/scene as overrides only where the Briefing explicitly requires them (e.g. named team jersey) while still demanding same face and virtual identity.\n- Architecture / diagram briefs: preserve **every** user-named layer, module, service, and dependency direction; compress only redundant prose, not nodes or edges.\n- Strip transport noise: no URLs, no base64, no internal placeholder tokens—rewrite cues as natural English the image model can use. Literal strings requested for on-image text should appear in double quotes in the final prompt when helpful.\n\nLength & density:\n- Prefer one information-dense paragraph, or at most two short paragraphs. Pack facts tightly; do not pad with synonyms. A shorter prompt that omits user hard constraints is worse than a longer prompt that keeps them.\n\nStructure (merge when the Briefing scatters details across lines):\n- Follow the Briefing's own priority when it is explicit; otherwise merge in this order: identity / product lock (if references declared) → primary subject & placement → on-image typography (headline/price/CTA) if required → scene/environment as stated → lighting/materials/color → camera/composition → grid/aspect → Briefing-stated negatives last. Do not invent layout, aspect, or negatives that the Briefing omits.\n\nBriefing:\n${prompt}"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.2,
+              "topP": 0.9,
+              "maxTokens": 4096
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-format-gpt-image-2",
+        "provider": "openrouter",
+        "model": "gemini-3.5-flash",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-format-gpt-image-2",
+          "charge_metric": "per_request",
+          "price_in_tokens": 20,
+          "min_charge_tokens": 0,
+          "provider": "openrouter",
+          "model_key": "gemini-3.5-flash",
+          "subtype": "gpt-image-2",
+          "metadata": {
+            "margin": 0.2,
+            "internal": true
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

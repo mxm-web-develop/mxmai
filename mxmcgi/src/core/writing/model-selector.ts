@@ -38,17 +38,31 @@ export interface ResolvedModel {
 }
 
 /**
- * 按业务 key 解析 provider + 模型，未命中路由时回退到按任务类型选模型
- * 用于四步流程：业务接口 → 解析 Admin 配置的 provider/model → 提示词 → 调用模型
- * 大纲任务：
- * - 当 businessKey 显式为 `outline-*` 时使用 Admin 的 outline-* 路由
- * - 否则回退到 writing-outlines（兼容旧逻辑）
+ * 按业务 key 解析 provider + 模型
+ * - 若 businessKey 已是物理模型 key（不含 scope 前缀，如 deepseek-v3.2），直接使用 preferredProvider
+ * - 否则按 model_routing_overrides 解析 logical model
  */
 export function selectModelWithRouting(
   businessKey: string,
   taskType: TaskType,
   preferredProvider?: ProviderType
 ): ResolvedModel {
+  // 若 businessKey 不含 scope 前缀（如 'writing-'、'outline-'），说明已是物理模型 key
+  const SCOPE_PREFIXES = ['writing', 'outline', 'graph', 'video', 'audio', 'music', 'text'];
+  const isPhysicalModelKey = !SCOPE_PREFIXES.some((p) => businessKey.startsWith(`${p}-`));
+
+  if (isPhysicalModelKey) {
+    // 物理模型 key 直接使用，provider 由 preferredProvider 决定
+    const provider = preferredProvider ?? 'openrouter';
+    console.log(`[ModelSelector] businessKey "${businessKey}" 为物理模型 key，直接使用: provider=${provider}, model=${businessKey}`);
+    return {
+      provider: provider as ProviderType,
+      model: businessKey,
+      modelName: businessKey,
+      fromRouting: false,
+    };
+  }
+
   // outline 任务默认仍走 writing-outlines，但当 businessKey 明确为 outline-* 时，使用显式路由key。
   const routingKey =
     taskType === 'outline'

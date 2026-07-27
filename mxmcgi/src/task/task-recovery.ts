@@ -6,6 +6,12 @@
 import { taskManager } from './task-manager';
 import { taskExecutor } from './task-executor';
 import type { Task, TaskStatus } from './types';
+import {
+  BATCH_PARENT_TASK_TYPES,
+  getChildTaskIdsFromBatchParent,
+  summarizeBatchChildStatuses,
+  tryCompleteBatchParentIfChildrenTerminal,
+} from './batch-parent-aggregate';
 
 export interface TaskRecoveryConfig {
   /**
@@ -133,6 +139,17 @@ export class TaskRecoveryService {
 
       const now = Date.now();
       for (const task of stuckTasks.tasks) {
+        if (this.isOrphanedGraphTask(task, now)) {
+          console.log(
+            `[TaskRecovery] Graph 任务 ${task.id} 长时间无进展（progress=${task.progress?.progress ?? 0}%），重置为 pending 供 worker 重试`
+          );
+          await taskManager.updateTaskStatus(task.id, 'pending', {
+            progress: 0,
+            error: undefined,
+          });
+          continue;
+        }
+
         // 检查任务是否真的卡住了（通过 updated_at 判断）
         const lastUpdateTime = task.updatedAt.getTime();
         const timeSinceLastUpdate = now - lastUpdateTime;
@@ -201,6 +218,18 @@ export class TaskRecoveryService {
       let recoveredCount = 0;
 
       for (const task of allTasksToCheck.tasks) {
+        if (this.isOrphanedGraphTask(task, now)) {
+          console.log(
+            `[TaskRecovery] Graph 任务 ${task.id} 长时间无进展（progress=${task.progress?.progress ?? 0}%），重置为 pending`
+          );
+          await taskManager.updateTaskStatus(task.id, 'pending', {
+            progress: 0,
+            error: undefined,
+          });
+          recoveredCount++;
+          continue;
+        }
+
         // 关键修复：如果任务的 createdAt 明显是旧数据（超过 24 小时），直接跳过
         // 这可能是历史遗留数据，不应该被任务恢复服务处理
         const createdAtTime = task.createdAt.getTime();
@@ -231,194 +260,29 @@ export class TaskRecoveryService {
           );
         }
         
-        // 检查是否是多图任务的父任务（在检查超时之前）
-        // 注意：可能任务在被标记为 parent 之前就超时了，所以也要检查 requestParams.grid9
-        const isGrid9Task = 
-          task.metadata?.grid9 === true || 
-          (task.requestParams as any)?.grid9 === true;
-        const isGrid9Parent = 
-          isGrid9Task && (
-            task.metadata?.grid9Type === 'parent' || 
-            task.result?.metadata?.grid9Type === 'parent' ||
-            (task.metadata?.childTaskIds && Array.isArray(task.metadata.childTaskIds) && task.metadata.childTaskIds.length > 0)
-          );
-        
-        // 如果是多图任务的父任务，检查子任务状态
-        if (isGrid9Parent) {
-          const childTaskIds = task.metadata?.childTaskIds || task.result?.metadata?.childTaskIds || [];
-          if (Array.isArray(childTaskIds) && childTaskIds.length > 0) {
-            console.log(`[TaskRecovery] 检测到多图任务父任务 (${task.id})，检查 ${childTaskIds.length} 个子任务状态...`);
-            
-            let completedCount = 0;
-            let failedCount = 0;
-            let processingCount = 0;
-            
-            for (const childTaskId of childTaskIds) {
-              try {
-                const childTaskResponse = await taskManager.getTask(childTaskId);
-                if (childTaskResponse?.task) {
-                  const childStatus = childTaskResponse.task.status;
-                  if (childStatus === 'completed') {
-                    completedCount++;
-                  } else if (childStatus === 'failed') {
-                    failedCount++;
-                  } else if (childStatus === 'processing' || childStatus === 'queued') {
-                    processingCount++;
-                  }
-                }
-              } catch (error) {
-                console.warn(`[TaskRecovery] 查询子任务 ${childTaskId} 状态失败:`, error);
-              }
-            }
-            
-            console.log(`[TaskRecovery] 子任务状态统计: 完成 ${completedCount}, 失败 ${failedCount}, 处理中 ${processingCount}, 总计 ${childTaskIds.length}`);
-            
-            // 如果所有子任务都已完成，父任务应该已完成（可能是状态更新失败或被误判为失败）
-            if (completedCount === childTaskIds.length) {
-              console.log(`[TaskRecovery] 所有子任务已完成，父任务应该已完成，尝试更新父任务状态...`);
-              try {
-                // 强制更新父任务状态为 completed，清除错误信息
-                const storage = (taskManager as any).storage;
-                if (storage) {
-                  await storage.update(task.id, {
-                    status: 'completed',
-                    metadata: {
-                      ...task.metadata,
-                      grid9: true,
-                      grid9Type: 'parent', // 确保标记为父任务
-                      childTaskIds, // 确保 childTaskIds 存在
-                    },
-                    progress: {
-                      status: 'completed',
-                      progress: 100,
-                      completedAt: new Date(),
-                      error: undefined, // 清除错误信息
-                    },
-                    // 如果 result 不存在，创建一个基本的 result（包含 metadata）
-                    result: task.result || {
-                      mediaUrls: [],
-                      metadata: {
-                        grid9: true,
-                        grid9Type: 'parent',
-                        childTaskIds,
-                      },
-                    },
-                  });
-                  console.log(`[TaskRecovery] 父任务 ${task.id} 状态已更新为 completed（之前状态: ${task.status}）`);
-                  recoveredCount++;
-                }
-              } catch (error) {
-                console.error(`[TaskRecovery] 更新父任务状态失败:`, error);
-              }
+        if (BATCH_PARENT_TASK_TYPES.has(task.type)) {
+          const childTaskIds = getChildTaskIdsFromBatchParent(task);
+          if (childTaskIds.length > 0) {
+            console.log(
+              `[TaskRecovery] 检测到批量父任务 (${task.id}, ${task.type})，检查 ${childTaskIds.length} 个子任务状态...`
+            );
+            const { completedCount, failedCount, processingCount } = await summarizeBatchChildStatuses(
+              taskManager,
+              childTaskIds
+            );
+            console.log(
+              `[TaskRecovery] 子任务状态统计: 完成 ${completedCount}, 失败 ${failedCount}, 处理中 ${processingCount}, 总计 ${childTaskIds.length}`
+            );
+            const done = await tryCompleteBatchParentIfChildrenTerminal(taskManager, task, childTaskIds);
+            if (done) {
+              recoveredCount++;
               continue;
             }
-            
-            // 如果有子任务还在处理中，继续等待
             if (processingCount > 0) {
               console.log(`[TaskRecovery] 还有 ${processingCount} 个子任务在处理中，继续等待父任务 ${task.id}`);
               continue;
             }
-            
-            // 如果所有子任务都失败，标记父任务为失败（在 handleStuckTask 中处理）
-            // 继续执行超时检查逻辑
           }
-        }
-
-        // 如果是视频分镜批量父任务，检查子任务状态
-        if (task.type === 'video-batch-parent') {
-          const videoChildTaskIds = task.metadata?.childTaskIds || task.result?.metadata?.childTaskIds || [];
-          if (Array.isArray(videoChildTaskIds) && videoChildTaskIds.length > 0) {
-            console.log(`[TaskRecovery] 检测到视频分镜批量父任务 (${task.id})，检查 ${videoChildTaskIds.length} 个子任务状态...`);
-            let completedCount = 0;
-            let failedCount = 0;
-            let processingCount = 0;
-            for (const childTaskId of videoChildTaskIds) {
-              try {
-                const childTaskResponse = await taskManager.getTask(childTaskId);
-                if (childTaskResponse?.task) {
-                  const childStatus = childTaskResponse.task.status;
-                  if (childStatus === 'completed') completedCount++;
-                  else if (childStatus === 'failed') failedCount++;
-                  else if (childStatus === 'processing' || childStatus === 'queued') processingCount++;
-                }
-              } catch (error) {
-                console.warn(`[TaskRecovery] 查询视频子任务 ${childTaskId} 状态失败:`, error);
-              }
-            }
-            console.log(`[TaskRecovery] 视频子任务状态统计: 完成 ${completedCount}, 失败 ${failedCount}, 处理中 ${processingCount}, 总计 ${videoChildTaskIds.length}`);
-            const allTerminal = completedCount + failedCount === videoChildTaskIds.length;
-            if (allTerminal) {
-              console.log(`[TaskRecovery] 所有视频子任务已终态（完成/失败），更新父任务 ${task.id} 状态为 completed`);
-              try {
-                const storage = (taskManager as any).storage;
-                if (storage) {
-                  await storage.update(task.id, {
-                    status: 'completed',
-                    metadata: { ...task.metadata, childTaskIds: videoChildTaskIds },
-                    progress: { status: 'completed', progress: 100, completedAt: new Date(), error: undefined },
-                    result: task.result || { mediaUrls: [], metadata: { childTaskIds: videoChildTaskIds } },
-                  });
-                  recoveredCount++;
-                }
-              } catch (error) {
-                console.error(`[TaskRecovery] 更新视频父任务状态失败:`, error);
-              }
-              continue;
-            }
-            if (processingCount > 0) {
-              console.log(`[TaskRecovery] 还有 ${processingCount} 个视频子任务在处理中，继续等待父任务 ${task.id}`);
-              continue;
-            }
-            // 全部失败或部分失败：在 handleStuckTask 中会处理
-          }
-        }
-        
-        // 如果是多图任务但还不是父任务（正在处理中），给予更长的超时时间
-        // 因为多图任务需要：生成大图 -> 切割 -> 上传MinIO -> 创建子任务 -> 更新父任务状态
-        // 这个过程可能需要较长时间
-        if (isGrid9Task && !isGrid9Parent) {
-          // 多图任务正在处理中，给予更长的超时时间（180分钟，因为处理过程可能较长）
-          // 多图任务需要：生成大图 -> 切割 -> 上传MinIO -> 创建子任务 -> 更新父任务状态
-          const grid9Timeout = 180 * 60 * 1000; // 180 分钟（3小时）
-          const taskStartTime = task.createdAt.getTime();
-          const taskDuration = now - taskStartTime;
-          
-          // 检查任务最近是否有更新（通过 updatedAt 判断）
-          // 如果最近有更新（10分钟内），说明任务还在正常处理中，继续等待
-          if (timeSinceLastUpdate < 10 * 60 * 1000) {
-            console.log(`[TaskRecovery] 多图任务 ${task.id} 最近有更新（${Math.round(timeSinceLastUpdate / 1000 / 60)}分钟前），继续等待`);
-            continue;
-          }
-          
-          // 如果任务运行时间不超过 60 分钟，即使没有更新也继续等待（可能是正在生成中）
-          if (taskDuration < 60 * 60 * 1000) {
-            console.log(`[TaskRecovery] 多图任务 ${task.id} 运行时间 ${Math.round(taskDuration / 1000 / 60)}分钟，未超过 60 分钟，继续等待（可能正在生成中）`);
-            continue;
-          }
-          
-          // 关键修复：如果 timeSinceLastUpdate 小于 taskDuration，说明任务最近有更新
-          // 对于多图任务，如果最近有更新（即使运行时间较长），说明任务还在执行中，不应该标记为失败
-          // 只有当 timeSinceLastUpdate 接近 taskDuration 时，才认为任务真的卡住了
-          const updateRatio = timeSinceLastUpdate / taskDuration;
-          if (updateRatio < 0.9) {
-            // 如果 timeSinceLastUpdate 小于 taskDuration 的 90%，说明任务最近有更新，继续等待
-            console.log(
-              `[TaskRecovery] 多图任务 ${task.id} 运行时间 ${Math.round(taskDuration / 1000 / 60)}分钟，但最近有更新（${Math.round(timeSinceLastUpdate / 1000 / 60)}分钟前，更新比例: ${Math.round(updateRatio * 100)}%），继续等待（任务可能正在执行中）`
-            );
-            continue;
-          }
-          
-          if (taskDuration > grid9Timeout) {
-            console.warn(
-              `[TaskRecovery] 发现超时的多图任务: ${task.id}, 运行时间: ${Math.round(taskDuration / 1000 / 60)}分钟, 超时阈值: 180分钟, 最后更新: ${Math.round(timeSinceLastUpdate / 1000 / 60)}分钟前, 更新比例: ${Math.round(updateRatio * 100)}%`
-            );
-            await this.handleStuckTask(task);
-            recoveredCount++;
-          } else {
-            // 虽然运行时间较长，但还没超过阈值，继续等待
-            console.log(`[TaskRecovery] 多图任务 ${task.id} 运行时间 ${Math.round(taskDuration / 1000 / 60)}分钟，未超过阈值 180分钟，继续等待`);
-          }
-          continue; // 跳过后续的超时检查
         }
         
         // 根据任务类型设置检查间隔
@@ -430,35 +294,15 @@ export class TaskRecoveryService {
         } else if (task.type === 'writing' || task.type === 'text') {
           checkInterval = 2 * 60 * 1000; // 写作和文本任务 2 分钟（通常较快）
         } else if (task.type === 'graph') {
-          // graph 任务（图片生成）可能需要较长时间，特别是使用外部 API 时
-          // 检查是否是多图任务（通过 requestParams.grid9 判断，因为 metadata.grid9 可能还没设置）
-          const isGrid9Task = 
-            task.metadata?.grid9 === true || 
-            (task.requestParams as any)?.grid9 === true;
-          
-          if (isGrid9Task) {
-            // 多图任务需要更长的处理时间（生成大图 -> 切割 -> 上传MinIO -> 创建子任务）
-            // 如果任务运行时间不超过 60 分钟，即使没有更新也继续等待
-            const taskStartTime = task.createdAt.getTime();
-            const taskDuration = now - taskStartTime;
-            if (taskDuration < 60 * 60 * 1000) {
-              // 任务运行时间不超过 60 分钟，继续等待（可能是正在生成中）
-              console.log(`[TaskRecovery] Graph 多图任务 ${task.id} 运行时间 ${Math.round(taskDuration / 1000 / 60)}分钟，未超过 60 分钟，继续等待（可能正在生成中）`);
-              continue;
-            }
-            checkInterval = 20 * 60 * 1000; // 多图任务 20 分钟（生成和切割可能需要较长时间）
-          } else {
-            // 普通 graph 任务
-            // 如果任务运行时间不超过 30 分钟，即使没有更新也继续等待
-            const taskStartTime = task.createdAt.getTime();
-            const taskDuration = now - taskStartTime;
-            if (taskDuration < 30 * 60 * 1000) {
-              // 任务运行时间不超过 30 分钟，继续等待（可能是正在生成中）
-              console.log(`[TaskRecovery] Graph 任务 ${task.id} 运行时间 ${Math.round(taskDuration / 1000 / 60)}分钟，未超过 30 分钟，继续等待（可能正在生成中）`);
-              continue;
-            }
-            checkInterval = 15 * 60 * 1000; // graph 任务 15 分钟（生成可能需要较长时间）
+          const taskStartTime = task.createdAt.getTime();
+          const taskDuration = now - taskStartTime;
+          if (taskDuration < 30 * 60 * 1000) {
+            console.log(
+              `[TaskRecovery] Graph 任务 ${task.id} 运行时间 ${Math.round(taskDuration / 1000 / 60)}分钟，未超过 30 分钟，继续等待（可能正在生成中）`
+            );
+            continue;
           }
+          checkInterval = 15 * 60 * 1000;
         } else {
           checkInterval = 5 * 60 * 1000; // 其他任务 5 分钟
         }
@@ -610,137 +454,29 @@ export class TaskRecoveryService {
 
       console.log(`[TaskRecovery] 处理卡住的任务: ${task.id}, 最后更新: ${Math.round(timeSinceLastUpdate / 1000)}秒前`);
 
-      // 视频分镜批量父任务：仅根据子任务状态更新，不按超时标记失败
-      if (task.type === 'video-batch-parent') {
-        const videoChildTaskIds = task.metadata?.childTaskIds || task.result?.metadata?.childTaskIds || [];
-        if (Array.isArray(videoChildTaskIds) && videoChildTaskIds.length > 0) {
-          let completedCount = 0;
-          let failedCount = 0;
-          let processingCount = 0;
-          for (const childTaskId of videoChildTaskIds) {
-            try {
-              const childTaskResponse = await taskManager.getTask(childTaskId);
-              if (childTaskResponse?.task) {
-                const childStatus = childTaskResponse.task.status;
-                if (childStatus === 'completed') completedCount++;
-                else if (childStatus === 'failed') failedCount++;
-                else if (childStatus === 'processing' || childStatus === 'queued') processingCount++;
-              }
-            } catch (error) {
-              console.warn(`[TaskRecovery] 查询视频子任务 ${childTaskId} 状态失败:`, error);
-            }
-          }
-          const allTerminal = completedCount + failedCount === videoChildTaskIds.length;
-          if (allTerminal) {
-            const storage = (taskManager as any).storage;
-            if (storage) {
-              await storage.update(task.id, {
-                status: 'completed',
-                metadata: { ...task.metadata, childTaskIds: videoChildTaskIds },
-                progress: { status: 'completed', progress: 100, completedAt: new Date(), error: undefined },
-                result: task.result || { mediaUrls: [], metadata: { childTaskIds: videoChildTaskIds } },
-              });
-              console.log(`[TaskRecovery] 视频父任务 ${task.id} 已更新为 completed（子任务: ${completedCount} 完成, ${failedCount} 失败）`);
-            }
+      if (BATCH_PARENT_TASK_TYPES.has(task.type)) {
+        const childTaskIds = getChildTaskIdsFromBatchParent(task);
+        if (childTaskIds.length > 0) {
+          const { completedCount, failedCount, processingCount } = await summarizeBatchChildStatuses(
+            taskManager,
+            childTaskIds
+          );
+          const done = await tryCompleteBatchParentIfChildrenTerminal(taskManager, task, childTaskIds);
+          if (done) {
+            console.log(
+              `[TaskRecovery] 父任务 ${task.id} 已更新为 completed（子任务: ${completedCount} 完成, ${failedCount} 失败）`
+            );
             return;
           }
           if (processingCount > 0) {
-            console.log(`[TaskRecovery] 视频父任务 ${task.id} 还有 ${processingCount} 个子任务在处理中，跳过`);
+            console.log(`[TaskRecovery] 父任务 ${task.id} 还有 ${processingCount} 个子任务在处理中，跳过`);
             return;
           }
         }
       }
 
-      // 检查是否是多图任务的父任务
-      // 注意：可能任务在被标记为 parent 之前就超时了，所以也要检查 requestParams.grid9
-      const isGrid9Task = 
-        task.metadata?.grid9 === true || 
-        (task.requestParams as any)?.grid9 === true;
-      const isGrid9Parent = 
-        isGrid9Task && (
-          task.metadata?.grid9Type === 'parent' || 
-          task.result?.metadata?.grid9Type === 'parent' ||
-          task.metadata?.childTaskIds && Array.isArray(task.metadata.childTaskIds) && task.metadata.childTaskIds.length > 0
-        );
-      
-      // 如果是多图任务但还不是父任务（正在处理中），给予更长的超时时间
-      if (isGrid9Task && !isGrid9Parent) {
-        const grid9Timeout = 180 * 60 * 1000; // 180 分钟（3小时）
-        if (taskDuration <= grid9Timeout) {
-          console.log(`[TaskRecovery] 多图任务 ${task.id} 运行时间 ${Math.round(taskDuration / 1000 / 60)}分钟，未超过阈值 180分钟，继续等待`);
-          return; // 继续等待，不标记为失败
-        }
-        // 超过180分钟才标记为失败
-        console.warn(`[TaskRecovery] 多图任务 ${task.id} 运行时间 ${Math.round(taskDuration / 1000 / 60)}分钟，超过阈值 180分钟`);
-      }
-      
-      if (isGrid9Parent) {
-        // 多图任务的父任务：检查子任务状态
-        const childTaskIds = task.metadata?.childTaskIds || task.result?.metadata?.childTaskIds || [];
-        if (Array.isArray(childTaskIds) && childTaskIds.length > 0) {
-          console.log(`[TaskRecovery] 检测到多图任务父任务 (${task.id})，检查 ${childTaskIds.length} 个子任务状态...`);
-          
-          let completedCount = 0;
-          let failedCount = 0;
-          let processingCount = 0;
-          
-          for (const childTaskId of childTaskIds) {
-            try {
-              const childTaskResponse = await taskManager.getTask(childTaskId);
-              if (childTaskResponse?.task) {
-                const childStatus = childTaskResponse.task.status;
-                if (childStatus === 'completed') {
-                  completedCount++;
-                } else if (childStatus === 'failed') {
-                  failedCount++;
-                } else if (childStatus === 'processing' || childStatus === 'queued') {
-                  processingCount++;
-                }
-              }
-            } catch (error) {
-              console.warn(`[TaskRecovery] 查询子任务 ${childTaskId} 状态失败:`, error);
-            }
-          }
-          
-          console.log(`[TaskRecovery] 子任务状态统计: 完成 ${completedCount}, 失败 ${failedCount}, 处理中 ${processingCount}, 总计 ${childTaskIds.length}`);
-          
-          // 如果所有子任务都已完成，父任务应该已完成（可能是状态更新失败）
-          if (completedCount === childTaskIds.length) {
-            console.log(`[TaskRecovery] 所有子任务已完成，父任务应该已完成，跳过超时处理`);
-            return;
-          }
-          
-          // 如果有子任务还在处理中，继续等待
-          if (processingCount > 0) {
-            console.log(`[TaskRecovery] 还有 ${processingCount} 个子任务在处理中，继续等待`);
-            return;
-          }
-          
-          // 如果所有子任务都失败，标记父任务为失败
-          if (failedCount === childTaskIds.length) {
-            const taskDurationMinutes = Math.round(taskDuration / 1000 / 60);
-            const startTime = task.progress.startedAt?.getTime() ?? task.createdAt.getTime();
-            const timeoutMs = this.getTaskTimeout(task.type, this.config.timeoutMs);
-            const completedAt = new Date(Math.min(Date.now(), startTime + timeoutMs));
-            await taskManager.setTaskError(
-              task.id,
-              `多图任务失败：所有 ${childTaskIds.length} 个子任务均失败。任务运行时间: ${taskDurationMinutes} 分钟。`,
-              { completedAt }
-            );
-            console.log(`[TaskRecovery] 所有子任务失败，父任务 ${task.id} 已标记为失败`);
-            return;
-          }
-          
-          // 部分子任务失败，提供更详细的错误信息
-          const taskDurationMinutes = Math.round(taskDuration / 1000 / 60);
-          const errorMsg = `多图任务部分失败：${completedCount} 个完成，${failedCount} 个失败，${processingCount} 个处理中。任务运行时间: ${taskDurationMinutes} 分钟。`;
-          const startTime = task.progress.startedAt?.getTime() ?? task.createdAt.getTime();
-          const timeoutMs = this.getTaskTimeout(task.type, this.config.timeoutMs);
-          const completedAt = new Date(Math.min(Date.now(), startTime + timeoutMs));
-          await taskManager.setTaskError(task.id, errorMsg, { completedAt });
-          console.log(`[TaskRecovery] 多图任务部分失败，父任务 ${task.id} 已标记为失败`);
-          return;
-        }
+      if (await this.tryRecoverStuckVideoPipelineRender(task)) {
+        return;
       }
 
       // 对于视频任务，特别是使用 DeerAPI 的任务，先检查实际状态
@@ -801,11 +537,6 @@ export class TaskRecoveryService {
         }
         if (task.metadata?.provider) {
           errorMessage += `, 提供商: ${task.metadata.provider}`;
-        }
-        
-        // 如果是多图任务，添加提示
-        if (task.metadata?.grid9 === true) {
-          errorMessage += ` (多图任务)`;
         }
         
         // 使用「开始时间 + 超时阈值」作为 completedAt，避免因次日才被恢复导致显示时间差数十小时
@@ -1071,36 +802,22 @@ export class TaskRecoveryService {
 
       if (storeToMinio && storageConfig) {
         try {
-          // 下载视频并上传到 MinIO
-          const { taskExecutor } = await import('./task-executor');
-          const executor = taskExecutor.getTaskExecutor();
-          const downloadAndStore = (executor as any).downloadAndStoreDeerVideo;
-          
-          if (downloadAndStore && typeof downloadAndStore === 'function') {
-            const taskId = task.metadata?.taskId || task.metadata?.videoId;
-            if (taskId) {
-              const uploadResult = await downloadAndStore.call(
-                executor,
-                taskId,
-                storageConfig,
-                task.metadata?.userId,
-                task.metadata?.model
-              );
-              mediaUrls = [uploadResult.url];
-              storageInfo = {
-                keys: [uploadResult.key],
-                bucket: uploadResult.bucket,
-                urls: [uploadResult.url],
-              };
-              console.log(`[TaskRecovery] 任务 ${task.id} 的视频已上传到 MinIO: ${uploadResult.url}`);
-            }
-          } else {
-            // 如果没有 downloadAndStore 方法，直接使用视频 URL
-            console.warn(`[TaskRecovery] 无法下载并上传视频，使用原始 URL`);
-          }
+          const { storeFromGenerateResult } = await import('./data-store');
+          const storageResults = await storeFromGenerateResult(
+            { mediaUrls: [videoUrl], metadata: task.metadata ?? {} },
+            storageConfig,
+            task.metadata?.userId as string | undefined,
+            String(task.metadata?.model || 'unknown'),
+          );
+          mediaUrls = storageResults.map((r) => r.url);
+          storageInfo = {
+            keys: storageResults.map((r) => r.key),
+            bucket: storageResults[0].bucket,
+            urls: mediaUrls,
+          };
+          console.log(`[TaskRecovery] 任务 ${task.id} 的视频已上传到 MinIO`);
         } catch (error) {
-          console.error(`[TaskRecovery] 下载并上传视频失败:`, error);
-          // 即使上传失败，也使用原始 URL
+          console.error(`[TaskRecovery] 存储视频到 MinIO 失败:`, error);
         }
       }
 
@@ -1127,24 +844,47 @@ export class TaskRecoveryService {
    */
   private async retryTask(task: Task): Promise<void> {
     try {
-      // 重置任务状态，清空错误信息
+      const { preparePipelineRetryExecute } = await import('./pipeline-retry');
+      const fresh = await taskManager.getTask(task.id);
+      const current = fresh?.task ?? task;
+      const prepared = preparePipelineRetryExecute(current);
+
+      await taskManager.updateTaskRequestParams(task.id, prepared.updatedParams);
+
+      const bps = (prepared.updatedParams.businessPipelineState ?? {}) as Record<string, unknown>;
+      if (bps.pipelineRenderRetry === true) {
+        try {
+          const storage = (taskManager as { storage?: { update: (id: string, u: unknown) => Promise<void> } })
+            .storage;
+          if (storage) {
+            const meta = { ...(current.metadata ?? {}) } as Record<string, unknown>;
+            delete meta.videoEditRenderTaskId;
+            delete meta.nestedVideoRenderPending;
+            await storage.update(task.id, { metadata: meta });
+          }
+        } catch (metaErr) {
+          console.warn('[TaskRecovery] 清除 nested render metadata 失败:', metaErr);
+        }
+      }
+
       await taskManager.updateTaskStatus(task.id, 'queued', {
-        progress: 0,
-        error: undefined, // 清空之前的错误信息
+        progress: prepared.resumeProgress,
+        error: undefined,
+        logs: [prepared.retryMessage],
       });
 
-      // 重新执行任务
+      const execParams = prepared.updatedParams as Record<string, unknown>;
       await taskExecutor.executeTask({
         taskId: task.id,
         modelName: task.metadata.model,
         provider: task.metadata.provider as any,
-        params: task.requestParams,
+        params: execParams,
         userId: task.metadata.userId,
         storeToMinio: task.metadata.storeToMinio,
         storageConfig: task.metadata.storageConfig,
       });
 
-      console.log(`[TaskRecovery] 任务 ${task.id} 已重新执行`);
+      console.log(`[TaskRecovery] 任务 ${task.id} 已断点重试（progress≈${prepared.resumeProgress}%）`);
     } catch (error) {
       console.error(`[TaskRecovery] 重试任务失败 (${task.id}):`, error);
       await taskManager.setTaskError(
@@ -1155,11 +895,88 @@ export class TaskRecoveryService {
   }
 
   /**
+   * 自动剪辑管线：逐段渲染子任务已完成但父任务未续跑，或 nested render 长期无进展
+   */
+  private async tryRecoverStuckVideoPipelineRender(task: Task): Promise<boolean> {
+    const model = String(task.metadata?.model ?? '');
+    if (task.type !== 'video' || model !== 'video-pipeline-orchestrator') return false;
+
+    const { getMergedPipelineState } = await import('./pipeline-retry');
+    const bps = getMergedPipelineState(task);
+    const meta = (task.metadata ?? {}) as Record<string, unknown>;
+    const renderPending =
+      bps.nestedVideoRenderPending === true || meta.nestedVideoRenderPending === true;
+    if (!renderPending || !bps.pendingPostResult) return false;
+
+    const renderId = String(bps.videoEditRenderTaskId ?? meta.videoEditRenderTaskId ?? '').trim();
+    const { taskExecutor } = await import('./task-executor');
+    const { readParentPipelineTaskId } = await import('../tasks/nested-video-render');
+
+    if (renderId) {
+      const snap = await taskManager.getTask(renderId);
+      if (snap?.task?.status === 'completed') {
+        console.log(
+          `[TaskRecovery] 视频管线 ${task.id} 逐段渲染已完成 (${renderId})，续跑父任务后置步骤`
+        );
+        await taskExecutor.resumeParentPipelineAfterNestedRender(task.id, renderId);
+        return true;
+      }
+    }
+
+    // 子任务 ID 错位：查找同父级已完成的 render 子任务
+    try {
+      const storage = (taskManager as any).storage;
+      const repo = storage?.repository;
+      if (repo?.listByUserId && task.metadata?.userId) {
+        const list = await repo.listByUserId(String(task.metadata.userId), {
+          limit: 50,
+          taskType: 'video',
+        });
+        for (const row of list?.tasks ?? []) {
+          if (row.id === task.id) continue;
+          const full = await taskManager.getTask(row.id);
+          const child = full?.task;
+          if (!child || child.status !== 'completed') continue;
+          if (readParentPipelineTaskId(child) !== task.id) continue;
+          if (child.metadata?.pipelineNode !== 'pipeline:video-timeline-render') continue;
+          console.log(
+            `[TaskRecovery] 视频管线 ${task.id} 发现已完成 render 子任务 ${child.id}，续跑后置步骤`
+          );
+          await taskExecutor.resumeParentPipelineAfterNestedRender(task.id, child.id);
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('[TaskRecovery] 查找 render 子任务失败:', e);
+    }
+
+    if (this.config.autoRetry && bps.businessPipelinePostDeferred === true) {
+      console.log(`[TaskRecovery] 视频管线 ${task.id} 逐段渲染卡住，触发断点重试（保留分镜）`);
+      await this.retryTask(task);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Graph 在 20% 后若 worker 被杀（API 拆分/重启），会长期停在 processing；无进展超过阈值则视为孤儿
+   */
+  private isOrphanedGraphTask(task: Task, now: number): boolean {
+    if (task.type !== 'graph' || task.status !== 'processing') return false;
+    const p = task.progress?.progress ?? 0;
+    if (p >= 80) return false;
+    const staleMs = Number(process.env.GRAPH_TASK_ORPHAN_STALE_MS || 10 * 60 * 1000);
+    const last = task.updatedAt.getTime();
+    return now - last >= staleMs;
+  }
+
+  /**
    * 根据任务类型获取超时时间
    */
   private getTaskTimeout(taskType: string, defaultTimeout: number): number {
     // 视频分镜批量父任务不按超时判定，仅由子任务状态驱动更新
-    if (taskType === 'video-batch-parent') {
+    if (taskType === 'video-batch-parent' || taskType === 'task-v2-batch-parent') {
       return 7 * 24 * 60 * 60 * 1000; // 7 天，实际不会用于标记父任务超时
     }
     // 图片生成任务通常需要更长时间

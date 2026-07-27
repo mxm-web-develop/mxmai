@@ -56,13 +56,55 @@ describe('timeline-overlay-builder', () => {
       ],
       { projectWidth: 1920, projectHeight: 1080, editStyle: 'science-minimal' }
     );
-    expect(pack.textClips).toHaveLength(1);
+    expect(pack.textClips.length).toBeGreaterThanOrEqual(1);
+    const titled = pack.textClips.find((c) => c.text?.includes('标题')) ?? pack.textClips[0]!;
     // 短关键词 → B站风格靠右，避免压主体
-    expect(pack.textClips[0]?.transform.position.x).toBeGreaterThan(0.5);
-    expect(pack.textClips[0]?.style.fontSize).toBeGreaterThanOrEqual(56);
-    expect(pack.textClips[0]?.style.strokeWidth).toBeGreaterThan(0);
+    expect(titled.transform.position.x).toBeGreaterThan(0.5);
+    expect(titled.style.fontSize).toBeGreaterThanOrEqual(56);
+    expect(titled.style.strokeWidth).toBeGreaterThan(0);
     expect(pack.textTrack?.type).toBe('text');
     expect(pack.transitions).toHaveLength(1);
     expect(pack.transitions[0]?.type).toBe('crossfade');
+  });
+
+  it('uses role-driven styles for overlayLayers', () => {
+    const pack = buildOpenReelOverlaysFromSegments(
+      [
+        {
+          startSeconds: 0,
+          endSeconds: 6,
+          text: '段1',
+          mxmBeatRole: 'opening',
+          overlayLayers: [
+            {
+              role: 'keyword-pop',
+              text: '人形机器人',
+              position: 'center-right',
+              enterAt: 0.2,
+              exitAt: 4,
+              emphasis: 'hot',
+            },
+            {
+              role: 'title-card',
+              text: '人形机器人量产前夜',
+              enterAt: 0.1,
+              exitAt: 2.5,
+            },
+          ],
+        },
+        {
+          startSeconds: 6,
+          endSeconds: 12,
+          text: '结尾',
+          mxmBeatRole: 'closing',
+          overlayLayers: [{ role: 'outro-cta', text: '一键三连 · 点赞收藏关注', enterAt: 0.2, exitAt: 3 }],
+        },
+      ],
+      { projectWidth: 1920, projectHeight: 1080 }
+    );
+    const keyword = pack.textClips.find((c) => c.text?.includes('人形机器人'));
+    expect(keyword).toBeTruthy();
+    expect(keyword!.style.fontSize).toBeGreaterThanOrEqual(88);
+    expect(keyword!.transform.position.x).toBeGreaterThan(0.5);
   });
 });

@@ -45,7 +45,7 @@
 
 | 路径 | 说明 |
 |------|------|
-| **core/utils/**（除 API 客户端） | data-store、image-input、image-processor、grid9-splitter、sensitive-check 等，可保留在 core 或迁到 `src/utils` 供多模块共用。 |
+| **core/utils/**（除 API 客户端） | data-store、image-input、image-processor、sensitive-check 等，可保留在 core 或迁到 `src/utils` 供多模块共用。 |
 
 ### 5. 文档与说明（非代码）
 

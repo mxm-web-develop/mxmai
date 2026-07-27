@@ -1,12 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  clipRenderAttemptsForMode,
   clipRetryDelayMs,
+  isPaidUpstreamClipRenderMode,
   parseClipRenderAttempts,
   parseClipUploadAttempts,
+  shouldSalvageFailedClip,
   withRetries,
 } from './clip-retry';
 
 describe('clip-retry', () => {
+  it('forbids auto-retry/salvage for ai-video-gen', () => {
+    expect(isPaidUpstreamClipRenderMode('ai-video-gen')).toBe(true);
+    expect(clipRenderAttemptsForMode('ai-video-gen', {})).toBe(1);
+    expect(shouldSalvageFailedClip('ai-video-gen')).toBe(false);
+    expect(clipRenderAttemptsForMode('static-image', {})).toBe(3);
+    expect(shouldSalvageFailedClip('static-image')).toBe(true);
+  });
+
   it('defaults render/upload attempts to 3', () => {
     expect(parseClipRenderAttempts({})).toBe(3);
     expect(parseClipUploadAttempts({})).toBe(3);

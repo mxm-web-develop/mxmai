@@ -24,11 +24,12 @@ function resolveDeerPhysicalModelName(modelKey: string): string {
   return getUpstreamModel('deer', modelKey) ?? modelKey;
 }
 
-type DeerImageKind = 'flux' | 'seedream' | 'gemini';
+type DeerImageKind = 'flux' | 'seedream' | 'gemini' | 'openai';
 
 function classifyDeerImageModel(modelKey: string): DeerImageKind {
   if (modelKey.startsWith('flux-')) return 'flux';
   if (modelKey === 'seedream-4' || modelKey === 'seedream-5') return 'seedream';
+  if (modelKey.startsWith('gpt-image')) return 'openai';
   return 'gemini';
 }
 
@@ -51,6 +52,39 @@ function extractImageUrlsFromGeminiResponse(response: any): string[] {
       if (item?.url) imageUrls.push(item.url);
       else if (item?.b64_json) imageUrls.push(`data:image/png;base64,${item.b64_json}`);
     }
+  }
+  return imageUrls;
+}
+
+/** Seedream 返回结构兼容提取：支持 data/images/output/result 及多种 url/base64 字段 */
+function extractImageUrlsFromOpenAIResponse(response: any): string[] {
+  const imageUrls: string[] = [];
+  const pushMaybe = (item: any) => {
+    if (!item) return;
+    if (typeof item === 'string' && (item.startsWith('http://') || item.startsWith('https://'))) {
+      imageUrls.push(item);
+      return;
+    }
+    const obj = item as Record<string, any>;
+    if (typeof obj.url === 'string') imageUrls.push(obj.url);
+    else if (obj.b64_json) {
+      const b64 = typeof obj.b64_json === 'string' ? obj.b64_json : JSON.stringify(obj.b64_json);
+      imageUrls.push(`data:image/png;base64,${b64}`);
+    }
+    else if (obj.base64) {
+      const b64 = typeof obj.base64 === 'string' ? obj.base64 : JSON.stringify(obj.base64);
+      imageUrls.push(`data:image/png;base64,${b64}`);
+    }
+  };
+  const candidates = [
+    response?.data,
+    response?.images,
+    response?.output,
+    response?.result,
+  ];
+  for (const c of candidates) {
+    if (Array.isArray(c)) c.forEach(pushMaybe);
+    else if (c) pushMaybe(c);
   }
   return imageUrls;
 }
@@ -252,6 +286,57 @@ export async function runDeerImageConnectivityTest(modelKey: string): Promise<De
             } catch (e) {
               lastReason = e instanceof Error ? e.message : String(e);
               // 当前组合失败继续尝试下一组，全部失败再返回
+            }
+          }
+        }
+        push(steps, 'invoke', '提交图片生成任务', 'failed', lastReason);
+        return { success: false, error: lastReason, steps };
+      }
+
+      if (kind === 'openai') {
+        // OpenAI 兼容接口：gpt-image-2 等
+        const formats: Array<'url' | 'b64_json'> = ['b64_json', 'url'];
+        const sizes = ['1024x1024', '1024x1792', '1792x1024'];
+        let lastReason = 'OpenAI 图像生成未返回图片数据';
+
+        for (const size of sizes) {
+          for (const rf of formats) {
+            try {
+              const req = {
+                model: deerModel,
+                prompt: 'A minimal connectivity test icon',
+                n: 1,
+                size,
+                response_format: rf,
+              };
+
+              const response = await client.createOpenAIImageGeneration(req);
+              const urls = extractImageUrlsFromOpenAIResponse(response);
+              if (urls.length > 0) {
+                push(
+                  steps,
+                  'invoke',
+                  '提交图片生成任务',
+                  'success',
+                  `OpenAI 已返回图片数据（size=${size}, response_format=${rf}）`
+                );
+                push(steps, 'verify', '验证生成结果', 'success', `images=${urls.length}`);
+                return {
+                  success: true,
+                  responseMeta: {
+                    model: modelKey,
+                    upstream: deerModel,
+                    created: response.created,
+                    response_format: rf,
+                    size,
+                  },
+                  steps,
+                };
+              }
+              const responseKeys = Object.keys((response || {}) as Record<string, unknown>).join(', ');
+              lastReason = `OpenAI 响应未解析到图片字段（size=${size}, rf=${rf}, keys: ${responseKeys || 'none'}）`;
+            } catch (e) {
+              lastReason = e instanceof Error ? e.message : String(e);
             }
           }
         }

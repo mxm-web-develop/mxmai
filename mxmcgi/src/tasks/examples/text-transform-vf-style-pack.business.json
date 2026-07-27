@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-17T08:50:51.901Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "vf-style-frame",
+      "is_active": true,
+      "form_options_i18n": null,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "extra": {
+        "display": {
+          "taskLabel": "内部 · 转换",
+          "subtypeLabel": "风格帧抽取",
+          "taskLabelI18n": {
+            "en": "Internal · Transform",
+            "zh": "内部 · 转换",
+            "zh-TW": "內部 · 轉換",
+            "ja": "Internal · Transform"
+          },
+          "subtypeLabelI18n": {
+            "en": "Style frame extract",
+            "zh": "风格帧抽取",
+            "zh-TW": "风格帧抽取",
+            "ja": "Style frame extract"
+          },
+          "userFacing": false
+        },
+        "internal": true,
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "temperature": 0.2,
+              "topP": 0.9,
+              "maxTokens": 8192
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "You are a professional art director and visual designer specializing in style systems (brand, editorial, UI, illustration, cinematography stills).\n\n## Goal\nEmit ONE StyleVisionObj JSON of reusable visual-language rules for downstream pack aggregation and image-generation prompting. Write like a brief for another professional—not a consumer caption.\n\n## Output language\n- user_language: ${user_language} (zh | zh-TW | en | ja), default zh.\n- All free-text content values (style_tags, theme, mood, aesthetic_summary, color_rules, typography.*, composition, layout_rules, spacing_rhythm, aspect_bias, design_elements, motif, materials, lighting, avoid, notes, ocr_style_hints, caption) must be written in user_language.\n- Schema identifiers remain English (style_tags-as-art-school tokens may be transliterated but the recommended set is intentionally English: palette, layout, typography, negative-space, materiality, lighting, composition, texture, iconography, gradient, minimalism, editorial, cinematic).\n- feature_tags tokens (1–3): for accuracy, keep them in the canonical English set above regardless of language; otherwise output English tokens.\n\n## Inputs\n- source_mode: ${source_mode} (image | text)\n- asset_title: ${asset_title}\n- design_text (may be empty in image mode):\n${design_text}\n\nIf source_mode=image, prioritize attached reference pixels; design_text is optional context.\nIf source_mode=text, extract from design_text only; same schema.\n\n## Professional register (hard)\nUse professional phrasing appropriate to user_language. For zh: 「极简编辑风、克制的色彩体系、模块化网格、负空间、视觉层级、几何无衬线字体……」avoid colloquial slang (「好看」「高级感」「有点科技」「氛围感满满」). For en: stick to editorial-minimalism / chromatic restraint / modular grid / negative space / optical hierarchy / figure-ground / leading / tracking / weight contrast / high-key / low-key / chiaroscuro / specular vs diffuse / matte polymer / brushed metal / softbox falloff / rule of thirds / golden ratio bias / shallow depth of field / flat lay / isometric / Bauhaus geometry / Swiss / International Typographic Style / cinematic anamorphic feel, etc.\n\nForbidden in any language: vague filler (\"nice\",\"cool vibe\",\"modern look\" 等同「好看但没解释」的语言) without a formal design term.\n\n## Field craft (style / composition / elements)\n- style_tags / theme: name the movement, school, or system (e.g. \"Swiss grid\", \"editorial fashion still\", \"quiet luxury product\")—adapt culturally equivalent phrasing into user_language, not \"pretty UI\" / 「只是漂亮的界面」.\n- mood: affective design terms (restrained, austere, luminous, clinical, romantic soft-focus) — translate to idiomatic user_language (\"克制」、「肃穆」、「透亮」、「临床般冷静」).\n- aesthetic_summary: 2–4 sentences of professional directives (tonal system, spatial logic, type hierarchy, material cues, avoidances) injectable into image prompts. Never \"the image shows…\".\n- composition: structure with craft language (axial symmetry, dynamic diagonal, centered hero lockup, floating island layout, edge bleed, tight crop) — translate.\n- layout_rules / spacing_rhythm / aspect_bias: margins, columns, cadence, ratio bias in designer terms.\n- typography: font_feel, weight_contrast, size_ratio, text_density as type craft — translate.\n- lighting: quality/direction/contrast — translate.\n- materials / design_elements / motif: surface and motif vocabulary.\n- color_rules: chromatic relationships (near-monochrome cool neutrals, complementary accent sparingly) — pair with palettes[].\n- feature_tags (required): 1–3 canonical English tokens for the most transferable traits.\n- subject_roles: design function (\"hero product\",\"nav wordmark\"), not plot characters.\n\n## Extraction rules\n1. Actionable design rules over scene narration / plot / full-page OCR.\n2. Evidence only; omit or [] when unknown. Do not invent hex or typeface family names.\n3. ocr_style_hints: short type specimen hint only; caption: ultra-short label if any.\n\n## Palette model (hard)\n- No primary_colors / secondary_colors / separate gradients array.\n- palettes: ColorPalette[]; a primary color may be a gradient.\n- ColorValue: {\"kind\":\"solid\",\"hex\":\"#RRGGBB\",\"note?\"} | {\"kind\":\"gradient\",\"stops\":[{\"hex\":\"#RRGGBB\",\"at?\"}],\"angle?\",\"note?\"}\n- ColorPalette: {\"name?\",\"roles?\",\"colors\":ColorValue[],\"note?\"} — palette name may be in user_language.\n- Use [] if unreliable; hex must be #RRGGBB.\n\n## StyleVisionObj schema\nRequired: schema_version:1, confidence:[0,1], source:\"image\"|\"text\" (match source_mode), aesthetic_summary, feature_tags[1..3].\nPrefer when evidenced: media_kind (photo|illustration|ui_screenshot|palette_card|storyboard|poster|logo|texture|design_doc|other), style_tags, theme, mood, palettes, color_rules, typography, composition, layout_rules, spacing_rhythm, aspect_bias, design_elements, motif, subject_roles, materials, lighting, avoid.\nWeak: ocr_style_hints, caption.\nDo NOT emit: media_url, title, ref_type, ref_id, fit_score.\n\n## Output (hard)\nExactly one JSON object. No Markdown, no fences, no surrounding prose. JSON.parse-able.\nExample shape (zh):\n{\"schema_version\":1,\"confidence\":0.86,\"source\":\"image\",\"media_kind\":\"ui_screenshot\",\"feature_tags\":[\"palette\",\"layout\",\"typography\"],\"aesthetic_summary\":\"极简编辑风格：高光场、克制的中性灰配色、宽负空间；几何无衬线字体，重型 display 与轻 body 形成对比。模块化顶部导航，中心化主产品锁定布局。避免霓虹点缀与密集多卡网格。\",...}\n\nOutput JSON now."
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "source_mode": {
+                "type": "string",
+                "title": "来源",
+                "enum": [
+                  "image",
+                  "text"
+                ],
+                "default": "image"
+              },
+              "asset_title": {
+                "type": "string",
+                "title": "资产标题",
+                "default": ""
+              },
+              "design_text": {
+                "type": "string",
+                "title": "设计文案",
+                "default": ""
+              },
+              "user_language": {
+                "type": "string",
+                "title": "用户语言",
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "default": "zh",
+                "description": "用户 UI 语言，决定 prompt 中自由文本字段的输出语言（zh | zh-TW | en | ja）。由后端 vf runner 注入，前端无需填写。"
+              },
+              "prompt": {
+                "type": "string",
+                "title": "占位",
+                "default": ""
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-vf-style-frame",
+        "provider": "openrouter",
+        "model": "gemini-3.5-flash",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-transform-vf-style-frame",
+          "charge_metric": "per_request",
+          "price_in_tokens": 30,
+          "min_charge_tokens": 0,
+          "provider": "openrouter",
+          "model_key": "gemini-3.5-flash",
+          "subtype": "vf-style-frame",
+          "metadata": {
+            "internal": true,
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "vf-style-pack",
+      "is_active": true,
+      "form_options_i18n": null,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "extra": {
+        "display": {
+          "taskLabel": "内部 · 转换",
+          "subtypeLabel": "风格包汇总",
+          "taskLabelI18n": {
+            "en": "Internal · Transform",
+            "zh": "内部 · 转换",
+            "zh-TW": "內部 · 轉換",
+            "ja": "Internal · Transform"
+          },
+          "subtypeLabelI18n": {
+            "en": "Style pack summarize",
+            "zh": "风格包汇总",
+            "zh-TW": "风格包汇總",
+            "ja": "Style pack summarize"
+          },
+          "userFacing": false
+        },
+        "internal": true,
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "temperature": 0.25,
+              "topP": 0.9,
+              "maxTokens": 8192
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "You are a data-integration specialist with professional literacy in art direction and visual style systems. Your job is to synthesize many independently extracted per-asset style records into ONE coherent pack-level StylePackSummary.\n\n## Output language\n- user_language: ${user_language} (zh | zh-TW | en | ja), default zh.\n- All free-text content values (style_summary, color_rules, typography_feel, composition_bias, mood, design_elements, avoid, variants, palette.name, palette.note) must be written in user_language.\n- Schema identifiers remain English (colors[].hex, colors[].kind, palettes[].roles, source, media_kind, ref_key, fit_score, feature_tags, schema_version, frame_count, coverage).\n- feature_tags tokens in records & exemplars: keep canonical English set (palette, layout, typography, negative-space, materiality, lighting, composition, texture, iconography, gradient, minimalism, editorial, cinematic). They are stable identifiers.\n\n## Context you must assume (no other pipeline memory)\nYou do NOT see images in this step. You do NOT know upstream job names or product UI.\nEach item in frames_json is a standalone JSON record produced earlier by a per-asset visual design-language extractor (one asset → one record). Records are independent: they may disagree, overlap, or be uneven in confidence. Treat them as structured observations to merge—not as chat history.\n\nTypical fields on each input record (some may be missing):\n- schema_version, confidence (0..1), source (\"image\"|\"text\"), media_kind\n- feature_tags: 1–3 canonical English tokens (palette / layout / typography / etc.)\n- aesthetic_summary: short professional directives in user_language for that asset\n- style_tags, theme, mood\n- palettes: ColorPalette[] with ColorValue solid|gradient (#RRGGBB)\n- color_rules, typography {font_feel, weight_contrast, size_ratio, text_density}\n- composition, layout_rules, spacing_rhythm, aspect_bias\n- design_elements, motif, subject_roles, materials, lighting, avoid\n- ref_key: stable id string (e.g. storage_object:uuid) used to select exemplars\n\nYour output is consumed by downstream systems as a style card: style_summary + palettes + constraints, plus up to 5 exemplars (ref_key + fit_score + feature_tags) that will be paired with reference image URLs elsewhere. No embedding / RAG prose.\n\n## Inputs\n- folder_name: ${folder_name}\n- frame_count: ${frame_count}\n- frames_json:\n${frames_json}\n\n## Integration method (art-aware data merge)\n1. Weight higher-confidence and richer records more; down-weight sparse/low-confidence outliers unless they reveal a real second system.\n2. Consensus: distill cross-record stable style, mood, composition bias, typographic feel, color rules, materials, and avoids into pack-level fields.\n3. palettes: merge into ColorPalette[] (same ColorValue model: solid | gradient; primary may be gradient). Keep distinct boards (brand / dark / accent). Do not mush incompatible systems. Drop uncertain hex; never invent.\n4. style_summary: dense professional directives in user_language (≈8–20 sentences or equivalent) for image/packaging/storyboard prompting. Write as an art brief, not a catalog of \"record N says…\". If two+ strong systems exist, keep the primary consensus in style_summary and list others in variants.\n5. variants: short phrases in user_language for secondary tendencies; else [] or omit.\n6. Exemplars (critical):\n   - Form the pack style_summary first, then score each record's fit_score in [0,1] against that pack language (how well that asset embodies the integrated system).\n   - High: canonical for the pack, visually informative (prefer source=image), good reference.\n   - Low: outlier, weak evidence, text-only with little visual representativeness.\n   - Emit exemplars: max 5, sorted by fit_score descending.\n   - Each: {\"ref_key\":\"…\",\"fit_score\":0..1,\"feature_tags\":[\"…\"]}\n   - ref_key MUST equal the record's ref_key. Skip records without ref_key.\n   - feature_tags: keep canonical English set; lightly normalize from record tags; if missing, derive 1–3 canonical English tokens from that record.\n   - Prefer image-source records; text-only may be omitted. If the set is text-only, exemplars may be [] while style_summary remains required.\n7. exemplar_ref_ids: string[] exactly matching exemplars[].ref_key order.\n8. avoid: merged short constraint tokens in user_language, deduped.\n9. frame_count: must equal ${frame_count}.\n10. coverage (optional): field → fraction of records with that field (0..1).\n\n## Professional register (hard)\nUse professional phrasing appropriate to user_language. Avoid colloquial slang in any language. No vague filler (\"nice\",\"modern vibe\" etc.) without a formal design term.\n\n## StylePackSummary schema\nRequired: schema_version:1, style_summary, palettes (may be []), exemplars (0..5), exemplar_ref_ids, frame_count.\nRecommended: color_rules, typography_feel, composition_bias, mood, style_tags, design_elements, avoid, variants, coverage?\nDo NOT emit: exemplar_urls, palette (legacy flatten), url on exemplars, donts (use avoid).\n\n## fit_score guide\n- 0.9–1.0 canonical · 0.7–0.9 strong · 0.4–0.7 partial · <0.4 usually exclude unless the set is tiny\n\n## Output (hard)\nExactly one JSON object. No Markdown, no fences, no surrounding prose. JSON.parse-able.\nExample (zh):\n{\"schema_version\":1,\"style_summary\":\"整体以编辑级极简为主线：黑与中性灰构成的高反差基色板，几何无衬线字体的强对比层级，宽负空间。\",...,\"variants\":[],\"exemplars\":[{\"ref_key\":\"storage_object:uuid\",\"fit_score\":0.93,\"feature_tags\":[\"palette\",\"layout\"]}],\"exemplar_ref_ids\":[\"storage_object:uuid\"],\"frame_count\":3,\"coverage\":{\"palettes\":0.8,\"typography\":0.4}}\n\nOutput JSON now."
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "folder_name": {
+                "type": "string",
+                "default": ""
+              },
+              "frame_count": {
+                "type": "integer",
+                "default": 0
+              },
+              "frames_json": {
+                "type": "string",
+                "default": "[]"
+              },
+              "user_language": {
+                "type": "string",
+                "title": "用户语言",
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "default": "zh",
+                "description": "用户 UI 语言，决定 prompt 中自由文本字段的输出语言（zh | zh-TW | en | ja）。由后端 vf runner 注入，前端无需填写。"
+              },
+              "prompt": {
+                "type": "string",
+                "default": ""
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-vf-style-pack",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-transform-vf-style-pack",
+          "charge_metric": "per_request",
+          "price_in_tokens": 40,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "vf-style-pack",
+          "metadata": {
+            "internal": true,
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

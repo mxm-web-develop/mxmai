@@ -35,6 +35,10 @@ import {
 import { normalizeClientAccessibleMediaUrl } from '../core/audio/voiceover-audio-source';
 import { isVideoTimelineRenderPipelineStep } from './nested-video-render';
 import { setManualReviewDraft } from './manual-review-store';
+import {
+  extractTopicChipsFromContractState,
+  fieldsWantTopicChips,
+} from './mxm-warp/topic-chips-from-websource';
 
 export type PipelineRunOutcome =
   | { kind: 'done'; ctx: TaskContext; finalPrompt?: string }
@@ -61,7 +65,14 @@ function isDeferredNestedTextStep(step: PipelineStep): boolean {
 }
 
 function defaultEditable(kind: ManualReviewKind): boolean {
-  return kind === 'text' || kind === 'json' || kind === 'video-timeline';
+  return (
+    kind === 'text' ||
+    kind === 'json' ||
+    kind === 'video-timeline' ||
+    kind === 'interactive-card' ||
+    kind === 'basic-form' ||
+    kind === 'writing-chat'
+  );
 }
 
 function readReviewValue(path: string, ctx: TaskContext, review?: ReviewDraftPayload): string {
@@ -142,6 +153,121 @@ function resolveDraftSourceValue(draftFrom: string | undefined, ctx: TaskContext
   return raw;
 }
 
+/**
+ * writing-chat 审核草稿：调用 summary taskKey（text 子业务）把原始 JSON 整理为人话版 Markdown。
+ * 失败时回退到 `text` 字段（不阻塞审核），并把失败原因记到 metadata。
+ */
+export async function summarizeReviewDraft(
+  ctx: TaskContext,
+  step: PipelineStep,
+  base: ReviewDraftPayload,
+  source: unknown
+): Promise<ReviewDraftPayload> {
+  const params = parseManualReviewStepParams(step);
+  if (!params.summaryTaskKey) {
+    return {
+      ...base,
+      summary: '',
+      metadata: {
+        ...(base.metadata ?? {}),
+        summaryError: 'missing summaryTaskKey',
+      },
+    };
+  }
+  if (source == null) {
+    return { ...base, summary: '' };
+  }
+  try {
+    const { parseNestedTextTaskKey } = await import('./business-pipeline');
+    const { runTaskV2 } = await import('./task-engine');
+    const { buildExpertFieldSpecs } = await import('./text-v2');
+    const { taskKey, subtype } = parseNestedTextTaskKey(params.summaryTaskKey);
+    const sourceStr =
+      typeof source === 'string' ? source : JSON.stringify(source, null, 2);
+    const userId = ctx.userId;
+    const stepParams = (step.params ?? {}) as Record<string, unknown>;
+    const fromStep = stepParams.field_specs;
+    const fieldSpecs = Array.isArray(fromStep)
+      ? fromStep
+      : buildExpertFieldSpecs({
+          contract: (ctx.state.contract as Record<string, unknown> | undefined) ?? null,
+          contractSchema:
+            ((ctx.state._contractSchema ?? ctx.state._formSchema) as
+              | import('./types').JsonSchemaV2
+              | undefined) ?? null,
+          onlyEmpty: false,
+        });
+    const gate = {
+      gateId: base.gateId,
+      phase: base.phase,
+      label: base.label,
+      hint: base.hint,
+    };
+    const instruction =
+      params.summaryInstruction ??
+      '请把以上合同整理为面向读者的人工审核摘要（Markdown）。结构：1) 本次审核对象（≤1 句）；2) 各变体/路线一句话概述（角度、风格、检索词、证据是否充分）；3) 给用户的简短确认要点（≤5 条 bullet）；4) 可直接调整的字段提示。不要逐字复述 JSON，不要列出全部字段，不要解释后台状态（如"暂无数据""证据不足"）。直接用人话。';
+
+    // text v2：expert 钉死只有 contract/field_specs；摘要应走 transform（input/instruction）
+    const summaryParams =
+      taskKey === 'transform'
+        ? {
+            input: JSON.stringify(
+              {
+                contract: ctx.state.contract ?? {},
+                source: sourceStr,
+                gate,
+                field_specs: fieldSpecs,
+              },
+              null,
+              2
+            ),
+            instruction,
+          }
+        : {
+            // 兼容旧 expert summaryTaskKey：只能塞进 contract + field_specs
+            contract: {
+              ...((ctx.state.contract && typeof ctx.state.contract === 'object'
+                ? ctx.state.contract
+                : {}) as Record<string, unknown>),
+              __reviewMeta: { source: sourceStr, gate, instruction },
+            },
+            field_specs: fieldSpecs,
+          };
+
+    const req = {
+      scope: 'text' as const,
+      taskKey,
+      subtype: subtype ?? null,
+      params: summaryParams,
+      options: { ephemeral: true },
+    };
+    const result = await runTaskV2(req, userId);
+    const text =
+      (result.success && (result as unknown as { syncResult?: { text?: string } }).syncResult?.text) ||
+      '';
+    return {
+      ...base,
+      summary: (typeof text === 'string' ? text : '').trim(),
+      metadata: {
+        ...(base.metadata ?? {}),
+        summaryTaskKey: params.summaryTaskKey,
+      },
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[manual-review] summarizeReviewDraft failed:', msg);
+    return {
+      ...base,
+      summary: '',
+      metadata: {
+        ...(base.metadata ?? {}),
+        summaryTaskKey: params.summaryTaskKey,
+        summaryError: msg,
+      },
+    };
+  }
+}
+
 /** video-timeline 审核草稿：注入 generator 业务目录与默认路由 */
 export async function enrichVideoTimelineReviewDraft(
   draft: ReviewDraftPayload,
@@ -187,12 +313,12 @@ export async function enrichVideoTimelineReviewDraft(
   };
 }
 
-export function extractReviewDraftFromContext(
+export async function extractReviewDraftFromContext(
   ctx: TaskContext,
   step: PipelineStep,
   phase: ManualReviewPhase,
   stepIndex: number
-): ReviewDraftPayload {
+): Promise<ReviewDraftPayload> {
   const params = parseManualReviewStepParams(step);
   const gateId = resolveGateId(step, phase, stepIndex);
   const kind = params.kind ?? 'text';
@@ -210,7 +336,72 @@ export function extractReviewDraftFromContext(
   };
 
   if (kind === 'json') {
-    return { ...base, json: typeof source === 'string' ? tryParseJson(source) : source };
+    const json = typeof source === 'string' ? tryParseJson(source) : source;
+    const reviewSurface = params.reviewSurface;
+    return {
+      ...base,
+      json,
+      ...(reviewSurface
+        ? { metadata: { ...(base.metadata ?? {}), reviewSurface } }
+        : {}),
+    };
+  }
+  if (kind === 'writing-chat') {
+    const json = typeof source === 'string' ? tryParseJson(source) : source;
+    const {
+      buildWritingChatInteractiveFields,
+      buildDeterministicWritingChatSummary,
+    } = await import('./writing-chat-review-fields');
+    const interactiveCardFields = buildWritingChatInteractiveFields(json, step, gateId);
+    const fallbackSummary = buildDeterministicWritingChatSummary(json, {
+      label: params.label,
+      hint: params.hint,
+    });
+    // 交互卡字段进闸前同步备好；LLM 摘要仅增强气泡，失败不挡进闸
+    const seeded: ReviewDraftPayload = {
+      ...base,
+      json,
+      interactiveCardFields,
+      summary: fallbackSummary,
+      metadata: {
+        ...(base.metadata ?? {}),
+        reviewSurface: params.reviewSurface,
+        ui: 'writing-chat',
+        fields: interactiveCardFields,
+      },
+    };
+    const summarized = await summarizeReviewDraft(ctx, step, seeded, source);
+    return {
+      ...summarized,
+      interactiveCardFields,
+      summary: String(summarized.summary ?? '').trim() || fallbackSummary,
+      metadata: {
+        ...(summarized.metadata ?? {}),
+        reviewSurface: params.reviewSurface,
+        ui: 'writing-chat',
+        fields: interactiveCardFields,
+      },
+    };
+  }
+  if (kind === 'interactive-card' || kind === 'basic-form') {
+    const fields = (step.params as Record<string, unknown> | undefined)?.fields;
+    // pre.webSearch → sources.websource；后续交互卡若含话题字段则注入 chips（热点 + 前端自定义输入）
+    const wantChips = kind === 'basic-form' || fieldsWantTopicChips(fields);
+    const topicChips = wantChips
+      ? extractTopicChipsFromContractState(ctx.state.contract as Record<string, unknown> | undefined)
+      : undefined;
+    return {
+      ...base,
+      json: source && typeof source === 'object' ? source : {},
+      metadata: {
+        ...(base.metadata ?? {}),
+        ui: kind,
+        fields: fields ?? null,
+        topicChips: topicChips ?? [],
+        skippable: (step.params as Record<string, unknown> | undefined)?.skippable === true,
+        optionsFrom: wantChips ? 'sources.websource' : undefined,
+      },
+    };
   }
   if (kind === 'video-timeline') {
     // OpenReel ProjectFile JSON + mxm* 扩展
@@ -255,6 +446,8 @@ export function extractReviewDraftFromContext(
   const text = typeof source === 'string' ? source : JSON.stringify(source ?? '');
   return { ...base, text: text.trim() };
 }
+
+/** 从 sources.websource 抽短标题（已迁至 topic-chips-from-websource） */
 
 function tryParseJson(raw: string): unknown {
   try {
@@ -413,7 +606,7 @@ export async function runPrePipelineWithCheckpoints(args: {
         throw new Error('manualReview 不能与 deferred nestedText 混用同一步骤');
       }
 
-      const draft = extractReviewDraftFromContext(ctx, step, 'pre', i);
+      const draft = await extractReviewDraftFromContext(ctx, step, 'pre', i);
       const gate = buildManualReviewGateInfo(step, 'pre', i, pre);
       const checkpoint: ReviewCheckpoint = { phase: 'pre', stepIndex: i, completedGateIds };
 
@@ -517,7 +710,7 @@ export async function runPostPipelineWithCheckpoints(args: {
         );
       }
 
-      const draft = extractReviewDraftFromContext(ctx, step, 'post', i);
+      const draft = await extractReviewDraftFromContext(ctx, step, 'post', i);
       const gate = buildManualReviewGateInfo(step, 'post', i, post);
       const checkpoint: ReviewCheckpoint = { phase: 'post', stepIndex: i, completedGateIds };
 
@@ -536,9 +729,22 @@ export async function runPostPipelineWithCheckpoints(args: {
     if (isVideoTimelineRenderPipelineStep(step)) {
       const renderTaskId = String(ctx.state.videoEditRenderTaskId ?? '').trim();
       const renderPending = ctx.state.nestedVideoRenderPending === true;
+      const renderStepRaw = ctx.state.videoEditRenderStepIndex;
+      const renderStepIndex =
+        typeof renderStepRaw === 'number'
+          ? renderStepRaw
+          : typeof renderStepRaw === 'string' && renderStepRaw.trim()
+            ? Number(renderStepRaw)
+            : undefined;
+      // 同一管线可有多次 videoTimelineRender（先逐段、后拼成片）。
+      // 仅当子任务归属当前 stepIndex 时才复用/合并，否则会把第一次成片误当成最终拼片并跳过 concatFinal。
+      const ownedByThisStep =
+        !!renderTaskId &&
+        (renderStepIndex === i ||
+          (renderStepIndex === undefined && renderPending));
       const checkpoint: ReviewCheckpoint = { phase: 'post', stepIndex: i, completedGateIds };
 
-      if (renderTaskId && renderPending) {
+      if (ownedByThisStep && (renderPending || renderTaskId)) {
         const { taskExecutor } = await import('../task/task-executor');
         const snap = await taskExecutor.getTaskManager().getTask(renderTaskId);
         const child = snap?.task;
@@ -554,7 +760,16 @@ export async function runPostPipelineWithCheckpoints(args: {
             stepIndex: i + 1,
             completedGateIds: [...completedGateIds],
           };
-          ctx = { ...ctx, state: { ...ctx.state, reviewCheckpoint: stepCheckpoint } };
+          ctx = {
+            ...ctx,
+            state: {
+              ...ctx.state,
+              reviewCheckpoint: stepCheckpoint,
+              // 保留 renderTaskId 供「成片审核」校验；stepIndex 标明归属，下一步渲染不会误复用
+              videoEditRenderStepIndex: i,
+              nestedVideoRenderPending: false,
+            },
+          };
           if (onStepCheckpoint) await onStepCheckpoint(ctx, stepCheckpoint);
           continue;
         }
@@ -566,16 +781,25 @@ export async function runPostPipelineWithCheckpoints(args: {
           throw new Error(`videoTimelineRender 渲染子任务失败: ${renderTaskId}（${err}）`);
         }
 
+        ctx = {
+          ...ctx,
+          state: {
+            ...ctx.state,
+            videoEditRenderStepIndex: i,
+            nestedVideoRenderPending: true,
+          },
+        };
         return { kind: 'awaitingNestedVideo', ctx, renderTaskId, checkpoint };
       }
 
       const { startNestedVideoRenderAsync } = await import('./nested-video-render');
-      ctx = await startNestedVideoRenderAsync(ctx, step);
+      ctx = await startNestedVideoRenderAsync(ctx, step, { stepIndex: i });
       ctx = {
         ...ctx,
         state: {
           ...ctx.state,
           reviewCheckpoint: checkpoint,
+          videoEditRenderStepIndex: i,
         },
       };
       return {
@@ -612,12 +836,17 @@ export async function persistNestedVideoRenderPause(args: {
   pipelineState: Record<string, unknown>;
 }): Promise<Record<string, any>> {
   const { taskId, renderTaskId, execParams, checkpoint, pipelineState } = args;
+  const stepIndex =
+    typeof pipelineState.videoEditRenderStepIndex === 'number'
+      ? pipelineState.videoEditRenderStepIndex
+      : checkpoint.stepIndex;
   return {
     ...execParams,
     businessPipelineState: {
       ...pipelineState,
       reviewCheckpoint: checkpoint,
       videoEditRenderTaskId: renderTaskId,
+      videoEditRenderStepIndex: stepIndex,
       nestedVideoRenderPending: true,
       businessPipelinePostDeferred: true,
       businessPipelineAwaitingReview: false,
@@ -686,6 +915,8 @@ export async function persistManualReviewPause(args: {
       editable: draft.editable,
       label: draft.label ?? gate.label,
       hint: draft.hint ?? gate.hint,
+      summary: draft.summary,
+      interactiveCardFields: draft.interactiveCardFields,
     },
   };
 
@@ -808,7 +1039,13 @@ export function applyApprovedManualReview(
   if (review.kind === 'text' && !reviewText) {
     throw new Error('reviewText 不能为空');
   }
-  if (review.kind === 'json' && reviewJson == null && !reviewText) {
+  if (
+    (review.kind === 'json' ||
+      review.kind === 'interactive-card' ||
+      review.kind === 'basic-form') &&
+    reviewJson == null &&
+    !reviewText
+  ) {
     throw new Error('reviewJson 不能为空');
   }
   if (review.kind === 'video-timeline' && reviewJson == null) {
@@ -837,6 +1074,19 @@ export function applyApprovedManualReview(
     state: { ...bps, prePipelineReviewText: reviewText || undefined },
   };
   ctx = applyMappingToCtx(ctx, stepParams?.applyMapping, review);
+
+  // 交互卡 / 分步 basic：将 review.json 平面合并进 params（显式 mapping 优先）
+  if (
+    (review.kind === 'interactive-card' || review.kind === 'basic-form') &&
+    reviewJson &&
+    typeof reviewJson === 'object' &&
+    !Array.isArray(reviewJson)
+  ) {
+    ctx = {
+      ...ctx,
+      params: { ...ctx.params, ...(reviewJson as Record<string, unknown>) },
+    };
+  }
 
   // video-timeline 审核：确保用户编辑后的 ProjectFile 写入 pipeline state（供 nestedVideo / 二次审核）
   if (reviewJson != null && (review.kind === 'video-timeline' || isVideoEditProjectFile(reviewJson))) {
@@ -955,9 +1205,27 @@ export function resolveManualReviewStepFromTemplate(
   rowExtra?: Record<string, unknown> | null
 ): PipelineStep | null {
   const { pre, post } = mergeEffectivePipeline(scope, template, rowExtra ?? null);
+  // mxm-warp：gate 可能在 enrich；合并 pre+enrich+post 查找
+  const warpPipe = (template.pipeline ?? {}) as {
+    pre?: PipelineStep[];
+    enrich?: PipelineStep[];
+    post?: PipelineStep[];
+  };
+  const all = [
+    ...(warpPipe.pre ?? pre ?? []),
+    ...(warpPipe.enrich ?? []),
+    ...(warpPipe.post ?? post ?? []),
+  ];
+  const byId = all.find((s) => {
+    if (!s || (s.step !== 'manualReview' && s.step !== 'interactiveCard')) return false;
+    const id = typeof s.params?.id === 'string' ? s.params.id : '';
+    return id === gate.gateId;
+  });
+  if (byId) return byId;
   const steps = gate.phase === 'pre' ? pre : post;
   const step = steps[gate.stepIndex];
-  return step && isManualReviewStep(step) ? step : null;
+  if (step && (isManualReviewStep(step) || step.step === 'interactiveCard')) return step;
+  return null;
 }
 
 export function resolveGateIdFromTaskMetadata(metadata: Record<string, unknown>): string | undefined {
@@ -1010,5 +1278,8 @@ export function scrubTaskMetadataReviewFlags(metadata: Record<string, unknown>):
   const next = { ...metadata };
   delete next.manualReviewGate;
   delete next.businessPipelineState;
+  delete next.nestedVideoRenderPending;
+  delete next.videoEditRenderTaskId;
+  delete next.videoEditRenderStepIndex;
   return next;
 }

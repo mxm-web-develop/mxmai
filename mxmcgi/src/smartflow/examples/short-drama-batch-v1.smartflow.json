@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-smartflow-bundle",
+  "exportedAt": "2026-05-25T00:00:00.000Z",
+  "items": [
+    {
+      "id": "short-drama-batch-v1",
+      "name": "短剧分镜批量成片（MVP）",
+      "description": "可选：先写分镜脚本 → 循环 video 业务逐镜生成（需在 Admin 配置 writing + video 路由）",
+      "category": "video",
+      "tags": ["video", "short-drama", "storyboard", "batch"],
+      "status": "active",
+      "version": "1.0.0",
+      "is_public": true,
+      "schema": {
+        "version": "1.0.0",
+        "nodes": [
+          {
+            "id": "start",
+            "type": "start",
+            "name": "开始",
+            "input": [
+              { "name": "topic", "type": "text", "content": "都市情感短剧第一集" },
+              { "name": "video_task_key", "type": "text", "content": "short" },
+              { "name": "video_subtype", "type": "text", "content": "default" },
+              {
+                "name": "shots",
+                "type": "json",
+                "content": [
+                  {
+                    "prompt": "女主角推门进入咖啡馆，阳光从窗外洒入",
+                    "duration": 5,
+                    "reference_image_url": ""
+                  }
+                ]
+              }
+            ],
+            "smartflow_name": "短剧分镜批量成片",
+            "position": { "x": 80, "y": 80 }
+          },
+          {
+            "id": "write_storyboard",
+            "type": "business",
+            "name": "分镜脚本（可选）",
+            "business_scope": "writing",
+            "taskKey": "storyboard-scripts",
+            "subtype": "short-video-storyboard",
+            "params": {
+              "topic": "{{input.topic}}",
+              "writing_type": "storyboard-scripts"
+            },
+            "position": { "x": 280, "y": 80 }
+          },
+          {
+            "id": "loop_shots",
+            "type": "loop",
+            "name": "逐镜生成视频",
+            "loop_mode": "iteration",
+            "iterable": "{{input.shots}}",
+            "item_variable": "shot",
+            "loop_nodes": ["run_video"],
+            "parallel_iterations": false,
+            "max_concurrency": 2,
+            "collect_output": true,
+            "output_variable": "video_results",
+            "on_iteration_error": "collect_errors",
+            "position": { "x": 480, "y": 80 }
+          },
+          {
+            "id": "run_video",
+            "type": "business",
+            "name": "生成单镜视频",
+            "business_scope": "video",
+            "taskKey": "{{input.video_task_key}}",
+            "subtype": "{{input.video_subtype}}",
+            "params": {
+              "prompt": "{{variables.shot.prompt}}",
+              "duration": "{{variables.shot.duration}}",
+              "total_duration_seconds": "{{variables.shot.duration}}",
+              "input_reference": "{{variables.shot.reference_image_url}}",
+              "ratio": "9:16",
+              "resolution": "720p"
+            },
+            "position": { "x": 680, "y": 160 }
+          },
+          {
+            "id": "end",
+            "type": "end",
+            "name": "结束",
+            "output_mapping": {
+              "storyboard": "{{write_storyboard.syncResult.text}}",
+              "videos": "{{loop_shots.video_results}}"
+            },
+            "position": { "x": 880, "y": 80 }
+          }
+        ],
+        "edges": [
+          { "from": "start", "to": "write_storyboard" },
+          { "from": "write_storyboard", "to": "loop_shots" },
+          { "from": "loop_shots", "to": "end" }
+        ],
+        "settings": {
+          "timeout": 3600,
+          "retry_count": 0,
+          "error_handling": "continue"
+        }
+      }
+    }
+  ]
+}

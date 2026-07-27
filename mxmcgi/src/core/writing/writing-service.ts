@@ -5,13 +5,16 @@
 
 import type { ProviderType } from '../providers/types';
 import { runByModelKey } from '../../models/run';
-import { selectModel, selectModelWithRouting, type TaskType } from './model-selector';
+import { type TaskType } from './model-selector';
+import { resolveWritingModel } from './writing-model-routing';
 import { getWritingBusinessKeyFromParams } from './business-key';
 import { retrieveKnowledge, formatKnowledgeContext, enhancePromptWithKnowledge, hasKnowledgeResults } from './knowledge-enhancer';
 import { formatDocument, getFileExtension, getMimeType, type StorageFormat } from './document-formatter';
 import { RepositoryFactory } from '@mxmai/mxmdata';
+import { normalizeWritingLanguage, writingLangInstruction, writingListJoin } from './writing-locale';
 import crypto from 'crypto';
 import { taskExecutor } from '../../task/task-executor';
+import { getGeneratedBucket } from '../../storage/generated-temp';
 import type {
   Outline,
   WritingGenerateParams,
@@ -130,28 +133,9 @@ interface ExpandedSection {
 
 async function getCharactersFromParams(
   params: WritingGenerateParams,
-  userId?: string
+  _userId?: string
 ): Promise<CharacterProfile[] | undefined> {
   const chars = (params as any)?.metadata?.characters as CharacterProfile[] | undefined;
-  const characterIds = (params as any)?.characterIds as string[] | undefined;
-  let fromLibrary: CharacterProfile[] = [];
-
-  if (characterIds && characterIds.length > 0 && userId) {
-    try {
-      const { CharacterService } = await import('../../characters/character-service');
-      const characterService = new CharacterService();
-      fromLibrary = await characterService.getCharactersForWriting(characterIds, userId);
-    } catch (error) {
-      console.error('[WritingService] 从Character模块获取角色失败:', error);
-    }
-  }
-
-  if (fromLibrary.length > 0) {
-    const fromLibraryIds = new Set(fromLibrary.map((c) => c.id));
-    const inline = Array.isArray(chars) ? chars.filter((c) => c && !fromLibraryIds.has(c.id)) : [];
-    return [...fromLibrary, ...inline].length > 0 ? [...fromLibrary, ...inline] : undefined;
-  }
-
   return Array.isArray(chars) && chars.length > 0 ? chars : undefined;
 }
 
@@ -738,8 +722,48 @@ function shouldEnableMarkdown(writingType?: string, format?: string): boolean {
   if (writingType === 'voice-scripts') {
     return false;
   }
+  // 广告/品牌商业文案：标签化纯文本，禁止 Markdown
+  if (writingType === 'business') {
+    return false;
+  }
   // 其他类型默认使用 Markdown
   return true;
+}
+
+/** Task V2 unifiedTemplate 单次写作：仅追加格式约束，不拼接 DB/代码侧写作规则 */
+function buildConfiguredWritingGeneratePrompt(
+  params: WritingGenerateParams,
+  previousContent?: string | null,
+): string {
+  let generatePrompt = (params.prompt || '').trim();
+  const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
+  if (!enableMarkdown) {
+    generatePrompt = `${generatePrompt}
+
+【格式要求】：
+- 输出纯文本格式（不使用任何 Markdown 语法）
+- 只使用空格和换行符进行格式化
+- 标题使用空行分隔，不使用 # 等符号
+- 列表使用数字或符号，但不要使用 Markdown 列表语法
+- 保持段落清晰，逻辑连贯`;
+  } else {
+    generatePrompt = `${generatePrompt}
+
+【格式要求】：
+- 使用标准 Markdown 格式输出
+- 可以使用标题（#）、列表（- 或 1.）、引用（>）、表格（|）、代码块（\`\`\`）等 Markdown 语法
+- 保持段落清晰，逻辑连贯`;
+  }
+  if (previousContent) {
+    generatePrompt = `请基于以下原文进行写作：
+
+原文：
+${previousContent}
+
+---
+${generatePrompt}`;
+  }
+  return generatePrompt;
 }
 
 function isAsciiHeaderValue(value: string): boolean {
@@ -908,7 +932,7 @@ function buildWritingGuidance(
   outlineType?: OutlineType
 ): string[] {
   const effectiveOutlineType = outlineType ?? ((params as any)?.outline_type as OutlineType | undefined);
-  const lang = (params as any)?.language ?? 'zh';
+  const lang = normalizeWritingLanguage((params as any)?.language);
   const businessParams = extractWritingBusinessParams(params, writingType as any, effectiveOutlineType as any);
   const guidance: string[] = [];
 
@@ -1163,6 +1187,27 @@ async function getPreviousContentFromTask(taskId: string, userId?: string): Prom
 }
 
 /**
+ * 从 runByModelKey 结果提取正文（兼容 maxplan 等仅写 metadata.text / mediaUrls 的 Provider）
+ */
+function extractGenerateText(
+  result: unknown,
+  fallback?: { provider?: string; model?: string },
+): string {
+  const r = result as { text?: string; metadata?: Record<string, unknown>; mediaUrls?: string[] };
+  const direct = r.text;
+  if (typeof direct === 'string' && direct.trim()) return direct.trim();
+  const mt = r.metadata?.text;
+  if (typeof mt === 'string' && mt.trim()) return mt.trim();
+  const urls = r.mediaUrls;
+  if (Array.isArray(urls) && urls.length && typeof urls[0] === 'string' && !urls[0].startsWith('http')) {
+    return urls[0].trim();
+  }
+  const provider = r.metadata?.provider ?? fallback?.provider ?? 'unknown';
+  const model = r.metadata?.model ?? fallback?.model ?? 'unknown';
+  throw new Error(`LLM 生成结果为空（provider=${provider}, model=${model}）`);
+}
+
+/**
  * 生成文本（调用 LLM）- 同步模式
  * 仅通过 models/registry + runByModelKey（单轨）
  */
@@ -1178,9 +1223,7 @@ async function generateText(
     { prompt, outputFormat: 'json', ...llmParams },
     { providerOverride: provider }
   );
-  const text = (result as { text?: string }).text;
-  if (text == null || text === '') throw new Error('LLM 生成结果为空');
-  return text;
+  return extractGenerateText(result, { provider, model: modelName });
 }
 
 /**
@@ -1231,20 +1274,44 @@ function toLlmMetadata(acc: UsageAccumulator): { usage: { prompt_tokens: number;
 /**
  * 生成文本并返回 usage / model / provider（用于 Provider 用量记录与余额扣减）
  */
+function buildVisionParametersFromReferenceImage(
+  sourceParams?: Record<string, any>,
+): Record<string, any> | undefined {
+  const ref = sourceParams?.referenceImage;
+  if (!Array.isArray(ref) || ref.length === 0) return undefined;
+  const images: string[] = [];
+  for (const row of ref) {
+    const c = row && typeof row === 'object' ? (row as { content?: string }).content : undefined;
+    if (typeof c === 'string' && c.trim()) images.push(c.trim());
+  }
+  if (images.length === 0) return undefined;
+  if (images.length === 1) return { image: images[0] };
+  return { image_base64s: images };
+}
+
 async function generateTextWithMetadata(
   modelName: string,
   prompt: string,
   provider?: ProviderType,
-  llmParams?: Record<string, any>
+  llmParams?: Record<string, any>,
+  sourceParams?: Record<string, any>,
 ): Promise<{ text: string; metadata?: { usage?: unknown; model?: string; provider?: string } }> {
+  const visionParams = buildVisionParametersFromReferenceImage(sourceParams);
   const result = await runByModelKey(
     'writing',
     modelName,
-    { prompt, outputFormat: 'json', ...llmParams },
+    {
+      prompt,
+      outputFormat: 'json',
+      ...llmParams,
+      ...(Array.isArray(sourceParams?.referenceImage) && sourceParams.referenceImage.length > 0
+        ? { referenceImage: sourceParams.referenceImage }
+        : {}),
+      ...(visionParams ? { parameters: { ...(llmParams?.parameters ?? {}), ...visionParams } } : {}),
+    },
     { providerOverride: provider }
   );
-  const text = (result as { text?: string }).text;
-  if (text == null || text === '') throw new Error('LLM 生成结果为空');
+  const text = extractGenerateText(result, { provider, model: modelName });
   const meta = (result as { metadata?: Record<string, unknown> }).metadata;
   return {
     text,
@@ -1319,14 +1386,13 @@ export async function* generateOutlineStream(
       limit?: number;
     }>;
     cast_character_count?: number;
-    cast_character_ids?: string[];
     /** 输出语言：'zh' | 'en'，默认 'zh' */
-    language?: 'zh' | 'en';
+    language?: import('@mxmai/mxmdata').AppLocale;
   },
   userId?: string,
   provider?: ProviderType
 ): AsyncGenerator<{ chunk: string; status: 'streaming' | 'completed'; collection: string }, void, unknown> {
-  const lang = params.language ?? 'zh';
+  const lang = normalizeWritingLanguage(params.language);
   // 0. 参数验证（与 generateOutline 相同）
   if (params.applyto) {
     if (!OUTLINE_APPLY_TO_VALUES.includes(params.applyto)) {
@@ -1336,65 +1402,21 @@ export async function* generateOutlineStream(
     // total_duration_seconds 为选填：不填则可在写作分镜/口播时再补充
   }
 
-  // 1. 按业务 key 解析 provider + 模型（四步流程：业务 → Admin 配置）
-  const outlineParamsForKey = { writing_type: 'outlines' as const, applyto: params.applyto };
-  const businessKey = getWritingBusinessKeyFromParams(outlineParamsForKey, 'outline');
+  // 1. 按业务 key 解析 provider + 模型（V2动态路由）
   const routingKeyOverride = typeof params.logicalModel === 'string' && params.logicalModel.trim()
     ? params.logicalModel.trim()
     : undefined;
-  const resolved = selectModelWithRouting(routingKeyOverride ?? businessKey, 'outline', provider);
-  const modelName = resolved.modelName;
-  const effectiveProvider = resolved.provider;
-
-  // 2. 获取或生成参演角色信息（如果有）
-  let castCharacters: CharacterProfile[] | undefined;
-  const isAcademicPaper = params.outline_type === 'academic-paper';
-
-  if (!isAcademicPaper) {
-    // 如果提供了角色ID列表，从 Character 模块获取
-    if (params.cast_character_ids && params.cast_character_ids.length > 0 && userId) {
-      try {
-        const { CharacterService } = await import('../../characters/character-service');
-        const characterService = new CharacterService();
-        castCharacters = await characterService.getCharactersForWriting(params.cast_character_ids, userId);
-      } catch (error) {
-        console.error('[WritingService] 获取参演角色失败:', error);
-        // 失败不影响大纲生成，继续执行
-      }
-    }
-
-    // 如果指定了角色人数但没有提供角色ID，或者提供的角色ID数量不足，生成角色
-    if (params.cast_character_count && params.cast_character_count > 0 && userId) {
-      const currentCount = castCharacters?.length || 0;
-      const neededCount = params.cast_character_count - currentCount;
-
-      if (neededCount > 0) {
-        try {
-          const { CharacterService } = await import('../../characters/character-service');
-          const characterService = new CharacterService();
-          const generatedCharacters = await characterService.generateCharacters(
-            {
-              count: neededCount,
-              prompt: params.prompt, // 使用大纲的 prompt 作为角色生成的提示词
-            },
-            userId,
-            effectiveProvider
-          );
-
-          // 将生成的角色与已有角色合并
-          if (castCharacters) {
-            castCharacters = [...castCharacters, ...generatedCharacters];
-          } else {
-            castCharacters = generatedCharacters;
-          }
-
-          console.log(`[WritingService] 已生成 ${generatedCharacters.length} 个角色用于大纲生成`);
-        } catch (error) {
-          console.error('[WritingService] 生成参演角色失败:', error);
-          // 如果角色生成失败，继续使用已有角色（如果有）
-        }
-      }
-    }
+  let modelName: string;
+  let effectiveProvider: ProviderType;
+  if (routingKeyOverride) {
+    // V2 path: 使用 Task V2 已解析的物理模型
+    modelName = routingKeyOverride;
+    effectiveProvider = provider ?? 'openrouter';
+  } else {
+    // V1 path: 从 writing_scope_config 解析 'outlines' 业务模型
+    const r = await resolveWritingModel('outlines', 'default');
+    modelName = r.modelName;
+    effectiveProvider = r.provider;
   }
 
   // 3. 检索知识库内容（如果有）
@@ -1411,9 +1433,7 @@ export async function* generateOutlineStream(
       ? (params.maxDepth ?? 2)
       : (params.maxDepth || 3);
 
-  const langInstruction = lang === 'en'
-    ? 'Respond entirely in English. Output all outline node content (content, motivation, length, key_elements, etc.) in English. Use the same JSON structure.\n\n'
-    : '';
+  const langInstruction = writingLangInstruction(lang);
 
   let outlinePrompt = `${langInstruction}${lang === 'zh' ? '请根据以下要求生成一个写作大纲：' : 'Generate a writing outline according to the following requirements:'}
 
@@ -1548,13 +1568,12 @@ export async function generateOutline(
       limit?: number;
     }>;
     cast_character_count?: number;
-    cast_character_ids?: string[];
-    language?: 'zh' | 'en';
+    language?: import('@mxmai/mxmdata').AppLocale;
   },
   userId?: string,
   provider?: ProviderType
 ): Promise<{ outline: Outline; characters?: CharacterProfile[] }> {
-  const lang = params.language ?? 'zh';
+  const lang = normalizeWritingLanguage(params.language);
   // 0. 参数验证
   if (params.applyto) {
     if (!OUTLINE_APPLY_TO_VALUES.includes(params.applyto)) {
@@ -1565,67 +1584,22 @@ export async function generateOutline(
 
   }
 
-  // 1. 按业务 key 解析 provider + 模型（四步流程：业务 → Admin 配置）
-  const outlineParamsForKey = { writing_type: 'outlines' as const, applyto: params.applyto };
-  const businessKey = getWritingBusinessKeyFromParams(outlineParamsForKey, 'outline');
+  // 1. 按业务 key 解析 provider + 模型（V2动态路由）
   const routingKeyOverride =
     typeof params.logicalModel === 'string' && params.logicalModel.trim()
       ? params.logicalModel.trim()
       : undefined;
-  const resolved = selectModelWithRouting(routingKeyOverride ?? businessKey, 'outline', provider);
-  const modelName = resolved.modelName;
-  const effectiveProvider = resolved.provider;
-
-  // 2. 获取或生成参演角色信息（如果有）
-  let castCharacters: CharacterProfile[] | undefined;
-  const isAcademicPaper = params.outline_type === 'academic-paper';
-
-  if (!isAcademicPaper) {
-    // 如果提供了角色ID列表，从 Character 模块获取
-    if (params.cast_character_ids && params.cast_character_ids.length > 0 && userId) {
-      try {
-        const { CharacterService } = await import('../../characters/character-service');
-        const characterService = new CharacterService();
-        castCharacters = await characterService.getCharactersForWriting(params.cast_character_ids, userId);
-      } catch (error) {
-        console.error('[WritingService] 获取参演角色失败:', error);
-        // 失败不影响大纲生成，继续执行
-      }
-    }
-
-    // 如果指定了角色人数但没有提供角色ID，或者提供的角色ID数量不足，生成角色
-    if (params.cast_character_count && params.cast_character_count > 0 && userId) {
-      const currentCount = castCharacters?.length || 0;
-      const neededCount = params.cast_character_count - currentCount;
-
-      if (neededCount > 0) {
-        try {
-          const { CharacterService } = await import('../../characters/character-service');
-          const characterService = new CharacterService();
-          const generatedCharacters = await characterService.generateCharacters(
-            {
-              count: neededCount,
-              prompt: params.prompt, // 使用大纲的 prompt 作为角色生成的提示词
-            },
-            userId,
-            effectiveProvider
-          );
-
-          // 将生成的角色与已有角色合并
-          if (castCharacters) {
-            castCharacters = [...castCharacters, ...generatedCharacters];
-          } else {
-            castCharacters = generatedCharacters;
-          }
-
-          console.log(`[WritingService] 已生成 ${generatedCharacters.length} 个角色用于大纲生成`);
-        } catch (error) {
-          console.error('[WritingService] 生成参演角色失败:', error);
-          // 如果角色生成失败，继续使用已有角色（如果有）
-          // 如果没有角色，大纲生成时不会包含角色信息
-        }
-      }
-    }
+  let modelName: string;
+  let effectiveProvider: ProviderType;
+  if (routingKeyOverride) {
+    // V2 path: 使用 Task V2 已解析的物理模型
+    modelName = routingKeyOverride;
+    effectiveProvider = provider ?? 'openrouter';
+  } else {
+    // V1 path: 从 writing_scope_config 解析 'outlines' 业务模型
+    const r = await resolveWritingModel('outlines', 'default');
+    modelName = r.modelName;
+    effectiveProvider = r.provider;
   }
 
   let promptToSend: string;
@@ -1648,9 +1622,7 @@ export async function generateOutline(
       ? (params.maxDepth ?? 2)
       : (params.maxDepth || 3);
 
-  const langInstruction = lang === 'en'
-    ? 'Respond entirely in English. Output all outline node content (content, motivation, length, key_elements, etc.) in English. Use the same JSON structure.\n\n'
-    : '';
+  const langInstruction = writingLangInstruction(lang);
 
   let outlinePrompt = `${langInstruction}${lang === 'zh' ? '请根据以下要求生成一个写作大纲：' : 'Generate a writing outline according to the following requirements:'}
 
@@ -1692,55 +1664,6 @@ ${params.expectedNodes ? `- ${lang === 'zh' ? '期望节点总数：约' : 'Expe
     if (structureTemplate) {
       outlinePrompt += `\n\n${structureTemplate}`;
     }
-  }
-
-  // 添加参演角色信息（如果有）
-  if (!isAcademicPaper && castCharacters && castCharacters.length > 0) {
-    // 如果提供了角色列表（无论是用户提供的还是生成的），在prompt中添加角色信息
-    const charactersText = formatCharactersForPrompt(castCharacters);
-    
-    // 如果有角色关系信息，也添加到 prompt 中
-    let relationsText = '';
-    const allRelations: Record<string, Record<string, string>> = {};
-    castCharacters.forEach(char => {
-      if (char.relations) {
-        Object.keys(char.relations).forEach(otherCharId => {
-          if (!allRelations[char.id]) {
-            allRelations[char.id] = {};
-          }
-          const relationValue = char.relations![otherCharId];
-          if (typeof relationValue === 'string') {
-            allRelations[char.id][otherCharId] = relationValue;
-          }
-        });
-      }
-    });
-    
-    if (Object.keys(allRelations).length > 0) {
-      relationsText = `\n\n【角色关系】：
-${Object.keys(allRelations).map(charId => {
-  const char = castCharacters!.find(c => c.id === charId);
-  const charName = char?.name || charId;
-  const relations = allRelations[charId];
-  return `- ${charName}(${charId}): ${Object.keys(relations).map(otherCharId => {
-    const otherChar = castCharacters!.find(c => c.id === otherCharId);
-    const otherCharName = otherChar?.name || otherCharId;
-    return `${otherCharName}(${otherCharId}) - ${relations[otherCharId]}`;
-  }).join(', ')}`;
-}).join('\n')}`;
-    }
-    
-    outlinePrompt += `
-
-【参演角色】（以下角色将参与大纲内容，请在合适的节点中添加 cast 字段）：
-${charactersText}${relationsText}
-
-重要提示：
-- 请根据内容需要，在合适的节点中添加 cast 字段，指定该节点出场的角色
-- cast 字段值为角色 id 或 name 的数组，例如：["角色1的id", "角色2的id"] 或 ["角色1", "角色2"]
-- 如果某个节点不需要角色出场（纯旁白/镜头/氛围），可以不添加 cast 字段或设置为空数组
-- 请确保角色出场符合内容逻辑，合理分配角色到各个节点
-- 注意角色之间的关系，在安排角色出场时考虑他们的关系设定`;
   }
 
   const requireStanceTonePerNode =
@@ -1886,7 +1809,6 @@ ${requireStoryboardRhythmPerNode && totalDurationSecForNode != null ? `- **强�
     // 返回大纲、角色信息及 LLM metadata（用于 Provider 用量记录与余额扣减）
     return {
       outline,
-      characters: castCharacters && castCharacters.length > 0 ? normalizeCharacters(castCharacters) : undefined,
       _llmMetadata: llmMetadata
         ? { usage: llmMetadata.usage, model: llmMetadata.model || modelName, provider: llmMetadata.provider || effectiveProvider }
         : { usage: undefined, model: modelName, provider: effectiveProvider },
@@ -1910,9 +1832,19 @@ async function* generateWritingParallel(
   hasGlobalKnowledgeInPrompt: boolean = false,
   useKnowledge: boolean = true
 ): AsyncGenerator<WritingStreamChunk, void, unknown> {
-  const modelName = selectModel('paragraph');
+  // V2: 使用 params.logicalModel（由 generateWriting 传入，V2 path 已解析）
+  // V1 path: params.logicalModel 必须已通过 resolveWritingModel 解析
+  const modelName = params.logicalModel;
+  if (!modelName) {
+    throw new Error('[WritingService] generateWritingParallel/Sequential: params.logicalModel 未设置，请检查 writing_scope_config 配置');
+  }
   // 根据 writing_type 和 format 自动判断是否启用 Markdown
   const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
+  // 构建 LLM 调用参数（temperature / maxTokens / topP）
+  const llmParams: Record<string, any> = {};
+  if (params.temperature != null) llmParams.temperature = params.temperature;
+  if (params.maxTokens != null) llmParams.max_tokens = params.maxTokens;
+  if (params.topP != null) llmParams.top_p = params.topP;
 
   // 第一步：生成公用总结（500字内）
   const summaryPrompt = `请根据以下大纲生成一个800字以内的总结，作为整篇文章的公用引用和背景信息：
@@ -2086,7 +2018,7 @@ ${typeOutputFormat}` : ''}
 请开始生成段落正文（不要输出任何参数说明）：`;
 
       // 使用流式生成段落，实时输出
-      const stream = await generateTextStream(modelName, sectionPrompt, provider);
+      const stream = await generateTextStream(modelName, sectionPrompt, provider, llmParams);
       let sectionContent = '';
       const chunks: WritingStreamChunk[] = [];
       
@@ -2210,9 +2142,19 @@ async function* generateWritingSequential(
   hasGlobalKnowledgeInPrompt: boolean = false,
   useKnowledge: boolean = true
 ): AsyncGenerator<WritingStreamChunk, void, unknown> {
-  const modelName = selectModel('paragraph');
+  // V2: 使用 params.logicalModel（由 generateWriting 传入，V2 path 已解析）
+  // V1 path: params.logicalModel 必须已通过 resolveWritingModel 解析
+  const modelName = params.logicalModel;
+  if (!modelName) {
+    throw new Error('[WritingService] generateWritingParallel/Sequential: params.logicalModel 未设置，请检查 writing_scope_config 配置');
+  }
   // 根据 writing_type 和 format 自动判断是否启用 Markdown
   const enableMarkdown = shouldEnableMarkdown(params.writing_type, params.format);
+  // 构建 LLM 调用参数（temperature / maxTokens / topP）
+  const llmParams: Record<string, any> = {};
+  if (params.temperature != null) llmParams.temperature = params.temperature;
+  if (params.maxTokens != null) llmParams.max_tokens = params.maxTokens;
+  if (params.topP != null) llmParams.top_p = params.topP;
   let previousMemory = ''; // 前文记忆
 
   for (const section of sections) {
@@ -2374,7 +2316,7 @@ ${typeOutputFormat}` : ''}
 请开始生成段落正文（不要输出任何参数说明）：`;
 
       // 流式生成段落
-      const stream = await generateTextStream(modelName, sectionPrompt, provider);
+      const stream = await generateTextStream(modelName, sectionPrompt, provider, llmParams);
       let sectionContent = '';
       let isFirstChunk = true;
       
@@ -2459,6 +2401,12 @@ export async function* generateWritingStream(
   userId?: string,
   provider?: ProviderType
 ): AsyncGenerator<WritingStreamChunk, void, unknown> {
+  // 构建 LLM 调用参数（temperature / maxTokens / topP）
+  const llmParams: Record<string, any> = {};
+  if (params.temperature != null) llmParams.temperature = params.temperature;
+  if (params.maxTokens != null) llmParams.max_tokens = params.maxTokens;
+  if (params.topP != null) llmParams.top_p = params.topP;
+
   // 1. 获取之前的文本内容（如果有）
   let previousContent: string | null = null;
   if (params.previous_content) {
@@ -2544,10 +2492,19 @@ export async function* generateWritingStream(
 
   const taskType: TaskType = 'full';
   const currentWritingType = params.writing_type || 'articles';
-  const businessKey = getWritingBusinessKeyFromParams({ writing_type: currentWritingType }, taskType);
-  const resolved = selectModelWithRouting(businessKey, taskType, provider);
-  const modelName = resolved.modelName;
-  const effectiveProvider = resolved.provider;
+  // V2动态路由：使用 params.logicalModel 或从 writing_scope_config 解析
+  let modelName: string;
+  let effectiveProvider: ProviderType;
+  if (params.logicalModel) {
+    // V2 path: 使用 Task V2 已解析的物理模型
+    modelName = params.logicalModel;
+    effectiveProvider = provider ?? 'openrouter';
+  } else {
+    // V1 path: 从 writing_scope_config 解析业务模型
+    const r = await resolveWritingModel(currentWritingType, 'default');
+    modelName = r.modelName;
+    effectiveProvider = r.provider;
+  }
 
   // 5. 构建生成 prompt（无大纲时的单次生成）
   // 获取写作类型配置（并处理特殊 format 分支）
@@ -2556,7 +2513,7 @@ export async function* generateWritingStream(
   let typeOutputFormat = resolvedBase.outputFormat;
 
   let generatePrompt = enhancedPrompt;
-  
+
   // 如果是 lyrics 类型且 format === 'suno'，使用 Suno 格式规则
   if (params.writing_type === 'lyrics' && params.format === 'suno') {
     const { lyricsConfig } = await import('./wtconfigs/lyrics');
@@ -2622,8 +2579,8 @@ ${subtypeRules}`;
     if (writingGuidance.length > 0) {
       // 获取参数列表用于提示文本
       const paramList = getWritingParamsForTypeWithSubtype(currentWritingType as any, params.outline_type as any);
-      const writeLang = params.language ?? 'zh';
-      const paramLabels = paramList.map(p => getParamLabel(p, currentWritingType as any, writeLang, params.outline_type as any)).join(writeLang === 'en' ? ', ' : '、');
+      const writeLang = normalizeWritingLanguage(params.language);
+      const paramLabels = paramList.map(p => getParamLabel(p, currentWritingType as any, writeLang, params.outline_type as any)).join(writingListJoin(writeLang));
       
       generatePrompt = `${generatePrompt}
 
@@ -2688,7 +2645,7 @@ ${generatePrompt}`;
   }
 
   // 5. 调用 LLM 生成（流式）
-  const stream = await generateTextStream(modelName, generatePrompt, effectiveProvider);
+  const stream = await generateTextStream(modelName, generatePrompt, effectiveProvider, llmParams);
 
   // 6. 返回流式结果（转换为新的数据结构）
   // 如果是 Suno JSON 格式，需要收集完整文本后解析
@@ -2749,6 +2706,12 @@ export async function generateWriting(
   provider?: ProviderType,
   onProgress?: ProgressCallback
 ): Promise<WritingResult> {
+  // 构建 LLM 调用参数（temperature / maxTokens / topP）
+  const llmParams: Record<string, any> = {};
+  if (params.temperature != null) llmParams.temperature = params.temperature;
+  if (params.maxTokens != null) llmParams.max_tokens = params.maxTokens;
+  if (params.topP != null) llmParams.top_p = params.topP;
+
   // 1. 获取之前的文本内容（如果有）
   let previousContent: string | null = null;
   if (params.previous_content) {
@@ -2832,7 +2795,11 @@ export async function generateWriting(
     
     if (generationMode === 'parallel') {
       // 并行模式：生成公用总结 + 并行生成各段落
-      const modelName = selectModel('paragraph');
+      // V2: 使用 params.logicalModel（V2 path 已解析，V1 path 已在外部解析）
+      const modelName = params.logicalModel;
+      if (!modelName) {
+        throw new Error('[WritingService] 段落生成失败: params.logicalModel 未设置，请检查 writing_scope_config 配置');
+      }
       
       // 生成公用总结
       const summaryPrompt = `请根据以下大纲生成一个800字以内的总结，作为整篇文章的公用引用和背景信息：
@@ -2850,7 +2817,7 @@ ${sections.map(s => `- ${s.content}`).join('\n')}
         if (onProgress) {
           await onProgress(30, '开始生成公用总结...');
         }
-        const { text, metadata } = await generateTextWithMetadata(modelName, summaryPrompt, provider);
+        const { text, metadata } = await generateTextWithMetadata(modelName, summaryPrompt, provider, llmParams);
         addUsage(usageAccumulator, metadata);
         sharedSummary = text;
         if (onProgress) {
@@ -3032,11 +2999,11 @@ ${typeOutputFormat}` : ''}
 
 请开始生成${isStoryboardChunkMode ? '分镜 JSON（仅输出 JSON，不要输出任何参数说明）' : '段落正文（不要输出任何参数说明）'}：`;
 
-          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName, sectionPrompt, provider);
+          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName, sectionPrompt, provider, llmParams);
           addUsage(usageAccumulator, sectionMeta);
           const sectionMatch = !isStoryboardChunkMode ? sectionText.match(/<section[^>]*>([\s\S]*?)<\/section>/) : null;
           let content = isStoryboardChunkMode ? sectionText.trim() : (sectionMatch ? sectionMatch[1].trim() : sectionText.trim());
-          
+
           // 解释模式：如果没有知识库内容，在结果前添加说明前缀
           if (processStyle === 'explain' && !hasKnowledge) {
             const explainPrefix = '我们没有相关的专业知识，但是根据我的了解，';
@@ -3083,7 +3050,11 @@ ${typeOutputFormat}` : ''}
       }
     } else {
       // 流水形模式：按顺序递归生成段落
-      const modelName = selectModel('paragraph');
+      // V2: 使用 params.logicalModel（V2 path 已解析，V1 path 已在外部解析）
+      const modelName = params.logicalModel;
+      if (!modelName) {
+        throw new Error('[WritingService] 段落生成失败: params.logicalModel 未设置，请检查 writing_scope_config 配置');
+      }
       let previousMemory = '';
 
       for (let i = 0; i < sections.length; i++) {
@@ -3264,11 +3235,11 @@ ${typeOutputFormat}` : ''}
 
 请开始生成${isStoryboardChunkMode ? '分镜 JSON（仅输出 JSON，不要输出任何参数说明）' : '段落正文（不要输出任何参数说明）'}：`;
 
-          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName, sectionPrompt, provider);
+          const { text: sectionText, metadata: sectionMeta } = await generateTextWithMetadata(modelName, sectionPrompt, provider, llmParams);
           addUsage(usageAccumulator, sectionMeta);
           const sectionMatch = !isStoryboardChunkMode ? sectionText.match(/<section[^>]*>([\s\S]*?)<\/section>/) : null;
           let content = isStoryboardChunkMode ? sectionText.trim() : (sectionMatch ? sectionMatch[1].trim() : sectionText.trim());
-          
+
           // 解释模式：如果没有知识库内容，在结果前添加说明前缀（分镜模式不添加）
           if (!isStoryboardChunkMode && processStyle === 'explain' && !hasKnowledge) {
             const explainPrefix = '我们没有相关的专业知识，但是根据我的了解，';
@@ -3350,7 +3321,7 @@ ${typeOutputFormat}` : ''}
           const timestamp = Date.now();
           const randomStr = Math.random().toString(36).substring(2, 8);
           const key = `${userId || 'anonymous'}/writing/${timestamp}-${randomStr}.json`;
-          const bucket = 'user-media';
+          const bucket = getGeneratedBucket();
           await storageRepo.uploadFile(bucket, key, Buffer.from(formattedContent, 'utf-8'), {
             contentType: `${getMimeType(format)}; charset=utf-8`,
             metadata: { 'user-id': userId || 'anonymous', format, 'word-count': wordCount.toString() },
@@ -3377,8 +3348,8 @@ ${typeOutputFormat}` : ''}
       await onProgress(85, '正在格式化文档...');
     }
 
-    // 格式化文档
-    const format: StorageFormat = (params.storage_form as StorageFormat) || 'markdown';
+    // 写作落盘统一 Markdown（PDF 由预览/下载时从 MD 转换；不再按 csv/txt 等分支）
+    const format: StorageFormat = 'markdown';
     const formattedContent = await formatDocument(
       generatedText,
       format,
@@ -3401,7 +3372,7 @@ ${typeOutputFormat}` : ''}
       const randomStr = Math.random().toString(36).substring(2, 8);
       const extension = getFileExtension(format);
       const key = `${userId || 'anonymous'}/writing/${timestamp}-${randomStr}.${extension}`;
-      const bucket = 'user-media';
+      const bucket = getGeneratedBucket();
 
       await storageRepo.uploadFile(
         bucket,
@@ -3467,7 +3438,11 @@ ${typeOutputFormat}` : ''}
       ? Math.max(chunkSeconds, Math.floor(Number(rawTotalSec)))
       : Math.max(chunkSeconds * 2, 30);
     const expectedChunkCount = Math.max(1, Math.ceil(targetTotalSeconds / chunkSeconds));
-    const modelName = selectModel('full');
+    // V2: 使用 params.logicalModel（V2 path 已解析，V1 path 已在外部解析）
+    const modelName = params.logicalModel;
+    if (!modelName) {
+      throw new Error('[WritingService] 分镜脚本生成失败: params.logicalModel 未设置，请检查 writing_scope_config 配置');
+    }
     const outputFormatJson = await resolveStoryboardOutputFormat(chunkSeconds, maxChars, expectedChunkCount);
     // 分镜脚本：直接以 DB 中的细分类型规则为准（writing/storyboard-scripts/{outline_type}），
     // 无细分类型时才使用 type 级（subtype = null）配置作为回退
@@ -3500,7 +3475,7 @@ ${enhancedPrompt}`;
       await onProgress(50, '正在生成分镜 JSON...');
     }
     const noOutlineUsageAccumulator = createUsageAccumulator();
-    const { text: rawText, metadata: storyboardMeta } = await generateTextWithMetadata(modelName, storyboardPrompt, provider);
+    const { text: rawText, metadata: storyboardMeta } = await generateTextWithMetadata(modelName, storyboardPrompt, provider, llmParams);
     addUsage(noOutlineUsageAccumulator, storyboardMeta);
     const parsed = parseStoryboardChunksJson(rawText, chunkSeconds, params.rhythm);
     if (!parsed.chunks?.length) {
@@ -3536,7 +3511,7 @@ ${enhancedPrompt}`;
       const timestamp = Date.now();
       const randomStr = Math.random().toString(36).substring(2, 8);
       const key = `${userId || 'anonymous'}/writing/${timestamp}-${randomStr}.json`;
-      const bucket = 'user-media';
+      const bucket = getGeneratedBucket();
       await storageRepo.uploadFile(
         bucket,
         key,
@@ -3574,18 +3549,34 @@ ${enhancedPrompt}`;
 
   const taskType: TaskType = 'full';
   const currentWritingType = params.writing_type || 'articles';
-  const businessKey = getWritingBusinessKeyFromParams({ writing_type: currentWritingType }, taskType);
-  const resolved = selectModelWithRouting(businessKey, taskType, provider);
-  const modelName = resolved.modelName;
-  const effectiveProvider = resolved.provider;
+  // V2动态路由：使用 params.logicalModel 或从 writing_scope_config 解析
+  let modelName: string;
+  let effectiveProvider: ProviderType;
+  if (params.logicalModel) {
+    // V2 path: 使用 Task V2 已解析的物理模型
+    modelName = params.logicalModel;
+    effectiveProvider = provider ?? 'openrouter';
+  } else {
+    // V1 path: 从 writing_scope_config 解析业务模型
+    const r = await resolveWritingModel(currentWritingType, 'default');
+    modelName = r.modelName;
+    effectiveProvider = r.provider;
+  }
 
   // 5. 构建生成 prompt
+  let generatePrompt: string;
+  if (
+    params.useConfiguredPrompt === true &&
+    (!params.outlines || params.outlines.length === 0)
+  ) {
+    generatePrompt = buildConfiguredWritingGeneratePrompt(params, previousContent);
+  } else {
   const resolvedFinal = await getWritingRulesAndFormatResolved(currentWritingType, params.outline_type ?? null, 'zh');
   let typeRules = resolvedFinal.rules;
   let typeOutputFormat = resolvedFinal.outputFormat;
-  
-  let generatePrompt = enhancedPrompt;
-  
+
+  generatePrompt = enhancedPrompt;
+
   // 如果是 lyrics 类型且 format === 'suno'，使用 Suno 格式规则
   if (params.writing_type === 'lyrics' && params.format === 'suno') {
     const { lyricsConfig } = await import('./wtconfigs/lyrics');
@@ -3650,8 +3641,8 @@ ${subtypeRules}`;
     if (writingGuidance.length > 0) {
       // 获取参数列表用于提示文本
       const paramList = getWritingParamsForTypeWithSubtype(currentWritingType as any, params.outline_type as any);
-      const writeLang = params.language ?? 'zh';
-      const paramLabels = paramList.map(p => getParamLabel(p, currentWritingType as any, writeLang, params.outline_type as any)).join(writeLang === 'en' ? ', ' : '、');
+      const writeLang = normalizeWritingLanguage(params.language);
+      const paramLabels = paramList.map(p => getParamLabel(p, currentWritingType as any, writeLang, params.outline_type as any)).join(writingListJoin(writeLang));
       
       generatePrompt = `${generatePrompt}
 
@@ -3714,10 +3705,17 @@ ${previousContent}
 ---
 ${generatePrompt}`;
   }
+  }
 
   // 5. 调用 LLM 生成
   const fullModeUsageAccumulator = createUsageAccumulator();
-  const { text: generatedTextRaw, metadata: fullModeMeta } = await generateTextWithMetadata(modelName, generatePrompt, effectiveProvider);
+  const { text: generatedTextRaw, metadata: fullModeMeta } = await generateTextWithMetadata(
+    modelName,
+    generatePrompt,
+    effectiveProvider,
+    llmParams,
+    params as Record<string, any>,
+  );
   addUsage(fullModeUsageAccumulator, fullModeMeta);
   let generatedText = generatedTextRaw;
   
@@ -3740,11 +3738,10 @@ ${generatePrompt}`;
     generatedText = injectBasicTtsPauses(generatedText, params);
   }
 
-  // 6. 格式化文档
-  // 如果是 Suno JSON 格式，使用 json 格式存储（无论解析是否成功，只要选择了 Suno 格式就存为 json）
+  // 6. 格式化文档：写作统一 Markdown；仅 Suno 歌词 JSON 例外
   const format: StorageFormat = (params.writing_type === 'lyrics' && params.format === 'suno')
     ? 'json'
-    : ((params.storage_form as StorageFormat) || 'markdown');
+    : 'markdown';
   const formattedContent = await formatDocument(
     generatedText,
     format,
@@ -3762,7 +3759,7 @@ ${generatePrompt}`;
   let storageInfo: WritingResult['storageInfo'] | undefined;
   if (params.storeToMinio !== false) {
     const storageRepo = RepositoryFactory.createStorageRepository();
-    const bucket = process.env.CGI_STORAGE_BUCKET || 'user-media';
+    const bucket = getGeneratedBucket();
     const ext = getFileExtension(format);
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).slice(2, 8);
@@ -3843,9 +3840,7 @@ export async function syncToTask(
   const isSunoJson = writingType === 'lyrics' && formatParam === 'suno';
   
   // 如果是 Suno JSON 格式，使用 json 格式存储；否则使用 storage_form 或默认 markdown
-  const format: StorageFormat = isSunoJson
-    ? 'json'
-    : ((params.storage_form as StorageFormat) || 'markdown');
+  const format: StorageFormat = isSunoJson ? 'json' : 'markdown';
   
   const formattedContent = await formatDocument(
     params.text,
@@ -3864,7 +3859,7 @@ export async function syncToTask(
   let storageInfo: WritingResult['storageInfo'] | undefined;
   if (params.storeToMinio !== false) {
     const storageRepo = RepositoryFactory.createStorageRepository();
-    const bucket = process.env.CGI_STORAGE_BUCKET || 'user-media';
+    const bucket = getGeneratedBucket();
     const ext = getFileExtension(format);
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).slice(2, 8);

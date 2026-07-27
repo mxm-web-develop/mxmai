@@ -1,6 +1,5 @@
 import express, { Express } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { RepositoryFactory, loadDataConfig } from '@mxmai/mxmdata';
 import { PaymentService } from './payment/payment.service';
 import { GatewayFactory } from './payment/providers/gateway.factory';
@@ -13,14 +12,6 @@ import { ListenerFactory } from './payment/listeners/listener.factory';
 import { IdempotencyMiddleware } from './common/middleware/idempotency.middleware';
 import { setupSwagger } from './config/swagger';
 import { PaymentExpirationScheduler } from './payment/payment.expiration.scheduler';
-import { env } from './config/env';
-
-// 禁用 dotenv 的提示信息
-process.env.DOTENV_CONFIG_DEBUG = 'false';
-
-// 加载环境变量
-dotenv.config();
-
 export async function createApp(): Promise<Express> {
   // 初始化 mxmdata
   try {

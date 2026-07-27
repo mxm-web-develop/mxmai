@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-14T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "graph",
+      "type": "group",
+      "subtype": "content-album-plan",
+      "is_active": true,
+      "form_options_i18n": null,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "extra": {
+        "display": {
+          "taskLabel": "图集",
+          "subtypeLabel": "文档配图",
+          "resultKind": "image-album",
+          "taskLabelI18n": {
+            "zh": "图集",
+            "zh-TW": "圖集"
+          },
+          "subtypeLabelI18n": {
+            "zh": "文档配图",
+            "zh-TW": "文電子郵件配圖"
+          }
+        },
+        "pipelineOrchestrator": true,
+        "albumPipeline": true,
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "temperature": 0.2
+            }
+          },
+          "uiSchema": {
+            "source_document": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 8
+              }
+            },
+            "supplement": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 2
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【图集/文档规划】主题：${topic}。分镜规格由前置 text/plan/album-spec + 人工审核产出；本占位不调用生图 Provider；后置 albumImageBatch 并发生成内容配图（atlas gpt-image-2）。"
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "topic": {
+                "type": "string",
+                "title": "图集主题",
+                "description": "由规划步骤根据文档/口播材料自动提炼，无需手填",
+                "maxLength": 80,
+                "x-user-visible": false
+              },
+              "source_document": {
+                "type": "string",
+                "title": "文档材料",
+                "description": "粘贴或上传文档；与语音二选一（可同时提供，以文本为准合并）。系统将从材料中自动提炼图集主题。",
+                "x-ui-type": "textFileOrPaste"
+              },
+              "source_audio_url": {
+                "type": "string",
+                "title": "语音材料",
+                "description": "可选。上传口播/讲解音频，将 ASR 后并入规划材料。",
+                "x-ui-type": "audioUpload"
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "title": "画幅",
+                "enum": [
+                  "1:1",
+                  "4:3",
+                  "16:9",
+                  "9:16",
+                  "3:2"
+                ],
+                "default": "16:9",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "1:1",
+                  "4:3",
+                  "16:9",
+                  "9:16",
+                  "3:2"
+                ]
+              },
+              "max_items": {
+                "type": "integer",
+                "title": "最多张数",
+                "default": 12,
+                "minimum": 1,
+                "maximum": 48,
+                "x-ui-type": "selection",
+                "enum": [
+                  6,
+                  8,
+                  12,
+                  16,
+                  24
+                ],
+                "x-enum-labels": [
+                  "6",
+                  "8",
+                  "12",
+                  "16",
+                  "24"
+                ]
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充要求",
+                "maxLength": 500
+              },
+              "usage_context": {
+                "type": "string",
+                "enum": [
+                  "web_content",
+                  "video_embed",
+                  "document_slide"
+                ],
+                "default": "video_embed",
+                "x-user-visible": false
+              },
+              "album_spec": {
+                "type": "object",
+                "x-user-visible": false
+              },
+              "illustration_style": {
+                "type": "string",
+                "title": "插图风格",
+                "description": "自媒体视频内容配图的整体画风；决定光影、人物处理与构图语言。",
+                "enum": [
+                  "realistic_illustration",
+                  "stylized_illustration",
+                  "documentary_portrait",
+                  "cinematic_keyframe",
+                  "explain_visual",
+                  "warm_narrative",
+                  "cover_pop",
+                  "ink_neo_chinese"
+                ],
+                "default": "stylized_illustration",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "写实插图",
+                  "风格化插图",
+                  "纪实人物传记",
+                  "影视关键帧",
+                  "知识讲解插图",
+                  "温暖叙事插图",
+                  "封面冲击风",
+                  "新中式水墨"
+                ],
+                "x-enum-descriptions": {
+                  "realistic_illustration": "半写实光影与材质，适合严肃议题、产品实感、场景还原。",
+                  "stylized_illustration": "造型概括、色彩鲜明，适合观点向口播与概念可视化（默认）。",
+                  "documentary_portrait": "人物为主体的传记/纪实插画，适合人物史、访谈与口述。",
+                  "cinematic_keyframe": "电影感光影与景别，适合剧情口播、叙事高潮定格。",
+                  "explain_visual": "讲解型图解，适合步骤、对比、机制拆解类 B-roll。",
+                  "warm_narrative": "柔和氛围与生活场景，适合成长、关系、日常故事。",
+                  "cover_pop": "高对比标题位构图，适合片头/封面/章节闪屏。",
+                  "ink_neo_chinese": "现代水墨与东方留白，适合文化、历史、国潮向内容。"
+                }
+              }
+            }
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "resolveVoiceoverAudio",
+                "when": {
+                  "all": [
+                    {
+                      "field": "params.source_audio_url",
+                      "op": "notEmpty"
+                    }
+                  ]
+                },
+                "params": {
+                  "audioUrlFrom": "${params.source_audio_url}",
+                  "durationField": "audio_duration_seconds"
+                }
+              },
+              {
+                "step": "transcribeVoiceoverAudio",
+                "when": {
+                  "all": [
+                    {
+                      "field": "params.source_audio_url",
+                      "op": "notEmpty"
+                    }
+                  ]
+                },
+                "params": {
+                  "audioUrlFrom": "${params.source_audio_url}",
+                  "skipWhenScriptPresent": true,
+                  "language": "zh"
+                }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/plan/album-spec",
+                "params": {
+                  "outputStatePath": "albumSpec"
+                },
+                "inputMapping": {
+                  "topic": "${params.topic}",
+                  "aspect_ratio": "${params.aspect_ratio}",
+                  "max_items": "${params.max_items}",
+                  "source_material": "${params.source_document}\n${params.script}",
+                  "supplement": "${params.supplement}",
+                  "illustration_style": "${params.illustration_style}"
+                }
+              },
+              {
+                "step": "manualReview",
+                "params": {
+                  "id": "content-album-plan-review",
+                  "label": "图集规格审核",
+                  "hint": "确认将生成的配图总数与每条核心内容；可增删改 items。通过后并发生成全部内容配图。",
+                  "kind": "json",
+                  "draftFrom": "${state.albumSpec}",
+                  "applyMapping": {
+                    "params.album_spec": "${review.json}",
+                    "state.albumSpec": "${review.json}"
+                  },
+                  "editable": true
+                }
+              },
+              {
+                "step": "validateAlbumSpec",
+                "params": {}
+              }
+            ],
+            "post": [
+              {
+                "step": "albumImageBatch",
+                "params": {
+                  "graphTaskKey": "design",
+                  "graphSubtype": "content-illustration",
+                  "usage_context": "${params.usage_context}",
+                  "illustration_style": "${params.illustration_style}"
+                }
+              }
+            ]
+          },
+          "storage": {
+            "scope": "graph",
+            "extension": "png",
+            "mime": "image/png",
+            "bucket": "user-media",
+            "pathTemplate": "{userId}/album-plan/{timestamp}-{randomId}/",
+            "filenameTemplate": "album_{taskId}_{randomId}.png"
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "graph-group-content-album-plan",
+        "provider": "internal",
+        "model": "album-pipeline-orchestrator",
+        "enabled": true,
+        "sensitive_word_lists": [],
+        "note": "文档/语音→规划 AlbumSpec→人审→并发生成 content-illustration（atlas gpt-image-2）"
+      },
+      "businessPricing": [
+        {
+          "business_type": "graph-group-content-album-plan",
+          "charge_metric": "per_image",
+          "price_in_tokens": 120,
+          "min_charge_tokens": 0,
+          "provider": "internal",
+          "model_key": "album-pipeline-orchestrator",
+          "subtype": "content-album-plan",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

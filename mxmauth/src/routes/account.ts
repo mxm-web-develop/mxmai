@@ -5,7 +5,7 @@
 import '../config/loadEnv';
 import crypto from 'crypto';
 import { Router } from 'express';
-import { RepositoryFactory } from '@mxmai/mxmdata';
+import { RepositoryFactory, isAppLocale } from '@mxmai/mxmdata';
 import { hashPassword, verifyPassword } from '../auth/password';
 import { generateTokenPair, getRefreshTokenExpiresInSeconds } from '../auth/jwt';
 import { authMiddleware, gatewayOrJwtAuth } from '../middleware/auth';
@@ -17,6 +17,14 @@ import { FolderService } from '../services/folder.service';
 import { CaptchaService } from '../services/captcha.service';
 import { getSupabaseClient } from '@mxmai/mxmdata';
 import { MediaService, type MediaItemInput } from '../services/media.service';
+import { mailService, isSmtpConfigured } from '../services/mail.service';
+import { authEmailTokenService } from '../services/auth-email-token.service';
+import {
+  allocateUsernameFromEmail,
+  registerAccountAuthPublicRoutes,
+} from './account-auth-public';
+import { registerAccountMfaRoutes } from './account-mfa';
+import { generateMfaChallengeToken, getMfaChallengeExpiresIn } from '../auth/jwt';
 
 const router = Router();
 const userRepo = RepositoryFactory.createUserRepository();
@@ -26,9 +34,24 @@ const folderService = new FolderService();
 const captchaService = new CaptchaService();
 const mediaService = new MediaService();
 
+registerAccountAuthPublicRoutes(router);
+registerAccountMfaRoutes(router);
+
+/**
+ * GET /api/v1/account/captcha/config
+ * 前端判断是否需在登录前弹出验证码
+ */
+router.get('/captcha/config', (_req, res) => {
+  res.json({
+    code: 200,
+    message: 'ok',
+    data: { enabled: process.env.CAPTCHA_ENABLE === 'true' },
+  });
+});
+
 /**
  * GET /api/v1/account/captcha
- * 获取验证码
+ * 获取滑动拼图验证码
  */
 router.get('/captcha', async (req, res, next) => {
   try {
@@ -44,77 +67,134 @@ router.get('/captcha', async (req, res, next) => {
 });
 
 /**
+ * POST /api/v1/account/captcha/verify
+ * 校验滑动拼图（登录/注册前须先通过）
+ */
+router.post('/captcha/verify', async (req, res, next) => {
+  try {
+    const { captchaId, x, duration, trail } = req.body ?? {};
+    const result = await captchaService.verifySlide(captchaId, {
+      x: Number(x),
+      duration: duration != null ? Number(duration) : undefined,
+      trail: Array.isArray(trail) ? trail : undefined,
+    });
+
+    if (!result.success) {
+      return res.status(400).json({
+        code: 400,
+        message: result.reason || '滑动验证失败',
+        error: 'CAPTCHA_INVALID',
+      });
+    }
+
+    res.json({
+      code: 200,
+      message: '验证通过',
+      data: { verified: true },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * POST /api/v1/account/register
- * 用户注册（验证码默认禁用，正式上线前可通过设置 CAPTCHA_ENABLE=true 启用）
+ * 邮箱注册：创建未验证用户并发送验证邮件（不签发 JWT）
  */
 router.post('/register', captchaMiddleware, async (req, res, next) => {
   try {
-    const { username, email, phone, password } = req.body;
+    const emailRaw = String(req.body?.email || '')
+      .trim()
+      .toLowerCase();
+    const password = String(req.body?.password || '');
+    const phone = req.body?.phone ? String(req.body.phone).trim() : undefined;
+    let username = req.body?.username ? String(req.body.username).trim() : '';
 
-    // 验证必填字段
-    if (!username || !password) {
+    if (!emailRaw || !password) {
       return res.status(400).json({
         code: 400,
-        message: 'Username and password are required',
+        message: 'Email and password are required',
         error: 'VALIDATION_ERROR',
       });
     }
 
-    // 验证至少有一个联系方式
-    if (!email && !phone) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
       return res.status(400).json({
         code: 400,
-        message: 'Email or phone is required',
+        message: 'Invalid email address',
         error: 'VALIDATION_ERROR',
       });
     }
 
-    // 加密密码
+    if (password.length < 8) {
+      return res.status(400).json({
+        code: 400,
+        message: 'Password must be at least 8 characters',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    if (!isSmtpConfigured() && process.env.NODE_ENV === 'production') {
+      return res.status(503).json({
+        code: 503,
+        message: 'Email service is not configured; cannot register',
+        error: 'SMTP_NOT_CONFIGURED',
+      });
+    }
+
+    if (!username) {
+      username = await allocateUsernameFromEmail(emailRaw);
+    }
+
     const password_hash = await hashPassword(password);
 
-    // 创建用户
     try {
       const user = await userRepo.create({
         username,
-        email,
+        email: emailRaw,
         phone,
         password_hash,
+        email_verified_at: null,
       });
 
-      // 钱包改为懒加载：用户首次访问 /wallets 时由 mxmpay 自动创建
-
-      // 自动创建默认文件夹
-      // 文件夹创建失败不影响用户注册流程
-      const folderInfo = await folderService.createDefaultFolder(user.id);
+      const folderInfo = await folderService.createDefaultFolders(user.id);
       if (folderInfo) {
         console.log(`✅ 用户 ${user.id} 默认文件夹创建成功:`, folderInfo);
       } else {
         console.warn(`⚠️ 用户 ${user.id} 默认文件夹创建失败或服务不可用`);
       }
 
-      // 生成 Token（写入 role 供 gateway 转发，避免下游每次查库校验 admin）
-      const tokens = generateTokenPair({
-        userId: user.id,
-        username: user.username,
-        role: user.role,
-      });
+      const token = await authEmailTokenService.issue(user.id, 'email_verify');
+      const al = String(req.headers['accept-language'] || '');
+      const locale = al.toLowerCase().startsWith('en') ? 'en' : 'zh';
+      const mail = mailService.buildVerifyEmail({ token, locale });
+      try {
+        await mailService.sendMail({ to: emailRaw, ...mail });
+      } catch (mailErr) {
+        const code = (mailErr as { code?: string })?.code;
+        if (code === 'SMTP_NOT_CONFIGURED' && process.env.NODE_ENV !== 'production') {
+          console.warn('[register] SMTP missing; verify link:', mail.link);
+        } else {
+          throw mailErr;
+        }
+      }
 
-      // 返回用户信息（不包含密码）
       const { password_hash: _, ...userWithoutPassword } = user;
 
       res.status(201).json({
         code: 201,
-        message: 'User registered successfully',
+        message: 'User registered; please verify your email',
         data: {
           user: userWithoutPassword,
-          tokens,
+          needVerification: true,
         },
       });
     } catch (error) {
-      if (error instanceof DuplicateError) {
+      const err = error as { code?: string; message?: string };
+      if (error instanceof DuplicateError || err?.code === 'DUPLICATE') {
         return res.status(409).json({
           code: 409,
-          message: error.message,
+          message: err?.message || 'Resource already exists',
           error: 'DUPLICATE',
         });
       }
@@ -131,9 +211,11 @@ router.post('/register', captchaMiddleware, async (req, res, next) => {
  */
 router.post('/login', captchaMiddleware, async (req, res, next) => {
   try {
-    const { username, email, phone, password } = req.body;
+    const { username, phone, password } = req.body;
+    const email = req.body?.email
+      ? String(req.body.email).trim().toLowerCase()
+      : undefined;
 
-    // 验证必填字段
     if (!password) {
       return res.status(400).json({
         code: 400,
@@ -142,8 +224,12 @@ router.post('/login', captchaMiddleware, async (req, res, next) => {
       });
     }
 
-    // 验证至少有一个登录标识
-    if (!username && !email && !phone) {
+    // 兼容：单一 identifier 字段（前端邮箱登录可走 email 或 username）
+    const identifier = req.body?.identifier
+      ? String(req.body.identifier).trim()
+      : undefined;
+
+    if (!username && !email && !phone && !identifier) {
       return res.status(400).json({
         code: 400,
         message: 'Username, email, or phone is required',
@@ -151,21 +237,20 @@ router.post('/login', captchaMiddleware, async (req, res, next) => {
       });
     }
 
-    // 查找用户
     let user = null;
-    if (username) {
-      user = await userRepo.findByUsername(username);
-    } else if (email) {
+    if (email) {
       user = await userRepo.findByEmail(email);
+    } else if (username) {
+      user = await userRepo.findByUsername(username);
     } else if (phone) {
-      // 通过手机号查找：先尝试通过邮箱查找（兼容性处理）
-      // 如果邮箱查找失败，再通过用户名查找
-      // 注意：理想情况下应该在 IUserRepository 中添加 findByPhone 方法
-      // 这里使用临时方案：通过邮箱字段查找（如果 phone 存储在 email 字段）
-      user = await userRepo.findByEmail(phone);
-      // 如果通过邮箱找不到，尝试通过用户名查找（某些系统可能将手机号作为用户名）
+      user = await userRepo.findByPhone(phone);
+      if (!user) user = await userRepo.findByUsername(phone);
+    } else if (identifier) {
+      if (identifier.includes('@')) {
+        user = await userRepo.findByEmail(identifier.toLowerCase());
+      }
       if (!user) {
-        user = await userRepo.findByUsername(phone);
+        user = await userRepo.findByUsername(identifier);
       }
     }
 
@@ -177,7 +262,14 @@ router.post('/login', captchaMiddleware, async (req, res, next) => {
       });
     }
 
-    // 验证密码
+    if (!user.password_hash) {
+      return res.status(401).json({
+        code: 401,
+        message: 'Please sign in with Google or GitHub',
+        error: 'OAUTH_ONLY',
+      });
+    }
+
     const isValid = await verifyPassword(password, user.password_hash);
     if (!isValid) {
       return res.status(401).json({
@@ -187,7 +279,6 @@ router.post('/login', captchaMiddleware, async (req, res, next) => {
       });
     }
 
-    // 检查用户状态
     if (user.status !== 'active') {
       return res.status(403).json({
         code: 403,
@@ -196,14 +287,38 @@ router.post('/login', captchaMiddleware, async (req, res, next) => {
       });
     }
 
-    // 生成 Token（写入 role 供 gateway 转发，避免下游每次查库校验 admin）
+    // 迭代期：管理员账号允许未验证邮箱登录；普通用户仍需验证
+    if (user.email && !user.email_verified_at && user.role !== 'admin') {
+      return res.status(403).json({
+        code: 403,
+        message: 'Please verify your email before signing in',
+        error: 'EMAIL_NOT_VERIFIED',
+      });
+    }
+
+    if (user.mfa_totp_enabled) {
+      const mfaToken = generateMfaChallengeToken({
+        userId: user.id,
+        username: user.username,
+        role: user.role,
+      });
+      return res.json({
+        code: 200,
+        message: 'MFA required',
+        data: {
+          mfaRequired: true,
+          mfaToken,
+          expiresIn: getMfaChallengeExpiresIn(),
+        },
+      });
+    }
+
     const tokens = generateTokenPair({
       userId: user.id,
       username: user.username,
       role: user.role,
     });
 
-    // 写入 user_sessions，供管理员「已登录」状态查询（失败不影响登录成功）
     const tokenHash = crypto.createHash('sha256').update(tokens.accessToken).digest('hex');
     const refreshHash = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
     const expiresAt = new Date(Date.now() + getRefreshTokenExpiresInSeconds() * 1000);
@@ -220,7 +335,6 @@ router.post('/login', captchaMiddleware, async (req, res, next) => {
       console.warn('[account/login] user_sessions insert error:', e instanceof Error ? e.message : e);
     }
 
-    // 返回用户信息（不包含密码）
     const { password_hash: _, ...userWithoutPassword } = user;
 
     res.json({
@@ -316,6 +430,14 @@ router.post('/refresh-token', async (req, res, next) => {
       data: tokens,
     });
   } catch (error) {
+    // 处理 verifyToken 抛出的认证错误
+    if (error instanceof Error && (error.message === 'Invalid token' || error.message === 'Token expired')) {
+      return res.status(401).json({
+        code: 401,
+        message: error.message,
+        error: 'UNAUTHORIZED',
+      });
+    }
     next(error);
   }
 });
@@ -435,6 +557,14 @@ router.put('/password', authMiddleware, async (req, res, next) => {
         code: 404,
         message: 'User not found',
         error: 'NOT_FOUND',
+      });
+    }
+
+    if (!user.password_hash) {
+      return res.status(400).json({
+        code: 400,
+        message: '此账号使用第三方登录，请通过重置密码设置本地密码',
+        error: 'OAUTH_ONLY',
       });
     }
 
@@ -620,7 +750,7 @@ router.get('/agents', authMiddleware, async (req, res, next) => {
     const pageNum = Number(page) || 1;
     const limitNum = Number(limit) || 20;
 
-    // 目前助手数据尚未落库，这里返回占位结构，后续由 mxmagent / mxmdata 接入
+    // 目前助手数据尚未落库，这里返回占位结构，后续由 mxmcgi / mxmdata 接入
     res.json({
       code: 200,
       message: 'Agent list fetched successfully',
@@ -672,9 +802,17 @@ router.put('/settings', authMiddleware, async (req, res, next) => {
     const userId = req.user!.userId;
     const { theme, language, notifications_enabled } = req.body;
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (theme !== undefined) updateData.theme = theme;
-    if (language !== undefined) updateData.language = language;
+    if (language !== undefined) {
+      if (!isAppLocale(language)) {
+        return res.status(400).json({
+          code: 400,
+          message: 'Invalid language; expected zh | zh-TW | en | ja',
+        });
+      }
+      updateData.language = language;
+    }
     if (notifications_enabled !== undefined) updateData.notifications_enabled = notifications_enabled;
 
     const settings = await userRepo.updateSettings(userId, updateData);
@@ -719,9 +857,35 @@ router.get('/membership', authMiddleware, async (req, res, next) => {
   }
 });
 
-const MAX_API_KEYS_PER_USER = 10;
+const MAX_PERSONAL_API_KEYS = 10;
+const MAX_INTEGRATION_API_KEYS = 10;
 const API_KEY_PREFIX = 'mxm_';
 const API_KEY_RANDOM_LENGTH = 32;
+
+function parseKeyType(raw: unknown): 'personal' | 'integration' | null {
+  const v = String(raw ?? '').trim();
+  if (v === 'personal' || v === 'integration') return v;
+  return null;
+}
+
+/** 允许的过期天数；0 / null / never 表示永不过期 */
+const ALLOWED_API_KEY_EXPIRY_DAYS = [7, 30, 90, 180, 365] as const;
+
+function parseExpiresInDays(raw: unknown): number | null | undefined {
+  if (raw === null || raw === undefined || raw === '' || raw === 'never' || raw === false) {
+    return null;
+  }
+  const n = Number(raw);
+  if (!Number.isInteger(n)) return undefined;
+  if (n === 0) return null;
+  if (!(ALLOWED_API_KEY_EXPIRY_DAYS as readonly number[]).includes(n)) return undefined;
+  return n;
+}
+
+function computeExpiresAt(expiresInDays: number | null): Date | null {
+  if (expiresInDays == null) return null;
+  return new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
+}
 
 /**
  * POST /api/v1/account/api-keys
@@ -730,13 +894,38 @@ const API_KEY_RANDOM_LENGTH = 32;
 router.post('/api-keys', gatewayOrJwtAuth, async (req, res, next) => {
   try {
     const userId = req.user!.userId;
-    const { name } = req.body || {};
-
-    const list = await userApiKeyRepo.listByUserId(userId);
-    if (list.length >= MAX_API_KEYS_PER_USER) {
+    const { name, keyType: rawKeyType, expiresInDays: rawExpiresInDays } = req.body || {};
+    const keyType = parseKeyType(rawKeyType);
+    if (!keyType) {
       return res.status(400).json({
         code: 400,
-        message: `最多允许创建 ${MAX_API_KEYS_PER_USER} 个 API 密钥`,
+        message: 'keyType 必填，须为 personal（个人自动化）或 integration（开放 API 客户端）',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    let expiresInDays: number | null = null;
+    if (rawExpiresInDays !== undefined) {
+      const parsed = parseExpiresInDays(rawExpiresInDays);
+      if (parsed === undefined) {
+        return res.status(400).json({
+          code: 400,
+          message: `expiresInDays 无效，可选：${ALLOWED_API_KEY_EXPIRY_DAYS.join('、')} 或 0（永不过期）`,
+          error: 'VALIDATION_ERROR',
+        });
+      }
+      expiresInDays = parsed;
+    }
+
+    const expiresAt = computeExpiresAt(expiresInDays);
+
+    const counts = await userApiKeyRepo.countByUserIdAndType(userId);
+    const max = keyType === 'integration' ? MAX_INTEGRATION_API_KEYS : MAX_PERSONAL_API_KEYS;
+    const current = keyType === 'integration' ? counts.integration : counts.personal;
+    if (current >= max) {
+      return res.status(400).json({
+        code: 400,
+        message: `该类型密钥最多 ${max} 个（当前 ${current}）`,
         error: 'LIMIT_EXCEEDED',
       });
     }
@@ -749,18 +938,28 @@ router.post('/api-keys', gatewayOrJwtAuth, async (req, res, next) => {
       userId,
       keyHash,
       keyPrefix,
+      keyType,
       name: name != null ? String(name).trim() || null : null,
+      expiresAt,
     });
+
+    const typeHint =
+      keyType === 'integration'
+        ? '仅可调用 /api/v1/open/{slug} 已发布接口'
+        : '可用于 Cursor、OpenClaw 等平台能力与开放 API';
 
     res.status(201).json({
       code: 201,
-      message: 'API 密钥已创建，请妥善保存，关闭后无法再次查看',
+      message: `API 密钥已创建（${keyType === 'integration' ? '开放 API 客户端' : '个人访问凭证'}），请妥善保存，关闭后无法再次查看`,
       data: {
         id: record.id,
         name: record.name,
+        key_type: record.key_type,
         key_prefix: record.key_prefix,
         created_at: record.created_at,
+        expires_at: record.expires_at,
         key: rawKey,
+        usage_hint: typeHint,
       },
     });
   } catch (error) {
@@ -876,6 +1075,108 @@ router.put('/admin/user_profile', adminMiddleware, async (req, res, next) => {
 });
 
 /**
+ * POST /api/v1/account/admin/users
+ * 管理员：创建用户（免验证码；可选角色）
+ */
+router.post('/admin/users', adminMiddleware, async (req, res, next) => {
+  try {
+    const { username, email, phone, password, role, membership_type } = req.body as {
+      username?: string;
+      email?: string;
+      phone?: string;
+      password?: string;
+      role?: 'user' | 'admin';
+      membership_type?: 'free' | 'pro' | 'premium';
+    };
+
+    if (!username?.trim() || !password) {
+      return res.status(400).json({
+        code: 400,
+        message: 'Username and password are required',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    if (!email?.trim() && !phone?.trim()) {
+      return res.status(400).json({
+        code: 400,
+        message: 'Email or phone is required',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    if (role != null && role !== 'user' && role !== 'admin') {
+      return res.status(400).json({
+        code: 400,
+        message: 'role must be user or admin',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    if (
+      membership_type != null &&
+      !['free', 'pro', 'premium'].includes(membership_type)
+    ) {
+      return res.status(400).json({
+        code: 400,
+        message: 'membership_type must be free, pro, or premium',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    if (String(password).length < 6) {
+      return res.status(400).json({
+        code: 400,
+        message: 'Password must be at least 6 characters',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    const password_hash = await hashPassword(password);
+
+    try {
+      const trimmedEmail = email?.trim() || undefined;
+      const user = await userRepo.create({
+        username: username.trim(),
+        email: trimmedEmail,
+        phone: phone?.trim() || undefined,
+        password_hash,
+        role: role ?? 'user',
+        membership_type: membership_type ?? 'free',
+        status: 'active',
+        // 后台创建账号视为已验证，避免迭代期无法登录
+        email_verified_at: trimmedEmail ? new Date().toISOString() : null,
+      });
+
+      const folderInfo = await folderService.createDefaultFolders(user.id);
+      if (folderInfo) {
+        console.log(`[Admin] 用户 ${user.id} 默认文件夹创建成功`);
+      }
+
+      const { password_hash: _, ...userWithoutPassword } = user;
+
+      res.status(201).json({
+        code: 201,
+        message: 'User created successfully',
+        data: userWithoutPassword,
+      });
+    } catch (error) {
+      const err = error as { code?: string; message?: string };
+      if (error instanceof DuplicateError || err?.code === 'DUPLICATE') {
+        return res.status(409).json({
+          code: 409,
+          message: err?.message || 'User already exists',
+          error: 'DUPLICATE',
+        });
+      }
+      throw error;
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/v1/account/admin/users
  * 管理员：查看用户列表（包含登录状态）
  */
@@ -948,6 +1249,7 @@ router.put('/admin/users/:id/status', adminMiddleware, async (req, res, next) =>
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const actorId = (req as { user?: { userId?: string } }).user?.userId;
 
     if (!status || !['active', 'suspended', 'banned'].includes(status)) {
       return res.status(400).json({
@@ -957,7 +1259,38 @@ router.put('/admin/users/:id/status', adminMiddleware, async (req, res, next) =>
       });
     }
 
+    if (actorId && actorId === id && status !== 'active') {
+      return res.status(400).json({
+        code: 400,
+        message: 'Cannot disable your own account',
+        error: 'VALIDATION_ERROR',
+      });
+    }
+
+    const existing = await userRepo.findById(id);
+    if (!existing) {
+      return res.status(404).json({
+        code: 404,
+        message: 'User not found',
+        error: 'NOT_FOUND',
+      });
+    }
+
+    if (existing.role === 'admin' && status !== 'active') {
+      return res.status(403).json({
+        code: 403,
+        message: 'Cannot disable admin accounts',
+        error: 'FORBIDDEN',
+      });
+    }
+
     const user = await userRepo.update(id, { status });
+
+    // 禁用时强制登出，避免会话继续可用
+    if (status === 'suspended' || status === 'banned') {
+      const supabase = getSupabaseClient();
+      await supabase.from('user_sessions').delete().eq('user_id', id);
+    }
 
     const { password_hash: _, ...userWithoutPassword } = user;
 

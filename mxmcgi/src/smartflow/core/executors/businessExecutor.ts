@@ -19,8 +19,9 @@
 
 import { SmartflowNode, ExecutionContext } from '../models/types';
 import { BaseExecutor, ExecutorResult } from './base';
-import { VariableResolver } from '../variables/resolver';
-import { mxmCGIHttpClient } from '../../services/httpClient';
+import { resolveSmartflowParams } from './resolve-smartflow-params';
+import { runBusinessTaskForSmartflow } from './run-business-task';
+import type { TaskScope } from '../../../tasks/types';
 
 export class BusinessExecutor extends BaseExecutor {
   async execute(node: SmartflowNode, context: ExecutionContext): Promise<ExecutorResult> {
@@ -40,11 +41,10 @@ export class BusinessExecutor extends BaseExecutor {
       }
 
       // 解析 params 中的变量引用
-      const resolvedParams = this.resolveParams(params, context);
+      const resolvedParams = resolveSmartflowParams(params, context) as Record<string, unknown>;
 
-      // 统一调用 v2 /api/v2/tasks/run
-      const result = await mxmCGIHttpClient.runTask(
-        business_scope,
+      const result = await runBusinessTaskForSmartflow(
+        business_scope as TaskScope,
         taskKey,
         resolvedParams,
         userId,
@@ -53,27 +53,11 @@ export class BusinessExecutor extends BaseExecutor {
 
       return this.createSuccessResult(result);
     } catch (error: any) {
-      return this.createErrorResult(`Business executor error: ${error.message}`);
+      const details =
+        error?.details != null
+          ? ` ${JSON.stringify(error.details)}`
+          : '';
+      return this.createErrorResult(`Business executor error: ${error.message}${details}`);
     }
-  }
-
-  /**
-   * 解析 params 中的变量引用
-   * 支持 {{input.xxx}}、{{nodeId.output.xxx}} 等变量语法
-   */
-  private resolveParams(params: Record<string, any>, context: ExecutionContext): Record<string, any> {
-    const resolved: Record<string, any> = {};
-    for (const [key, value] of Object.entries(params)) {
-      if (typeof value === 'string') {
-        resolved[key] = VariableResolver.resolve(value, context);
-      } else if (Array.isArray(value)) {
-        resolved[key] = value.map((v) =>
-          typeof v === 'string' ? VariableResolver.resolve(v, context) : v
-        );
-      } else {
-        resolved[key] = value;
-      }
-    }
-    return resolved;
   }
 }

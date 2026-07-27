@@ -29,7 +29,7 @@ describe('clip-prompt-coherence', () => {
     expect(p).toContain('心血管益处示意图');
   });
 
-  it('enrichShotListRaw fills missing mxmPrompt for ai segments', () => {
+  it('enrichShotListRaw fills missing video/image prompts for ai segments', () => {
     const raw = enrichShotListRaw(
       {
         global_topic: 'AI 工作流',
@@ -49,12 +49,38 @@ describe('clip-prompt-coherence', () => {
         ],
       },
       { editStyle: 'science-minimal', aspectRatio: '16:9' }
-    ) as { segments: Array<{ mxmPrompt?: string; mxmVisualStyle?: string }> };
+    ) as {
+      segments: Array<{
+        mxmVideoPrompt?: string;
+        mxmImagePrompt?: string;
+        mxmVisualStyle?: string;
+      }>;
+    };
 
-    expect(raw.segments[0]?.mxmPrompt?.length).toBeGreaterThan(20);
-    expect(raw.segments[1]?.mxmPrompt).toContain('极简科普');
+    expect(raw.segments[0]?.mxmVideoPrompt?.length).toBeGreaterThan(20);
+    expect(raw.segments[1]?.mxmImagePrompt).toContain('极简科普');
     expect(raw.segments[0]?.mxmVisualStyle).toBe('minimal_clean');
     expect(raw.segments[1]?.mxmVisualStyle).toBe('minimal_clean');
+  });
+
+  it('enrichShotListRaw forces material_type defaultAiOutputKind onto AI segments', () => {
+    const raw = enrichShotListRaw(
+      {
+        global_topic: '主题',
+        segments: [
+          {
+            beatId: 'b1',
+            text: '画面 A',
+            mxmRenderMode: 'ai-video-gen',
+            mxmAiOutputKind: 'video',
+          },
+        ],
+      },
+      { editStyle: 'science-minimal', defaultAiOutputKind: 'image' }
+    ) as { segments: Array<{ mxmAiOutputKind?: string; mxmImagePrompt?: string }> };
+
+    expect(raw.segments[0]?.mxmAiOutputKind).toBe('image');
+    expect(raw.segments[0]?.mxmImagePrompt?.length).toBeGreaterThan(5);
   });
 
   it('enrichVideoEditScriptAiPrompts fills clip metadata', () => {
@@ -92,7 +118,7 @@ describe('clip-prompt-coherence', () => {
       editStyle: 'documentary',
     });
     const meta = next.project.timeline.tracks[0]!.clips[0]!.metadata;
-    expect(meta?.mxmPrompt?.length).toBeGreaterThan(20);
+    expect(meta?.mxmVideoPrompt?.length).toBeGreaterThan(20);
     expect(meta?.mxmVisualStyle).toBe('cinematic');
     expect(meta?.mxmGlobalTopic).toBe('海洋环保');
   });

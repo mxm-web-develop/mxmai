@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-14T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "plan",
+      "subtype": "album-spec",
+      "is_active": true,
+      "form_options_i18n": null,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "extra": {
+        "display": {
+          "taskLabel": "内部 · 规划",
+          "subtypeLabel": "图集规格",
+          "userFacing": false,
+          "taskLabelI18n": {
+            "zh": "内部 · 规划",
+            "zh-TW": "內部 · 规划"
+          },
+          "subtypeLabelI18n": {
+            "zh": "图集规格",
+            "zh-TW": "圖集规格"
+          }
+        },
+        "internal": true,
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "temperature": 0.35,
+              "topP": 0.9,
+              "maxTokens": 32768
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是 supermxmai **内容配图图集规划器**。根据文档正文 / 口播转写，自动提炼核心主题，并规划一组可并发生成的扁平配图规格 JSON（AlbumSpec）。\n\n## 输入\n- 可选预置主题（可为空，须自行从材料提炼）：${topic}\n- 画幅默认：${aspect_ratio}\n- 插图风格：${illustration_style}\n- 最多张数：${max_items}\n- 文档/口播正文：${source_material}\n- 补充：${supplement}\n\n## 输出格式（硬约束）\n- **只输出一个 JSON 对象**，禁止 Markdown、禁止 ```、禁止说明文字\n- 结构示例（示意字段，勿照抄围栏）：\n{\"title\":\"图集短标题\",\"aspect_ratio\":\"16:9\",\"style_hint\":\"可选整体气质\",\"items\":[{\"id\":\"i1\",\"order\":1,\"title\":\"2到8字\",\"mxmImagePrompt\":\"本张图核心展示内容\"}]}\n\n## 规则\n1. **title**：从材料提炼 2～12 字核心主题；勿用「图集」「配图」等空泛词\n2. items 数量 1～${max_items}，按材料要点拆图，宁少勿滥\n3. 每条 **mxmImagePrompt ≤ 120 字**：写清要传达的概念/关系/数据；禁止空泛「科技感插画」；禁止字符串内未转义的英文双引号\n4. 每条 item.title 2～8 字\n5. 全套 aspect_ratio 与输入默认一致，除非材料明确要求竖屏/方图\n6. 禁止输出 mxmVideoPrompt / 时间轴字段\n7. 输出必须可被 JSON.parse：完整闭合括号，字符串内换行请用 \\n\n\n根据【文档/口播材料】直接输出 JSON 对象。"
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "topic": {
+                "type": "string"
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "enum": [
+                  "1:1",
+                  "4:3",
+                  "16:9",
+                  "9:16",
+                  "3:2"
+                ],
+                "default": "16:9"
+              },
+              "max_items": {
+                "type": "integer",
+                "default": 12
+              },
+              "source_material": {
+                "type": "string"
+              },
+              "supplement": {
+                "type": "string"
+              },
+              "illustration_style": {
+                "type": "string",
+                "default": "stylized_illustration"
+              }
+            }
+          },
+          "storage": {
+            "scope": "text",
+            "extension": "json",
+            "mime": "application/json",
+            "bucket": "user-media",
+            "pathTemplate": "{userId}/album-spec/{timestamp}-{randomId}/",
+            "filenameTemplate": "album_spec_{taskId}_{randomId}.json"
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-plan-album-spec",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-plan-album-spec",
+          "charge_metric": "per_request",
+          "price_in_tokens": 0,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "album-spec",
+          "metadata": {
+            "internal": true
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

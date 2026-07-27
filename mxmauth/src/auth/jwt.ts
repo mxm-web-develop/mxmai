@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 export interface TokenPayload {
   userId: string;
   username: string;
-  type: 'access' | 'refresh';
+  type: 'access' | 'refresh' | 'mfa_challenge';
   role?: 'user' | 'admin';
 }
 
@@ -43,6 +43,7 @@ export function generateAccessToken(payload: Omit<TokenPayload, 'type'> & { role
     {
       ...payload,
       type: 'access',
+      jti: `${Date.now()}-${Math.random().toString(36).substring(2)}`, // 唯一标识
     },
     getJwtSecret(),
     {
@@ -59,6 +60,7 @@ export function generateRefreshToken(payload: Omit<TokenPayload, 'type'> & { rol
     {
       ...payload,
       type: 'refresh',
+      jti: `${Date.now()}-${Math.random().toString(36).substring(2)}`, // 唯一标识
     },
     getJwtSecret(),
     {
@@ -76,6 +78,39 @@ export function generateTokenPair(payload: Omit<TokenPayload, 'type'> & { role?:
     refreshToken: generateRefreshToken(payload),
     expiresIn: getAccessTokenExpiresIn(),
   };
+}
+
+const MFA_CHALLENGE_TTL_SEC = Number(process.env.MFA_CHALLENGE_TTL_SEC || 300);
+
+/**
+ * 登录 MFA 挑战 token（短期，不可访问业务 API）
+ */
+export function generateMfaChallengeToken(payload: {
+  userId: string;
+  username: string;
+  role?: 'user' | 'admin';
+}): string {
+  return jwt.sign(
+    {
+      ...payload,
+      type: 'mfa_challenge',
+      jti: `${Date.now()}-${Math.random().toString(36).substring(2)}`,
+    },
+    getJwtSecret(),
+    { expiresIn: MFA_CHALLENGE_TTL_SEC }
+  );
+}
+
+export function verifyMfaChallengeToken(token: string): TokenPayload {
+  const decoded = verifyToken(token);
+  if (decoded.type !== 'mfa_challenge') {
+    throw new Error('Invalid mfa challenge token');
+  }
+  return decoded;
+}
+
+export function getMfaChallengeExpiresIn(): number {
+  return MFA_CHALLENGE_TTL_SEC;
 }
 
 /**

@@ -14,6 +14,10 @@ import { VolcProvider } from '../../models/volc/provider';
 import { MinimaxProvider } from '../../models/minimax/provider';
 import { AtlasCloudProvider } from '../../models/atlascloud/provider';
 import { MaxplanProvider } from '../../models/maxplan/provider';
+import { resolveDefaultLlmProvider, resolveDefaultLlmModel } from '../../config/default-llm';
+import { OpenRouterProvider } from '../../models/openrouter/provider';
+import { QhaiProvider } from '../../models/qhai/provider';
+import { JiekouProvider } from '../../models/jiekou/provider';
 import { getResolvedRouting } from './model-routing';
 import {
   loadProviderModelCatalog,
@@ -128,23 +132,49 @@ export class ProviderFactory {
         throw new Error(`MaxplanProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
+
+    this.providerInitializers.set('openrouter', () => {
+      try {
+        return new OpenRouterProvider();
+      } catch (error) {
+        throw new Error(`OpenRouterProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+
+    this.providerInitializers.set('qhai', () => {
+      try {
+        return new QhaiProvider();
+      } catch (error) {
+        throw new Error(`QhaiProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+
+    this.providerInitializers.set('jiekou', () => {
+      try {
+        return new JiekouProvider();
+      } catch (error) {
+        throw new Error(`JiekouProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
+
+    this.providerInitializers.set('mcp', () => {
+      try {
+        const { McpVisionProvider } = require('./mcp/vision-provider');
+        return new McpVisionProvider();
+      } catch (error) {
+        throw new Error(`McpVisionProvider 初始化失败: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
     
     // 纯动态模式：初始为空，启动后 loadProviderCatalog() 从 DB 合并
     this.modelProviderMap = {};
     
-    // 从环境变量读取默认提供商
+    // 从环境变量读取默认提供商（未设置时 maxplan，不用 replicate）
     const envDefaultProvider = process.env.DEFAULT_PROVIDER?.toLowerCase();
-    
-    // 始终输出调试日志（便于排查问题）
-    console.log(`[ProviderFactory] ========== 初始化开始 ==========`);
-    console.log(`[ProviderFactory] 当前 process.env.DEFAULT_PROVIDER: ${process.env.DEFAULT_PROVIDER || '(未设置)'}`);
-    console.log(`[ProviderFactory] envDefaultProvider (lowercase): ${envDefaultProvider || '(未设置，将使用默认值: replicate)'}`);
-    console.log(`[ProviderFactory] process.cwd(): ${process.cwd()}`);
-    
+
     // 支持 'deerapi' -> 'deer' 的映射
     if (envDefaultProvider === 'deerapi') {
       this.defaultProvider = 'deer';
-      console.log(`[ProviderFactory] ✅ 检测到 'deerapi'，映射为 'deer'`);
     } else if (
       envDefaultProvider === 'replicate' ||
       envDefaultProvider === 'ppio' ||
@@ -156,19 +186,25 @@ export class ProviderFactory {
       envDefaultProvider === 'volc' ||
       envDefaultProvider === 'minimax' ||
       envDefaultProvider === 'atlascloud' ||
-      envDefaultProvider === 'maxplan'
+      envDefaultProvider === 'maxplan' ||
+      envDefaultProvider === 'openrouter' ||
+      envDefaultProvider === 'qhai' ||
+      envDefaultProvider === 'jiekou' ||
+      envDefaultProvider === 'mcp'
     ) {
       this.defaultProvider = envDefaultProvider;
-      console.log(`[ProviderFactory] ✅ 使用环境变量中的 provider: ${envDefaultProvider}`);
     } else {
-      // 默认使用 replicate（向后兼容）
-      this.defaultProvider = 'replicate';
-      console.log(`[ProviderFactory] ⚠️  未找到有效的 DEFAULT_PROVIDER，使用默认值: replicate`);
+      this.defaultProvider = resolveDefaultLlmProvider();
+      if (!envDefaultProvider) {
+        console.log(
+          `[ProviderFactory] DEFAULT_PROVIDER 未设置，使用默认值: ${this.defaultProvider}（模型: ${resolveDefaultLlmModel()}）`
+        );
+      } else {
+        console.warn(
+          `[ProviderFactory] DEFAULT_PROVIDER="${envDefaultProvider}" 无效，回退: ${this.defaultProvider}`
+        );
+      }
     }
-    
-    // 始终输出调试日志（便于排查问题）
-    console.log(`[ProviderFactory] 最终设置的默认提供商: ${this.defaultProvider}`);
-    console.log(`[ProviderFactory] ========== 初始化完成 ==========`);
   }
 
   register(type: ProviderType, provider: ModelProvider): void {
@@ -406,6 +442,11 @@ export class ProviderFactory {
     const entries = getEnabledForMerge();
     this.mergeDbModels(entries);
   }
+
+  /** ProviderFactory 已注册的 provider 类型（与 registered-provider-types 一致） */
+  listRegisteredProviderTypes(): ProviderType[] {
+    return Array.from(this.providerInitializers.keys());
+  }
 }
 
 // 导出单例（延迟初始化，确保环境变量已加载）
@@ -416,26 +457,9 @@ function getProviderFactory(): ProviderFactory {
     // 如果环境变量还没有加载，尝试加载
     if (!process.env.DEFAULT_PROVIDER) {
       try {
-        const dotenv = require('dotenv');
-        const path = require('path');
-        const fs = require('fs');
-        
-        // 尝试多个可能的 .env 文件路径
-        const envPaths = [
-          path.resolve(__dirname, '../../.env'),
-          path.resolve(__dirname, '../../../.env'),
-          path.resolve(process.cwd(), '.env'),
-          path.resolve(process.cwd(), 'mxmcgi', '.env'),
-        ];
-        
-        for (const envPath of envPaths) {
-          if (fs.existsSync(envPath)) {
-            dotenv.config({ path: envPath });
-            console.log(`[ProviderFactory] 延迟加载 .env 文件: ${envPath}`);
-            break;
-          }
-        }
-      } catch (e) {
+        const { loadMonorepoEnv } = require('@mxmai/mxmdata') as typeof import('@mxmai/mxmdata');
+        loadMonorepoEnv({ service: 'mxmcgi', warnLegacy: false });
+      } catch {
         // 忽略错误，可能已经加载过了
       }
     }
@@ -458,7 +482,7 @@ export const providerFactory = new Proxy({} as ProviderFactory, {
 
 // 导出类型和类
 export * from './types';
-export { ReplicateProvider, PPIOProvider, DeerProvider, OpenAIProvider, GoogleProvider, AnthropicProvider, QwenProvider, VolcProvider, MinimaxProvider };
+export { ReplicateProvider, PPIOProvider, DeerProvider, OpenAIProvider, OpenRouterProvider, GoogleProvider, AnthropicProvider, QwenProvider, VolcProvider, MinimaxProvider };
 export {
   getResolvedRouting,
   getFullRoutingTable,
@@ -472,3 +496,8 @@ export { recordStats, getProviderStats } from './provider-stats';
 export type { ProviderStatsRecord, ProviderStatsAggregate } from './provider-stats';
 export { getProviderKeys, getDeerProviderKeys, getFirstProviderKey } from './provider-keys';
 export type { ProviderKeyKind, OfficialService } from './provider-keys';
+export {
+  REGISTERED_PROVIDER_TYPES,
+  BILLING_CAPABLE_PROVIDER_TYPES,
+  isRegisteredProviderType,
+} from './registered-provider-types';

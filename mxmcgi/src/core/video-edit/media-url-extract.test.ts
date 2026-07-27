@@ -50,7 +50,8 @@ describe('buildAiImageDispatchParams', () => {
     expect(p.core_content).toBe('AI dashboard rising metrics');
     expect(p.usage_context).toBe('video_embed');
     expect(p.aspect_ratio).toBe('16:9');
-    expect(p.flat_visual_tone).toBe('tech_modern');
+    expect(p.illustration_style).toBe('explain_visual');
+    expect(p.flat_visual_tone).toBe('explain_visual');
     expect(p.source).toBe('video-edit-pipeline');
   });
 });

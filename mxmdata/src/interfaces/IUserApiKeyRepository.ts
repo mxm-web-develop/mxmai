@@ -3,10 +3,13 @@
  * 仅存 key_hash，明文创建时仅返回一次
  */
 
+export type UserApiKeyType = 'personal' | 'integration';
+
 export interface CreateUserApiKeyDto {
   userId: string;
   keyHash: string;
   keyPrefix: string;
+  keyType: UserApiKeyType;
   name?: string | null;
   expiresAt?: Date | string | null;
 }
@@ -17,6 +20,7 @@ export interface UserApiKeyRecord {
   user_id: string;
   key_hash: string;
   key_prefix: string;
+  key_type: UserApiKeyType;
   name: string | null;
   created_at: string;
   last_used_at: string | null;
@@ -28,6 +32,7 @@ export interface UserApiKeyByHash {
   id: string;
   user_id: string;
   key_prefix: string;
+  key_type: UserApiKeyType;
   name: string | null;
   created_at: string;
   last_used_at: string | null;
@@ -38,10 +43,16 @@ export interface UserApiKeyByHash {
 export interface UserApiKeyListItem {
   id: string;
   key_prefix: string;
+  key_type: UserApiKeyType;
   name: string | null;
   created_at: string;
   last_used_at: string | null;
   expires_at: string | null;
+}
+
+export interface CountUserApiKeysByTypeResult {
+  personal: number;
+  integration: number;
 }
 
 export interface IUserApiKeyRepository {
@@ -50,6 +61,8 @@ export interface IUserApiKeyRepository {
   findByKeyHash(keyHash: string): Promise<UserApiKeyByHash | null>;
 
   listByUserId(userId: string): Promise<UserApiKeyListItem[]>;
+
+  countByUserIdAndType(userId: string): Promise<CountUserApiKeysByTypeResult>;
 
   delete(id: string, userId: string): Promise<boolean>;
 

@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-06-22T12:00:00.000Z",
+  "items": [
+    {
+      "scope": "graph",
+      "type": "design",
+      "subtype": "content-illustration",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "生成",
+          "subtypeLabel": "内容配图",
+          "videoEditAiImage": true,
+          "taskLabelI18n": {
+            "zh": "生成",
+            "zh-TW": "產生"
+          },
+          "subtypeLabelI18n": {
+            "zh": "内容配图",
+            "zh-TW": "內容配圖"
+          }
+        },
+        "promptTextTaskKey": "text/format/gpt-image-2",
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "maxTokens": 2048,
+              "temperature": 0.35
+            }
+          },
+          "knowledge": {
+            "strategy": "global",
+            "useKnowledge": false,
+            "defaultKnowledgeBaseIds": []
+          },
+          "uiSchema": {
+            "core_content": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 5
+              }
+            },
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 4
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是资深「自媒体视频内容配图」插画导演 + 英文 image prompt 撰稿人。下游把你的英文正文交给 gpt-image-2；风格/元素参考图像素已由系统提交，你不得粘贴 base64/URL。\n\n【定位】本业务服务**短视频 / 口播 / 自媒体**配图（B-roll、章节闪屏、观点可视化、人物叙事），不是 SaaS 扁平 UI 插画，也不是电商促销海报。\n\n【text/format 生成契约】①「一、重要的用户要求」永远优先；②**核心展示内容**是画面语义锚点；③用户未写的维度才允许用「四、相关参考」补全；④与参考像素矛盾的一律不写；⑤输出为**单张**可直接插入视频时间线的插图成品。\n\n一、重要的用户要求（表单插值，本单硬约束）\n- 核心展示内容：${core_content}\n- 使用场景：${usage_context}\n- 画幅：${aspect_ratio}\n- 插图风格：${illustration_style}\n- 风格/元素参考图（摘要/占位）：${style_ref_images}\n- 用户补充说明：${prompt}\n\n二、任务定义\n- **目标**：根据 core_content，生成可用于**视频内嵌 / 自媒体图文**的**内容驱动插图**——观众须在约 1 秒内读懂「这张图在说什么」。\n- **与扁平 UI 插画区别**：允许光影、材质、人物情绪、场景纵深；禁止默认退化成无意义色块图标墙。\n- **与写实照片区别**：始终是**插图**（illustration），即使「写实插图」也保留绘画/渲染笔触，禁止 fake stock photo 拼贴感。\n- **与封面党海报区别**：不堆促销字爆、不等同于点击率夸张表情包；服务口播语义。\n\n三、统一生图 Prompt 规范（所有风格共用，硬）\n1. **core message lock**：英文须忠实转写/ paraphrasing core_content 的主概念；至多 2 个支撑子概念；禁止跑题风景/无关 celebrity。\n2. **video-safe framing（默认按 video_embed）**：主体与背景高对比；轮廓清晰；横屏避开右下字幕区、竖屏避开底部三分之一；勿过碎纹理。\n3. **画幅**：英文显式写出 aspect（square 1:1 / 16:9 wide / 9:16 tall 等），与「一」一致。\n4. **文字**：默认无字或极少字；仅当 core_content 要求短标签时照抄，字号清晰；禁止写「avoid all text」与短标签矛盾。\n5. **输出形态**：只输出**一段连续英文** image prompt（无 Markdown、无中文解释）。\n6. **通用 negative**：no watermark, no QR, no fake logos, no cluttered UI mockups, no plastic 3D toy look unless style asks, no illegible micro-text.\n\n四、按 illustration_style 的专属规范（必须整段写入英文 prompt）\n- **realistic_illustration（写实插图）**：semi-realistic digital illustration; believable lighting and materials; subtle painting brush or soft render; natural color grade; detailed but not photographic noise; figures and objects with volume; for serious topics / product presence / scene reconstruction.\n- **stylized_illustration（风格化插图）**：bold stylized shapes; confident silhouette; limited vibrant palette; graphic clarity; expressive but readable; concept-first; ideal for opinion explainer and idea visualization.\n- **documentary_portrait（纪实人物传记）**：portrait-forward documentary illustration; one primary human subject with era/setting cues; restrained documentary color; lived-in details (wardrobe, props, room); respectful realism; not glamour shoot; for biography / interview / oral history.\n- **cinematic_keyframe（影视关键帧）**：cinematic keyframe still; filmic lighting (rim / practical / motivated light); clear camera language (wide/medium/close); shallow but illustrated depth; story beat freeze; for narrative peaks and dramatic B-roll.\n- **explain_visual（知识讲解插图）**：didactic explainer illustration; clear spatial hierarchy for steps / compare / mechanism; readable icons integrated into scene (not flat icon soup); soft teaching color; for how-it-works and listicle B-roll.\n- **warm_narrative（温暖叙事插图）**：warm narrative illustration; soft dusk/indoor practical light; intimate lifestyle moments; gentle color harmony; emotional but not saccharine; for growth / relationship / daily stories.\n- **cover_pop（封面冲击风）**：high-impact cover still; strong focal silhouette; saturated accent vs dark/simple ground; title-safe negative space on upper/center third; energy of social cover without spammy bargain poster text.\n- **ink_neo_chinese（新中式水墨）**：contemporary neo-Chinese ink illustration; expressive ink wash + modern composition; generous breathing space; elegant restrained palette (ink blacks, paper cream, one accent); cultural/history/guochao narratives; avoid cliché tourist postcard layout.\n\n五、按 usage_context 微调（次于风格）\n- video_embed：高对比、字幕安全区、适合蒙层叠化。\n- web_content：可略增留白便于文章嵌入。\n- document_slide：略放大主体、减少细碎层次便于投影。\n\n六、参考图\n若 style_ref_images 非空：写入 style/element lock（配色、笔触、人物处理与参考一致）；**不得**用参考替换 core_content 主题。\n\n七、英文 Prompt 组装顺序\ncore message lock → illustration_style craft paragraph（第四节对应条）→ usage/video-safe framing → aspect ratio → optional minimal labels → negatives。\n\n【输出】只输出最终生图用英文 prompt 正文。"
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "core_content",
+              "usage_context",
+              "aspect_ratio"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "poster"
+                ],
+                "default": "poster",
+                "x-user-visible": false
+              },
+              "core_content": {
+                "type": "string",
+                "title": "核心展示内容",
+                "description": "这张图必须传达的核心信息——如「远程团队协作的三步流程」「Q3 用户增长 37%」「AI 助手保护隐私的 4 个要点」。将严格作为画面设计中心，请写清概念、关系或数据。",
+                "x-ui-type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "usage_context": {
+                "type": "string",
+                "title": "使用场景",
+                "description": "默认视频内嵌；影响字幕安全区与对比度。",
+                "enum": [
+                  "web_content",
+                  "video_embed",
+                  "document_slide"
+                ],
+                "default": "video_embed",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "网页 / 文章配图",
+                  "视频内嵌配图（默认）",
+                  "文档 / PPT / 报告"
+                ],
+                "x-enum-descriptions": {
+                  "web_content": "适合博客头图、落地页模块、正文插图；适度留白、缩略可读。",
+                  "video_embed": "适合 B-roll、解说全屏插图；高对比、避开字幕区。",
+                  "document_slide": "适合幻灯片与印刷报告；大图标、安全边距、投影友好。"
+                }
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "title": "画幅",
+                "enum": [
+                  "1:1",
+                  "4:3",
+                  "16:9",
+                  "9:16",
+                  "3:2"
+                ],
+                "default": "16:9",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "1:1 方图（社媒/图标位）",
+                  "4:3 横版（PPT 经典）",
+                  "16:9 宽屏（网页 Banner / 视频）",
+                  "9:16 竖屏（手机信息流 / 竖版视频）",
+                  "3:2 横版（文章头图常用）"
+                ]
+              },
+              "style_ref_images": {
+                "type": "array",
+                "title": "风格 / 元素参考图（可选）",
+                "description": "上传品牌色、图标风格或构图参考；锁定视觉语言，不改变核心展示内容主题。",
+                "x-ui-type": "referenceImages",
+                "minItems": 0,
+                "maxItems": 6,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "title": "图片 URL / Base64"
+                    },
+                    "type": {
+                      "type": "string",
+                      "title": "用途类型",
+                      "enum": [
+                        "main-subject",
+                        "background",
+                        "outfits",
+                        "color-reference",
+                        "style-reference"
+                      ],
+                      "default": "style-reference"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "title": "用途说明（可选）"
+                    }
+                  }
+                },
+                "x-enum-labels": []
+              },
+              "prompt": {
+                "type": "string",
+                "title": "补充说明",
+                "description": "品牌色值、必须出现的符号、禁忌元素、是否需要画面内短标签等。",
+                "x-ui-type": "string",
+                "default": ""
+              },
+              "illustration_style": {
+                "type": "string",
+                "title": "插图风格",
+                "description": "自媒体视频内容配图的整体画风；决定光影、人物处理与构图语言。",
+                "enum": [
+                  "realistic_illustration",
+                  "stylized_illustration",
+                  "documentary_portrait",
+                  "cinematic_keyframe",
+                  "explain_visual",
+                  "warm_narrative",
+                  "cover_pop",
+                  "ink_neo_chinese"
+                ],
+                "default": "stylized_illustration",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "写实插图",
+                  "风格化插图",
+                  "纪实人物传记",
+                  "影视关键帧",
+                  "知识讲解插图",
+                  "温暖叙事插图",
+                  "封面冲击风",
+                  "新中式水墨"
+                ],
+                "x-enum-descriptions": {
+                  "realistic_illustration": "半写实光影与材质，适合严肃议题、产品实感、场景还原。",
+                  "stylized_illustration": "造型概括、色彩鲜明，适合观点向口播与概念可视化（默认）。",
+                  "documentary_portrait": "人物为主体的传记/纪实插画，适合人物史、访谈与口述。",
+                  "cinematic_keyframe": "电影感光影与景别，适合剧情口播、叙事高潮定格。",
+                  "explain_visual": "讲解型图解，适合步骤、对比、机制拆解类 B-roll。",
+                  "warm_narrative": "柔和氛围与生活场景，适合成长、关系、日常故事。",
+                  "cover_pop": "高对比标题位构图，适合片头/封面/章节闪屏。",
+                  "ink_neo_chinese": "现代水墨与东方留白，适合文化、历史、国潮向内容。"
+                }
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "graph-design-content-illustration",
+        "provider": "atlascloud",
+        "model": "gpt-image-2",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "graph-design-content-illustration",
+          "charge_metric": "per_image",
+          "price_in_tokens": 120,
+          "min_charge_tokens": 0,
+          "provider": "atlascloud",
+          "model_key": "gpt-image-2",
+          "subtype": "content-illustration",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

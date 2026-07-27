@@ -7,6 +7,14 @@ import { BaseExecutor, ExecutorResult } from './base';
 import { VariableResolver } from '../variables/resolver';
 import { mxmCGIHttpClient } from '../../services/httpClient';
 
+let knowledgeServiceSingleton: import('../../../knowledge/knowledge-service').KnowledgeService | null = null;
+async function getKnowledgeService() {
+  if (knowledgeServiceSingleton) return knowledgeServiceSingleton;
+  const mod = await import('../../../knowledge/knowledge-service');
+  knowledgeServiceSingleton = new mod.KnowledgeService();
+  return knowledgeServiceSingleton;
+}
+
 export class ToolsExecutor extends BaseExecutor {
   async execute(node: SmartflowNode, context: ExecutionContext): Promise<ExecutorResult> {
     try {
@@ -14,21 +22,52 @@ export class ToolsExecutor extends BaseExecutor {
 
       const resolvedParams = this.resolveParams(tool_params, context);
 
+      // 兼容前端 schema：code_executor/custom 的代码字段可能放在节点顶层（custom_code/custom_language）
+      // - 前端工具栏创建的 Node.js/Python 节点当前就是这种结构
+      // - 这里统一映射到 params.code / params.language，避免前端必须同步改动两套字段
+      const resolvedParamsWithFallback = { ...resolvedParams } as Record<string, any>;
+      const nodeCode = typeof (node as any).custom_code === 'string' ? String((node as any).custom_code) : '';
+      const nodeLangRaw = typeof (node as any).custom_language === 'string' ? String((node as any).custom_language) : '';
+      if (!resolvedParamsWithFallback.code && nodeCode) {
+        resolvedParamsWithFallback.code = nodeCode;
+      }
+      if (!resolvedParamsWithFallback.language && nodeLangRaw) {
+        // 后端执行器使用 nodejs/python；前端存 javascript/python
+        resolvedParamsWithFallback.language = nodeLangRaw === 'javascript' ? 'nodejs' : nodeLangRaw;
+      }
+
       switch (tool_type) {
         case 'web_search':
-          return await this.executeWebSearch(resolvedParams, context);
+          return await this.executeWebSearch(resolvedParamsWithFallback, context);
         case 'web_scraper':
-          return await this.executeWebScraper(resolvedParams, context);
-        case 'embedding':
-          return await this.executeEmbedding(resolvedParams, context);
-        case 'http_request':
-          return await this.executeHttpRequest(resolvedParams, context);
-        case 'code_executor':
-          return await this.executeCode(resolvedParams, context);
+          return await this.executeWebScraper(resolvedParamsWithFallback, context);
         case 'deep_search':
-          return await this.executeDeepSearch(resolvedParams, context);
+          return await this.executeDeepSearch(resolvedParamsWithFallback, context);
+        case 'embedding':
+          return await this.executeEmbedding(resolvedParamsWithFallback, context);
+        case 'http_request':
+          return await this.executeHttpRequest(resolvedParamsWithFallback, context);
+        case 'code_executor':
+          return await this.executeCode(resolvedParamsWithFallback, context);
+        case 'vector_store':
+          return await this.executeVectorStore(resolvedParamsWithFallback, context, node);
+        case 'vector_recall':
+          return await this.executeVectorRecall(resolvedParamsWithFallback, context);
         case 'multi_dimension_search':
-          return await this.executeMultiDimensionSearch(resolvedParams, context);
+          return await this.executeMultiDimensionSearch(resolvedParamsWithFallback, context);
+        case 'domain_search':
+          return await this.executeDomainSearch(resolvedParamsWithFallback, context);
+        case 'legal_search':
+          return await this.executeDataSourceQuery(resolvedParamsWithFallback, 'legal');
+        case 'stock_lookup':
+          return await this.executeDataSourceQuery(resolvedParamsWithFallback, 'stock');
+        case 'crypto_lookup':
+          return await this.executeDataSourceQuery(resolvedParamsWithFallback, 'crypto');
+        case 'company_lookup':
+          return await this.executeDataSourceQuery(resolvedParamsWithFallback, 'business');
+        case 'custom':
+          // custom 目前复用 code_executor（允许后续扩展成更复杂的自定义工具）
+          return await this.executeCode(resolvedParamsWithFallback, context);
         default:
           return this.createErrorResult(`Unknown tool type: ${tool_type}`);
       }
@@ -52,27 +91,30 @@ export class ToolsExecutor extends BaseExecutor {
   }
 
   private async executeWebSearch(params: any, context: ExecutionContext): Promise<ExecutorResult> {
-    const { query, search_type = 'web', num_results = 5 } = params;
+    const { query, provider = 'auto', num_results = 5 } = params;
     if (!query) return this.createErrorResult('web_search requires query');
 
     try {
-      let results: any[] = [];
-      try {
-        const response = await mxmCGIHttpClient.textGeneration('search', query, { num_results });
-        results = typeof response === 'string'
-          ? [{ title: response, url: '', snippet: '' }]
-          : (response.data?.results || []);
-      } catch {
-        results = [
-          {
-            title: `搜索结果: ${query}`,
-            url: `https://example.com/search?q=${encodeURIComponent(query)}`,
-            snippet: `关于「${query}」的搜索摘要...`,
-          },
-        ];
-      }
+      const { SearchService } = await import('../../../core/search/search-service');
+      const searchService = new SearchService();
 
-      return this.createSuccessResult({ results, query, count: results.length });
+      // Use SearchService for configurable multi-provider search
+      // provider 'auto' will auto-select best provider based on query
+      const results = await searchService.quickSearch(query, 'general');
+
+      // Format results for workflow
+      const formattedResults = results.slice(0, num_results).map((item: any) => ({
+        title: item.title || '',
+        url: item.url || '',
+        snippet: item.snippet || item.content || '',
+      }));
+
+      return this.createSuccessResult({
+        results: formattedResults,
+        query,
+        count: formattedResults.length,
+        provider,
+      });
     } catch (error: any) {
       return this.createErrorResult(`Web search failed: ${error.message}`);
     }
@@ -171,10 +213,18 @@ export class ToolsExecutor extends BaseExecutor {
     const { text, model = 'embedding-3' } = params;
     if (!text) return this.createErrorResult('embedding requires text');
 
+    const userId = (context.variables?.user_id as string) || 'system';
     try {
-      const response = await mxmCGIHttpClient.embeddingGeneration(model, text, {});
+      const response = await mxmCGIHttpClient.writingCompletion(
+        model,
+        { prompt: text, outputFormat: 'json' },
+        userId
+      );
+      const inner = (response as any)?.result ?? response;
+      const embedding =
+        inner?.embedding ?? inner?.data?.embedding ?? (Array.isArray(inner) ? inner : null);
       return this.createSuccessResult({
-        embedding: response.data?.embedding || response.embedding || null,
+        embedding,
         model,
         text_length: text.length,
       });
@@ -317,9 +367,17 @@ export class ToolsExecutor extends BaseExecutor {
 
     try {
       const { SearchService } = await import('../../../core/search/search-service');
+      const { DataSourceService } = await import('../../../core/data-sources/data-source-service');
+      const { topicTypeToDataDomain } = await import('../../../core/data-sources/domain-router');
       const searchService = new SearchService();
+      const dataService = new DataSourceService();
 
       const result = await searchService.autoSearch({ query, depth });
+      const dataDomain = topicTypeToDataDomain(result.topicType);
+      let dataSource = null;
+      if (dataDomain) {
+        dataSource = await dataService.query({ query, domain: dataDomain }).catch(() => null);
+      }
 
       return this.createSuccessResult({
         results: result.aggregated,
@@ -327,9 +385,140 @@ export class ToolsExecutor extends BaseExecutor {
         dimensionResults: result.dimensionResults,
         query: result.query,
         count: result.aggregated.length,
+        dataSource,
       });
     } catch (error: any) {
       return this.createErrorResult(`Multi-dimension search failed: ${error.message}`);
+    }
+  }
+
+  private async executeDomainSearch(params: any, _context: ExecutionContext): Promise<ExecutorResult> {
+    const { query, domain, depth = 'standard' } = params;
+    if (!query) return this.createErrorResult('domain_search requires query');
+
+    try {
+      const { DataSourceService } = await import('../../../core/data-sources/data-source-service');
+      const service = new DataSourceService();
+      const result = await service.combinedSearch(query, { domain, depth });
+      return this.createSuccessResult(result);
+    } catch (error: any) {
+      return this.createErrorResult(`Domain search failed: ${error.message}`);
+    }
+  }
+
+  private async executeDataSourceQuery(
+    params: any,
+    domain: 'legal' | 'stock' | 'crypto' | 'business'
+  ): Promise<ExecutorResult> {
+    const { query, symbol, queryType } = params;
+    if (!query && !symbol) {
+      return this.createErrorResult(`${domain} lookup requires query or symbol`);
+    }
+
+    try {
+      const { DataSourceService } = await import('../../../core/data-sources/data-source-service');
+      const service = new DataSourceService();
+      const result = await service.query({
+        query: query || String(symbol),
+        domain,
+        symbol,
+        queryType,
+      });
+      return this.createSuccessResult(result);
+    } catch (error: any) {
+      return this.createErrorResult(`Data source query failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * 向量存储：把文本写入知识库（以“上传 txt 文件”的方式复用现有切分+embedding+入库链路）
+   *
+   * tool_params:
+   * - knowledgeBaseId: string （必填，knowledge base 的 id 或 name；优先当作 id）
+   * - text: string（必填）
+   * - fileName?: string（可选，默认 smartflow-tool-{node.id}.txt）
+   * - tags?: string[]
+   * - metadata?: object
+   * - chunkSize/chunkOverlap/maxChunkSize?: number（可选）
+   */
+  private async executeVectorStore(params: any, context: ExecutionContext, node: SmartflowNode): Promise<ExecutorResult> {
+    const knowledgeBaseId = String(params.knowledgeBaseId ?? params.knowledge_base_id ?? params.kbId ?? params.kb_id ?? '');
+    const text = typeof params.text === 'string' ? params.text : String(params.text ?? '');
+    if (!knowledgeBaseId) return this.createErrorResult('vector_store requires knowledgeBaseId');
+    if (!text.trim()) return this.createErrorResult('vector_store requires text');
+
+    try {
+      const ks = await getKnowledgeService();
+      const fileName = String(params.fileName ?? params.filename ?? `smartflow-tool-${String(node.id)}.txt`);
+      const buffer = Buffer.from(text, 'utf-8');
+      const userId = context.execution?.user_id;
+
+      const result = await ks.uploadFileById({
+        knowledgeBaseId,
+        file: {
+          buffer,
+          originalname: fileName,
+          mimetype: 'text/plain',
+          size: buffer.byteLength,
+        },
+        userId,
+        tags: Array.isArray(params.tags) ? params.tags.map(String) : undefined,
+        metadata: params.metadata && typeof params.metadata === 'object' ? params.metadata : undefined,
+        chunkSize: typeof params.chunkSize === 'number' ? params.chunkSize : undefined,
+        chunkOverlap: typeof params.chunkOverlap === 'number' ? params.chunkOverlap : undefined,
+        maxChunkSize: typeof params.maxChunkSize === 'number' ? params.maxChunkSize : undefined,
+      });
+
+      return this.createSuccessResult({
+        knowledgeBaseId: result.knowledgeBase.id,
+        knowledgeBaseName: result.knowledgeBase.name,
+        fileId: result.fileId,
+        totalChunks: result.totalChunks,
+        documentsCount: result.documents.length,
+        replaced: result.replaced,
+      });
+    } catch (error: any) {
+      return this.createErrorResult(`vector_store failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * 向量召回：在知识库中搜索（hybrid/vector/keyword）
+   *
+   * tool_params:
+   * - knowledgeBaseId: string（必填，knowledge base 的 id 或 name）
+   * - query: string（必填）
+   * - search_type?: 'vector' | 'keyword' | 'hybrid'（默认 hybrid）
+   * - limit?: number（默认 5）
+   * - threshold?: number（默认 0.7）
+   * - vector_weight?: number（默认 0.7）
+   * - keyword_weight?: number（默认 0.3）
+   */
+  private async executeVectorRecall(params: any, context: ExecutionContext): Promise<ExecutorResult> {
+    const knowledgeBaseId = String(params.knowledgeBaseId ?? params.knowledge_base_id ?? params.kbId ?? params.kb_id ?? '');
+    const query = typeof params.query === 'string' ? params.query : String(params.query ?? '');
+    if (!knowledgeBaseId) return this.createErrorResult('vector_recall requires knowledgeBaseId');
+    if (!query.trim()) return this.createErrorResult('vector_recall requires query');
+
+    try {
+      const ks = await getKnowledgeService();
+      const results = await ks.searchById({
+        knowledgeBaseId,
+        query,
+        searchType: (params.search_type as any) || 'hybrid',
+        limit: params.limit != null ? Number(params.limit) : 5,
+        threshold: params.threshold != null ? Number(params.threshold) : 0.7,
+        vectorWeight: params.vector_weight != null ? Number(params.vector_weight) : 0.7,
+        keywordWeight: params.keyword_weight != null ? Number(params.keyword_weight) : 0.3,
+        userId: context.execution?.user_id,
+      });
+
+      return this.createSuccessResult({
+        results,
+        count: Array.isArray(results) ? results.length : 0,
+      });
+    } catch (error: any) {
+      return this.createErrorResult(`vector_recall failed: ${error.message}`);
     }
   }
 }

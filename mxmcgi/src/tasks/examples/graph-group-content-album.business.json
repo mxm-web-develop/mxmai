@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-14T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "graph",
+      "type": "group",
+      "subtype": "content-album",
+      "is_active": true,
+      "form_options_i18n": {
+        "album_spec": {
+          "zh": "图集 JSON",
+          "en": "Album JSON",
+          "zh-TW": "圖集 JSON",
+          "ja": "Album JSON"
+        },
+        "aspect_ratio": {
+          "zh": "默认画幅",
+          "en": "Default aspect ratio",
+          "zh-TW": "預設畫幅",
+          "ja": "Default aspect ratio"
+        },
+        "illustration_style": {
+          "zh": "插图风格",
+          "en": "Illustration style",
+          "zh-TW": "插圖风格",
+          "ja": "Illustration style"
+        }
+      },
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "extra": {
+        "display": {
+          "taskLabel": "图集",
+          "subtypeLabel": "内容配图",
+          "taskLabelI18n": {
+            "zh": "图集",
+            "en": "Album",
+            "zh-TW": "圖集",
+            "ja": "Album"
+          },
+          "subtypeLabelI18n": {
+            "zh": "内容配图",
+            "en": "Content illustration",
+            "zh-TW": "內容配圖",
+            "ja": "Content illustration"
+          },
+          "resultKind": "image-album",
+          "videoEditAiImage": true
+        },
+        "pipelineOrchestrator": true,
+        "albumPipeline": true,
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "temperature": 0.2
+            }
+          },
+          "uiSchema": {
+            "album_spec": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 12
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【图集/JSON 直出】主题：${topic}。album_spec 已由用户提供，本占位不调用生图 Provider；后置 albumImageBatch 并发生成内容配图（atlas gpt-image-2）。"
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "album_spec"
+            ],
+            "properties": {
+              "topic": {
+                "type": "string",
+                "title": "图集主题",
+                "description": "可选；优先取 AlbumSpec.title；无需手填",
+                "maxLength": 80,
+                "x-user-visible": false
+              },
+              "album_spec": {
+                "type": "string",
+                "title": "图集 JSON",
+                "description": "粘贴合规 AlbumSpec JSON：含 items[].title + mxmImagePrompt。有合法 JSON 时跳过文档规划。",
+                "x-ui-type": "textFileOrPaste",
+                "minLength": 2
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "title": "默认画幅",
+                "enum": [
+                  "1:1",
+                  "4:3",
+                  "16:9",
+                  "9:16",
+                  "3:2"
+                ],
+                "default": "16:9",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "1:1",
+                  "4:3",
+                  "16:9",
+                  "9:16",
+                  "3:2"
+                ]
+              },
+              "usage_context": {
+                "type": "string",
+                "enum": [
+                  "web_content",
+                  "video_embed",
+                  "document_slide"
+                ],
+                "default": "video_embed",
+                "x-user-visible": false
+              },
+              "max_items": {
+                "type": "integer",
+                "default": 48,
+                "minimum": 1,
+                "maximum": 48,
+                "x-user-visible": false
+              },
+              "illustration_style": {
+                "type": "string",
+                "title": "插图风格",
+                "description": "自媒体视频内容配图的整体画风；决定光影、人物处理与构图语言。",
+                "enum": [
+                  "realistic_illustration",
+                  "stylized_illustration",
+                  "documentary_portrait",
+                  "cinematic_keyframe",
+                  "explain_visual",
+                  "warm_narrative",
+                  "cover_pop",
+                  "ink_neo_chinese"
+                ],
+                "default": "stylized_illustration",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "写实插图",
+                  "风格化插图",
+                  "纪实人物传记",
+                  "影视关键帧",
+                  "知识讲解插图",
+                  "温暖叙事插图",
+                  "封面冲击风",
+                  "新中式水墨"
+                ],
+                "x-enum-descriptions": {
+                  "realistic_illustration": "半写实光影与材质，适合严肃议题、产品实感、场景还原。",
+                  "stylized_illustration": "造型概括、色彩鲜明，适合观点向口播与概念可视化（默认）。",
+                  "documentary_portrait": "人物为主体的传记/纪实插画，适合人物史、访谈与口述。",
+                  "cinematic_keyframe": "电影感光影与景别，适合剧情口播、叙事高潮定格。",
+                  "explain_visual": "讲解型图解，适合步骤、对比、机制拆解类 B-roll。",
+                  "warm_narrative": "柔和氛围与生活场景，适合成长、关系、日常故事。",
+                  "cover_pop": "高对比标题位构图，适合片头/封面/章节闪屏。",
+                  "ink_neo_chinese": "现代水墨与东方留白，适合文化、历史、国潮向内容。"
+                }
+              }
+            }
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "validateAlbumSpec",
+                "params": {}
+              }
+            ],
+            "post": [
+              {
+                "step": "albumImageBatch",
+                "params": {
+                  "graphTaskKey": "design",
+                  "graphSubtype": "content-illustration",
+                  "usage_context": "${params.usage_context}",
+                  "illustration_style": "${params.illustration_style}"
+                }
+              }
+            ]
+          },
+          "storage": {
+            "scope": "graph",
+            "extension": "png",
+            "mime": "image/png",
+            "bucket": "user-media",
+            "pathTemplate": "{userId}/album/{timestamp}-{randomId}/",
+            "filenameTemplate": "album_{taskId}_{randomId}.png"
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "graph-group-content-album",
+        "provider": "internal",
+        "model": "album-pipeline-orchestrator",
+        "enabled": true,
+        "sensitive_word_lists": [],
+        "note": "编排占位：不调 atlas。并发生图走 design/content-illustration → atlascloud/gpt-image-2"
+      },
+      "businessPricing": [
+        {
+          "business_type": "graph-group-content-album",
+          "charge_metric": "per_image",
+          "price_in_tokens": 120,
+          "min_charge_tokens": 0,
+          "provider": "internal",
+          "model_key": "album-pipeline-orchestrator",
+          "subtype": "content-album",
+          "metadata": {
+            "margin": 0.2,
+            "note": "父任务按张预留；实际出账主要由子任务 content-illustration 完成"
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

@@ -18,22 +18,54 @@ export type TaskKey = string;
 
 export type JsonSchemaV2 = JSONSchema7;
 
+export type ContextResolvePhase = 'pre' | 'post';
+
+export type AutoFromSource = 'prompt' | 'coreText' | `field:${string}`;
+
 export interface PipelineStep {
   step: string;
   when?: Record<string, unknown>;
   params?: Record<string, unknown>;
+  /** nestedText 专用：text/format/xxx */
   nestedTextTaskKey?: string;
+  /** @deprecated 兼容旧配置；新管线用 step=videoTimelineRender */
+  nestedVideoTaskKey?: string;
+  /** renderDocumentPdf 专用：layout LLM 子业务 key */
+  layoutTaskKey?: string;
+  /** 输入映射：如 { prompt: '${state.coreArtifact.text}' } */
   inputMapping?: Record<string, string>;
+  /** buildVideoEditTimeline 等步骤：业务字段 → 模板路径 */
+  fieldMapping?: Record<string, string>;
+  /** 输出写回 finalArtifact 的字段 */
   outputMapping?: { artifactField: 'text' | 'metadata' };
 }
 
-/** 业务可配管线；mxm-warp 另含 enrich */
 export interface BusinessPipelineConfig {
+  /** 核心生成前（mxm-warp：pre 段） */
   pre?: PipelineStep[];
-  /** mxm-warp：深检索 / 专家 text 等 */
+  /** mxm-warp：enrich 段（可配深检索 / 专家 text 等） */
   enrich?: PipelineStep[];
+  /** 核心生成后、MinIO 前（mxm-warp：post 段） */
   post?: PipelineStep[];
 }
+
+export interface CoreArtifact {
+  kind: 'text' | 'image' | 'video' | 'audio' | 'music';
+  text?: string;
+  mediaUrls?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export type PipelineTraceEntry = {
+  step: string;
+  durationMs: number;
+  nestedTaskId?: string;
+  costUsd?: number;
+  phase?: 'pre' | 'post' | 'enrich';
+  /** when 条件未满足而跳过 */
+  skipped?: boolean;
+};
+
 
 export interface PromptTemplateConfig {
   /**
@@ -73,7 +105,7 @@ export interface BaseStorageConfig {
 }
 
 export interface WritingStorageConfig extends BaseStorageConfig {
-  extension: 'txt' | 'markdown' | 'html' | 'json' | 'docx';
+  extension: 'txt' | 'markdown' | 'md' | 'html' | 'json' | 'pdf' | 'csv';
 }
 export interface GraphStorageConfig extends BaseStorageConfig {
   extension: 'jpg' | 'jpeg' | 'png' | 'webp';
@@ -108,8 +140,9 @@ export interface KnowledgeConfig {
 export interface TaskTemplate {
   formSchema: JsonSchemaV2;
   /**
-   * mxm-warp：合同字段（扁平 + x-zone: basic|business）。
-   * executionMode=mxm-warp 时必填。
+   * mxm-warp：合同字段设计（扁平 + x-zone: basic|business）。
+   * 首要服务模型理解字段用途（description = 解读规则）。
+   * 当 extra.executionMode === 'mxm-warp' 时必填；本路径不回退 formSchema。
    */
   contractSchema?: JsonSchemaV2;
   uiSchema?: Record<string, unknown>;
@@ -118,15 +151,15 @@ export interface TaskTemplate {
 
   knowledge?: KnowledgeConfig;
 
-  /** 业务执行管线；mxm-warp 为 pre / enrich / post */
+  /** 业务执行管线：pre → core / mxm-warp → post；mxm-warp 另含 enrich */
   pipeline?: BusinessPipelineConfig;
 
   /**
-   * @deprecated Task v2 已改为固定前置链（见 task-v2-prelude），配置项不再生效。保留字段仅为兼容旧 JSON。
+   * @deprecated 迁移到 pipeline.pre
    */
   inputPipeline?: PipelineStep[];
   /**
-   * @deprecated 未接入执行路径；保留仅为兼容旧 JSON。
+   * @deprecated 迁移到 pipeline.post
    */
   outputPipeline?: PipelineStep[];
 
@@ -142,6 +175,8 @@ export interface TaskTemplate {
       temperature?: number;
       maxTokens?: number;
       topP?: number;
+      /** 透传至 provider API（如 MiniMax M3 thinking / max_completion_tokens） */
+      parameters?: Record<string, unknown>;
     };
     /** mxm-warp：启用五段合同执行（pre→input→enrich→output→post） */
     executionMode?: 'mxm-warp' | string;
@@ -155,6 +190,7 @@ export interface TaskDefinitionRow {
   is_active?: boolean;
   rules_i18n?: Record<string, string>;
   output_format_i18n?: Record<string, string>;
+  form_options_i18n?: Record<string, Record<string, string>> | null;
   extra?: Record<string, unknown> | null;
 }
 
@@ -171,9 +207,27 @@ export interface TaskRunV2Request {
   taskKey: TaskKey;
   subtype?: string | null;
   params: Record<string, unknown>;
+  /** 写入 cgi_tasks.metadata（如 label、parentAutocutTaskId、autocutClipAsset） */
+  metadata?: Record<string, unknown>;
   options?: {
     stream?: boolean;
+    /**
+     * 同步跑完任务并返回 syncResult（与 scope=text 类似），前端无需再轮询。
+     * 默认跑完后软删除 cgi_tasks；配合 keepTask=true 可保留为用户可见的独立生成任务。
+     */
+    ephemeral?: boolean;
+    /**
+     * 与 ephemeral 联用：同步等待完成后**不**软删除，任务出现在视频/图文列表中可预览。
+     * 用于自动剪辑管线内的 AI 视频 / AI 配图子任务。
+     */
+    keepTask?: boolean;
   };
+}
+
+export interface TaskRunV2ParallelChild {
+  taskId: string;
+  parallelIndex: number;
+  status: string;
 }
 
 export interface TaskRunV2Response {
@@ -184,12 +238,22 @@ export interface TaskRunV2Response {
   subtype?: string | null;
   /** 与 cgi_tasks.status 对齐：pending/queued/processing/completed/failed/cancelled */
   status: string;
+  /** parallel_count > 1 时：父任务 id 在 taskId，子任务列表在此 */
+  parallel?: {
+    parentTaskId: string;
+    total: number;
+    tasks: TaskRunV2ParallelChild[];
+    /** 创建阶段失败的份数（无 taskId） */
+    failedCount?: number;
+  };
   /**
    * scope=text 时为同步执行，不落 cgi_tasks；此处返回模型输出，供调用方直接展示
+   * options.ephemeral 时异步 scope 也会在软删除前把结果填入此处，便于前端直接展示
    */
   syncResult?: {
     text?: string;
     metadata?: Record<string, unknown>;
+    mediaUrls?: string[];
   };
 }
 

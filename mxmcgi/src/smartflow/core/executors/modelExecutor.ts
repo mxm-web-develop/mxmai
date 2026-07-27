@@ -6,11 +6,14 @@ import { SmartflowNode, ExecutionContext } from '../models/types';
 import { BaseExecutor, ExecutorResult } from './base';
 import { VariableResolver } from '../variables/resolver';
 import { mxmCGIHttpClient } from '../../services/httpClient';
+import { resolveSmartflowParams } from './resolve-smartflow-params';
+import { buildModelVisionParams } from './build-model-vision-params';
 
 export class ModelExecutor extends BaseExecutor {
   async execute(node: SmartflowNode, context: ExecutionContext): Promise<ExecutorResult> {
     try {
-      const { model_type, model, prompt, model_params: params = {} } = node;
+      const { model_type, model, prompt, model_params: rawParams = {} } = node;
+      const params = resolveSmartflowParams(rawParams, context) as Record<string, unknown>;
 
       if (!model_type || !model || !prompt) {
         return this.createErrorResult('Model node requires model_type, model, and prompt');
@@ -53,18 +56,34 @@ export class ModelExecutor extends BaseExecutor {
     params: Record<string, any>,
     context: ExecutionContext
   ): Promise<any> {
+    const userId = (context.variables?.user_id as string) || 'system';
+    const vision = buildModelVisionParams(params, context);
     try {
-      const response = await mxmCGIHttpClient.textGeneration(model, prompt, {
-        temperature: params.temperature ?? 0.7,
-        max_tokens: params.max_tokens ?? 2000,
-        ...params,
-      });
+      const response = await mxmCGIHttpClient.writingCompletion(
+        model,
+        {
+          prompt,
+          temperature: params.temperature ?? 0.7,
+          max_tokens: params.max_tokens ?? 2000,
+          ...params,
+          ...vision,
+        },
+        userId
+      );
+
+      const inner = (response as any)?.result ?? response;
+      const text =
+        (typeof inner === 'string' ? inner : null) ??
+        inner?.text ??
+        inner?.data?.text ??
+        (response as any)?.data?.text ??
+        prompt;
 
       return {
-        text: response.data?.text || response.output || prompt,
+        text,
         model,
         model_type: 'text',
-        usage: response.data?.usage || {},
+        usage: inner?.usage ?? (response as any)?.usage ?? {},
       };
     } catch (error: any) {
       // 如果调用失败，返回模拟结果（用于演示）
@@ -84,18 +103,31 @@ export class ModelExecutor extends BaseExecutor {
     params: Record<string, any>,
     context: ExecutionContext
   ): Promise<any> {
+    const userId = (context.variables?.user_id as string) || 'system';
     try {
-      const response = await mxmCGIHttpClient.imageGeneration(model, prompt, {
+      const taskKey = (params.graph_task_key as string) || (params.task_key as string) || 'photograph';
+      const subtype =
+        (typeof params.subtype === 'string' && params.subtype) ||
+        (typeof params.type === 'string' && params.type) ||
+        null;
+      const runParams: Record<string, any> = {
+        prompt,
         aspect_ratio: params.aspect_ratio || '1:1',
         quality: params.quality || 'standard',
         ...params,
-      });
+      };
+      if (model) {
+        runParams.logicalModel = model;
+      }
+
+      const response = await mxmCGIHttpClient.runTask('graph', taskKey, runParams, userId, { subtype });
 
       return {
-        image_url: response.data?.image_url || response.data?.url || response.url,
-        image_base64: response.data?.image_base64 || response.data?.base64,
+        image_url: response.data?.image_url || response.image_url,
+        image_base64: response.data?.image_base64,
         model,
         model_type: 'image',
+        task_id: response.taskId ?? response.data?.taskId,
         revised_prompt: response.data?.revised_prompt,
       };
     } catch (error: any) {
@@ -116,14 +148,27 @@ export class ModelExecutor extends BaseExecutor {
     params: Record<string, any>,
     context: ExecutionContext
   ): Promise<any> {
+    const userId = (context.variables?.user_id as string) || 'system';
     try {
-      const response = await mxmCGIHttpClient.embeddingGeneration(model, input, {
-        dimensions: params.dimensions,
-        ...params,
-      });
+      const response = await mxmCGIHttpClient.writingCompletion(
+        model,
+        {
+          prompt: input,
+          outputFormat: 'json',
+          dimensions: params.dimensions,
+          ...params,
+        },
+        userId
+      );
+
+      const inner = (response as any)?.result ?? response;
+      const embedding =
+        inner?.embedding ??
+        inner?.data?.embedding ??
+        (Array.isArray(inner) ? inner : null);
 
       return {
-        embedding: response.data?.embedding || response.embedding,
+        embedding,
         model,
         model_type: 'embedding',
       };
@@ -145,24 +190,41 @@ export class ModelExecutor extends BaseExecutor {
     params: Record<string, any>,
     context: ExecutionContext
   ): Promise<any> {
-    const userId = context.variables?.user_id as string || 'system';
+    const userId = (context.variables?.user_id as string) || 'system';
 
     try {
-      const response = await mxmCGIHttpClient.videoGenerate({
-        prompt,
-        model,
-        duration: params.duration,
-        aspect_ratio: params.aspect_ratio,
-        ...params,
-      }, userId);
+      const taskKey = String(params.taskKey || params.videoTaskKey || 'short');
+      const subtype = params.subtype ?? params.videoSubtype ?? null;
+      const response = await mxmCGIHttpClient.runTask(
+        'video',
+        taskKey,
+        {
+          prompt,
+          duration: params.duration,
+          seconds: params.seconds,
+          ratio: params.ratio ?? params.aspect_ratio,
+          resolution: params.resolution,
+          reference_images: params.reference_images,
+          input_reference: params.input_reference,
+          ...params,
+        },
+        userId,
+        { subtype },
+      );
+
+      const taskId = response?.taskId || response?.data?.taskId;
+      const mediaUrls =
+        response?.syncResult?.mediaUrls ||
+        response?.data?.syncResult?.mediaUrls ||
+        response?.mediaUrls;
+      const videoUrl = Array.isArray(mediaUrls) && mediaUrls.length > 0 ? mediaUrls[0] : undefined;
 
       return {
-        video_url: response.data?.video_url || response.video_url || response.url,
-        video_base64: response.data?.video_base64 || response.video_base64,
+        video_url: videoUrl,
         model,
         model_type: 'video',
-        task_id: response.task_id || response.data?.taskId,
-        revised_prompt: response.data?.revised_prompt,
+        task_id: taskId,
+        mediaUrls,
       };
     } catch (error: any) {
       console.warn(`[ModelExecutor] Video generation failed: ${error.message}`);

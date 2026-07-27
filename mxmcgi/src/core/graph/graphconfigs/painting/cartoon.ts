@@ -1,49 +1,14 @@
 /**
- * 绘画 - 卡通（cartoon）配置
- * 参考 portrait.ts 的设计：提供 rules + outputformat + 构造用户需求草稿的 helper
+ * 绘画 - 卡通（cartoon）
+ * V2：规则与输出格式由 Admin「提示词工程」提供；此处仅保留结构化用户需求草稿 helper。
  */
 import type { PaintingParams } from '../../type';
 
 export type CartoonOutputLanguage = 'zh' | 'en';
 
-export const cartoonConfig = {
-  /**
-   * 角色设定 + 专业规范（给 LLM 看的规则）
-   */
-  rules: `你是一位顶级卡通画师，擅长创作高质量的卡通作品。请严格根据用户需求、业务参数和知识库内容，设计一条用于 AI 图像生成的卡通提示词（prompt）。
-
-【卡通专业要求】
-1. 卡通风格：
-   - 根据用户选择的卡通风格（Q版、美式、日式等）调整设计
-   - 不同风格传达不同的视觉感受和文化特色
-2. 角色设计：
-   - 根据用户选择的角色设计（可爱、帅气、搞笑等）调整角色形象
-   - 角色应与主题和风格协调统一
-3. 色彩运用：
-   - 使用明亮、活泼的色彩
-   - 色彩应与主题和风格协调统一
-4. 表情动作：
-   - 注重角色的表情和动作
-   - 表情和动作应生动有趣，增强表现力
-5. 趣味性：
-   - 保持作品的趣味性和吸引力
-   - 趣味性应与主题和风格协调统一
-
-【提示词生成要求】
-- 使用专业卡通绘画术语，语言自然流畅
-- 提示词应覆盖：角色描述、卡通风格、角色设计、色彩运用、表情动作、趣味性要求等核心要素
-- 结合业务参数（cartoonStyle、characterDesign 等）做有针对性的细化描述
-- 允许适度发挥创造力，但必须符合用户的核心需求和设定`,
-
-  /**
-   * 输出结构要求（让 LLM 知道 prompt 内部大概要包含哪些要素）
-   */
-  outputformat: `800字以内,要包含角色描述，卡通风格，角色设计，色彩运用，表情动作，趣味性要求等重要信息`,
-};
-
 /**
  * 根据业务参数 + 参考图 + 用户原始 prompt，生成结构化的 cartoon 用户需求草稿
- * 实际用于传给大模型，由大模型根据 rules + outputformat 进行最终整合
+ * 供 graph-service 在部分类型下拼装 effectiveUserPrompt（与 DB rules 分离）
  */
 export function buildCartoonUserPrompt(
   params: PaintingParams,
@@ -167,67 +132,4 @@ export function buildCartoonUserPrompt(
     specLineEn,
     'Within about 300 English words, integrate the above elements into a single fluent cartoon prompt text.',
   ].join('\n');
-}
-
-/**
- * 根据用户参数生成默认知识库内容（当召回失败时使用）
- * 根据用户的业务参数（cartoonStyle, characterDesign）动态生成对应的专业指导
- */
-export function generateDefaultCartoonKnowledge(params: PaintingParams): string {
-  const { cartoonStyle, characterDesign } = params;
-  
-  const parts: string[] = [];
-  
-  // 卡通风格
-  const styleTips: string[] = [];
-  if (cartoonStyle === 'chibi') {
-    styleTips.push('Q版风格，可爱萌趣，比例夸张');
-    styleTips.push('夸张的比例，可爱的造型');
-  } else if (cartoonStyle === 'american') {
-    styleTips.push('美式风格，粗犷有力，动态感强');
-    styleTips.push('粗犷的线条，强烈的动态感');
-  } else if (cartoonStyle === 'japanese') {
-    styleTips.push('日式风格，细腻精致，情感丰富');
-    styleTips.push('细腻的线条，丰富的情感表达');
-  } else if (cartoonStyle === 'european') {
-    styleTips.push('欧式风格，艺术感强，风格独特');
-    styleTips.push('艺术化的表现，独特的风格');
-  } else {
-    styleTips.push('根据设计需求营造相应的卡通风格');
-  }
-  parts.push(`【卡通风格】\n${styleTips.join('，')}。`);
-  
-  // 角色设计
-  const characterTips: string[] = [];
-  if (characterDesign === 'cute') {
-    characterTips.push('可爱风格，萌趣生动，亲和力强');
-    characterTips.push('可爱的造型，生动的表情');
-  } else if (characterDesign === 'cool') {
-    characterTips.push('帅气风格，酷炫有力，视觉冲击力强');
-    characterTips.push('酷炫的造型，有力的动作');
-  } else if (characterDesign === 'funny') {
-    characterTips.push('搞笑风格，幽默有趣，娱乐性强');
-    characterTips.push('幽默的造型，有趣的表情');
-  } else if (characterDesign === 'sweet') {
-    characterTips.push('甜美风格，温馨可爱，情感丰富');
-    characterTips.push('甜美的造型，温馨的表情');
-  } else {
-    characterTips.push('根据设计需求营造相应的角色设计');
-  }
-  characterTips.push('角色应与主题和风格协调统一');
-  parts.push(`【角色设计】\n${characterTips.join('，')}。`);
-  
-  // 色彩运用
-  parts.push(`【色彩运用】\n使用明亮、活泼的色彩，色彩应与主题和风格协调统一，增强表现力。`);
-  
-  // 表情动作
-  parts.push(`【表情动作】\n注重角色的表情和动作，表情和动作应生动有趣，增强表现力和吸引力。`);
-  
-  // 趣味性
-  parts.push(`【趣味性】\n保持作品的趣味性和吸引力，趣味性应与主题和风格协调统一，具有娱乐价值。`);
-  
-  // 绘画技巧
-  parts.push(`【绘画技巧】\n使用专业的卡通绘画技巧，整体画质专业级，具有娱乐价值和艺术价值。`);
-  
-  return parts.join('\n\n');
 }

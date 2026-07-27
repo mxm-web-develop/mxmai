@@ -115,8 +115,9 @@ export class SupabasePromptEngineeringConfigRepository implements IPromptEnginee
     try {
       const existing = await this.findByKey(dto.scope, dto.type, dto.subtype ?? null);
       const now = new Date().toISOString();
+      // rules_i18n 列保留为 NOT NULL JSONB，产品侧已弃用；固定写入 {}，不再接受正文（统一走 extra.taskTemplate.unifiedTemplate）
       const payload = {
-        rules_i18n: dto.rules_i18n ?? {},
+        rules_i18n: {} as Record<string, string>,
         output_format_i18n: dto.output_format_i18n ?? {},
         form_options_i18n: dto.form_options_i18n ?? null,
         extra: dto.extra ?? null,
@@ -126,14 +127,41 @@ export class SupabasePromptEngineeringConfigRepository implements IPromptEnginee
       };
 
       if (existing) {
-        // 更新时合并 extra，避免前端只提交 use_knowledge 时覆盖 DB 中的 storyboard_output_format_template_zh 等字段
-        const mergedExtra =
-          dto.extra != null && typeof dto.extra === 'object'
-            ? { ...(existing.extra ?? {}), ...dto.extra }
-            : (existing.extra ?? null);
+        // 更新时合并 extra，避免前端只提交部分字段时覆盖 DB 中已有的其他 extra 字段（如 promptTextTaskKey）
+        // dto.extra = null/undefined → 保留 DB 原有的 extra（不做覆盖）
+        // dto.extra = {} → 保留 DB 原有的 extra（空对象不覆盖）
+        // dto.extra = {k: v} → 合并到 DB 原有的 extra
+        let mergedExtra: Record<string, unknown> | null;
+        if (dto.extra != null && typeof dto.extra === 'object') {
+          const incoming = dto.extra as Record<string, unknown>;
+          if (Object.keys(incoming).length === 0) {
+            mergedExtra = existing.extra ?? null;
+          } else {
+            const existingExtra = (existing.extra ?? {}) as Record<string, unknown>;
+            const incomingTpl = incoming.taskTemplate as Record<string, unknown> | undefined;
+            if (incomingTpl && typeof incomingTpl === 'object') {
+              mergedExtra = {
+                ...existingExtra,
+                ...incoming,
+                taskTemplate: {
+                  ...(typeof existingExtra.taskTemplate === 'object' && existingExtra.taskTemplate
+                    ? (existingExtra.taskTemplate as Record<string, unknown>)
+                    : {}),
+                  ...incomingTpl,
+                  ...(incomingTpl.formSchema ? { formSchema: incomingTpl.formSchema } : {}),
+                },
+              };
+            } else {
+              mergedExtra = { ...existingExtra, ...incoming };
+            }
+          }
+        } else {
+          // null/undefined：保留 DB 原有 extra
+          mergedExtra = existing.extra ?? null;
+        }
         const updatePayload = {
           ...payload,
-          extra: mergedExtra && Object.keys(mergedExtra).length > 0 ? mergedExtra : null,
+          extra: mergedExtra,
         };
         const { data, error } = await this.client
           .from('prompt_engineering_config')

@@ -58,13 +58,28 @@ function relevanceScore(itemTokens: Set<string>, queryTokens: string[]): number 
   return score;
 }
 
+/** 外链稳定度：Pexels/Unsplash 优先于常 502 的 Flickr/Openverse CDN */
+function stockUrlStabilityBonus(url: string, provider?: string): number {
+  const p = (provider ?? '').toLowerCase();
+  if (p === 'pexels' || p === 'unsplash' || p === 'pixabay') return 3;
+  if (/images\.pexels\.com|images\.unsplash\.com|pixabay\.com/i.test(url)) return 3;
+  if (/staticflickr\.com|flickr\.com/i.test(url)) return -2;
+  return 0;
+}
+
 /**
- * 相关性重排：在未使用过的候选里，选与本段检索词/关键词重合度最高的一条，
- * 而非机械取第一条——避免「中美交易」配到美国航班、「特斯拉」配到无关机械臂。
+ * 相关性重排：在未使用过的候选里，选与本段检索词/关键词重合度最高的一条。
+ * 同相关分时优先生图库 CDN（Pexels 等），降低 Flickr 502。
  * 全部得分为 0 时回退到「第一条未使用」。
  */
 export function pickBestStockHit<
-  T extends { imageUrl?: string; videoUrl?: string; title?: string; sourcePageUrl?: string }
+  T extends {
+    imageUrl?: string;
+    videoUrl?: string;
+    title?: string;
+    sourcePageUrl?: string;
+    provider?: string;
+  }
 >(
   items: T[],
   ctx: StockPickContext | undefined,
@@ -76,7 +91,7 @@ export function pickBestStockHit<
     .filter((t) => t.length >= 2 && !RELEVANCE_STOPWORDS.has(t));
 
   let best: T | null = null;
-  let bestScore = 0;
+  let bestScore = Number.NEGATIVE_INFINITY;
   let firstUnused: T | null = null;
 
   for (const item of items) {
@@ -84,16 +99,17 @@ export function pickBestStockHit<
     if (!url) continue;
     if (ctx?.usedUrls.has(normalizeStockMediaUrl(url))) continue;
     if (!firstUnused) firstUnused = item;
-    if (!terms.length) break;
-    const score = relevanceScore(toTokenSet(item.title, item.sourcePageUrl), terms);
+
+    const rel = terms.length ? relevanceScore(toTokenSet(item.title, item.sourcePageUrl), terms) : 0;
+    const score = rel + stockUrlStabilityBonus(url, item.provider);
     if (score > bestScore) {
       bestScore = score;
       best = item;
     }
   }
 
-  const chosen = bestScore > 0 ? best : firstUnused;
-  if (!chosen) return null;
-  // 不在此标记已用：跨页择优时由调用方在最终决定后 markStockUrlUsed
-  return { hit: chosen, scored: bestScore > 0 };
+  // 有相关性（rel>0）或仅靠稳定性选出的非 Flickr，视为 scored
+  const hit = bestScore > 0 ? best : firstUnused;
+  if (!hit) return null;
+  return { hit, scored: bestScore > 0 };
 }

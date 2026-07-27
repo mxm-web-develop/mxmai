@@ -39,13 +39,11 @@ export class VariableResolver {
       case 'variables':
         return this.getNestedValue(context.variables, parts.slice(1));
       default:
-        // 尝试作为节点输出引用
+        if (parts.length >= 2 && context.nodeOutputs[parts[0]] !== undefined) {
+          return this.getNestedValue(context.nodeOutputs[parts[0]], parts.slice(1));
+        }
         if (context.nodeOutputs[scope] !== undefined) {
           return context.nodeOutputs[scope];
-        }
-        // 尝试 nodeId.field 格式
-        if (parts.length >= 2 && context.nodeOutputs[parts[0]]) {
-          return this.getNestedValue(context.nodeOutputs[parts[0]], parts.slice(1));
         }
         return undefined;
     }

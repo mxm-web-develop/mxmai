@@ -1,8 +1,27 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import type { ProviderType } from '../models/providers';
 import { taskExecutor } from '../task/task-executor';
 import { runByModelKey } from '../models/run';
 import { findEnabledModel, listEnabledModelKeysByScope } from '../models/provider-model-catalog';
+import { getGeneratedBucket } from '../storage/generated-temp';
+import {
+  cloneMaxplanVoice,
+  downloadAudioBufferFromUrl,
+  generateCloneVoiceId,
+  listMaxplanVoices,
+  uploadMaxplanVoiceCloneFile,
+  type MinimaxVoiceType,
+} from '../core/audio/maxplan-voice-service';
+import {
+  listVoiceAssetsFromVirtualFolder,
+  registerClonedVoiceAsset,
+} from '../core/audio/voice-asset-registry';
+
+const voiceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
 
 // 模型列表与存在性：仅通过 DB 的 provider_models（纯动态）
 const SUPPORTED_MODELS: string[] = listEnabledModelKeysByScope('audio');
@@ -17,6 +36,193 @@ const router = Router();
 router.get('/models', (_req: Request, res: Response) => {
   const models = listEnabledModelKeysByScope('audio').map(modelName => ({ name: modelName }));
   res.json({ models });
+});
+
+const VALID_VOICE_TYPES = new Set<MinimaxVoiceType>([
+  'system',
+  'voice_cloning',
+  'voice_generation',
+  'all',
+]);
+
+/** MiniMax 音色列表（系统 / 克隆 / 全部） */
+router.get('/voices', async (req: Request, res: Response) => {
+  try {
+    const userId = req.headers['x-user-id'] as string | undefined;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Missing x-user-id header',
+        message: 'User authentication required',
+      });
+    }
+
+    const rawType = String(req.query.voice_type ?? req.query.type ?? 'system').trim() as MinimaxVoiceType;
+    const voiceType: MinimaxVoiceType = VALID_VOICE_TYPES.has(rawType) ? rawType : 'system';
+    const voices = await listMaxplanVoices(voiceType);
+
+    return res.json({
+      success: true,
+      voice_type: voiceType,
+      count: voices.length,
+      voices,
+    });
+  } catch (error) {
+    console.error('[Audio Route] list voices failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'List voices failed',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/** 从虚拟文件夹软链读取用户登记的克隆音色（metadata.asset_type=minimax_voice） */
+router.get('/voices/from-folder/:folderId', async (req: Request, res: Response) => {
+  try {
+    const userId = req.headers['x-user-id'] as string | undefined;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Missing x-user-id header',
+        message: 'User authentication required',
+      });
+    }
+
+    const folderId = String(req.params.folderId ?? '').trim();
+    if (!folderId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing folderId',
+        message: '请提供虚拟文件夹 ID',
+      });
+    }
+
+    const voices = await listVoiceAssetsFromVirtualFolder(userId, folderId);
+    return res.json({
+      success: true,
+      folder_id: folderId,
+      count: voices.length,
+      voices,
+    });
+  } catch (error) {
+    console.error('[Audio Route] list folder voices failed:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    const status = message.includes('不存在') || message.includes('无权限') ? 404 : 500;
+    return res.status(status).json({
+      success: false,
+      error: 'List folder voices failed',
+      message,
+    });
+  }
+});
+
+/** MiniMax 音色快速克隆（上传 mp3/m4a/wav 或 audio_url） */
+router.post('/voice-clone', voiceUpload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const userId = req.headers['x-user-id'] as string | undefined;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Missing x-user-id header',
+        message: 'User authentication required',
+      });
+    }
+
+    const body = req.body as Record<string, unknown>;
+    const voiceName = typeof body.voice_name === 'string' ? body.voice_name.trim() : '';
+    const previewText =
+      typeof body.preview_text === 'string' && body.preview_text.trim()
+        ? body.preview_text.trim()
+        : '你好，这是我的专属克隆音色，欢迎使用智能口播。';
+    const model =
+      typeof body.model === 'string' && body.model.trim() ? body.model.trim() : 'speech-2.8-hd';
+    const customVoiceId =
+      typeof body.voice_id === 'string' && body.voice_id.trim() ? body.voice_id.trim() : undefined;
+    const virtualFolderId =
+      (typeof body.virtual_folder_id === 'string' && body.virtual_folder_id.trim()) ||
+      (typeof body.folder_id === 'string' && body.folder_id.trim()) ||
+      undefined;
+
+    let buffer: Buffer;
+    let filename: string;
+    let mimeType: string | undefined;
+
+    const multerFile = (req as Request & {
+      file?: { buffer: Buffer; originalname: string; mimetype: string };
+    }).file;
+    if (multerFile?.buffer) {
+      buffer = multerFile.buffer;
+      filename = multerFile.originalname || 'voice-clone.mp3';
+      mimeType = multerFile.mimetype;
+    } else {
+      const audioUrl =
+        (typeof body.audio_url === 'string' && body.audio_url.trim()) ||
+        (typeof body.audioUrl === 'string' && body.audioUrl.trim()) ||
+        '';
+      if (!audioUrl) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing audio',
+          message: '请上传 file（mp3/m4a/wav）或提供 audio_url',
+        });
+      }
+      const downloaded = await downloadAudioBufferFromUrl(audioUrl);
+      buffer = downloaded.buffer;
+      filename = downloaded.filename;
+      mimeType = downloaded.mimeType;
+    }
+
+    const fileId = await uploadMaxplanVoiceCloneFile(buffer, filename, mimeType);
+    const voiceId = customVoiceId ?? generateCloneVoiceId(userId, voiceName || 'Clone');
+    const result = await cloneMaxplanVoice({
+      fileId,
+      voiceId,
+      previewText,
+      model,
+    });
+
+    const label = voiceName || result.voice_id;
+    let storageObjectId: string | undefined;
+    let linkedFolderId: string | undefined;
+    try {
+      const registered = await registerClonedVoiceAsset({
+        userId,
+        virtualFolderId,
+        voiceId: result.voice_id,
+        label,
+        model,
+        demoAudio: result.demo_audio,
+        sourceBuffer: buffer,
+        sourceFilename: filename,
+        sourceMimeType: mimeType,
+      });
+      storageObjectId = registered.storageObjectId;
+      linkedFolderId = registered.virtualFolderId;
+    } catch (regErr) {
+      console.error('[Audio Route] register cloned voice asset failed:', regErr);
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        voice_id: result.voice_id,
+        label,
+        demo_audio: result.demo_audio,
+        mode: 'clone',
+        input_sensitive_type: result.input_sensitive_type,
+        storage_object_id: storageObjectId,
+        virtual_folder_id: linkedFolderId,
+      },
+    });
+  } catch (error) {
+    console.error('[Audio Route] voice clone failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Voice clone failed',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
 });
 
 // 生成音频（异步任务）
@@ -90,7 +296,7 @@ router.post('/:modelName', async (req: Request, res: Response) => {
     
     // 自动生成存储配置（路径格式：{userId}/audio/{timestamp}-{randomId}.{ext}）
     const storageConfig = {
-      bucket: process.env.CGI_STORAGE_BUCKET || 'user-media',
+      bucket: getGeneratedBucket(),
       pathTemplate: '{userId}/audio/{timestamp}-{randomId}.{ext}',
     };
     

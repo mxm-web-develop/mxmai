@@ -24,7 +24,15 @@ export function validateWithJsonSchema(schema: JsonSchemaV2, data: unknown): voi
   }
   const ok = validate(data);
   if (!ok) {
-    throw new ValidationError('参数校验失败（JSON Schema）', validate.errors ?? null);
+    const detail =
+      validate.errors
+        ?.slice(0, 5)
+        .map((e) => `${e.instancePath || '/'} ${e.message ?? ''}`.trim())
+        .join('; ') ?? '';
+    throw new ValidationError(
+      `参数校验失败（JSON Schema）${detail ? ` — ${detail}` : ''}`,
+      validate.errors ?? null
+    );
   }
 }
 

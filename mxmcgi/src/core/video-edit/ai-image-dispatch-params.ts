@@ -3,6 +3,7 @@
  */
 import type { MxmClipMetadata } from './types';
 import { normalizeReferenceAssets } from './reference-media-assets';
+import { resolveAiImagePrompt } from './ai-prompt-fields';
 
 function mapRatioToAspect(ratio?: string): string {
   switch (ratio) {
@@ -15,18 +16,20 @@ function mapRatioToAspect(ratio?: string): string {
   }
 }
 
-function mapEditStyleToFlatTone(editStyle?: string): string {
+function mapEditStyleToIllustrationStyle(editStyle?: string): string {
   switch (editStyle?.trim()) {
     case 'science-minimal':
-      return 'tech_modern';
+      return 'explain_visual';
     case 'documentary':
-      return 'editorial_magazine';
+      return 'documentary_portrait';
     case 'motion-infographic':
-      return 'data_infographic';
+      return 'explain_visual';
     case 'classroom':
-      return 'playful_friendly';
+      return 'warm_narrative';
+    case 'cinematic':
+      return 'cinematic_keyframe';
     default:
-      return 'tech_modern';
+      return 'stylized_illustration';
   }
 }
 
@@ -43,7 +46,7 @@ export function buildAiImageDispatchParams(
 ): Record<string, unknown> {
   const globalTopic = (meta.mxmGlobalTopic ?? ctx?.globalTopic ?? '').trim();
   const voiceover = meta.mxmVoiceoverText?.trim() ?? '';
-  const prompt = meta.mxmPrompt?.trim() ?? '';
+  const prompt = resolveAiImagePrompt(meta);
   const coreContent =
     prompt ||
     voiceover ||
@@ -64,7 +67,8 @@ export function buildAiImageDispatchParams(
     core_content: coreContent,
     usage_context: 'video_embed',
     aspect_ratio: mapRatioToAspect(meta.mxmRatio),
-    flat_visual_tone: mapEditStyleToFlatTone(editStyle),
+    illustration_style: mapEditStyleToIllustrationStyle(editStyle),
+    flat_visual_tone: mapEditStyleToIllustrationStyle(editStyle),
     prompt: [
       globalTopic ? `Global topic: ${globalTopic}` : '',
       voiceover ? `Voiceover context: ${voiceover}` : '',

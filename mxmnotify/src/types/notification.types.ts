@@ -10,7 +10,8 @@ export enum ModuleType {
   MXMCGI = 'mxmcgi',      // 内容生成模块
   MXMPAY = 'mxmpay',      // 支付模块
   MXMAUTH = 'mxmauth',    // 认证模块
-  MXMAGENT = 'mxmagent',  // 智能体模块
+  /** 历史 module_type 值（Smartflow/Agent 现由 mxmcgi 实现，非独立服务） */
+  MXMAGENT = 'mxmagent',
 }
 
 /**

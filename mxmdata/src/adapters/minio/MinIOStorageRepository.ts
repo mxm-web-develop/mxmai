@@ -11,8 +11,10 @@ import type {
   ListFilesOptions,
   ListFilesResult,
 } from '../../interfaces/IStorageRepository';
+import type { ReadStreamRange } from '../../interfaces/ReadStreamRange';
 import { NotFoundError, DataAccessError } from '../../interfaces/errors';
 import { getMinIOClient } from './MinIOClient';
+import type { Readable } from 'stream';
 
 export class MinIOStorageRepository implements IStorageRepository {
   private client: Client;
@@ -153,6 +155,38 @@ export class MinIOStorageRepository implements IStorageRepository {
       }
       
       throw new DataAccessError(`Unexpected error downloading file: ${error}`, 'UNEXPECTED_ERROR', error as Error);
+    }
+  }
+
+  async openReadStream(bucket: string, key: string, range?: ReadStreamRange): Promise<Readable> {
+    try {
+      if (range) {
+        const length = range.end - range.start + 1;
+        return (await this.client.getPartialObject(bucket, key, range.start, length)) as Readable;
+      }
+      return (await this.client.getObject(bucket, key)) as Readable;
+    } catch (error: unknown) {
+      const err = error as Error & { code?: string };
+      if (err.message?.includes('NoSuchKey') || err.message?.includes('not found')) {
+        throw new NotFoundError('File', key);
+      }
+      const isConnectionError =
+        err?.code === 'ECONNREFUSED' ||
+        err?.code === 'ETIMEDOUT' ||
+        err?.code === 'ENOTFOUND' ||
+        err?.message?.includes('ECONNREFUSED');
+      if (isConnectionError) {
+        throw new DataAccessError(
+          'MinIO connection failed: Unable to connect to MinIO service.',
+          'CONNECTION_ERROR',
+          err
+        );
+      }
+      throw new DataAccessError(
+        `Failed to open read stream: ${err.message || String(error)}`,
+        'DOWNLOAD_ERROR',
+        err
+      );
     }
   }
 

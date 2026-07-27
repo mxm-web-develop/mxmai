@@ -9,6 +9,10 @@ import { PPIOClient } from '../models/ppio/client';
 import promptConfigRouter from './prompt-config';
 import providersAdminRouter from './providers';
 import sensitiveWordsAdminRouter from './sensitive-words';
+import businessBundleRouter from './business-bundle';
+import adminPublishedApisRouter from './system-admin-published-apis';
+import adminOpenApiStatsRouter from './system-admin-open-api-stats';
+import { qualityEvalRouter } from '../quality-eval';
 import { getSupabaseClient } from '@mxmai/mxmdata';
 import { clearAdminModelConfigCache } from '../agents/chat';
 
@@ -17,6 +21,10 @@ const router = Router();
 router.use('/prompt-config', promptConfigRouter);
 router.use('/admin/providers', providersAdminRouter);
 router.use('/admin/sensitive-words', sensitiveWordsAdminRouter);
+router.use('/admin/business', businessBundleRouter);
+router.use('/admin/published-apis', adminPublishedApisRouter);
+router.use('/admin/open-api-stats', adminOpenApiStatsRouter);
+router.use('/admin/quality-eval', qualityEvalRouter);
 
 /**
  * Admin 专用：系统统计
@@ -781,6 +789,31 @@ router.put('/admin/pricing/provider', async (req: Request, res: Response) => {
       });
     }
 
+    // 成本价必填：unit / input / output 至少一项 > 0（禁止全 0 上架）
+    const costUnit = Number(unit_price);
+    const costIn = input_unit_price == null ? 0 : Number(input_unit_price);
+    const costOut = output_unit_price == null ? 0 : Number(output_unit_price);
+    if (!(costUnit > 0 || costIn > 0 || costOut > 0)) {
+      return res.status(400).json({
+        success: false,
+        error:
+          'Provider 成本价为必填：请填写 unit_price，或 token_based 的 input_unit_price / output_unit_price（至少一项 > 0）',
+      });
+    }
+
+    const { fillDefaultPlatformPricesFromCost } = await import(
+      '../core/billing/platform-price-from-cost'
+    );
+    const withPlatform = fillDefaultPlatformPricesFromCost({
+      charge_mode,
+      unit_price,
+      input_unit_price: input_unit_price ?? null,
+      output_unit_price: output_unit_price ?? null,
+      platform_unit_price: platform_unit_price ?? null,
+      platform_input_unit_price: platform_input_unit_price ?? null,
+      platform_output_unit_price: platform_output_unit_price ?? null,
+    });
+
     const pricingPayload = {
       provider,
       scope,
@@ -790,9 +823,9 @@ router.put('/admin/pricing/provider', async (req: Request, res: Response) => {
       currency: currency || 'USD',
       input_unit_price: input_unit_price ?? null,
       output_unit_price: output_unit_price ?? null,
-      platform_unit_price: platform_unit_price ?? null,
-      platform_input_unit_price: platform_input_unit_price ?? null,
-      platform_output_unit_price: platform_output_unit_price ?? null,
+      platform_unit_price: withPlatform.platform_unit_price,
+      platform_input_unit_price: withPlatform.platform_input_unit_price,
+      platform_output_unit_price: withPlatform.platform_output_unit_price,
       platform_min_charge: platform_min_charge ?? null,
       metadata: metadata ?? null,
     };
@@ -813,6 +846,31 @@ router.put('/admin/pricing/provider', async (req: Request, res: Response) => {
         });
       }
       return res.json({ success: true, data });
+    }
+
+    const { data: existing } = await supabase
+      .from('provider_pricing')
+      .select('id')
+      .eq('provider', provider)
+      .eq('scope', scope)
+      .eq('model_key', model_key)
+      .maybeSingle();
+
+    if (existing?.id) {
+      const { data, error } = await supabase
+        .from('provider_pricing')
+        .update(pricingPayload)
+        .eq('id', existing.id)
+        .select('*')
+        .maybeSingle();
+      if (error) {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to update provider_pricing',
+          message: error.message,
+        });
+      }
+      return res.json({ success: true, data, updated: true });
     }
 
     const { data, error } = await supabase
@@ -1040,14 +1098,34 @@ router.get('/admin/model-config/options', async (req: Request, res: Response) =>
     const textModels = await repo.list({ scope: 'text', onlyEnabled: true });
     const writingModels = await repo.list({ scope: 'writing', onlyEnabled: true });
 
-    // 去重，按 model_key 合并
+    // 去重；优先返回声明支持 tools / 未显式禁用 tools 的文本模型
     const seen = new Set<string>();
-    const allModels: Array<{ provider: string; scope: string; model_key: string; display_name?: string }> = [];
+    const allModels: Array<{
+      provider: string;
+      scope: string;
+      model_key: string;
+      display_name?: string;
+      supports_tools?: boolean;
+    }> = [];
     for (const m of [...textModels, ...writingModels]) {
-      if (!seen.has(m.model_key)) {
-        seen.add(m.model_key);
-        allModels.push({ provider: m.provider, scope: m.scope, model_key: m.model_key, display_name: m.display_name ?? undefined });
-      }
+      const key = `${m.provider}::${m.model_key}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const caps = (m.capabilities || {}) as Record<string, unknown>;
+      const supportsTools =
+        caps.tools === true ||
+        caps.tool_calling === true ||
+        caps.function_calling === true ||
+        // 未显式禁用则视为可用（OpenAI 兼容文本模型默认支持）
+        (caps.tools !== false && caps.tool_calling !== false && (m.modality == null || m.modality === 'text'));
+      if (!supportsTools) continue;
+      allModels.push({
+        provider: m.provider,
+        scope: m.scope,
+        model_key: m.model_key,
+        display_name: m.display_name ?? undefined,
+        supports_tools: true,
+      });
     }
 
     return res.json({ success: true, data: allModels });
@@ -1071,11 +1149,19 @@ router.get('/admin/model-config', async (req: Request, res: Response) => {
       success: true,
       data: {
         model_key: config.model_key,
+        provider: config.provider,
         temperature: config.temperature,
         max_tokens: config.max_tokens,
         top_p: config.top_p,
         frequency_penalty: config.frequency_penalty,
         presence_penalty: config.presence_penalty,
+        max_loop_rounds: config.max_loop_rounds,
+        run_timeout_ms: config.run_timeout_ms,
+        system_prompt_extra: config.system_prompt_extra,
+        welcome_message: config.welcome_message,
+        tools_enabled: config.tools_enabled,
+        allowed_businesses: config.allowed_businesses,
+        smartflow_enabled: config.smartflow_enabled,
         updated_at: config.updated_at,
       },
     });
@@ -1097,18 +1183,34 @@ router.put('/admin/model-config', async (req: Request, res: Response) => {
 
     const {
       model_key,
+      provider,
       temperature,
       max_tokens,
       top_p,
       frequency_penalty,
       presence_penalty,
+      max_loop_rounds,
+      run_timeout_ms,
+      system_prompt_extra,
+      welcome_message,
+      tools_enabled,
+      allowed_businesses,
+      smartflow_enabled,
     } = req.body as {
       model_key: string;
+      provider?: string | null;
       temperature?: number;
       max_tokens?: number | null;
       top_p?: number | null;
       frequency_penalty?: number | null;
       presence_penalty?: number | null;
+      max_loop_rounds?: number;
+      run_timeout_ms?: number;
+      system_prompt_extra?: string | null;
+      welcome_message?: string | null;
+      tools_enabled?: boolean;
+      allowed_businesses?: Array<{ scope: string; taskKey: string; subtype?: string | null }> | null;
+      smartflow_enabled?: boolean;
     };
 
     if (!model_key || typeof model_key !== 'string' || model_key.trim() === '') {
@@ -1120,25 +1222,41 @@ router.put('/admin/model-config', async (req: Request, res: Response) => {
     const config = await repo.upsertConfig({
       id: 'default',
       model_key: model_key.trim(),
+      provider: provider ?? null,
       temperature: temperature ?? 0.7,
       max_tokens: max_tokens ?? null,
       top_p: top_p ?? null,
       frequency_penalty: frequency_penalty ?? null,
       presence_penalty: presence_penalty ?? null,
+      max_loop_rounds: max_loop_rounds ?? 12,
+      run_timeout_ms: run_timeout_ms ?? 600_000,
+      system_prompt_extra: system_prompt_extra ?? null,
+      welcome_message: welcome_message ?? null,
+      tools_enabled: tools_enabled !== false,
+      allowed_businesses: allowed_businesses === undefined ? null : allowed_businesses,
+      smartflow_enabled: smartflow_enabled !== false,
     });
 
-    // 清除 AgentChat 的缓存，使下次请求立即生效
+    // 清除 AgentChat / Agent v2 的缓存，使下次请求立即生效
     clearAdminModelConfigCache();
 
     return res.json({
       success: true,
       data: {
         model_key: config.model_key,
+        provider: config.provider,
         temperature: config.temperature,
         max_tokens: config.max_tokens,
         top_p: config.top_p,
         frequency_penalty: config.frequency_penalty,
         presence_penalty: config.presence_penalty,
+        max_loop_rounds: config.max_loop_rounds,
+        run_timeout_ms: config.run_timeout_ms,
+        system_prompt_extra: config.system_prompt_extra,
+        welcome_message: config.welcome_message,
+        tools_enabled: config.tools_enabled,
+        allowed_businesses: config.allowed_businesses,
+        smartflow_enabled: config.smartflow_enabled,
         updated_at: config.updated_at,
       },
     });

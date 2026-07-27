@@ -1,5 +1,8 @@
 /**
- * 将当前代码内写死的提示词配置写入 prompt_engineering_config 表（wtconfigs、graphconfigs、格式要求）
+ * 将当前代码内写死的提示词配置写入 prompt_engineering_config 表（wtconfigs、格式要求）
+ *
+ * 契约：规则与系统说明统一落在 `extra.taskTemplate.prompt.unifiedTemplate`；
+ * `rules_i18n` 列由仓库层恒写 `{}`，本脚本不再写入该列正文。
  *
  * 用法：在 mxmcgi 目录下执行
  *   pnpm run seed:prompt-config
@@ -18,7 +21,7 @@ import {
   outputformat as storyboardOutputformat,
   storyboard_output_format_template_zh,
 } from './initial-prompt-data/storyboard-scripts';
-import { getGraphTypeConfig, getGraphTypeOptions } from '../clientServer/graph';
+import { buildWritingUnifiedTemplateFromLegacyParts } from '../prompts/split-unified-template-legacy';
 
 const MXMCGI_ROOT = process.cwd();
 const PROJECT_ROOT = join(MXMCGI_ROOT, '..');
@@ -37,9 +40,25 @@ const WRITING_TYPES = [
   'media-post',
 ];
 
-/** 图文业务统一输出格式说明（与 graph-service 中拼装一致） */
-const GRAPH_OUTPUT_FORMAT_ZH = `图文：规则与风格说明，输出为生成参数。只输出最终图片生成提示词本身，不要包含其他说明文字。输出语言根据用户需求为中文或英文。`;
-const GRAPH_OUTPUT_FORMAT_EN = `Image/Text: rules and style; output as generation params. Output only the final image prompt, no extra text. Output language: Chinese or English per user.`;
+/** 与 Task v2 / loadTaskDefinition 对齐的最小写作模板骨架 */
+function minimalWritingTaskTemplate(rules: string, outputFormat: string): Record<string, unknown> {
+  return {
+    formSchema: {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object',
+      properties: {
+        prompt: { type: 'string', title: '写作需求', minLength: 1 },
+      },
+      required: ['prompt'],
+    },
+    prompt: {
+      unifiedTemplate: buildWritingUnifiedTemplateFromLegacyParts(rules, outputFormat),
+    },
+    uiSchema: {
+      prompt: { 'ui:widget': 'textarea', 'ui:options': { rows: 8 } },
+    },
+  };
+}
 
 // 可选：从 Task v2 示例中加载 outlines 的 TaskTemplate（若存在）
 let OUTLINES_TASK_TEMPLATE: any | null = null;
@@ -67,29 +86,32 @@ async function main() {
 
   // ---------- Writing（每种 type 一条，subtype=null）----------
   for (const type of WRITING_TYPES) {
-    const rules = type === 'storyboard-scripts'
-      ? storyboardRules
-      : (getWritingTypeConfig(type as any)?.rules ?? '');
-    const outputFormat = type === 'storyboard-scripts'
-      ? storyboardOutputformat
-      : (getWritingTypeConfig(type as any)?.outputformat ?? '');
-    if (!rules && !outputFormat) continue;
+    const rules =
+      type === 'storyboard-scripts'
+        ? storyboardRules
+        : (getWritingTypeConfig(type as any)?.rules ?? '');
+    const outputFormat =
+      type === 'storyboard-scripts'
+        ? storyboardOutputformat
+        : (getWritingTypeConfig(type as any)?.outputformat ?? '');
+    if (!rules && !outputFormat && !(type === 'outlines' && OUTLINES_TASK_TEMPLATE)) continue;
+
     let extra: Record<string, unknown> | undefined;
     if (type === 'storyboard-scripts') {
-      extra = { storyboard_output_format_template_zh };
-    }
-    // 为 v2 Task 预填 outlines 的 TaskTemplate（仅当示例存在时）
-    if (type === 'outlines' && OUTLINES_TASK_TEMPLATE) {
       extra = {
-        ...(extra ?? {}),
-        taskTemplate: OUTLINES_TASK_TEMPLATE,
+        taskTemplate: minimalWritingTaskTemplate(rules, outputFormat),
+        storyboard_output_format_template_zh,
       };
+    } else if (type === 'outlines' && OUTLINES_TASK_TEMPLATE) {
+      extra = { taskTemplate: OUTLINES_TASK_TEMPLATE };
+    } else {
+      extra = { taskTemplate: minimalWritingTaskTemplate(rules, outputFormat) };
     }
+
     await repo.upsert({
       scope: 'writing',
       type,
       subtype: null,
-      rules_i18n: { zh: rules, en: rules },
       output_format_i18n: { zh: outputFormat, en: outputFormat },
       extra: extra ?? undefined,
       is_active: true,
@@ -99,8 +121,6 @@ async function main() {
   }
 
   // ---------- Outline（独立 scope）：最小可用默认配置 ----------
-  // 目标：让 Admin/前端可以先跑通 scope=outline 的链路
-  // 迁移策略：复用 writing/outlines 的规则/输出格式 + v2 的 extra.taskTemplate（若存在）
   {
     const outlineRules = getWritingTypeConfig('outlines' as any)?.rules ?? '';
     const outlineOutputFormat = getWritingTypeOutputFormat('outlines' as any);
@@ -108,12 +128,11 @@ async function main() {
     if (hasAny) {
       const extra: Record<string, unknown> | undefined = OUTLINES_TASK_TEMPLATE
         ? { taskTemplate: OUTLINES_TASK_TEMPLATE }
-        : undefined;
+        : { taskTemplate: minimalWritingTaskTemplate(outlineRules, outlineOutputFormat) };
       await repo.upsert({
         scope: 'outline',
         type: 'default',
         subtype: null,
-        rules_i18n: { zh: outlineRules, en: outlineRules },
         output_format_i18n: { zh: outlineOutputFormat, en: outlineOutputFormat },
         extra,
         is_active: true,
@@ -123,14 +142,16 @@ async function main() {
     }
   }
 
-  // ---------- Writing 细分类型（subtype）：规则 = type 级 rules + subtype 规则，output_format 继承 type 级 --------
+  // ---------- Writing 细分类型（subtype）----------
   for (const [writingType, subtypeMap] of Object.entries(SUBTYPE_RULES_MAP)) {
-    const typeRules = writingType === 'storyboard-scripts'
-      ? storyboardRules
-      : (getWritingTypeConfig(writingType as any)?.rules ?? '');
-    const typeOutputFormat = writingType === 'storyboard-scripts'
-      ? storyboardOutputformat
-      : getWritingTypeOutputFormat(writingType as any);
+    const typeRules =
+      writingType === 'storyboard-scripts'
+        ? storyboardRules
+        : (getWritingTypeConfig(writingType as any)?.rules ?? '');
+    const typeOutputFormat =
+      writingType === 'storyboard-scripts'
+        ? storyboardOutputformat
+        : getWritingTypeOutputFormat(writingType as any);
     for (const [subtype, subtypeRules] of Object.entries(subtypeMap)) {
       if (!subtypeRules?.trim()) continue;
       const fullRules = typeRules ? `${typeRules}\n\n---\n\n${subtypeRules}` : subtypeRules;
@@ -138,8 +159,8 @@ async function main() {
         scope: 'writing',
         type: writingType,
         subtype,
-        rules_i18n: { zh: fullRules, en: fullRules },
         output_format_i18n: { zh: typeOutputFormat, en: typeOutputFormat },
+        extra: { taskTemplate: minimalWritingTaskTemplate(fullRules, typeOutputFormat) },
         is_active: true,
       });
       count++;
@@ -147,43 +168,22 @@ async function main() {
     }
   }
 
-  // ---------- Graph：规则来自 graphconfigs，输出格式统一写入，避免前端/接口不一致 --------
-  const GRAPH_TYPES = ['photograph', 'painting', 'design'];
-  for (const graphType of GRAPH_TYPES) {
-    const config = getGraphTypeConfig(graphType);
-    if (!config) continue;
-    const options = getGraphTypeOptions(graphType);
-    for (const opt of options) {
-      const rules = config.getRulesForType(opt.value);
-      if (!rules) continue;
-      await repo.upsert({
-        scope: 'graph',
-        type: graphType,
-        subtype: opt.value,
-        rules_i18n: { zh: rules, en: rules },
-        output_format_i18n: { zh: GRAPH_OUTPUT_FORMAT_ZH, en: GRAPH_OUTPUT_FORMAT_EN },
-        is_active: true,
-      });
-      count++;
-      console.log(`  [graph] ${graphType} / ${opt.value}`);
-    }
-  }
-
   console.log('');
   console.log(`✅ 已写入 ${count} 条提示词配置到 prompt_engineering_config`);
 
-  // 校验分镜脚本 type 级配置是否含完整 rules / output_format / extra 模板
   const storyboardRow = await repo.findByKey('writing', 'storyboard-scripts', null);
   if (storyboardRow) {
-    const rZh = (storyboardRow.rules_i18n as Record<string, string>)?.zh ?? '';
     const ofZh = (storyboardRow.output_format_i18n as Record<string, string>)?.zh ?? '';
-    const tpl = (storyboardRow.extra as Record<string, string> | null)?.storyboard_output_format_template_zh ?? '';
+    const tpl = (storyboardRow.extra as Record<string, unknown> | null)?.storyboard_output_format_template_zh ?? '';
+    const uni =
+      ((storyboardRow.extra as Record<string, unknown> | null)?.taskTemplate as { prompt?: { unifiedTemplate?: string } })
+        ?.prompt?.unifiedTemplate ?? '';
     console.log('');
     console.log('分镜脚本 (writing/storyboard-scripts) 校验:');
-    console.log(`  rules_i18n.zh 长度: ${rZh.length}`);
+    console.log(`  unifiedTemplate 长度: ${String(uni).length}`);
     console.log(`  output_format_i18n.zh 长度: ${ofZh.length}`);
-    console.log(`  extra.storyboard_output_format_template_zh 长度: ${tpl.length}`);
-    if (rZh.length < 100 || ofZh.length < 20 || tpl.length < 100) {
+    console.log(`  extra.storyboard_output_format_template_zh 长度: ${String(tpl).length}`);
+    if (String(uni).length < 100 || ofZh.length < 20 || String(tpl).length < 100) {
       console.warn('  ⚠ 若长度过短，请检查 initial-prompt-data/storyboard-scripts.ts 与 seed 逻辑');
     }
   }

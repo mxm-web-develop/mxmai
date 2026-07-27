@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-27T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "prose-deai",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换",
+          "subtypeLabel": "去AI感润色",
+          "userFacing": false,
+          "taskLabelI18n": {
+            "en": "Transform",
+            "zh": "转换",
+            "zh-TW": "轉換",
+            "ja": "変換"
+          },
+          "subtypeLabelI18n": {
+            "en": "De-AI prose polish",
+            "zh": "去AI感润色",
+            "zh-TW": "去AI感潤色",
+            "ja": "AI感除去の推敲"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "input",
+              "instruction"
+            ],
+            "properties": {
+              "input": {
+                "type": "string",
+                "title": "输入内容",
+                "minLength": 1
+              },
+              "instruction": {
+                "type": "string",
+                "title": "转换说明",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "You are a senior multilingual prose editor. Remove AI-sounding writing and make the manuscript read as native editorial prose.\n\nTarget language is specified in Instruction as a code: zh | zh-TW | en | ja (default zh if missing).\n\nHard constraints:\n- Preserve ALL facts, numbers, names, dates, source attributions, links, and Markdown heading hierarchy / section order.\n- Do NOT invent claims; do NOT drop real evidence.\n- Do NOT change genre; keep structure.\n- Output polished Markdown ONLY — no preamble, no changelog, no whole-document code fence.\n- Broken / ungrammatical / workshop-flavored wit → rewrite into clear native prose (or delete the flourish).\n- Deduplicate repeated judgments and repeated metaphors.\n- Readability beats flashy wording.\n\nApply ONLY the language block matching the target code:\n\n### zh — Simplified Chinese\n- 中国大陆当代书面语；消灭翻译腔、提纲扩写、写作课口令。\n- 删除并改写：「所以先抛立场」「先抛观点」「观点先行」「值得注意的是」「不难发现」「换句话说」「综上所述」「在某种程度上」。\n- 半截比喻（如「押在那张泛…」）整句重写或删除；动词与主语必须搭配。\n- 一句一事；段间因果/转折/递进；同一意思不说两遍；全角中文标点。\n\n### zh-TW — Traditional Chinese (Taiwan)\n- 台灣書面語；禁止翻譯腔與寫作課口令。\n- 刪改：「所以先拋立場」「值得注意的是」「不難發現」「換句話說」「綜上所述」。\n- 半截比喻與動詞搭配錯誤一律重寫；段與段要銜接；全形標點。\n\n### en — English\n- Natural contemporary editorial English; no translationese or outline-expansion.\n- Strip: \"It is worth noting that\", \"Needless to say\", \"At the end of the day\", \"In today's rapidly evolving…\", \"Let's unpack\", \"Here's the thing\", \"In conclusion\", \"This means that\".\n- No workshop stage directions in the body (\"First, state the thesis…\").\n- One idea per sentence; coherent transitions; drop broken metaphors.\n\n### ja — Japanese\n- 自然な書き言葉。翻訳調・箇条書き直訳・AI定型を除去。\n- 「なお」「つまり」「まとめると」「興味深いことに」「言うまでもなく」などの空虚なつなぎを削るか具体文に置換。\n- 壊れた比喩・主語と動詞の不一致は書き直す。一文一義、段落接続を明確に。\n\nInstruction:\n${instruction}\n\nInput:\n${input}\n\nOutput: the polished Markdown manuscript only."
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.25,
+              "maxTokens": 16384
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-prose-deai",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    }
+  ]
+}

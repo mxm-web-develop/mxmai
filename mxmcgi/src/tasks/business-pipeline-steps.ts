@@ -10,6 +10,8 @@ import { registerInputStep, registerOutputStep } from './pipeline-registry';
 import { resolveContextFields } from './context-field-resolver';
 import { parseLlmStructuredOutput, assertShotListOutput, assertCutBeatOutput } from './parse-llm-json';
 import { stripTtsStageMarkers } from './strip-tts-stage-markers';
+import { assertAlbumSpecOutput } from '../core/graph/album/album-spec';
+import { buildProseDeaiInstruction, normalizeManuscriptLanguage } from './mxm-warp/manuscript-language-directive';
 
 const MAX_PIPELINE_DEPTH = 1;
 
@@ -44,6 +46,9 @@ function parseNestedTextStructuredOutput(text: string, nestedKey?: string): unkn
   }
   if (nestedKey === 'text/plan/video-cut-beat') {
     assertCutBeatOutput(parsed, text);
+  }
+  if (nestedKey === 'text/plan/album-spec') {
+    assertAlbumSpecOutput(parsed, text);
   }
   return parsed;
 }
@@ -130,11 +135,55 @@ export async function runNestedTextStep(ctx: TaskContext, step: PipelineStep): P
   }
 
   const { taskKey, subtype } = parseNestedTextTaskKey(key);
-  const mapping = step.inputMapping ?? { prompt: '${state.coreArtifact.text}' };
+  const {
+    assertNestedTextInputMappingKeys,
+    assertTextV2TaskKey,
+    buildExpertFieldSpecs,
+    parseTextV2TypeFromNestedKey,
+    parseValidationResult,
+  } = await import('./text-v2');
+  const textType = parseTextV2TypeFromNestedKey(key);
+  if (textType) {
+    assertTextV2TaskKey(taskKey);
+    assertNestedTextInputMappingKeys(key, step.inputMapping);
+  }
+
+  const mapping =
+    step.inputMapping ??
+    (textType
+      ? {}
+      : { prompt: '${state.coreArtifact.text}' });
   const nestedParams: Record<string, unknown> = {};
   for (const [field, tmpl] of Object.entries(mapping)) {
     nestedParams[field] = resolvePipelineMappingValue(tmpl, ctx);
   }
+
+  // expert：节点 params.field_specs 优先；否则未绑定时按宿主 schema 自动生成（优先空字段）
+  if (textType === 'expert') {
+    const fromStep = (step.params as Record<string, unknown> | undefined)?.field_specs;
+    if (Array.isArray(fromStep) && fromStep.length > 0) {
+      nestedParams.field_specs = fromStep;
+    } else if (nestedParams.field_specs == null || nestedParams.field_specs === '') {
+      const hostSchema =
+        (ctx.state._contractSchema as import('./types').JsonSchemaV2 | undefined) ??
+        (ctx.state._formSchema as import('./types').JsonSchemaV2 | undefined);
+      nestedParams.field_specs = buildExpertFieldSpecs({
+        contract: (ctx.state.contract as Record<string, unknown> | undefined) ?? null,
+        contractSchema: hostSchema ?? null,
+        onlyEmpty: true,
+      });
+    }
+  }
+  if (textType === 'expert' && (nestedParams.contract == null || nestedParams.contract === '')) {
+    nestedParams.contract = ctx.state.contract ?? {};
+  }
+  if (
+    (textType === 'plan' || textType === 'validation') &&
+    (nestedParams.contract == null || nestedParams.contract === '')
+  ) {
+    nestedParams.contract = ctx.state.contract ?? {};
+  }
+
   const voiceoverAudio = ctx.state.voiceoverAudio as { durationSeconds?: number } | undefined;
   if (
     (nestedParams.audio_duration_seconds === '' ||
@@ -144,7 +193,7 @@ export async function runNestedTextStep(ctx: TaskContext, step: PipelineStep): P
   ) {
     nestedParams.audio_duration_seconds = voiceoverAudio.durationSeconds;
   }
-  if (!nestedParams.prompt && typeof ctx.state.finalPrompt === 'string') {
+  if (!textType && !nestedParams.prompt && typeof ctx.state.finalPrompt === 'string') {
     nestedParams.prompt = ctx.state.finalPrompt;
   }
 
@@ -193,6 +242,21 @@ export async function runNestedTextStep(ctx: TaskContext, step: PipelineStep): P
   const outText = textTaskResult.syncResult.text ?? '';
   const syncMeta = (textTaskResult.syncResult.metadata ?? {}) as Record<string, unknown>;
   assertNestedTextOutputComplete(key, outText, syncMeta, nestedParams);
+
+  // validation 失败：写入 errors 并停在当前步骤
+  if (textType === 'validation') {
+    const vr = parseValidationResult(outText);
+    if (!vr) {
+      throw new Error(
+        `nestedText「${key}」validation 输出无法解析为 { ok, errors[] }（taskId=${textTaskResult.taskId}）`
+      );
+    }
+    if (!vr.ok) {
+      const msg = vr.errors.length ? vr.errors.join('; ') : 'validation failed';
+      throw new Error(`管道校验失败（${key}）：${msg}`);
+    }
+  }
+
   const costUsd =
     typeof textTaskResult.syncResult.metadata?.costUsd === 'number'
       ? textTaskResult.syncResult.metadata.costUsd
@@ -216,6 +280,33 @@ export async function runNestedTextStep(ctx: TaskContext, step: PipelineStep): P
     pipelineNestedUsage: nestedUsage,
     nestedTextLast: { key, taskId: textTaskResult.taskId, text: outText },
   };
+
+  // expert：默认合并 JSON 进合同 business（可用 outputTarget=business 显式）
+  const outputTarget = step.params?.outputTarget;
+  if (textType === 'expert' && (outputTarget === 'business' || outputTarget == null || outputTarget === '')) {
+    try {
+      const parsed = parseNestedTextStructuredOutput(outText, key);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const contract =
+          nextState.contract && typeof nextState.contract === 'object'
+            ? { ...(nextState.contract as Record<string, unknown>) }
+            : {};
+        const business =
+          contract.business && typeof contract.business === 'object'
+            ? { ...(contract.business as Record<string, unknown>) }
+            : {};
+        nextState = {
+          ...nextState,
+          contract: {
+            ...contract,
+            business: { ...business, ...(parsed as Record<string, unknown>) },
+          },
+        };
+      }
+    } catch {
+      /* 非 JSON 时跳过合并，仍保留 nestedTextLast */
+    }
+  }
 
   if (outputStatePath) {
     let parsed = parseNestedTextStructuredOutput(outText, key);
@@ -246,15 +337,65 @@ export async function runNestedTextStep(ctx: TaskContext, step: PipelineStep): P
 
     if (key === 'text/plan/video-shot-list') {
       const { enrichShotListRaw } = await import('../core/video-edit/clip-prompt-coherence');
+      const fromShotTopic =
+        parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+          ? String((parsed as { global_topic?: unknown }).global_topic ?? '').trim()
+          : '';
+      const materialType = String(
+        nestedParams.material_type ?? ctx.params.material_type ?? ''
+      ).trim();
       parsed = enrichShotListRaw(parsed, {
-        globalTopic: String(nestedParams.topic ?? ctx.params.topic ?? '').trim() || undefined,
+        globalTopic:
+          String(nestedParams.topic ?? ctx.params.topic ?? '').trim() ||
+          fromShotTopic ||
+          undefined,
         editStyle: String(nestedParams.edit_style ?? ctx.params.edit_style ?? '').trim() || undefined,
         aspectRatio: String(nestedParams.aspectRatio ?? ctx.params.aspectRatio ?? '').trim() || undefined,
         supplement: String(nestedParams.supplement ?? ctx.params.supplement ?? '').trim() || undefined,
+        defaultAiOutputKind:
+          materialType === 'image' || materialType === 'video' ? materialType : undefined,
+      });
+    }
+
+    if (key === 'text/plan/album-spec') {
+      const { normalizeAlbumSpec } = await import('../core/graph/album/album-spec');
+      parsed = normalizeAlbumSpec(parsed, {
+        maxItems: Number(nestedParams.max_items ?? ctx.params.max_items) || undefined,
       });
     }
 
     nextState = setNestedOutputStatePath(nextState, outputStatePath, parsed);
+  }
+
+  // 自动剪辑：用户未填主题/副标题/节目名/主持人时，用 LLM 识别结果回写 params
+  let nextParams = ctx.params;
+  if (
+    (key === 'text/plan/video-cut-beat' || key === 'text/plan/video-shot-list') &&
+    outputStatePath
+  ) {
+    const metaSrc =
+      (outputStatePath
+        .split('.')
+        .filter(Boolean)
+        .reduce<unknown>((acc, part) => {
+          if (!acc || typeof acc !== 'object' || Array.isArray(acc)) return undefined;
+          return (acc as Record<string, unknown>)[part];
+        }, nextState) as Record<string, unknown> | undefined) ?? undefined;
+    if (metaSrc && typeof metaSrc === 'object') {
+      const fillIfEmpty = (field: string, value: unknown) => {
+        const cur = String(nextParams[field] ?? '').trim();
+        const next = typeof value === 'string' ? value.trim() : '';
+        if (!cur && next) {
+          nextParams = { ...nextParams, [field]: next };
+        }
+      };
+      fillIfEmpty('topic', metaSrc.global_topic);
+      if (key === 'text/plan/video-shot-list') {
+        fillIfEmpty('subtitle', metaSrc.subtitle);
+        fillIfEmpty('show_name', metaSrc.show_name);
+        fillIfEmpty('host_name', metaSrc.host_name);
+      }
+    }
   }
 
   // 输出目标为歌词：写入 params.lyrics（供 music_generation 使用），不覆盖 finalPrompt/prompt，
@@ -268,6 +409,20 @@ export async function runNestedTextStep(ctx: TaskContext, step: PipelineStep): P
     };
   }
 
+  if (key === 'text/plan/album-spec' && nextState.albumSpec) {
+    return {
+      ...ctx,
+      params: {
+        ...ctx.params,
+        album_spec: nextState.albumSpec,
+        album_item_count: Array.isArray((nextState.albumSpec as { items?: unknown[] }).items)
+          ? (nextState.albumSpec as { items: unknown[] }).items.length
+          : undefined,
+      },
+      state: nextState,
+    };
+  }
+
   if (graphPreFormat || step.params?.afterPromptRender === true) {
     // 防御性兜底：audio 路径剥除 [开场]/[主稿]/[结束] 等段落小标题，避免 LLM 未严格遵循 prompt
     // 时仍把标记词送进 MiniMax TTS 被念出。video / graph / text 路径不受影响。
@@ -276,29 +431,52 @@ export async function runNestedTextStep(ctx: TaskContext, step: PipelineStep): P
     nextState.finalPrompt = cleanedOutText;
     return {
       ...ctx,
-      params: { ...ctx.params, prompt: cleanedOutText },
+      params: { ...nextParams, prompt: cleanedOutText },
       state: nextState,
     };
+  }
+
+  // post 抛光等：同步覆盖 core/final，避免宿主仍读到成文初稿
+  const overwriteCore =
+    textType === 'transform' ||
+    step.params?.outputTarget === 'artifact' ||
+    step.params?.overwriteCoreArtifact === true;
+
+  let polishedText = outText;
+  if (overwriteCore && step.params?.deterministicPolish === true) {
+    const { polishEditorialMarkdown } = await import('./mxm-warp/markdown-polish');
+    const basic =
+      ctx.state.contract &&
+      typeof ctx.state.contract === 'object' &&
+      (ctx.state.contract as { basic?: Record<string, unknown> }).basic
+        ? ((ctx.state.contract as { basic?: Record<string, unknown> }).basic as Record<string, unknown>)
+        : {};
+    const lang = String(
+      (ctx.params as Record<string, unknown>)?.language ?? basic.language ?? 'zh'
+    ).trim();
+    polishedText = polishEditorialMarkdown(outText, { language: lang });
   }
 
   const core = (ctx.state.coreArtifact as Record<string, unknown> | undefined) ?? { kind: 'text' };
   const finalArtifact = {
     ...core,
     kind: 'text' as const,
-    text: outText,
+    text: polishedText,
     metadata: {
       ...((core.metadata as Record<string, unknown> | undefined) ?? {}),
       nestedTextTaskKey: key,
       nestedTaskId: textTaskResult.taskId,
+      ...(polishedText !== outText ? { deterministicPolish: true } : {}),
     },
   };
 
   return {
     ...ctx,
+    params: nextParams,
     state: {
       ...nextState,
       finalArtifact,
-      coreArtifact: ctx.state.coreArtifact ?? finalArtifact,
+      coreArtifact: overwriteCore ? finalArtifact : (ctx.state.coreArtifact ?? finalArtifact),
     },
   };
 }
@@ -313,7 +491,177 @@ export async function runVideoTimelineRenderStep(_ctx: TaskContext, _step: Pipel
   return runNestedVideoStep(_ctx, _step);
 }
 
+/**
+ * 平台通用润色步骤（post）：
+ * - 默认从 `coreArtifact.text` 取文本；可用 `params.inputFrom` 或 `inputMapping.input` 覆盖
+ * - 调用 text/transform/<subtype>（默认 prose-deai）做四语去 AI 感改写
+ * - 把结果写回 `coreArtifact.text` 与 `finalArtifact.text`（用于落盘 + 后续 step 引用）
+ * - 输入语言从 `params.languageFrom` 推断，默认 `coreArtifact.metadata.language` → `params.language` → `contract.basic.language` → `zh`
+ *
+ * 设计意图：替代「在 groupItemBatch 内部塞 polishTaskKey」的临时耦合；任何成稿业务
+ * 只需在 pipeline.post[] 挂一行就能复用。
+ */
+export async function runPolishManuscriptStep(
+  ctx: TaskContext,
+  step: PipelineStep
+): Promise<TaskContext> {
+  const userId = ctx.userId;
+  if (!userId) {
+    throw new ConfigurationError('polishManuscript：缺少 userId');
+  }
+  const params = (step.params ?? {}) as Record<string, unknown>;
+
+  const nestedKey = String(params.nestedTextTaskKey ?? 'text/transform/prose-deai').trim();
+  if (!nestedKey.startsWith('text/transform/')) {
+    throw new ConfigurationError(
+      `polishManuscript 仅允许 text/transform/* 子业务，收到：${nestedKey || '空'}`
+    );
+  }
+  const { taskKey, subtype } = parseNestedTextTaskKey(nestedKey);
+
+  // 输入文本：inputMapping.input > inputFrom > coreArtifact.text
+  const mapping = step.inputMapping ?? {};
+  let inputText = '';
+  const explicitInput = typeof mapping.input === 'string' ? mapping.input.trim() : '';
+  if (explicitInput) {
+    inputText = String(resolvePipelineMappingValue(explicitInput, ctx) ?? '');
+  } else if (typeof params.inputFrom === 'string' && params.inputFrom.trim()) {
+    inputText = String(resolvePipelineMappingValue(params.inputFrom.trim(), ctx) ?? '');
+  } else {
+    const core = ctx.state.coreArtifact as { text?: string } | undefined;
+    inputText = String(core?.text ?? '');
+  }
+  if (!inputText.trim()) {
+    // 空文本：不润色，原样返回（避免无意义调 LLM）
+    return ctx;
+  }
+
+  // 语言：params.languageFrom > coreArtifact.metadata.language > params.language > contract.basic.language > zh
+  const langFrom = String(params.languageFrom ?? '').trim();
+  let lang = '';
+  if (langFrom) {
+    lang = String(resolvePipelineMappingValue(langFrom, ctx) ?? '').trim();
+  }
+  if (!lang) {
+    const meta = (ctx.state.coreArtifact as { metadata?: Record<string, unknown> } | undefined)?.metadata;
+    if (meta && typeof meta.language === 'string') lang = String(meta.language).trim();
+  }
+  if (!lang) {
+    lang = String((ctx.params as Record<string, unknown>)?.language ?? '').trim();
+  }
+  if (!lang) {
+    const contract = (ctx.state.contract as { basic?: Record<string, unknown> } | undefined)?.basic;
+    if (contract && typeof contract.language === 'string') {
+      lang = String(contract.language).trim();
+    }
+  }
+  if (!lang) lang = 'zh';
+  const language = normalizeManuscriptLanguage(lang);
+
+  // 固定输入：input + instruction；用户可在 params 追加 instruction 覆盖（一般不需要）
+  const customInstruction =
+    typeof params.instruction === 'string' && params.instruction.trim()
+      ? String(params.instruction).trim()
+      : '';
+  const instruction = customInstruction || buildProseDeaiInstruction(language);
+
+  const depth = Number((ctx.params as Record<string, unknown>)._pipelineDepth ?? 0);
+  if (depth >= MAX_PIPELINE_DEPTH) {
+    throw new ConfigurationError('polishManuscript 嵌套深度超限');
+  }
+
+  const req: TaskRunV2Request = {
+    scope: 'text',
+    taskKey,
+    subtype,
+    params: {
+      input: inputText,
+      instruction,
+      _pipelineDepth: depth + 1,
+      metadata: {
+        parentPipelineTaskId: ctx.taskId,
+        nestedTextTaskKey: nestedKey,
+        polishLanguage: language,
+      },
+    },
+  };
+  const { runTaskV2 } = await import('./task-engine');
+  const polishRes = await runTaskV2(req, userId);
+  if (!polishRes.success || !polishRes.syncResult) {
+    throw new Error(
+      `polishManuscript 失败：${nestedKey}（status=${polishRes.status}，taskId=${polishRes.taskId}）`
+    );
+  }
+  const polished = String(polishRes.syncResult.text ?? '').trim();
+  if (!polished) {
+    throw new Error(`polishManuscript「${nestedKey}」未返回正文`);
+  }
+
+  // 确定性抛光：标点、近重复段、AI workshop 套话等
+  let finalText = polished;
+  if (params.deterministicPolish !== false) {
+    try {
+      const { polishEditorialMarkdown } = await import('./mxm-warp/markdown-polish');
+      finalText = polishEditorialMarkdown(polished, { language }).trim();
+      if (!finalText) finalText = polished;
+    } catch (polishErr) {
+      console.warn('[polishManuscript] deterministicPolish 跳过:', polishErr);
+    }
+  }
+
+  const core = (ctx.state.coreArtifact as Record<string, unknown> | undefined) ?? { kind: 'text' };
+  const coreMeta =
+    (core.metadata as Record<string, unknown> | undefined) ?? {};
+  const nextCore = {
+    ...core,
+    kind: 'text' as const,
+    text: finalText,
+    metadata: {
+      ...coreMeta,
+      polishManuscriptTaskKey: nestedKey,
+      polishManuscriptNestedTaskId: polishRes.taskId,
+      ...(language ? { polishLanguage: language } : {}),
+    },
+  };
+  const finalArtifact = (ctx.state.finalArtifact as Record<string, unknown> | undefined) ?? nextCore;
+
+  const nestedUsage = Array.isArray(ctx.state.pipelineNestedUsage)
+    ? [...(ctx.state.pipelineNestedUsage as unknown[])]
+    : [];
+  nestedUsage.push({
+    nestedTextTaskKey: nestedKey,
+    taskId: polishRes.taskId,
+    costUsd:
+      typeof polishRes.syncResult.metadata?.costUsd === 'number'
+        ? polishRes.syncResult.metadata.costUsd
+        : undefined,
+    usage: polishRes.syncResult.metadata?.usage,
+  });
+
+  return {
+    ...ctx,
+    state: {
+      ...ctx.state,
+      coreArtifact: nextCore,
+      finalArtifact: { ...finalArtifact, kind: 'text', text: finalText },
+      polishManuscriptLast: { key: nestedKey, taskId: polishRes.taskId, text: finalText },
+      pipelineNestedUsage: nestedUsage,
+    },
+  };
+}
+
 function registerBusinessPipelineSteps(): void {
+  // 行业日报：确定性回填 main_topic（副作用注册 pickMainTopic）
+  void import('./mxm-warp/pick-main-topic-step');
+
+  registerInputStep('resolveFolderCardAssets', async (ctx, step) => {
+    const { resolveFolderCardAssets } = await import('../folder-cards/resolve-card-assets');
+    const formSchema = (step.params?.formSchema ?? ctx.state._formSchema) as
+      | import('./types').JsonSchemaV2
+      | undefined;
+    return resolveFolderCardAssets(ctx, formSchema);
+  });
+
   registerInputStep('resolveContextFields', async (ctx, step) => {
     const phase = (step.params?.phase as 'pre' | 'post' | undefined) ?? 'pre';
     const kinds = step.params?.kinds as ('kbRecall' | 'webSearch')[] | undefined;
@@ -344,6 +692,9 @@ function registerBusinessPipelineSteps(): void {
 
   registerInputStep('nestedText', async (ctx, step) => runNestedTextStep(ctx, step));
   registerOutputStep('nestedText', async (ctx, step) => runNestedTextStep(ctx, step));
+
+  registerInputStep('polishManuscript', async (ctx, step) => runPolishManuscriptStep(ctx, step));
+  registerOutputStep('polishManuscript', async (ctx, step) => runPolishManuscriptStep(ctx, step));
 
   registerInputStep('resolveVoiceoverAudio', async (ctx, step) => {
     const { runResolveVoiceoverAudioStep } = await import('./voiceover-audio-resolver');
@@ -399,11 +750,64 @@ function registerBusinessPipelineSteps(): void {
     return runRenderDocumentPdfStep(ctx, step);
   });
 
+  registerInputStep('validateAlbumSpec', async (ctx, step) => {
+    const { runValidateAlbumSpecStep } = await import('../core/graph/album/validate-album-spec-step');
+    return runValidateAlbumSpecStep(ctx, step);
+  });
+  registerOutputStep('validateAlbumSpec', async (ctx, step) => {
+    const { runValidateAlbumSpecStep } = await import('../core/graph/album/validate-album-spec-step');
+    return runValidateAlbumSpecStep(ctx, step);
+  });
+
+  registerOutputStep('albumImageBatch', async (ctx, step) => {
+    const { runAlbumImageBatchStep } = await import('../core/graph/album/album-image-batch-step');
+    return runAlbumImageBatchStep(ctx, step);
+  });
+
+  registerOutputStep('groupFanout', async (ctx, step) => {
+    const { runGroupFanoutStep } = await import('./group-fanout-step');
+    return runGroupFanoutStep(ctx, step);
+  });
+
+  registerInputStep('groupItemBatch', async (ctx, step) => {
+    const { runGroupItemBatchStep } = await import('./group-item-batch-step');
+    return runGroupItemBatchStep(ctx, step);
+  });
+  registerOutputStep('groupItemBatch', async (ctx, step) => {
+    const { runGroupItemBatchStep } = await import('./group-item-batch-step');
+    return runGroupItemBatchStep(ctx, step);
+  });
+
+  registerInputStep('assembleGroupText', async (ctx, step) => {
+    const { runAssembleGroupTextStep } = await import('./assemble-group-text-step');
+    return runAssembleGroupTextStep(ctx, step);
+  });
+  registerOutputStep('assembleGroupText', async (ctx, step) => {
+    const { runAssembleGroupTextStep } = await import('./assemble-group-text-step');
+    return runAssembleGroupTextStep(ctx, step);
+  });
+
   const manualReviewRunner: import('./types').PipelineRunner = async (ctx, step) => {
     const { extractReviewDraftFromContext, enrichVideoTimelineReviewDraft } = await import('./manual-review');
     const phase = (step.params?.phase as 'pre' | 'post' | undefined) ?? 'pre';
     const stepIndex = Number(step.params?._stepIndex ?? 0);
-    let draft = extractReviewDraftFromContext(ctx, step, phase, stepIndex);
+    // interactiveCard：params 已含必填字段时跳过闸门（C 端 pre 引导后创建）
+    if (step.step === 'interactiveCard' && interactiveCardFieldsAlreadyFilled(ctx, step)) {
+      return ctx;
+    }
+    let effective = step;
+    if (step.step === 'interactiveCard') {
+      const kind =
+        typeof step.params?.kind === 'string' && step.params.kind.trim()
+          ? step.params.kind
+          : 'interactive-card';
+      effective = {
+        ...step,
+        step: 'manualReview',
+        params: { ...(step.params ?? {}), kind, phase },
+      };
+    }
+    let draft = await extractReviewDraftFromContext(ctx, effective, phase, stepIndex);
     if (draft.kind === 'video-timeline') {
       draft = await enrichVideoTimelineReviewDraft(draft, ctx.params as Record<string, unknown>);
     }
@@ -419,6 +823,37 @@ function registerBusinessPipelineSteps(): void {
 
   registerInputStep('manualReview', manualReviewRunner);
   registerOutputStep('manualReview', manualReviewRunner);
+  registerInputStep('interactiveCard', manualReviewRunner);
+  registerOutputStep('interactiveCard', manualReviewRunner);
+}
+
+/** pre 交互卡：必填字段已在 params 中则无需再暂停 */
+function interactiveCardFieldsAlreadyFilled(
+  ctx: import('./types').TaskContext,
+  step: import('./types').PipelineStep
+): boolean {
+  const fields = step.params?.fields;
+  if (!Array.isArray(fields) || fields.length === 0) return false;
+  const params = ctx.params as Record<string, unknown>;
+  for (const raw of fields) {
+    if (!raw || typeof raw !== 'object') continue;
+    const f = raw as { name?: string; required?: boolean };
+    if (!f.name || f.required === false) continue;
+    const v = params[f.name];
+    if (v == null || String(v).trim() === '') return false;
+    if (f.name === 'industry' && String(v) === '其他') {
+      if (!String(params.industry_custom ?? '').trim()) return false;
+    }
+    const mode = String(v);
+    if (
+      f.name === 'date_mode' &&
+      (mode === 'custom' || mode === '指定日期') &&
+      !/^\d{4}-\d{2}-\d{2}$/.test(String(params.report_date ?? '').trim())
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 registerBusinessPipelineSteps();

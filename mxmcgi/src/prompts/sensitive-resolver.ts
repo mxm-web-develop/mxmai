@@ -6,6 +6,35 @@ import { RepositoryFactory } from '@mxmai/mxmdata';
 import { sensitivesWords } from '../sensitive/words';
 
 /**
+ * 按 list id 合并敏感词（pipeline step.params.listIds）
+ */
+export async function getSensitiveWordsForListIds(listIds: string[]): Promise<string[]> {
+  const ids = [...new Set(listIds.map((id) => id.trim()).filter(Boolean))];
+  if (ids.length === 0) return [];
+
+  try {
+    const repo = RepositoryFactory.createSensitiveWordRepository();
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const id of ids) {
+      const list = await repo.findListById(id);
+      if (!list?.is_active) continue;
+      const words = await repo.listWordsByListId(id);
+      for (const row of words) {
+        const w = row.word.trim();
+        if (w && !seen.has(w)) {
+          seen.add(w);
+          result.push(w);
+        }
+      }
+    }
+    return result;
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
  * 获取指定细分业务应使用的敏感词数组
  * 先查 DB 绑定，有则返回合并后的词表；无则返回代码内 sensitivesWords（与现有行为一致）
  */

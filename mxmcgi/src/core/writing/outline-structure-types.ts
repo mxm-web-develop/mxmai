@@ -134,13 +134,15 @@ export function isStructureTypeAvailable(
  */
 export function getStructurePromptTemplate(
   structureType: OutlineStructureType,
-  language: 'zh' | 'en' = 'zh'
+  language: import('@mxmai/mxmdata').AppLocale | 'zh' | 'en' = 'zh'
 ): string {
   const config = STRUCTURE_TYPE_CONFIGS[structureType];
   if (!config) {
     return '';
   }
-  return language === 'zh' ? config.promptTemplateZh : config.promptTemplateEn;
+  // 仅有 zh/en 模板：繁中跟简中，日语跟英文
+  const useZh = language === 'zh' || language === 'zh-TW';
+  return useZh ? config.promptTemplateZh : config.promptTemplateEn;
 }
 
 /**

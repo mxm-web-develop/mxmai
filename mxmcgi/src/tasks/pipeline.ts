@@ -1,5 +1,5 @@
 import type { PipelineStep, TaskContext } from './types';
-import { getSensitiveWordsForSlot } from '../prompts/sensitive-resolver';
+import { getSensitiveWordsForListIds, getSensitiveWordsForSlot } from '../prompts/sensitive-resolver';
 import { containsSensitiveWords } from '../sensitive/check';
 import {
   retrieveKnowledge,
@@ -27,21 +27,57 @@ registerOutputStep('noop', async (ctx) => ctx);
  * - 检查 params.prompt（默认）或 step.params.paths 指定的字段
  * - 命中则抛错（由上层返回 400）
  */
-registerInputStep('sensitiveCheck', async (ctx: TaskContext, step: PipelineStep) => {
+function readSensitiveCheckText(ctx: TaskContext, path: string): string {
+  if (path === 'prompt') {
+    const p = (ctx.params as Record<string, unknown>)?.prompt;
+    return typeof p === 'string' ? p.trim() : '';
+  }
+  if (path === 'finalPrompt' || path === 'state.finalPrompt') {
+    const fp = ctx.state.finalPrompt;
+    return typeof fp === 'string' ? fp.trim() : '';
+  }
+  if (path.startsWith('params.')) {
+    const key = path.slice('params.'.length);
+    const v = (ctx.params as Record<string, unknown>)?.[key];
+    return typeof v === 'string' ? v.trim() : '';
+  }
+  if (path === 'coreArtifact.text' || path === 'artifact') {
+    const core = ctx.state.coreArtifact as { text?: string } | undefined;
+    return typeof core?.text === 'string' ? core.text.trim() : '';
+  }
+  if (path === 'finalArtifact.text') {
+    const fin = ctx.state.finalArtifact as { text?: string } | undefined;
+    return typeof fin?.text === 'string' ? fin.text.trim() : '';
+  }
+  const v = (ctx.params as Record<string, unknown>)?.[path];
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+const runSensitiveCheck: import('./types').PipelineRunner = async (ctx, step) => {
   const { scope, taskKey, subtype } = ctx;
-  const sensitives = await getSensitiveWordsForSlot(scope, taskKey, subtype ?? null);
+  const listIds = (step.params?.listIds as string[] | undefined)?.filter(Boolean);
+  let sensitives: string[];
+  if (listIds && listIds.length > 0) {
+    sensitives = await getSensitiveWordsForListIds(listIds);
+    if (sensitives.length === 0) {
+      sensitives = await getSensitiveWordsForSlot(scope, taskKey, subtype ?? null);
+    }
+  } else {
+    sensitives = await getSensitiveWordsForSlot(scope, taskKey, subtype ?? null);
+  }
 
   const paths = (step.params?.paths as string[] | undefined) ?? ['prompt'];
   for (const p of paths) {
-    const v = (ctx.params as any)?.[p];
-    if (typeof v === 'string' && v.trim()) {
-      if (containsSensitiveWords(v, sensitives)) {
-        throw new Error('你提交的内容涉及敏感内容，请检查');
-      }
+    const v = readSensitiveCheckText(ctx, p);
+    if (v && containsSensitiveWords(v, sensitives)) {
+      throw new Error('你提交的内容涉及敏感内容，请检查');
     }
   }
   return ctx;
-});
+};
+
+registerInputStep('sensitiveCheck', runSensitiveCheck);
+registerOutputStep('sensitiveCheck', runSensitiveCheck);
 
 /**
  * knowledgeRetrieve:
@@ -49,10 +85,17 @@ registerInputStep('sensitiveCheck', async (ctx: TaskContext, step: PipelineStep)
  * - 将召回内容注入 ctx.state.knowledgeContext / ctx.state.enhancedPrompt
  * - 默认对 ctx.state.finalPrompt（若存在）或 params.prompt 做增强
  */
-registerInputStep('knowledgeRetrieve', async (ctx: TaskContext, step: PipelineStep) => {
+const runKnowledgeRetrieve: import('./types').PipelineRunner = async (ctx, step) => {
   const userId = ctx.userId;
+  const coreText =
+    typeof (ctx.state.coreArtifact as { text?: string } | undefined)?.text === 'string'
+      ? String((ctx.state.coreArtifact as { text: string }).text).trim()
+      : '';
   const query =
-    (typeof (ctx.params as any)?.prompt === 'string' ? String((ctx.params as any).prompt) : '').trim();
+    (typeof (ctx.params as Record<string, unknown>)?.prompt === 'string'
+      ? String((ctx.params as Record<string, unknown>).prompt)
+      : ''
+    ).trim() || coreText;
   if (!query) return ctx;
 
   const kbIds =
@@ -88,10 +131,7 @@ registerInputStep('knowledgeRetrieve', async (ctx: TaskContext, step: PipelineSt
   }
 
   return { ...ctx, state: mergedState };
-});
+};
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 初始化 LLM Step 插件（在所有内置 step 注册之后）
-// ─────────────────────────────────────────────────────────────────────────────
-import { setupLLMSteps } from './pipeline-llm-plugin';
-setupLLMSteps();
+registerInputStep('knowledgeRetrieve', runKnowledgeRetrieve);
+registerOutputStep('knowledgeRetrieve', runKnowledgeRetrieve);

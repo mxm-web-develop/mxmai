@@ -292,15 +292,23 @@ export class ModuleNotificationService {
         eventType = NotificationEventType.TASK_UPDATED;
     }
 
-    // 发送 WebSocket 通知
+    const snapshot = event.metadata?.task_snapshot;
+    const taskPayload = snapshot
+      ? {
+          ...snapshot,
+          module_type: event.module_type,
+          task_type: snapshot.type ?? event.metadata?.task_type,
+        }
+      : {
+          id: event.task_id,
+          status: event.task_status,
+          module_type: event.module_type,
+          ...event.metadata,
+        };
+
     websocketService.sendToUser(event.user_id, eventType, {
       notification,
-      task: {
-        id: event.task_id,
-        status: event.task_status,
-        module_type: event.module_type,
-        ...event.metadata,
-      },
+      task: taskPayload,
     });
   }
 

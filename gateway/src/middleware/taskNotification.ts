@@ -141,8 +141,8 @@ export function createTaskNotificationHandler(req: AuthRequest): {
     onProxyReq: async (proxyReq: any, req: Request) => {
       const authReq = req as AuthRequest;
       
-      // 只处理生成接口
-      if (!req.path.includes('/cgi/graph') && !req.path.includes('/cgi/text') && !req.path.includes('/cgi/audio') && !req.path.includes('/cgi/video')) {
+      // 只处理仍走旧代理的生成接口（graph 已 410 迁至 /api/v2/tasks，不再在网关侧建任务）
+      if (!req.path.includes('/cgi/text') && !req.path.includes('/cgi/audio') && !req.path.includes('/cgi/video')) {
         return;
       }
 
@@ -157,10 +157,11 @@ export function createTaskNotificationHandler(req: AuthRequest): {
         return;
       }
 
-      const mediaType = req.path.includes('/graph') ? 'graph' 
-        : req.path.includes('/audio') ? 'audio' 
-        : req.path.includes('/video') ? 'video' 
-        : 'text';
+      const mediaType = req.path.includes('/audio')
+        ? 'audio'
+        : req.path.includes('/video')
+          ? 'video'
+          : 'text';
       const modelName = req.params.modelName || 'unknown';
       const prompt = authReq.body?.prompt || '';
       const params = authReq.body;

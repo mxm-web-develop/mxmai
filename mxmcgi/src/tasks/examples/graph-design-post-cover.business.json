@@ -1,0 +1,276 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-06-13T12:00:00.000Z",
+  "items": [
+    {
+      "scope": "graph",
+      "type": "design",
+      "subtype": "post-cover",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "设计 · 视频封面",
+          "subtypeLabel": "post-cover（自媒体频道 · YouTube/抖音/B站 · gpt-image-2）",
+          "taskLabelI18n": {
+            "zh": "设计 · 视频封面",
+            "zh-TW": "設計 · 影圖片封無封面"
+          },
+          "subtypeLabelI18n": {
+            "zh": "post-cover（自媒体频道 · YouTube/抖音/B站 · gpt-image-2）",
+            "zh-TW": "post-cover（自媒體影片道 · YouTube/抖音/B站 · gpt-image-2）"
+          }
+        },
+        "promptTextTaskKey": "text/format/gpt-image-2",
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "maxTokens": 2048,
+              "temperature": 0.35
+            }
+          },
+          "knowledge": {
+            "strategy": "global",
+            "useKnowledge": false,
+            "defaultKnowledgeBaseIds": []
+          },
+          "uiSchema": {
+            "main_topic": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 3
+              }
+            },
+            "other_topics": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 2
+              }
+            },
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 4
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是资深「自媒体 / 视频流媒体频道封面（Video Thumbnail & Cover）」美术指导 + 英文 image prompt 撰稿人。下游把你的英文正文交给 gpt-image-2 类模型；虚拟角色/主播参考图像素已由系统随请求提交，你不得粘贴 base64/URL。\n\n【text/format 生成契约】①「一、重要的用户要求」永远优先；②用户未写的维度才允许用「四、相关参考」与平台爆款规律补全；③与参考像素矛盾的一律不写；④输出为**单张**可直接上传 YouTube / 抖音 / B站 的封面成品图。\n\n一、重要的用户要求（表单插值，本单硬约束）\n- 画幅：${aspect_ratio}\n- 封面风格：${visual_style}\n- 主题色：${theme_color}\n- 频道节目名：${show_name}\n- 主播名：${host_name}\n- 当期主要话题（主标题文案源）：${main_topic}\n- 当期其他话题（可选）：${other_topics}\n- 虚拟角色/主播参考图（摘要/占位）：${character_ref_images}\n- 用户补充说明：${prompt}\n\n二、任务定义（自媒体视频封面是什么）\n- **目标**：为 YouTube 长/短视频、抖音信息流、B站投稿等生成**高点击率（CTR）**的单张封面——观众在 0.5 秒内须读懂「这期讲什么、谁来讲、属于哪个频道」。\n- **平台共性（爆款逻辑）**：\n  - **YouTube**：横屏 16:9 为主；人脸表情放大、高饱和对比、3–6 个词以内的超大主标题、常用红圈/箭头/VS 分屏指向焦点；忌满屏小字。\n  - **抖音**：竖屏 9:16 为主；人物占画面 40–60%、主标题压在上/中三分之一、高对比色块托字、信息极度精简；适合「一眼钩子」。\n  - **B站**：横竖皆可；频道品牌感 + 当期话题关键词并存；可适度信息密度（小标签/角标）但主标题仍须最大字号；常见蓝粉/高亮点缀与 UP 主形象绑定。\n- 与「电影海报」区别：封面是**点击诱饵 + 信息索引**，不是艺术片海报；与「电商主图」区别：卖的是**内容预期**而非 SKU。\n\n三、任务要求（怎样算优秀的视频封面）\n- **角色身份锁定（硬）**：只要「一」中虚拟角色/主播参考图非空，英文 prompt 须写入 **host/character identity lock**：封面中人物须与参考为**同一人/同一虚拟形象**——锁定脸型五官、发型发色、肤色、标志性配饰与服装气质；允许表情夸张、机位略变，**禁止**换脸、换种族年龄或「神似不同人」。\n- **无参考图时**：按主播名 + 主要话题气质生成可信主持人形象；不得与频道名/话题气质严重冲突。\n- **上屏字（硬）**：\n  - **主标题**须以「一」中 **main_topic** 为字面来源，英文 prompt 中 **quoted verbatim** 写入，字号全图最大；若 other_topics 非空，可作 1–2 个次级短标签，字号明显小于主标题。\n  - **show_name** 作频道/节目品牌：角落小字或角标条，不抢主标题；**host_name** 可融入副标或角标（如「XX 主讲」），勿喧宾夺主。\n  - 画面内**额外生成**的装饰字、箭头旁小字使用**中文**（本业务默认中文频道）；**禁止**写 avoid all text / no typography 等与上屏字矛盾的指令。\n- **visual_style 对齐（硬）**：\n  - youtube_viral：横屏优先语义、大表情、高饱和、可选红圈/箭头/VS 分屏；\n  - douyin_vertical_pop：竖屏优先、人物特写 + 超大压屏字 + 强色块；\n  - bilibili_creator：品牌角标 + 主标题 + UP 主形象，适度装饰元素；\n  - knowledge_clean：留白、大标题、主持人半身、浅底或轻渐变；\n  - documentary_cinematic：电影级调色、少字、氛围场景 + 人物侧影/轮廓；\n  - gaming_esports：霓虹、速度线、高对比冷色 + 角色/主播；\n  - podcast_talk：双人对谈暗示或单人麦克风元素、暖色棚拍感。\n- **theme_color**：整图主色倾向与「一」一致（如 B站粉、YouTube 红、抖音黄橙高对比等）；辅助色用于文字底托与焦点圈。\n- **画幅**：英文须显式写出 wide 16:9 landscape thumbnail 或 tall 9:16 vertical cover，与「一」严格一致。\n- **安全区**：关键文字与人物面部避开平台 UI 遮挡区（竖屏底部/右侧、横屏右下角时长区）——用构图留白而非缩小主标题。\n\n四、相关参考（平台爆款封面规律；仅用户未指定时补全，不得覆盖「一」）\n- 主标题字数：中文建议 4–12 字等价信息量；英文 thumbnail 3–6 words。\n- 对比：背景略简、主体与字极高对比；忌灰雾一片。\n- 人脸：有参考则表情可略夸张（惊讶/认真/兴奋）以提 CTR，但不得换身份。\n- 禁用：虚假平台 Logo、水印、二维码、无关 celebrity、与话题无关的 stock 图。\n- 若用户已指定风格/色/构图，本节只补未覆盖的细粒度。\n\n五、Prompt 输出参考（英文正文结构与禁忌）\n- 写成**一段连续英文**（无 Markdown、无中文）：identity lock（若有参考）→ host presence & expression → **literal main headline** in quotes from main_topic → optional secondary tags from other_topics → show_name branding placement → theme_color & visual_style mood → composition & explicit aspect ratio → platform-safe margins → lighting & color grading → negatives（no watermark, no fake YouTube/TikTok/Bilibili logos, legible Chinese headline, no cluttered tiny text, no identity drift, no contradictory no-text）。\n- 禁止：中文解释、Markdown、编号清单；禁止用行业惯性默认覆盖「一」中的节目名/话题/主播。\n\n【输出】只输出最终生图用英文 prompt 正文，不要解释或 Markdown。"
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "aspect_ratio",
+              "show_name",
+              "host_name",
+              "main_topic",
+              "visual_style",
+              "theme_color"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "poster"
+                ],
+                "default": "poster",
+                "x-user-visible": false
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "title": "画幅",
+                "description": "横屏适合 YouTube/B站横版；竖屏适合抖音、Shorts、B站竖版。",
+                "enum": [
+                  "16:9",
+                  "9:16"
+                ],
+                "default": "16:9",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "16:9 横屏（YouTube / B站横版）",
+                  "9:16 竖屏（抖音 / Shorts / 竖版投稿）"
+                ]
+              },
+              "show_name": {
+                "type": "string",
+                "title": "频道节目名",
+                "description": "将出现在封面角标或品牌条，如「科技前沿Talk」「某某实验室」。",
+                "x-ui-type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "host_name": {
+                "type": "string",
+                "title": "主播名",
+                "description": "主讲人/UP主/虚拟角色名，可写入角标或副标。",
+                "x-ui-type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              },
+              "main_topic": {
+                "type": "string",
+                "title": "当期主要话题",
+                "description": "封面最大字号主标题文案，如「AI 会取代程序员吗？」「这 3 个习惯改变了我的收入」。",
+                "x-ui-type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "other_topics": {
+                "type": "string",
+                "title": "当期其他话题（可选）",
+                "description": "多条可用换行或分号分隔，将作封面次级小标签，如：副业思路；工具推荐。",
+                "x-ui-type": "string",
+                "default": "",
+                "maxLength": 200
+              },
+              "character_ref_images": {
+                "type": "array",
+                "title": "虚拟角色 / 主播参考图",
+                "description": "上传虚拟形象或主播照片；封面人物将与参考锁定一致。不上传则按主播名与话题气质生成。",
+                "x-ui-type": "referenceImages",
+                "minItems": 0,
+                "maxItems": 6,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "title": "图片 URL / Base64"
+                    },
+                    "type": {
+                      "type": "string",
+                      "title": "用途类型",
+                      "enum": [
+                        "main-subject",
+                        "background",
+                        "outfits",
+                        "color-reference",
+                        "style-reference"
+                      ],
+                      "default": "main-subject"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "title": "用途说明（可选）"
+                    }
+                  }
+                },
+                "x-enum-labels": []
+              },
+              "theme_color": {
+                "type": "string",
+                "title": "主题色",
+                "description": "整图主色倾向，影响背景、字块与点缀色。",
+                "enum": [
+                  "youtube_red",
+                  "douyin_orange_yellow",
+                  "bilibili_blue_pink",
+                  "tech_electric_blue",
+                  "warm_coral",
+                  "cool_purple",
+                  "neon_gradient",
+                  "mono_high_contrast",
+                  "dark_premium"
+                ],
+                "default": "youtube_red",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "YouTube 经典红（高 CTR 横屏）",
+                  "抖音黄橙高对比（竖屏信息流）",
+                  "B站蓝粉（创作者品牌感）",
+                  "科技电光蓝",
+                  "暖珊瑚橙（生活/Vlog）",
+                  "冷紫神秘（悬疑/深度）",
+                  "霓虹渐变（游戏/潮流）",
+                  "黑白高对比（极简/新闻）",
+                  "深色高级（纪录片/电影感）"
+                ],
+                "x-enum-descriptions": {
+                  "youtube_red": "高饱和红+白字或黄字，适合横屏爆款缩略图。",
+                  "douyin_orange_yellow": "强对比暖色块托大字，适合竖屏刷流。",
+                  "bilibili_blue_pink": "B站常见蓝粉点缀+清晰主标题。",
+                  "tech_electric_blue": "科技区冷色+高光点缀。",
+                  "warm_coral": "亲和 Vlog / 生活方式暖调。",
+                  "cool_purple": "深度/悬疑/夜谈氛围。",
+                  "neon_gradient": "电竞/二次元/潮流向霓虹。",
+                  "mono_high_contrast": "极简知识区或新闻快讯。",
+                  "dark_premium": "低照度电影感、少而精的字。"
+                }
+              },
+              "visual_style": {
+                "type": "string",
+                "title": "封面风格",
+                "description": "综合 YouTube / 抖音 / B站 爆款封面设计语言。",
+                "enum": [
+                  "youtube_viral",
+                  "douyin_vertical_pop",
+                  "bilibili_creator",
+                  "knowledge_clean",
+                  "documentary_cinematic",
+                  "gaming_esports",
+                  "podcast_talk"
+                ],
+                "default": "youtube_viral",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "YouTube 爆款（大表情+高对比+箭头/圈）",
+                  "抖音竖屏爆款（大字压屏+人物特写）",
+                  "B站创作者风（品牌+主标题+UP形象）",
+                  "知识区干净（大标题+主持人+浅底）",
+                  "纪录片电影感（少字+氛围）",
+                  "游戏电竞风（霓虹+速度线）",
+                  "播客对谈风（暖色棚拍+麦克风）"
+                ],
+                "x-enum-descriptions": {
+                  "youtube_viral": "横屏缩略图逻辑：夸张表情、3–6 词级主标题、可选红圈箭头。",
+                  "douyin_vertical_pop": "竖屏 9:16：人物占主体、主标题压上/中区、强色块。",
+                  "bilibili_creator": "频道角标+关键词主标题+UP主形象，适度装饰。",
+                  "knowledge_clean": "留白、清晰层级，适合教程/解读。",
+                  "documentary_cinematic": "电影调色、氛围场景、文字极简。",
+                  "gaming_esports": "高对比冷色、霓虹、动态暗示。",
+                  "podcast_talk": "访谈/音频节目暖色质感。"
+                }
+              },
+              "prompt": {
+                "type": "string",
+                "title": "补充说明",
+                "description": "指定平台（只发抖音）、禁忌元素、必须出现的道具、表情要求等。",
+                "x-ui-type": "string",
+                "default": ""
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "graph-design-post-cover",
+        "provider": "atlascloud",
+        "model": "gpt-image-2",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "graph-design-post-cover",
+          "charge_metric": "per_image",
+          "price_in_tokens": 120,
+          "min_charge_tokens": 0,
+          "provider": "atlascloud",
+          "model_key": "gpt-image-2",
+          "subtype": "post-cover",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

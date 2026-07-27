@@ -15,7 +15,9 @@ export type TaskStatus =
    * - 与业务失败区分开，便于用户手动恢复或重试
    * - 任务恢复服务不会主动对该状态做二次恢复
    */
-  | 'network_error';
+  | 'network_error'
+  /** 前置管线完成后等待用户审核编辑，再继续核心生成 */
+  | 'awaiting_review';
 
 export type TaskType =
   | 'text'
@@ -28,6 +30,7 @@ export type TaskType =
   | 'graph'
   | 'graph-grid9-parent'
   | 'video-batch-parent'
+  | 'task-v2-batch-parent'
   | 'other';
 
 export interface TaskMetadata {
@@ -43,9 +46,15 @@ export interface TaskProgress {
   status: TaskStatus;
   progress?: number; // 0-100
   logs?: string[];
+  /** 最新一条人话进度（列表/WS 轻量字段，勿塞内部 step 名） */
+  message?: string;
+  /** 管道阶段：pre/input/enrich/output/post/save/core */
+  phase?: string;
+  phaseIndex?: number;
+  phaseTotal?: number;
   error?: string;
-  startedAt?: Date;
-  completedAt?: Date;
+  startedAt?: Date | null;
+  completedAt?: Date | null;
 }
 
 export interface TaskResult {
@@ -119,6 +128,8 @@ export interface GetTaskResponse {
 /**
  * 任务列表查询参数
  */
+export type TaskCreationSourceFilter = 'web' | 'open_api';
+
 export interface ListTasksParams {
   userId?: string;
   type?: TaskType;
@@ -129,6 +140,8 @@ export interface ListTasksParams {
   includeDeleted?: boolean; // 是否包含已软删除的任务（仅 admin 使用）
   startDate?: Date | string; // 开始时间（可选，用于时间范围查询）
   endDate?: Date | string; // 结束时间（可选，用于时间范围查询）
+  /** web=平台内自用；open_api=开放 API（含 H5 等第三方应用） */
+  creationSource?: TaskCreationSourceFilter;
 }
 
 /**

@@ -141,6 +141,50 @@ export const HK_ATLASCLOUD_MODALITIES: Record<string, HkModelCapabilities> = {
   'anthropic/claude-opus-4.8': ATLAS_CLAUDE_OPUS,
   'google/gemini-3.5-flash': ATLAS_GEMINI_35,
   'openai/gpt-oss-120b': ATLAS_TEXT_BASE,
+  // DeepSeek V4 / GLM-5.2：纯文本（Atlas /v1/models input_modalities=text）
+  'deepseek-ai/deepseek-v4-flash': {
+    supported_inputs: ['text'],
+    supported_outputs: ['text'],
+    modes: ['chat', 'completion', 'long-context'],
+    context_window: 1_048_576,
+    max_output_tokens: 393_216,
+  },
+  'deepseek-ai/deepseek-v4-pro': {
+    supported_inputs: ['text'],
+    supported_outputs: ['text'],
+    modes: ['chat', 'completion', 'long-context'],
+    context_window: 1_048_576,
+    max_output_tokens: 393_216,
+  },
+  'zai-org/glm-5.2': {
+    supported_inputs: ['text'],
+    supported_outputs: ['text'],
+    modes: ['chat', 'completion', 'long-context'],
+    context_window: 1_048_576,
+    max_output_tokens: 131_072,
+  },
+  // GPT 5.6 系列：text + image 输入（Atlas API modalities）
+  'openai/gpt-5.6-luna': {
+    supported_inputs: ['text', 'image'],
+    supported_outputs: ['text'],
+    modes: ['chat', 'completion', 'vision-qa', 'long-context'],
+    context_window: 1_050_000,
+    max_output_tokens: 131_072,
+  },
+  'openai/gpt-5.6-terra': {
+    supported_inputs: ['text', 'image'],
+    supported_outputs: ['text'],
+    modes: ['chat', 'completion', 'vision-qa', 'long-context'],
+    context_window: 1_050_000,
+    max_output_tokens: 131_072,
+  },
+  'openai/gpt-5.6-sol': {
+    supported_inputs: ['text', 'image'],
+    supported_outputs: ['text'],
+    modes: ['chat', 'completion', 'vision-qa', 'long-context'],
+    context_window: 1_050_000,
+    max_output_tokens: 131_072,
+  },
   // —— 音乐 Suno ——
   'suno/chirp-v4': {
     supported_inputs: ['text'],
@@ -170,9 +214,11 @@ export const HK_MAXPLAN_MODALITIES: Record<string, HkModelCapabilities> = {
     modes: ['text-to-image', 'image-to-image', 'style-transfer'],
   },
   'MiniMax-M3': {
-    supported_inputs: ['text'],
+    // 官方：原生多模态（text + image + video 输入 → text 输出）；OpenAI/Anthropic 兼容 API 均支持 image_url / video_url
+    // https://platform.minimax.io/docs/api-reference/text-openai-api
+    supported_inputs: ['text', 'image', 'video'],
     supported_outputs: ['text'],
-    modes: ['chat', 'completion', 'long-context'],
+    modes: ['chat', 'completion', 'long-context', 'vision-qa', 'multimodal-qa'],
     context_window: 1_000_000,
     max_output_tokens: 131_072,
   },

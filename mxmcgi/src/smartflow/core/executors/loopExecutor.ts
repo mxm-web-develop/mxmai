@@ -2,10 +2,17 @@
  * Loop 节点执行器 - 迭代与循环
  */
 
-import { SmartflowNode, ExecutionContext } from '../models/types';
+import { SmartflowNode, ExecutionContext, LoopIterationResultRow } from '../models/types';
 import { BaseExecutor, ExecutorResult } from './base';
 import { VariableResolver } from '../variables/resolver';
 import { ExecutorFactory } from './index';
+import { runWithConcurrency } from '../utils/run-with-concurrency';
+import {
+  buildLoopIterationOutput,
+  normalizeIterationRow,
+  resolveLoopIterationErrorPolicy,
+  applyIterationErrorPolicy,
+} from './loop-iteration-result';
 
 export class LoopExecutor extends BaseExecutor {
   async execute(node: SmartflowNode, context: ExecutionContext): Promise<ExecutorResult> {
@@ -27,14 +34,32 @@ export class LoopExecutor extends BaseExecutor {
       switch (loop_mode) {
         case 'iteration':
           return this.executeIteration(
-            node, context, iterable, item_variable, index_variable,
-            collect_output, output_variable, break_condition, loop_nodes
+            node,
+            context,
+            iterable,
+            item_variable,
+            index_variable,
+            collect_output,
+            output_variable,
+            break_condition,
+            loop_nodes,
+            node.parallel_iterations ?? false,
+            node.max_concurrency ?? 3,
+            resolveLoopIterationErrorPolicy(node.on_iteration_error)
           );
         case 'loop':
           return this.executeLoop(
-            node, context, condition, item_variable, index_variable,
-            max_iterations, collect_output, output_variable, break_condition,
-            loop_nodes, initial_value
+            node,
+            context,
+            condition,
+            item_variable,
+            index_variable,
+            max_iterations,
+            collect_output,
+            output_variable,
+            break_condition,
+            loop_nodes,
+            initial_value
           );
         default:
           return this.createErrorResult(`Unknown loop mode: ${loop_mode}`);
@@ -56,15 +81,17 @@ export class LoopExecutor extends BaseExecutor {
     collectOutput: boolean,
     outputVariable: string,
     breakCondition: string | undefined,
-    loopNodes: string[]
+    loopNodes: string[],
+    parallelIterations: boolean,
+    maxConcurrency: number,
+    errorPolicy: ReturnType<typeof resolveLoopIterationErrorPolicy>
   ): Promise<ExecutorResult> {
     if (!iterable) {
       return this.createErrorResult('Iteration mode requires iterable');
     }
 
-    // 解析 iterable 获取数组
     const resolvedIterable = VariableResolver.resolve(iterable, context);
-    let items: any[];
+    let items: unknown[];
     try {
       items = JSON.parse(resolvedIterable);
     } catch {
@@ -76,38 +103,81 @@ export class LoopExecutor extends BaseExecutor {
       return this.createErrorResult(`Iterable is not an array: ${typeof items}`);
     }
 
-    const collected: any[] = [];
+    const allRows: LoopIterationResultRow[] = [];
+    let abort = false;
 
-    for (let i = 0; i < items.length; i++) {
-      // 更新上下文变量
-      context.variables[itemVariable] = items[i];
-      context.variables[indexVariable] = i;
+    const runOne = async (item: unknown, i: number): Promise<LoopIterationResultRow | undefined> => {
+      if (abort && errorPolicy === 'fail_fast') return undefined;
 
-      // 检查中断条件
-      if (breakCondition) {
-        const resolvedBreak = VariableResolver.resolve(breakCondition, context);
-        try {
-          const shouldBreak = new Function(`return ${resolvedBreak}`)();
-          if (shouldBreak) break;
-        } catch {
-          // 忽略条件解析错误，继续执行
-        }
+      const iterContext = this.cloneContext(context);
+      iterContext.variables[itemVariable] = item;
+      iterContext.variables[indexVariable] = i;
+
+      if (breakCondition && this.shouldBreak(breakCondition, iterContext)) {
+        return undefined;
       }
 
-      // 执行子图
-      const iterationResult = await this.executeSubGraph(loopNodes, context);
+      const iterationResult = await this.executeSubGraph(loopNodes, iterContext);
+      const row = normalizeIterationRow(i, iterationResult);
 
-      if (iterationResult.success && collectOutput) {
-        collected.push(iterationResult.output);
+      if (!row.success && errorPolicy === 'fail_fast') {
+        abort = true;
+      }
+
+      return row;
+    };
+
+    if (parallelIterations && items.length > 1) {
+      const rawRows = await runWithConcurrency(items, maxConcurrency, runOne, {
+        shouldAbort: () => abort && errorPolicy === 'fail_fast',
+      });
+      for (const row of rawRows) {
+        if (row != null) allRows.push(row);
+      }
+      allRows.sort((a, b) => a.index - b.index);
+    } else {
+      for (let i = 0; i < items.length; i++) {
+        if (abort && errorPolicy === 'fail_fast') break;
+        const row = await runOne(items[i], i);
+        if (row != null) allRows.push(row);
+        if (abort && errorPolicy === 'fail_fast') break;
       }
     }
 
-    return this.createSuccessResult({
-      [outputVariable]: collectOutput ? collected : null,
-      count: collected.length,
+    const outputPayload = buildLoopIterationOutput(allRows, errorPolicy, outputVariable, {
       total_items: items.length,
+      parallel_iterations: parallelIterations,
       loop_mode: 'iteration',
     });
+
+    if (!collectOutput) {
+      return this.createSuccessResult(null);
+    }
+
+    const applied = applyIterationErrorPolicy(allRows, errorPolicy);
+    if (!applied.loopSuccess) {
+      return this.createErrorResult(applied.loopError ?? 'Loop iteration failed', outputPayload);
+    }
+
+    return this.createSuccessResult(outputPayload);
+  }
+
+  private cloneContext(context: ExecutionContext): ExecutionContext {
+    return {
+      execution: context.execution,
+      smartflow: context.smartflow,
+      nodeOutputs: structuredClone(context.nodeOutputs),
+      variables: { ...context.variables },
+    };
+  }
+
+  private shouldBreak(breakCondition: string, context: ExecutionContext): boolean {
+    const resolvedBreak = VariableResolver.resolve(breakCondition, context);
+    try {
+      return !!new Function(`return ${resolvedBreak}`)();
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -124,18 +194,17 @@ export class LoopExecutor extends BaseExecutor {
     outputVariable: string,
     breakCondition: string | undefined,
     loopNodes: string[],
-    initialValue: any
+    initialValue: unknown
   ): Promise<ExecutorResult> {
     if (!condition) {
       return this.createErrorResult('Loop mode requires condition');
     }
 
-    const collected: any[] = [];
+    const collected: unknown[] = [];
     let accumulator = initialValue;
     let iteration = 0;
 
     while (iteration < maxIterations) {
-      // 解析并评估循环条件
       const resolvedCondition = VariableResolver.resolve(condition, context);
       let shouldContinue: boolean;
       try {
@@ -146,32 +215,27 @@ export class LoopExecutor extends BaseExecutor {
 
       if (!shouldContinue) break;
 
-      // 更新上下文变量
       context.variables[itemVariable] = accumulator;
       context.variables[indexVariable] = iteration;
 
-      // 检查中断条件
       if (breakCondition) {
         const resolvedBreak = VariableResolver.resolve(breakCondition, context);
         try {
           const shouldBreak = new Function(`return ${resolvedBreak}`)();
           if (shouldBreak) break;
         } catch {
-          // 忽略条件解析错误
+          // ignore
         }
       }
 
-      // 执行子图
       const loopResult = await this.executeSubGraph(loopNodes, context);
 
       if (loopResult.success) {
-        // 用子图输出更新 accumulator
         accumulator = loopResult.output;
         if (collectOutput) {
           collected.push(loopResult.output);
         }
       } else {
-        // 子图执行失败，可选择继续或中断
         console.warn(`[LoopExecutor] Sub-graph iteration ${iteration} failed: ${loopResult.error}`);
       }
 
@@ -187,9 +251,6 @@ export class LoopExecutor extends BaseExecutor {
     });
   }
 
-  /**
-   * 执行子图中的节点
-   */
   private async executeSubGraph(
     loopNodes: string[],
     context: ExecutionContext
@@ -198,25 +259,11 @@ export class LoopExecutor extends BaseExecutor {
       return this.createSuccessResult(null);
     }
 
-    // 从 schema 中查找子图节点
-    const { nodes, edges } = context.smartflow.schema;
+    const { nodes } = context.smartflow.schema;
     const nodeMap = new Map<string, SmartflowNode>();
-    nodes.forEach(n => nodeMap.set(n.id, n));
+    nodes.forEach((n) => nodeMap.set(n.id, n));
 
-    // 构建子图邻接表
-    const subNodeSet = new Set(loopNodes);
-    const adjacencyList = new Map<string, string[]>();
-
-    for (const edge of edges) {
-      if (subNodeSet.has(edge.from) && subNodeSet.has(edge.to)) {
-        if (!adjacencyList.has(edge.from)) {
-          adjacencyList.set(edge.from, []);
-        }
-        adjacencyList.get(edge.from)!.push(edge.to);
-      }
-    }
-
-    let lastOutput: any = null;
+    let lastOutput: unknown = null;
 
     for (const nodeId of loopNodes) {
       const subNode = nodeMap.get(nodeId);
@@ -225,11 +272,7 @@ export class LoopExecutor extends BaseExecutor {
         continue;
       }
 
-      const result = await ExecutorFactory.execute(
-        subNode.type as any,
-        subNode,
-        context
-      );
+      const result = await ExecutorFactory.execute(subNode.type as any, subNode, context);
 
       if (!result.success) {
         return result;

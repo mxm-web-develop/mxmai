@@ -3,7 +3,19 @@
  * 仅 Admin 可管理；key_value 在 API 中脱敏返回
  */
 
-export type ProviderApiKeyProvider = 'deer' | 'replicate' | 'ppio' | 'openai' | 'google' | 'anthropic' | 'qwen' | 'volc' | 'minimax';
+export type ProviderApiKeyProvider =
+  | 'openrouter'
+  | 'atlascloud'
+  | 'deer'
+  | 'replicate'
+  | 'ppio'
+  | 'openai'
+  | 'google'
+  | 'anthropic'
+  | 'qwen'
+  | 'volc'
+  | 'minimax'
+  | 'maxplan';
 export type ProviderApiKeyService = string | null; // openai | google | anthropic | minimax | qwen | volc | null
 
 export interface ProviderApiKey {

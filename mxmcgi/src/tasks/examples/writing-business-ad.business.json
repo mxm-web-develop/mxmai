@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-05-21T12:00:00.000Z",
+  "items": [
+    {
+      "scope": "writing",
+      "type": "business",
+      "subtype": "ad",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "写作",
+          "subtypeLabel": "广告品牌文案",
+          "taskLabelI18n": {
+            "zh": "写作",
+            "zh-TW": "寫我的創作"
+          },
+          "subtypeLabelI18n": {
+            "zh": "广告品牌文案",
+            "zh-TW": "广告品牌文案"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "brand_name": {
+                "type": "string",
+                "title": "品牌名称",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "product_description": {
+                "type": "string",
+                "title": "产品描述",
+                "description": "选填。填写后广告以产品为核心；与产品图二选一或同时填写均可。"
+              },
+              "product_images": {
+                "type": "array",
+                "title": "产品参考图",
+                "description": "选填，最多 3 张。上传后由 DeerAPI Gemini 多模态识图参与文案（建议 data URI 或已转存的图片 URL）。",
+                "maxItems": 3,
+                "x-ui-type": "referenceImages",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "brand_style": {
+                "type": "string",
+                "title": "品牌风格",
+                "enum": [
+                  "minimal_modern",
+                  "luxury_premium",
+                  "youthful_vibrant",
+                  "warm_healing",
+                  "tech_forward",
+                  "guochao_retro",
+                  "professional_trust",
+                  "playful_witty"
+                ],
+                "x-enum-labels": [
+                  "简约现代",
+                  "轻奢高级",
+                  "活力年轻",
+                  "温暖治愈",
+                  "科技前沿",
+                  "国潮复古",
+                  "专业可信",
+                  "幽默趣味"
+                ],
+                "x-ui-type": "selection"
+              },
+              "ad_channel": {
+                "type": "string",
+                "title": "主要投放渠道",
+                "enum": [
+                  "general",
+                  "douyin",
+                  "xiaohongshu",
+                  "wechat_moments",
+                  "elevator_ooh",
+                  "official_site"
+                ],
+                "x-enum-labels": [
+                  "通用全渠道",
+                  "抖音/短视频",
+                  "小红书",
+                  "微信朋友圈",
+                  "电梯/户外",
+                  "官网/品牌站"
+                ],
+                "default": "general",
+                "x-ui-type": "selection"
+              },
+              "language": {
+                "type": "string",
+                "title": "输出语言",
+                "enum": [
+                  "zh",
+                  "en"
+                ],
+                "x-enum-labels": [
+                  "中文",
+                  "English"
+                ],
+                "default": "zh"
+              },
+              "prompt": {
+                "type": "string",
+                "title": "补充说明",
+                "description": "选填：促销信息、禁用词、竞品参照、必须出现的卖点等。"
+              },
+              "writing_type": {
+                "type": "string",
+                "default": "business",
+                "const": "business",
+                "x-user-visible": false
+              },
+              "storage_form": {
+                "type": "string",
+                "default": "txt",
+                "const": "txt",
+                "x-user-visible": false
+              }
+            },
+            "required": [
+              "brand_name",
+              "brand_style"
+            ]
+          },
+          "uiSchema": {
+            "product_description": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 4
+              }
+            },
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 3
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是资深广告策略总监 + 品牌文案主笔，熟悉品牌定位、产品卖点提炼、多渠道投放与合规审查。你的交付物是可直接交给创意团队与投放团队的「标签化纯文本」广告方案，不是 Markdown 文档。\n\n【任务定义】\n为用户生成一套完整的广告/品牌传播文案：含策略摘要、标题体系、口号、长短文案、卖点、行动号召、话题标签、视觉创意方向与合规提示。\n\n【本次 Brief】\n- 品牌名称：${brand_name}\n- 产品描述：${product_description}\n- 产品参考图（多模态识图；模板摘要）：${product_images}\n- 品牌风格：${brand_style}\n- 主要投放渠道：${ad_channel}\n- 输出语言：${language}\n- 用户补充说明：${prompt}\n\n【产出焦点判定（必须执行）】\n在动笔前先判定本单焦点，并在输出首段用【产出焦点】标明：\n1. 若「产品描述」有实质内容（非空、非占位符），或已上传产品参考图（你将直接看到图像像素） → 焦点为「产品向」：一切标题、口号、正文优先服务单品/系列转化，品牌名作为信任背书。\n2. 否则 → 焦点为「品牌向」：围绕品牌理念、调性、信任与长期记忆点展开，不虚构未提供的产品参数。\n禁止同时模糊两可；禁止虚构价格、功效、获奖、销量等未在 Brief 中出现的事实。\n\n【专业工作流（内部推理，勿输出步骤标题）】\n1. 策略：明确受众、场景、竞争语境（可合理推断，须标注为推断）、单一核心传播主张（One Big Idea）。\n2. 信息层级：主标题抓注意力 → 副标题解释价值 → 口号记忆点 → 正文说服 → CTA 促成行动。\n3. 渠道适配：结合「主要投放渠道」调整语气与长度（如短视频偏短句、户外偏极简、官网可略详）。\n4. 风格：严格贴合「品牌风格」枚举气质，全篇语气一致。\n5. 合规：广告法敏感表述（绝对化、医疗功效、虚假承诺）须在【合规提示】中预警。\n\n【用户需求】\n${prompt}\n\n【输出要求 — 极其重要】\n1. 只输出纯文本。禁止 Markdown：不得出现 #、##、**、*斜体*、反引号、代码块、表格竖线、> 引用符。\n2. 每一类内容必须以独立一行中文标签开头，格式严格为【标签名】，标签后换行写正文。不得用 Markdown 标题代替标签。\n3. 必须按顺序输出以下全部区块（无内容可写「无」或「不适用」，但标签不可省略）：\n【产出焦点】\n【策略摘要】\n【目标受众】\n【核心传播信息】\n【主标题】\n【副标题】\n【品牌口号】\n【品牌口号备选一】\n【品牌口号备选二】\n【品牌口号备选三】\n【短文案】\n【正文】\n【卖点一】\n【卖点二】\n【卖点三】\n【行动号召】\n【话题标签】\n【视觉创意方向】\n【投放渠道建议】\n【合规提示】\n4. 【主标题】不超过 18 字（英文按词计，不超过 10 words）；【副标题】不超过 36 字；每条【品牌口号】不超过 16 字；短文案适合社媒首屏；正文 120–280 字（英文 80–180 words）。\n5. 【品牌口号备选一/二/三】各写一条完整口号，互不重复，与主口号角度区分。\n6. 【话题标签】用空格分隔，每条以 # 开头（这是标签内容本身，不是 Markdown）。\n7. 【视觉创意方向】用 2–4 句描述画面、构图、色彩、字体气质、主视觉元素，供设计师执行，不写技术参数。\n8. 若输出语言为 en，除【产出焦点】可用中英并列外，其余区块正文使用英文。\n9. 不要输出任何开场白、结语、解释你为什么这样写、或「以下是文案」类说明。"
+          },
+          "storage": {
+            "scope": "writing",
+            "extension": "txt",
+            "mime": "text/plain; charset=utf-8",
+            "bucket": "writing-business",
+            "pathTemplate": "business/${userId}/${date}/",
+            "filenameTemplate": "ad_${taskId}_${uuid}.txt"
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "writing-business-ad",
+        "provider": "openrouter",
+        "model": "gemini-2.5-flash",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "writing-business-ad",
+          "charge_metric": "per_request",
+          "price_in_tokens": 80,
+          "min_charge_tokens": 0,
+          "provider": "openrouter",
+          "model_key": "gemini-2.5-flash",
+          "subtype": "ad",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

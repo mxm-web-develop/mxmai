@@ -30,6 +30,14 @@ import type {
   TaskResult,
 } from './types';
 import { sanitizeBase64InObject } from './reference-image';
+import { extractRequestLabelFromParams } from './extract-request-label';
+import { buildTaskCreationMetadata } from './creation-source';
+import {
+  pruneRequestParamsForListView,
+  pruneTaskResultForListView,
+} from './task-list-summary';
+import { effectiveTaskStatus } from './task-status-normalize';
+import { hydrateProgressFromMetadata } from './progress-ux';
 
 /**
  * 从数据库读出的时间统一按 UTC 解析。
@@ -90,6 +98,18 @@ export class DatabaseTaskStorage implements TaskStorage {
     return data ? this.toTask(data as any) : null;
   }
 
+  /** Task V2 graph 等任务将 briefing 放在 `params.prompt`，顶层不再重复 `prompt`；此列供列表/检索摘要 */
+  private extractPromptColumnFromInputParams(p: Record<string, unknown>): string | undefined {
+    const top = p['prompt'];
+    if (typeof top === 'string' && top.trim()) return top;
+    const inner = p['params'];
+    if (inner && typeof inner === 'object' && inner !== null) {
+      const ip = (inner as Record<string, unknown>)['prompt'];
+      if (typeof ip === 'string' && ip.trim()) return ip;
+    }
+    return undefined;
+  }
+
   /**
    * 将 CreateTaskRequest 转换为 CreateCGITaskDto
    */
@@ -107,10 +127,7 @@ export class DatabaseTaskStorage implements TaskStorage {
       }
     }
     
-    const label =
-      (request.params?.metadata && typeof request.params.metadata.label === 'string' ? request.params.metadata.label : undefined) ||
-      (typeof (request.params as any)?.label === 'string' ? (request.params as any).label : undefined) ||
-      undefined;
+    const label = extractRequestLabelFromParams(request.params as Record<string, unknown>);
 
     return {
       user_id: request.userId || 'anonymous',
@@ -118,15 +135,147 @@ export class DatabaseTaskStorage implements TaskStorage {
       model_name: request.model,
       model_provider: modelProvider,
       input_data: request.params,
-      prompt: request.params.prompt,
+      prompt: this.extractPromptColumnFromInputParams(request.params as Record<string, unknown>),
       result_format: request.storeToMinio ? 'minio' : 'base64',
       storage_config: request.storageConfig,
-      metadata: {
-        storeToMinio: request.storeToMinio || false,
-        storageConfig: request.storageConfig,
-        ...(label ? { label } : {}),
-        ...(request.idempotencyKey ? { idempotencyKey: request.idempotencyKey } : {}),
+      metadata: buildTaskCreationMetadata(
+        {
+          storeToMinio: request.storeToMinio || false,
+          storageConfig: request.storageConfig,
+          ...(label ? { label } : {}),
+          ...(request.idempotencyKey ? { idempotencyKey: request.idempotencyKey } : {}),
+        },
+        request.params as Record<string, unknown>,
+        request.userId
+      ),
+    };
+  }
+
+  /** 列表行：用 prompt / metadata 拼展示字段，不依赖 input_data / output_data */
+  private buildListRequestParams(cgiTask: CGITask): Record<string, unknown> | undefined {
+    const input = cgiTask.input_data;
+    if (input && typeof input === 'object' && Object.keys(input).length > 0) {
+      return pruneRequestParamsForListView(input) as Record<string, unknown>;
+    }
+
+    const meta = (cgiTask.metadata || {}) as Record<string, unknown>;
+    const rp: Record<string, unknown> = {};
+    const graphType =
+      (typeof meta.graphType === 'string' && meta.graphType) ||
+      (typeof meta.graphBusinessType === 'string' && meta.graphBusinessType) ||
+      undefined;
+    if (graphType) rp.graphType = graphType;
+
+    for (const key of ['taskKey', 'subtype', 'scope'] as const) {
+      const value = meta[key];
+      if (typeof value === 'string' && value.trim()) rp[key] = value.trim();
+    }
+
+    const label =
+      extractRequestLabelFromParams(input) ||
+      (typeof meta.label === 'string' && meta.label.trim() ? meta.label.trim() : undefined);
+    if (label) rp.metadata = { label };
+
+    const prompt = cgiTask.prompt?.trim();
+    if (prompt) {
+      const preview = prompt.length > 80 ? `${prompt.slice(0, 80)}…` : prompt;
+      rp.params =
+        cgiTask.task_type === 'audio' || cgiTask.task_type === 'music'
+          ? { text: preview }
+          : { prompt: preview };
+    }
+
+    return Object.keys(rp).length > 0 ? rp : undefined;
+  }
+
+  private toTaskListSummary(cgiTask: CGITask): Task {
+    const mediaUrls = cgiTask.output_data?.mediaUrls;
+    const mediaCount = Array.isArray(mediaUrls) ? mediaUrls.length : 0;
+    const storageKeys = cgiTask.storage_info?.keys;
+    const storageKeyCount = Array.isArray(storageKeys) ? storageKeys.length : 0;
+    // summary 列表不读 output_data，但会带 storage_info；仅看 mediaUrls 会把已完成成片判成无媒体
+    const metaHasMedia =
+      cgiTask.metadata?.listHasMedia === true ||
+      (typeof cgiTask.metadata?.listMediaCount === 'number' &&
+        (cgiTask.metadata.listMediaCount as number) > 0);
+    const meta = (cgiTask.output_data?.metadata ?? cgiTask.metadata ?? {}) as Record<string, unknown>;
+    const readyClipCount =
+      typeof meta.readyClipCount === 'number'
+        ? meta.readyClipCount
+        : typeof meta.failedClipCount === 'number' && typeof meta.totalRenderClips === 'number'
+          ? Math.max(0, meta.totalRenderClips - meta.failedClipCount)
+          : 0;
+    const effectiveMediaCount = Math.max(
+      mediaCount,
+      storageKeyCount,
+      typeof cgiTask.metadata?.listMediaCount === 'number'
+        ? (cgiTask.metadata.listMediaCount as number)
+        : 0
+    );
+    const hasOutput = effectiveMediaCount > 0 || readyClipCount > 0 || metaHasMedia;
+
+    const draft: Task = {
+      id: cgiTask.id,
+      type: cgiTask.task_type,
+      status: cgiTask.status as TaskStatus,
+      progress: {
+        status: cgiTask.status as TaskStatus,
+        progress: cgiTask.progress,
+        error: cgiTask.error_message,
+        startedAt: parseUtcFromDb(cgiTask.started_at),
+        completedAt: parseUtcFromDb(cgiTask.completed_at),
       },
+      result: hasOutput
+        ? {
+            mediaUrls: new Array(Math.max(effectiveMediaCount, readyClipCount, 1)).fill(''),
+            metadata: cgiTask.output_data?.metadata,
+          }
+        : undefined,
+      metadata: {
+        model: cgiTask.model_name,
+        provider: cgiTask.model_provider || 'unknown',
+        userId: cgiTask.user_id,
+        storeToMinio: cgiTask.result_format === 'minio',
+        storageConfig: cgiTask.metadata?.storageConfig,
+        ...(cgiTask.metadata || {}),
+      },
+      createdAt: parseUtcFromDb(cgiTask.created_at) ?? new Date(0),
+      updatedAt: parseUtcFromDb(cgiTask.updated_at) ?? new Date(0),
+      requestParams: this.buildListRequestParams(cgiTask) ?? {},
+    };
+
+    const status = effectiveTaskStatus(draft);
+    const progress = hydrateProgressFromMetadata(
+      { ...draft.progress, status },
+      draft.metadata as Record<string, unknown>
+    );
+
+    return {
+      ...draft,
+      status,
+      progress,
+      result:
+        hasOutput || status === 'completed'
+          ? (pruneTaskResultForListView({
+              mediaUrls: hasOutput
+                ? new Array(Math.max(effectiveMediaCount, readyClipCount, 1)).fill('')
+                : [],
+              metadata: cgiTask.output_data?.metadata,
+              storageInfo: cgiTask.storage_info,
+              hasMedia: hasOutput,
+              mediaCount: Math.max(effectiveMediaCount, readyClipCount),
+              text:
+                typeof cgiTask.output_data?.text === 'string' ? cgiTask.output_data.text : undefined,
+              outputFormat:
+                typeof cgiTask.metadata?.listOutputFormat === 'string'
+                  ? cgiTask.metadata.listOutputFormat
+                  : undefined,
+              contentPreview:
+                typeof cgiTask.metadata?.listContentPreview === 'string'
+                  ? cgiTask.metadata.listContentPreview
+                  : undefined,
+            }) as Task['result'])
+          : undefined,
     };
   }
 
@@ -134,7 +283,7 @@ export class DatabaseTaskStorage implements TaskStorage {
    * 将 CGITask 转换为 Task
    */
   private toTask(cgiTask: CGITask): Task {
-    return {
+    const draft: Task = {
       id: cgiTask.id,
       type: cgiTask.task_type,
       status: cgiTask.status as TaskStatus,
@@ -165,22 +314,78 @@ export class DatabaseTaskStorage implements TaskStorage {
       updatedAt: parseUtcFromDb(cgiTask.updated_at) ?? new Date(0),
       requestParams: cgiTask.input_data,
     };
+
+    const status = effectiveTaskStatus(draft);
+    return {
+      ...draft,
+      status,
+      progress: hydrateProgressFromMetadata(
+        { ...draft.progress, status },
+        draft.metadata as Record<string, unknown>
+      ),
+    };
   }
 
   /**
    * 创建任务并返回 ID（用于 TaskManager）
    */
   async createAndGetId(request: CreateTaskRequest): Promise<string> {
+    const taskId = uid(21);
+    let params = request.params ? ({ ...request.params } as Record<string, unknown>) : undefined;
+
+    if (request.type === 'video' && params) {
+      const { prepareStoryboardGridForTaskPersist, STORYBOARD_TEMP_KEYS_META } = await import(
+        '../core/video/video-grid-storyboard'
+      );
+      const storyMeta = await prepareStoryboardGridForTaskPersist(taskId, params, {
+        provider: request.provider,
+      });
+      if (storyMeta) {
+        const meta = (params.metadata as Record<string, unknown>) ?? {};
+        params = {
+          ...params,
+          metadata: {
+            ...meta,
+            [STORYBOARD_TEMP_KEYS_META]: storyMeta.tempR2Keys,
+            storyboardTempR2Bucket: storyMeta.bucket,
+          },
+        };
+      }
+    }
+    if (request.type === 'graph' && params) {
+      const { prepareGraphToolsHdForTaskPersist, HD_SOURCE_TEMP_R2_META } = await import(
+        '../core/graph/tools/graph-tools-hd-persist'
+      );
+      const hdMeta = await prepareGraphToolsHdForTaskPersist(taskId, params);
+      if (hdMeta) {
+        const meta = (params.metadata as Record<string, unknown>) ?? {};
+        params = {
+          ...params,
+          metadata: {
+            ...meta,
+            [HD_SOURCE_TEMP_R2_META]: hdMeta.tempR2Key,
+            hdSourceTempR2Bucket: hdMeta.bucket,
+          },
+        };
+      }
+    }
+
     // 清理 requestParams 中的 base64 数据（避免存储和返回时数据过大）
-    const sanitizedParams = sanitizeBase64InObject(request.params);
+    const sanitizedParams = sanitizeBase64InObject(params);
     
     // 生成 uid 作为任务 ID
-    const taskId = uid(21);
-    // 使用清理后的参数创建 DTO
     const dto = await this.toCreateDto({
       ...request,
       params: sanitizedParams,
     });
+    if (request.type === 'video' && params?.metadata) {
+      const m = params.metadata as Record<string, unknown>;
+      dto.metadata = {
+        ...(dto.metadata ?? {}),
+        ...(m.storyboardTempR2Keys ? { storyboardTempR2Keys: m.storyboardTempR2Keys } : {}),
+        ...(m.storyboardTempR2Bucket ? { storyboardTempR2Bucket: m.storyboardTempR2Bucket } : {}),
+      };
+    }
     // 设置 id
     const created = await this.repo.create({ ...dto, id: taskId });
     return created.id;
@@ -248,11 +453,13 @@ export class DatabaseTaskStorage implements TaskStorage {
       includeDeleted: (params as any).includeDeleted || false, // 默认不包含已删除的任务
       startDate: params.startDate,
       endDate: params.endDate,
+      creationSource: params.creationSource,
+      summary: true,
     };
 
     const { tasks, total } = await this.repo.findMany(options);
     return {
-      tasks: tasks.map(t => this.toTask(t)),
+      tasks: tasks.map((t) => this.toTaskListSummary(t)),
       total, // 符合条件的任务总数（不受分页限制，已排除父任务）
     };
   }
@@ -275,20 +482,27 @@ export class DatabaseTaskStorage implements TaskStorage {
       if ('error' in updates.progress) {
         updateDto.error_message = updates.progress.error || null;
       }
-      if (updates.progress.startedAt !== undefined) {
-        // 确保使用 UTC 时间（ISO 8601 格式），统一时区
-        // toISOString() 返回的是 UTC 时间的 ISO 8601 格式字符串（如 "2026-01-21T06:44:37.907Z"）
-        const startedAtDate = updates.progress.startedAt instanceof Date 
-          ? updates.progress.startedAt 
-          : new Date(updates.progress.startedAt);
-        updateDto.started_at = startedAtDate.toISOString();
+      if ('startedAt' in updates.progress) {
+        if (updates.progress.startedAt == null) {
+          updateDto.started_at = null;
+        } else {
+          const startedAtDate =
+            updates.progress.startedAt instanceof Date
+              ? updates.progress.startedAt
+              : new Date(updates.progress.startedAt);
+          updateDto.started_at = startedAtDate.toISOString();
+        }
       }
-      if (updates.progress.completedAt !== undefined) {
-        // 确保使用 UTC 时间（ISO 8601 格式），统一时区
-        const completedAtDate = updates.progress.completedAt instanceof Date 
-          ? updates.progress.completedAt 
-          : new Date(updates.progress.completedAt);
-        updateDto.completed_at = completedAtDate.toISOString();
+      if ('completedAt' in updates.progress) {
+        if (updates.progress.completedAt == null) {
+          updateDto.completed_at = null;
+        } else {
+          const completedAtDate =
+            updates.progress.completedAt instanceof Date
+              ? updates.progress.completedAt
+              : new Date(updates.progress.completedAt);
+          updateDto.completed_at = completedAtDate.toISOString();
+        }
       }
     }
     if (updates.result !== undefined) {
@@ -302,6 +516,15 @@ export class DatabaseTaskStorage implements TaskStorage {
     if (updates.metadata !== undefined) {
       updateDto.metadata = updates.metadata as any;
     }
+    if (updates.requestParams !== undefined) {
+      updateDto.input_data = updates.requestParams as Record<string, any>;
+      const promptCol = this.extractPromptColumnFromInputParams(
+        updates.requestParams as Record<string, unknown>
+      );
+      if (promptCol) {
+        updateDto.prompt = promptCol;
+      }
+    }
 
     await this.repo.update(taskId, updateDto);
   }
@@ -312,5 +535,13 @@ export class DatabaseTaskStorage implements TaskStorage {
 
   async softDelete(taskId: string): Promise<void> {
     await this.repo.softDelete(taskId);
+  }
+
+  /**
+   * 原子领取 pending/queued 任务（需 Supabase RPC claim_pending_cgi_tasks）
+   */
+  async claimPendingTasks(workerId: string, limit: number = 1): Promise<Task[]> {
+    const claimed = await this.repo.claimPendingTasks(workerId, limit);
+    return claimed.map((t) => this.toTask(t));
   }
 }

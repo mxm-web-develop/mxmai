@@ -66,7 +66,7 @@ export class ProviderBalanceService {
     const supabase = getSupabaseClient();
     const { data: existing, error: fetchErr } = await supabase
       .from('provider_balances')
-      .select('id, balance')
+      .select('id, balance, currency')
       .eq('provider', usage.provider)
       .maybeSingle();
 
@@ -80,13 +80,18 @@ export class ProviderBalanceService {
     }
 
     const currentBalance = existing ? Number(existing.balance || 0) : 0;
+    const balanceCurrency =
+      (existing?.currency && String(existing.currency).trim()) || 'USD';
     if (currentBalance < cost) {
       console.warn('[ProviderBalanceService] 余额不足:', {
         provider: usage.provider,
         currentBalance,
         cost,
+        currency: balanceCurrency,
       });
-      throw new Error(`${PRICING_ERROR_INSUFFICIENT}: ${usage.provider} 当前 ${currentBalance.toFixed(4)} USD，本次需 ${cost.toFixed(4)} USD，请在「Provider 管理」中充值`);
+      throw new Error(
+        `${PRICING_ERROR_INSUFFICIENT}: ${usage.provider} 当前 ${currentBalance.toFixed(4)} ${balanceCurrency}，本次需 ${cost.toFixed(4)} ${balanceCurrency}，请在「Provider 管理」中充值`
+      );
     }
 
     const nextBalance = currentBalance - cost;
@@ -100,12 +105,13 @@ export class ProviderBalanceService {
         throw new Error(PRICING_ERROR_MSG);
       }
     } else {
+      const pricingCurrency = await this.resolveBalanceCurrencyForProvider(usage.provider);
       const { error: insertErr } = await supabase
         .from('provider_balances')
         .insert({
           provider: usage.provider,
           balance: nextBalance,
-          currency: 'USD',
+          currency: pricingCurrency,
         });
       if (insertErr) {
         throw new Error(PRICING_ERROR_MSG);
@@ -157,10 +163,59 @@ export class ProviderBalanceService {
           return { cost: this.computeCost(defaultPricing, usage), hasPricing: true };
         }
       }
+      // 若 normalized scope（text/graph/audio/video）未命中，尝试业务 scope（writing/outline）作为 fallback
+      // 原因：provider_pricing.scope 通常与 provider_models.scope 一致，但 deerapi/provider.ts
+      // 在定价检查时会将 writing→text、outline→text 等 normalized 为 text/graph 等
+      if (usage.scope && ['text', 'graph', 'audio', 'video'].includes(usage.scope)) {
+        const businessScopeMap: Record<string, string[]> = {
+          text: ['writing', 'outline', 'default'],
+          graph: ['graph', 'default'],
+          audio: ['audio', 'music', 'default'],
+          video: ['video', 'default'],
+        };
+        const businessScopes = businessScopeMap[usage.scope] || [];
+        for (const bs of businessScopes) {
+          if (bs === usage.scope) continue; // 已尝试过
+          const { data: businessRows } = await supabase
+            .from('provider_pricing')
+            .select('*')
+            .eq('provider', usage.provider)
+            .eq('model_key', usage.model_key)
+            .eq('scope', bs);
+          const businessPricing = Array.isArray(businessRows) && businessRows.length > 0 ? businessRows[0] : null;
+          if (businessPricing) {
+            return { cost: this.computeCost(businessPricing, usage), hasPricing: true };
+          }
+        }
+      }
       return { cost: 0, hasPricing: false };
     }
 
     return { cost: this.computeCost(pricing, usage), hasPricing: true };
+  }
+
+  /** 新建 provider_balances 行时：优先该 provider 在 provider_pricing 中最常见的币种 */
+  private static async resolveBalanceCurrencyForProvider(provider: string): Promise<string> {
+    const supabase = getSupabaseClient();
+    const { data: rows } = await supabase
+      .from('provider_pricing')
+      .select('currency')
+      .eq('provider', provider);
+    const counts = new Map<string, number>();
+    for (const r of rows || []) {
+      const c = String((r as { currency?: string }).currency || 'USD').toUpperCase();
+      counts.set(c, (counts.get(c) || 0) + 1);
+    }
+    if (counts.size === 0) return 'USD';
+    let best = 'USD';
+    let max = 0;
+    for (const [c, n] of counts) {
+      if (n > max) {
+        max = n;
+        best = c;
+      }
+    }
+    return best;
   }
 
   private static computeCost(pricing: any, usage: UsageForCost): number {

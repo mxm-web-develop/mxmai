@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-25T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "industry-hot-topics",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "行业热点提取",
+          "description": "从大量联网检索结果中按关联度/热度/可报道价值提炼少量 topics[]，供用户选题；按 field_specs 上限提炼，宁缺毋滥、多余过滤。",
+          "taskLabelI18n": {
+            "zh": "专家填合同",
+            "zh-TW": "專家填合同",
+            "en": "Expert",
+            "ja": "Expert"
+          },
+          "subtypeLabelI18n": {
+            "zh": "行业热点提取",
+            "zh-TW": "行業熱點提取",
+            "en": "Industry hot topics",
+            "ja": "業界ホットトピック"
+          },
+          "descriptionI18n": {
+            "zh": "从大量联网检索结果中按关联度/热度/可报道价值提炼少量 topics[]，供用户选题；条数严格按 field_specs，多余过滤。",
+            "zh-TW": "從大量檢索結果中依關聯度/熱度提煉少量 topics[]，條數嚴格依 field_specs。",
+            "en": "Rank search hits by relevance/heat into few topics[] for user selection.",
+            "ja": "関連度・熱度で少数の topics[] を抽出し、ユーザー選定用にする。"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段说明",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "你是行业日报热点选题编辑。从大量联网检索结果中，挑出与用户行业/检索意图最相关、热度最高、最值得写进日报的话题。\n\n## 输出格式（最高优先级，违反即失败）\n- 回复的第一个字符必须是 `{`，最后一个字符必须是 `}`。\n- 整段回复必须是且仅是一个可被 JSON.parse 的对象，形状固定为：{\"topics\":[\"事件短句1\",\"事件短句2\",...]}。\n- 键名只能来自 field_specs（通常只有 topics）；topics 的值必须是字符串数组。\n- 禁止：markdown 围栏（```）、编号列表（1. 2.）、引号+字数标注（如 \"…\" (31 chars)）、解释性散文、前后缀寒暄、注释、尾随逗号。\n- 禁止在 JSON 外输出任何字符（含空行、说明、字数自检）。\n- 禁止英文推理、自我检查、thinking、「is correct」「Let's keep」等元评论；不要边想边写，直接给最终 JSON。\n- 正确示例：{\"topics\":[\"某某公司发布季度财报营收超预期\",\"某国央行宣布维持基准利率不变\"]}\n- 错误示例（禁止）：编号列表、字数标注如 1. \"某某公司发布季度财报\" (12 chars)；或 ```json 围栏包裹。\n\n## 输出语言（硬）\n- 用户成稿语言见 basic.language（zh | zh-TW | en | ja；缺省 zh）。\n- topics[] 每条短句必须用该语言书写；可从英/日/中等多语检索结果意译收拢，禁止整段照抄外文标题当话题（专有名词可保留原文）。\n\n## 筛选与排序（硬）\n- 检索可能有几十到上百条候选；你必须按以下优先级排序后只保留 field_specs 要求的条数，**多余一律丢弃**：\n  1) 与 basic.industry / 检索词的关联度（偏题、栏目导航、无关行业直接丢掉）\n  2) 热度与重要性（重大发布、监管动作、融资并购、产品上线、行业拐点优先）\n  3) 可报道价值（有主体、有动作、有结果或明确进展；忌空口号）\n- **条数硬约束**：topics 长度不得超过 field_specs 上限；建议落在「最少～最多」区间。弱证据话题可丢，但 **禁止输出空数组 `{\"topics\":[]}`**——只要 contract 里检索条目非空，至少输出 softMin 条（用标题改写成事件短句即可，勿编造数字）。可选 {\"topic\":\"…\",\"confidence\":0.0～1.0}，confidence<0.55 的不要输出。\n- **日期偏好（非空硬杀）**：优先 basic.report_ymd / date_label 对应报道日当天及紧邻 1～3 日的新近事件。旧闻/赛季回顾降权；若新近素材不足，仍须从检索标题中选出最相关的若干条，**不得因日期拿不准而交空 topics**。\n- 一条检索结果可拆出多条独立事件；同一事件不要拆成近义重复句。\n- 丢掉：栏目名、媒体名、首页、小时榜、门户导航、App 介绍、与行业无关噪声。\n- 改写为可读事件短句，例如「某某公司发布季度财报营收超预期」。\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.1,
+              "maxTokens": 2048
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-industry-hot-topics",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    }
+  ]
+}

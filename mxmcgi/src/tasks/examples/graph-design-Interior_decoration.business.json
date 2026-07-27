@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-05-15T14:00:00.000Z",
+  "items": [
+    {
+      "scope": "graph",
+      "type": "design",
+      "subtype": "Interior_decoration",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "设计 · 室内设计整案方案",
+          "subtypeLabel": "Interior_decoration（户型图 → 9:16 全屋方案展板）",
+          "taskLabelI18n": {
+            "zh": "设计 · 室内设计整案方案",
+            "zh-TW": "設計 · 室內設計整案第三方案"
+          },
+          "subtypeLabelI18n": {
+            "zh": "Interior_decoration（户型图 → 9:16 全屋方案展板）",
+            "zh-TW": "Interior_decoration（使用者型圖 → 9:16 全屋第三方案展板）"
+          }
+        },
+        "promptTextTaskKey": "text/format/gpt-image-2",
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "maxTokens": 2048,
+              "temperature": 0.35
+            }
+          },
+          "knowledge": {
+            "strategy": "global",
+            "useKnowledge": false,
+            "defaultKnowledgeBaseIds": []
+          },
+          "uiSchema": {
+            "design_description": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 5
+              }
+            },
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 3
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是资深「室内设计整案方案」美术指导 + 英文 image prompt 撰稿人。下游把你的英文正文交给 gpt-image-2 类模型（最大约 3K 像素级输出）；户型图参考像素已由系统随请求提交，你不得粘贴 base64/URL。\n\n【text/format 生成契约】①「一、重要的用户要求」永远优先；②用户未写的维度才允许用「四、相关参考」补全；③与参考户型矛盾的一律不写；④输出为**单张竖版 9:16 整案方案展板**（非单房间写真、非纯 CAD 线稿）。\n\n一、重要的用户要求（表单插值，本单硬约束）\n- 户型参考图（摘要/占位）：${floor_plan_images}\n- 设计需求描述：${design_description}\n- 装修风格：${interior_style}\n- 画面文字语言：${on_screen_text_language}\n- 画幅（固定）：${aspect_ratio}\n- 补充说明（可选）：${prompt}\n\n二、任务定义（室内设计整案方案是什么）\n- 基于用户上传的**户型平面图**，生成**设计师交付用的单张完整方案展板**：在固定 **9:16 竖版画布（目标分辨率语义约 2160×3840，占满 gpt-image-2 可用最大竖版）** 上，整合呈现该户型的**全部功能分区**（以参考图中实际存在的房间为准，自行识别客餐厅、卧室、厨卫、阳台、玄关等，**禁止**让用户手选「设计范围」）。\n- 版面形态类似 **interior design presentation board / moodboard + multi-room renders**：可含顶部方案标题、中部多格各房间写实效果图、角落缩略户型示意、材料/色板条、短文案设计说明——**允许且鼓励**画面内可读文字用于房间名、设计亮点、材质关键词；**新增标签的书写语言须与「一」中「画面文字语言」一致**（用户已在正文写死的原文保持原样）。\n- 与「单张客厅大片」区别：本任务必须覆盖**户型内各主要空间**（参考图有几室几厅就展示几室几厅，可略去无独立分区的过道），整体是**一套连贯软装体系**，不是只渲一个房间。\n- 与「户型技术图」区别：各分区以**写实室内渲染**为主；可保留小型平面示意作对照，但主视觉不是带尺寸标注的 CAD。\n\n三、任务要求（怎样算优秀的整案方案展板）\n- **户型结构锁定（硬）**：写入 **floor plan / layout lock**：墙体、分区、门窗、阳台/厨卫位置须与参考一致；各房间渲染的视角与家具摆放须符合该分区在平面中的位置关系；**禁止**擅自改户型、漏掉参考图中可见的主要房间、或换成无关户型。\n- **房间清单由户型决定（硬）**：先从参考图识别全部房间类型与数量，英文 prompt 须列出将展示的 room list（如 living-dining, master bed, bed2, kitchen, bath, balcony…），并为**每个**主要分区安排至少一格写实渲染或清晰局部；房间过多时可略缩格尺寸但**不得**只渲客厅忽略卧室厨卫。\n- **设计需求与风格**：完整转写「设计需求描述」；与「装修风格」枚举一致，冲突时以用户描述为准；全屋材质、色板、灯光气质须统一。\n- **版式（硬）**：竖向 9:16 信息图排版——建议结构（可微调）：顶栏方案名/一句话概念 → 中部 2–4 列网格或多行分格展示各房间渲染 → 一侧或底部材料/色板 swatches → 可选小 inset 平面示意图（简化、无工程尺寸）→ 画面内 **legible typography** 标注房间名与 2–5 条设计要点（来自 briefing，勿编造与「一」冲突的数据）；**画面文字语言**须与「一」中 on_screen_text_language 一致——该字段指定新增标签/说明小字使用简体中文、英文或日文（用户已在「设计需求」等栏写死的原文保持原样）。**禁止**再写 avoid all text / no typography。\n- **画幅与像素语义（硬）**：英文须写明 **tall portrait 9:16**, **full vertical canvas**, **high-resolution presentation board (~2160×3840 class)**，各分格填满画幅、避免大量无意义留白。\n- **人物**：默认不出现；若用户描述要求生活方式人物，须极小且不打断分区阅读。\n\n四、相关参考（仅用户未指定时补全，不得覆盖「一」）\n- 默认光线：明亮自然光 + 柔和补光，各格肤色与木色一致。\n- 格间分隔：细线框、圆角卡片或轻阴影分区，像专业提案 PDF 单页。\n- 若用户未写色板，按风格枚举给一套主色 + 点缀色 swatch 条。\n\n五、Prompt 输出参考（英文正文结构与禁忌）\n- 写成**一段连续英文**：layout lock & inferred room list from floor plan → unified style & materials → vertical 9:16 board layout with grid of per-room photoreal renders → **on-image label language** per 「一」on_screen_text_language（Simplified Chinese / English / Japanese for new labels only; keep user literal strings）→ on-image labels (room names, 2–5 design bullets from briefing, material tags) → optional small plan inset → negatives（no single-room-only hero, no blueprint-only sheet, no warped walls, no watermark, no illegible microtext, consistent design language across all panels; **do not** forbid typography when labels are required）。\n- 禁止：中文解释、Markdown、编号清单；禁止只生成一个房间而忽略户型其余分区。\n\n【输出】只输出最终生图用英文 prompt 正文，不要解释或 Markdown。"
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "floor_plan_images",
+              "design_description",
+              "interior_style"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "poster"
+                ],
+                "default": "poster",
+                "x-user-visible": false
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "enum": [
+                  "9:16"
+                ],
+                "default": "9:16",
+                "x-user-visible": false
+              },
+              "floor_plan_images": {
+                "type": "array",
+                "title": "户型图",
+                "description": "必传：平面户型图。系统将自动识别图中全部房间分区，并在一张 9:16 竖版方案展板中整合展示各空间效果图；像素进模型，摘要进 briefing。",
+                "x-ui-type": "referenceImages",
+                "minItems": 1,
+                "maxItems": 4,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "title": "图片 URL / Base64"
+                    },
+                    "type": {
+                      "type": "string",
+                      "title": "用途类型",
+                      "enum": [
+                        "main-subject",
+                        "background",
+                        "style-reference",
+                        "color-reference"
+                      ],
+                      "default": "main-subject"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "title": "用途说明（可选）"
+                    }
+                  }
+                },
+                "x-enum-labels": []
+              },
+              "design_description": {
+                "type": "string",
+                "title": "设计需求描述",
+                "description": "用途（自住/出租/样板间）、居住人群、色彩与材质偏好、各房间功能侧重、禁忌项等。展示哪些房间由上传的户型图自动决定，无需手选范围。",
+                "x-ui-type": "text",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "interior_style": {
+                "type": "string",
+                "title": "装修风格",
+                "description": "全屋硬装与软装统一气质。",
+                "enum": [
+                  "modern_minimal",
+                  "nordic",
+                  "japanese_wood",
+                  "light_luxury",
+                  "industrial",
+                  "french",
+                  "new_chinese",
+                  "cream_wabi"
+                ],
+                "default": "modern_minimal",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "现代简约",
+                  "北欧",
+                  "日式原木",
+                  "轻奢",
+                  "工业风",
+                  "法式",
+                  "新中式",
+                  "奶油侘寂"
+                ],
+                "x-enum-descriptions": {
+                  "modern_minimal": "干净线条、中性色、少装饰、强调采光与收纳",
+                  "nordic": "白橡木、浅灰白、织物柔和、明亮通透",
+                  "japanese_wood": "原木、障子感留白、低矮家具、自然秩序",
+                  "light_luxury": "大理石或岩板点缀、金属线条、暖灰米色、酒店感",
+                  "industrial": "裸露结构感、深灰水泥、金属玻璃、适度粗犷",
+                  "french": "石膏线、人字拼、柔和曲线、复古优雅",
+                  "new_chinese": "木格栅、对称留白、墨色点缀、当代中式",
+                  "cream_wabi": "奶油色墙面、微水泥、弧形软装、安静治愈"
+                }
+              },
+              "on_screen_text_language": {
+                "type": "string",
+                "title": "画面文字语言",
+                "description": "展板上新增的房间名、要点、材质标签等使用何种文字；你在「设计需求」里写死的原文不改。",
+                "enum": [
+                  "zh",
+                  "en",
+                  "ja"
+                ],
+                "default": "zh",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "中文",
+                  "English",
+                  "日本語"
+                ],
+                "x-enum-descriptions": {
+                  "zh": "新增标签与说明小字以简体中文书写。",
+                  "en": "Additional labels and secondary copy in English.",
+                  "ja": "追加ラベル・補足は日本語。"
+                }
+              },
+              "prompt": {
+                "type": "string",
+                "title": "补充说明（可选）",
+                "description": "如：展板标题文案、指定黄昏光线、不要人物、强调某房间收纳等。",
+                "x-ui-type": "string",
+                "default": ""
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "graph-design-Interior_decoration",
+        "provider": "atlascloud",
+        "model": "gpt-image-2",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "graph-design-Interior_decoration",
+          "charge_metric": "per_image",
+          "price_in_tokens": 120,
+          "min_charge_tokens": 0,
+          "provider": "atlascloud",
+          "model_key": "gpt-image-2",
+          "subtype": "Interior_decoration",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

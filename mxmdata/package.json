@@ -26,6 +26,26 @@
     "test:create": "tsx src/scripts/test-supabase-create.ts",
     "init:db": "tsx src/scripts/init-database.ts",
     "migrate:model-config": "tsx src/scripts/run-model-config-migration.ts",
+    "migrate:published-apis": "tsx src/scripts/run-published-apis-migration.ts",
+    "migrate:published-api-usage": "tsx src/scripts/run-published-api-usage-migration.ts",
+    "migrate:published-api-usage-title": "tsx src/scripts/run-published-api-usage-title-migration.ts",
+    "migrate:usage-analytics": "tsx src/scripts/run-usage-analytics-migration.ts",
+    "migrate:account-usage-rpc": "tsx src/scripts/run-account-usage-rpc-migration.ts",
+    "backfill:usage-analytics": "tsx src/scripts/backfill-usage-analytics.ts",
+    "migrate:partner-platform": "tsx src/scripts/run-partner-platform-migration.ts",
+    "migrate:partner-sms-auth": "tsx src/scripts/run-partner-sms-auth-migration.ts",
+    "migrate:partner-access-control": "tsx src/scripts/run-partner-access-control-migration.ts",
+    "migrate:partner-app-invites": "tsx src/scripts/run-partner-app-invites-migration.ts",
+    "migrate:knowledge-scope-config": "tsx src/scripts/run-knowledge-scope-config-migration.ts",
+    "migrate:user-api-keys": "tsx src/scripts/run-user-api-keys-migration.ts",
+    "migrate:user-api-key-type": "tsx src/scripts/run-user-api-key-type-migration.ts",
+    "migrate:backfill-open-api-metadata": "tsx src/scripts/run-backfill-open-api-task-metadata.ts",
+    "migrate:storage-objects": "tsx src/scripts/run-storage-objects-migration.ts",
+    "migrate:storage-object-asset-fields": "tsx src/scripts/run-storage-object-asset-fields-migration.ts",
+    "migrate:storage-objects-disable-rls": "tsx src/scripts/run-storage-objects-disable-rls-migration.ts",
+    "migrate:storage-objects-partner-source": "tsx src/scripts/run-storage-objects-partner-source-migration.ts",
+    "backfill:storage-objects-partner-source": "tsx src/scripts/backfill-storage-objects-partner-source.ts",
+    "ensure:buckets": "tsx src/scripts/ensure-storage-buckets.ts",
     "init:smartflow-tables": "tsx src/scripts/init-smartflow-tables.ts",
     "init:smartflows": "tsx src/scripts/init-smartflows.ts",
     "init:prompt-templates": "tsx src/scripts/init-prompt-templates.ts",
@@ -43,7 +63,16 @@
     "supabase:open": "open http://localhost:54323"
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
     "pg": "^8.13.1"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-s3": "^3.1032.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-s3": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/pg": "^8.16.0"

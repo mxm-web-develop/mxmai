@@ -743,7 +743,7 @@ router.post(
  * - 将原始文件保存到 MinIO
  * - 后台任务从存储下载文件，执行解析 + 向量化 + 入库
  *
- * 任务进度与结果可通过 /api/v1/cgi-tasks/:taskId 查询：
+ * 任务进度与结果可通过 GET /api/v2/tasks/:taskId 查询：
  * - progress.progress: 0-100
  * - result.metadata: { documentsCount, totalChunks, knowledgeBaseId, ... }
  */
@@ -805,29 +805,22 @@ router.post(
       const chunkOverlap = chunk_overlap ? Number(chunk_overlap) : undefined;
       const maxChunkSize = max_chunk_size ? Number(max_chunk_size) : undefined;
 
-      // 1. 将原始文件保存到 MinIO，避免在 CGI 任务表中存 Buffer
-      const storageRepo = RepositoryFactory.createStorageRepository();
-      const bucket =
-        process.env.KNOWLEDGE_STORAGE_BUCKET ||
-        process.env.CGI_STORAGE_BUCKET ||
-        'user-media';
-
-      const originalName = multerReq.file.originalname;
-      const ext = (originalName.split('.').pop() || 'txt').toLowerCase();
-      const timestamp = Date.now();
-      const randomId = Math.random().toString(36).slice(2, 8);
-
-      const key = `knowledge/${userId}/${id}/${timestamp}-${randomId}.${ext}`;
-
-      await storageRepo.uploadFile(bucket, key, multerReq.file.buffer, {
+      // 1. 将原始文件保存到 user_upload 域
+      const { uploadUserBlob } = await import('../storage/user-upload-service');
+      const uploaded = await uploadUserBlob({
+        userId,
+        purpose: 'knowledge',
+        buffer: multerReq.file.buffer,
         contentType: multerReq.file.mimetype,
+        originalName: multerReq.file.originalname,
         metadata: {
-          userId,
           knowledgeBaseId: id,
-          knowledgeBaseName: existingKb.name, // 保留 name 用于内部处理
-          originalFileName: originalName,
+          knowledgeBaseName: existingKb.name,
         },
       });
+
+      const bucket = uploaded.bucket;
+      const key = uploaded.key;
 
       // 2. 创建 CGI 任务
       const taskManager = taskExecutor.getTaskManager();
@@ -840,7 +833,7 @@ router.post(
           knowledgeBaseName: existingKb.name, // 保留 name 用于内部处理
           fileBucket: bucket,
           fileKey: key,
-          originalFileName: originalName,
+          originalFileName: multerReq.file.originalname,
           mimeType: multerReq.file.mimetype,
           userId,
           tags: parsedTags,
@@ -863,7 +856,7 @@ router.post(
         );
       });
 
-      // 4. 返回任务 ID，让前端通过 /api/v1/cgi-tasks/:taskId 查询进度
+      // 4. 返回任务 ID，让前端通过 GET /api/v2/tasks/:taskId 查询进度
       return res.json({
         success: true,
         data: {

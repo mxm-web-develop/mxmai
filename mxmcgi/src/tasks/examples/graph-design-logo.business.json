@@ -1,0 +1,353 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-02T08:00:00.000Z",
+  "items": [
+    {
+      "scope": "graph",
+      "type": "design",
+      "subtype": "logo",
+      "is_active": true,
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "设计 · 品牌 Logo",
+          "subtypeLabel": "logo（九宫格探索 / 品牌套件单页）",
+          "taskLabelI18n": {
+            "zh": "设计 · 品牌 Logo",
+            "zh-TW": "設計 · 品牌 Logo"
+          },
+          "subtypeLabelI18n": {
+            "zh": "logo（九宫格探索 / 品牌套件单页）",
+            "zh-TW": "logo（九宫格探搜尋 / 品牌套電子郵件單首頁）"
+          }
+        },
+        "promptTextTaskKey": "text/format/gpt-image-2",
+        "taskTemplate": {
+          "extra": {
+            "generateParams": {
+              "maxTokens": 2048,
+              "temperature": 0.38
+            }
+          },
+          "knowledge": {
+            "strategy": "global",
+            "useKnowledge": false,
+            "defaultKnowledgeBaseIds": []
+          },
+          "uiSchema": {
+            "brand_name": {
+              "ui:options": {
+                "placeholder": "可选；纯图形标可不填"
+              }
+            },
+            "business_scene": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 3,
+                "placeholder": "如：B2B SaaS 协作工具、精品咖啡连锁、儿童 STEM 教育、高端珠宝定制…"
+              }
+            },
+            "prompt": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 4
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是资深品牌视觉设计师 + Logo 系统美术指导 + 英文 image prompt 撰稿人。下游把你的英文正文交给 gpt-image-2 类模型；设计参考图与融入元素参考图像素已由系统随请求提交，你不得粘贴 base64/URL。\n\n【text/format 生成契约】①「一、重要的用户要求」永远优先；②须根据 business_scene 推理行业气质、图形隐喻与禁忌；③用户未写的维度才允许用「四、相关参考」补全；④与参考像素矛盾的一律不写；⑤输出为**单张**整图（非多文件）。\n\n一、重要的用户要求（表单插值，本单硬约束）\n- 品牌名称（可选）：${brand_name}\n- 主要经营场景：${business_scene}\n- 单色模式：${monochrome}\n- 主色：${primary_color}\n- 辅色 1：${accent_color_1}\n- 辅色 2：${accent_color_2}\n- 辅色 3：${accent_color_3}\n- 设计风格：${design_style}\n- 设计参考图（摘要/占位）：${style_ref_images}\n- 融入元素参考图（摘要/占位）：${element_ref_images}\n- 输出模式：${output_grid}\n- PNG 透明背景：${transparent_background}\n- 画幅：${aspect_ratio}\n- 宫格单元约束：${grid_cell_constraint_preset}\n- 用户补充说明：${prompt}\n\n二、任务定义（Logo 设计是什么）\n- **目标**：为「一」中品牌生成**专业级 Logo 视觉方案**——图形标志、字标或组合标须可读、可缩放、可品牌延展；须与 business_scene 所暗示的行业受众、信任感与渠道（App 图标、门头、包装、社媒头像）相容。\n- **色彩规则（硬，按 monochrome 与各色字段执行）**：\n  - **monochrome = true（单色开关开启）**：全方案**仅**使用 primary_color 这一种色相/灰阶（允许同色相明度层次）；**完全忽略** accent_color_1/2/3，不得在英文中写入任何辅色；写 *strict monochrome lock using only primary_color*。\n  - **monochrome = false 且 accent_color_1/2/3 均为空**：**彩色自由模式**——可根据 business_scene 与 design_style 推理配色，primary_color 若有则作为倾向色而非硬锁。\n  - **monochrome = false 且存在任一辅色**：**主色+辅色模式**——primary_color 占视觉主导（约 55–75%），accent_color_1/2/3 中**非空**者仅作点缀/渐变/次要结构；英文须逐字锁定各 hex，禁止擅自换色；空辅色槽位忽略。\n- **当 transparent_background = 是（硬）**：英文须写 *transparent PNG background, alpha channel, isolated logo mark with no backdrop, no floor shadow, no gradient plate*；九宫格每格与品牌套件板均**禁止**实色/渐变/场景底；主体边缘干净可抠图。\n- **当 transparent_background = 否**：九宫格每格可用浅中性底或极浅品牌色底；套件单页用统一中性底（见输出模式 B）。\n- **品牌名（可选）**：若 brand_name 为空或占位为空，须生成**纯图形/抽象标**或**无字面品牌字的符号标**；**禁止**臆造与 business_scene 无关的随机英文品牌名。若 brand_name 非空，画面内文字须与其**完全一致**。\n- **设计风格 design_style（硬）**：英文须体现对应气质——minimal_geometric 极简几何；lettermark 首字母标；wordmark 字标；emblem_badge 徽章式；abstract_symbol 抽象符号；mascot_character 吉祥物/角色标；luxury_serif 奢华衬线；tech_modern 科技现代；playful_friendly 活泼友好；vintage_classic 复古经典；follow_style_reference 则**仅**迁移 style_ref 的图形语言（禁止复制参考中的第三方品牌名或侵权字形）。\n- **参考图**：style_ref_images 非空 → **style lock**（构图气质、线宽、圆角、装饰密度）；element_ref_images 非空 → **motif lock**（须将参考中的具象元素/纹样/图标语义融入标志，可抽象化但不可替换为无关图形）。二者同时存在时：元素跟 element，风格跟 style。\n\n三、输出模式（与 output_grid 对齐，硬）\n\n**A. 当 output_grid = 3x3（九宫格探索）**\n- 输出**单张 3×3 contact sheet**，等分 9 格，每格为**同一品牌名**的**不同 Logo 设计方向**（构图、图形隐喻、字标/图标配比须彼此明显区分）。\n- 9 格共享：brand_name 字面、color_mode 规则、business_scene 行业气质；**禁止** 9 格变成 9 个不同品牌名。\n- 每格须像可独立裁切的完整 Logo 方案（非局部碎片）；格与格之间**视觉可区分**但**品牌气质统一**。\n- 英文开头须声明：single canvas 3×3 contact sheet, nine distinct logo concepts for the same brand, equal cells, independently crop-friendly。\n\n**B. 当 output_grid = 1x1（品牌套件单页）**\n- 输出**单张横版品牌套件板**（优先 16:9；若「一」为 1:1 则仍用左右分区但压缩右侧层级）。\n- **左右布局（硬）**：\n  - **左侧约 52–58%**：**主 Logo 完整设计（Hero lockup）**——含图形+字标或纯字标的标准彩色/指定色版本，居中或略偏中，留专业安全边距；transparent_background=是 时无背景板，=否 时背景中性（浅灰/米白/深炭灰之一，与 color_mode 协调）。\n  - **右侧约 42–48%**：**同一套视觉系统的衍生展示**，须与左侧**同一图形语言、同一笔画/圆角/字重体系**，分区清晰：\n    1）**Wordmark / 横排字标**（可无图标或简图标）；\n    2）**Simplified / 简版标志**（更少细节、小尺寸可读）；\n    3）**Monochrome or one-color variant**（若 color_mode 已为 mono 则展示反白/深色底版本）；\n    4）**App icon / favicon-style square**（圆角矩形内简化版，仍识别同一品牌）；\n    5）可选 **spacing / clear-space demo** 细线示意（极简，不抢主视觉）。\n- 英文须写 *left hero full lockup, right stacked derivative panel, unified design system, same stroke weight and corner radius across all variants*。\n- **禁止**右侧衍生与左侧主标风格脱节、换字体体系或换图形隐喻。\n\n四、任务要求（怎样算优秀的 Logo 方案）\n- **品牌名呈现**：若 brand_name 非空，画面内文字须与其**完全一致**；若为空则**不得**添加可读品牌字，仅图形/符号标。\n- **行业推理（硬）**：根据 business_scene 在英文中写入 1–2 句 *industry-appropriate* 约束（如金融科技→信任/几何/深蓝；儿童教育→圆润/友好；精品咖啡→手工/温暖；科技 SaaS→简洁/可扩展）。\n- **可缩放性**：标志须**少细线、少渐变依赖**（除非 design_style 或 style ref 明确要求）；小尺寸仍可读。\n- **画幅**：英文显式写出 square 1:1 或 wide 16:9 等，与「一」一致；3x3 模式优先 1:1；1x1 套件模式优先 16:9。\n- **禁止**：水印、二维码、**虚构第三方知名品牌**、侵权字形直接抄袭、与 business_scene 冲突的幼稚/低俗元素（除非用户补充要求）。\n\n五、相关参考（Logo 设计；仅用户未指定时补全，不得覆盖「一」）\n- 背景：transparent_background=是 → 全画布透明底；=否 → 九宫格浅中性底或套件单页统一中性底。\n- 构图：Logo 占格内约 60–75% 视觉权重，留呼吸边距。\n- 字体气质：与 design_style 一致；tech→几何无衬线；luxury→高对比衬线或细无衬线。\n- 若用户已写明禁忌/必须元素，本节只补未覆盖细粒度。\n\n六、Prompt 输出参考（英文正文结构与禁忌）\n- 写成**一段连续英文**（无 Markdown、无中文）：brand name rule (optional text) + industry inference → monochrome/color lock from primary & accent hex fields → design_style → style/motif locks from refs → **branch on output_grid**（3x3 nine concepts OR 1x1 left-right brand kit layout spec）→ aspect ratio → negatives（no watermark, no third-party famous logos, no illegible micro type, consistent system on kit panel, crop-friendly cells for 3x3）→ **if transparent_background=是: transparent PNG, alpha background, isolated subject, no solid backdrop**。\n- 若 output_grid=3x3：开头声明 contact sheet；若 output_grid=1x1：开头声明 single-page brand identity presentation sheet。\n- 禁止：中文解释、Markdown、编号清单；禁止套件或九宫格内视觉体系不一致。\n\n【输出】只输出最终生图用英文 prompt 正文，不要解释或 Markdown。"
+          },
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "business_scene",
+              "primary_color",
+              "design_style",
+              "output_grid",
+              "aspect_ratio"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "poster"
+                ],
+                "default": "poster",
+                "x-user-visible": false
+              },
+              "brand_name": {
+                "type": "string",
+                "title": "品牌名称（可选）",
+                "description": "若希望 Logo 含字标请填写；纯图形标可留空。",
+                "x-ui-type": "string",
+                "default": "",
+                "maxLength": 80
+              },
+              "business_scene": {
+                "type": "string",
+                "title": "主要经营场景",
+                "description": "描述品牌做什么、卖给谁、在什么渠道出现——用于推理适合的风格、图形隐喻与气质（如 B2B SaaS、精品咖啡、儿童教育、高端珠宝）。",
+                "x-ui-type": "string",
+                "minLength": 1,
+                "maxLength": 800
+              },
+              "monochrome": {
+                "type": "boolean",
+                "title": "单色模式",
+                "description": "开启后全方案仅使用「主色」一种色相/灰阶，辅色设置将被忽略。",
+                "default": false,
+                "x-ui-type": "switch"
+              },
+              "transparent_background": {
+                "type": "boolean",
+                "title": "PNG 透明背景（提示词）",
+                "description": "开启后输出 PNG，并在提示词中要求 isolated logo、无实色底。注意：当前 AtlasCloud gpt-image-2 不支持 API 级 background=transparent，无法保证真透明通道，需后期抠图。",
+                "default": false,
+                "x-ui-type": "switch"
+              },
+              "primary_color": {
+                "type": "string",
+                "title": "主色",
+                "description": "品牌主色；单色模式开启时即为唯一用色。",
+                "x-ui-type": "colorPicker",
+                "default": "#002FA7",
+                "pattern": "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})$"
+              },
+              "accent_color_1": {
+                "type": "string",
+                "title": "辅色 1（可选）",
+                "description": "点缀/次要结构用色；单色模式开启时不生效。",
+                "x-ui-type": "colorPicker",
+                "default": "",
+                "x-hide-when": {
+                  "monochrome": true
+                }
+              },
+              "accent_color_2": {
+                "type": "string",
+                "title": "辅色 2（可选）",
+                "x-ui-type": "colorPicker",
+                "default": "",
+                "x-hide-when": {
+                  "monochrome": true
+                }
+              },
+              "accent_color_3": {
+                "type": "string",
+                "title": "辅色 3（可选）",
+                "x-ui-type": "colorPicker",
+                "default": "",
+                "x-hide-when": {
+                  "monochrome": true
+                }
+              },
+              "design_style": {
+                "type": "string",
+                "title": "设计风格",
+                "description": "Logo 造型与排版气质；若已上传设计参考图且选「跟随参考」则与参考图叠加。",
+                "enum": [
+                  "minimal_geometric",
+                  "lettermark",
+                  "wordmark",
+                  "emblem_badge",
+                  "abstract_symbol",
+                  "mascot_character",
+                  "tech_modern",
+                  "luxury_serif",
+                  "playful_friendly",
+                  "vintage_classic",
+                  "follow_style_reference"
+                ],
+                "default": "minimal_geometric",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "极简几何",
+                  "字母标（Lettermark）",
+                  "字标（Wordmark）",
+                  "徽章 / 盾形 Emblem",
+                  "抽象符号",
+                  "吉祥物 / 角色标",
+                  "科技现代",
+                  "奢华衬线",
+                  "活泼友好",
+                  "复古经典",
+                  "跟随设计参考图"
+                ]
+              },
+              "style_ref_images": {
+                "type": "array",
+                "title": "设计参考图（可选）",
+                "description": "迁移参考的图形气质、线宽、装饰密度与排版习惯；禁止复制参考中的第三方品牌名或侵权标识。",
+                "x-ui-type": "referenceImages",
+                "minItems": 0,
+                "maxItems": 6,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "title": "图片 URL / Base64"
+                    },
+                    "type": {
+                      "type": "string",
+                      "title": "用途类型",
+                      "enum": [
+                        "main-subject",
+                        "background",
+                        "outfits",
+                        "color-reference",
+                        "style-reference"
+                      ],
+                      "default": "style-reference"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "title": "用途说明（可选）"
+                    }
+                  }
+                },
+                "x-enum-labels": []
+              },
+              "element_ref_images": {
+                "type": "array",
+                "title": "融入元素参考图（可选）",
+                "description": "须融入标志的具象元素、纹样、图标或隐喻物（可抽象化，但语义不可替换）。",
+                "x-ui-type": "referenceImages",
+                "minItems": 0,
+                "maxItems": 6,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "content",
+                    "type"
+                  ],
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "title": "图片 URL / Base64"
+                    },
+                    "type": {
+                      "type": "string",
+                      "title": "用途类型",
+                      "enum": [
+                        "main-subject",
+                        "background",
+                        "outfits",
+                        "color-reference",
+                        "style-reference"
+                      ],
+                      "default": "main-subject"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "title": "用途说明（可选）"
+                    }
+                  }
+                },
+                "x-enum-labels": []
+              },
+              "output_grid": {
+                "type": "string",
+                "title": "输出模式",
+                "description": "九宫格一次产出 9 个不同方向；品牌套件为单页左右布局（主标 + 衍生）。",
+                "x-ui-type": "selection",
+                "enum": [
+                  "3x3",
+                  "1x1"
+                ],
+                "x-enum-labels": [
+                  "九宫格探索（9 个 Logo 方案）",
+                  "品牌套件（主标 + 衍生排版）"
+                ],
+                "default": "3x3"
+              },
+              "grid_cell_constraint_preset": {
+                "type": "string",
+                "title": "宫格单元约束",
+                "x-user-visible": false,
+                "enum": [
+                  "strict_seamless",
+                  "standard",
+                  "none"
+                ],
+                "default": "strict_seamless",
+                "x-enum-prompt-append": {
+                  "strict_seamless": "**CRITICAL REQUIREMENTS FOR CELLS:** 1. NO borders, NO white edges, NO margins, NO gaps between cells. 2. Content must fill the entire cell area edge-to-edge with no empty spaces. 3. Each cell must be seamless and complete, with content extending to all edges. 4. Ensure cells are clearly separated visually but can be cropped independently without any white borders or edges. 5. The grid should appear as ${total_cells} complete, edge-to-edge logo concept panels that can be perfectly cropped without any borders or margins.",
+                  "standard": "**GRID LAYOUT:** ${grid_n}x${grid_n} equal cells; no thick outer frame; each cell must be visually distinct and independently crop-friendly; ${total_cells} logo panels total.",
+                  "none": ""
+                }
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "title": "画幅",
+                "description": "九宫格推荐 1:1；品牌套件推荐 16:9 横版。",
+                "enum": [
+                  "1:1",
+                  "16:9",
+                  "4:3"
+                ],
+                "default": "1:1",
+                "x-ui-type": "selection",
+                "x-enum-labels": [
+                  "1:1 方图（九宫格推荐）",
+                  "16:9 横版（品牌套件推荐）",
+                  "4:3 横版"
+                ]
+              },
+              "prompt": {
+                "type": "string",
+                "title": "补充说明",
+                "description": "禁忌元素、必须出现的图形、目标平台（App/门头/包装）、字体偏好等。",
+                "x-ui-type": "string",
+                "default": ""
+              }
+            },
+            "x-grid-pose-scripts": {
+              "3x3": [
+                "Cell: minimal geometric monoline icon + compact wordmark beneath, generous whitespace, centered lockup, flat vector logo design.",
+                "Cell: bold lettermark using first initial of brand name, heavy geometric sans, square containment, strong small-size readability.",
+                "Cell: pure wordmark typographic logo, custom letter spacing, no icon, horizontal emphasis, professional brand naming focus.",
+                "Cell: circular emblem badge enclosing abstract symbol plus curved brand name arc, vintage-modern hybrid.",
+                "Cell: abstract negative-space symbol suggesting industry metaphor from business scene, paired with clean sans wordmark.",
+                "Cell: horizontal lockup icon left wordmark right, balanced clear space, corporate SaaS-ready proportions.",
+                "Cell: stacked vertical lockup icon above wordmark, mobile app icon friendly silhouette.",
+                "Cell: mascot or friendly character mark simplified to flat vector, approachable rounded forms, wordmark below.",
+                "Cell: luxury refined mark with subtle serif wordmark or high-contrast stroke contrast, premium spacing grid implied."
+              ]
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "graph-design-logo",
+        "provider": "atlascloud",
+        "model": "gpt-image-2",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "graph-design-logo",
+          "charge_metric": "per_image",
+          "price_in_tokens": 120,
+          "min_charge_tokens": 0,
+          "provider": "atlascloud",
+          "model_key": "gpt-image-2",
+          "subtype": "logo",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

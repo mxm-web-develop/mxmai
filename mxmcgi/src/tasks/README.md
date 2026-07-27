@@ -62,7 +62,11 @@ interface TaskTemplate {
 ```
 
 **Task v2 固定前置链**（见 `task-v2-prelude.ts`，不再使用可配置 `inputPipeline` / `outputPipeline`）：  
-schema 校验 → 敏感词（`prompt`）→ 若 `knowledge.useKnowledge` 且配置了 `defaultKnowledgeBaseIds` 则召回并合并进 `params.prompt` → `renderPromptFromTemplate` → 余额 → 创建并执行任务。
+schema 校验 → 敏感词（`prompt`）→ **写作/大纲：kbRecall/webSearch 字段解析** → 若 `knowledge.useKnowledge` 且配置了 `defaultKnowledgeBaseIds` 则召回并合并进 `params.prompt` → `renderPromptFromTemplate` → 余额 → 创建并执行任务。
+
+#### kbRecall / webSearch 字段（写作 scope）
+
+Admin 在 `formSchema.properties` 中为字段设置 `x-ui-type: kbRecall` 或 `webSearch`。用户提交 object，prelude 执行后该字段变为格式化摘要字符串，可在 `unifiedTemplate` 用 `${fieldName}` 引用。示例 bundle：[`examples/writing-articles-with-context.business.json`](./examples/writing-articles-with-context.business.json)。
 
 **注意**：这里的「TaskTemplate」是**单任务级别**的，不是 Smartflow。多 Task 串联仍由 Smartflow/Smartchain 另行设计。
 

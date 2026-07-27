@@ -1,5 +1,7 @@
 # CGI Task 异步任务系统
 
+> **HTTP 变更（2026-05）**：对外的任务创建/列表/详情/取消等 REST 已迁至 **`/api/v2/tasks/*`**（实现于 `src/tasks/routes.ts` + `task-http-handlers.ts`）。下文中的 `/api/v1/cgi-tasks` 路径已废弃；数据仍落在 **`cgi_tasks`** 表。
+
 ## 概述
 
 CGI Task 系统统一管理所有生成物料的异步任务，支持：
@@ -242,27 +244,4 @@ const response = await fetch('/api/v1/cgi-tasks', {
     },
   }),
 });
-```
-
-## 与 mxmagent 集成
-
-mxmagent 可以通过以下方式调用：
-
-```typescript
-// 创建任务
-const task = await createCGITask({
-  type: 'image',
-  model: 'nano-banana',
-  params: { prompt: '...' },
-  storeToMinio: true,
-});
-
-// 查询任务状态
-const status = await getCGITaskStatus(task.taskId);
-
-// 获取结果
-if (status.status === 'completed') {
-  const result = await getCGITaskResult(task.taskId);
-  // result.result.mediaUrls 包含 MinIO URL
-}
 ```

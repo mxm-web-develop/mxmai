@@ -10,23 +10,29 @@ import type {
   MxmRenderMode,
   VideoEditScript,
 } from "./types";
-import { dispatchGsapAnimation } from "./gsap-renderer";
 import { dispatchStaticImageHold } from "./static-image-renderer";
+import { normalizeMxmRenderMode } from "./render-mode";
 import { normalizeClientAccessibleMediaUrl } from "../audio/voiceover-audio-source";
 import { concatClipsToFinal, orderedClipResultsFromScript } from "./concat-engine";
 import { applySubtitleBurnToScript, applyTextOverlaysToScript } from "./overlay-compositor";
 import { subtitleContextForClipInScript } from "./stock-subtitle-context";
 import { buildFragmentParamsFromClipMetadata } from "./fragment-pipeline-params";
 import { buildAiImageDispatchParams } from "./ai-image-dispatch-params";
+import { resolveAiVideoPrompt } from "./ai-prompt-fields";
 import { normalizeVideoGeneratorRoute } from "../video/video-business-category";
-import { normalizeGraphImageRoute } from "../graph/graph-image-business";
+import { resolveAiImageLeafRoute } from "../graph/graph-image-business";
 import {
   extractImageUrlFromTaskResult,
   extractVideoUrlFromTaskResult,
   summarizeMissingMediaTaskResult,
 } from "./media-url-extract";
 import { preassignAutoStockForClipJobs, type StockMediaResolveResult } from "./stock-media-resolver";
-import { parseClipRenderAttempts, sleepMs, clipRetryDelayMs } from "./clip-retry";
+import {
+  clipRenderAttemptsForMode,
+  shouldSalvageFailedClip,
+  sleepMs,
+  clipRetryDelayMs,
+} from "./clip-retry";
 
 export { extractVideoUrlFromTaskResult } from "./media-url-extract";
 
@@ -102,9 +108,9 @@ export async function dispatchVideoEdit(input: DispatchInput): Promise<DispatchO
   const skipReadyClips = options.skipReadyClips === true;
   const concatOnly = options.concatOnly === true;
   const applyOverlays = options.applyOverlays === true;
-  const applySubtitleBurn = options.applySubtitleBurn !== false && !concatOnly;
+  // 默认不烧字幕：成片审核靠 HTML 浮层；最终导出需显式 applySubtitleBurn:true
+  const applySubtitleBurn = options.applySubtitleBurn === true && !concatOnly;
   const applyTransitions = options.applyTransitions === true;
-  const maxAttempts = parseClipRenderAttempts();
 
   let results: ClipDispatchResult[] = [];
 
@@ -113,7 +119,11 @@ export async function dispatchVideoEdit(input: DispatchInput): Promise<DispatchO
   } else {
     const clipJobs = collectRenderableClips(script, { skipReadyClips });
     const pipelineCtx = readPipelineDispatchContext(script);
-    const stockPreassign = await preassignAutoStockForClipJobs(clipJobs);
+    // 分镜选片后立刻转存用户临时存储，渲染/重试不再热拉 Flickr 外链
+    const stockPreassign = await preassignAutoStockForClipJobs(clipJobs, {
+      userId,
+      parentTaskId,
+    });
     const CONCURRENCY = parseVideoEditClipConcurrency();
 
     for (let i = 0; i < clipJobs.length; i += CONCURRENCY) {
@@ -126,7 +136,8 @@ export async function dispatchVideoEdit(input: DispatchInput): Promise<DispatchO
             parentTaskId,
             pipelineCtx,
             stockPreassign.get(job.clipId),
-            maxAttempts
+            // ai-video-gen（Seedance 等）禁止后台自动重试，固定 1 次
+            clipRenderAttemptsForMode(job.renderMode)
           )
         )
       );
@@ -145,21 +156,39 @@ export async function dispatchVideoEdit(input: DispatchInput): Promise<DispatchO
       }
     }
 
-    // 整批结束后再对仍失败的片段做一轮补救（每段再试 2 次）
-    const salvageAttempts = Math.min(2, maxAttempts);
-    const failedIds = new Set(
-      results.filter((r) => !isSuccessfulClipResult(r)).map((r) => r.clipId)
+    // 整批结束后仅对「非付费上游」片段补救（素材/GSAP）；ai-video-gen 绝不自动再打
+    const failedCheapJobs = clipJobs.filter(
+      (j) =>
+        results.some((r) => r.clipId === j.clipId && !isSuccessfulClipResult(r)) &&
+        shouldSalvageFailedClip(j.renderMode)
     );
-    if (failedIds.size > 0) {
-      const retryJobs = clipJobs.filter((j) => failedIds.has(j.clipId));
+    const skippedPaid = clipJobs.filter(
+      (j) =>
+        results.some((r) => r.clipId === j.clipId && !isSuccessfulClipResult(r)) &&
+        !shouldSalvageFailedClip(j.renderMode)
+    ).length;
+    if (skippedPaid > 0) {
       console.warn(
-        `[video-edit-dispatcher] ${retryJobs.length} 段仍失败，开始最终补救轮（每段最多 ${salvageAttempts} 次）`
+        `[video-edit-dispatcher] ${skippedPaid} 段 ai-video-gen 失败，跳过自动补救（需用户手动重试）`
       );
-      for (let i = 0; i < retryJobs.length; i += CONCURRENCY) {
-        const batch = retryJobs.slice(i, i + CONCURRENCY);
+    }
+    if (failedCheapJobs.length > 0) {
+      const salvageAttempts = Math.min(2, clipRenderAttemptsForMode("static-image"));
+      console.warn(
+        `[video-edit-dispatcher] ${failedCheapJobs.length} 段本地/素材渲染仍失败，开始最终补救轮（每段最多 ${salvageAttempts} 次）`
+      );
+      for (let i = 0; i < failedCheapJobs.length; i += CONCURRENCY) {
+        const batch = failedCheapJobs.slice(i, i + CONCURRENCY);
         const batchResults = await Promise.allSettled(
           batch.map((job) =>
-            dispatchOneWithRetry(job, userId, parentTaskId, pipelineCtx, undefined, salvageAttempts)
+            dispatchOneWithRetry(
+              job,
+              userId,
+              parentTaskId,
+              pipelineCtx,
+              undefined,
+              salvageAttempts
+            )
           )
         );
         for (let j = 0; j < batch.length; j++) {
@@ -282,7 +311,7 @@ function collectRenderableClips(
           : undefined;
       jobs.push({
         clipId: clip.id,
-        renderMode: mx.mxmRenderMode,
+        renderMode: normalizeMxmRenderMode(mx.mxmRenderMode),
         startTime: clip.startTime,
         duration: clip.duration,
         metadata: mx,
@@ -333,8 +362,6 @@ async function dispatchOne(
         parentTaskId,
         t0
       );
-    case "gsap-html-animation":
-      return await dispatchGsapAnimation(job, userId, parentTaskId, t0);
     default: {
       const _exhaustive: never = job.renderMode;
       return {
@@ -420,7 +447,7 @@ export function buildAiVideoDispatchParams(
         ? 'image-to-video'
         : 'text-to-video');
   const params: Record<string, unknown> = {
-    prompt: meta.mxmPrompt?.trim() ?? '',
+    prompt: resolveAiVideoPrompt(meta),
     duration: durationSec,
     aspectRatio: ratio,
     uid: `mxm-ai-video-${clipId}`,
@@ -444,7 +471,7 @@ async function dispatchAiImageGen(
 ): Promise<ClipDispatchResult> {
   const { runTaskV2Single } = await import("../../tasks/task-engine");
   const meta = job.metadata;
-  const route = normalizeGraphImageRoute(meta.mxmGraphTaskKey, meta.mxmGraphSubtype);
+  const route = resolveAiImageLeafRoute(meta.mxmGraphTaskKey, meta.mxmGraphSubtype);
   const params = buildAiImageDispatchParams(meta, job.clipId, pipelineCtx);
 
   const result = await runTaskV2Single(

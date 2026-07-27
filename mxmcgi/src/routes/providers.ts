@@ -21,6 +21,10 @@ import {
   runProviderConnectivityTest,
   type ConnectivityRequestPayload,
 } from './provider-connectivity-test';
+import {
+  REGISTERED_PROVIDER_TYPES,
+  BILLING_CAPABLE_PROVIDER_TYPES,
+} from '../core/providers/registered-provider-types';
 
 const router = Router();
 
@@ -64,14 +68,15 @@ async function refreshProviderModelCatalog(): Promise<void> {
 function normalizeModalityByScope(
   scope: string,
   modality?: string | null
-): 'text' | 'image' | 'audio' | 'video' | null {
+): 'text' | 'image' | 'audio' | 'video' | 'embedding' | null {
   const s = String(scope || '').toLowerCase();
   if (s === 'graph') return 'image';
   if (s === 'audio') return 'audio';
   if (s === 'video') return 'video';
+  if (s === 'knowledge') return 'embedding';
   if (s === 'text' || s === 'default' || s === 'writing' || s === 'outline') return 'text';
   const m = (modality ?? '').toLowerCase();
-  if (m === 'text' || m === 'image' || m === 'audio' || m === 'video') return m;
+  if (m === 'text' || m === 'image' || m === 'audio' || m === 'video' || m === 'embedding') return m;
   return null;
 }
 
@@ -82,6 +87,8 @@ router.get('/options', async (_req: Request, res: Response) => {
   try {
     const modelsByProvider: Record<string, string[]> = {};
     const modelsByProviderByScope: Record<string, Record<string, string[]>> = {};
+    /** 按 provider → scope → modality → model_key 聚合（含 modality 维度，前端可据此过滤） */
+    const modelsByScopeAndModality: Record<string, Record<string, Record<string, string[]>>> = {};
 
     // 1. 优先从 provider_models 加载启用模型
     try {
@@ -91,6 +98,7 @@ router.get('/options', async (_req: Request, res: Response) => {
       for (const m of dbModels) {
         const provider = m.provider;
         const scope = m.scope;
+        const modality = normalizeModalityByScope(scope, m.modality);
         const key = m.model_key;
         if (!modelsByProvider[provider]) modelsByProvider[provider] = [];
         if (!modelsByProvider[provider].includes(key)) modelsByProvider[provider].push(key);
@@ -98,6 +106,15 @@ router.get('/options', async (_req: Request, res: Response) => {
         if (!modelsByProviderByScope[provider][scope]) modelsByProviderByScope[provider][scope] = [];
         if (!modelsByProviderByScope[provider][scope].includes(key)) {
           modelsByProviderByScope[provider][scope].push(key);
+        }
+        // modality 维度：用于前端按业务类型过滤（text/audio/image/video）
+        if (modality) {
+          if (!modelsByScopeAndModality[provider]) modelsByScopeAndModality[provider] = {};
+          if (!modelsByScopeAndModality[provider][scope]) modelsByScopeAndModality[provider][scope] = {};
+          if (!modelsByScopeAndModality[provider][scope][modality]) modelsByScopeAndModality[provider][scope][modality] = [];
+          if (!modelsByScopeAndModality[provider][scope][modality].includes(key)) {
+            modelsByScopeAndModality[provider][scope][modality].push(key);
+          }
         }
       }
     } catch (_) {
@@ -117,7 +134,15 @@ router.get('/options', async (_req: Request, res: Response) => {
       }
     }
 
-    res.json({ success: true, data: { modelsByProvider, modelsByProviderByScope } });
+    res.json({
+      success: true,
+      data: {
+        providers: [...REGISTERED_PROVIDER_TYPES],
+        modelsByProvider,
+        modelsByProviderByScope,
+        modelsByScopeAndModality,
+      },
+    });
   } catch (e) {
     res.status(500).json({
       success: false,
@@ -127,10 +152,75 @@ router.get('/options', async (_req: Request, res: Response) => {
 });
 
 /** GET 当前路由表（默认 + 覆盖） */
-router.get('/routing', (_req: Request, res: Response) => {
+router.get('/routing', async (_req: Request, res: Response) => {
   try {
     const table = getFullRoutingTable();
-    res.json({ success: true, data: table });
+    const supabase = getSupabaseClient();
+
+    // 从 7 个 scope_config 表查询 routing + pricing + sensitive_words
+    const scopes = ['writing', 'outline', 'graph', 'video', 'audio', 'music', 'text'];
+    const scopeConfigMap: Record<string, Record<string, {
+      provider?: string;
+      model?: string;
+      margin?: number;
+      charge_metric?: string;
+      price_in_tokens?: number;
+      min_charge_tokens?: number;
+      sensitive_word_list_ids?: string[];
+    }>> = {};
+
+    for (const scope of scopes) {
+      const { data: rows, error } = await supabase
+        .from(`${scope}_scope_config`)
+        .select('task_key, sub_type, model, provider, margin, charge_metric, price_in_tokens, min_charge_tokens, sensitive_word_list_ids');
+      if (!error && rows) {
+        scopeConfigMap[scope] = {};
+        for (const row of rows) {
+          const key = `${scope}-${row.task_key}${row.sub_type !== 'default' ? `-${row.sub_type}` : ''}`;
+          scopeConfigMap[scope][key] = {
+            provider: row.provider ?? undefined,
+            model: row.model ?? undefined,
+            margin: row.margin ?? undefined,
+            charge_metric: row.charge_metric ?? undefined,
+            price_in_tokens: row.price_in_tokens ?? undefined,
+            min_charge_tokens: row.min_charge_tokens ?? undefined,
+            sensitive_word_list_ids: row.sensitive_word_list_ids ?? undefined,
+          };
+        }
+      } else if (error) {
+        console.warn(`[providers] GET /routing: skip ${scope}_scope_config (${error.message})`);
+      }
+    }
+
+    // 合并：基础路由信息 + scope_config 中的 routing + pricing + sensitive_words
+    // key 格式为 {scope}-{task_key}[-{sub_type}]，与 scopeConfigMap[scope][key] 对应
+    const SCOPE_PREFIXES = ['writing', 'outline', 'graph', 'video', 'audio', 'music', 'text'];
+    const merged: Record<string, any> = {};
+    for (const [key, entry] of Object.entries(table)) {
+      // 提取 scope 前缀来定位 scopeConfigMap
+      let foundScope = '';
+      for (const prefix of SCOPE_PREFIXES) {
+        if (key.startsWith(`${prefix}-`)) {
+          foundScope = prefix;
+          break;
+        }
+      }
+      merged[key] = {
+        ...entry,
+        ...(foundScope ? (scopeConfigMap[foundScope]?.[key] ?? {}) : {}),
+      };
+    }
+
+    // 也把有 scope_config 但不在内存路由表中的条目加上（V2 only 模式）
+    for (const scope of scopes) {
+      for (const [key, cfg] of Object.entries(scopeConfigMap[scope] ?? {})) {
+        if (!merged[key]) {
+          merged[key] = { overridden: false, ...cfg };
+        }
+      }
+    }
+
+    res.json({ success: true, data: merged });
   } catch (e) {
     res.status(500).json({
       success: false,
@@ -144,13 +234,31 @@ function canonicalLogicalModel(key: string): string {
   return key === 'writing-outline' ? 'writing-outlines' : key;
 }
 
-/** POST 更新单条路由覆盖（持久化到 DB，重启不丢失） */
+/** POST 更新单条路由覆盖（持久化到 DB，重启不丢失）
+ * 写入 *_scope_config 表（新系统，V2 动态路由）
+ * 根据 logicalModel 前缀自动识别 scope，写入对应 scope_config 表
+ * *_scope_config.model 直接存物理模型
+ */
 router.post('/routing', async (req: Request, res: Response) => {
   try {
-    const { logicalModel, provider, model } = req.body as {
+    const {
+      logicalModel,
+      provider,
+      model,
+      margin,
+      charge_metric,
+      price_in_tokens,
+      min_charge_tokens,
+      sensitive_word_list_ids,
+    } = req.body as {
       logicalModel?: string;
       provider?: ProviderType;
       model?: string;
+      margin?: number;
+      charge_metric?: string;
+      price_in_tokens?: number;
+      min_charge_tokens?: number;
+      sensitive_word_list_ids?: string[];
     };
     if (!logicalModel || !provider || !model) {
       res.status(400).json({
@@ -161,21 +269,87 @@ router.post('/routing', async (req: Request, res: Response) => {
     }
     const canonical = canonicalLogicalModel(logicalModel);
     const supabase = getSupabaseClient();
-    const { error } = await supabase
-      .from('model_routing_overrides')
-      .upsert(
-        { logical_model: canonical, provider, model, updated_at: new Date().toISOString() },
-        { onConflict: 'logical_model' }
-      );
-    if (error) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to persist routing override',
-        message: error.message,
-      });
+
+    // 解析 logicalModel 前缀，写入对应 *_scope_config 表（新系统）
+    // model 字段直接存物理模型，同时写入 pricing + sensitive_words
+    const SCOPE_PREFIXES = ['writing', 'graph', 'video', 'audio', 'music', 'outline', 'text'] as const;
+    let writtenToScopeConfig = false;
+    let matchedPrefix: (typeof SCOPE_PREFIXES)[number] | null = null;
+    for (const prefix of SCOPE_PREFIXES) {
+      if (canonical.startsWith(`${prefix}-`)) {
+        matchedPrefix = prefix;
+        const remainder = canonical.substring(prefix.length + 1); // e.g. 'academy-wenxian'
+        console.log(`[providers] POST /routing: canonical="${canonical}", remainder="${remainder}", prefix="${prefix}"`);
+        const dashIndex = remainder.indexOf('-');
+        const taskKey = dashIndex === -1 ? remainder : remainder.substring(0, dashIndex);
+        const subType = dashIndex === -1 ? 'default' : remainder.substring(dashIndex + 1);
+        const normalizedTaskKey = taskKey === 'outline' ? 'outlines' : taskKey;
+        const scopeTableMap: Record<string, string> = {
+          writing: 'writing_scope_config',
+          graph: 'graph_scope_config',
+          video: 'video_scope_config',
+          audio: 'audio_scope_config',
+          music: 'music_scope_config',
+          outline: 'outline_scope_config',
+          text: 'text_scope_config',
+        };
+        const tableName = scopeTableMap[prefix];
+        if (tableName) {
+          // 多数环境 graph/writing 等 *_scope_config 仅有 model（或历史库无 logical_model 列）；
+          // 仅 text_scope_config 建表脚本要求同时写入 logical_model。
+          const upsertRow: Record<string, unknown> = {
+            scope: prefix,
+            task_key: normalizedTaskKey,
+            sub_type: subType,
+            model,
+            provider,
+            enabled: true,
+            updated_at: new Date().toISOString(),
+          };
+          if (tableName === 'text_scope_config') {
+            upsertRow.logical_model = canonical;
+          }
+          if (margin !== undefined) upsertRow.margin = margin;
+          if (charge_metric !== undefined) upsertRow.charge_metric = charge_metric;
+          if (price_in_tokens !== undefined) upsertRow.price_in_tokens = price_in_tokens;
+          if (min_charge_tokens !== undefined) upsertRow.min_charge_tokens = min_charge_tokens;
+          if (sensitive_word_list_ids !== undefined) upsertRow.sensitive_word_list_ids = sensitive_word_list_ids;
+
+          const { error: scopeError } = await supabase
+            .from(tableName)
+            .upsert(upsertRow, { onConflict: 'scope,task_key,sub_type' });
+          if (scopeError) {
+            console.error(`[providers] Failed to write ${tableName}:`, scopeError.message);
+            res.status(502).json({
+              success: false,
+              error: `写入 ${tableName} 失败：${scopeError.message}。请确认 Supabase 中该表存在且含 model 等列；text 业务另需 text_scope_config（见 mxmdata migrations/add_text_scope_config.sql）。`,
+            });
+            return;
+          }
+          console.log(`[providers] Wrote ${tableName}: scope=${prefix}, task_key=${normalizedTaskKey}, sub_type=${subType}`);
+          writtenToScopeConfig = true;
+        }
+        break;
+      }
     }
+
+    if (!matchedPrefix) {
+      res.status(400).json({
+        success: false,
+        error: `logicalModel 必须以支持的 scope 开头：${SCOPE_PREFIXES.map((p) => `${p}-*`).join(' / ')}，当前为：${canonical}`,
+      });
+      return;
+    }
+    if (!writtenToScopeConfig) {
+      res.status(500).json({
+        success: false,
+        error: `未能将路由写入数据库（prefix=${matchedPrefix}）。请检查对应 *_scope_config 表是否存在。`,
+      });
+      return;
+    }
+
     setRoutingOverride(logicalModel, { provider, model });
-    res.json({ success: true, data: { logicalModel, provider, model } });
+    res.json({ success: true, data: { logicalModel, provider, model }, writtenToScopeConfig });
   } catch (e) {
     res.status(500).json({
       success: false,
@@ -184,7 +358,9 @@ router.post('/routing', async (req: Request, res: Response) => {
   }
 });
 
-/** DELETE 清除单条路由覆盖: ?logicalModel=xxx（同时从 DB 删除） */
+/** DELETE 清除单条路由覆盖: ?logicalModel=xxx（从 DB 删除）
+ * 从 *_scope_config 表删除
+ */
 router.delete('/routing', async (req: Request, res: Response) => {
   try {
     const logicalModel = req.query.logicalModel as string | undefined;
@@ -194,7 +370,38 @@ router.delete('/routing', async (req: Request, res: Response) => {
     }
     const canonical = canonicalLogicalModel(logicalModel);
     const supabase = getSupabaseClient();
-    await supabase.from('model_routing_overrides').delete().eq('logical_model', canonical);
+
+    // 从 *_scope_config 删除
+    const SCOPE_PREFIXES = ['writing', 'graph', 'video', 'audio', 'music', 'outline', 'text'] as const;
+    for (const prefix of SCOPE_PREFIXES) {
+      if (canonical.startsWith(`${prefix}-`)) {
+        const remainder = canonical.substring(prefix.length + 1);
+        const dashIdx = remainder.indexOf('-');
+        const taskKey = dashIdx === -1 ? remainder : remainder.substring(0, dashIdx);
+        const subType = dashIdx === -1 ? 'default' : remainder.substring(dashIdx + 1);
+        const normalizedTaskKey = taskKey === 'outline' ? 'outlines' : taskKey;
+        const scopeTableMap: Record<string, string> = {
+          writing: 'writing_scope_config',
+          graph: 'graph_scope_config',
+          video: 'video_scope_config',
+          audio: 'audio_scope_config',
+          music: 'music_scope_config',
+          outline: 'outline_scope_config',
+          text: 'text_scope_config',
+        };
+        const tableName = scopeTableMap[prefix];
+        if (tableName) {
+          await supabase.from(tableName)
+            .delete()
+            .eq('scope', prefix)
+            .eq('task_key', normalizedTaskKey)
+            .eq('sub_type', subType);
+          console.log(`[providers] Deleted from ${tableName}: scope=${prefix}, task_key=${normalizedTaskKey}, sub_type=${subType}`);
+        }
+        break;
+      }
+    }
+
     clearRoutingOverride(logicalModel);
     res.json({ success: true });
   } catch (e) {
@@ -221,18 +428,6 @@ router.get('/stats', async (req: Request, res: Response) => {
   }
 });
 
-const BILLING_PROVIDERS: ProviderType[] = [
-  'deer',
-  'replicate',
-  'ppio',
-  'openai',
-  'google',
-  'anthropic',
-  'qwen',
-  'volc',
-  'minimax',
-];
-
 /** GET 各 Provider 余额/用量汇总（含 Admin 手动录入余额） */
 router.get('/billing', async (_req: Request, res: Response) => {
   try {
@@ -252,7 +447,7 @@ router.get('/billing', async (_req: Request, res: Response) => {
       manualBalance?: number;
       currency?: string;
     }> = [];
-    for (const type of BILLING_PROVIDERS) {
+    for (const type of BILLING_CAPABLE_PROVIDER_TYPES) {
       try {
         const p = providerFactory.tryGet(type);
         if (p && typeof (p as any).getBillingInfo === 'function') {
@@ -264,6 +459,13 @@ router.get('/billing', async (_req: Request, res: Response) => {
             used: info.used,
             resetAt: info.resetAt,
           };
+          // 包月/订阅类 provider（如 maxplan）额外透传计费模式说明
+          if ('billingMode' in info && info.billingMode) {
+            out.billingMode = info.billingMode;
+          }
+          if ('billingNote' in info && info.billingNote) {
+            out.billingNote = info.billingNote;
+          }
           const manual = balanceMap.get(type);
           if (manual) {
             out.manualBalance = manual.balance;
@@ -321,10 +523,19 @@ router.get('/balances', async (_req: Request, res: Response) => {
 /** PUT 设置 Provider 手动余额 */
 router.put('/balances', async (req: Request, res: Response) => {
   try {
-    const { provider, balance } = req.body as { provider: string; balance: number };
+    const { provider, balance, currency } = req.body as {
+      provider: string;
+      balance: number;
+      currency?: string;
+    };
     if (!provider || typeof balance !== 'number') {
       return res.status(400).json({ success: false, error: 'Missing provider or balance' });
     }
+    const allowed = new Set(['USD', 'USDT', 'CNY']);
+    const currencyNorm =
+      typeof currency === 'string' && allowed.has(currency.trim().toUpperCase())
+        ? currency.trim().toUpperCase()
+        : 'USD';
     const supabase = getSupabaseClient();
     const { data: existing } = await supabase
       .from('provider_balances')
@@ -334,7 +545,11 @@ router.put('/balances', async (req: Request, res: Response) => {
     if (existing) {
       const { data, error } = await supabase
         .from('provider_balances')
-        .update({ balance: Number(balance), updated_at: new Date().toISOString() })
+        .update({
+          balance: Number(balance),
+          currency: currencyNorm,
+          updated_at: new Date().toISOString(),
+        })
         .eq('provider', provider)
         .select()
         .maybeSingle();
@@ -343,7 +558,7 @@ router.put('/balances', async (req: Request, res: Response) => {
     }
     const { data, error } = await supabase
       .from('provider_balances')
-      .insert({ provider, balance: Number(balance), currency: 'USD' })
+      .insert({ provider, balance: Number(balance), currency: currencyNorm })
       .select()
       .maybeSingle();
     if (error) return res.status(500).json({ success: false, error: error.message });
@@ -614,6 +829,8 @@ router.get('/costs', async (req: Request, res: Response) => {
     }
 
     // groupBy = provider：按 provider 汇总成本
+    // 排除订阅类 provider（如 maxplan），其不参与按量成本计算
+    const SUBSCRIPTION_PROVIDERS = new Set(['maxplan']);
     const byProvider: Record<
       string,
       {
@@ -628,6 +845,8 @@ router.get('/costs', async (req: Request, res: Response) => {
     > = {};
 
     for (const row of modelCostRows) {
+      // 订阅类 provider 不参与成本汇总（但调用统计仍会在 /stats 中保留）
+      if (SUBSCRIPTION_PROVIDERS.has(row.provider)) continue;
       const p = row.provider;
       if (!byProvider[p]) {
         byProvider[p] = {
@@ -699,7 +918,7 @@ router.post('/keys', async (req: Request, res: Response) => {
     const { RepositoryFactory } = await import('@mxmai/mxmdata');
     const repo = RepositoryFactory.createProviderApiKeyRepository();
     const created = await repo.create({
-      provider: provider as 'deer' | 'replicate' | 'ppio',
+      provider: provider as ProviderType,
       service: service ?? null,
       key_value,
       priority,
@@ -1122,6 +1341,8 @@ router.post('/models/test', async (req: Request, res: Response) => {
         `scope=${scope}, modality=${inferredModality}, provider=${provider}, model=${modelKey}`
       );
       pushStep('connect', '检查 Provider 与模型支持', 'running');
+      const { refreshProviderModelCatalog } = await import('../models/provider-model-catalog');
+      await refreshProviderModelCatalog();
       const p = providerFactory.tryGet(provider as ProviderType);
       if (!p || !p.supportsModel(modelKey)) {
         pushStep('connect', '检查 Provider 与模型支持', 'failed', 'Provider 不支持该模型');
@@ -1139,7 +1360,12 @@ router.post('/models/test', async (req: Request, res: Response) => {
         responseMeta = outcome.responseMeta ?? null;
         requestPayload = outcome.requestPayload;
         if (!success) {
-          errorMessage = outcome.error ?? '连通性测试失败';
+          const { enrichConnectivityError } = await import('./provider-connectivity-test');
+          errorMessage = await enrichConnectivityError(
+            provider,
+            modelKey,
+            new Error(outcome.error ?? '连通性测试失败')
+          );
         }
       }
     } catch (e) {
@@ -1199,6 +1425,73 @@ router.post('/models/test', async (req: Request, res: Response) => {
         steps,
       },
     });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+});
+
+/** GET Knowledge 平台默认 Embedding 路由（knowledge_scope_config） */
+router.get('/knowledge/embedding-default', async (_req: Request, res: Response) => {
+  try {
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+    const repo = RepositoryFactory.createKnowledgeScopeConfigRepository();
+    const cfg = await repo.findConfig('knowledge', 'default', 'embedding');
+    const { resolveKnowledgeEmbedding } = await import(
+      '../core/knowledge/knowledge-embedding-routing'
+    );
+    const { listEnabledModelKeysByScope } = await import('../models/provider-model-catalog');
+    const resolved = await resolveKnowledgeEmbedding(cfg?.model);
+    res.json({
+      success: true,
+      data: {
+        config: cfg,
+        resolved,
+        availableModelKeys: listEnabledModelKeysByScope('knowledge'),
+      },
+    });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+});
+
+/** PUT 更新 Knowledge 平台默认 Embedding */
+router.put('/knowledge/embedding-default', async (req: Request, res: Response) => {
+  try {
+    const body = req.body as { provider?: string; model?: string; enabled?: boolean };
+    if (!body.provider || !body.model) {
+      res.status(400).json({ success: false, error: 'Missing provider or model (model_key)' });
+      return;
+    }
+    const { findEnabledModelWithReload } = await import('../models/provider-model-catalog');
+    const row = await findEnabledModelWithReload({
+      modelKey: body.model,
+      scope: 'knowledge',
+      provider: body.provider as ProviderType,
+    });
+    if (!row) {
+      res.status(400).json({
+        success: false,
+        error: `provider_models 中未找到已启用的 knowledge 模型：${body.provider}/${body.model}`,
+      });
+      return;
+    }
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+    const repo = RepositoryFactory.createKnowledgeScopeConfigRepository();
+    const saved = await repo.upsertConfig({
+      scope: 'knowledge',
+      task_key: 'default',
+      sub_type: 'embedding',
+      provider: body.provider,
+      model: body.model,
+      enabled: body.enabled ?? true,
+    });
+    res.json({ success: true, data: saved });
   } catch (e) {
     res.status(500).json({
       success: false,

@@ -34,13 +34,20 @@ export class SupabaseGraphModelConfigRepository implements IGraphModelConfigRepo
 
   async findConfig(scope: string, graphType: string, subType: string): Promise<GraphModelConfig | null> {
     try {
-      const { data, error } = await this.client
+      let query = this.client
         .from('graph_model_config')
         .select('*')
         .eq('scope', scope)
-        .eq('graph_type', graphType)
-        .eq('sub_type', subType)
-        .maybeSingle();
+        .eq('graph_type', graphType);
+
+      // subType 为 null 或空字符串时查询 IS NULL
+      if (subType === null || subType === '') {
+        query = query.is('sub_type', null);
+      } else {
+        query = query.eq('sub_type', subType);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) {
         throw new DataAccessError(
@@ -70,7 +77,7 @@ export class SupabaseGraphModelConfigRepository implements IGraphModelConfigRepo
         graph_type: dto.graph_type,
         sub_type: dto.sub_type,
         logical_model: dto.logical_model,
-        provider: dto.provider ?? 'deer',
+        provider: dto.provider ?? 'qhai',
         enabled: dto.enabled ?? true,
       };
 

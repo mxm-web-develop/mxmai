@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-05T18:30:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "plan",
+      "subtype": "science-pop-video-script",
+      "is_active": true,
+      "rules_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "（内部）科普分镜 text 子任务",
+          "subtypeLabel": "仅供调试；用户入口请用 Video 页「科普口播剪辑」",
+          "userFacing": false,
+          "taskLabelI18n": {
+            "zh": "（内部）科普分镜 text 子任务",
+            "zh-TW": "（內部）科普分鏡 text 子任業務"
+          },
+          "subtypeLabelI18n": {
+            "zh": "仅供调试；用户入口请用 Video 页「科普口播剪辑」",
+            "zh-TW": "僅供調重試；使第三方應用者入口請第三方應用 Video 首頁「科普口播剪辑」"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "topic",
+              "voiceover_audio_url",
+              "edit_style",
+              "render_plan",
+              "aspectRatio"
+            ],
+            "properties": {
+              "topic": {
+                "type": "string",
+                "title": "科普主题",
+                "description": "本期科普视频主题，如「黑巧克力与心血管健康」",
+                "minLength": 4,
+                "maxLength": 120
+              },
+              "voiceover_audio_url": {
+                "type": "string",
+                "title": "口播音频",
+                "description": "上传 mp3、从资产库/已完成音频任务选择，或粘贴 URL",
+                "x-ui-type": "voiceoverAudio",
+                "minLength": 8
+              },
+              "script": {
+                "type": "string",
+                "title": "口播稿文本（可选）",
+                "description": "若有文稿可粘贴，便于更精准分段与字幕；无则按主题推断",
+                "ui:widget": "textarea",
+                "ui:options": {
+                  "rows": 10
+                }
+              },
+              "audio_duration_seconds": {
+                "type": "number",
+                "title": "口播时长（秒）",
+                "description": "提交后由 ffprobe 自动探测；也可手动修正",
+                "minimum": 5,
+                "maximum": 1800
+              },
+              "edit_style": {
+                "type": "string",
+                "title": "剪辑风格",
+                "enum": [
+                  "science-minimal",
+                  "documentary",
+                  "motion-infographic",
+                  "classroom"
+                ],
+                "x-enum-labels": [
+                  "极简科普",
+                  "纪录片质感",
+                  "动感信息图",
+                  "课堂白板"
+                ],
+                "default": "science-minimal"
+              },
+              "render_plan": {
+                "type": "array",
+                "title": "剪辑方案",
+                "description": "可多选：素材引入（图库/视频库）与 AI 生成。文字动效由 OpenReel overlay 叠加。",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "static-image",
+                    "ai-video-gen"
+                  ]
+                },
+                "x-enum-labels": [
+                  "素材引入",
+                  "AI 生成"
+                ],
+                "default": [
+                  "static-image",
+                  "ai-video-gen"
+                ]
+              },
+              "aspectRatio": {
+                "type": "string",
+                "title": "画幅比例",
+                "enum": [
+                  "16:9",
+                  "9:16",
+                  "1:1"
+                ],
+                "default": "16:9"
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充要求（可选）",
+                "description": "重点段落、禁用元素、品牌色等"
+              }
+            }
+          },
+          "uiSchema": {
+            "script": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 10
+              }
+            },
+            "supplement": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 3
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是 supermxmai **科普视频分镜生成器**。根据口播音频时长与主题，输出 **OpenReel ProjectFile v1.0.0 JSON + mxm* 扩展**，供 VideoTimelineReviewModal 人工审核后自动渲染。\n\n## 输入\n- 主题：${topic}\n- 口播音频 URL：${voiceover_audio_url}\n- **口播总时长（秒，硬约束）**：${audio_duration_seconds}\n- 口播稿（可选）：${script}\n- 句级字幕 JSON（前置 ASR/TTS，可选）：${voiceover_subtitles_json}\n- 剪辑风格：${edit_style}（science-minimal=深色极简科普 / documentary=纪实镜头感 / motion-infographic=数据信息图 / classroom=白板教学）\n- 画面生成方案：${render_plan}\n- 画幅：${aspectRatio}\n- 补充：${supplement}\n\n## 时长硬约束（最重要）\n1. `project.timeline.duration` **必须等于** ${audio_duration_seconds} 秒（误差 ≤0.5s）\n2. 所有可视片段 `startTime`+`duration` 连续铺满 0～总时长，**不得留黑场**\n3. audio track 主轨 `clip-audio-main`：`mediaId` 使用 `tts:${voiceover_audio_url}`，`duration`=${audio_duration_seconds}，`startTime`=0\n4. `timeline.subtitles`：若 voiceover_subtitles_json 非空，解析其 segments（text/startSeconds/endSeconds）逐句生成字幕与时间轴；否则按口播节奏估算（中文约 4 字/秒）\n5. 每个可视片段的 mxmPrompt / 配图语义须对齐对应时段口播内容（优先按句级字幕分段）\n\n## 输出格式\n- version=\"1.0.0\"；5 种 Track 按需；**每个可视 clip.metadata.mxmRenderMode 必填**\n- 三种模式：`ai-video-gen` | `static-image` | `gsap-html-animation`\n- ai-video-gen：video track，`mxmPrompt` 英文，`mxmVideoMode=text-to-video`\n- static-image：video track，`mxmSourceImageUrl` 可留空（审核 UI 选图），`mxmPrompt` 写英文配图/运镜描述\n- gsap-html-animation：graphics track，必填 `mxmHtmlContent`+`mxmGsapTimeline`，风格对齐 ${edit_style}\n\n## render_plan 分配策略（严格遵守）\n\n### gsap-only\n- **全部**可视段使用 `gsap-html-animation`（graphics track）\n- 开场标题卡 5～8s + 正文信息卡/图表段 + 收尾 4～6s\n\n### static-image-only\n- **全部**可视段使用 `static-image`（video track）\n- 每段 `mxmPrompt` 描述 Ken Burns 推拉/轻动效；`mxmSourceImageUrl` 留空字符串\n\n### ai-only\n- **全部**可视段使用 `ai-video-gen`（video track）\n- 科普场景、实验演示、微观世界等用英文 cinematic prompt\n\n### hybrid-balanced（推荐科普）\n- 开场 5～8s：`gsap-html-animation` 标题卡\n- 概念解释段：`static-image`（配图+推拉，每段 8～15s）\n- 动态演示/场景叙事：`ai-video-gen`（每段 6～12s，控制总量 ≤40% 时长）\n- 数据/对比/要点：`gsap-html-animation` 信息卡\n- 收尾 4～6s：`gsap-html-animation`\n\n## 科普分段建议\n- 按语义断句，每段 6～15 秒\n- 抽象概念 → static-image 或 gsap；具体现象/实验 → ai-video-gen\n- markers 标注章节切换点\n\n## 约束\n1. **只输出合法 JSON**，无 markdown 包裹\n2. mxm* 字段带前缀\n3. 字幕与口播稿对齐\n4. 全片时长必须匹配口播\n\n为本期【${topic}】生成完整 ProjectFile JSON。"
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.35,
+              "topP": 0.9,
+              "maxTokens": 16384
+            }
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "resolveVoiceoverAudio",
+                "params": {
+                  "audioUrlFrom": "${params.voiceover_audio_url}",
+                  "durationField": "audio_duration_seconds"
+                }
+              },
+              {
+                "step": "transcribeVoiceoverAudio",
+                "params": {
+                  "audioUrlFrom": "${params.voiceover_audio_url}",
+                  "skipWhenTtsSubtitles": true,
+                  "skipWhenScriptPresent": true,
+                  "language": "zh"
+                }
+              }
+            ],
+            "post": [
+              {
+                "step": "manualReview",
+                "params": {
+                  "id": "science-pop-video-review",
+                  "label": "科普视频分镜审核（时间轴）",
+                  "hint": "调整分镜：切换画面类型、选择素材或 AI 生成内容，可剪切合并；通过后逐段渲染（不含文字动效/转场）。",
+                  "kind": "video-timeline",
+                  "timelinePhase": "plan",
+                  "draftFrom": "${state.finalArtifact.text}",
+                  "applyMapping": {
+                    "state.videoEditScriptJson": "${review.json}",
+                    "state.videoEditScriptMetadata": "${review.metadata}"
+                  },
+                  "editable": true
+                }
+              },
+              {
+                "step": "videoTimelineRender",
+                "params": {
+                  "renderOptions": {
+                    "concatFinal": false,
+                    "applyOverlays": false,
+                    "applySubtitleBurn": false
+                  },
+                  "inputMapping": {
+                    "videoEditScriptJson": "${state.videoEditScriptJson}",
+                    "label": "${params.topic}"
+                  }
+                }
+              },
+              {
+                "step": "manualReview",
+                "params": {
+                  "id": "science-pop-render-review",
+                  "label": "科普视频成片审核（时间轴）",
+                  "hint": "各段已生成。在此精修转场、文字叠加与动效；确认后导出完整成片。",
+                  "kind": "video-timeline",
+                  "timelinePhase": "rendered",
+                  "draftFrom": "${state.videoEditScriptJson}",
+                  "applyMapping": {
+                    "state.videoEditScriptJson": "${review.json}"
+                  },
+                  "editable": true
+                }
+              },
+              {
+                "step": "videoTimelineRender",
+                "params": {
+                  "renderOptions": {
+                    "concatFinal": true,
+                    "skipReadyClips": true,
+                    "applySubtitleBurn": true,
+                    "applyOverlays": true,
+                    "applyTransitions": true
+                  },
+                  "inputMapping": {
+                    "videoEditScriptJson": "${state.videoEditScriptJson}",
+                    "label": "${params.topic}"
+                  }
+                }
+              }
+            ]
+          },
+          "storage": {
+            "scope": "text",
+            "extension": "json",
+            "mime": "application/json",
+            "bucket": "user-media",
+            "pathTemplate": "{userId}/science-pop-video/{timestamp}-{randomId}/",
+            "filenameTemplate": "science_pop_{taskId}_{randomId}.json"
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-plan-science-pop-video-script",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-plan-science-pop-video-script",
+          "charge_metric": "per_request",
+          "price_in_tokens": 120,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "science-pop-video-script",
+          "metadata": {
+            "margin": 0.25
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

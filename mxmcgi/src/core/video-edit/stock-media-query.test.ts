@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildStockSearchQuery, isAutoStockImageEnabled, isAutoStockVideoEnabled } from './stock-media-query';
+import {
+  OPENING_CLOSING_STOCK_QUERY,
+  buildStockSearchQuery,
+  buildStockSearchQueryVariants,
+  isAutoStockImageEnabled,
+  isAutoStockVideoEnabled,
+  normalizeStockQuery,
+} from './stock-media-query';
 import { resolveClipSubtitleSearchContext } from './stock-subtitle-context';
 import type { MxmClipMetadata } from './types';
 
@@ -9,21 +16,51 @@ describe('stock-media-query', () => {
     expect(isAutoStockVideoEnabled({} as MxmClipMetadata)).toBe(false);
   });
 
-  it('normalizes english custom query (drop stopwords, cap words)', () => {
+  it('forces empty background for opening/closing beats', () => {
+    expect(
+      buildStockSearchQuery({
+        mxmBeatRole: 'opening',
+        mxmStockSearchQuery: 'humanoid robot factory',
+      } as MxmClipMetadata)
+    ).toBe(OPENING_CLOSING_STOCK_QUERY);
+    expect(
+      buildStockSearchQuery({
+        mxmBeatRole: 'closing',
+        mxmStockKeywords: ['Tesla Optimus'],
+      } as MxmClipMetadata)
+    ).toBe(OPENING_CLOSING_STOCK_QUERY);
+    expect(
+      buildStockSearchQueryVariants({ mxmBeatRole: 'opening' } as MxmClipMetadata)[0]
+    ).toBe(OPENING_CLOSING_STOCK_QUERY);
+  });
+
+  it('normalizes english custom query (drop stopwords/abstract, cap 4 words)', () => {
     const q = buildStockSearchQuery(
       {
-        mxmStockSearchQuery: 'A humanoid robot walking in a modern factory, cinematic showing tech',
+        mxmStockSearchQuery:
+          'A humanoid robot walking in a modern factory, cinematic showing tech innovation business',
         mxmPrompt: 'ignored',
       } as MxmClipMetadata,
       'subtitle'
     );
-    // 去停用词(a/in)与泛化词(showing)，限 5 词
-    expect(q.split(' ').length).toBeLessThanOrEqual(5);
+    expect(q.split(' ').length).toBeLessThanOrEqual(4);
     expect(q).toContain('humanoid');
     expect(q).toContain('robot');
     expect(q).not.toContain('showing');
-    // 中文/长句不会被透传
+    expect(q).not.toContain('innovation');
+    expect(q).not.toContain('business');
     expect(/[\u4e00-\u9fa5]/.test(q)).toBe(false);
+  });
+
+  it('buildStockSearchQueryVariants shortens to entity for retry', () => {
+    const variants = buildStockSearchQueryVariants({
+      mxmStockSearchQuery: 'Tesla Optimus robot factory demo',
+      mxmStockKeywords: ['Tesla Optimus', 'humanoid robot'],
+    } as MxmClipMetadata);
+    expect(variants[0]).toBe(normalizeStockQuery('Tesla Optimus robot factory demo'));
+    expect(variants).toContain('tesla optimus');
+    expect(variants).toContain('tesla');
+    expect(variants.indexOf('tesla optimus')).toBeGreaterThan(0);
   });
 
   it('falls back to english keywords when custom query is non-english', () => {

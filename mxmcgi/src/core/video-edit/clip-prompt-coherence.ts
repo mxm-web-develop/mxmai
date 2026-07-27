@@ -9,6 +9,7 @@ import {
   mapEditStyleToVisualStyle,
 } from './fragment-pipeline-params';
 import { assignAlternatingImageMotion } from './image-motion-assign';
+import { hasAiImagePrompt, hasAiVideoPrompt } from './ai-prompt-fields';
 
 export type PromptCoherenceContext = {
   globalTopic?: string;
@@ -16,6 +17,8 @@ export type PromptCoherenceContext = {
   aspectRatio?: string;
   supplement?: string;
   coreMessage?: string;
+  /** 用户「素材类型」：强制 ai-video-gen 段默认 mxmAiOutputKind */
+  defaultAiOutputKind?: 'video' | 'image';
 };
 
 const EDIT_STYLE_ENGLISH_HINTS: Record<string, string> = {
@@ -118,7 +121,6 @@ export function enrichTimelineVisualSegment(
 
   const aiOutputKind = seg.mxmAiOutputKind ?? 'video';
   const segmentText = seg.text?.trim() || seg.mxmVoiceoverText?.trim() || '';
-  const hasPrompt = Boolean(seg.mxmPrompt?.trim());
 
   const next: TimelineVisualSegment = {
     ...seg,
@@ -128,17 +130,22 @@ export function enrichTimelineVisualSegment(
     mxmBackgroundMode: seg.mxmBackgroundMode ?? mapEditStyleToBackgroundMode(ctx.editStyle),
   };
 
-  if (!hasPrompt) {
-    next.mxmPrompt =
-      aiOutputKind === 'image'
-        ? buildDefaultGraphImagePrompt(segmentText, seg.mxmVoiceoverText, ctx)
-        : buildDefaultVideoSeedancePrompt(segmentText, seg.mxmVoiceoverText, ctx);
+  if (aiOutputKind === 'image') {
+    if (!hasAiImagePrompt(seg)) {
+      next.mxmImagePrompt = buildDefaultGraphImagePrompt(segmentText, seg.mxmVoiceoverText, ctx);
+    } else if (!seg.mxmImagePrompt?.trim() && seg.mxmPrompt?.trim()) {
+      next.mxmImagePrompt = seg.mxmPrompt.trim();
+    }
+  } else if (!hasAiVideoPrompt(seg)) {
+    next.mxmVideoPrompt = buildDefaultVideoSeedancePrompt(segmentText, seg.mxmVoiceoverText, ctx);
+  } else if (!seg.mxmVideoPrompt?.trim() && seg.mxmPrompt?.trim()) {
+    next.mxmVideoPrompt = seg.mxmPrompt.trim();
   }
 
   return next;
 }
 
-/** shot-list JSON 后处理：补齐缺失 mxmPrompt 与统一 mxmVisualStyle */
+/** shot-list JSON 后处理：补齐缺失 video/image prompt 与统一 mxmVisualStyle */
 export function enrichShotListRaw(
   shotListRaw: unknown,
   ctx: PromptCoherenceContext
@@ -165,9 +172,15 @@ export function enrichShotListRaw(
     const s = seg as Record<string, unknown>;
     if (String(s.mxmRenderMode ?? '').trim() !== 'ai-video-gen') return seg;
 
-    const aiKind = String(s.mxmAiOutputKind ?? 'video').trim() === 'image' ? 'image' : 'video';
+    const aiKind =
+      ctx.defaultAiOutputKind === 'image' || ctx.defaultAiOutputKind === 'video'
+        ? ctx.defaultAiOutputKind
+        : String(s.mxmAiOutputKind ?? 'video').trim() === 'image'
+          ? 'image'
+          : 'video';
     const text = String(s.text ?? '').trim();
     const vo = String(s.voiceover_text ?? '').trim() || undefined;
+    const legacy = String(s.mxmPrompt ?? '').trim() || undefined;
 
     const enriched = enrichTimelineVisualSegment(
       {
@@ -177,7 +190,9 @@ export function enrichShotListRaw(
         mxmRenderMode: 'ai-video-gen',
         mxmAiOutputKind: aiKind,
         mxmVoiceoverText: vo,
-        mxmPrompt: String(s.mxmPrompt ?? '').trim() || undefined,
+        mxmVideoPrompt: String(s.mxmVideoPrompt ?? '').trim() || undefined,
+        mxmImagePrompt: String(s.mxmImagePrompt ?? '').trim() || undefined,
+        mxmPrompt: legacy,
       },
       enrichedCtx
     );
@@ -185,7 +200,8 @@ export function enrichShotListRaw(
     return {
       ...s,
       mxmAiOutputKind: aiKind,
-      mxmPrompt: enriched.mxmPrompt,
+      mxmVideoPrompt: enriched.mxmVideoPrompt,
+      mxmImagePrompt: enriched.mxmImagePrompt,
       mxmVisualStyle: s.mxmVisualStyle ?? coherentVisual,
       mxmMotionIntensity:
         s.mxmMotionIntensity ?? mapEditStyleToMotionIntensity(ctx.editStyle),
@@ -240,10 +256,7 @@ export function enrichVideoEditScriptAiPrompts(
 
       if (aiOutputKind === 'image') {
         meta.mxmImageMotionEnabled = meta.mxmImageMotionEnabled ?? true;
-        meta.mxmImageMotion =
-          meta.mxmImageMotion && meta.mxmImageMotion !== 'none'
-            ? meta.mxmImageMotion
-            : 'zoom-in';
+        // 不在此处写死 zoom-in，交给 assignAlternatingImageMotion
         meta.mxmGraphTaskKey = meta.mxmGraphTaskKey ?? 'design';
         meta.mxmGraphSubtype = meta.mxmGraphSubtype ?? 'content-illustration';
       }
@@ -254,11 +267,24 @@ export function enrichVideoEditScriptAiPrompts(
         globalTopic ||
         '';
 
-      if (!meta.mxmPrompt?.trim()) {
-        meta.mxmPrompt =
-          aiOutputKind === 'image'
-            ? buildDefaultGraphImagePrompt(segmentText, meta.mxmVoiceoverText, enrichedCtx)
-            : buildDefaultVideoSeedancePrompt(segmentText, meta.mxmVoiceoverText, enrichedCtx);
+      if (aiOutputKind === 'image') {
+        if (!hasAiImagePrompt(meta)) {
+          meta.mxmImagePrompt = buildDefaultGraphImagePrompt(
+            segmentText,
+            meta.mxmVoiceoverText,
+            enrichedCtx
+          );
+        } else if (!meta.mxmImagePrompt?.trim() && meta.mxmPrompt?.trim()) {
+          meta.mxmImagePrompt = meta.mxmPrompt.trim();
+        }
+      } else if (!hasAiVideoPrompt(meta)) {
+        meta.mxmVideoPrompt = buildDefaultVideoSeedancePrompt(
+          segmentText,
+          meta.mxmVoiceoverText,
+          enrichedCtx
+        );
+      } else if (!meta.mxmVideoPrompt?.trim() && meta.mxmPrompt?.trim()) {
+        meta.mxmVideoPrompt = meta.mxmPrompt.trim();
       }
 
       clip.metadata = meta;

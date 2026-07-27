@@ -3,7 +3,14 @@
  * 用于管理 mxmcgi 的异步生成任务
  */
 
-export type CGITaskStatus = 'pending' | 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
+export type CGITaskStatus =
+  | 'pending'
+  | 'queued'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'awaiting_review';
 export type CGITaskType = 'text' | 'image' | 'video' | 'audio' | 'graph' | 'graph-grid9-parent' | 'video-batch-parent';
 export type CGITaskResultFormat = 'base64' | 'minio';
 
@@ -65,7 +72,13 @@ export interface UpdateCGITaskDto {
   started_at?: Date | string;
   completed_at?: Date | string;
   metadata?: Record<string, any>;
+  /** 更新执行参数（如人工审核后写入 TTS 文本） */
+  input_data?: Record<string, any>;
+  prompt?: string;
 }
+
+/** 列表筛选：web=平台内自用；open_api=开放 API（含 H5 等第三方） */
+export type ListCGITaskCreationSource = 'web' | 'open_api';
 
 export interface ListCGITasksOptions {
   user_id?: string;
@@ -77,4 +90,8 @@ export interface ListCGITasksOptions {
   includeDeleted?: boolean; // 是否包含已软删除的任务（仅 admin 使用）
   startDate?: Date | string; // 开始时间（可选，用于时间范围查询）
   endDate?: Date | string; // 结束时间（可选，用于时间范围查询）
+  /** 按创作来源筛选（metadata.creationSource 或历史 publishedSlug 启发式） */
+  creationSource?: ListCGITaskCreationSource;
+  /** 列表轻量模式：不读取 input_data / output_data / storage_info */
+  summary?: boolean;
 }

@@ -9,7 +9,7 @@ vi.mock('../../core/search/search-config', () => ({
 
 vi.mock('../../core/search/search-service', () => ({
   SearchService: class {
-    async autoSearch(req: { query: string }) {
+    async deepSearch(req: { query: string }) {
       return {
         aggregated: [
           {

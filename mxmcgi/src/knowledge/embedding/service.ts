@@ -9,13 +9,15 @@ import {
   type EmbeddingResponse,
   type EmbeddingProviderType,
 } from './factory';
+import { DEFAULT_KNOWLEDGE_EMBEDDING_MODEL_KEY } from '../../core/knowledge/knowledge-embedding-routing';
 
 export class EmbeddingService {
   private defaultModel: string;
   private defaultProvider?: EmbeddingProviderType;
 
   constructor(model?: string, provider?: EmbeddingProviderType) {
-    this.defaultModel = model || process.env.EMBEDDING_MODEL || 'text-embedding-3-small';
+    this.defaultModel =
+      model || process.env.EMBEDDING_MODEL || DEFAULT_KNOWLEDGE_EMBEDDING_MODEL_KEY;
     this.defaultProvider = provider;
   }
 

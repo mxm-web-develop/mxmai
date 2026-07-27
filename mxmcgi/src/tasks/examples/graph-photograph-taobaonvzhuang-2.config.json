@@ -1,0 +1,357 @@
+{
+  "promptTextTaskKey": "text/format/gpt-image-2",
+  "display": {
+    "taskLabel": "淘宝女装商拍",
+    "subtypeLabel": "taobaonvzhuang-2（多参考图 + 多场景）"
+  },
+  "graphRouting": {
+    "model": "gpt-image-2-all",
+    "provider": "qhai",
+    "margin": 0.2,
+    "charge_metric": "per_image"
+  },
+  "rules_i18n": {
+    "zh": "",
+    "en": ""
+  },
+  "output_format_i18n": {
+    "zh": "",
+    "en": ""
+  },
+  "taskTemplate": {
+    "formSchema": {
+      "type": "object",
+      "required": [
+        "model_images",
+        "clothing_images",
+        "scenes"
+      ],
+      "properties": {
+        "model_images": {
+          "type": "array",
+          "title": "模特参考图",
+          "description": "这些参考图展示了模特的脸部、身形、发型与姿态，生成时必须保持模特外观与参考完全一致，不得换脸、换年龄段或换种族特征。",
+          "x-ui-type": "referenceImages",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "type": "string",
+                "title": "图片 URL / Base64"
+              },
+              "type": {
+                "type": "string",
+                "title": "用途类型",
+                "enum": [
+                  "main-subject",
+                  "background",
+                  "outfits",
+                  "color-reference",
+                  "style-reference"
+                ],
+                "default": "main-subject"
+              },
+              "purpose": {
+                "type": "string",
+                "title": "用途说明（可选）"
+              },
+              "groupKey": {
+                "type": "string",
+                "title": "槽位键",
+                "description": "与 formSchema 字段名一致，由参考图组件写入"
+              },
+              "groupTitle": {
+                "type": "string",
+                "title": "分组标题"
+              },
+              "groupDesc": {
+                "type": "string",
+                "title": "分组说明（可选）"
+              }
+            },
+            "required": [
+              "content",
+              "type"
+            ]
+          }
+        },
+        "clothing_images": {
+          "type": "array",
+          "title": "服饰参考图",
+          "description": "这些参考图展示了需要穿着的服装款式、面料质感与细节，生成时模特必须穿着与参考图一致的服装，颜色、版型、面料纹理不得偏离。",
+          "x-ui-type": "referenceImages",
+          "minItems": 1,
+          "maxItems": 14,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "type": "string",
+                "title": "图片 URL / Base64"
+              },
+              "type": {
+                "type": "string",
+                "title": "用途类型",
+                "enum": [
+                  "main-subject",
+                  "background",
+                  "outfits",
+                  "color-reference",
+                  "style-reference"
+                ],
+                "default": "outfits"
+              },
+              "purpose": {
+                "type": "string",
+                "title": "用途说明（可选）"
+              },
+              "groupKey": {
+                "type": "string",
+                "title": "槽位键",
+                "description": "与 formSchema 字段名一致，由参考图组件写入"
+              },
+              "groupTitle": {
+                "type": "string",
+                "title": "分组标题"
+              },
+              "groupDesc": {
+                "type": "string",
+                "title": "分组说明（可选）"
+              }
+            },
+            "required": [
+              "content",
+              "type"
+            ]
+          }
+        },
+        "environment_images": {
+          "type": "array",
+          "title": "环境参考图（可选）",
+          "description": "这些参考图展示了拍摄环境的空间布局、光影与构图风格，生成时以参考图的环境为准还原场景氛围与光线方向，「拍摄场景」选项仅作补充。",
+          "x-ui-type": "referenceImages",
+          "minItems": 0,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "type": "string",
+                "title": "图片 URL / Base64"
+              },
+              "type": {
+                "type": "string",
+                "title": "用途类型",
+                "enum": [
+                  "main-subject",
+                  "background",
+                  "outfits",
+                  "color-reference",
+                  "style-reference"
+                ],
+                "default": "background"
+              },
+              "purpose": {
+                "type": "string",
+                "title": "用途说明（可选）"
+              },
+              "groupKey": {
+                "type": "string",
+                "title": "槽位键",
+                "description": "与 formSchema 字段名一致，由参考图组件写入"
+              },
+              "groupTitle": {
+                "type": "string",
+                "title": "分组标题"
+              },
+              "groupDesc": {
+                "type": "string",
+                "title": "分组说明（可选）"
+              }
+            },
+            "required": [
+              "content",
+              "type"
+            ]
+          }
+        },
+        "scenes": {
+          "type": "string",
+          "title": "拍摄场景",
+          "description": "无环境参考图时由该选项主导光线/空间/质感；有环境参考图时作氛围与用语补充。覆盖女装商拍常见外景/生活/通勤/极简棚外场景。",
+          "x-ui-type": "selection",
+          "enum": [
+            "beach_pier",
+            "indoor_studio",
+            "luxury_hotel",
+            "urban_street",
+            "cafe_window",
+            "rooftop_golden_hour",
+            "meadow_forest_edge",
+            "minimalist_loft",
+            "lakeside_promenade",
+            "subway_concourse",
+            "flower_shop_lane",
+            "art_corridor_white",
+            "bright_office_loft"
+          ],
+          "x-enum-labels": [
+            "海滩码头",
+            "室内摄影棚",
+            "奢华酒店",
+            "街区街拍",
+            "咖啡/书店窗景",
+            "屋顶露台黄昏",
+            "草坪林缘自然光",
+            "极简 Loft 居家",
+            "湖滨步道城市岸",
+            "地铁/车站纵深",
+            "花店门头窄巷",
+            "白廊/美术馆走道",
+            "明亮开放办公室"
+          ],
+          "default": "beach_pier",
+          "x-enum-descriptions": {
+            "beach_pier": "开放海岸/栈桥、木质或混凝土延伸线、午后暖斜阳光、海风拂衣与发丝、波光与远海层次；勿改纯白棚。",
+            "indoor_studio": "浅灰/米白无缝或微纹理背景、柔光箱主光+轮廓光、地面轻反射；突出版型与面料微反差，勿空洞白盒。",
+            "luxury_hotel": "大堂/休息区/走廊落地窗轻奢公共空间，暖金抛光与织物层次，灯饰做氛围不压服装。",
+            "urban_street": "城市人行道/商圈外摆/橱窗反射，混合天光+街灯补光，透视纵深拉长身形；避免杂乱可读招牌与品牌字。",
+            "cafe_window": "咖啡馆或书店临大窗座位，室内暖筒灯+窗外街景虚化 bokeh，生活化轻奢午后；小道具克制不抢镜。",
+            "rooftop_golden_hour": "屋顶露台围护栏与城市天际线，日落金侧光、长影、轻薄体积光；风感衣摆与高光轮廓。",
+            "meadow_forest_edge": "公园草地+林缘斑驳树影，阴天柔光或透云直射，清新自然系；肤色健康不偏灰绿脏。",
+            "minimalist_loft": "极简 Loft 大白墙+大落地窗单边光，木地板/少量现代家具剪影，高 key 干净利于色彩还原。",
+            "lakeside_promenade": "城市湖岸/景观步道与栏杆曲线，水面高光条带与对岸天际，午后偏暖；非沙滩砾石，可与 beach_pier 区分。",
+            "subway_concourse": "地铁/高铁候车区纵深廊道，线性灯带+冷白环境反射，现代通勤风；避免站台标识可读文字。",
+            "flower_shop_lane": "花店门口或窄巷彩色立面+绿植与花束氛围，柔和散射高光；清新或马卡龙调，忌具体花店 Logo。",
+            "art_corridor_white": "美术馆/展厅连续白墙廊道，顶光洗墙+克制踢脚反射，极简留白突出服装线条与走秀感。",
+            "bright_office_loft": "明亮开放办公室大落地窗自然光、浅色工位与玻璃隔断反射，轻职场或 casual chic；勿拍成严肃大头证件照。"
+          }
+        },
+        "clothing_material": {
+          "type": "string",
+          "title": "服装材质（补充）",
+          "description": "参考图看不清面料时在此选择，生成英文 prompt 时请强调对应质感与光泽。",
+          "x-ui-type": "selection",
+          "enum": [
+            "use_reference_only",
+            "cotton_linen",
+            "silk_satin",
+            "denim",
+            "wool_knit",
+            "leather_suede",
+            "mesh_lace",
+            "synthetic_blend",
+            "velvet_corduroy",
+            "metal_trim"
+          ],
+          "x-enum-labels": [
+            "以参考图为准",
+            "棉麻",
+            "真丝/缎面",
+            "牛仔",
+            "羊毛/针织",
+            "皮革/绒面",
+            "网纱/蕾丝",
+            "化纤/混纺",
+            "丝绒/灯芯绒",
+            "金属链饰/辅料"
+          ],
+          "default": "use_reference_only"
+        },
+        "prompt": {
+          "type": "string",
+          "title": "补充说明",
+          "description": "如：品牌调性、姿势、镜头远近、不要文字等",
+          "default": ""
+        },
+        "output_grid": {
+          "type": "string",
+          "title": "输出宫格规格",
+          "description": "表单语义：1×1 单张；2×2/3×3/4×4 表示多格拼图意图（由 prompt/模型单次输出实现，服务端不切分）。",
+          "x-ui-type": "selection",
+          "enum": [
+            "1x1",
+            "2x2",
+            "3x3",
+            "4x4"
+          ],
+          "x-enum-labels": [
+            "单张（1×1）",
+            "四宫格（2×2）",
+            "九宫格（3×3）",
+            "十六宫格（4×4）"
+          ],
+          "default": "1x1"
+        },
+        "grid_cell_constraint_preset": {
+          "type": "string",
+          "title": "宫格单元约束（贴边/分界）",
+          "description": "仅当输出宫格为 2×2 及以上时由后端追加英文硬条款；选项是「单元边界风格」，不是宫格尺寸。占位符 ${grid_n}、${total_cells} 会在生图前替换。",
+          "x-ui-type": "selection",
+          "enum": [
+            "strict_seamless",
+            "standard",
+            "none"
+          ],
+          "x-enum-labels": [
+            "严格无痕（默认）",
+            "标准分界",
+            "不追加硬条款"
+          ],
+          "default": "strict_seamless",
+          "x-enum-prompt-append": {
+            "strict_seamless": "**CRITICAL REQUIREMENTS FOR CELLS:** 1. NO borders, NO white edges, NO margins, NO gaps between cells. 2. Content must fill the entire cell area edge-to-edge with no empty spaces. 3. Each cell must be seamless and complete, with content extending to all edges. 4. Ensure cells are clearly separated visually but can be cropped independently without any white borders or edges. 5. The grid should appear as ${total_cells} complete, edge-to-edge images that can be perfectly cropped without any borders or margins.",
+            "standard": "**GRID LAYOUT:** ${grid_n}x${grid_n} equal cells; no thick outer frame; each cell must be visually distinct and independently crop-friendly; ${total_cells} panels total.",
+            "none": ""
+          }
+        },
+        "aspect_ratio": {
+          "type": "string",
+          "title": "画幅",
+          "enum": [
+            "1:1",
+            "3:4",
+            "4:3",
+            "16:9",
+            "9:16"
+          ],
+          "default": "3:4"
+        }
+      },
+      "x-grid-pose-scripts": {
+        "2x2": [
+          "Full-body establishing shot, model mid-step with natural stride, three-quarter angle, ~28mm equivalent eye-level, showing dress length and environment context.",
+          "Half-body hero framing from waist up, subtle torso twist, one hand lightly adjusting collar or neckline, ~65mm equivalent, moderate depth of field on garment lines.",
+          "Seated three-quarter view on bench or steps, hands smoothing skirt hem to show drape, ~50mm equivalent, seated camera height ~15 degrees above eye line.",
+          "Back three-quarter full-body view, glance over shoulder, highlight back panel and skirt movement, ~35mm equivalent, distinct from front-facing panels.",
+          "Full-body walking away then turning in stride toward camera, 32mm equivalent, dynamic hem swing, different from static standing panels.",
+          "Half-body leaning slightly forward, both hands resting on belt line, 75mm equivalent, emphasize waist seam and buttons.",
+          "One-knee kneel, pinch fabric at hem to show weight and drape, 55mm equivalent, low camera near knee height.",
+          "Clean profile full-body walking freeze, gaze off-camera, 40mm equivalent, strong silhouette readable against background."
+        ]
+      }
+    },
+    "uiSchema": {
+      "prompt": {
+        "ui:widget": "textarea",
+        "ui:options": {
+          "rows": 3
+        }
+      }
+    },
+    "prompt": {
+      "unifiedTemplate": "【角色】你是资深「淘宝女装商拍」美术指导 + 英文 image prompt 撰稿人。下游把你的英文正文交给 gpt-image-2 类模型；参考图像素已由系统随请求提交，你不得粘贴 base64/URL。\n\n【text/format 生成契约】①「一、重要的用户要求」永远优先；②用户未写的维度才允许用「四、相关参考」与内嵌词表补全；③与参考像素矛盾的一律不写。\n\n一、重要的用户要求（表单 schema 插值，本单硬约束）\n- 环境参考（摘要/占位）：${environment_images}\n- 模特参考（摘要/占位）：${model_images}\n- 服饰参考（摘要/占位）：${clothing_images}\n- 拍摄场景：${scenes}\n- 服装材质补充：${clothing_material}\n- 输出宫格规格：${output_grid}\n- 宫格单元约束（贴边/分界）：${grid_cell_constraint_preset}\n- 画幅：${aspect_ratio}\n- 用户补充说明：${prompt}\n\n二、任务定义（淘宝女装商拍是什么）\n- 淘宝女装商拍：面向货架与转化的电商主图/副图/短视频封面类摄影，核心是「卖衣服」——买家要在 1–2 秒内读懂品类、版型、面料与价位感。\n- 与时尚杂志大片区别：少叙事、少艺术留白；多信息密度、可裁剪、可上架；避免只拍脸而看不清门襟、腰节、裙摆结构。\n- 与纯平铺区别：需要真人穿着展示垂坠、褶皱与动态，但人物为服装服务，不是反过来。\n- **模特身份一致（硬）**：只要「一」中模特参考非空，最终英文 prompt 必须写入可执行的 **identity lock**：输出人物须与模特参考为**同一人**——锁定脸型与五官比例、肤质与年龄段、发型发色与长度、肩宽与整体身高感；允许姿态/景别/表情在「同一人的连拍」范围内变化，**禁止**换脸、换年龄段、换种族特征或「神似但非同一人」的漂移。服装与场景描写不得暗示「可重塑面容」；若与「多宫格每格不同动作」冲突，以**身份一致**优先，动作用小幅自然变体区分各格。\n\n三、任务要求（怎样算优秀的淘宝女装商拍图）\n- 服装可读：领口、门襟、袖笼、腰线、下摆、裤缝/裤长、面料肌理与光泽层级清晰；颜色与参考图一致，不擅自改款改色。\n- 光线克制：主光柔、过渡干净；高频频段保留布料细节，避免塑料磨皮；手可入镜但手指结构正常。\n- 姿势与肢体：站姿须有自然重心（微分腿、一脚略前、轻扭胯或肩线略侧），避免双脚并拢立正、对称僵硬的「阅兵式」摆拍；手臂与手须有事由（拎包带、理袖口/门襟、扶帽檐或栏杆、轻拨发），忌剪刀手与无意义悬空尬摆；走步可为半步或轻回眸，须与场景逻辑一致。坐姿注意腰背弧线与裙摆铺开，忌板直证件照感。\n- 构图服务上架：至少一处胸腰裙摆或半身到膝的「卖点位」占比高于纯头像；背景交代场景但不抢戏。\n- 多宫格时：同一套服装、**同一模特身份**与环境基调在所有格子里一致；各格须在姿势、手势、视线方向或景别（全身/半身/细节）上明显错开，但**脸型、发型、体型与肤色不得随格漂移**；避免复制同一站姿与同一手型，仅允许镜头与微光位连戏变化，不允许偷偷换成白棚另一套衣服或「换模特」。无环境参考图时：全宫格须共用「拍摄场景」所选枚举的同一套地点与光色连续体，禁止跨格混用棚内白底、正午外景、黄金时刻与夜景。宫格系统按「同套连拍」生成各格景别/角度指令，各格姿势与机位须可区分，禁止仅换底的高角度重复。\n\n四、相关参考（graph/photograph 电商女装商拍摄影知识；仅用户未指定时补全，不得覆盖「一」）\n- 典型货架气质：干净、可信、国内女装电商 catalog 常见中高 key；色彩还原准、面料微反差清晰；禁止可读品牌 Logo 或水印。\n- 布光：棚内 softbox key + gentle fill + 很轻 rim；外景午后金侧光或晴天柔阴影，可辅以反光板抬眼神；忌整体发灰闷、忌面料高光死白溢出。\n- 姿势参考库（仅当「一」与用户补充未锁定具体 pose 时选用；与模特参考图冲突时以参考为准）：侧立微扭展示腰臀与裙摆垂坠；拎包自然行走或止步回眸；扶帽檐/推墨镜/扶栈桥栏杆；坐阶或长凳整理下摆、侧坐望画外；3/4 背视或背身展示后片版型。多宫格须为不同单元写清**不同动作句**，禁止各格同一 pose 复制。\n- 商拍焦段（英文须写 full-frame equivalent 语义；仅当「一」未写具体焦段时采纳）：①全身/带环境、裙长与鞋 → 约 24–35mm 小广角，机位腰—胸高、可略低 5–10° 显腿长且控制透视畸变；②胸腰裙摆主卖点（淘宝主图最常见）→ 50–85mm 标准至中长焦，略压背景、突出版型线条；③领口门襟走线/面料肌理/小包配饰 → 85–135mm + 中等浅景深约 f/2.8–f/4，仍须保留缝线与裁边可读，忌整格只剩奶油虚化。\n- 机位与角度：眼平或胸平为主增信任感；坐姿/席地可用略高机位约 15–25° 或轻俯视以展示叠穿与下摆铺开；一格可用 3/4 背身或侧后视交代后背版型与裙摆动态；避免极端仰视把下身拉得失真，除非「一」明确要求。\n- 景深与多格节奏：背景适度可辨即可，勿时尚大片式强虚化让服装糊掉；多宫格可暗合「全身 establishing → 半身卖款 → 材质/细节 → 背/侧视」节奏，光色与服装须跨格连续。\n- 若用户已写明镜头/焦段/机位，本节只补未覆盖的细粒度，不得改写场景与款式。\n\n当用户未指定镜头与构图时，须将上文焦段+机位+景深译为连贯英文写入最终 prompt（例：~50mm full-frame equivalent, eye-level, moderate depth of field），并配合三分法或略低机位强调裙摆；材质词对齐 clothing_material 与服饰参考。\n\n五、Prompt 输出参考（英文正文结构与禁忌）\n- 建议信息顺序（写成一段连续英文，不用 Markdown）：environment/setting → **（仅当「一」中模特参考非空）same real individual as the submitted model references: preserve facial bone structure, eye spacing, nose and lip shape, hairstyle and hair color, skin tone, and body proportions; subtle pose/expression changes only, no face replacement** → wardrobe micro-detail（对齐参考图）→ **lens focal length (equivalent) + camera height/angle + aperture/DoF** → light → composition & framing（显式写出与画幅行一致的 tall portrait 9:16 / wide 16:9 等）→ negatives（no logos, no watermark, realistic hands, no identity drift）。\n- 若「输出宫格规格」为 2×2 及以上：英文开头用一两句声明 single canvas N×N contact sheet、等分格；格数必须与该行一致，不得擅自改 3×3 等。\n- 禁止：中文解释、Markdown、编号清单；禁止用行业惯性默认（无端 white cyclorama、未在参考中出现的标准套装）覆盖「一」。\n\n【输出】只输出最终生图用英文 prompt 正文，不要解释或 Markdown。"
+    },
+    "extra": {
+      "generateParams": {
+        "temperature": 0.35,
+        "maxTokens": 2048
+      }
+    }
+  }
+}

@@ -1,49 +1,14 @@
 /**
- * 设计 - 3D（3d）配置
- * 参考 portrait.ts 的设计：提供 rules + outputformat + 构造用户需求草稿的 helper
+ * 设计 - 3D（3d）
+ * V2：规则与输出格式由 Admin「提示词工程」提供；此处仅保留结构化用户需求草稿 helper。
  */
 import type { DesignParams } from '../../type';
 
 export type Design3dOutputLanguage = 'zh' | 'en';
 
-export const design3dConfig = {
-  /**
-   * 角色设定 + 专业规范（给 LLM 看的规则）
-   */
-  rules: `你是一位顶级3D设计师，擅长创作高质量的3D设计作品。请严格根据用户需求、业务参数和知识库内容，设计一条用于 AI 图像生成的3D设计提示词（prompt）。
-
-【3D设计专业要求】
-1. 模型风格：
-   - 根据用户选择的模型风格（低多边形、写实、卡通、抽象等）调整设计
-   - 不同风格的特点：低多边形（简洁几何）、写实（真实质感）、卡通（风格化）、抽象（艺术化）
-2. 材质表现：
-   - 根据用户选择的材质（金属、玻璃、塑料、木材等）调整质感
-   - 不同材质需要不同的反射、折射、粗糙度等属性
-3. 光照设计：
-   - 使用专业的三点光照或环境光照，突出模型细节
-   - 主光、辅光、轮廓光的合理运用，展现模型立体感
-4. 视角选择：
-   - 根据用户选择的视角（等轴测、透视、正交等）调整构图
-   - 不同视角传达不同的视觉感受
-5. 细节表现：
-   - 注重模型的细节表现，确保质量
-   - 纹理、贴图、细节的合理运用
-
-【提示词生成要求】
-- 使用专业3D设计术语，语言自然流畅
-- 提示词应覆盖：模型描述、模型风格、材质表现、光照设计、视角选择、细节表现等核心要素
-- 结合业务参数（modelStyle、material、lighting、perspective 等）做有针对性的细化描述
-- 允许适度发挥创造力，但必须符合用户的核心需求和设定`,
-
-  /**
-   * 输出结构要求（让 LLM 知道 prompt 内部大概要包含哪些要素）
-   */
-  outputformat: `800字以内,要包含模型描述，模型风格，材质表现，光照设计，视角选择，细节表现等重要信息`,
-};
-
 /**
  * 根据业务参数 + 参考图 + 用户原始 prompt，生成结构化的 3d 用户需求草稿
- * 实际用于传给大模型，由大模型根据 rules + outputformat 进行最终整合
+ * 供 graph-service 在部分类型下拼装 effectiveUserPrompt（与 DB rules 分离）
  */
 export function build3dUserPrompt(
   params: DesignParams,
@@ -167,88 +132,4 @@ export function build3dUserPrompt(
     specLineEn,
     'Within about 300 English words, integrate the above elements into a single fluent 3D design prompt text.',
   ].join('\n');
-}
-
-/**
- * 根据用户参数生成默认知识库内容（当召回失败时使用）
- * 根据用户的业务参数（modelStyle, material, lighting, perspective）动态生成对应的专业指导
- */
-export function generateDefault3dKnowledge(params: DesignParams): string {
-  const { modelStyle, material, lighting, perspective } = params;
-  
-  const parts: string[] = [];
-  
-  // 模型风格
-  const styleTips: string[] = [];
-  if (modelStyle === 'low-poly') {
-    styleTips.push('低多边形风格，简洁几何，现代感强');
-    styleTips.push('简洁的几何形状，清晰的边缘');
-  } else if (modelStyle === 'realistic') {
-    styleTips.push('写实风格，真实质感，细节丰富');
-    styleTips.push('真实的光影和材质，丰富的细节');
-  } else if (modelStyle === 'cartoon') {
-    styleTips.push('卡通风格，风格化，色彩丰富');
-    styleTips.push('风格化的造型，丰富的色彩');
-  } else if (modelStyle === 'abstract') {
-    styleTips.push('抽象风格，艺术化，创意独特');
-    styleTips.push('抽象化的造型，艺术化的表现');
-  } else {
-    styleTips.push('根据设计需求营造相应的模型风格');
-  }
-  parts.push(`【模型风格】\n${styleTips.join('，')}。`);
-  
-  // 材质表现
-  const materialTips: string[] = [];
-  if (material === 'metal') {
-    materialTips.push('金属材质，高反射，金属质感，光泽明显');
-    materialTips.push('高反射率，金属光泽，质感真实');
-  } else if (material === 'glass') {
-    materialTips.push('玻璃材质，透明或半透明，折射效果，清晰质感');
-    materialTips.push('透明或半透明，折射和反射效果');
-  } else if (material === 'plastic') {
-    materialTips.push('塑料材质，柔和反射，光滑或磨砂质感');
-    materialTips.push('柔和反射，光滑或磨砂表面');
-  } else if (material === 'wood') {
-    materialTips.push('木材材质，自然纹理，温暖质感');
-    materialTips.push('自然纹理，温暖质感，细节丰富');
-  } else {
-    materialTips.push('根据模型需求营造相应的材质质感');
-  }
-  parts.push(`【材质表现】\n${materialTips.join('，')}。`);
-  
-  // 光照设计
-  const lightingTips: string[] = [];
-  lightingTips.push('使用专业的三点光照系统');
-  if (lighting === 'three-point') {
-    lightingTips.push('三点光照，主光、辅光、轮廓光的合理运用');
-  } else if (lighting === 'environment') {
-    lightingTips.push('环境光照，柔和均匀，适合产品展示');
-  } else if (lighting === 'dramatic') {
-    lightingTips.push('戏剧性光照，强烈对比，增强视觉冲击力');
-  } else {
-    lightingTips.push('根据模型需求选择合适的光照方式');
-  }
-  lightingTips.push('突出模型细节，展现模型立体感');
-  parts.push(`【光照设计】\n${lightingTips.join('，')}。`);
-  
-  // 视角选择
-  const perspectiveTips: string[] = [];
-  if (perspective === 'isometric') {
-    perspectiveTips.push('等轴测视角，无透视变形，适合技术展示');
-  } else if (perspective === 'perspective') {
-    perspectiveTips.push('透视视角，真实感强，适合场景展示');
-  } else if (perspective === 'orthographic') {
-    perspectiveTips.push('正交视角，无透视，适合技术图纸');
-  } else {
-    perspectiveTips.push('根据模型需求选择合适的视角');
-  }
-  parts.push(`【视角选择】\n${perspectiveTips.join('，')}。`);
-  
-  // 细节表现
-  parts.push(`【细节表现】\n注重模型的细节表现，纹理、贴图、细节的合理运用，确保质量。`);
-  
-  // 渲染与画质
-  parts.push(`【渲染与画质】\n使用专业3D渲染，整体画质专业级，具有3D设计感和视觉冲击力。`);
-  
-  return parts.join('\n\n');
 }

@@ -17,7 +17,10 @@ export abstract class BaseExecutor {
     return { success: true, output };
   }
 
-  protected createErrorResult(error: string): ExecutorResult {
+  protected createErrorResult(error: string, output?: unknown): ExecutorResult {
+    if (output !== undefined) {
+      return { success: false, error, output };
+    }
     return { success: false, error };
   }
 }
