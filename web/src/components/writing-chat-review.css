@@ -1,0 +1,119 @@
+/* writing-chat 审核：全屏布局（对齐视频审核） */
+
+.writing-chat-review-modal.manual-review-modal--fullscreen .ant-modal-body {
+  padding: 0;
+}
+
+.writing-chat-review--fullscreen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px 8px;
+  overflow: hidden;
+}
+
+.writing-chat-review__topic {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #0284c7 8%, #f8fafc);
+  border: 1px solid color-mix(in srgb, #0284c7 18%, #e2e8f0);
+}
+
+.writing-chat-review__topic-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: #0369a1;
+}
+
+.writing-chat-review__topic-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.writing-chat-review__guide {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.writing-chat-review__routes {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.writing-chat-review__routes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 14px;
+  padding-bottom: 8px;
+}
+
+.writing-chat-review__route-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.writing-chat-review__route-index {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0284c7;
+  letter-spacing: 0.02em;
+}
+
+.writing-chat-review__route-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.writing-chat-review__route-field > span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.writing-chat-review__scale-val {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: #0284c7;
+  margin-left: 4px;
+}
+
+.writing-chat-review__styles {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+html.dark .writing-chat-review__topic {
+  background: color-mix(in srgb, #0284c7 16%, #0f172a);
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+html.dark .writing-chat-review__topic-value {
+  color: #e2e8f0;
+}
+
+html.dark .writing-chat-review__route-card {
+  background: #0f172a;
+  border-color: rgba(148, 163, 184, 0.28);
+}
