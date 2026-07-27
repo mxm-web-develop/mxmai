@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>登录前 Cover · 双环符记</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <style>
+    /* —— Dark (default): mind cyan on deep navy —— */
+    :root {
+      --brand-machine: #002fa7;
+      --brand-mind: #38bdf8;
+      --brand-mind-strong: #0ea5e9;
+      --ink: #f8fafc;
+      --muted: rgba(248, 250, 252, 0.62);
+      --surface: rgba(15, 23, 42, 0.92);
+      --border: rgba(148, 163, 184, 0.16);
+      --page-bg: #020617;
+      --nav-h: 4.25rem;
+      --font: "DM Sans", system-ui, sans-serif;
+      --display: "Space Grotesk", system-ui, sans-serif;
+
+      --orbit-ring: rgba(56, 189, 248, 0.38);
+      --orbit-ring-inner: rgba(56, 189, 248, 0.22);
+      --orbit-core-bg: radial-gradient(circle at 42% 32%, rgba(56, 189, 248, 0.22), transparent 58%), rgba(2, 6, 23, 0.55);
+      --orbit-core-border: rgba(56, 189, 248, 0.32);
+      --orbit-core-shadow: 0 0 48px rgba(0, 47, 167, 0.35);
+      --orbit-m: #f8fafc;
+      --orbit-m-shadow: 0 0 20px rgba(56, 189, 248, 0.55), 0 0 44px rgba(14, 165, 233, 0.28);
+      --orbit-sub: rgba(125, 211, 252, 0.78);
+      --sat-dot: #e0f2fe;
+      --sat-dot-glow: 0 0 14px rgba(56, 189, 248, 0.95);
+      --sat-chip-bg: rgba(15, 23, 42, 0.78);
+      --sat-chip-border: rgba(56, 189, 248, 0.28);
+      --sat-chip-ink: #e2e8f0;
+      --grid-line: rgba(56, 189, 248, 0.085);
+      --grid-glow-a: rgba(0, 47, 167, 0.26);
+      --grid-glow-b: rgba(14, 165, 233, 0.12);
+      --current-head: rgba(240, 249, 255, 0.95);
+      --current-mid: rgba(125, 211, 252, 0.8);
+      --current-tail: rgba(56, 189, 248, 0.28);
+      --neon-core-shadow: 0 0 8px rgba(255,255,255,0.55), 0 0 28px rgba(56,189,248,0.9), 0 0 64px rgba(14,165,233,0.55);
+    }
+
+    /* —— Light: machine blue + paper cool grey (dedicated, not invert) —— */
+    html.light {
+      --ink: #0b1220;
+      --muted: #526076;
+      --surface: rgba(255, 255, 255, 0.92);
+      --border: rgba(15, 23, 42, 0.1);
+      --page-bg: #eef3f9;
+
+      --orbit-ring: rgba(0, 47, 167, 0.28);
+      --orbit-ring-inner: rgba(2, 132, 199, 0.3);
+      --orbit-core-bg: radial-gradient(circle at 42% 32%, rgba(56, 189, 248, 0.28), transparent 55%), rgba(255, 255, 255, 0.88);
+      --orbit-core-border: rgba(0, 47, 167, 0.18);
+      --orbit-core-shadow: 0 18px 50px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(255,255,255,0.6) inset;
+      --orbit-m: #002fa7;
+      --orbit-m-shadow: 0 0 0 transparent;
+      --orbit-sub: #0369a1;
+      --sat-dot: #0284c7;
+      --sat-dot-glow: 0 0 0 3px rgba(14, 165, 233, 0.18), 0 4px 14px rgba(0, 47, 167, 0.2);
+      --sat-chip-bg: rgba(255, 255, 255, 0.92);
+      --sat-chip-border: rgba(0, 47, 167, 0.14);
+      --sat-chip-ink: #0f172a;
+      --grid-line: rgba(0, 47, 167, 0.07);
+      --grid-glow-a: rgba(56, 189, 248, 0.18);
+      --grid-glow-b: rgba(0, 47, 167, 0.08);
+      --current-head: rgba(0, 47, 167, 0.95);
+      --current-mid: rgba(2, 132, 199, 0.75);
+      --current-tail: rgba(14, 165, 233, 0.25);
+      --neon-core-shadow: 0 0 0 4px rgba(14, 165, 233, 0.2), 0 12px 36px rgba(0, 47, 167, 0.22);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--page-bg);
+      line-height: 1.45;
+      overflow-x: clip;
+    }
+
+    .studio {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; flex-wrap: wrap; gap: 0.65rem 1rem;
+      align-items: center; justify-content: space-between;
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      backdrop-filter: blur(16px);
+    }
+    .studio__title { font-family: var(--display); font-size: 0.88rem; font-weight: 600; margin: 0; letter-spacing: -0.02em; }
+    .studio__meta { margin: 0.15rem 0 0; font-size: 0.72rem; color: var(--muted); max-width: 62ch; }
+    .studio__controls { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .studio__chip {
+      border: 1px solid var(--border); background: transparent; color: var(--muted);
+      font-size: 0.72rem; font-weight: 600; padding: 0.35rem 0.65rem;
+      border-radius: 999px; cursor: pointer; font-family: inherit;
+    }
+    .studio__chip:hover { color: var(--ink); }
+    .studio__chip.is-active {
+      color: var(--ink);
+      border-color: color-mix(in srgb, var(--brand-mind) 45%, var(--border));
+      background: color-mix(in srgb, var(--brand-machine) 18%, transparent);
+    }
+    html.light .studio__chip.is-active {
+      background: rgba(224, 242, 254, 0.85);
+      border-color: rgba(2, 132, 199, 0.35);
+      color: #0c4a6e;
+    }
+    .studio__note {
+      width: 100%; margin: 0; font-size: 0.75rem; color: var(--muted);
+      padding-top: 0.15rem; border-top: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+    }
+    .studio__note-label { color: color-mix(in srgb, var(--brand-mind) 70%, var(--ink)); font-weight: 600; }
+    html.light .studio__note-label { color: #0369a1; }
+
+    .mxm-landing { position: relative; min-height: calc(100dvh - 4.5rem); overflow: clip; }
+    .mxm-landing-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+    .mxm-landing-bg canvas { width: 100%; height: 100%; display: block; }
+    .mxm-landing__scroll { position: relative; z-index: 1; }
+
+    .mxm-landing-nav {
+      min-height: var(--nav-h); display: flex; align-items: center; justify-content: space-between;
+      gap: 0.65rem; padding: 0.5rem clamp(0.75rem, 3vw, 2.5rem);
+    }
+    .mxm-landing-nav__brand { display: inline-flex; align-items: center; gap: 0.65rem; text-decoration: none; color: inherit; }
+    .mxm-landing-nav__mark {
+      width: 2rem; height: 2rem; border-radius: 0.55rem; display: grid; place-items: center;
+      background: linear-gradient(135deg, var(--brand-machine), #1d4ed8);
+      box-shadow: 0 0 24px rgba(0, 47, 167, 0.35); color: #fff;
+      font-family: var(--display); font-weight: 700; font-size: 0.72rem; letter-spacing: -0.04em;
+    }
+    .mxm-landing-nav__name { font-family: var(--display); font-weight: 600; font-size: 1rem; letter-spacing: -0.03em; }
+    .mxm-landing-nav__links { display: none; gap: 1.75rem; }
+    @media (min-width: 900px) { .mxm-landing-nav__links { display: flex; } }
+    .mxm-landing-nav__links a { color: var(--muted); text-decoration: none; font-size: 0.875rem; }
+
+    .btn-primary, .btn-secondary {
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 0.65rem; font-family: inherit; font-weight: 600; font-size: 0.9rem;
+      padding: 0.65rem 1.15rem; cursor: pointer; text-decoration: none; border: 1px solid transparent;
+    }
+    .btn-primary {
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand-mind-strong), #0284c7 48%, var(--brand-machine));
+      box-shadow: 0 8px 22px rgba(14, 165, 233, 0.22);
+    }
+    html.light .btn-primary {
+      background: linear-gradient(135deg, #002fa7, #0369a1 55%, #0284c7);
+      box-shadow: 0 8px 22px rgba(0, 47, 167, 0.22);
+    }
+    .btn-primary.btn-small { padding: 0.4rem 0.85rem; font-size: 0.8rem; }
+    .btn-secondary {
+      color: var(--ink); background: color-mix(in srgb, var(--surface) 55%, transparent); border-color: var(--border);
+    }
+
+    .mxm-landing-hero {
+      width: min(1180px, 100%); margin-inline: auto;
+      padding: clamp(2rem, 6vw, 4rem) clamp(1rem, 4vw, 2.5rem) clamp(3rem, 8vw, 5rem);
+      display: grid; grid-template-columns: 1fr; gap: clamp(1.5rem, 4vw, 2.5rem); align-items: center;
+    }
+    @media (min-width: 960px) {
+      .mxm-landing-hero {
+        grid-template-columns: 1.05fr 0.95fr;
+        min-height: calc(100dvh - var(--nav-h) - 5rem);
+        align-content: center;
+      }
+    }
+
+    .mxm-landing-hero__badge {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      padding: 0.35rem 0.75rem; border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--brand-mind) 35%, var(--border));
+      background: color-mix(in srgb, var(--brand-machine) 12%, transparent);
+      color: color-mix(in srgb, var(--brand-mind) 80%, var(--ink));
+      font-size: 0.78rem; font-weight: 500; margin-bottom: 1.25rem;
+    }
+    html.light .mxm-landing-hero__badge {
+      background: rgba(224, 242, 254, 0.75);
+      border-color: rgba(2, 132, 199, 0.28);
+      color: #0c4a6e;
+    }
+    .mxm-landing-hero__title {
+      margin: 0 0 1rem; font-family: var(--display);
+      font-size: clamp(2rem, 5.5vw, 3.75rem); line-height: 1.08;
+      letter-spacing: -0.035em; text-wrap: balance; max-width: 16ch;
+      font-weight: 650;
+    }
+    .mxm-landing-hero__title em {
+      font-style: normal;
+      color: color-mix(in srgb, var(--brand-mind) 75%, var(--ink));
+    }
+    html.light .mxm-landing-hero__title em { color: #002fa7; }
+    .mxm-landing-hero__lead {
+      margin: 0 0 1.75rem; color: var(--muted);
+      font-size: clamp(1rem, 1.8vw, 1.125rem); line-height: 1.7; max-width: 52ch;
+    }
+    .mxm-landing-hero__cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .mxm-landing-hero__stats {
+      display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 2.25rem;
+      padding-top: 1.75rem; border-top: 1px solid var(--border);
+    }
+    .mxm-landing-hero__stat strong { display: block; font-family: var(--display); font-size: 1.35rem; letter-spacing: -0.02em; }
+    .mxm-landing-hero__stat span { font-size: 0.8rem; color: var(--muted); }
+
+    .mxm-landing-hero__visual {
+      position: relative;
+      min-height: clamp(320px, 44vw, 460px);
+      display: grid;
+      place-items: center;
+    }
+    .viz {
+      position: absolute; inset: 0;
+      display: none;
+      place-items: center;
+      pointer-events: none;
+    }
+    .viz.is-on { display: grid; }
+
+    /* —— B Orbit —— */
+    .viz-b__stage {
+      position: relative;
+      width: min(92%, 420px);
+      aspect-ratio: 1;
+    }
+    .viz-b__ring {
+      position: absolute; inset: 6%;
+      border-radius: 50%;
+      border: 1px dashed var(--orbit-ring);
+    }
+    .viz-b__ring--inner {
+      inset: 26%;
+      border-style: solid;
+      border-width: 1.5px;
+      border-color: var(--orbit-ring-inner);
+    }
+    .viz-b__caps {
+      position: absolute; inset: 0;
+      z-index: 3;
+    }
+    .viz-b__cap {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 0; height: 0;
+      transform-origin: 0 0;
+    }
+    .viz-b__cap-inner {
+      position: absolute;
+      left: 0; top: 0;
+      transform: translate(-50%, -50%);
+    }
+    .viz-b__cap-dot {
+      display: block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--sat-dot);
+      box-shadow: var(--sat-dot-glow);
+      transition: transform 0.12s ease;
+    }
+    .viz-b__caps.is-neon .viz-b__cap-dot {
+      transform: scale(1.28);
+    }
+
+    .viz-b__mark {
+      position: absolute; inset: 34%;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 0.35rem;
+      border-radius: 50%;
+      background: var(--orbit-core-bg);
+      border: 1px solid var(--orbit-core-border);
+      box-shadow: var(--orbit-core-shadow);
+      transition: box-shadow 0.1s linear;
+      z-index: 2;
+    }
+    .viz-b__mono {
+      width: clamp(3.2rem, 10vw, 4.6rem);
+      height: auto;
+      display: block;
+      filter: drop-shadow(var(--orbit-m-shadow));
+    }
+    .viz-b__mono path {
+      fill: var(--orbit-m);
+    }
+    .viz-b__mark-sub {
+      margin: 0;
+      font-family: var(--font);
+      font-size: 0.58rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--orbit-sub);
+      text-align: center;
+      max-width: 9.5rem;
+      line-height: 1.35;
+    }
+    .viz-b__mark-word {
+      display: block;
+      font-family: var(--display);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      text-transform: none;
+      color: var(--orbit-m);
+      opacity: 0.92;
+      margin-top: 0.15rem;
+    }
+    html.light .viz-b__mark-word { color: #002fa7; }
+
+    .viz-b__mark.is-neon {
+      box-shadow: var(--neon-core-shadow);
+    }
+    .viz-b__mark.is-neon .viz-b__mono path {
+      fill: #fff;
+    }
+    html.light .viz-b__mark.is-neon .viz-b__mono path {
+      fill: #002fa7;
+    }
+
+    /* Keep A/C minimal stubs for switch */
+    .viz-a__logo, .viz-c canvas { opacity: 0.9; }
+
+    @media (max-width: 639px) {
+      .viz-b__stage { width: min(96%, 340px); }
+      .viz-b__cap-dot { width: 8px; height: 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .viz-b__mark { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="studio">
+    <div>
+      <h1 class="studio__title">登录前 Cover · 双环符记（精修）</h1>
+      <p class="studio__meta">外圈仅 5 个光点（无文字）；几何 M 字标 + 亮色专用配色。可切回 A/C 对照。</p>
+    </div>
+    <div class="studio__controls" role="tablist">
+      <button type="button" class="studio__chip" data-viz="a" role="tab">A · 粒子字</button>
+      <button type="button" class="studio__chip is-active" data-viz="b" role="tab" aria-selected="true">B · 双环符记</button>
+      <button type="button" class="studio__chip" data-viz="c" role="tab">C · 星座网</button>
+      <button type="button" class="studio__chip" id="btn-replay">重播</button>
+      <button type="button" class="studio__chip" id="btn-theme">明暗</button>
+    </div>
+    <p class="studio__note">
+      <span class="studio__note-label" id="note-label">B · 双环符记：</span>
+      <span id="note-body">几何 M 字标；外圈五光点匀速公转（无标签字）；亮色为 Machine 蓝纸感专用色。</span>
+    </p>
+  </div>
+
+  <div class="mxm-landing" id="landing" data-viz="b">
+    <div class="mxm-landing-bg" aria-hidden="true"><canvas id="bg-canvas"></canvas></div>
+
+    <div class="mxm-landing__scroll">
+      <header class="mxm-landing-nav">
+        <a href="#" class="mxm-landing-nav__brand">
+          <span class="mxm-landing-nav__mark">MXM</span>
+          <span class="mxm-landing-nav__name">SuperMXM</span>
+        </a>
+        <nav class="mxm-landing-nav__links">
+          <a href="#">产品能力</a>
+          <a href="#">为什么选择</a>
+          <a href="#">如何开始</a>
+        </nav>
+        <div class="mxm-landing-nav__actions">
+          <button type="button" class="btn-primary btn-small">登录</button>
+        </div>
+      </header>
+
+      <section class="mxm-landing-hero">
+        <div class="mxm-landing-hero__copy">
+          <div class="mxm-landing-hero__badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/></svg>
+            <span>SuperMXM · Super Mind × Machine</span>
+          </div>
+          <h1 class="mxm-landing-hero__title">让创意与机器<em>协同</em>，一站完成 AI 内容生产</h1>
+          <p class="mxm-landing-hero__lead">
+            SuperMXM 是面向创作者与团队的 AI 内容平台：从角色设定、文案撰写到图片、音频、视频生成，再到自动化批量生产与智能助手，全部在一个控制台里完成。
+          </p>
+          <div class="mxm-landing-hero__cta-row">
+            <button type="button" class="btn-primary">免费开始使用</button>
+            <a href="#" class="btn-secondary">了解能力</a>
+          </div>
+          <div class="mxm-landing-hero__stats">
+            <div class="mxm-landing-hero__stat"><strong>图文音视频</strong><span>全模态创作</span></div>
+            <div class="mxm-landing-hero__stat"><strong>批量自动化</strong><span>工作流驱动</span></div>
+            <div class="mxm-landing-hero__stat"><strong>一个账号</strong><span>统一管理资产</span></div>
+          </div>
+        </div>
+
+        <div class="mxm-landing-hero__visual" id="visual" aria-hidden="true">
+          <div class="viz viz-a" id="viz-a">
+            <p style="color:var(--muted);font-size:0.85rem">切换到 A 可看粒子字方案（精简占位）</p>
+          </div>
+
+          <div class="viz viz-b is-on" id="viz-b">
+            <div class="viz-b__stage" id="orbit-stage">
+              <div class="viz-b__ring" id="orbit-outer"></div>
+              <div class="viz-b__ring viz-b__ring--inner" id="orbit-inner"></div>
+
+              <div class="viz-b__caps" id="orbit-caps" aria-hidden="true">
+                <div class="viz-b__cap" data-cap="图像"><div class="viz-b__cap-inner"><span class="viz-b__cap-dot" title="图像"></span></div></div>
+                <div class="viz-b__cap" data-cap="文案"><div class="viz-b__cap-inner"><span class="viz-b__cap-dot" title="文案"></span></div></div>
+                <div class="viz-b__cap" data-cap="视频"><div class="viz-b__cap-inner"><span class="viz-b__cap-dot" title="视频"></span></div></div>
+                <div class="viz-b__cap" data-cap="音频"><div class="viz-b__cap-inner"><span class="viz-b__cap-dot" title="音频"></span></div></div>
+                <div class="viz-b__cap" data-cap="助手"><div class="viz-b__cap-inner"><span class="viz-b__cap-dot" title="助手"></span></div></div>
+              </div>
+
+              <div class="viz-b__mark" id="orbit-mark">
+                <!-- Geometric M monogram (not raw system font) -->
+                <svg class="viz-b__mono" viewBox="0 0 80 72" aria-hidden="true">
+                  <path d="M6 64 V12 L26 48 L40 18 L54 48 L74 12 V64 H62 V34 L50 56 H30 L18 34 V64 Z"/>
+                </svg>
+                <p class="viz-b__mark-sub">
+                  SuperMXM
+                  <span class="viz-b__mark-word">Mind × Machine</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="viz viz-c" id="viz-c">
+            <canvas id="constellation-canvas"></canvas>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const landing = document.getElementById('landing');
+    const visualEl = document.getElementById('visual');
+    const noteLabel = document.getElementById('note-label');
+    const noteBody = document.getElementById('note-body');
+    const NOTES = {
+      a: { label: 'A · 粒子字：', body: '对照方案（本页精简）。正式粒子 morph 见线上 LandingParticleLogo。' },
+      b: { label: 'B · 双环符记：', body: '几何 M 字标；外圈五光点匀速公转（无标签字）；亮色为 Machine 蓝纸感专用色。' },
+      c: { label: 'C · 星座网：', body: '节点连线 + 沿边脉冲（对照）。' },
+    };
+
+    let neonUntil = 0;
+    let neonFlicker = 0;
+
+    function setNeon(on) {
+      const mark = document.getElementById('orbit-mark');
+      const caps = document.getElementById('orbit-caps');
+      if (landing.dataset.viz === 'b') {
+        mark.classList.toggle('is-neon', on);
+        caps.classList.toggle('is-neon', on);
+      }
+      if (landing.dataset.viz === 'c' && window.__constellation) {
+        window.__constellation.neon = on;
+      }
+    }
+
+    function triggerNeon(now) {
+      neonUntil = now + 160 + Math.random() * 180;
+      if (Math.random() > 0.45) neonFlicker = 2 + Math.floor(Math.random() * 3);
+    }
+
+    function updateNeon(now) {
+      if (now < neonUntil) setNeon(true);
+      else if (neonFlicker > 0) {
+        neonFlicker -= 1;
+        setNeon(neonFlicker % 2 === 0);
+      } else setNeon(false);
+    }
+
+    function hitVisual(hx, hy) {
+      const r = visualEl.getBoundingClientRect();
+      const cx = r.left + r.width * 0.5;
+      const cy = r.top + r.height * 0.5;
+      const rx = r.width * 0.3;
+      const ry = r.height * 0.3;
+      const dx = (hx - cx) / rx;
+      const dy = (hy - cy) / ry;
+      return dx * dx + dy * dy < 1;
+    }
+
+    /* Grid + currents (theme-aware) */
+    const Grid = (() => {
+      const canvas = document.getElementById('bg-canvas');
+      const ctx = canvas.getContext('2d');
+      let w = 0, h = 0, step = 48, currents = [], last = performance.now(), spawnAcc = 0, raf = 0;
+
+      function cssVar(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      }
+
+      function resize() {
+        const dpr = Math.min(devicePixelRatio || 1, 2);
+        w = innerWidth; h = innerHeight;
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        step = Math.max(40, Math.round(Math.min(w, h) / 18));
+      }
+
+      function spawn() {
+        const cols = Math.floor(w / step), rows = Math.floor(h / step);
+        if (cols < 2 || rows < 2) return;
+        const horizontal = Math.random() > 0.4;
+        const speed = 150 + Math.random() * 200;
+        const len = 56 + Math.random() * 90;
+        const bright = 0.55 + Math.random() * 0.45;
+        if (horizontal) {
+          const y = Math.floor(Math.random() * (rows + 1)) * step;
+          const ltr = Math.random() > 0.5;
+          currents.push({ axis: 'h', y: y, x: ltr ? -len : w + len, dir: ltr ? 1 : -1, speed: speed, len: len, bright: bright });
+        } else {
+          const x = Math.floor(Math.random() * (cols + 1)) * step;
+          const ttb = Math.random() > 0.5;
+          currents.push({ axis: 'v', x: x, y: ttb ? -len : h + len, dir: ttb ? 1 : -1, speed: speed, len: len, bright: bright });
+        }
+      }
+
+      function drawBase() {
+        ctx.clearRect(0, 0, w, h);
+        const glowA = cssVar('--grid-glow-a');
+        const glowB = cssVar('--grid-glow-b');
+        const line = cssVar('--grid-line');
+
+        const g1 = ctx.createRadialGradient(w * 0.12, h * 0.08, 0, w * 0.12, h * 0.08, w * 0.4);
+        g1.addColorStop(0, glowA);
+        g1.addColorStop(1, 'transparent');
+        ctx.fillStyle = g1; ctx.fillRect(0, 0, w, h);
+
+        const vr = visualEl.getBoundingClientRect();
+        const g2 = ctx.createRadialGradient(vr.left + vr.width * 0.5, vr.top + vr.height * 0.5, 0, vr.left + vr.width * 0.5, vr.top + vr.height * 0.5, Math.max(vr.width, vr.height) * 0.7);
+        g2.addColorStop(0, glowB);
+        g2.addColorStop(1, 'transparent');
+        ctx.fillStyle = g2; ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = line;
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= w + step; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+        for (let y = 0; y <= h + step; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+      }
+
+      function drawCurrent(c) {
+        let x1, y1, x2, y2, hx, hy;
+        if (c.axis === 'h') { x1 = c.x; x2 = c.x - c.dir * c.len; y1 = y2 = c.y; hx = c.x; hy = c.y; }
+        else { y1 = c.y; y2 = c.y - c.dir * c.len; x1 = x2 = c.x; hx = c.x; hy = c.y; }
+
+        const head = cssVar('--current-head');
+        const mid = cssVar('--current-mid');
+        const tail = cssVar('--current-tail');
+        const grad = ctx.createLinearGradient(x2, y2, x1, y1);
+        grad.addColorStop(0, 'transparent');
+        grad.addColorStop(0.4, tail);
+        grad.addColorStop(0.78, mid);
+        grad.addColorStop(1, head);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2.3;
+        ctx.lineCap = 'round';
+        ctx.shadowColor = mid;
+        ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x1, y1); ctx.stroke();
+        ctx.fillStyle = head;
+        ctx.beginPath(); ctx.arc(hx, hy, 2.6, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+        return { hx: hx, hy: hy };
+      }
+
+      function tick(now) {
+        const dt = Math.min(0.05, (now - last) / 1000);
+        last = now; spawnAcc += dt;
+        drawBase();
+        if (!reduceMotion) {
+          while (currents.length < 5) spawn();
+          if (spawnAcc > 0.42) { spawnAcc = 0; if (currents.length < 8) spawn(); }
+          let hit = false;
+          for (let i = currents.length - 1; i >= 0; i--) {
+            const c = currents[i];
+            if (c.axis === 'h') c.x += c.dir * c.speed * dt;
+            else c.y += c.dir * c.speed * dt;
+            const head = drawCurrent(c);
+            if (hitVisual(head.hx, head.hy)) hit = true;
+            const gone = (c.axis === 'h' && (c.x < -c.len - 60 || c.x > w + c.len + 60)) ||
+              (c.axis === 'v' && (c.y < -c.len - 60 || c.y > h + c.len + 60));
+            if (gone) currents.splice(i, 1);
+          }
+          if (hit) triggerNeon(now);
+          updateNeon(now);
+        }
+        raf = requestAnimationFrame(tick);
+      }
+
+      function start() {
+        resize(); currents = []; last = performance.now();
+        for (let i = 0; i < 5; i++) spawn();
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(tick);
+      }
+      return { start: start, resize: resize };
+    })();
+
+    /* Orbit B */
+    const Orbit = (() => {
+      let tweens = [];
+      const RADIUS = 44; // % of half-stage roughly via left/top formula using stage %
+
+      function layoutCaps(angleOffset) {
+        const caps = Array.from(document.querySelectorAll('.viz-b__cap'));
+        const n = caps.length;
+        caps.forEach(function (cap, i) {
+          const angle = angleOffset + (i / n) * 360 - 90; // start top
+          const rad = (angle * Math.PI) / 180;
+          // place pivot at ring
+          const left = 50 + Math.cos(rad) * RADIUS;
+          const top = 50 + Math.sin(rad) * RADIUS;
+          cap.style.left = left + '%';
+          cap.style.top = top + '%';
+          // counter-rotate label so text stays upright
+          const inner = cap.querySelector('.viz-b__cap-inner');
+          // no extra rotate needed if we only translate position
+          inner.style.transform = 'translate(-50%, -50%)';
+        });
+      }
+
+      function start() {
+        stop();
+        const outer = document.getElementById('orbit-outer');
+        const inner = document.getElementById('orbit-inner');
+        const mark = document.getElementById('orbit-mark');
+        const state = { a: 0 };
+
+        layoutCaps(0);
+
+        if (reduceMotion) {
+          gsap.set(mark, { opacity: 1, scale: 1 });
+          return;
+        }
+
+        tweens.push(gsap.fromTo(mark, { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.75, ease: 'expo.out' }));
+        tweens.push(gsap.to(outer, { rotation: 360, duration: 52, repeat: -1, ease: 'none' }));
+        tweens.push(gsap.to(inner, { rotation: -360, duration: 30, repeat: -1, ease: 'none' }));
+        tweens.push(gsap.to(state, {
+          a: 360,
+          duration: 52,
+          repeat: -1,
+          ease: 'none',
+          onUpdate: function () { layoutCaps(state.a); },
+        }));
+
+        // subtle entrance for chips
+        gsap.fromTo('.viz-b__cap-inner',
+          { opacity: 0, scale: 0.85 },
+          { opacity: 1, scale: 1, duration: 0.55, stagger: 0.06, ease: 'expo.out', delay: 0.15 }
+        );
+      }
+
+      function stop() {
+        tweens.forEach(function (t) { t.kill(); });
+        tweens = [];
+        gsap.killTweensOf('.viz-b__cap-inner');
+        gsap.set('#orbit-outer, #orbit-inner, #orbit-mark', { clearProps: 'transform,opacity' });
+      }
+
+      return { start: start, stop: stop };
+    })();
+
+    /* Constellation C (compact) */
+    const Constellation = (() => {
+      const canvas = document.getElementById('constellation-canvas');
+      const ctx = canvas.getContext('2d');
+      let w = 0, h = 0, nodes = [], edges = [], pulses = [], raf = 0, running = false;
+      const api = { neon: false };
+
+      function resize() {
+        const rect = visualEl.getBoundingClientRect();
+        const dpr = Math.min(devicePixelRatio || 1, 2);
+        w = Math.max(1, Math.floor(rect.width));
+        h = Math.max(1, Math.floor(rect.height));
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function build() {
+        nodes = [{ x: w * 0.5, y: h * 0.5, r: 4.2, core: true }];
+        [0.2, 0.34, 0.46].forEach(function (ratio, ri) {
+          const rad = Math.min(w, h) * ratio;
+          const n = 7 + ri * 2;
+          for (let i = 0; i < n; i++) {
+            const a = (i / n) * Math.PI * 2 + ri * 0.4;
+            nodes.push({
+              x: w * 0.5 + Math.cos(a) * rad,
+              y: h * 0.5 + Math.sin(a) * rad,
+              r: 1.6 + Math.random(),
+              phase: Math.random() * 6,
+            });
+          }
+        });
+        edges = [];
+        for (let i = 0; i < nodes.length; i++) {
+          const ds = [];
+          for (let j = 0; j < nodes.length; j++) {
+            if (i === j) continue;
+            ds.push({ j: j, d: Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y) });
+          }
+          ds.sort(function (a, b) { return a.d - b.d; });
+          for (let k = 0; k < 3 && k < ds.length; k++) {
+            if (ds[k].d > Math.min(w, h) * 0.26) continue;
+            const a = Math.min(i, ds[k].j), b = Math.max(i, ds[k].j);
+            if (!edges.some(function (e) { return e.a === a && e.b === b; })) edges.push({ a: a, b: b });
+          }
+        }
+        pulses = [];
+      }
+
+      function tick(now) {
+        if (!running) return;
+        const t = now * 0.001;
+        ctx.clearRect(0, 0, w, h);
+        const g = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, Math.min(w, h) * 0.4);
+        g.addColorStop(0, api.neon ? 'rgba(56,189,248,0.25)' : 'rgba(56,189,248,0.1)');
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+        ctx.lineWidth = 1;
+        edges.forEach(function (e) {
+          const a = nodes[e.a], b = nodes[e.b];
+          ctx.strokeStyle = 'rgba(56,189,248,0.16)';
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        });
+        if (!reduceMotion && pulses.length < 4 && Math.random() < 0.05 && edges.length) {
+          const e = edges[Math.floor(Math.random() * edges.length)];
+          pulses.push({ e: e, t: 0, speed: 0.5 + Math.random() * 0.5 });
+        }
+        for (let i = pulses.length - 1; i >= 0; i--) {
+          const p = pulses[i]; p.t += p.speed * 0.016;
+          if (p.t > 1) { pulses.splice(i, 1); continue; }
+          const a = nodes[p.e.a], b = nodes[p.e.b];
+          const x = a.x + (b.x - a.x) * p.t, y = a.y + (b.y - a.y) * p.t;
+          ctx.fillStyle = 'rgba(224,242,254,0.9)';
+          ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill();
+        }
+        nodes.forEach(function (n) {
+          const r = n.r * (0.9 + Math.sin(t * 2 + (n.phase || 0)) * 0.1) * (n.core && api.neon ? 1.5 : 1);
+          ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = n.core ? '#e0f2fe' : 'rgba(186,230,253,0.85)';
+          ctx.fill();
+        });
+        raf = requestAnimationFrame(tick);
+      }
+
+      function start() {
+        stop(); running = true; resize(); build();
+        raf = requestAnimationFrame(tick);
+      }
+      function stop() { running = false; cancelAnimationFrame(raf); api.neon = false; }
+      window.__constellation = api;
+      return { start: start, stop: stop, resize: function () { if (running) { resize(); build(); } } };
+    })();
+
+    function playHeroCopy() {
+      if (reduceMotion) return;
+      gsap.fromTo(
+        ['.mxm-landing-hero__badge', '.mxm-landing-hero__title', '.mxm-landing-hero__lead',
+         '.mxm-landing-hero__cta-row .btn-primary', '.mxm-landing-hero__cta-row .btn-secondary',
+         '.mxm-landing-hero__stat'],
+        { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.5, stagger: 0.05, ease: 'expo.out', overwrite: true }
+      );
+    }
+
+    function applyViz(mode) {
+      landing.dataset.viz = mode;
+      noteLabel.textContent = NOTES[mode].label;
+      noteBody.textContent = NOTES[mode].body;
+      document.querySelectorAll('.studio__chip[data-viz]').forEach(function (btn) {
+        const on = btn.dataset.viz === mode;
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      document.querySelectorAll('.viz').forEach(function (el) { el.classList.remove('is-on'); });
+      document.getElementById('viz-' + mode).classList.add('is-on');
+      Orbit.stop();
+      Constellation.stop();
+      setNeon(false);
+      if (mode === 'b') Orbit.start();
+      if (mode === 'c') Constellation.start();
+      playHeroCopy();
+    }
+
+    document.querySelectorAll('.studio__chip[data-viz]').forEach(function (btn) {
+      btn.addEventListener('click', function () { applyViz(btn.dataset.viz); });
+    });
+    document.getElementById('btn-replay').addEventListener('click', function () { applyViz(landing.dataset.viz); });
+    document.getElementById('btn-theme').addEventListener('click', function () {
+      document.documentElement.classList.toggle('dark');
+      document.documentElement.classList.toggle('light');
+      Grid.resize();
+      Constellation.resize();
+    });
+    addEventListener('resize', function () { Grid.resize(); Constellation.resize(); });
+
+    Grid.start();
+    applyViz('b');
+  </script>
+</body>
+</html>

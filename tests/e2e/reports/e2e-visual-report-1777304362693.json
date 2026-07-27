@@ -1,0 +1,39 @@
+{
+  "startTime": "2026-04-27T15:39:15.049Z",
+  "endTime": "2026-04-27T15:39:22.693Z",
+  "duration": 7644,
+  "results": [
+    {
+      "stage": "Setup",
+      "name": "Service Health Check",
+      "status": "passed",
+      "duration": 24
+    },
+    {
+      "stage": "Setup",
+      "name": "Browser Launch",
+      "status": "passed",
+      "duration": 120
+    },
+    {
+      "stage": "Setup",
+      "name": "Login",
+      "status": "skipped",
+      "duration": 7419,
+      "screenshot": "tests/e2e/screenshots/00-after-login-1777304362552.png",
+      "visualAnalysis": "Visual analysis available via Claude Code MCP tools"
+    },
+    {
+      "stage": "API",
+      "name": "Memory API Test",
+      "status": "passed",
+      "duration": 5
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "passed": 3,
+    "failed": 0,
+    "skipped": 1
+  }
+}

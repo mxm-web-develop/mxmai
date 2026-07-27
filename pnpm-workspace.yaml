@@ -2,9 +2,9 @@ packages:
   - mxmauth
   - mxmpay
   - mxmcgi
-  - mxmagent
   - mxmnotify
   - mxmdata
   - gateway
   - web
-  - clawWeb
+  - eshop-agentic-h5
+  - mxm-editor-core

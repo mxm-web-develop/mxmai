@@ -11,7 +11,7 @@ export default defineConfig({
   format: ['cjs'],
   target: 'node18',
   sourcemap: true,
-  clean: true,
+  clean: process.env.TSUP_CLEAN !== 'false',
   minify: false,
   // 为 mxmdata 包生成类型声明文件，其他包不需要
   // 使用更宽松的配置以允许一些类型错误

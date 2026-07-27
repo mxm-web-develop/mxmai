@@ -156,6 +156,12 @@ Seedance：`upstream_model` 填 `bytedance/seedance-2.0` 或 `...-mini`，不要
 | anthropic/claude-opus-4.8 | $0.005/$0.025 per 1K | token_based | 1.25 / 6.25 | [text,image] → [text] | chat, completion, vision-qa |
 | google/gemini-3.5-flash | $0.0015/$0.009 per 1K | token_based | 0.375 / 2.25 | [text,image,video,audio] → [text] | chat, completion, multimodal-qa |
 | openai/gpt-oss-120b | （text-only） | token_based | （待定价） | [text] → [text] | chat, completion |
+| deepseek-ai/deepseek-v4-flash | $0.14/$0.28 per M | token_based | 0.035 / 0.07 | [text] → [text] | chat, completion, long-context |
+| deepseek-ai/deepseek-v4-pro | $1.68/$3.38 per M | token_based | 0.42 / 0.845 | [text] → [text] | chat, completion, long-context |
+| openai/gpt-5.6-luna | $1/$6 per M | token_based | 0.25 / 1.5 | [text,image] → [text] | chat, completion, vision-qa, long-context |
+| openai/gpt-5.6-terra | $2.5/$15 per M | token_based | 0.625 / 3.75 | [text,image] → [text] | chat, completion, vision-qa, long-context |
+| openai/gpt-5.6-sol | $5/$30 per M | token_based | 1.25 / 7.5 | [text,image] → [text] | chat, completion, vision-qa, long-context |
+| zai-org/glm-5.2 | $1.40/$4.40 per M | token_based | 0.35 / 1.1 | [text] → [text] | chat, completion, long-context |
 | suno/chirp-v4 · v5 | ≈$0.132/次 | per_request | 33 | [text] → [audio] | text-to-music |
 
 批量写入：`pnpm --filter @mxmai/mxmcgi run seed:provider-atlascloud-models` +  

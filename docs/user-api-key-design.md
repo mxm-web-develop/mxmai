@@ -76,6 +76,7 @@ Gateway 认证
 | key_hash | TEXT NOT NULL | 密钥的 SHA-256，校验用，不可逆 |
 | key_prefix | VARCHAR(12) NOT NULL | 密钥前缀（如 `mxm_1a2b`），列表与日志展示用 |
 | name | VARCHAR(128) | 用户填的备注，如「OpenClaw」「公司脚本」 |
+| key_type | TEXT | `personal`（个人自动化，全平台已认证 API + Open API）或 `integration`（仅 `/api/v1/open/*`） |
 | created_at | TIMESTAMPTZ | 创建时间 |
 | last_used_at | TIMESTAMPTZ | 最近一次使用时间（可选，便于用户判断是否在用） |
 | expires_at | TIMESTAMPTZ | 可选，过期时间；NULL 表示长期有效（与 GitHub 可选 expiry 一致） |
@@ -132,6 +133,19 @@ Gateway 认证
 - **API Key**：填用户在平台创建的 Key；客户端一般会以 `Authorization: Bearer <key>` 发送，无需改服务端。
 - 若 OpenClaw 使用「自定义 OpenAI 兼容」接口，通常只需配置 Base URL + API Key，即与上述方式一致。
 
+### 8.1 Agent Skill（推荐）
+
+账号中心 **API Token → 下载 Agent Skill** 可获取 `mxm-agent-platform.zip`，内含 Cursor/OpenClaw 可安装的 Skill 与 `scripts/mxm-catalog.mjs`。
+
+Skill 不固化业务列表，而是教 Agent 调用：
+
+```http
+GET /api/v1/agent/catalog
+Authorization: Bearer mxm_...
+```
+
+返回当前全部 Task V2 业务、可执行 Smartflow 及入参字段摘要（**不含**第三方 Open API slug；integration Key 场景见 `docs/API_OPEN_PUBLISH.md`）。详见 `.cursor/skills/mxm_agent_platform/SKILL.md`。
+
 ---
 
 ## 9. 安全与扩展（对齐成熟提供方）
@@ -158,3 +172,22 @@ Gateway 认证
 5. **web**：API 密钥管理页（列表 + 创建时一次展示明文 + 撤销）。
 
 按此顺序即可实现「用户获取 Token → 在 OpenClaw 等配置 → 代表自己调用平台功能」的完整链路，并与 GitHub/OpenAI 等成熟接口提供方的用法和安全性对齐，便于后期扩展。
+
+---
+
+## 11. 已发布开放 API（slug）
+
+在 API Key 鉴权之上，平台提供 **「发布为开放 API」** 产品层（表 `published_apis`）：
+
+- 用户/Admin 将 **Task V2 业务**（`scope` + `taskKey` + `subtype`）或 **Smartflow** 登记为全局唯一 **slug**。
+- 第三方使用 **自己的 API Key** 调用（与 JWT 相同 Gateway `authMiddleware`）：
+  - `GET /api/v1/open/{slug}` — 入参 JSON Schema 快照 + curl 示例（**也需 API Key**）
+  - `POST /api/v1/open/{slug}/run` — 异步执行（`params` 或 `input_data`）
+  - `GET /api/v1/open/{slug}/jobs/{jobId}` — 轮询状态
+
+- **鉴权身份**：调用方为 Key 所属用户（Gateway 注入 `x-user-id`）。
+- **计费**：Open API **扣发布者钱包**（`published_apis.owner_user_id`），不是扣调用方；任务 metadata 记 `callerUserId` / `publishedSlug`，Web「第三方应用」分栏可筛选。
+- **Key 类型**：第三方集成应使用 `integration` Key；`personal` Key 仍可调 Open API，但也能访问 `/api/v1/cgi/*`，不宜外发。
+- Gateway 在 API Key 鉴权后根据 `key_type` 限制路径：`integration` 仅 `/api/v1/open/*`（WebSocket 亦拒绝）。
+
+详见 [API_OPEN_PUBLISH.md](./API_OPEN_PUBLISH.md)。

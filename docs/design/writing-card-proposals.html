@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>写作任务卡片 · 10 方案</title>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <style>
+    :root {
+      --sky-600: #0284c7;
+      --sky-700: #0369a1;
+      --sky-50: #f0f9ff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: rgba(148, 163, 184, 0.35);
+      --surface: #ffffff;
+      --page: #f1f5f9;
+      --ok-bg: rgba(34, 197, 94, 0.12);
+      --ok-fg: #166534;
+      --radius: 12px;
+      --font: "SF Pro Text", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+      --card-w: 220px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--page);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+    }
+
+    .intro h1 {
+      margin: 0 0 0.35rem;
+      font-size: 1.35rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+    }
+    .intro p {
+      margin: 0 0 1.5rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      max-width: 62ch;
+    }
+    .intro code {
+      font-size: 0.8em;
+      background: #e2e8f0;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1.75rem;
+    }
+    .legend span {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      background: #e2e8f0;
+      color: #334155;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+      gap: 1.5rem;
+    }
+
+    .slot {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .slot__label {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .slot__label strong {
+      font-size: 0.8rem;
+      font-weight: 650;
+    }
+    .slot__label em {
+      font-style: normal;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    /* Shared shell: same footprint as audio/graph (~220px + meta) */
+    .card {
+      width: 100%;
+      max-width: var(--card-w);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      padding: 0.5rem 0.55rem 0.65rem;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+    .card:hover {
+      border-color: rgba(2, 132, 199, 0.4);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
+      transform: translateY(-2px);
+    }
+    .card:focus-visible {
+      outline: 2px solid var(--sky-600);
+      outline-offset: 2px;
+    }
+
+    .visual {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.65rem;
+      color: var(--muted);
+      min-height: 1.2rem;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.62rem;
+      background: rgba(2, 132, 199, 0.1);
+      color: var(--sky-700);
+    }
+    .status {
+      display: inline-flex;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.62rem;
+      background: var(--ok-bg);
+      color: var(--ok-fg);
+    }
+    .more {
+      position: absolute;
+      right: 0.4rem;
+      bottom: 0.4rem;
+      width: 1.65rem;
+      height: 1.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      color: #64748b;
+      display: grid;
+      place-items: center;
+      font-size: 0.85rem;
+      line-height: 1;
+      z-index: 2;
+    }
+    .card { padding-bottom: 2rem; }
+
+    .md-h {
+      margin: 0 0 0.35rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .md-p {
+      margin: 0;
+      font-size: 0.62rem;
+      color: #475569;
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 5;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .md-bold { font-weight: 700; color: #0369a1; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .card:hover { transform: none; }
+      .v9-cursor, .v10-shimmer, .v7-ink { animation: none !important; }
+    }
+
+    /* —— V1 Minimal —— */
+    .v1 .visual {
+      display: grid;
+      place-items: center;
+      background: linear-gradient(160deg, #f8fafc, #e2e8f0);
+    }
+    .v1 .glyph {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--sky-600);
+      letter-spacing: -0.04em;
+    }
+
+    /* —— V2 Paper sheet —— */
+    .v2 .visual {
+      background: linear-gradient(145deg, #0f172a, #1e293b);
+      border-color: rgba(148, 163, 184, 0.3);
+    }
+    .v2 .paper {
+      position: absolute;
+      inset: 0.55rem;
+      background: #f8fafc;
+      border-radius: 6px;
+      padding: 0.55rem 0.55rem 0.45rem;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    }
+
+    /* —— V3 Headline-first —— */
+    .v3 .visual {
+      background: var(--sky-50);
+      border-color: rgba(2, 132, 199, 0.22);
+      padding: 0.75rem 0.7rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .v3 .eyebrow {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--sky-700);
+    }
+    .v3 .headline {
+      margin: 0;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 5;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* —— V4 Dense Linear —— */
+    .v4 {
+      gap: 0.35rem;
+    }
+    .v4 .visual {
+      aspect-ratio: 4 / 3;
+      padding: 0.6rem;
+      background: #fff;
+    }
+    .v4 .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.35rem;
+      margin-bottom: 0.35rem;
+    }
+    .v4 .lines {
+      display: flex;
+      flex-direction: column;
+      gap: 0.28rem;
+    }
+    .v4 .line {
+      height: 0.32rem;
+      border-radius: 999px;
+      background: #e2e8f0;
+    }
+    .v4 .line:nth-child(1) { width: 92%; background: #cbd5e1; }
+    .v4 .line:nth-child(2) { width: 78%; }
+    .v4 .line:nth-child(3) { width: 86%; }
+    .v4 .line:nth-child(4) { width: 64%; }
+
+    /* —— V5 Split status —— */
+    .v5 .visual {
+      display: grid;
+      grid-template-rows: 1fr auto;
+      background: #fff;
+    }
+    .v5 .preview {
+      padding: 0.65rem;
+    }
+    .v5 .bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.35rem 0.55rem;
+      background: #f8fafc;
+      border-top: 1px solid var(--line);
+      font-size: 0.62rem;
+      color: var(--muted);
+    }
+
+    /* —— V6 Drop-cap editorial —— */
+    .v6 .visual {
+      background: #fff;
+      padding: 0.7rem;
+      display: flex;
+      gap: 0.45rem;
+    }
+    .v6 .drop {
+      flex-shrink: 0;
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 8px;
+      background: var(--sky-600);
+      color: #fff;
+      font-size: 1.35rem;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      line-height: 1;
+    }
+    .v6 .body { min-width: 0; }
+
+    /* —— V7 Ink lines (GSAP) —— */
+    .v7 .visual {
+      background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+      padding: 0.85rem 0.75rem;
+    }
+    .v7-ink {
+      display: block;
+      height: 2px;
+      border-radius: 999px;
+      background: #94a3b8;
+      margin: 0.45rem 0;
+      transform-origin: left center;
+      transform: scaleX(0.15);
+      opacity: 0.55;
+    }
+    .v7-ink:nth-child(1) { width: 70%; height: 3px; background: var(--sky-600); opacity: 0.9; }
+    .v7-ink:nth-child(2) { width: 95%; }
+    .v7-ink:nth-child(3) { width: 88%; }
+    .v7-ink:nth-child(4) { width: 92%; }
+    .v7-ink:nth-child(5) { width: 60%; }
+    .v7 .caption {
+      margin-top: 0.55rem;
+      font-size: 0.62rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* —— V8 Soft glass sky —— */
+    .v8 .visual {
+      background:
+        radial-gradient(circle at 20% 15%, rgba(125, 211, 252, 0.55), transparent 45%),
+        radial-gradient(circle at 80% 80%, rgba(14, 165, 233, 0.2), transparent 50%),
+        #0c4a6e;
+      border-color: rgba(56, 189, 248, 0.35);
+      color: #e0f2fe;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    .v8 .glass-title {
+      margin: 0 0 0.35rem;
+      font-size: 0.78rem;
+      font-weight: 650;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+    }
+    .v8 .glass-meta { font-size: 0.6rem; opacity: 0.85; }
+
+    /* —— V9 Typing cursor reveal —— */
+    .v9 .visual {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .v9 .prompt { color: #38bdf8; font-size: 0.6rem; margin-bottom: 0.4rem; }
+    .v9 .typed {
+      font-size: 0.68rem;
+      line-height: 1.45;
+      min-height: 5.5rem;
+    }
+    .v9-cursor {
+      display: inline-block;
+      width: 0.45em;
+      height: 1em;
+      background: #7dd3fc;
+      margin-left: 1px;
+      vertical-align: text-bottom;
+      animation: blink 1s steps(1) infinite;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    /* —— V10 Shimmer magazine —— */
+    .v10 .visual {
+      background: #fff;
+      padding: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    .v10 .mast {
+      position: relative;
+      padding: 0.55rem 0.65rem;
+      background: linear-gradient(90deg, #0284c7, #0ea5e9);
+      color: #fff;
+      overflow: hidden;
+    }
+    .v10 .mast strong {
+      display: block;
+      font-size: 0.62rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: 0.9;
+    }
+    .v10 .mast span {
+      font-size: 0.78rem;
+      font-weight: 700;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .v10-shimmer {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.35) 50%, transparent 60%);
+      transform: translateX(-100%);
+      pointer-events: none;
+    }
+    .v10 .body {
+      padding: 0.55rem 0.65rem 0.65rem;
+    }
+    .v10 .stats {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 0.45rem;
+      font-size: 0.58rem;
+      color: var(--muted);
+    }
+    .v10 .stats b { color: var(--ink); font-weight: 650; }
+
+    .pick {
+      margin-top: 2.5rem;
+      padding: 1rem 1.1rem;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .pick strong { color: var(--ink); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="intro">
+      <h1>写作任务卡片 · 10 方案</h1>
+      <p>
+        对齐音频/图片：网格 <code>minmax(220px)</code> + 上方 <strong>1:1 视觉区</strong> + 下方标题/元信息。
+        数据仅用：业务名、任务标题、正文预览（Markdown 标题/加粗）、状态、时间。
+        已去掉多格式徽章（不再强调 MARKDOWN / CSV / TXT）。从简约到效果丰富。
+      </p>
+      <div class="legend">
+        <span>样本 · 文稿 / 行业日报</span>
+        <span>状态 · 已完成</span>
+        <span>时间 · 22:40</span>
+        <span>主色 · sky-600</span>
+      </div>
+    </header>
+
+    <div class="grid" id="gallery">
+
+      <!-- 1 -->
+      <section class="slot">
+        <div class="slot__label"><strong>01 · 极简符号</strong><em>最轻</em></div>
+        <article class="card v1" tabindex="0" data-scheme="1">
+          <div class="visual" aria-hidden="true"><span class="glyph">文</span></div>
+          <h3 class="title" title="行业日报-20260723_223608">行业日报-20260723_223608</h3>
+          <div class="meta">
+            <span class="chip">行业日报</span>
+            <span>22:40</span>
+          </div>
+          <button class="more" type="button" aria-label="更多">⋯</button>
+        </article>
+      </section>
+
+      <!-- 2 -->
+      <section class="slot">
+        <div class="slot__label"><strong>02 · 纸片预览</strong><em>接近现有 writing-visual</em></div>
+        <article class="card v2" tabindex="0" data-scheme="2">
+          <div class="visual">
+            <div class="paper">
+              <p class="md-h"># 科技行业日报：具身智能告别“秀场”</p>
+              <p class="md-p">量产交付与真实场景成硬通货。各位观众朋友，大模型与机器人交叉加速…</p>
+            </div>
+          </div>
+          <h3 class="title">行业日报-20260723_223608</h3>
+          <div class="meta">
+            <span class="chip">行业日报</span>
+            <span class="status">已完成</span>
+            <span>22:40</span>
+          </div>
+          <button class="more" type="button" aria-label="更多">⋯</button>
+        </article>
+      </section>
+
+      <!-- 3 -->
+      <section class="slot">
+        <div class="slot__label"><strong>03 · 标题优先</strong><em>用正文 H1 当封面</em></div>
+        <article class="card v3" tabindex="0" data-scheme="3">
+          <div class="visual">
+            <div class="eyebrow">行业日报</div>
+            <p class="headline">科技行业日报：具身智能告别“秀场”，量产交付与真实场景成硬通货</p>
+          </div>
+          <h3 class="title">行业日报-20260723_223608</h3>
+          <div class="meta"><span class="status">已完成</span><span>22:40</span></div>
+          <button class="more" type="button" aria-label="更多">⋯</button>
+        </article>
+      </section>
+
+      <!-- 4 -->
+      <section class="slot">
+        <div class="slot__label"><strong>04 · 密集工具感</strong><em>Linear 式骨架</em></div>
+        <article class="card v4" tabindex="0" data-scheme="4">
+          <div class="visual">
+            <div class="row">
+              <span class="chip">行业日报</span>
+              <span class="status">已完成</span>
+            </div>
+            <div class="lines" aria-hidden="true">
+              <span class="line"></span><span class="line"></span><span class="line"></span><span class="line"></span>
+            </div>
+          </div>
+          <h3 class="title">行业日报-20260723_223608</h3>
+          <div class="meta"><span>22:40</span><span>·</span><span>文稿</span></div>
+          <button class="more" type="button" aria-label="更多">⋯</button>
+        </article>
+      </section>
+
+      <!-- 5 -->
+      <section class="slot">
+        <div class="slot__label"><strong>05 · 预览 + 底栏</strong><em>状态沉底</em></div>
+        <article class="card v5" tabindex="0" data-scheme="5">
+          <div class="visual">
+            <div class="preview">
+              <p class="md-h"># 科技行业日报：具身智能告别“秀场”</p>
+              <p class="md-p">量产交付与<strong class="md-bold">真实场景</strong>成硬通货…</p>
+            </div>
+            <div class="bar">
+              <span>行业日报</span>
+              <span class="status">已完成</span>
+            </div>
+          </div>
+          <h3 class="title">行业日报-20260723_223608</h3>
+          <div class="meta"><span>22:40</span></div>
+          <button class="more" type="button" aria-label="更多">⋯</button>
+        </article>
+      </section>
+
+      <!-- 6 -->
+      <section class="slot">
+        <div class="slot__label"><strong>06 · 首字下沉</strong><em>编辑感轻量</em></div>
+        <article class="card v6" tabindex="0" data-scheme="6">
+          <div class="visual">
+            <div class="drop" aria-hidden="true">科</div>
+            <div class="body">
+              <p class="md-h">科技行业日报：具身智能告别“秀场”</p>
+              <p class="md-p">量产交付与真实场景成硬通货。各位观众朋友…</p>
+            </div>
+          </div>
+          <h3 class="title">行业日报-20260723_223608</h3>
+          <div class="meta">
+            <span class="chip">行业日报</span>
+            <span class="status">已完成</span>
+            <span>22:40</span>
+          </div>
+          <button class="more" type="button" aria-label="更多">⋯</button>
+        </article>
+      </section>
+
+      <!-- 7 -->
+      <section class="slot">
+        <div class="slot__label"><strong>07 · 墨线生长</strong><em>GSAP 入场</em></div>
+        <article class="card v7" tabindex="0" data-scheme="7">
+          <div class="visual">
+            <span class="v7-ink"></span>
+            <span class="v7-ink"></span>
+            <span class="v7-ink"></span>
+            <span class="v7-ink"></span>
+            <span class="v7-ink"></span>
+            <p class="caption"># 科技行业日报：具身智能告别“秀场”…</p>
+          </div>
+          <h3 class="title">行业日报-20260723_223608</h3>
+          <div class="meta">
+            <span class="chip">行业日报</span>
+            <span>22:40</span>
+          </div>
+          <button class="more" type="button" aria-label="更多">⋯</button>
+        </article>
+      </section>
+
+      <!-- 8 -->
+      <section class="slot">
+        <div class="slot__label"><strong>08 · 深蓝封面</strong><em>对齐音频视觉气质</em></div>
+        <article class="card v8" tabindex="0" data-scheme="8">
+          <div class="visual">
+            <p class="glass-title">具身智能告别“秀场”，量产交付与真实场景成硬通货</p>
+            <div class="glass-meta">行业日报 · 已完成</div>
+          </div>
+          <h3 class="title">行业日报-20260723_223608</h3>
+          <div class="meta"><span>22:40</span></div>
+          <button class="more" type="button" aria-label="更多">⋯</button>
+        </article>
+      </section>
+
+      <!-- 9 -->
+      <section class="slot">
+        <div class="slot__label"><strong>09 · 终端打字</strong><em>GSAP 打字机</em></div>
+        <article class="card v9" tabindex="0" data-scheme="9">
+          <div class="visual">
+            <div class="prompt">md ›</div>
+            <div class="typed"><span class="v9-text"></span><span class="v9-cursor" aria-hidden="true"></span></div>
+          </div>
+          <h3 class="title">行业日报-20260723_223608</h3>
+          <div class="meta">
+            <span class="chip">行业日报</span>
+            <span class="status">已完成</span>
+            <span>22:40</span>
+          </div>
+          <button class="more" type="button" aria-label="更多">⋯</button>
+        </article>
+      </section>
+
+      <!-- 10 -->
+      <section class="slot">
+        <div class="slot__label"><strong>10 · 刊头扫光</strong><em>最丰富 · GSAP</em></div>
+        <article class="card v10" tabindex="0" data-scheme="10">
+          <div class="visual">
+            <div class="mast">
+              <div class="v10-shimmer" aria-hidden="true"></div>
+              <strong>行业日报</strong>
+              <span>具身智能告别“秀场”，量产交付成硬通货</span>
+            </div>
+            <div class="body">
+              <p class="md-p">量产交付与<strong class="md-bold">真实场景</strong>成硬通货。各位观众朋友，大模型与机器人交叉加速落地…</p>
+              <div class="stats">
+                <span><b>已完成</b></span>
+                <span>22:40</span>
+                <span>文稿</span>
+              </div>
+            </div>
+          </div>
+          <h3 class="title">行业日报-20260723_223608</h3>
+          <div class="meta">
+            <span class="status">已完成</span>
+            <span>22:40</span>
+            <span>文稿</span>
+          </div>
+          <button class="more" type="button" aria-label="更多">⋯</button>
+        </article>
+      </section>
+    </div>
+
+    <div class="pick">
+      <strong>怎么选：</strong>
+      生产环境推荐偏 02 / 03 / 05（信息清晰、动效克制）；
+      若希望与音频卡片气质统一，看 08；
+      想要一点「文稿感」又不花，看 06 / 07。
+      回复方案编号即可落地到 <code>WritingTaskCard</code>。
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const sample =
+        "# 科技行业日报：具身智能告别“秀场”，量产交付与真实场景成硬通货";
+
+      // Enter: cards stagger
+      if (!reduce && window.gsap) {
+        gsap.from(".card", {
+          opacity: 0,
+          y: 14,
+          duration: 0.45,
+          stagger: 0.05,
+          ease: "power3.out",
+        });
+
+        // V7 ink grow on hover + idle breathe
+        document.querySelectorAll(".v7").forEach((card) => {
+          const inks = card.querySelectorAll(".v7-ink");
+          const play = () =>
+            gsap.to(inks, {
+              scaleX: 1,
+              opacity: 0.85,
+              duration: 0.55,
+              stagger: 0.06,
+              ease: "power3.out",
+            });
+          const reset = () =>
+            gsap.to(inks, {
+              scaleX: 0.2,
+              opacity: 0.45,
+              duration: 0.35,
+              stagger: 0.03,
+              ease: "power2.inOut",
+            });
+          play();
+          card.addEventListener("mouseenter", play);
+          card.addEventListener("mouseleave", reset);
+        });
+
+        // V9 typewriter (replay on hover)
+        const typedEl = document.querySelector(".v9-text");
+        if (typedEl) {
+          const state = { i: 0 };
+          const typeTo = (n) => {
+            gsap.to(state, {
+              i: n,
+              duration: Math.max(0.4, n * 0.028),
+              ease: "none",
+              onUpdate: () => {
+                typedEl.textContent = sample.slice(0, Math.floor(state.i));
+              },
+            });
+          };
+          typeTo(sample.length);
+          const card = document.querySelector(".v9");
+          card?.addEventListener("mouseenter", () => {
+            state.i = 0;
+            typedEl.textContent = "";
+            typeTo(sample.length);
+          });
+        }
+
+        // V10 shimmer loop
+        gsap.to(".v10-shimmer", {
+          x: "200%",
+          duration: 1.8,
+          ease: "power2.inOut",
+          repeat: -1,
+          repeatDelay: 2.2,
+        });
+
+        // Soft lift for richer cards
+        document.querySelectorAll(".v8, .v10").forEach((card) => {
+          card.addEventListener("mouseenter", () => {
+            gsap.to(card, { y: -4, duration: 0.22, ease: "power2.out" });
+          });
+          card.addEventListener("mouseleave", () => {
+            gsap.to(card, { y: 0, duration: 0.28, ease: "power2.out" });
+          });
+        });
+      } else if (typedElFallback()) {
+        /* filled below */
+      }
+
+      function typedElFallback() {
+        const el = document.querySelector(".v9-text");
+        if (el) el.textContent = sample;
+        return false;
+      }
+      if (reduce) {
+        const el = document.querySelector(".v9-text");
+        if (el) el.textContent = sample;
+        document.querySelectorAll(".v7-ink").forEach((n) => {
+          n.style.transform = "scaleX(1)";
+          n.style.opacity = "0.75";
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

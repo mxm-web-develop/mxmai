@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4; margin: 0; }
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+  font-size: 10.5pt;
+  color: #1a1a1a;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── 封面页 ─────────────────────────────────────────────── */
+.page-cover {
+  width: 210mm;
+  height: 297mm;
+  background: linear-gradient(150deg, #051C2C 0%, #0d3a5c 50%, #1a6b8a 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 50mm;
+  page-break-after: always;
+}
+.page-cover .cover-rule-top {
+  width: 100%;
+  border-top: 1.5pt solid rgba(255,255,255,0.35);
+  margin-bottom: 12mm;
+}
+.page-cover h1 {
+  font-size: 24pt;
+  font-weight: bold;
+  color: white;
+  line-height: 1.4;
+  margin: 0 0 10mm 0;
+}
+.page-cover .cover-rule-bottom {
+  width: 100%;
+  border-top: 1.5pt solid rgba(255,255,255,0.35);
+  margin-top: 12mm;
+  margin-bottom: 8mm;
+}
+.page-cover .cover-meta {
+  font-size: 11pt;
+  color: rgba(255,255,255,0.75);
+  line-height: 1.8;
+}
+
+/* ── 目录页 ─────────────────────────────────────────────── */
+.page-toc {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 18mm 28mm 18mm 28mm;
+  page-break-after: always;  /* 强制目录后分页 */
+}
+.toc-title {
+  font-size: 15pt;
+  font-weight: bold;
+  color: #00355F;
+  border-left: 3.5pt solid #006BAC;
+  padding-left: 5mm;
+  margin-bottom: 8mm;
+  letter-spacing: 0.5mm;
+}
+.toc-item {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 2.8mm;
+  font-size: 10pt;
+  color: #1a1a1a;
+}
+.toc-item.level-2 { margin-left: 8mm; }
+.toc-item.level-3 { margin-left: 16mm; }
+.toc-title-text {
+  flex-shrink: 0;
+  max-width: 130mm;
+}
+.toc-dots {
+  flex: 1;
+  border-bottom: 1pt dotted #aaa;
+  margin: 0 3mm 2mm 3mm;
+  min-width: 8mm;
+}
+.toc-page-num {
+  flex-shrink: 0;
+  font-size: 9.5pt;
+  color: #666;
+  min-width: 10mm;
+  text-align: right;
+}
+
+/* ── 正文页 ─────────────────────────────────────────────── */
+.page-body {
+  width: 210mm;
+  padding: 14mm 28mm 14mm 28mm;
+}
+/* 首页标题（正文第一页的大标题） */
+.body-header {
+  font-size: 16pt;
+  font-weight: bold;
+  color: #00355F;
+  border-bottom: 1.5pt solid #00355F;
+  padding-bottom: 3mm;
+  margin-bottom: 6mm;
+}
+h1 {
+  font-size: 14pt;
+  font-weight: bold;
+  color: #00355F;
+  border-left: 3.5pt solid #006BAC;
+  padding-left: 4mm;
+  margin-top: 10mm;
+  margin-bottom: 4mm;
+  page-break-after: avoid;
+}
+h2 {
+  font-size: 11.5pt;
+  font-weight: bold;
+  color: #051C2C;
+  margin-top: 7mm;
+  margin-bottom: 3mm;
+  page-break-after: avoid;
+}
+h3 {
+  font-size: 10.5pt;
+  font-weight: bold;
+  color: #333;
+  margin-top: 5mm;
+  margin-bottom: 2mm;
+  page-break-after: avoid;
+}
+p {
+  line-height: 1.75;
+  margin: 0 0 3mm 0;
+  text-align: justify;
+}
+ul, ol {
+  margin: 2mm 0 3mm 0;
+  padding-left: 6mm;
+}
+li {
+  line-height: 1.65;
+  margin-bottom: 1.5mm;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4mm 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+thead tr {
+  background: #051C2C;
+  color: white;
+}
+tbody tr:nth-child(even) {
+  background: #f4f7fa;
+}
+td {
+  padding: 2mm 3mm;
+  border: 0.3pt solid #d0d8e0;
+  vertical-align: top;
+}
+th {
+  padding: 2mm 3mm;
+  border: 0.3pt solid #d0d8e0;
+  font-weight: bold;
+  text-align: left;
+}
+pre {
+  background: #f4f6f9;
+  border-left: 3pt solid #006BAC;
+  padding: 4mm;
+  font-size: 8.5pt;
+  overflow-x: auto;
+  margin: 3mm 0;
+  page-break-inside: avoid;
+}
+code {
+  background: #f4f6f9;
+  padding: 0 2mm;
+  font-size: 9pt;
+}
+blockquote {
+  border-left: 3pt solid #006BAC;
+  padding-left: 4mm;
+  color: #555;
+  margin: 3mm 0;
+  font-style: italic;
+}
+strong { color: #00355F; }
+
+/* ── 参考来源页 ─────────────────────────────────────────── */
+.page-refs {
+  width: 210mm;
+  padding: 14mm 28mm 14mm 28mm;
+  page-break-before: always;  /* 强制参考来源独立页 */
+}
+.refs-title {
+  font-size: 14pt;
+  font-weight: bold;
+  color: #00355F;
+  border-left: 3.5pt solid #006BAC;
+  padding-left: 4mm;
+  margin-bottom: 6mm;
+}
+.refs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.refs-list li {
+  font-size: 9pt;
+  line-height: 1.6;
+  color: #444;
+  margin-bottom: 3mm;
+  padding-left: 5mm;
+  text-indent: -5mm;
+  word-break: break-all;
+}
+.refs-list li::before {
+  content: counter(ref-counter, decimal) ". ";
+  font-weight: bold;
+  color: #00355F;
+}
+</style>
+</head>
+<body>
+
+<!-- 封面 -->
+<div class="page-cover">
+  <div class="cover-rule-top"></div>
+  <h1>SuperMXMai 一键部署方案</h1>
+  <div class="cover-rule-bottom"></div>
+  <div class="cover-meta">
+    <p>MxM研究部</p>
+    <p>2026年</p>
+  </div>
+</div>
+
+<!-- 目录 -->
+<div class="page-toc">
+  <div class="toc-title">目录</div>
+  
+<style>
+.toc-item {{
+  counter-increment: toc-counter;
+}}
+.toc-item:first-child {{
+  counter-reset: toc-counter;
+}}
+</style>
+<div class="toc-item level-1"><span class="toc-title-text">SuperMXMai 一键部署方案</span><span class="toc-dots"></span><span class="toc-page-num">1</span></div>
+<div class="toc-item level-2"><span class="toc-title-text">一、当前架构梳理</span><span class="toc-dots"></span><span class="toc-page-num">2</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">1.1 现有服务</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">1.2 现有初始化脚本</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">1.3 现有环境变量</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+<div class="toc-item level-2"><span class="toc-title-text">二、部署方案设计</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">2.1 设计原则</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">2.2 部署阶段划分</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+<div class="toc-item level-2"><span class="toc-title-text">三、完整脚本实现</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">3.1 主入口：deploy.sh</span><span class="toc-dots"></span><span class="toc-page-num">10</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">deploy.sh — SuperMXMai 一键部署脚本</span><span class="toc-dots"></span><span class="toc-page-num">11</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">12</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">配置</span><span class="toc-dots"></span><span class="toc-page-num">13</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">14</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">颜色输出</span><span class="toc-dots"></span><span class="toc-page-num">15</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">创建日志目录</span><span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">记录完整日志（同时输出到屏幕）</span><span class="toc-dots"></span><span class="toc-page-num">17</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">18</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">参数解析</span><span class="toc-dots"></span><span class="toc-page-num">19</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">20</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">21</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">Phase 0: 环境检查</span><span class="toc-dots"></span><span class="toc-page-num">22</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">23</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">24</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">Phase 1: 基础设施 (Docker)</span><span class="toc-dots"></span><span class="toc-page-num">25</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">26</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">27</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">Phase 2: 数据库初始化</span><span class="toc-dots"></span><span class="toc-page-num">28</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">29</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">30</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">Phase 3: 账户初始化</span><span class="toc-dots"></span><span class="toc-page-num">31</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">32</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">33</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">Phase 4: 服务启动</span><span class="toc-dots"></span><span class="toc-page-num">34</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">35</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">36</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">Phase 5: 健康检查</span><span class="toc-dots"></span><span class="toc-page-num">37</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">38</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">39</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">主流程</span><span class="toc-dots"></span><span class="toc-page-num">40</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">41</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">3.2 docker-compose.yml（新增）</span><span class="toc-dots"></span><span class="toc-page-num">42</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">docker-compose.yml — 基础设施服务</span><span class="toc-dots"></span><span class="toc-page-num">43</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">3.3 .env.example（新增）</span><span class="toc-dots"></span><span class="toc-page-num">44</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">45</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">SuperMXMai 环境变量配置</span><span class="toc-dots"></span><span class="toc-page-num">46</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">============================================================</span><span class="toc-dots"></span><span class="toc-page-num">47</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">复制此文件为 .env 并填入实际值</span><span class="toc-dots"></span><span class="toc-page-num">48</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">---- 数据库 ----</span><span class="toc-dots"></span><span class="toc-page-num">49</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">Supabase 本地开发: postgres://postgres:postgres@localhost:5432/postgres</span><span class="toc-dots"></span><span class="toc-page-num">50</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">Supabase 云端:     postgres://postgres.xxx.supabase.co:5432/postgres?sslmode=require</span><span class="toc-dots"></span><span class="toc-page-num">51</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">---- JWT ----</span><span class="toc-dots"></span><span class="toc-page-num">52</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">生成方式: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</span><span class="toc-dots"></span><span class="toc-page-num">53</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">---- 管理员账户 ----</span><span class="toc-dots"></span><span class="toc-page-num">54</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">---- 第三方 API ----</span><span class="toc-dots"></span><span class="toc-page-num">55</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">---- MinIO (本地开发) ----</span><span class="toc-dots"></span><span class="toc-page-num">56</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">---- R2 (可选，生产用) ----</span><span class="toc-dots"></span><span class="toc-page-num">57</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">---- CORS ----</span><span class="toc-dots"></span><span class="toc-page-num">58</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">---- 代理 (可选) ----</span><span class="toc-dots"></span><span class="toc-page-num">59</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">3.4 Makefile（新增）</span><span class="toc-dots"></span><span class="toc-page-num">60</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">Makefile — 常用部署命令</span><span class="toc-dots"></span><span class="toc-page-num">61</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">默认目标：完整部署</span><span class="toc-dots"></span><span class="toc-page-num">62</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">分阶段部署</span><span class="toc-dots"></span><span class="toc-page-num">63</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">停止所有服务</span><span class="toc-dots"></span><span class="toc-page-num">64</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">清理</span><span class="toc-dots"></span><span class="toc-page-num">65</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">查看日志</span><span class="toc-dots"></span><span class="toc-page-num">66</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">状态检查</span><span class="toc-dots"></span><span class="toc-page-num">67</span></div>
+<div class="toc-item level-2"><span class="toc-title-text">四、部署流程图</span><span class="toc-dots"></span><span class="toc-page-num">68</span></div>
+<div class="toc-item level-2"><span class="toc-title-text">五、使用方式</span><span class="toc-dots"></span><span class="toc-page-num">69</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">5.1 首次部署</span><span class="toc-dots"></span><span class="toc-page-num">70</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">1. 复制环境变量模板</span><span class="toc-dots"></span><span class="toc-page-num">71</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">编辑 .env 填入实际值</span><span class="toc-dots"></span><span class="toc-page-num">72</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">2. 一键部署</span><span class="toc-dots"></span><span class="toc-page-num">73</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">5.2 后续部署（增量）</span><span class="toc-dots"></span><span class="toc-page-num">74</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">只启动服务（数据库已初始化，跳过基础设施和数据库）</span><span class="toc-dots"></span><span class="toc-page-num">75</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">查看状态</span><span class="toc-dots"></span><span class="toc-page-num">76</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">查看日志</span><span class="toc-dots"></span><span class="toc-page-num">77</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">5.3 完整重置</span><span class="toc-dots"></span><span class="toc-page-num">78</span></div>
+<div class="toc-item level-1"><span class="toc-title-text">清理所有数据，重新部署</span><span class="toc-dots"></span><span class="toc-page-num">79</span></div>
+<div class="toc-item level-2"><span class="toc-title-text">六、当前问题与改进建议</span><span class="toc-dots"></span><span class="toc-page-num">80</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">6.1 现有问题</span><span class="toc-dots"></span><span class="toc-page-num">81</span></div>
+<div class="toc-item level-3"><span class="toc-title-text">6.2 待完成项（建议 Claude Code 执行）</span><span class="toc-dots"></span><span class="toc-page-num">82</span></div>
+</div>
+
+<!-- 正文 -->
+<div class="page-body">
+<h1 id="supermxmai">SuperMXMai 一键部署方案</h1>
+<p><strong>日期：2026-04-28</strong></p>
+<hr />
+<h2 id="_1">一、当前架构梳理</h2>
+<h3 id="11">1.1 现有服务</h3>
+<table>
+<thead>
+<tr>
+<th>服务</th>
+<th>端口</th>
+<th>职责</th>
+<th>依赖</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Supabase</strong></td>
+<td>5432 (DB) + 8000 (PostgREST)</td>
+<td>PostgreSQL + REST API</td>
+<td>无</td>
+</tr>
+<tr>
+<td><strong>MinIO</strong></td>
+<td>9000</td>
+<td>S3 存储（task media）</td>
+<td>无</td>
+</tr>
+<tr>
+<td><strong>mxmauth</strong></td>
+<td>4001</td>
+<td>用户认证、JWT 签发</td>
+<td>Supabase</td>
+</tr>
+<tr>
+<td><strong>mxmcgi</strong></td>
+<td>4003</td>
+<td>AI 内容生成核心</td>
+<td>Supabase, MinIO</td>
+</tr>
+<tr>
+<td><strong>mxmpay</strong></td>
+<td>4002</td>
+<td>支付、钱包</td>
+<td>Supabase</td>
+</tr>
+<tr>
+<td><strong>mxmcgi-worker</strong></td>
+<td>4004</td>
+<td>异步任务执行</td>
+<td>Supabase, R2/MinIO</td>
+</tr>
+<tr>
+<td><strong>mxmnotify</strong></td>
+<td>4005</td>
+<td>通知、SSE</td>
+<td>Supabase</td>
+</tr>
+<tr>
+<td><strong>gateway</strong></td>
+<td>3000</td>
+<td>统一入口、路由转发</td>
+<td>mxmauth, mxmcgi, mxmpay, mxmnotify</td>
+</tr>
+<tr>
+<td><strong>web</strong></td>
+<td>5173 (dev)</td>
+<td>前端</td>
+<td>gateway</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12">1.2 现有初始化脚本</h3>
+<pre><code>init-project.ts     → 串行执行数据库初始化
+├── init-database    → mxmdata/init:db (schema SQL)
+├── create-admin-user → mxmdata/create:admin
+└── migrate-kb-defaults → mxmdata/migrate:kb-defaults
+</code></pre>
+<h3 id="13">1.3 现有环境变量</h3>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>核心变量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.env</code> (根)</td>
+<td><code>SUPABASE_URL</code>, <code>JWT_SECRET</code>, <code>SUPABASE_DB_URL</code>, <code>MINIMAX_API_KEY</code>, <code>DEERAPI_*</code></td>
+</tr>
+<tr>
+<td><code>mxmauth/.env</code></td>
+<td><code>SUPABASE_URL</code>, <code>JWT_SECRET</code>, <code>CORS_ORIGIN</code>, <code>ADMIN_TOKEN</code></td>
+</tr>
+<tr>
+<td><code>gateway/.env</code></td>
+<td><code>PORT=3000</code>, <code>JWT_SECRET</code>, 各服务 URL, <code>CORS_ORIGIN</code></td>
+</tr>
+<tr>
+<td><code>mxmcgi/.env</code></td>
+<td><code>MAXPLAN_API_KEY</code>, <code>BRAVE_API_KEY</code>, <code>MINIO_*</code>, <code>R2_*</code></td>
+</tr>
+<tr>
+<td><code>mxmdata/.env</code></td>
+<td>同根 <code>.env</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_2">二、部署方案设计</h2>
+<h3 id="21">2.1 设计原则</h3>
+<pre><code>1. 幂等性：所有脚本可重复执行，不重复创建资源
+2. 顺序正确：基础设施 → 数据库 → 账户 → 服务
+3. 环境隔离：.env.example (模板) + .env (运行时)
+4. 快速回滚：失败时能感知并清理
+</code></pre>
+<h3 id="22">2.2 部署阶段划分</h3>
+<pre><code>Phase 0: 环境检查 (prerequisites)
+Phase 1: 基础设施 (infra)
+Phase 2: 数据库初始化 (database)
+Phase 3: 账户初始化 (accounts)
+Phase 4: 服务启动 (services)
+Phase 5: 健康检查 (health check)
+</code></pre>
+<hr />
+<h2 id="_3">三、完整脚本实现</h2>
+<h3 id="31-deploysh">3.1 主入口：deploy.sh</h3>
+<pre><code class="language-bash">#!/bin/bash
+# deploy.sh — SuperMXMai 一键部署脚本
+
+set -e  # 任何命令失败立即退出
+set -u  # 使用未定义变量时报错
+
+# ============================================================
+# 配置
+# ============================================================
+SCRIPT_DIR=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
+PROJECT_ROOT=&quot;$SCRIPT_DIR&quot;
+DEPLOY_LOG=&quot;$PROJECT_ROOT/logs/deploy-$(date +%Y%m%d-%H%M%S).log&quot;
+
+# 颜色输出
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log() { echo -e &quot;${BLUE}[$(date '+%H:%M:%S')]${NC} $*&quot;; }
+info() { echo -e &quot;${GREEN}[INFO]${NC} $*&quot;; }
+warn() { echo -e &quot;${YELLOW}[WARN]${NC} $*&quot;; }
+error() { echo -e &quot;${RED}[ERROR]${NC} $*&quot; &gt;&amp;2; }
+
+# 创建日志目录
+mkdir -p &quot;$PROJECT_ROOT/logs&quot;
+
+# 记录完整日志（同时输出到屏幕）
+exec &gt; &gt;(tee &quot;$DEPLOY_LOG&quot;) 2&gt;&amp;1
+
+# ============================================================
+# 参数解析
+# ============================================================
+SKIP_INFRA=false
+SKIP_DB=false
+SKIP_ACCOUNTS=false
+SKIP_SERVICES=false
+FORCE=false
+
+usage() {
+  echo &quot;Usage: $0 [OPTIONS]&quot;
+  echo &quot;  --skip-infra      跳过基础设施检查&quot;
+  echo &quot;  --skip-db         跳过数据库初始化&quot;
+  echo &quot;  --skip-accounts   跳过账户创建&quot;
+  echo &quot;  --skip-services   跳过服务启动&quot;
+  echo &quot;  --force           强制重新执行（跳过检测）&quot;
+  echo &quot;  --help            显示帮助&quot;
+}
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --skip-infra) SKIP_INFRA=true; shift ;;
+    --skip-db) SKIP_DB=true; shift ;;
+    --skip-accounts) SKIP_ACCOUNTS=true; shift ;;
+    --skip-services) SKIP_SERVICES=true; shift ;;
+    --force) FORCE=true; shift ;;
+    --help) usage; exit 0 ;;
+    *) error &quot;未知参数: $1&quot;; usage; exit 1 ;;
+  esac
+done
+
+# ============================================================
+# Phase 0: 环境检查
+# ============================================================
+phase0_check() {
+  echo &quot;&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+  echo &quot;  Phase 0: 环境检查&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+
+  local errors=0
+
+  # 检查 Node.js
+  if ! command -v node &amp;&gt;/dev/null; then
+    error &quot;Node.js 未安装&quot;
+    errors=$((errors + 1))
+  else
+    local node_version=$(node -v | sed 's/v//')
+    local major=$(echo &quot;$node_version&quot; | cut -d. -f1)
+    if [[ &quot;$major&quot; -lt 22 ]]; then
+      error &quot;Node.js 版本过低，需要 &gt;=22，当前 $node_version&quot;
+      errors=$((errors + 1))
+    else
+      info &quot;Node.js v$node_version ✓&quot;
+    fi
+  fi
+
+  # 检查 pnpm
+  if ! command -v pnpm &amp;&gt;/dev/null; then
+    error &quot;pnpm 未安装&quot;
+    errors=$((errors + 1))
+  else
+    info &quot;pnpm $(pnpm -v) ✓&quot;
+  fi
+
+  # 检查 Docker (用于 Supabase Local + MinIO)
+  if ! command -v docker &amp;&gt;/dev/null; then
+    error &quot;Docker 未安装&quot;
+    errors=$((errors + 1))
+  else
+    info &quot;Docker $(docker --version | awk '{print $4}') ✓&quot;
+  fi
+
+  # 检查 Docker Compose
+  if ! docker compose version &amp;&gt;/dev/null &amp;&amp; ! docker-compose --version &amp;&gt;/dev/null; then
+    error &quot;Docker Compose 未安装&quot;
+    errors=$((errors + 1))
+  else
+    info &quot;Docker Compose ✓&quot;
+  fi
+
+  # 检查环境变量文件
+  if [[ ! -f &quot;$PROJECT_ROOT/.env&quot; ]]; then
+    if [[ -f &quot;$PROJECT_ROOT/.env.example&quot; ]]; then
+      warn &quot;.env 不存在，复制 .env.example 为 .env&quot;
+      cp &quot;$PROJECT_ROOT/.env.example&quot; &quot;$PROJECT_ROOT/.env&quot;
+    else
+      error &quot;.env 文件不存在&quot;
+      errors=$((errors + 1))
+    fi
+  else
+    info &quot;.env 文件存在 ✓&quot;
+  fi
+
+  # 检查 .env 中关键变量
+  if [[ -f &quot;$PROJECT_ROOT/.env&quot; ]]; then
+    source &quot;$PROJECT_ROOT/.env&quot; 2&gt;/dev/null || true
+    [[ -z &quot;${SUPABASE_DB_URL:-}&quot; ]] &amp;&amp; error &quot;SUPABASE_DB_URL 未配置&quot; &amp;&amp; errors=$((errors + 1))
+    [[ -z &quot;${JWT_SECRET:-}&quot; ]] &amp;&amp; error &quot;JWT_SECRET 未配置&quot; &amp;&amp; errors=$((errors + 1))
+  fi
+
+  if [[ $errors -gt 0 ]]; then
+    error &quot;环境检查失败 ($errors 个错误)，请先修复&quot;
+    exit 1
+  fi
+
+  info &quot;环境检查通过 ✓&quot;
+}
+
+# ============================================================
+# Phase 1: 基础设施 (Docker)
+# ============================================================
+phase1_infra() {
+  if [[ &quot;$SKIP_INFRA&quot; == true ]]; then
+    warn &quot;跳过基础设施部署 (--skip-infra)&quot;
+    return
+  fi
+
+  echo &quot;&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+  echo &quot;  Phase 1: 启动基础设施 (Supabase + MinIO)&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+
+  cd &quot;$PROJECT_ROOT&quot;
+
+  # 检查是否已运行
+  if docker ps --format '{{.Names}}' | grep -q 'supabase-supabase-db-1'; then
+    info &quot;Supabase 已在运行，跳过&quot;
+  else
+    info &quot;启动 Supabase Local...&quot;
+    docker compose up -d supabase-db supabase-postgres-rest
+    info &quot;等待 Supabase 就绪...&quot;
+    sleep 10
+    # 等待数据库接受连接
+    wait_for_db() {
+      docker exec supabase-supabase-db-1 pg_isready -U postgres -d postgres &amp;&gt;/dev/null
+    }
+    local retries=30
+    while ! wait_for_db &amp;&amp; [[ $retries -gt 0 ]]; do
+      sleep 1
+      retries=$((retries - 1))
+    done
+    if [[ $retries -eq 0 ]]; then
+      error &quot;Supabase 数据库启动超时&quot;
+      exit 1
+    fi
+    info &quot;Supabase 就绪 ✓&quot;
+  fi
+
+  # MinIO
+  if docker ps --format '{{.Names}}' | grep -q 'minio'; then
+    info &quot;MinIO 已在运行，跳过&quot;
+  else
+    info &quot;启动 MinIO...&quot;
+    docker compose up -d minio
+    info &quot;MinIO 启动 ✓&quot;
+  fi
+
+  info &quot;基础设施就绪 ✓&quot;
+}
+
+# ============================================================
+# Phase 2: 数据库初始化
+# ============================================================
+phase2_database() {
+  if [[ &quot;$SKIP_DB&quot; == true ]]; then
+    warn &quot;跳过数据库初始化 (--skip-db)&quot;
+    return
+  fi
+
+  echo &quot;&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+  echo &quot;  Phase 2: 数据库初始化&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+
+  cd &quot;$PROJECT_ROOT&quot;
+
+  # 加载环境变量
+  set -a &amp;&amp; source &quot;$PROJECT_ROOT/.env&quot; &amp;&amp; set +a
+
+  # 确保 mxmdata 构建
+  if [[ ! -d &quot;mxmdata/dist&quot; ]] || [[ &quot;$FORCE&quot; == true ]]; then
+    info &quot;构建 mxmdata...&quot;
+    pnpm build:mxmdata
+  fi
+
+  # 执行数据库 schema 初始化
+  info &quot;执行数据库 schema...&quot;
+  pnpm --filter @mxmai/mxmdata run init:db
+
+  # 执行数据迁移
+  info &quot;执行数据迁移...&quot;
+  local migrations=(
+    &quot;migrate:provider-models&quot;
+    &quot;migrate:provider-balances&quot;
+    &quot;migrate:provider-pricing&quot;
+    &quot;migrate:provider-api-keys&quot;
+  )
+
+  for migration in &quot;${migrations[@]}&quot;; do
+    info &quot;执行迁移: $migration&quot;
+    pnpm --filter @mxmai/mxmdata run &quot;$migration&quot; 2&gt;/dev/null || warn &quot;迁移 $migration 无需执行或已存在&quot;
+  done
+
+  # 设置定价（如果提供了 setup_pricing.sql）
+  if [[ -f &quot;$PROJECT_ROOT/setup_pricing.sql&quot; ]]; then
+    info &quot;应用定价配置...&quot;
+    PGPASSWORD=${SUPABASE_DB_URL##*:@*/} psql &quot;${SUPABASE_DB_URL}&quot; -f &quot;$PROJECT_ROOT/setup_pricing.sql&quot; 2&gt;/dev/null || \
+      warn &quot;定价 SQL 执行失败，跳过&quot;
+  fi
+
+  info &quot;数据库初始化完成 ✓&quot;
+}
+
+# ============================================================
+# Phase 3: 账户初始化
+# ============================================================
+phase3_accounts() {
+  if [[ &quot;$SKIP_ACCOUNTS&quot; == true ]]; then
+    warn &quot;跳过账户创建 (--skip-accounts)&quot;
+    return
+  fi
+
+  echo &quot;&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+  echo &quot;  Phase 3: 创建系统账户&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+
+  cd &quot;$PROJECT_ROOT&quot;
+
+  set -a &amp;&amp; source &quot;$PROJECT_ROOT/.env&quot; &amp;&amp; set +a
+
+  # 创建管理员账户
+  if [[ -n &quot;${ADMIN_EMAIL:-}&quot; ]] &amp;&amp; [[ -n &quot;${ADMIN_PASSWORD:-}&quot; ]]; then
+    info &quot;创建管理员账户...&quot;
+    pnpm --filter @mxmai/mxmdata run create:admin
+  else
+    warn &quot;未配置 ADMIN_EMAIL 和 ADMIN_PASSWORD，跳过管理员创建&quot;
+    info &quot;可后续通过: ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=xxx pnpm --filter @mxmai/mxmdata run create:admin&quot;
+  fi
+
+  # 初始化 Prompt 模板
+  info &quot;初始化 Prompt 模板...&quot;
+  pnpm --filter @mxmai/mxmcgi run seed:prompt-config 2&gt;/dev/null || warn &quot;Prompt 模板已存在或无需初始化&quot;
+
+  info &quot;账户初始化完成 ✓&quot;
+}
+
+# ============================================================
+# Phase 4: 服务启动
+# ============================================================
+phase4_services() {
+  if [[ &quot;$SKIP_SERVICES&quot; == true ]]; then
+    warn &quot;跳过服务启动 (--skip-services)&quot;
+    return
+  fi
+
+  echo &quot;&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+  echo &quot;  Phase 4: 启动服务&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+
+  cd &quot;$PROJECT_ROOT&quot;
+
+  # 清理占用端口
+  bash scripts/clear-ports.sh 2&gt;/dev/null || true
+
+  # 启动所有后端服务
+  info &quot;启动后端服务 (mxmauth, mxmcgi, mxmnotify, gateway)...&quot;
+
+  # 使用 pnpm dev:all 启动后端
+  pnpm dev:all &amp;
+
+  # 等待服务就绪
+  sleep 5
+
+  # 检查端口
+  local services=(&quot;mxmauth:4001&quot; &quot;gateway:3000&quot;)
+  for svc in &quot;${services[@]}&quot;; do
+    local name=&quot;${svc%%:*}&quot;
+    local port=&quot;${svc##*:}&quot;
+    if lsof -i :&quot;$port&quot; -sTCP:LISTEN -P -n &amp;&gt;/dev/null; then
+      info &quot;$name (端口 $port) 就绪 ✓&quot;
+    else
+      warn &quot;$name (端口 $port) 未启动&quot;
+    fi
+  done
+
+  info &quot;服务启动完成 ✓&quot;
+  info &quot;&quot;
+  info &quot;  Gateway: http://localhost:3000&quot;
+  info &quot;  前端:   http://localhost:5173&quot;
+  info &quot;&quot;
+  info &quot;  测试:   curl http://localhost:3000/health&quot;
+}
+
+# ============================================================
+# Phase 5: 健康检查
+# ============================================================
+phase5_health() {
+  echo &quot;&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+  echo &quot;  Phase 5: 健康检查&quot;
+  echo &quot;═══════════════════════════════════════════════&quot;
+
+  local failed=0
+
+  check_endpoint() {
+    local name=$1
+    local url=$2
+    if curl -sf &quot;$url&quot; &amp;&gt;/dev/null; then
+      info &quot;$name: OK ✓&quot;
+    else
+      error &quot;$name: FAIL ✗ (无法连接 $url)&quot;
+      failed=$((failed + 1))
+    fi
+  }
+
+  check_endpoint &quot;Gateway&quot; &quot;http://localhost:3000/health&quot;
+  check_endpoint &quot;mxmauth&quot; &quot;http://localhost:4001/health&quot;
+
+  if [[ $failed -eq 0 ]]; then
+    info &quot;&quot;
+    info &quot;🎉 部署成功！&quot;
+    info &quot;&quot;
+  else
+    error &quot;&quot;
+    error &quot;⚠️  $failed 个检查失败，请检查日志: $DEPLOY_LOG&quot;
+  fi
+}
+
+# ============================================================
+# 主流程
+# ============================================================
+main() {
+  echo &quot;&quot;
+  echo &quot;╔═══════════════════════════════════════════════╗&quot;
+  echo &quot;║     SuperMXMai 部署脚本 v1.0                  ║&quot;
+  echo &quot;║     $(date '+%Y-%m-%d %H:%M:%S')                      ║&quot;
+  echo &quot;╚═══════════════════════════════════════════════╝&quot;
+  echo &quot;&quot;
+
+  phase0_check
+  phase1_infra
+  phase2_database
+  phase3_accounts
+  phase4_services
+  phase5_health
+
+  echo &quot;&quot;
+  info &quot;完整日志: $DEPLOY_LOG&quot;
+}
+
+main &quot;$@&quot;
+</code></pre>
+<h3 id="32-docker-composeyml">3.2 docker-compose.yml（新增）</h3>
+<pre><code class="language-yaml"># docker-compose.yml — 基础设施服务
+services:
+  # PostgreSQL + PostgREST（Supabase Local Stack）
+  supabase-db:
+    image: supabase/postgres:15.1.0.147
+    container_name: supabase-supabase-db-1
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - &quot;5432:5432&quot;
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [&quot;CMD-SHELL&quot;, &quot;pg_isready -U postgres&quot;]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  supabase-postgres-rest:
+    image: postgrest/postgrest:v12.0.2
+    container_name: supabase-postgres-rest
+    environment:
+      PGRST_DB_URI: ${SUPABASE_DB_URL:-postgres://postgres:postgres@supabase-db:5432/postgres}
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-}
+      PGRST_DB_USE_LEGACY_GUCS: &quot;false&quot;
+    ports:
+      - &quot;8000:3000&quot;
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+    healthcheck:
+      test: [&quot;CMD-SHELL&quot;, &quot;wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1&quot;]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO（S3 兼容存储）
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address &quot;:9001&quot;
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - &quot;9000:9000&quot;
+      - &quot;9001:9001&quot;
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: [&quot;CMD&quot;, &quot;mc&quot;, &quot;ready&quot;, &quot;local&quot;]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  supabase-db-data:
+  minio-data:
+</code></pre>
+<h3 id="33-envexample">3.3 .env.example（新增）</h3>
+<pre><code class="language-bash"># ============================================================
+# SuperMXMai 环境变量配置
+# ============================================================
+# 复制此文件为 .env 并填入实际值
+
+# ---- 数据库 ----
+# Supabase 本地开发: postgres://postgres:postgres@localhost:5432/postgres
+# Supabase 云端:     postgres://postgres.xxx.supabase.co:5432/postgres?sslmode=require
+SUPABASE_DB_URL=postgres://postgres:postgres@localhost:5432/postgres
+SUPABASE_URL=http://localhost:8000
+SUPABASE_ANON_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+SUPABASE_SERVICE_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+
+# ---- JWT ----
+# 生成方式: node -e &quot;console.log(require('crypto').randomBytes(32).toString('hex'))&quot;
+JWT_SECRET=your-32-char-secret-key-here-minimum
+SECRET_KEY_BASE=your-64-char-secret-base-here
+
+# ---- 管理员账户 ----
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=your-admin-password
+ADMIN_TOKEN=your-admin-token-here
+
+# ---- 第三方 API ----
+MINIMAX_API_KEY=your-minimax-api-key
+DEERAPI_BASE_URL=https://api.deerapi.com
+DEERAPI_API_KEY=your-deerapi-key
+MAXPLAN_API_KEY=your-maxplan-api-key
+BRAVE_API_KEY=your-brave-search-key
+
+# ---- MinIO (本地开发) ----
+MINIO_ENDPOINT=localhost
+MINIO_PORT=9000
+MINIO_USE_SSL=false
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_REGION=us-east-1
+
+# ---- R2 (可选，生产用) ----
+R2_BUCKET=mxmtemimageref
+R2_PUBLIC_URL=https://pub-xxx.r2.dev
+R2_ENDPOINT=xxx.r2.cloudflarestorage.com
+R2_ACCESS_KEY=xxx
+R2_SECRET_KEY=xxx
+R2_REGION=auto
+
+# ---- CORS ----
+CORS_ORIGIN=http://localhost:3000,http://localhost:19006
+
+# ---- 代理 (可选) ----
+CLASHPROXY=http://127.0.0.1:7897
+HTTPS_PROXY=http://127.0.0.1:7897
+HTTP_PROXY=http://127.0.0.1:7897
+</code></pre>
+<h3 id="34-makefile">3.4 Makefile（新增）</h3>
+<pre><code class="language-makefile"># Makefile — 常用部署命令
+
+.PHONY: deploy deploy-infra deploy-db deploy-accounts deploy-services
+.PHONY: stop clean logs status
+
+# 默认目标：完整部署
+deploy:
+    bash scripts/deploy.sh
+
+# 分阶段部署
+deploy-infra:
+    bash scripts/deploy.sh --skip-db --skip-accounts --skip-services
+
+deploy-db:
+    bash scripts/deploy.sh --skip-infra --skip-accounts --skip-services
+
+deploy-accounts:
+    bash scripts/deploy.sh --skip-infra --skip-db --skip-services
+
+deploy-services:
+    bash scripts/deploy.sh --skip-infra --skip-db --skip-accounts
+
+# 停止所有服务
+stop:
+    docker compose down
+    pkill -f &quot;pnpm.*dev&quot; || true
+    @echo &quot;服务已停止&quot;
+
+# 清理
+clean:
+    docker compose down -v
+    rm -rf node_modules/.vite
+    @echo &quot;清理完成&quot;
+
+# 查看日志
+logs:
+    @tail -f logs/deploy-$(shell ls -t logs/ | head -1)
+
+# 状态检查
+status:
+    @echo &quot;Docker 容器:&quot;; docker ps --format &quot;table {{.Names}}\t{{.Status}}&quot; | grep -E &quot;supabase|minio&quot; || echo &quot;无&quot;
+    @echo &quot;&quot;; echo &quot;服务端口:&quot;; lsof -i :3000,:4001,:4002,:4003,:4004,:4005,:5173 -sTCP:LISTEN -P -n 2&gt;/dev/null || echo &quot;无服务在运行&quot;
+</code></pre>
+<hr />
+<h2 id="_4">四、部署流程图</h2>
+<pre><code>┌─────────────────────────────────────────────────────────┐
+│  bash scripts/deploy.sh                                 │
+└────────────────────┬────────────────────────────────────┘
+                     │
+          ┌──────────▼──────────┐
+          │  Phase 0: 环境检查  │
+          │  node &gt;=22, pnpm,   │
+          │  docker, .env       │
+          └──────────┬──────────┘
+                     │ 通过
+          ┌──────────▼──────────┐
+          │  Phase 1: 基础设施  │
+          │  docker compose up  │
+          │  - supabase-db      │
+          │  - supabase-rest    │
+          │  - minio            │
+          └──────────┬──────────┘
+                     │ 就绪
+          ┌──────────▼──────────┐
+          │  Phase 2: 数据库    │
+          │  pnpm build:mxmdata │
+          │  init:db (schema)   │
+          │  migrate:* (迁移)    │
+          └──────────┬──────────┘
+                     │ 完成
+          ┌──────────▼──────────┐
+          │  Phase 3: 账户      │
+          │  create:admin      │
+          │  seed:prompt-config │
+          └──────────┬──────────┘
+                     │ 完成
+          ┌──────────▼──────────┐
+          │  Phase 4: 服务启动  │
+          │  pnpm dev:all       │
+          │  (后端)             │
+          └──────────┬──────────┘
+                     │ 完成
+          ┌──────────▼──────────┐
+          │  Phase 5: 健康检查  │
+          │  curl /health      │
+          └─────────────────────┘
+</code></pre>
+<hr />
+<h2 id="_5">五、使用方式</h2>
+<h3 id="51">5.1 首次部署</h3>
+<pre><code class="language-bash">cd ~/Desktop/codes/supermxmai
+
+# 1. 复制环境变量模板
+cp .env.example .env
+# 编辑 .env 填入实际值
+
+# 2. 一键部署
+bash scripts/deploy.sh
+</code></pre>
+<h3 id="52">5.2 后续部署（增量）</h3>
+<pre><code class="language-bash"># 只启动服务（数据库已初始化，跳过基础设施和数据库）
+bash scripts/deploy.sh --skip-infra --skip-db --skip-accounts
+
+# 查看状态
+make status
+
+# 查看日志
+make logs
+</code></pre>
+<h3 id="53">5.3 完整重置</h3>
+<pre><code class="language-bash"># 清理所有数据，重新部署
+make clean &amp;&amp; bash scripts/deploy.sh --force
+</code></pre>
+<hr />
+<h2 id="_6">六、当前问题与改进建议</h2>
+<h3 id="61">6.1 现有问题</h3>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>影响</th>
+<th>改进</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>文档仍引用已废弃的 <code>mxmagent</code></td>
+<td>误导部署与排障</td>
+<td>见 <code>docs/adr/mxmagent-merged-into-mxmcgi.md</code></td>
+</tr>
+<tr>
+<td><code>.env.example</code> 不存在</td>
+<td>新环境部署繁琐</td>
+<td>新增此文件</td>
+</tr>
+<tr>
+<td><code>docker-compose.yml</code> 不存在</td>
+<td>无法一键启动基础设施</td>
+<td>新增此文件</td>
+</tr>
+<tr>
+<td>无统一入口脚本</td>
+<td>部署步骤多、易出错</td>
+<td>新增 <code>deploy.sh</code></td>
+</tr>
+<tr>
+<td>无 <code>Makefile</code></td>
+<td>常用命令无快捷方式</td>
+<td>新增 Makefile</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-claude-code">6.2 待完成项（建议 Claude Code 执行）</h3>
+<pre><code>□ 创建 .env.example
+□ 创建 docker-compose.yml
+□ 创建 scripts/deploy.sh
+□ 创建 Makefile
+□ 核对架构文档无 mxmagent 独立服务描述
+□ 修改 start-services.sh 为 Shell 风格（兼容 bash）
+□ 添加 rollback 脚本（失败时清理）
+□ 添加 CI/CD 部署流水线（GitHub Actions）
+</code></pre>
+<hr />
+<p><em>文档版本：v1.0</em></p>
+</div>
+
+<!-- 参考来源 -->
+
+
+</body>
+</html>

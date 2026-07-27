@@ -31,7 +31,7 @@ trap 'rm -f "$TMP_ENV"' EXIT
 
 log "从 ${DEPLOY_HOST} 读取生产 Supabase 配置..."
 ssh -o StrictHostKeyChecking=accept-new "$DEPLOY_HOST" \
-  "grep -E '^(SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SERVICE_KEY)=' '${REMOTE_ENV}'" \
+  "grep -E '^(SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SERVICE_KEY|SUPABASE_ANON_KEY)=' '${REMOTE_ENV}'" \
   >"$TMP_ENV" || true
 
 set -a
@@ -43,8 +43,19 @@ if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" && -n "${SUPABASE_SERVICE_KEY:-}" ]]; 
   export SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_KEY"
 fi
 
-if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_SERVICE_ROLE_KEY:-}" || "$SUPABASE_URL" == *localhost* ]]; then
-  echo "错误: 未拿到生产 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY" >&2
+# 若没 SERVICE_ROLE 但有 ANON_KEY，也允许（项目 RLS 开放给 anon 写）
+if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" && -n "${SUPABASE_ANON_KEY:-}" ]]; then
+  export SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_ANON_KEY"
+  log "提示: 未配置 SUPABASE_SERVICE_ROLE_KEY，回退使用 SUPABASE_ANON_KEY（需 RLS 允许）"
+fi
+
+if [[ -z "${SUPABASE_URL:-}" || "$SUPABASE_URL" == *localhost* ]]; then
+  echo "错误: 未拿到生产 SUPABASE_URL（或指向 localhost）" >&2
+  exit 1
+fi
+
+if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
+  echo "错误: 未拿到 SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY" >&2
   exit 1
 fi
 

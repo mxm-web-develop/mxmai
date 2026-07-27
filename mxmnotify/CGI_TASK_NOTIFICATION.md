@@ -138,15 +138,22 @@ ws.onmessage = (event) => {
     },
     "task": {
       "id": "task-id",
+      "type": "graph",
       "status": "completed",
       "module_type": "mxmcgi",
       "task_type": "image",
-      "model_name": "seedream-4"
+      "progress": { "status": "completed", "progress": 100 },
+      "metadata": { "label": "我的任务" },
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:05:00.000Z",
+      "hasResult": true
     }
   },
   "timestamp": "2024-01-01T00:00:00Z"
 }
 ```
+
+`data.task` 含列表增量字段（`progress`、`metadata.label`、时间戳）；不推送 base64。进行中为节流 `task_updated`。
 
 ## 通知类型
 

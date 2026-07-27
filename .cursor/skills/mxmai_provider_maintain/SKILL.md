@@ -13,7 +13,8 @@ description: >-
 ## 硬性门禁（不得跳过）
 
 1. **先冒烟、后宣称可用**：未通过 `probe-provider-model` 不得同步「启用」到生产。
-2. **价格必须有据**：  
+2. **价格必须有据（成本价必填）**：  
+   - 上架时 `unit_price` / `input_unit_price` / `output_unit_price` **至少一项 > 0**，否则 Admin API / 前端会拒绝保存。  
    - **maxplan** → 查 [MiniMax PAYG](https://platform.minimax.io/docs/guides/pricing-paygo)（Token Plan / Credits 同源价）。  
    - **atlascloud** → 查该模型 Atlas 页面 Pricing / API 档位。
 3. **平台售价**：`platform_* = usd_cost × 100 × 2.5`（1 TOKEN≈$0.01，2.5× 加价），写入 `provider_pricing`。

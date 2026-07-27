@@ -1,0 +1,14 @@
+# 主力机本地 MinIO（仅监听 127.0.0.1，经 Gateway 对外提供媒体）
+# 用法：见 scripts/install-minio-docker.sh
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - /etc/default/minio
+    command: server /data --address 127.0.0.1:9000 --console-address 127.0.0.1:9001
+    volumes:
+      - /opt/minio/data:/data

@@ -1,0 +1,33 @@
+---
+description: 禁止在用户 UI 暴露系统内部设计；知识卡引用必须用 @ 联想 + 推荐，禁止裸输入框
+alwaysApply: true
+---
+
+# UI：禁止暴露内部设计 / 知识引用交互
+
+## 硬性禁止
+
+- **禁止**把 schema 内部条件、字段名、管道参数直接展示给终端用户，例如：
+  - `style=其他时可选`
+  - `writing_folder_id` / `style_custom` / `x-show-when` / `x-asset-source`
+  - `folder_param`、`inject_as_param`、`taskKey`、`subtype`、路由键
+- **禁止**对「知识库 / 语感文风 / 视觉风格 / 角色 / 知识卡」引用只丢一个**空白独立输入框**，再塞一长段技术说明期望用户看懂后手填 ID 或乱写。
+- Admin / 调试面板可以保留技术字段；**面向创作引导、SchemaForm 用户态、对话式填表**必须用人话。
+
+## 知识卡 / 文件夹卡引用（必须）
+
+1. **推荐内容**：列出可用卡（优先「就绪」）或推荐短文案 chips，一点即选。
+2. **@ 联想**：输入框支持 `@` 过滤并选择**对应 `card_tag` 的全部卡**（系统卡 + 用户卡）。
+3. 选中后用可读标签展示（如 `@卡名`），提交时写回真正的 `*_folder_id`。
+4. 实现参考：`web/src/components/knowledge-base/FolderCardAtField.tsx`；文案过滤：`web/src/lib/uiCopyHygiene.ts`。
+
+## 文案
+
+- `title` / `description` / placeholder / help：只写用户任务语言（「选一种语气」「可参考已有文风」）。
+- 条件显隐、注入逻辑写在 `x-show-when` / `x-asset-source` 等**机器字段**里，**不要**复述进 `description`。
+- 若 schema 里仍有内部说明，前端必须用 `userFacingCopy()` 过滤，不得原样渲染。
+
+## 引导步
+
+- `*_custom`、挂卡字段（`x-ui-type: folderCard` / `x-show-when`）**不得**单独成引导步。
+- 挂在父枚举「自定义…」展开区内联完成。

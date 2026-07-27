@@ -3,8 +3,15 @@
 # 清理所有模块使用的端口
 # 用于在启动 dev:all 之前清理可能被占用的端口
 
-PORTS=(4001 4002 4003 4005 3000)
-MODULES=("mxmauth" "mxmpay" "mxmcgi" "mxmnotify" "gateway")
+# dev:all-with-web：仅清理 Web 端口，勿动已启动的后端（否则会 kill gateway 导致登录 ECONNREFUSED）
+if [ "${CLEAR_WEB_ONLY:-}" = "1" ]; then
+  WEB_DEV_PORT="${WEB_DEV_PORT:-5200}"
+  PORTS=("$WEB_DEV_PORT")
+  MODULES=("web")
+else
+  PORTS=(4001 4002 4003 4004 4005 3000)
+  MODULES=("mxmauth" "mxmpay" "mxmcgi-api" "mxmcgi-worker" "mxmnotify" "gateway")
+fi
 
 echo "🔍 检查并清理端口..."
 

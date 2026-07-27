@@ -725,7 +725,7 @@ DELETE /api/v1/system/prompt-config/:id
 
 **权限**：Admin
 
-**PUT Body**：`{ scope, type, subtype?, rules_i18n?, output_format_i18n?, form_options_i18n?, extra?, is_active? }`
+**PUT Body**：`{ scope, type, subtype?, output_format_i18n?, form_options_i18n?, extra?, is_active? }`（`rules_i18n` 已弃用，服务端恒存 `{}`）
 
 ---
 
@@ -1029,7 +1029,7 @@ GET /api/v1/cgi/video/getformOptions?lang=zh
 
 ---
 
-### 8.3 统一生成入口
+### 8.3 统一生成入口（兼容层）
 
 ```
 POST /api/v1/cgi/video/generate
@@ -1037,15 +1037,23 @@ POST /api/v1/cgi/video/generate
 
 **Body**：`{ chunks: [...], scriptType, label, storeToMinio, ... }`
 
+内部转 **Task V2**（`scope=video`），供移动端等旧客户端使用。Web / Smartflow 推荐：
+
+```
+POST /api/v2/tasks/run
+```
+
+`scope=video`，`taskKey` / `subtype` 由 Admin `video_scope_config` 配置。详见 `mxmcgi/docs/VIDEO_BUSINESS_CONFIG_AND_SMARTFLOW.md`。
+
 ---
 
-### 8.4 按模型生成
+### 8.4 按模型生成（已废弃）
 
 ```
 POST /api/v1/cgi/video/:modelName
 ```
 
-**Body**：`{ prompt, ... }` 或 Runway 的 `promptImage`/`videoUri`
+**返回 `410 Gone`**。请改用 Task V2 或在 Admin 配置 `video_scope_config` 后通过 `POST /api/v2/tasks/run` 提交。
 
 ---
 
@@ -1838,13 +1846,13 @@ GET /api/v1/wallets/tasks?userId=&type=&status=&asset_code=&channel=&page=&limit
 
 ---
 
-## 二十一、助手 (mxmagent → /api/v1/agents)
+## 二十一、助手 (mxmcgi → /api/v1/agents)
 
-> 代理到 mxmagent。GET 列表(/)、搜索(/search)、详情(/:id) 无需认证；其他需认证。
+> 代理到 mxmcgi。GET 列表(/)、搜索(/search)、详情(/:id) 无需认证；其他需认证。
 
 ---
 
-## 二十二、模型列表 (mxmagent → /api/v1/models)
+## 二十二、模型列表 (mxmcgi → /api/v1/models)
 
 ### 22.1 模型列表
 
@@ -1862,7 +1870,7 @@ GET /api/v1/models/types/list
 
 ---
 
-## 二十三、Smartflow (mxmagent → /api/v1/smartflows)
+## 二十三、Smartflow (mxmcgi → /api/v1/smartflows)
 
 ### 23.1 列表
 
@@ -1953,7 +1961,7 @@ POST /api/v1/smartflows/:id/stop
 
 ---
 
-## 二十四、Prompt 模板 (mxmagent → /api/v1/prompt-templates)
+## 二十四、Prompt 模板 (mxmcgi → /api/v1/prompt-templates)
 
 ### 24.1 列表
 
@@ -1997,9 +2005,9 @@ DELETE /api/v1/prompt-templates/:id
 
 ---
 
-## 二十五、Smartflow 任务 (mxmagent → /api/v1/smartflow-tasks)
+## 二十五、Smartflow 任务 (mxmcgi → /api/v1/smartflow-tasks)
 
-> Gateway 将 `/api/v1/smartflow-tasks` 重写为 mxmagent 的 `/api/v1/tasks`，与 mxmnotify 的 `/api/v1/tasks` 区分。
+> Gateway 将 `/api/v1/smartflow-tasks` 代理到 mxmcgi，与 mxmnotify 的 `/api/v1/tasks` 区分。
 
 ### 25.1 任务列表
 
@@ -2109,11 +2117,11 @@ GET /
 | /api/v1/characters | mxmcgi |
 | /api/v1/knowledge | mxmcgi |
 | /api/v1/media | mxmcgi |
-| /api/v1/agents | mxmagent |
-| /api/v1/models | mxmagent |
-| /api/v1/smartflows | mxmagent |
-| /api/v1/prompt-templates | mxmagent |
-| /api/v1/smartflow-tasks | mxmagent |
+| /api/v1/agents | mxmcgi |
+| /api/v1/models | mxmcgi |
+| /api/v1/smartflows | mxmcgi |
+| /api/v1/prompt-templates | mxmcgi |
+| /api/v1/smartflow-tasks | mxmcgi |
 | /api/v1/notifications | mxmnotify |
 | /api/v1/tasks | mxmnotify |
 | /api/v1/sse | mxmnotify |

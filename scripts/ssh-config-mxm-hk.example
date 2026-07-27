@@ -1,0 +1,13 @@
+# 复制到 ~/.ssh/config
+#
+#   cat scripts/ssh-config-mxm-hk.example >> ~/.ssh/config
+#
+# 香港主力：8.218.14.129，SSH 端口 2222（本地可直连，无需副机跳板）
+
+Host mxm-hk
+  HostName 8.218.14.129
+  User root
+  Port 2222
+  IdentityFile ~/.ssh/id_ed25519
+  ServerAliveInterval 30
+  ServerAliveCountMax 3

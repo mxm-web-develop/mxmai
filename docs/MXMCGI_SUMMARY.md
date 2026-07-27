@@ -551,7 +551,7 @@ CREATE TABLE notifications (
 
 ### 4.4 `smartflows`（工作流定义表）
 
-**路径：** `mxmagent_smartflow.sql`
+**路径：** `mxmdata/src/database/schemas/mxmagent_smartflow.sql`（历史文件名，由 mxmcgi Smartflow 使用）
 
 ```sql
 CREATE TABLE smartflows (
@@ -601,7 +601,7 @@ CREATE TABLE smartflows (
 
 ### 4.5 `smartflow_executions`（工作流执行实例表）
 
-**路径：** `mxmagent_smartflow.sql`
+**路径：** `mxmdata/src/database/schemas/mxmagent_smartflow.sql`（历史文件名，由 mxmcgi Smartflow 使用）
 
 ```sql
 CREATE TABLE smartflow_executions (

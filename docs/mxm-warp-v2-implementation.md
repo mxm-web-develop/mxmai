@@ -30,7 +30,7 @@
 ## 五段
 
 1. **pre** — 可配步（空则跳过）；联网结果约定写入 `sources.websource`
-2. **input** — 按 contractSchema 组装分区；LLM 仅简单回填 basic（+ 可写 enrich_search 方案）
+2. **input** — 按 contractSchema 组装分区；LLM 回填 basic；若 enrich 含 `webSearch→enrich_search`，**必须**写出 `enrich_search.query`（缺则按 basic/sources 合成兜底）
 3. **enrich** — 可配步；可写 `enrich_search.result`、专家 text 填 business
 4. **output** — 业务 Prompt + **完整合同 JSON**（不插值、不压缩）→ 交付
 5. **post** — 可配步
@@ -63,15 +63,25 @@
 
 ## 网络检索节点（`step: webSearch`）
 
+平台通用节点；业务差异用 `queryTemplate` 或命名 `queryBuilder`（插件），勿改核心 runner。见 ADR `docs/adr/pipeline-reusable-steps.md`。
+
 节点级配置（挂在 `pipeline.pre` / `pipeline.enrich`）：
 
 | params | 含义 |
 |--------|------|
 | `query` | 固定查询串 |
+| `queryTemplate` | 模板插值：`${params.x}` / `${contract.a.b}` |
 | `queryFrom` | 从路径取值：`params.topic` / `contract.basic.topic` / `contract.enrich_search.query` |
+| `queryBuilder` | 命名策略插件（如 `industryTrend`）；优先于 template |
 | `target` | `sources.websource`（默认，pre）或 `enrich_search.result`（enrich） |
 | `depth` | `quick` \| `standard` \| `deep` |
 | `maxResults` | 条数上限 |
 | `resultMaxChars` | 结果文本长度上限 |
+| `resultClean` | `true`/`false`/对象：剔低质域名、剥离导航样板、URL 去重；`industryTrend` 默认开启 |
+| `dimensions` | 检索维度数组（通用路径；缺省 `news`+`general`） |
+| `timeRange` | `day` \| `week` \| `month` \| `year` |
+| `startDate` / `endDate` | YYYY-MM-DD 绝对窗（优先于相对 timeRange） |
+| `includeDomains` | 域名白名单 |
+| `language` | `zh` \| `en` \| `all` |
 
-实现：`mxmcgi/src/tasks/mxm-warp/web-search-step.ts`（注册名 `webSearch`）。
+实现：`mxmcgi/src/tasks/mxm-warp/web-search-step.ts`；`industryTrend`：`query-builders/industry-trend.ts`。

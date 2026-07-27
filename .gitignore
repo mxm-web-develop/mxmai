@@ -2,10 +2,19 @@
 node_modules
 aiweb
 .env
+.env.local
+.env.test
+.env.test.local
 mxmdata/.env
 mxmauth/.env
 mxmcgi/.env
 mxmcgi/.env.bak
 gateway/.env
+mxmpay/.env
 
 mxmdata
+
+# Playwright
+tests/e2e/.auth
+test-results
+playwright-report

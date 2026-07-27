@@ -3,8 +3,13 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": "..",
+    "paths": {
+      "@mxmai/mxm-editor-core": ["mxm-editor-core/src/index.ts"],
+      "@mxmai/mxm-editor-core/*": ["mxm-editor-core/src/*"]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "../mxm-editor-core/src/**/*"],
+  "exclude": ["node_modules", "dist", "../mxm-editor-core/src/test", "../mxm-editor-core/src/wasm/**"]
 }

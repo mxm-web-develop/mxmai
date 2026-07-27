@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-smartflow-bundle",
+  "exportedAt": "2026-05-24T00:00:00.000Z",
+  "items": [
+    {
+      "id": "your-flow-id-v1",
+      "name": "你的工作流名称",
+      "description": "简要说明",
+      "category": "graph",
+      "tags": ["tag1"],
+      "status": "draft",
+      "version": "1.0.0",
+      "is_public": false,
+      "schema": {
+        "version": "1.0.0",
+        "nodes": [
+          {
+            "id": "start",
+            "type": "start",
+            "name": "开始",
+            "input": [{ "name": "prompt", "type": "text", "content": "" }],
+            "position": { "x": 120, "y": 120 }
+          },
+          {
+            "id": "run_biz",
+            "type": "business",
+            "name": "业务 · graph",
+            "business_scope": "graph",
+            "taskKey": "YOUR_TASK_KEY",
+            "subtype": "YOUR_SUBTYPE",
+            "params": {
+              "prompt": "{{input.prompt}}"
+            },
+            "position": { "x": 360, "y": 120 }
+          },
+          {
+            "id": "end",
+            "type": "end",
+            "name": "结束",
+            "output_mapping": {
+              "result": "{{run_biz}}"
+            },
+            "position": { "x": 600, "y": 120 }
+          }
+        ],
+        "edges": [
+          { "from": "start", "to": "run_biz" },
+          { "from": "run_biz", "to": "end" }
+        ]
+      }
+    }
+  ]
+}

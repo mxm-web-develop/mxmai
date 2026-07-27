@@ -92,7 +92,6 @@ EXCLUDE_PATTERNS=(
 # 业务模块（明确排除）
 BUSINESS_MODULES=(
   "mxmcgi"
-  "mxmagent"
   "mxmpay"
   "mxmprompt"
   "mxmservice"

@@ -1,143 +1,136 @@
-# CLAUDE.md
+# SuperMXMai Claude Code 记忆
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## 项目概述
+- **名称**: SuperMXMai (MXM AI Collection)
+- **类型**: 多模态 AI 内容生成与业务中台（pnpm monorepo）
+- **技术栈**: TypeScript, Node ≥22, pnpm, Supabase (PostgreSQL), MinIO (S3), Redis
+- **定位**: AI 内容生成 SaaS 平台，支持图文音视频创作、Smartflow 工作流、支付订阅
 
-## Commands
+## 服务架构（5 个 HTTP 微服务 + mxmcgi worker）
 
-### Development (from repo root)
-```bash
-pnpm dev:all          # 启动所有服务（并发）— 注意：不包含 mxmagent!
-pnpm dev:mxmcgi       # 仅启动 mxmcgi
-pnpm dev:mxmauth      # 仅启动 mxmauth
-pnpm dev:gateway      # 仅启动 gateway
-pnpm dev:mxmpay       # 仅启动 mxmpay
-pnpm dev:mxmnotify    # 仅启动 mxmnotify
-pnpm dev:mxmagent     # 仅启动 mxmagent（Agent Chat 后端，端口 4004）
-pnpm dev:mxmdata      # 启动 Docker（数据层）
-pnpm dev:all-with-web  # 完整后端 + 前端
-```
-
-### Build
-```bash
-pnpm build:mxmcgi     # 构建 mxmcgi
-pnpm build:mxmdata    # 构建 mxmdata（其他包依赖它，必须先构建）
-pnpm --filter @mxmai/mxmdata build  # 直接构建 mxmdata
-```
-
-### Tests
-```bash
-pnpm --filter @mxmai/mxmdata test        # 运行 mxmdata 测试
-pnpm --filter @mxmai/mxmauth test        # 运行 mxmauth 测试
-pnpm --filter @mxmai/mxmcgi run test:replicate-text  # 测试 replicate 文本
-pnpm --filter @mxmai/mxmcgi run test:replicate-img   # 测试 replicate 图片
-pnpm --filter @mxmai/mxmcgi run test:kb-recall       # 测试知识库召回
-```
-
-### Database / Migrations
-```bash
-pnpm --filter @mxmai/mxmdata run init:db              # 初始化数据库
-pnpm --filter @mxmai/mxmdata run migrate:sensitive-words
-pnpm --filter @mxmai/mxmdata run migrate:provider-balances
-pnpm --filter @mxmai/mxmdata run reload-schema        # 重载 PostgREST schema
-```
-
-### Other
-```bash
-pnpm init:project              # 初始化项目配置
-pnpm seed:prompt-config        # 写入初始 prompt 工程配置
-pnpm --filter @mxmai/mxmcgi run init:system-kb  # 初始化系统知识库
-```
-
-## Architecture
-
-### Monorepo & Service Ports
-pnpm workspace，各服务端口：
 | 服务 | 端口 | 说明 |
 |------|------|------|
 | gateway | 3000 | 统一入口，路由转发 + JWT 鉴权 |
 | mxmauth | 4001 | 用户账户、认证、JWT 签发 |
 | mxmpay | 4002 | 支付、钱包 |
-| mxmcgi | 4003 | AI 内容生成（图/文/音/视频） |
-| mxmagent | 4004 | Agent / Smartflow 工作流 |
-| mxmnotify | 4005 | 通知、SSE 推送、WebSocket |
+| mxmcgi-api | 4003 | AI 生成、Task V2、Smartflow、Agent Chat |
+| mxmcgi-worker | 4004 | 异步任务执行（`MXMCGI_ROLE=worker`，内网） |
+| mxmnotify | 4005 | 通知、SSE、WebSocket |
 
-**mxmdata** 不是 HTTP 服务，是被其他包作为 `workspace:*` 依赖引用的数据访问层库。**修改 mxmdata 后必须重新构建**（`pnpm build:mxmdata`）才能让其他包读取到最新类型。
+**已无独立 `mxmagent` 包**（Agent/Smartflow 在 mxmcgi 内）。见 `docs/adr/mxmagent-merged-into-mxmcgi.md`。
 
-### mxmcgi 内部结构（核心服务）
+**重要**: mxmdata 不是 HTTP 服务，是被其他包作为 `workspace:*` 依赖引用的数据访问层库。修改 mxmdata 后必须 `pnpm build:mxmdata` 再构建其他包。
+
+## 常用命令
+
+```bash
+pnpm dev:all              # 启动所有后端（mxmcgi api+worker 拆分）
+pnpm dev:all-with-web     # 完整后端（含 mxmcgi 拆分）+ 前端
+pnpm dev:mxmcgi           # 单进程 all 模式（快速调试）
+pnpm dev:mxmcgi:split     # 仅 mxmcgi api + worker
+pnpm build:mxmdata        # 必须先构建数据层
+pnpm init:project         # 初始化项目配置
+```
+
+## mxmcgi 核心结构
+
 ```
 mxmcgi/src/
-├── models/             # 模型注册与 Provider 实现
-│   ├── registry.ts     # 全局模型注册表
-│   ├── run.ts          # 统一调用入口 runByModelKey()
-│   ├── providers.ts    # 导出 providerFactory 单例
-│   ├── deerapi/        # DeerAPI provider（主要 provider）
-│   ├── replicate/      # Replicate provider
-│   ├── ppio/           # PPIO provider
-│   ├── minimax/        # Minimax provider
-│   ├── openai/ anthropic/ google/ qwen/ volc/
-│   └── {provider}/{modality}/  # 各 provider 按模态注册模型
+├── models/             # 模型注册与 Provider 实现（DeerAPI/Replicate/Minimax/OpenAI等）
 ├── core/
 │   ├── providers/      # ProviderFactory、模型路由、类型定义
-│   │   ├── types.ts           # ProviderType、GenerateParams、ModelProvider 等核心类型
-│   │   ├── model-routing.ts   # 逻辑模型名 -> {provider, physicalModel} 路由表
-│   │   └── index.ts           # ProviderFactory（延迟初始化单例）
-│   ├── graph/          # 图片生成服务（photograph/design/painting）
-│   ├── writing/        # 文本写作服务（articles/lyrics/scripts/outlines 等）
+│   ├── graph/          # 图像生成（photograph/design/painting）
+│   ├── writing/        # 文本写作（articles/lyrics/scripts等）
 │   ├── usage/          # 用量统计
 │   ├── billing/        # 计费服务
-│   ├── balance/        # 余额管理
-│   └── utils/          # data-store（MinIO 存储）、deerapi-client 等
-├── task/               # 任务系统（异步任务管理、恢复、outbox）
-├── knowledge/          # 知识库服务
-├── characters/         # 角色（Character）管理
-├── prompts/            # Prompt 工程配置读取
+│   └── utils/          # data-store（MinIO）、deerapi-client
+├── task/               # 异步任务（TaskExecutor → TaskManager → DatabaseTaskStorage）
+├── knowledge/          # 知识库（向量检索）
+├── characters/         # 角色管理
 └── routes/             # Express 路由
 ```
 
-### 模型路由机制
-`mxmcgi/src/core/providers/model-routing.ts` 维护逻辑模型名到 `{provider, physicalModel}` 的映射（如 `writing-articles` -> `{deer, gemini-2-5-flash}`）。Admin 可通过 API 在运行时覆盖路由，覆盖写入数据库的 `model_routing_overrides` 表，服务启动时自动加载。
+**Graph 提示词（V2）**：`generateGraphPrompt` 仅支持（1）Admin 配置 `promptTextTaskKey` 走 text/format，或（2）Task V2 传入 `useConfiguredPrompt` 且使用模板已渲染的 `prompt`。不再存在 v1 硬编码拼装路径。
 
-### 数据层（mxmdata）
-采用 Repository 模式，`RepositoryFactory` 统一创建所有 Repository 实例。数据库为 Supabase（PostgreSQL），对象存储为 MinIO。所有服务在启动时必须调用 `RepositoryFactory.init()`。环境变量从 `mxmdata/.env` 集中读取（JWT_SECRET、SUPABASE_URL 等关键配置均在此文件）。
+**Task V2 多份生成**：异步 scope 表单自动含 `parallel_count`（1～99）；`>1` 时父任务 `task-v2-batch-parent` + 子任务，计费按子任务次数。`text` scope 不支持。
 
-### 任务系统
-异步生成任务（图片/视频/音频）由 `mxmcgi/src/task/` 管理：`TaskExecutor` -> `TaskManager` -> `DatabaseTaskStorage`（Supabase）。任务结果媒体文件存储到 MinIO。`TaskEventOutboxProcessor` 负责将任务事件可靠推送给 mxmnotify。服务启动时会自动恢复超时任务（`task-recovery.ts`）。
+## Smartflow 节点状态（7/7 已实现）
 
-### 环境变量
-- 主配置：`mxmdata/.env`（含 `SUPABASE_URL`、`SUPABASE_ANON_KEY`、`JWT_SECRET`、MinIO 配置）
-- 各服务可在自己目录下放 `.env` 追加/覆盖，但不应覆盖 mxmdata/.env 中的核心配置
-- `DEFAULT_PROVIDER` 控制默认 AI provider（可选值：`deer`/`deerapi`、`replicate`、`ppio`、`openai`、`google`、`anthropic`、`qwen`、`volc`、`minimax`）
+| 节点 | 状态 | 备注 |
+|------|------|------|
+| start | ✅ | |
+| end | ✅ | |
+| model | ✅ | text/image/embedding ✅, video/sound ❌ |
+| condition | ✅ | 多 else 端口 |
+| variable | ✅ | |
+| loop | ✅ | Iteration + Loop |
+| tools | ✅ | brave搜索/embedding/http ✅, Python/爬虫 ❌ |
 
-### Gateway 路由规则
-所有外部请求经 gateway（:3000）转发，路径前缀 `/api/v1/`：
-- `/account`, `/assets` -> mxmauth
-- `/payment`, `/wallets` -> mxmpay
-- `/generation`, `/cgi/*`, `/system`, `/knowledge`, `/characters` -> mxmcgi
-- `/agents`, `/smartflows` -> mxmagent
-- `/notifications`, `/tasks`, `/sse`, `/task-events` -> mxmnotify
+**待解决**: video/sound 模型节点、Python 执行器、爬虫节点、test/run 模式区分
 
----
+## 最新进展（2026-04-21 by Hermes）
 
-## 排查与已知问题
+- 建立了 Hermes Agent 双记忆系统（CLAUDE.md + WORKFLOW.md）
+- 项目完整扫描完成，建立了项目知识文档
+- 所有角色（Developer/Expert/Designer/PM）均可参与
 
-### Agent Chat 502 Bad Gateway
-- **现象**：前端 `/agent-chat` 页面报错 `HTTP 502`
-- **原因**：mxmagent（端口 4004）未启动。`pnpm dev:all` 不包含此服务。
-- **解决**：单独启动
-  ```bash
-  pnpm dev:mxmagent
-  ```
+## 代码规范
+- TypeScript strict 模式
+- ESLint + Prettier
+- 分支命名: `feature/` `fix/` `refactor/`
+- Commit: `type: description`
+- **用户 UI**：禁止暴露 schema/管道内部设计（`style=其他`、`writing_folder_id` 等）；知识卡引用必须用推荐 + `@` 联想，见 `.cursor/rules/ui-no-internal-leak.mdc`
+- **管线节点可复用**：平台 step 禁止按业务写死；差异落在 params / queryBuilder / nestedText。见 `docs/adr/pipeline-reusable-steps.md` 与 `.cursor/skills/mxmai_business_pipeline/SKILL.md` §0
 
-### 模型下拉空数据
-- **现象**：Admin 页面的模型下拉显示"暂无数据"
-- **原因1**：当前用户不是 admin（`/api/v1/system/admin/providers/models` 需要 admin 权限）
-- **原因2**：`provider_models` 表为空（需通过 Admin 页面添加模型）
+## 已知约束
+- 修改 mxmdata 后必须 rebuild
+- Agent / Smartflow / Agent Chat 均在 mxmcgi（4003），无独立 mxmagent 服务
+- Agent Chat 502：检查 gateway（3000）与 mxmcgi-api（4003）；任务不执行则检查 mxmcgi-worker（4004）
+- 环境变量统一在项目根 `.env`（见 `docs/ENV.md`，`loadMonorepoEnv()` 加载）
+- **mxmcgi api+worker 拆分**：建议在 `mxmcgi/.env` 配置 `REDIS_ENABLED=true` + `REDIS_HOST`/`REDIS_PORT`（见 `mxmcgi/.env.example`），供 Agent 订阅任务完成事件；未配置则 Agent 回退 DB 轮询
 
-### 服务端口状态
-```bash
-# 检查所有服务
-for port in 3000 4001 4002 4003 4004 4005; do
-  result=$(lsof -i :$port 2>/dev/null | grep LISTEN | grep -v grep)
-  echo ":$port - ${result:-(not running)}"
-done
+## 长任务运行规范（Harness Engineering）
+
+当执行跨越多个会话的长时间任务时，遵循以下模式避免"一次性做太多"或"过早宣布胜利"：
+
+### 结构化任务文件
+
+对于大型功能，使用 `task.json` 结构化任务清单：
+
+```json
+{
+  "tasks": [
+    {
+      "id": "feature-login",
+      "description": "用户登录功能",
+      "steps": ["实现 API 路由", "实现前端表单", "集成测试"],
+      "passes": false,
+      "priority": 1
+    }
+  ]
+}
 ```
+
+### 进度跟踪文件
+
+使用 `progress.txt` 记录每次会话的增量：
+
+```
+=== 2026-04-27 ===
+[feature-login] 完成 API 路由实现
+[feature-login] 开始前端表单
+```
+
+### 双 Agent 模式
+
+对于超大任务（>2小时），考虑_initializer + _coder 双 Agent 模式：
+- **Initializer**: 首次会话，建立项目基础、feature list、init.sh
+- **Coder**: 后续会话，每次只实现一个功能，提交 git，更新进度
+
+### 关键原则
+
+1. **一次只做一个功能** - 避免 one-shotting
+2. **每个功能必须有验收步骤** - 不能只写代码不测试
+3. **Git 提交在功能测试通过后** - 保持代码可回滚
+4. **进度文件更新** - 让下一个会话快速同步状态
+5. **端到端测试** - 对于 Web 功能使用 Playwright 验证

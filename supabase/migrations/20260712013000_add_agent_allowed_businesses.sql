@@ -1,0 +1,2 @@
+ALTER TABLE model_config ADD COLUMN IF NOT EXISTS allowed_businesses JSONB DEFAULT NULL;
+ALTER TABLE model_config ADD COLUMN IF NOT EXISTS smartflow_enabled BOOLEAN DEFAULT TRUE;
