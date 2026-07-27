@@ -38,6 +38,7 @@
     "seed:text-expert-industry-hot-topics": "tsx src/scripts/apply-mxm-business-bundle.ts src/tasks/examples/text-expert-industry-hot-topics.business.json",
     "seed:writing-industry-daily": "tsx src/scripts/apply-mxm-business-bundle.ts src/tasks/examples/writing-editorial-industry-daily.business.json",
     "seed:writing-group-seek": "tsx src/scripts/apply-mxm-business-bundle.ts src/tasks/examples/writing-group-seek.business.json",
+    "wipe:legacy-writing": "tsx src/scripts/wipe-legacy-writing-businesses.ts",
     "wipe:local-text": "tsx src/scripts/wipe-local-text-businesses.ts",
     "patch:text-plan-eshop-garment-batch": "tsx src/scripts/patch-text-plan-eshop-garment-batch-formschema.ts",
     "patch:text-plan-eshop-routing-gemini-35": "tsx src/scripts/patch-text-plan-eshop-routing-gemini-35.ts",
