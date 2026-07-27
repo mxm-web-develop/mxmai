@@ -19,12 +19,16 @@ export type CreateGuide = {
   interactiveCard: {
     label?: string;
     hint?: string;
+    postPreHint?: string;
     fields: CreateGuideInteractiveCardField[];
   } | null;
   webSearch: {
+    /** 显式：pre 后在 C 端跑话题预览；未写时由前端按 topicCount / topicExtractTextKey 推断 */
+    clientPreview?: boolean;
     maxResults?: number;
     depth?: string;
     topicExtractTextKey?: string;
+    topicCount?: number;
   } | null;
 };
 
@@ -82,6 +86,7 @@ export function extractCreateGuide(
     interactiveCard = {
       label: typeof p.label === 'string' ? p.label : undefined,
       hint: typeof p.hint === 'string' ? p.hint : undefined,
+      postPreHint: typeof p.postPreHint === 'string' ? p.postPreHint : undefined,
       fields,
     };
   }
@@ -104,13 +109,85 @@ export function extractCreateGuide(
         topicExtractTextKey = key;
         break;
       }
-      topicExtractTextKey = 'text/expert/industry-hot-topics';
+      // 有 extractHotTopics 但未写 textKey：仍标记需要客户端预览，具体 key 由运行时再定
+      if (!topicExtractTextKey) topicExtractTextKey = 'text/expert/industry-hot-topics';
       break;
     }
+    const clientPreview =
+      typeof p.clientPreview === 'boolean'
+        ? p.clientPreview
+        : typeof (p as { client_preview?: unknown }).client_preview === 'boolean'
+          ? Boolean((p as { client_preview?: unknown }).client_preview)
+          : undefined;
+    const topicCountRaw = p.topicCount ?? p.topic_count;
+    const topicCount =
+      typeof topicCountRaw === 'number' && Number.isFinite(topicCountRaw)
+        ? Math.max(1, Math.min(50, Math.floor(topicCountRaw)))
+        : undefined;
     webSearch = {
+      ...(clientPreview !== undefined ? { clientPreview } : {}),
       maxResults,
       depth: typeof p.depth === 'string' ? p.depth : undefined,
       topicExtractTextKey,
+      ...(topicCount !== undefined ? { topicCount } : {}),
+    };
+  }
+
+  return { interactiveCard, webSearch };
+}
+
+/**
+ * 合并 pipeline 抽取结果与 taskTemplate.createGuide 显式配置。
+ * pipeline 字段优先；createGuide 补充 postPreHint / clientPreview / topicCount 等。
+ */
+export function mergeCreateGuide(
+  fromPipeline: CreateGuide,
+  fromTemplate: unknown
+): CreateGuide {
+  if (!fromTemplate || typeof fromTemplate !== 'object' || Array.isArray(fromTemplate)) {
+    return fromPipeline;
+  }
+  const t = fromTemplate as {
+    interactiveCard?: {
+      label?: string;
+      hint?: string;
+      postPreHint?: string;
+      fields?: unknown[];
+    } | null;
+    webSearch?: {
+      clientPreview?: boolean;
+      maxResults?: number;
+      depth?: string;
+      topicExtractTextKey?: string;
+      topicCount?: number;
+    } | null;
+  };
+
+  const tCard = t.interactiveCard;
+  const pCard = fromPipeline.interactiveCard;
+  let interactiveCard: CreateGuide['interactiveCard'] = null;
+  if (pCard || tCard) {
+    const tFields = Array.isArray(tCard?.fields)
+      ? tCard!.fields.map(asField).filter((f): f is CreateGuideInteractiveCardField => !!f)
+      : [];
+    interactiveCard = {
+      label: pCard?.label || tCard?.label,
+      hint: pCard?.hint || tCard?.hint,
+      postPreHint: pCard?.postPreHint || tCard?.postPreHint,
+      fields: pCard?.fields?.length ? pCard.fields : tFields,
+    };
+  }
+
+  const tWs = t.webSearch;
+  const pWs = fromPipeline.webSearch;
+  let webSearch: CreateGuide['webSearch'] = null;
+  if (pWs || tWs) {
+    webSearch = {
+      clientPreview: pWs?.clientPreview ?? tWs?.clientPreview,
+      maxResults: pWs?.maxResults ?? tWs?.maxResults,
+      depth: pWs?.depth ?? tWs?.depth,
+      topicExtractTextKey: pWs?.topicExtractTextKey ?? tWs?.topicExtractTextKey,
+      topicCount: pWs?.topicCount ?? tWs?.topicCount,
     };
   }
 

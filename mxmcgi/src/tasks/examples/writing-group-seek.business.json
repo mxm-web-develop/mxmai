@@ -488,7 +488,8 @@
                       "required": true
                     }
                   ],
-                  "editable": true
+                  "editable": true,
+                  "postPreHint": "话题已确认。接下来选择结构与风格的差异度，以及要并发写几份；联网检索会在任务开始后自动完成。"
                 }
               }
             ],

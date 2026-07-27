@@ -196,7 +196,13 @@ export function useTaskV2FormConfig(options: UseTaskV2FormConfigOptions): UseTas
           (res.data as { data?: TaskFormConfig })?.data ?? (res.data as TaskFormConfig | undefined);
         if (cancelled) return;
         if (data?.schema) {
-          setFormConfigRaw(data);
+          // 强制写入本次请求的身份，避免响应缺字段时被上一业务串用
+          setFormConfigRaw({
+            ...data,
+            scope: data.scope || scope,
+            taskKey,
+            subtype: subtype ?? null,
+          });
           setFormValues(buildDefaultsFromSchema(data.schema, defaultsOptsRef.current));
         } else {
           setFormConfigRaw(null);

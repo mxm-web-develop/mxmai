@@ -363,7 +363,7 @@ function guideFieldToWarp(raw: Record<string, unknown> & { name: string }): Warp
 }
 
 /**
- * pre 引导字段：createGuide.interactiveCard.fields > formSchema > 内置兜底
+ * pre 引导字段：只认当前业务的 createGuide / schema，禁止硬编码某业务字段（曾误把行业日报塞给角度探索）。
  */
 function buildPreCardFields(
   schema: TaskFormConfig['schema'] | null | undefined,
@@ -381,102 +381,30 @@ function buildPreCardFields(
       })
       .map((f) => {
         const field = guideFieldToWarp(f as Record<string, unknown> & { name: string });
-        if (hint && (field.name === 'industry' || field.name === cardFields[0]?.name)) {
+        if (hint && field.name === cardFields[0]?.name) {
           field.description = hint;
         }
         return field;
       });
   }
 
+  // 无 interactiveCard：仅从当前 schema 收集 x-collect:pre（绝不捏造 industry 等字段）
   const props = schema?.properties ?? {};
   const fields: WarpGateField[] = [];
-  if (props.industry) {
-    fields.push({
-      ...schemaPropToField('industry', props.industry, true),
-      description: '先选细拆赛道（如足球、股票），再确认日期与检索范围。',
-    });
-  } else {
-    fields.push({
-      name: 'industry',
-      title: '行业方向',
-      description: '先选细拆赛道（如足球、股票），再确认日期与检索范围。',
-      enum: [
-        '股票',
-        '基金',
-        '银行保险',
-        '加密货币',
-        '人工智能',
-        '半导体',
-        '消费电子',
-        '互联网',
-        '影视综',
-        '音乐',
-        '游戏',
-        '足球',
-        '篮球',
-        '网球',
-        '赛车',
-      ],
-      required: true,
-    });
-  }
-  if (props.date_mode) {
-    fields.push({
-      ...guideFieldToWarp({
-        name: 'date_mode',
-        ...(props.date_mode as Record<string, unknown>),
-        required: true,
-      }),
-      description: '确认后再按对应时间窗检索热点（支持今日/昨日/本周/本月）。',
-    });
-  } else {
-    fields.push({
-      name: 'date_mode',
-      title: '报道日期',
-      description: '确认后再按对应时间窗检索热点（支持今日/昨日/本周/本月）。',
-      enum: ['今日', '昨日', '本周', '本月'],
-      required: true,
-      default: '今日',
-    });
-  }
-  // language 跟随当前 App locale 静默写入，不进入引导步骤
-  // search_region：有 schema 则插入；否则兜底全球默认
-  if (props.search_region) {
-    const regionField = {
-      ...guideFieldToWarp({
-        name: 'search_region',
-        ...(props.search_region as Record<string, unknown>),
-        required: false,
-      }),
-      description: '默认全球国际资讯；可收窄到中国大陆、台湾、日本、北美或欧洲。',
-    };
-    // 插到 industry 之后、date 之前
-    const indIdx = fields.findIndex((f) => f.name === 'industry');
-    if (indIdx >= 0) fields.splice(indIdx + 1, 0, regionField);
-    else fields.unshift(regionField);
-  } else if (!fields.some((f) => f.name === 'search_region')) {
-    const regionField: WarpGateField = {
-      name: 'search_region',
-      title: '新闻检索范围',
-      description: '默认全球国际资讯；可收窄到中国大陆、台湾、日本、北美或欧洲。',
-      enum: ['全球', '中国大陆', '台湾', '日本', '北美', '欧洲'],
-      required: false,
-      default: '全球',
-    };
-    const indIdx = fields.findIndex((f) => f.name === 'industry');
-    if (indIdx >= 0) fields.splice(indIdx + 1, 0, regionField);
-    else fields.unshift(regionField);
-  }
-  // 其它 x-collect:pre（如热点条数），避免只靠 interactiveCard 硬编码
   for (const [name, prop] of Object.entries(props)) {
     if (!prop || typeof prop !== 'object') continue;
     if ((prop as Record<string, unknown>)['x-collect'] !== 'pre') continue;
-    if (fields.some((f) => f.name === name)) continue;
     if (name === 'industry_custom' || name === 'report_date' || name === 'language') continue;
     if ((prop as Record<string, unknown>)['x-hidden'] === true) continue;
-    fields.push(schemaPropToField(name, prop as Record<string, unknown>, false));
+    fields.push(schemaPropToField(name, prop as Record<string, unknown>, name === 'industry'));
   }
-  return fields;
+  if (fields.length > 0) return fields;
+
+  // 再退一步：schema 有 topic 就只问 topic（写作类常见）
+  if (props.topic) {
+    return [schemaPropToField('topic', props.topic as Record<string, unknown>, true)];
+  }
+  return [];
 }
 
 function buildBasicFields(
@@ -614,6 +542,8 @@ export function WritingCreateWizard({
   const [topicChips, setTopicChips] = useState<string[]>([]);
   const [thread, setThread] = useState<ThreadMsg[]>([]);
   const [pendingStart, setPendingStart] = useState(false);
+  /** 点击业务时钉死的选型键，避免用上一业务的 formConfig 开引导 */
+  const [pendingSelectionKey, setPendingSelectionKey] = useState<string | null>(null);
   const [phase, setPhase] = useState<'pre' | 'basic' | 'task-name'>('pre');
   /** 引导会话业务快照：与 props.formConfig 解耦，杜绝中途串业务 */
   const [guideSession, setGuideSession] = useState<GuideSession | null>(null);
@@ -632,6 +562,7 @@ export function WritingCreateWizard({
     createUx: activeConfig?.createUx,
     ...bizIdentity,
   });
+  const needsClientSearchPreview = needsCreateGuideClientWebSearchPreview(bizIdentity);
 
   const bizGroups = useMemo(() => groupBusinesses(taskOptions, locale), [taskOptions, locale]);
 
@@ -647,6 +578,7 @@ export function WritingCreateWizard({
     setThread([]);
     setPhase('pre');
     setGuideSession(null);
+    setPendingSelectionKey(null);
   }, []);
 
   useGSAP(
@@ -718,22 +650,32 @@ export function WritingCreateWizard({
     [pushThread, locale]
   );
 
-  // 选中业务后：仅当 formConfig 与选型完全一致时钉死会话并开引导
+  // 选中业务后：仅当 formConfig 与「点击时钉死的选型」完全一致时开引导
   useEffect(() => {
-    if (!pendingStart) return;
+    if (!pendingStart || !pendingSelectionKey) return;
     if (configLoading) return;
     if (!taskKey) return;
     if (!formConfig?.schema) return;
-    if (formConfig.taskKey !== taskKey) return;
-    if ((formConfig.subtype ?? null) !== (subtype ?? null)) return;
+    const configKey = formatTaskSelectionKey(formConfig.taskKey, formConfig.subtype);
+    const liveKey = formatTaskSelectionKey(taskKey, subtype);
+    if (configKey !== pendingSelectionKey || liveKey !== pendingSelectionKey) return;
     setPendingStart(false);
+    setPendingSelectionKey(null);
     startGuideForConfig({
       taskKey,
       subtype,
       subtypeLabel: formConfig.subtypeLabel ?? null,
       formConfig,
     });
-  }, [pendingStart, configLoading, taskKey, subtype, formConfig, startGuideForConfig]);
+  }, [
+    pendingStart,
+    pendingSelectionKey,
+    configLoading,
+    taskKey,
+    subtype,
+    formConfig,
+    startGuideForConfig,
+  ]);
 
   // 引导中若外部选型被改成别的业务 → 立刻中止，禁止串会话
   useEffect(() => {
@@ -744,12 +686,15 @@ export function WritingCreateWizard({
     }
     resetGuideState();
     setPendingStart(false);
+    setPendingSelectionKey(null);
     setStage('select-business');
     message.warning('业务选择已变更，请重新选择业务，避免流程串用。');
   }, [guideSession, taskKey, subtype, stage, resetGuideState, message]);
 
   const pickBusiness = (item: BizGroup['items'][number]) => {
     resetGuideState();
+    const key = formatTaskSelectionKey(item.taskKey, item.subtype);
+    setPendingSelectionKey(key);
     onSelectBusiness(item.taskKey, item.subtype);
     setPendingStart(true);
     setStage('guide');
@@ -1014,9 +959,12 @@ export function WritingCreateWizard({
   };
 
   const currentField = queue[queueIdx];
-  const progressStages: Stage[] = hasPreCard
+  // searching 仅当 createGuide 声明了 C 端检索预览；有 pre 卡不等于要检索
+  const progressStages: Stage[] = needsClientSearchPreview
     ? ['select-business', 'guide', 'searching', 'confirm']
-    : ['select-business', 'guide', 'confirm'];
+    : hasPreCard
+      ? ['select-business', 'guide', 'confirm']
+      : ['select-business', 'guide', 'confirm'];
 
   return (
     <div ref={shellRef} className="writing-create-wizard">

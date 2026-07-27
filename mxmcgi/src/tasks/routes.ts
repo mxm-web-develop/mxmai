@@ -3,7 +3,7 @@ import type { TaskScope } from './types';
 import { loadTaskDefinition } from './task-definition';
 import { mergePlatformFieldsIntoFormSchema, PARALLEL_COUNT_KEY } from './platform-fields';
 import { resolveTaskCreateUx } from './task-create-ux';
-import { extractCreateGuide } from './create-guide';
+import { extractCreateGuide, mergeCreateGuide } from './create-guide';
 import { runTaskV2 } from './task-engine';
 import { ValidationError, ConfigurationError } from './errors';
 import { RepositoryFactory } from '@mxmai/mxmdata';
@@ -59,7 +59,11 @@ router.get('/form-config', async (req: Request, res: Response) => {
 
     const { template, row } = await loadTaskDefinition({ scope, taskKey, subtype, lang: 'zh' });
     const createUx = resolveTaskCreateUx(template.pipeline, template.formSchema);
-    const createGuide = extractCreateGuide(template.pipeline);
+    const rawTpl = ((row.extra ?? {}) as { taskTemplate?: Record<string, unknown> }).taskTemplate;
+    const createGuide = mergeCreateGuide(
+      extractCreateGuide(template.pipeline),
+      rawTpl?.createGuide ?? (template as { createGuide?: unknown }).createGuide
+    );
     let schema = mergePlatformFieldsIntoFormSchema(template.formSchema, scope);
     // warp-gates：先不暴露「生成份数」，默认 1 份
     if (createUx === 'warp-gates' && schema.properties && typeof schema.properties === 'object') {
