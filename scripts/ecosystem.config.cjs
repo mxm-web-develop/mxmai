@@ -55,7 +55,8 @@ module.exports = {
       name: 'pptx-compiler',
       cwd: __dirname + '/../mxmcgi/tools/pptx-compiler',
       script: 'server.py',
-      interpreter: 'python3',
+      // PEP 668: production venv at /.venv-pptx-compiler
+      interpreter: __dirname + '/../.venv-pptx-compiler/bin/python',
       env: {
         NODE_ENV: 'production',
         PPTX_COMPILER_HOST: '127.0.0.1',
