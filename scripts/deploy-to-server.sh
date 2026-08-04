@@ -194,7 +194,7 @@ if [[ "$DO_BACKEND" == true ]]; then
     rsync_dist "$ROOT/mxmcgi/tools/pptx-compiler" "$DEPLOY_PATH/mxmcgi/tools/pptx-compiler"
     if [[ -f "$ROOT/mxmcgi/tools/pptx-compiler/requirements.txt" ]]; then
       log "准备 pptx-compiler venv 并安装依赖..."
-      ssh_cmd "set -euo pipefail; VENV=${DEPLOY_PATH}/.venv-pptx-compiler; if [[ ! -x \"\$VENV/bin/python\" ]]; then python3 -m venv \"\$VENV\"; fi; \"\$VENV/bin/pip\" install -q -r ${DEPLOY_PATH}/mxmcgi/tools/pptx-compiler/requirements.txt"
+      ssh_cmd "set -euo pipefail; command -v python3 >/dev/null; if ! python3 -c 'import ensurepip' 2>/dev/null && ! dpkg -s python3-venv >/dev/null 2>&1; then DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-venv python3-pip; fi; VENV=${DEPLOY_PATH}/.venv-pptx-compiler; if [[ ! -x \"\$VENV/bin/python\" ]]; then python3 -m venv \"\$VENV\"; fi; \"\$VENV/bin/pip\" install -q -r ${DEPLOY_PATH}/mxmcgi/tools/pptx-compiler/requirements.txt"
     fi
   fi
   if [[ -f "$ROOT/mxmcgi/requirements-asr.txt" ]]; then
