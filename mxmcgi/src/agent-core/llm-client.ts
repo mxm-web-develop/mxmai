@@ -162,10 +162,14 @@ export async function chatCompletion(args: {
     temperature: args.config.temperature,
     stream: false,
   };
-  // maxplan M3 默认会把思考写进 content；拆分后可见正文更稳定
+  // maxplan M3：成稿默认关思考；仅工具调用轮次开 adaptive（Agent 需要 interleaved thinking）
   if (endpoint.provider === 'maxplan') {
     body.reasoning_split = true;
-    if (args.config.max_tokens == null) body.max_tokens = 8192;
+    const hasTools = Boolean(args.tools && args.tools.length > 0);
+    if (body.thinking === undefined) {
+      body.thinking = hasTools ? { type: 'adaptive' } : { type: 'disabled' };
+    }
+    if (args.config.max_tokens == null) body.max_tokens = 20_000;
   }
   if (args.config.max_tokens != null) body.max_tokens = args.config.max_tokens;
   if (args.config.top_p != null) body.top_p = args.config.top_p;

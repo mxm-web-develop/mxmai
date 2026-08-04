@@ -255,7 +255,7 @@ export interface DeerAPIConfig {
     ): Promise<Response> {
       const maxRetries = opts?.maxRetries ?? 3;
       const baseDelayMs = opts?.baseDelayMs ?? 800;
-      const retryOnStatuses = opts?.retryOnStatuses ?? [502, 503, 504];
+      const retryOnStatuses = opts?.retryOnStatuses ?? [502, 503, 504, 529];
       const label = opts?.requestLabel ?? this.vendorLabel();
   
       let lastError: unknown;
@@ -299,14 +299,20 @@ export interface DeerAPIConfig {
       const causeCode = (lastError as any)?.cause?.code ? String((lastError as any).cause.code) : '';
       const extra = causeCode ? ` (cause=${causeCode})` : '';
       const msg = lastError instanceof Error ? lastError.message : String(lastError);
-      throw new Error(`${label} 请求失败: ${msg}${extra} url=${url}`);
+      const debug = `${label} 请求失败: ${msg}${extra} url=${url}`;
+      console.error('[DeerAPIClient]', debug);
+      const { mapUpstreamError } = require('../../errors') as typeof import('../../errors');
+      throw mapUpstreamError(new Error(debug));
     }
 
     private wrapFetchFailed(label: string, url: string, error: unknown): Error {
       const msg = error instanceof Error ? error.message : String(error);
       const causeCode = (error as any)?.cause?.code ? String((error as any).cause.code) : '';
       const extra = causeCode ? ` (cause=${causeCode})` : '';
-      return new Error(`${label} 网络请求失败: ${msg}${extra} url=${url}`);
+      const debug = `${label} 网络请求失败: ${msg}${extra} url=${url}`;
+      console.error('[DeerAPIClient]', debug);
+      const { mapUpstreamError } = require('../../errors') as typeof import('../../errors');
+      return mapUpstreamError(new Error(debug));
     }
   
     /**

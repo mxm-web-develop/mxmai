@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit';
 import { marked, type Token, type Tokens } from 'marked';
 import { resolveWritingPdfFontPath } from '../writing/pdf-font';
 import { normalizeMarkdownForPdf } from '../writing/markdown-normalize';
+import { fitCoverTitleForDisplay } from '../writing/markdown-pdf-renderer';
 import type { DocumentRenderBlock, DocumentRenderSpecV1 } from './types';
 import {
   resolveAssetUrl,
@@ -137,11 +138,14 @@ class SpecPdfRenderer {
   private async renderBlock(block: DocumentRenderBlock): Promise<void> {
     switch (block.type) {
       case 'cover': {
-        const title =
+        const title = fitCoverTitleForDisplay(
           block.title?.trim() ||
-          resolveStructuredMetaTitle(this.structured) ||
-          'Document';
-        const subtitle = block.subtitle?.trim() || '';
+            resolveStructuredMetaTitle(this.structured) ||
+            'Document'
+        );
+        const subtitle = block.subtitle?.trim()
+          ? fitCoverTitleForDisplay(block.subtitle.trim(), 48)
+          : '';
         const bgUrl = block.assetId
           ? resolveAssetUrl(this.spec, block.assetId)
           : this.spec.page.backgroundImage;
@@ -158,9 +162,9 @@ class SpecPdfRenderer {
           this.doc.rect(0, 0, this.doc.page.width, this.doc.page.height).fill(this.colors.background);
         }
         this.doc.y = this.doc.page.height * 0.28;
-        this.writeText(title, { size: 28, color: this.colors.primary, align: 'center', gap: 0.3 });
+        this.writeText(title, { size: 22, color: this.colors.primary, align: 'center', gap: 0.3 });
         if (subtitle) {
-          this.writeText(subtitle, { size: 14, color: this.colors.muted, align: 'center', gap: 0.5 });
+          this.writeText(subtitle, { size: 12, color: this.colors.muted, align: 'center', gap: 0.5 });
         }
         const profileUrl = resolveAssetUrl(this.spec, 'profile_photo');
         if (profileUrl) {

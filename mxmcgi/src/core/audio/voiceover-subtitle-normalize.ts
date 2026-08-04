@@ -31,13 +31,17 @@ function pushSegment(
 }
 
 /**
- * MiniMax TTS subtitle_file：sentences[].time_begin / time_end 始终为毫秒。
+ * MiniMax TTS subtitle_file：可能是数组，或 { sentences: [...] }。
+ * time_begin / time_end 始终为毫秒。
  * 旧启发式 `>1000 才 /1000` 会把 1ms～1000ms 误当成秒，导致字幕与口播错位。
  */
 export function normalizeMinimaxTtsSubtitlePayload(payload: unknown): VoiceoverSubtitleSegment[] {
   if (!payload || typeof payload !== 'object') return [];
-  const root = payload as Record<string, unknown>;
-  const sentences = Array.isArray(root.sentences) ? root.sentences : [];
+  const sentences = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as { sentences?: unknown }).sentences)
+      ? ((payload as { sentences: unknown[] }).sentences)
+      : [];
   const segments: VoiceoverSubtitleSegment[] = [];
 
   for (const item of sentences) {

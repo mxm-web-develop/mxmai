@@ -31,46 +31,6 @@ function cloneTemplate(t: TaskTemplate): TaskTemplate {
   return JSON.parse(JSON.stringify(t)) as TaskTemplate;
 }
 
-/** audio：TTS，路由 audio-speak */
-function seedAudioSpeak(): TaskTemplate {
-  return {
-    formSchema: {
-      $schema: 'http://json-schema.org/draft-07/schema#',
-      type: 'object',
-      properties: {
-        text: {
-          type: 'string',
-          title: '朗读文本',
-          minLength: 1,
-          'x-user-visible': true,
-        },
-        total_duration_seconds: {
-          type: 'integer',
-          title: '预估时长（秒，计费参考）',
-          minimum: 1,
-          default: 10,
-          'x-user-visible': false,
-        },
-        label: { type: 'string', title: '任务名称', 'x-user-visible': true },
-        uid: { type: 'string', title: '任务 UID', 'x-user-visible': false },
-      },
-      required: ['text', 'uid'],
-    },
-    prompt: {
-      unifiedTemplate: '${text}',
-      unifiedTemplateMarkup: '${text}',
-    },
-    storage: {
-      scope: 'audio',
-      extension: 'mp3',
-      mime: 'audio/mpeg',
-      bucket: process.env.CGI_STORAGE_BUCKET || 'user-media',
-      pathTemplate: '{userId}/audio/{timestamp}-{randomId}/',
-      filenameTemplate: 'tts_{taskId}_{randomId}.mp3',
-    },
-  };
-}
-
 /** music：路由 music-default */
 function seedMusicDefault(): TaskTemplate {
   return {
@@ -352,6 +312,7 @@ async function main() {
   RepositoryFactory.init();
   const repo = RepositoryFactory.createPromptEngineeringConfigRepository();
 
+  // audio 禁止再 seed type=speak；现行 generator|group|series，用 apply:bundle 上架
   const mediaSeeds: Array<{
     scope: TaskScope;
     type: string;
@@ -359,7 +320,6 @@ async function main() {
     label: string;
     taskTemplate: TaskTemplate;
   }> = [
-    { scope: 'audio', type: 'speak', subtype: null, label: 'TTS 朗读', taskTemplate: seedAudioSpeak() },
     { scope: 'music', type: 'default', subtype: null, label: '音乐生成（默认）', taskTemplate: seedMusicDefault() },
     { scope: 'video', type: 'short', subtype: null, label: '短视频', taskTemplate: seedVideoShort() },
   ];

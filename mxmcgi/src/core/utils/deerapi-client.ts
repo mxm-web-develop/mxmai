@@ -233,7 +233,7 @@ export class DeerAPIClient {
   ): Promise<Response> {
     const maxRetries = opts?.maxRetries ?? 3;
     const baseDelayMs = opts?.baseDelayMs ?? 800;
-    const retryOnStatuses = opts?.retryOnStatuses ?? [502, 503, 504];
+    const retryOnStatuses = opts?.retryOnStatuses ?? [502, 503, 504, 529];
     const label = opts?.requestLabel ?? 'DeerAPI';
 
     let lastError: unknown;

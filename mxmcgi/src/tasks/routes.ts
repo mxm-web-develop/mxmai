@@ -7,6 +7,7 @@ import { extractCreateGuide, mergeCreateGuide } from './create-guide';
 import { runTaskV2 } from './task-engine';
 import { ValidationError, ConfigurationError } from './errors';
 import { RepositoryFactory } from '@mxmai/mxmdata';
+import { shapeErrorForViewer, isAdminFromRequest } from '../errors';
 import {
   handleTaskAdminList,
   handleTaskGetById,
@@ -28,6 +29,11 @@ const router = Router();
 
 function getUserId(req: Request): string | undefined {
   return (req.headers['x-user-id'] as string | undefined) ?? undefined;
+}
+
+function sendShapedError(req: Request, res: Response, e: unknown): Response {
+  const { status, body } = shapeErrorForViewer(e, { isAdmin: isAdminFromRequest(req) });
+  return res.status(status).json(body);
 }
 
 function asScope(v: unknown): TaskScope | null {
@@ -195,29 +201,33 @@ router.post('/run', async (req: Request, res: Response) => {
   } catch (e) {
     const err = e as any;
     if (err instanceof ValidationError) {
-      return res.status(400).json({ success: false, code: err.code, error: err.message, details: err.details ?? null });
+      const { status, body } = shapeErrorForViewer(err, { isAdmin: isAdminFromRequest(req) });
+      return res.status(status).json({ ...body, details: err.details ?? null });
     }
     if (err instanceof ConfigurationError) {
-      return res.status(404).json({ success: false, code: err.code, error: err.message });
+      return sendShapedError(req, res, err);
     }
     if (err?.code === 'BILLING_MISCONFIGURED') {
       return res.status(503).json({
         success: false,
         code: 'BILLING_MISCONFIGURED',
         error: err.message || '该业务由于计费模块错误，暂不可用',
+        ...(isAdminFromRequest(req) && err.message
+          ? { debugDetail: String(err.stack || err.message) }
+          : {}),
       });
     }
     if (err?.code === 'INSUFFICIENT_BALANCE') {
       return res.status(402).json({
         success: false,
         code: 'INSUFFICIENT_BALANCE',
-        error: err.message,
+        error: err.message || '余额不足，请充值后再试',
         estimatedTokens: err.estimatedTokens,
         currentBalance: err.currentBalance,
       });
     }
-    const msg = e instanceof Error ? e.message : String(e);
-    return res.status(500).json({ success: false, error: msg });
+    console.error('[tasks/run] error:', e);
+    return sendShapedError(req, res, e);
   }
 });
 

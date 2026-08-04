@@ -1,5 +1,7 @@
+import { FileAudio, FileText, Image as ImageIcon, Music2, Video } from 'lucide-react';
 import type { KnowledgeFolderLinkItem } from '../../api/client';
 import { useTranslation } from 'react-i18next';
+import BrandLoading from '../BrandLoading';
 import { GraphTaskThumb } from '../GraphTaskThumb';
 import { VideoTaskThumb } from '../VideoTaskThumb';
 import { AudioTaskVisual } from '../task-list/AudioTaskVisual';
@@ -21,6 +23,7 @@ import {
 import { StaticTaskThumb } from './StaticTaskThumb';
 import { StyleFeatureTagsEditor } from './StyleFeatureTagsEditor';
 import { UploadPickerThumb } from './UploadPickerThumb';
+import './knowledge-folder-content-list.css';
 
 type KnowledgeFolderLinkCardProps = {
   link: KnowledgeFolderLinkItem;
@@ -34,6 +37,8 @@ type KnowledgeFolderLinkCardProps = {
   onRemove?: () => void;
   enableFeatureTags?: boolean;
   onSaveFeatureTags?: (link: KnowledgeFolderLinkItem, tags: string[]) => Promise<void>;
+  /** 「我的资源」等选择器：紧凑行，避免大卡片占满视口 */
+  compact?: boolean;
 };
 
 function useLinkCardInteraction({
@@ -203,6 +208,64 @@ function VideoStyleLinkCard({
   );
 }
 
+function CompactPickerLinkRow({
+  link,
+  kind,
+  busy,
+  onOpen,
+  onPick,
+}: {
+  link: KnowledgeFolderLinkItem;
+  kind: ReturnType<typeof resolveKnowledgeFolderLinkCardKind>;
+  busy?: boolean;
+  onOpen?: () => void;
+  onPick?: () => void;
+}) {
+  const { canInteract, handleActivate } = useLinkCardInteraction({ link, busy, onOpen, onPick });
+  const title = resolveLinkDisplayTitle(link);
+  const typeLabel = knowledgeFolderLinkTypeLabel(link);
+  const created =
+    typeof link.created_at === 'string' && !Number.isNaN(Date.parse(link.created_at))
+      ? new Date(link.created_at).toLocaleString(undefined, {
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : null;
+
+  let Icon = FileText;
+  if (kind === 'audio') Icon = FileAudio;
+  else if (kind === 'music') Icon = Music2;
+  else if (kind === 'graph' || kind === 'upload') Icon = ImageIcon;
+  else if (kind === 'video') Icon = Video;
+
+  return (
+    <li className="vf-picker-row-wrap">
+      <button
+        type="button"
+        className={`vf-picker-row${busy ? ' vf-picker-row--busy' : ''}${link.broken ? ' vf-picker-row--broken' : ''}`}
+        disabled={!canInteract || busy}
+        onClick={handleActivate}
+        title={title}
+      >
+        <Icon size={16} className="vf-picker-row__icon" aria-hidden />
+        <span className="vf-picker-row__body">
+          <span className="vf-picker-row__name">{title}</span>
+          <span className="vf-picker-row__meta">
+            {[typeLabel, created].filter(Boolean).join(' · ')}
+          </span>
+        </span>
+        {busy ? (
+          <BrandLoading size="small" />
+        ) : (
+          <span className="vf-picker-row__action">{canInteract ? '选用' : ''}</span>
+        )}
+      </button>
+    </li>
+  );
+}
+
 export function KnowledgeFolderLinkCard({
   link,
   graphThumbUrl,
@@ -215,12 +278,25 @@ export function KnowledgeFolderLinkCard({
   onRemove,
   enableFeatureTags,
   onSaveFeatureTags,
+  compact = false,
 }: KnowledgeFolderLinkCardProps) {
   const { t } = useTranslation();
   const kind = resolveKnowledgeFolderLinkCardKind(link);
   const taskItem = knowledgeFolderLinkToTaskItem(link);
   const taskId = knowledgeFolderLinkTaskId(link);
   const { canInteract, handleActivate } = useLinkCardInteraction({ link, busy, onOpen, onPick });
+
+  if (compact) {
+    return (
+      <CompactPickerLinkRow
+        link={link}
+        kind={kind}
+        busy={busy}
+        onOpen={onOpen}
+        onPick={onPick}
+      />
+    );
+  }
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();

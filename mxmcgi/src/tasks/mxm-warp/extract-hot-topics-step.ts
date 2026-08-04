@@ -4,10 +4,11 @@
  *
  * params:
  * - textKey?: string  默认 text/expert/industry-hot-topics（仅默认，非锁定）
- * - maxTopics?: number  也可读 params.topic_count
+ * - maxTopics?: number  发现池提炼条数，默认 TOPIC_POOL_DEFAULT（不再读用户 topic_count）
  * - maxInputItems?: number
  * - sectorFrom / dateModeFrom / reportDateFrom?: 字段名（默认 industry / date_mode / report_date）
- * - fieldMapping?: { sector?, dateMode?, reportDate? } 同义覆盖
+ * - fieldMapping?: { sector?, dateMode?, reportDate?, voiceCategory?, voiceId? } 同义覆盖
+ * - voiceCategoryFrom / voiceIdFrom?: 写作风格选题字段名（默认 voice_category / voice_id）
  */
 import type { PipelineStep, TaskContext } from '../types';
 import { ConfigurationError } from '../errors';
@@ -18,8 +19,12 @@ import { registerInputStep } from '../pipeline-registry';
 import {
   clampTopicMaxResults,
   extractTopicChipsViaTextBusiness,
+  isWritingStyleTopicExtractKey,
+  TOPIC_POOL_DEFAULT,
   type WebsourcePayload,
 } from '../websearch-topic-extract';
+import { putEvidence, resolveWebsourcePayload, slimWebSearchForContract } from './evidence';
+import { resolveVoiceStyleTopicBrief } from './voice-style-topics';
 
 /** 仅作缺省；业务应在节点显式配置 textKey */
 export const DEFAULT_HOT_TOPICS_TEXT_KEY = 'text/expert/industry-hot-topics';
@@ -110,22 +115,45 @@ export function resolveHotTopicsContext(
   };
 }
 
+function resolveWritingVoiceFields(
+  merged: Record<string, unknown>,
+  step: PipelineStep
+): { voiceCategory: string; voiceId: string } {
+  const params = (step.params ?? {}) as Record<string, unknown>;
+  const mapping =
+    params.fieldMapping && typeof params.fieldMapping === 'object' && !Array.isArray(params.fieldMapping)
+      ? (params.fieldMapping as Record<string, unknown>)
+      : {};
+  const voiceCategoryFrom =
+    String(params.voiceCategoryFrom ?? mapping.voiceCategory ?? '').trim() || undefined;
+  const voiceIdFrom = String(params.voiceIdFrom ?? mapping.voiceId ?? '').trim() || undefined;
+  return {
+    voiceCategory: readMappedField(merged, voiceCategoryFrom, [
+      'voice_category',
+      'voiceCategory',
+    ]),
+    voiceId: readMappedField(merged, voiceIdFrom, ['voice_id', 'voiceId']),
+  };
+}
+
 export async function runExtractHotTopicsStep(
   ctx: TaskContext,
   step: PipelineStep
 ): Promise<TaskContext> {
   const contract = getContract(ctx);
   if (!contract) {
-    throw new ConfigurationError('extractHotTopics：缺少合同，请先执行联网检索写入 sources.websource');
+    throw new ConfigurationError('创作素材尚未就绪，请先完成联网检索后再试');
   }
-  const websource = contract.sources?.websource as WebsourcePayload | undefined;
+  const websource = resolveWebsourcePayload(ctx, contract) as WebsourcePayload | undefined;
   if (
     !websource ||
     typeof websource !== 'object' ||
     !Array.isArray(websource.items) ||
     websource.items.length === 0
   ) {
-    throw new ConfigurationError('extractHotTopics：sources.websource 无检索条目，请先跑联网检索');
+    throw new ConfigurationError(
+      '创作素材尚未就绪或与选题未匹配上，请返回上一步重新检索后再试'
+    );
   }
 
   const userId = String(ctx.userId ?? '').trim();
@@ -137,8 +165,9 @@ export async function runExtractHotTopicsStep(
   const merged = mergeParams(ctx);
   const { sector, dateMode, dateLabel, ymd } = resolveHotTopicsContext(merged, step);
   const language = String(merged.language ?? 'zh').trim() || 'zh';
+  // 发现池整池提炼；不再读用户 topic_count（UI 已取消）
   const maxTopics = clampTopicMaxResults(
-    merged.topic_count ?? merged.topicCount ?? params.maxTopics ?? 8
+    params.maxTopics ?? params.poolSize ?? TOPIC_POOL_DEFAULT
   );
   const maxInputItems =
     typeof params.maxInputItems === 'number' && Number.isFinite(params.maxInputItems)
@@ -146,10 +175,23 @@ export async function runExtractHotTopicsStep(
       : Math.min(websource.items.length, 80);
 
   const textKey = resolveHotTopicsTextKey(step);
+  const writingStyle = isWritingStyleTopicExtractKey(textKey);
+  const voiceFields = writingStyle ? resolveWritingVoiceFields(merged, step) : null;
+  const voiceStyle =
+    writingStyle && voiceFields?.voiceCategory && voiceFields.voiceId
+      ? await resolveVoiceStyleTopicBrief({
+          voiceCategory: voiceFields.voiceCategory,
+          voiceId: voiceFields.voiceId,
+          language,
+        })
+      : null;
+
   const extracted = await extractTopicChipsViaTextBusiness({
     textKey,
     userId,
-    industry: sector || '综合',
+    industry: writingStyle
+      ? voiceFields?.voiceCategory || sector || '综合'
+      : sector || '综合',
     dateMode,
     dateLabel: dateLabel || undefined,
     ymd: ymd || undefined,
@@ -158,7 +200,17 @@ export async function runExtractHotTopicsStep(
     parentTaskId: ctx.taskId,
     maxTopics,
     maxInputItems,
-    resultClean: params.resultClean === undefined ? true : (params.resultClean as boolean | Record<string, unknown> | null),
+    resultClean:
+      params.resultClean === undefined
+        ? true
+        : (params.resultClean as boolean | Record<string, unknown> | null),
+    ...(writingStyle
+      ? {
+          voiceCategory: voiceFields?.voiceCategory,
+          voiceId: voiceFields?.voiceId,
+          voiceStyle,
+        }
+      : {}),
   });
 
   if (!extracted.topics.length) {
@@ -176,22 +228,27 @@ export async function runExtractHotTopicsStep(
     topicCount: extracted.topics.length,
   });
 
-  return {
-    ...withContract(ctx, {
-      ...contract,
-      sources: {
-        ...contract.sources,
-        websource: {
-          ...websource,
-          topicChips: extracted.topics,
-        },
-      },
-    }),
+  const fullWithChips: Record<string, unknown> = {
+    ...websource,
+    topicChips: extracted.topics,
+    topicPool: extracted.topics,
+    topicSourceMap: extracted.topicSourceMap,
+  };
+  let next = putEvidence(ctx, 'websource', fullWithChips);
+  next = {
+    ...next,
     state: {
-      ...ctx.state,
+      ...next.state,
       pipelineNestedUsage: nestedUsage,
     },
   };
+  return withContract(next, {
+    ...contract,
+    sources: {
+      ...contract.sources,
+      websource: slimWebSearchForContract(fullWithChips, 'websource'),
+    },
+  });
 }
 
 let registered = false;

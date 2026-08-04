@@ -92,6 +92,8 @@ export interface ManualReviewStepParams {
   summaryTaskKey?: string;
   /** kind=writing-chat 可选：摘要 prompt 模板覆盖（默认会拼上 contract + draft） */
   summaryInstruction?: string;
+  /** 多人语音：审核【角色】台词本后回写 contract.business.lines */
+  syncDialogueLines?: boolean;
 }
 
 export const MANUAL_REVIEW_STEP = 'manualReview';
@@ -112,6 +114,7 @@ export function parseManualReviewStepParams(step: PipelineStep): ManualReviewSte
     editable: p.editable,
     summaryTaskKey: typeof p.summaryTaskKey === 'string' && p.summaryTaskKey.trim() ? p.summaryTaskKey.trim() : undefined,
     summaryInstruction: typeof p.summaryInstruction === 'string' ? p.summaryInstruction : undefined,
+    syncDialogueLines: p.syncDialogueLines === true,
   };
 }
 

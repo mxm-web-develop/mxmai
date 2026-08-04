@@ -1,0 +1,270 @@
+{
+  "schemaVersion": 1,
+  "kind": "writing-voice-pack",
+  "voice_category": "voiceover_brief",
+  "notes": [
+    "短视频解说多语言叶子。"
+  ],
+  "voices": [
+    {
+      "id": "vo_news_host",
+      "craft": {
+        "sentence": "一句一意；逗号可换气；避免超长定语",
+        "stance": "中性播报，判断轻",
+        "opening": "问候+今日焦点一句",
+        "avoid": "书面倒装、难读英文堆砌、表情包文字",
+        "lexicon": "今天、首先、同时、最后"
+      },
+      "referenceParagraph": {
+        "zh": "今天关注一项新规。它影响三类人：从业者、平台，还有普通用户。我们用三分钟说清变化。",
+        "zh-TW": "今天关注一项新规。它影响三类人：从业者、平台，还有普通用户。我们用三分钟说清变化。",
+        "en": "Today’s focus is a new rule. It hits three groups: workers, platforms, and users. Three minutes to make the change clear.",
+        "ja": "Today’s focus is a new rule. It hits three groups: workers, platforms, and users. Three minutes to make the change clear."
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "180"
+      }
+    },
+    {
+      "id": "vo_story_host",
+      "craft": {
+        "sentence": "口语连接词；悬念句可独立成段",
+        "stance": "讲述感，不装纪录片旁白",
+        "opening": "冲突结果先行",
+        "avoid": "书面成语堆、复杂括号注释",
+        "lexicon": "你听、后来、没想到、停一下"
+      },
+      "referenceParagraph": {
+        "zh": "故事从一个拒绝开始。她挂断电话的时候，以为只是丢了一单——后来才知道丢的是一整条路。",
+        "zh-TW": "故事从一个拒绝开始。她挂断电话的时候，以为只是丢了一单——后来才知道丢的是一整条路。",
+        "en": "It starts with a no. When she hung up, she thought she’d lost one job—later she learned she’d lost a whole road.",
+        "ja": "It starts with a no. When she hung up, she thought she’d lost one job—later she learned she’d lost a whole road."
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "180"
+      }
+    },
+    {
+      "id": "vo_knowledge",
+      "craft": {
+        "sentence": "定义→例子→误区；可复述",
+        "stance": "老师感但不说教",
+        "opening": "听众以为自己懂的一点",
+        "avoid": "堆术语、恐吓式科普",
+        "lexicon": "简单说、比如、别误会、记住"
+      },
+      "referenceParagraph": {
+        "zh": "别先背定义。你去菜场觉得贵，不一定是「通胀」三个字能概括——我们拆成价格、预期和替代品。",
+        "zh-TW": "别先背定义。你去菜场觉得贵，不一定是「通胀」三个字能概括——我们拆成价格、预期和替代品。",
+        "en": "Don’t start with the textbook. Feeling prices at the market isn’t just “inflation”—we’ll split price, expectation, and substitutes.",
+        "ja": "Don’t start with the textbook. Feeling prices at the market isn’t just “inflation”—we’ll split price, expectation, and substitutes."
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "120"
+      }
+    },
+    {
+      "id": "vo_hot_chat",
+      "craft": {
+        "sentence": "第二人称多；语气词可控",
+        "stance": "亲密但不油",
+        "opening": "你是不是也…",
+        "avoid": "过度网络黑话、歧视梗",
+        "lexicon": "你看、其实、说真的、对吧"
+      },
+      "referenceParagraph": {
+        "zh": "你是不是也刷到那条热搜了？别急着站队。我们先把时间线捋直，再决定气什么。",
+        "zh-TW": "你是不是也刷到那条热搜了？别急着站队。我们先把时间线捋直，再决定气什么。",
+        "en": "Did you see that trending post too? Don’t pick a side yet. We’ll straighten the timeline—then decide what to be mad at.",
+        "ja": "Did you see that trending post too? Don’t pick a side yet. We’ll straighten the timeline—then decide what to be mad at."
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "90"
+      }
+    },
+    {
+      "id": "vo_tw_news",
+      "craft": {
+        "sentence": "一句一意；逗號可換氣",
+        "stance": "中性播報，判斷輕",
+        "opening": "問候+今日焦點一句",
+        "avoid": "書面倒裝、難讀堆砌",
+        "lexicon": "今天、首先、同時、最後"
+      },
+      "referenceParagraph": {
+        "zh": "今天關注一項新規。它影響三類人。我們用三分鐘說清變化。",
+        "zh-TW": "今天關注一項新規，三分鐘說清。",
+        "en": "Today’s focus is a new rule. It hits three groups. Three minutes to make the change clear.",
+        "ja": "今日の焦点は新ルール。三分で変化を言う。"
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "180"
+      }
+    },
+    {
+      "id": "vo_tw_story",
+      "craft": {
+        "sentence": "口語連接詞；懸念句可獨立成段",
+        "stance": "講述感，不裝紀錄片旁白",
+        "opening": "衝突結果先行",
+        "avoid": "書面成語堆",
+        "lexicon": "你聽、後來、沒想到、停一下"
+      },
+      "referenceParagraph": {
+        "zh": "故事從一個拒絕開始。她掛斷時以為只丟一單——後來才知道丟了一整條路。",
+        "zh-TW": "故事從一個拒絕開始。",
+        "en": "It starts with a no. She thought she’d lost one job—later she learned she’d lost a whole road.",
+        "ja": "拒否から始まる。一件の仕事だと思った失注が、道ごと消えた。"
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "180"
+      }
+    },
+    {
+      "id": "vo_tw_knowledge",
+      "craft": {
+        "sentence": "定義→例子→誤區",
+        "stance": "老師感但不說教",
+        "opening": "聽眾以為自己懂的一點",
+        "avoid": "堆術語、恐嚇科普",
+        "lexicon": "簡單說、比如、別誤會、記住"
+      },
+      "referenceParagraph": {
+        "zh": "別先背定義。菜場覺得貴，不一定是通膨三個字能概括。",
+        "zh-TW": "別先背定義。",
+        "en": "Don’t start with the textbook. Feeling prices at the market isn’t just “inflation.”",
+        "ja": "定義から入るな。市場の高さは「インフレ」一語では足りない。"
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "120"
+      }
+    },
+    {
+      "id": "vo_en_news",
+      "craft": {
+        "sentence": "One idea per sentence; breath commas",
+        "stance": "Neutral; light judgment",
+        "opening": "Greeting + today’s focus",
+        "avoid": "Written inversions, unreadable stacks",
+        "lexicon": "today, first, also, finally"
+      },
+      "referenceParagraph": {
+        "zh": "今天关注一项新规，三类人，三分钟说清。",
+        "zh-TW": "今天關注一項新規。",
+        "en": "Today’s focus is a new rule. It hits three groups. Three minutes to make the change clear.",
+        "ja": "今日の焦点は新ルール。三分で変化を言う。"
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "180"
+      }
+    },
+    {
+      "id": "vo_en_story",
+      "craft": {
+        "sentence": "Oral connectives; suspense lines can stand alone",
+        "stance": "Storyteller, not fake documentary VO",
+        "opening": "Result of conflict first",
+        "avoid": "Idiom piles, heavy parentheses",
+        "lexicon": "listen, later, then, hold on"
+      },
+      "referenceParagraph": {
+        "zh": "故事从一个拒绝开始——后来才知道丢的是整条路。",
+        "zh-TW": "故事從一個拒絕開始。",
+        "en": "It starts with a no. She thought she’d lost one job—later she learned she’d lost a whole road.",
+        "ja": "拒否から始まる。一件の失注が道ごと消えた。"
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "180"
+      }
+    },
+    {
+      "id": "vo_en_chat",
+      "craft": {
+        "sentence": "Second person; controlled filler",
+        "stance": "Intimate not oily",
+        "opening": "Did you also…",
+        "avoid": "Dense slang, discriminatory memes",
+        "lexicon": "you see, honestly, right?"
+      },
+      "referenceParagraph": {
+        "zh": "你是不是也刷到了？先别站队，我们把时间线捋直。",
+        "zh-TW": "你是不是也刷到了？先別站隊。",
+        "en": "Did you see that trending post too? Don’t pick a side yet—we’ll straighten the timeline first.",
+        "ja": "それ、見た？まだ陣営を決めない。まず時系列をまっすぐにする。"
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "90"
+      }
+    },
+    {
+      "id": "vo_ja_news",
+      "craft": {
+        "sentence": "一文一意。読点で呼吸",
+        "stance": "中立。判断は薄い",
+        "opening": "挨拶＋今日の焦点",
+        "avoid": "書き言葉の倒装",
+        "lexicon": "今日、まず、同時に、最後に"
+      },
+      "referenceParagraph": {
+        "zh": "今天关注新规，三类人，三分钟说清。",
+        "zh-TW": "今天關注新規。",
+        "en": "Today’s focus is a new rule affecting three groups—three minutes.",
+        "ja": "今日の焦点は新ルール。三分で変化を言う。"
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "180"
+      }
+    },
+    {
+      "id": "vo_ja_story",
+      "craft": {
+        "sentence": "話し言葉の接続。悬念文を独立させてもよい",
+        "stance": "語り。偽ドキュメンタリー禁止",
+        "opening": "結果から入る",
+        "avoid": "硬い成語の山",
+        "lexicon": "聞いて、あとで、まさか、一度止まって"
+      },
+      "referenceParagraph": {
+        "zh": "故事从一个拒绝开始——丢的是整条路。",
+        "zh-TW": "故事從一個拒絕開始。",
+        "en": "It starts with a no—and later the whole road is gone.",
+        "ja": "拒否から始まる。一件の失注が道ごと消えた。"
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "180"
+      }
+    },
+    {
+      "id": "vo_ja_knowledge",
+      "craft": {
+        "sentence": "定義→例→誤解",
+        "stance": "先生感だが説教しない",
+        "opening": "分かったつもりを突く",
+        "avoid": "用語の山、恫喝科普",
+        "lexicon": "簡単に、たとえば、誤解しないで、覚えて"
+      },
+      "referenceParagraph": {
+        "zh": "别先背定义。菜场觉得贵，不一定是通胀三个字。",
+        "zh-TW": "別先背定義。",
+        "en": "Don’t start with the textbook. Market prices aren’t just “inflation.”",
+        "ja": "定義から入るな。市場の高さはインフレ一語では足りない。"
+      },
+      "mediaPack": {
+        "channel": "voiceover",
+        "seconds_hint": "120"
+      }
+    }
+  ]
+}

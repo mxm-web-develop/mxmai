@@ -14,6 +14,7 @@ import { normalizeUploadedMediaUrl } from '../api/client';
 import { useAuthMediaPreview } from '../hooks/useAuthMediaPreview';
 import { AssetCenterPageHeader, StorageMediaCard } from './asset-center';
 import { PageHint } from './PageHint';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 type Props = {
   /** 固定应用 ID（Integration 抽屉内使用） */
@@ -110,7 +111,7 @@ export function PartnerAppUploadsPanel({ fixedPartnerAppId, embedded }: Props) {
       onOk: async () => {
         const res = await deleteStorageObject(item.id);
         if (res.error) {
-          message.error(res.error);
+          message.error(toUserFacingErrorMessage(res.error));
           return;
         }
         message.success('已删除');

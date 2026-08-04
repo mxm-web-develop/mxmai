@@ -34,7 +34,10 @@
           "formSchema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
-            "required": ["contract", "field_specs"],
+            "required": [
+              "contract",
+              "field_specs"
+            ],
             "properties": {
               "contract": {
                 "type": "object",
@@ -44,7 +47,10 @@
               "field_specs": {
                 "type": "array",
                 "title": "待填字段",
-                "items": { "type": "object", "additionalProperties": true }
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
               }
             },
             "additionalProperties": false
@@ -52,11 +58,21 @@
           "prompt": {
             "unifiedTemplate": "You classify an industry label into a search track for news retrieval.\n\nRead contract.basic.industry, industry_custom, sector_label.\n\nReturn ONE JSON object only (keys ⊆ field_specs): track, sector_label, reason.\n\ntrack MUST be exactly one of:\n- finance — banking, markets, securities, insurance, fintech\n- tech — software, AI, chips, internet, digital products\n- entertainment — film, TV, celebrities, pop culture\n- sports — athletics, F1/motorsport, football, basketball, Olympics, esports competitions\n- general — everything else / cross-industry\n\nRules:\n- Custom labels like「F1赛事」「一级方程式」「赛车」→ sports\n- Do not invent other track values\n- Output JSON only, no markdown fences\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
           },
-          "pipeline": { "pre": [], "enrich": [], "post": [] },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
           "extra": {
             "generateParams": {
               "temperature": 0.1,
-              "maxTokens": 512
+              "maxTokens": 20000,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "reasoning_split": true
+              }
             }
           }
         }

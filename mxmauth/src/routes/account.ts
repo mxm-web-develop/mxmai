@@ -1135,7 +1135,9 @@ router.post('/admin/users', adminMiddleware, async (req, res, next) => {
     const password_hash = await hashPassword(password);
 
     try {
-      const trimmedEmail = email?.trim() || undefined;
+      // 入库前统一 lowercase + trim，与登录端 line 215-216 保持一致
+      const trimmedEmail = email?.trim().toLowerCase() || undefined;
+      const nowIso = new Date().toISOString();
       const user = await userRepo.create({
         username: username.trim(),
         email: trimmedEmail,
@@ -1144,8 +1146,9 @@ router.post('/admin/users', adminMiddleware, async (req, res, next) => {
         role: role ?? 'user',
         membership_type: membership_type ?? 'free',
         status: 'active',
-        // 后台创建账号视为已验证，避免迭代期无法登录
-        email_verified_at: trimmedEmail ? new Date().toISOString() : null,
+        // 后台创建账号一律视为已验证邮箱，避免迭代期无法登录
+        // 无论是否提供 email（admin 主动创建的用户不应卡 EMAIL_NOT_VERIFIED）
+        email_verified_at: nowIso,
       });
 
       const folderInfo = await folderService.createDefaultFolders(user.id);

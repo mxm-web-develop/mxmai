@@ -43,14 +43,16 @@ function pickEstimateData(
   res: Awaited<ReturnType<typeof estimateTaskV2>>
 ): TaskEstimateResult | null {
   if (res.code === 'BILLING_MISCONFIGURED') {
+    // 503 时 request() 把 body.data 摊进 extras，不挂在 res.data
+    const extras = (res.extras ?? {}) as Partial<TaskEstimateResult>;
     return {
-      estimatedTokens: 0,
-      currentBalance: Number(res.extras?.currentBalance ?? 0),
+      estimatedTokens: Number(extras.estimatedTokens ?? 0),
+      currentBalance: Number(extras.currentBalance ?? 0),
       allowed: false,
       hasPricing: false,
-      isAdmin: false,
+      isAdmin: Boolean(extras.isAdmin),
       code: 'BILLING_MISCONFIGURED',
-      message: res.error || BILLING_MSG,
+      message: res.error || extras.message || BILLING_MSG,
     };
   }
   const raw = res.data as
@@ -104,7 +106,12 @@ async function fetchEstimateOnce(opts: {
     .then((res) => {
       const data = pickEstimateData(res);
       if (data) {
-        ESTIMATE_OK_CACHE.set(opts.requestKey, { at: Date.now(), data });
+        // 仅缓存「可计费」结果；BILLING_MISCONFIGURED 不得进 OK 缓存，否则改路由后仍卡死 60s
+        const cacheable =
+          data.hasPricing !== false && data.code !== 'BILLING_MISCONFIGURED';
+        if (cacheable) {
+          ESTIMATE_OK_CACHE.set(opts.requestKey, { at: Date.now(), data });
+        }
         return data;
       }
       if (res.error) {

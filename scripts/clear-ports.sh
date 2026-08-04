@@ -9,8 +9,8 @@ if [ "${CLEAR_WEB_ONLY:-}" = "1" ]; then
   PORTS=("$WEB_DEV_PORT")
   MODULES=("web")
 else
-  PORTS=(4001 4002 4003 4004 4005 3000)
-  MODULES=("mxmauth" "mxmpay" "mxmcgi-api" "mxmcgi-worker" "mxmnotify" "gateway")
+  PORTS=(4001 4002 4003 4004 4005 4010 3000)
+  MODULES=("mxmauth" "mxmpay" "mxmcgi-api" "mxmcgi-worker" "mxmnotify" "pptx-compiler" "gateway")
 fi
 
 echo "🔍 检查并清理端口..."

@@ -63,6 +63,16 @@ describe('voiceover-subtitle-normalize', () => {
     expect(segments[1].endSeconds).toBe(1.6);
   });
 
+  it('accepts raw MiniMax array payload', () => {
+    const segments = normalizeMinimaxTtsSubtitlePayload([
+      { text: '第一句。', time_begin: 0, time_end: 1200 },
+      { text: '第二句。', time_begin: 1200, time_end: 2400 },
+    ]);
+    expect(segments).toHaveLength(2);
+    expect(segments[0].startSeconds).toBe(0);
+    expect(segments[1].endSeconds).toBe(2.4);
+  });
+
   it('estimates segments from script by duration', () => {
     const segments = estimateSegmentsFromScript('第一句。第二句！', 10);
     expect(segments.length).toBeGreaterThanOrEqual(2);

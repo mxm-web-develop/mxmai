@@ -106,12 +106,27 @@ export function formatToCsv(text: string, title?: string): string {
   return lines.map((line) => `"${line.replace(/"/g, '""')}"`).join('\n');
 }
 
-export async function formatToPdf(text: string, title?: string): Promise<Buffer> {
+export type FormatToPdfOptions = {
+  includeCover?: boolean;
+  includeToc?: boolean;
+  subtitle?: string;
+};
+
+export async function formatToPdf(
+  text: string,
+  title?: string,
+  options?: FormatToPdfOptions
+): Promise<Buffer> {
   let markdown = normalizeMarkdownForPdf(text);
   if (title?.trim() && !/^#\s+/m.test(markdown.slice(0, 200))) {
     markdown = `# ${title.trim()}\n\n${markdown}`;
   }
-  return renderMarkdownToPdf(markdown);
+  return renderMarkdownToPdf(markdown, {
+    title,
+    subtitle: options?.subtitle,
+    includeCover: options?.includeCover,
+    includeToc: options?.includeToc,
+  });
 }
 
 /**
@@ -134,7 +149,7 @@ export async function formatDocument(
     case 'csv':
       return formatToCsv(text, title);
     case 'pdf':
-      return await formatToPdf(text, title, metadata);
+      return await formatToPdf(text, title);
     default:
       // 默认使用 Markdown
       return formatToMarkdown(text, title, metadata);

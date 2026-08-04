@@ -13,6 +13,7 @@ import {
   isVideoPipelineOrchestratorBusiness,
   mergeGenerateParams,
   parseVideoGeneratorRouteValue,
+  patchGenerateParamsExtra,
   readAiVideoGeneratorRoute,
   readGenerateParams,
   routableProviderOptions,
@@ -227,6 +228,7 @@ export function AdminBusinessPricingTab({
             <Typography.Text type="secondary">
               推荐：temperature={RECOMMENDED_GENERATE_PARAMS.temperature}，maxTokens=
               {RECOMMENDED_GENERATE_PARAMS.maxTokens}，topP={RECOMMENDED_GENERATE_PARAMS.topP}
+              ，模型思考=关闭
             </Typography.Text>
           </Space>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -248,20 +250,16 @@ export function AdminBusinessPricingTab({
                     const prevExtra = (prev.extra ?? {}) as Record<string, unknown>;
                     return {
                       ...prev,
-                      extra: {
-                        ...prevExtra,
-                        generateParams: {
-                          ...(readGenerateParams(prevExtra) ?? {}),
-                          temperature: v ?? undefined,
-                        },
-                      },
+                      extra: patchGenerateParamsExtra(prevExtra, {
+                        temperature: v ?? undefined,
+                      }),
                     };
                   });
                 }}
               />
             </Form.Item>
             <Form.Item
-              label="maxTokens（建议 1200～2000）"
+              label="maxTokens（建议 8k～65k，视任务；模型上限约 128k）"
               style={{ marginBottom: 0 }}
               tooltip={{ title: GENERATE_PARAM_TOOLTIPS.maxTokens }}
             >
@@ -278,13 +276,9 @@ export function AdminBusinessPricingTab({
                     const prevExtra = (prev.extra ?? {}) as Record<string, unknown>;
                     return {
                       ...prev,
-                      extra: {
-                        ...prevExtra,
-                        generateParams: {
-                          ...(readGenerateParams(prevExtra) ?? {}),
-                          maxTokens: v ?? undefined,
-                        },
-                      },
+                      extra: patchGenerateParamsExtra(prevExtra, {
+                        maxTokens: v ?? undefined,
+                      }),
                     };
                   });
                 }}
@@ -308,13 +302,50 @@ export function AdminBusinessPricingTab({
                     const prevExtra = (prev.extra ?? {}) as Record<string, unknown>;
                     return {
                       ...prev,
-                      extra: {
-                        ...prevExtra,
-                        generateParams: {
-                          ...(readGenerateParams(prevExtra) ?? {}),
-                          topP: v ?? undefined,
-                        },
-                      },
+                      extra: patchGenerateParamsExtra(prevExtra, {
+                        topP: v ?? undefined,
+                      }),
+                    };
+                  });
+                }}
+              />
+            </Form.Item>
+            <Form.Item
+              label="模型思考（成稿建议关闭）"
+              style={{ marginBottom: 0 }}
+              tooltip={{ title: GENERATE_PARAM_TOOLTIPS.enableThinking }}
+              extra={
+                readGenerateParams(draft?.extra)?.enableThinking === undefined ? (
+                  <Typography.Text type="warning">
+                    未写入业务配置。请显性选择；运行时不会再偷偷默认关思考。
+                  </Typography.Text>
+                ) : undefined
+              }
+            >
+              <Select
+                allowClear={false}
+                value={
+                  readGenerateParams(draft?.extra)?.enableThinking === true
+                    ? 'adaptive'
+                    : readGenerateParams(draft?.extra)?.enableThinking === false
+                      ? 'disabled'
+                      : undefined
+                }
+                placeholder="未配置 — 请显性选择"
+                style={{ width: '100%' }}
+                options={[
+                  { value: 'disabled', label: '关闭（推荐成稿路径）' },
+                  { value: 'adaptive', label: '开启（adaptive）' },
+                ]}
+                onChange={(v) => {
+                  onDraftChange((prev) => {
+                    if (!prev) return prev;
+                    const prevExtra = (prev.extra ?? {}) as Record<string, unknown>;
+                    return {
+                      ...prev,
+                      extra: patchGenerateParamsExtra(prevExtra, {
+                        enableThinking: v === 'adaptive',
+                      }),
                     };
                   });
                 }}

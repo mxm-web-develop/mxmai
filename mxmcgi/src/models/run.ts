@@ -33,14 +33,19 @@ function pruneEmptyImageParameterSlots(parameters: Record<string, unknown> | und
   }
 }
 
-/** Task V2 generateParams（顶层 maxTokens 等）→ provider API parameters */
+/** Task V2 generateParams（顶层 maxTokens 等）→ provider API parameters。
+ * 不从 provider_models.default_parameters 继承 thinking（须由业务显性配置）。
+ */
 export function mergeGenerateParamsIntoParameters(
   params: GenerateParams,
   rowDefaults?: Record<string, unknown> | null
 ): Record<string, unknown> {
   const top = params as Record<string, unknown>;
+  const catalog = { ...(rowDefaults ?? {}) };
+  delete catalog.thinking;
+  delete catalog.reasoning_split;
   const merged: Record<string, unknown> = {
-    ...(rowDefaults ?? {}),
+    ...catalog,
     ...((params.parameters ?? {}) as Record<string, unknown>),
   };
   if (typeof top.maxTokens === 'number' && Number.isFinite(top.maxTokens)) {

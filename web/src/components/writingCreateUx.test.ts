@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   filterBasicFieldsByCreateGuide,
+  getCreateGuideMidPreOutline,
+  getCreateGuideMidPreTopicRecommend,
   indicatesWarpGatesCreate,
   needsCreateGuideClientWebSearchPreview,
+  needsCreateGuideNestedTextPreview,
   resolvePostPreAssistantHint,
   shouldUseWritingWarpGuidedCreate,
 } from './writingCreateUx';
@@ -10,10 +13,10 @@ import {
 describe('writingCreateUx capability signals', () => {
   const previewGuide = {
     interactiveCard: {
-      fields: [{ name: 'industry' }, { name: 'date_mode' }, { name: 'topic_count' }],
+      fields: [{ name: 'industry' }, { name: 'date_mode' }, { name: 'article_length' }],
       hint: '先确认检索条件',
     },
-    webSearch: { maxResults: 200, topicCount: 8, clientPreview: true as const },
+    webSearch: { maxResults: 200, clientPreview: true as const },
   };
   const noPreviewGuide = {
     interactiveCard: {
@@ -62,6 +65,54 @@ describe('writingCreateUx capability signals', () => {
         createGuide: { webSearch: { maxResults: 40, clientPreview: false } },
       })
     ).toBe(false);
+    // mid-pre（风格→话题）不算 pre 结束后行业检索
+    expect(
+      needsCreateGuideClientWebSearchPreview({
+        createGuide: {
+          webSearch: {
+            clientPreview: true,
+            midPreAfterField: 'voice_id',
+            topicCount: 32,
+          },
+        },
+      })
+    ).toBe(false);
+  });
+
+  it('midPre topic recommend reads afterField / topicCount', () => {
+    const mid = getCreateGuideMidPreTopicRecommend({
+      createGuide: {
+        webSearch: {
+          clientPreview: true,
+          midPreAfterField: 'voice_id',
+          topicField: 'topic',
+          topicCount: 32,
+          maxResults: 80,
+          topicExtractTextKey: 'text/expert/industry-hot-topics',
+        },
+      },
+    });
+    expect(mid?.afterField).toBe('voice_id');
+    expect(mid?.topicField).toBe('topic');
+    expect(mid?.topicCount).toBe(32);
+  });
+
+  it('midPre outline reads structure_id → outline', () => {
+    const mid = getCreateGuideMidPreOutline({
+      createGuide: {
+        outlinePreview: {
+          clientPreview: true,
+          midPreAfterField: 'structure_id',
+          outlineField: 'outline',
+          textKey: 'text/expert/topic-article-outline',
+          loadingHint: '正在生成大纲…',
+        },
+      },
+    });
+    expect(mid?.afterField).toBe('structure_id');
+    expect(mid?.outlineField).toBe('outline');
+    expect(mid?.textKey).toBe('text/expert/topic-article-outline');
+    expect(mid?.loadingHint).toContain('大纲');
   });
 
   it('shouldUseWritingWarpGuidedCreate ignores taskKey/subtype labels', () => {
@@ -108,6 +159,29 @@ describe('writingCreateUx capability signals', () => {
     expect(filtered.map((f) => f.name)).toEqual(['structure_divergence', 'seek_count']);
   });
 
+  it('client nestedText preview needs followUp card + text task key', () => {
+    expect(
+      needsCreateGuideNestedTextPreview({
+        createGuide: {
+          nestedTextPreview: {
+            nestedTextTaskKey: 'text/expert/dialogue-content-scan',
+            clientPreview: true,
+          },
+          followUpInteractiveCard: {
+            fields: [{ name: 'dialogue_format' }, { name: 'cast' }],
+          },
+        },
+      })
+    ).toBe(true);
+    expect(
+      needsCreateGuideNestedTextPreview({
+        createGuide: {
+          nestedTextPreview: { nestedTextTaskKey: 'text/expert/dialogue-content-scan' },
+        },
+      })
+    ).toBe(false);
+  });
+
   it('post-pre hint prefers createGuide, else generic capability copy', () => {
     expect(
       resolvePostPreAssistantHint({
@@ -127,5 +201,21 @@ describe('writingCreateUx capability signals', () => {
         usedClientWebSearchPreview: false,
       })
     ).toBe('基础信息已确认。请继续填写剩余项。');
+    expect(
+      resolvePostPreAssistantHint({
+        createGuide: {
+          interactiveCard: {
+            fields: [{ name: 'source_material' }],
+            postPreHint: '正在分析…',
+          },
+          nestedTextPreview: { nestedTextTaskKey: 'text/expert/dialogue-content-scan' },
+          followUpInteractiveCard: {
+            fields: [{ name: 'cast' }],
+            postPreHint: '配置已确认。接下来将拆分台词。',
+          },
+        },
+        usedClientWebSearchPreview: false,
+      })
+    ).toBe('配置已确认。接下来将拆分台词。');
   });
 });

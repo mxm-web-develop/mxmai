@@ -8,12 +8,17 @@ description: 在 SuperMXMai 中新增或更新 Writing 子业务（formSchema + 
 > **与 Graph skill 的关系**：流程与 `mxmai_graph_business_bundle` 相同（bundle 形态 + `apply:bundle`），但 **scope、taskKey、模板契约、运行时、计费** 均按写作链路，**不可**把 graph bundle 改 `scope` 后导入。  
 > **配置 vs 老代码**：v2 只认 `extra.taskTemplate` 里的 **`prompt.unifiedTemplate`**（见 [`OUTLINE-CONFIG-VS-CODE.md`](../../../mxmcgi/src/tasks/OUTLINE-CONFIG-VS-CODE.md)）。  
 > **命名（必读）**：[`.cursor/skills/mxmai_business_naming/SKILL.md`](../mxmai_business_naming/SKILL.md) — writing type **仅** `generator`（文稿 / Editorial）| `group`（方案 / Proposal）| `series`（系列 / Series）。题材进 subtype；中英显示见 naming skill §2。  
-> **历史典例**（旧 type，仅参考模板结构）：`editorial`/`proposal`/`outlines`/`business` 等。  
+> **禁止** `type=editorial` / `proposal` 等旧 key；行业日报 = `writing/generator/industry-daily`。  
+> **默认模型（硬约束）**：`routing` / `businessPricing` **一律** `provider=maxplan` + `model=MiniMax-M3`（与 text / 平台 `DEFAULT_LLM` 一致）。**禁止**再写 `deer` / `deepseek-*` / `deerapi`。  
 > **新上架**请用例如：`type=generator` + `subtype=tech-outline`（subtypeLabel ≤ 8 字；补 `taskLabelI18n.en` / `subtypeLabelI18n.en`）。**不要**默认加 `parallel_count`。
 
 当你需要「从零做一个新的写作子类型 + 表单 + 提示词模板 + 路由/价格」或「改现有子业务并同步 DB」时，按本 skill 执行。
 
-**可选执行管线**（前置 / 人工审核 / 后置，**非必须**）：`generator` 以 **直出** 为主；`group` / `series` 可按需分步。见 [`.cursor/skills/mxmai_business_pipeline/SKILL.md`](../mxmai_business_pipeline/SKILL.md)。
+**可选执行管线**（前置 / 人工审核 / 后置，**非必须**）：`generator` 以 **直出** 为主；`group` / `series` 可按需分步。见 [`.cursor/skills/mxmai_business_pipeline/SKILL.md`](../mxmai_business_pipeline/SKILL.md)。**主生成（读合同调 LLM）在 output**；`group` 遍历数组也在 output，勿塞 post。
+
+> **行业日报教训（2026-07）**：`writing/generator/industry-daily` 曾在成稿前叠 structure → mapSections → body 三层 nestedText，token 贵且结构更差；已改为证据链 + **主笔直出**。详见管线 skill **§1.1**，同类报道体勿再堆回中间策划 LLM。
+
+> **闸门语义**：pre 的 `interactiveCard` / `basic-form` 闸门会让 task 变成 `awaiting_user_input`（列表文案"待补充信息"），与真审核 `awaiting_review`（"待审核"）严格区分；详见 `docs/adr/awaiting-user-input-gate.md`。配 pipeline 时**不要**让 pre 交互卡进 `awaiting_review`，否则会误导用户。
 
 ---
 
@@ -44,21 +49,21 @@ description: 在 SuperMXMai 中新增或更新 Writing 子业务（formSchema + 
 
 `subtype` = **可单独运营的场景名**（如 `tech-outline`、`ad`、`resume-it`），与路由键、计费一一对应。**subtypeLabel 2～8 字**；补英文 i18n。
 
-**不得新建**旧 type：`editorial` `proposal` `longwrite` `outlines` `articles` `voice-scripts` `business` `resumes` 等（历史行可暂留；解析层有别名）。
+**禁止**作 type：`editorial` `proposal` `longwrite` `outlines` `articles` `voice-scripts` `business` `resumes` 等。库内残留用 `pnpm run deactivate:legacy-writing-editorial`。
 
 ### 2.2 逻辑模型名 `routing.logical_model`
 
 - `writing-generator-tech-outline`（`type=generator` + `subtype=tech-outline`）
+- `writing-generator-industry-daily`
 - `writing-group-course-series-plan`
 - `writing-series-novel-next-chapter`
-- 历史：`writing-editorial-*` / `writing-proposal-*` / `writing-outlines-*` 等仅兼容旧数据
 
-解析写入 **`writing_scope_config`**（`task_key` + `sub_type`），不是 `graph_scope_config`。
+解析写入 **`writing_scope_config`**（`task_key` + `sub_type`），不是 `graph_scope_config`。`logical_model` 前缀必须是 `writing-generator|group|series-`，**禁止** `writing-editorial-*`。
 
 ### 2.3 `scope=outline` 与 `scope=writing`
 
 - **新上架**：统一 **`scope: "writing"`** + `generator` | `group` | `series`。
-- `scope=outline` 为历史兼容路径，勿新建。
+- 勿新建 `scope=outline`。
 
 ---
 
@@ -93,11 +98,11 @@ description: 在 SuperMXMai 中新增或更新 Writing 子业务（formSchema + 
 cd mxmcgi
 pnpm exec tsx src/scripts/convert-writing-taskTemplate-to-bundle.ts \
   src/tasks/examples/writing-outlines-tech-article.taskTemplate.json \
-  outlines tech-article deer deepseek-v3.2 \
-  > src/tasks/examples/writing-outlines-tech-article.business.json
+  generator tech-outline maxplan MiniMax-M3 \
+  > src/tasks/examples/writing-generator-tech-outline.business.json
 ```
 
-参数：`taskTemplate路径` `type` `subtype` `provider` `model`。生成后补全 `businessPricing` / `display` / `routing` 细项再 `apply:bundle`。
+参数：`taskTemplate路径` `type` `subtype` `provider` `model`（**固定示例**：`maxplan` `MiniMax-M3`）。生成后补全 `businessPricing` / `display` / `routing` 细项再 `apply:bundle`。
 
 ---
 
@@ -120,7 +125,7 @@ pnpm exec tsx src/scripts/convert-writing-taskTemplate-to-bundle.ts \
 | **长文本克制** | 全表单 **至多 1 个** 可选 textarea（`supplement` / 补充说明，2～3 行）；货盘、brief、手册走 `textFileOrPaste` / `kbRecall` / `webSearch`，不要堆多个 textarea |
 | **有默认就不必填** | 带合理 `default` 的枚举/多选 **不要** 放进 `required`；空值时由 `unifiedTemplate` 说明推断策略 |
 | **算填表负担** | 仅计用户**真正要选择或输入**的可见项；带 `default` 且多数用户不改的、`x-user-visible: false` 的、可选 context 槽位（`webSearch` / `kbRecall` / `textFileOrPaste`）**不计入** 1～6 项上限 |
-| **典例** | `writing/business/marketing-plan`：仅 `brand_name` 必填；周期/渠道/目标/客群全为选择器；补充说明可选 2 行 |
+| **典例** | `writing/generator/topic-article`：仅主题类短文本必填；篇幅/语气等用选择器 + default；补充说明可选 2 行 |
 
 **反例（禁止）**：`required: [brand, horizon, channels, prompt]` 且 prompt 为 5 行必填 textarea；周期用自由文本「到10月底」而非枚举预设。
 
@@ -169,7 +174,7 @@ pnpm exec tsx src/scripts/convert-writing-taskTemplate-to-bundle.ts \
 - [ ] `prompt.unifiedTemplate` 非空；每个 `${var}` 在 `formSchema` 或白名单中。
 - [ ] JSON 类业务：输出约束完整（仅 JSON、字段列表、禁止 markdown 包裹）。
 - [ ] **无** `promptTextTaskKey`、**无** 生图 referenceImages（除非刻意扩展）。
-- [ ] `routing.logical_model` 与 `business_type` 一致；`model` 在 `provider_models` 可解析。
+- [ ] `routing`：**`provider=maxplan` + `model=MiniMax-M3`**（禁止 deer / deepseek）；`logical_model` 与 `business_type` 一致；`model` 在 `provider_models` 可解析。
 - [ ] `businessPricing.charge_metric` 与运营一致（常见 `per_request` / token 类指标，以 Admin 现有写作为准）。
 - [ ] `pnpm run apply:bundle -- ... [--dry-run]` 或 Admin import 成功。
 - [ ] `GET /api/v2/tasks/form-config?scope=writing&taskKey=...&subtype=...` 返回预期 schema。

@@ -464,7 +464,7 @@
           "extra": {
             "generateParams": {
               "temperature": 0.2,
-              "maxTokens": 8192
+              "maxTokens": 20000
             }
           }
         }
@@ -566,7 +566,7 @@
           "extra": {
             "generateParams": {
               "temperature": 0.25,
-              "maxTokens": 16384
+              "maxTokens": 20000
             }
           }
         }
@@ -1145,7 +1145,7 @@
           "extra": {
             "generateParams": {
               "temperature": 0.45,
-              "maxTokens": 12000
+              "maxTokens": 20000
             }
           },
           "pipeline": {
@@ -1170,9 +1170,13 @@
             ],
             "post": [
               {
-                "step": "renderDocumentPdf",
+                "step": "markdownToPdf",
                 "layoutTaskKey": "text/layout/document-render-spec",
                 "params": {
+                  "storageMode": "sidecar",
+                  "includeCover": true,
+                  "includeToc": true,
+                  "useLayoutLlm": true,
                   "layoutTaskKey": "text/layout/document-render-spec",
                   "fallbackRenderer": "markdown",
                   "maxRetries": 2,

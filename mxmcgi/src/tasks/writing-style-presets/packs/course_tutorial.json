@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 1,
+  "kind": "writing-voice-pack",
+  "voice_category": "course_tutorial",
+  "notes": [
+    "网课教程：知识精讲/跟练/系统课/项目交付；各语言平台热门课型叶子。"
+  ],
+  "voices": [
+    {
+      "id": "course_dedao",
+      "craft": {
+        "sentence": "定义→例子→误区→带走一句",
+        "stance": "知识服务感，不装学院腔",
+        "opening": "听众以为自己懂的一点",
+        "avoid": "鸡汤空转、无例题、写死某一学科清单",
+        "lexicon": "简单说、记住、别误会、这一课"
+      },
+      "referenceParagraph": {
+        "zh": "别先背定义。先戳破一个常见误解，再用生活例子拆开，最后留一句学员能转述的话。",
+        "zh-TW": "别先背定义。先戳破一个常见误解，再用生活例子拆开，最后留一句学员能转述的话。",
+        "en": "Don’t start with the textbook. Bust a common misunderstanding, unpack with a lived example, leave one line they can retell.",
+        "ja": "Don’t start with the textbook. Bust a common misunderstanding, unpack with a lived example, leave one line they can retell."
+      },
+      "mediaPack": {
+        "channel": "course_lesson",
+        "seconds_hint": "1200"
+      }
+    },
+    {
+      "id": "course_bilibili",
+      "craft": {
+        "sentence": "步骤编号；口播同步动作",
+        "stance": "同伴教练，允许暂停",
+        "opening": "成品预览 + 今天只做哪一步",
+        "avoid": "炫技跳步、羞辱新手、写死编程/摄影等固定学科",
+        "lexicon": "暂停、跟上、常见卡点、先别管"
+      },
+      "referenceParagraph": {
+        "zh": "先看成品十秒。今天只做到「能验收的一小步」。卡住别慌——给出三步绕行再继续。",
+        "zh-TW": "先看成品十秒。今天只做到「能验收的一小步」。卡住别慌——给出三步绕行再继续。",
+        "en": "Ten seconds of the finished thing. Today only one checkable step. Stuck? Offer a three-step detour, then continue.",
+        "ja": "Ten seconds of the finished thing. Today only one checkable step. Stuck? Offer a three-step detour, then continue."
+      },
+      "mediaPack": {
+        "channel": "course_lesson",
+        "seconds_hint": "900"
+      }
+    },
+    {
+      "id": "course_openuni",
+      "craft": {
+        "sentence": "地图→本章位置→核心论证→预告下一章",
+        "stance": "课堂讲师，节奏稳",
+        "opening": "把学习者放回课程地图",
+        "avoid": "碎片爽点、无衔接、写死学科清单",
+        "lexicon": "上一章、本节、因此、下一章你会"
+      },
+      "referenceParagraph": {
+        "zh": "先看地图：你卡在哪一环。本节只解决这一环，案例与练习留给下一章。",
+        "zh-TW": "先看地图：你卡在哪一环。本节只解决这一环，案例与练习留给下一章。",
+        "en": "Map first: which link are you stuck on? This section clears only that link; drills wait for next chapter.",
+        "ja": "Map first: which link are you stuck on? This section clears only that link; drills wait for next chapter."
+      },
+      "mediaPack": {
+        "channel": "course_lesson",
+        "seconds_hint": "2400"
+      }
+    },
+    {
+      "id": "course_project",
+      "craft": {
+        "sentence": "完成定义→里程碑→示范→验收",
+        "stance": "工坊教练，结果导向",
+        "opening": "最终交付物长什么样",
+        "avoid": "只讲理念不交件、写死必须是代码仓库",
+        "lexicon": "完成物、里程碑、验收、今天必须"
+      },
+      "referenceParagraph": {
+        "zh": "完成物先说清楚。今天三十分钟只做一个可验收的里程碑，其余降级。",
+        "zh-TW": "完成物先说清楚。今天三十分钟只做一个可验收的里程碑，其余降级。",
+        "en": "Define done first. Today’s thirty minutes: one checkable milestone; everything else can degrade.",
+        "ja": "Define done first. Today’s thirty minutes: one checkable milestone; everything else can degrade."
+      },
+      "mediaPack": {
+        "channel": "course_lesson",
+        "seconds_hint": "1800"
+      }
+    },
+    {
+      "id": "course_tw_hahow",
+      "craft": {
+        "sentence": "目標→步驟→示範→練習；短段",
+        "stance": "教練感，鼓勵但不空喊",
+        "opening": "學完能交出什麼",
+        "avoid": "堆術語、無練習的空講",
+        "lexicon": "這一課、先做、常見錯、交作業"
+      },
+      "referenceParagraph": {
+        "zh": "這一課結束你要交出一頁大綱，不是「聽懂了」。我們拆成四步，每步不超過八分鐘。",
+        "zh-TW": "這一課結束你要交出一頁大綱。",
+        "en": "By the end you hand in a one-page outline—not “I get it.” Four steps, each under eight minutes.",
+        "ja": "終わりに一枚のアウトラインを出す。「わかった」ではない。"
+      },
+      "mediaPack": {
+        "channel": "course_lesson",
+        "seconds_hint": "1800"
+      }
+    },
+    {
+      "id": "course_en_masterclass",
+      "craft": {
+        "sentence": "Anecdote → principle → try-this",
+        "stance": "Authoritative but inviting",
+        "opening": "A vivid failure or win",
+        "avoid": "Name-dropping without a drill",
+        "lexicon": "watch this, try this, the rule is"
+      },
+      "referenceParagraph": {
+        "zh": "先看一段失败开场，再抽出那条可复用的规则，最后你改自己的第一段。",
+        "zh-TW": "先看失敗開場，再抽規則，最後改你的第一段。",
+        "en": "First a failed opening, then the reusable rule, then you rewrite your own first paragraph.",
+        "ja": "失敗の冒頭→再利用できる法則→自分の一段を直す。"
+      },
+      "mediaPack": {
+        "channel": "course_lesson",
+        "seconds_hint": "1200"
+      }
+    },
+    {
+      "id": "course_en_coursera",
+      "craft": {
+        "sentence": "Learning objective first; short definitions",
+        "stance": "Academic-clear, not dry",
+        "opening": "What you can do after this module",
+        "avoid": "Wall of theory without checks",
+        "lexicon": "by the end, key term, self-check"
+      },
+      "referenceParagraph": {
+        "zh": "本模块结束你能：用自己的话解释 X，并完成一道自测。",
+        "zh-TW": "本模組結束你能解釋 X 並完成自測。",
+        "en": "By module end you can explain X in your own words and pass a short self-check.",
+        "ja": "終了時、X を自分の言葉で説明し、小テストを通す。"
+      },
+      "mediaPack": {
+        "channel": "course_lesson",
+        "seconds_hint": "2400"
+      }
+    },
+    {
+      "id": "course_en_khan",
+      "craft": {
+        "sentence": "Tiny steps; speak the working",
+        "stance": "Patient tutor",
+        "opening": "What we’re solving in one line",
+        "avoid": "Skipping algebra / hidden leaps",
+        "lexicon": "next, pause, try it, common mistake"
+      },
+      "referenceParagraph": {
+        "zh": "别一次跳三步。我们只做下一步：把式子移项，然后你暂停自己算。",
+        "zh-TW": "別一次跳三步。只做移項，然後暫停自算。",
+        "en": "Don’t leap three steps. Only the next move: rearrange, then pause and compute yourself.",
+        "ja": "三段飛ばし禁止。次の一手だけ：移項して、自分で止めて計算。"
+      },
+      "mediaPack": {
+        "channel": "course_lesson",
+        "seconds_hint": "900"
+      }
+    },
+    {
+      "id": "course_ja_schoo",
+      "craft": {
+        "sentence": "場面→型→練習",
+        "stance": "実務コーチ",
+        "opening": "明日の会議で使えるか",
+        "avoid": "抽象理論の山",
+        "lexicon": "型、明日、よくある失敗、宿題"
+      },
+      "referenceParagraph": {
+        "zh": "明天会上直接可用的一句模板，比再讲一遍理论重要。",
+        "zh-TW": "明天會議能用的一句模板，勝過再講理論。",
+        "en": "A sentence you can use in tomorrow’s meeting beats another theory slide.",
+        "ja": "明日の会議で使える一句が、理論スライドより大事。"
+      },
+      "mediaPack": {
+        "channel": "course_lesson",
+        "seconds_hint": "1800"
+      }
+    },
+    {
+      "id": "course_ja_study",
+      "craft": {
+        "sentence": "考点→例题→变式",
+        "stance": "应试清晰但不恐吓",
+        "opening": "这一题考什么",
+        "avoid": "题海恐吓、超纲炫技",
+        "lexicon": "得点、ひっかけ、類題、ここだけ"
+      },
+      "referenceParagraph": {
+        "zh": "这题只考一个点：读题干里的限定词。我们先拆真题，再做一道变式。",
+        "zh-TW": "這題只考限定詞。先拆真題再做變式。",
+        "en": "This item tests one thing: the limiter in the stem. Real item first, then a twin.",
+        "ja": "問うのは一点：題幹の限定。本問→類題。"
+      },
+      "mediaPack": {
+        "channel": "course_lesson",
+        "seconds_hint": "1200"
+      }
+    },
+    {
+      "id": "course_ja_udemy",
+      "craft": {
+        "sentence": "交付物倒推步骤",
+        "stance": "工坊教练",
+        "opening": "最终文件长什么样",
+        "avoid": "只讲不练",
+        "lexicon": "完成物、マイルストーン、今やる"
+      },
+      "referenceParagraph": {
+        "zh": "先定义完成文件长什么样，再倒推今天三十分钟必须做完的第一步。",
+        "zh-TW": "先定義完成檔，再倒推今天三十分鐘的第一步。",
+        "en": "Define the finished file, then reverse-plan the first thirty minutes you must finish today.",
+        "ja": "完成物の姿を先に決め、今日30分で終わる一手へ逆算。"
+      },
+      "mediaPack": {
+        "channel": "course_lesson",
+        "seconds_hint": "2400"
+      }
+    }
+  ]
+}

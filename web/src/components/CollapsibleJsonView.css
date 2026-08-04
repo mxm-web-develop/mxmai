@@ -1,0 +1,171 @@
+/* VS Code 风格可折叠 JSON */
+
+.cjv-root {
+  margin: 0;
+  max-height: 420px;
+  overflow: auto;
+  padding: 0;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.cjv-root--soft {
+  background: #f1f5f9;
+  color: #0f172a;
+  max-height: 280px;
+}
+
+.cjv-root--soft .cjv-key {
+  color: #0369a1;
+}
+
+.cjv-root--soft .cjv-str {
+  color: #b45309;
+}
+
+.cjv-root--soft .cjv-num {
+  color: #0f766e;
+}
+
+.cjv-root--soft .cjv-bool {
+  color: #7c3aed;
+}
+
+.cjv-root--soft .cjv-null {
+  color: #64748b;
+}
+
+.cjv-root--soft .cjv-bracket,
+.cjv-root--soft .cjv-colon {
+  color: #475569;
+}
+
+.cjv-root--soft .cjv-preview {
+  color: #64748b;
+}
+
+.cjv-root--soft .cjv-toolbar {
+  border-bottom-color: rgba(15, 23, 42, 0.08);
+  background: #e2e8f0;
+}
+
+.cjv-root--soft .cjv-toolbar__btn {
+  color: #334155;
+  border-color: rgba(15, 23, 42, 0.12);
+  background: #fff;
+}
+
+.cjv-root--soft .cjv-toolbar__btn:hover {
+  background: #f8fafc;
+}
+
+.cjv-root--soft .cjv-caret {
+  color: #64748b;
+}
+
+.cjv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.65);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.cjv-toolbar__meta {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-right: auto;
+}
+
+.cjv-toolbar__btn {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cjv-toolbar__btn:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.cjv-tree {
+  padding: 8px 10px 10px;
+}
+
+.cjv-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 1.55em;
+}
+
+.cjv-line--toggle {
+  cursor: pointer;
+  border-radius: 3px;
+  user-select: none;
+}
+
+.cjv-line--toggle:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.cjv-caret {
+  display: inline-block;
+  width: 12px;
+  font-size: 9px;
+  line-height: 1;
+  color: #94a3b8;
+  transform: rotate(0deg);
+  transition: transform 0.12s ease;
+  margin-right: 2px;
+}
+
+.cjv-caret.is-open {
+  transform: rotate(90deg);
+}
+
+.cjv-key {
+  color: #7dd3fc;
+}
+
+.cjv-colon {
+  color: #94a3b8;
+}
+
+.cjv-bracket {
+  color: #cbd5e1;
+}
+
+.cjv-preview {
+  color: #64748b;
+  font-style: italic;
+}
+
+.cjv-str {
+  color: #fbbf24;
+}
+
+.cjv-num {
+  color: #34d399;
+}
+
+.cjv-bool {
+  color: #c084fc;
+}
+
+.cjv-null {
+  color: #94a3b8;
+}

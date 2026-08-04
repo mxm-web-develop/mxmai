@@ -5,12 +5,18 @@ description: SuperMXMai 双机生产运维：香港主力（8.218.14.129:2222）
 
 # 双机生产运维（香港主力 + 国内副机）
 
-## 架构（当前生产）
+> ⚠️ **当前状态（2026-07-28 更新）**
+> - 香港主力 `8.218.14.129`（`mxm-ai.com`）= **唯一生产入口**：Gateway + 6 后端 + Admin Web（静态）+ MinIO
+> - 国内副机 `8.136.186.242`：**仅保留 H5**（`pnpm deploy:h5-china`，`:80` 仍在线）
+> - **副机 Admin Web（:8080）已停**：`pnpm deploy:admin-china` 命令保留但**不主动运行**；副机 nginx 配置 / Admin 静态同步动作已废弃
+> - 旧双机架构段落（下面）保留作历史参考；如要复用请先与用户确认是否重新开启大陆 Admin 入口
+
+## 架构（**历史**双机布局 · 2026-07-28 起 Admin 停）
 
 | 节点 | IP | SSH | 对外入口 | 职责 |
 |------|-----|-----|----------|------|
-| **香港主力** | `8.218.14.129` | `ssh mxm-hk`（**Port 2222**，本地直连） | `mxm-ai.com` :80/:443 | Gateway :3000 + 6 后端 + MinIO + Admin 静态（境外） |
-| **国内副机** | `8.136.186.242` | `ssh root@8.136.186.242` | `:8080` Admin；`:80` H5 | Admin 反代香港；H5 Next.js |
+| **香港主力**（在线） | `8.218.14.129` | `ssh mxm-hk`（**Port 2222**，本地直连） | `mxm-ai.com` :80/:443 | Gateway :3000 + 6 后端 + MinIO + Admin 静态（境外） |
+| **国内副机**（仅 H5） | `8.136.186.242` | `ssh root@8.136.186.242` | `:8080` Admin ~~已停~~；`:80` H5 | H5 Next.js（API 反代香港） |
 
 ```
 境外用户 Admin  →  https://mxm-ai.com/        →  香港 nginx :80/:443
@@ -56,7 +62,7 @@ ssh root@8.210.129.25              # 旧香港 IP
 | **香港全栈**（后端 + Admin dist 到香港） | `pnpm deploy:hk` |
 | 仅香港后端 | `pnpm deploy:hk -- --backend-only` |
 | 仅香港 Admin 静态 | `pnpm deploy:hk -- --web-only` |
-| **国内 Admin 入口**（:8080 + 反代香港 API） | `pnpm deploy:admin-china` |
+| ~~**国内 Admin 入口**（:8080 + 反代香港 API）~~ | ~~`pnpm deploy:admin-china`~~ **（2026-07-28 停）** |
 | **国内 H5** | `pnpm deploy:h5-china` |
 | 域名 / nginx 分线路 | `bash scripts/setup-domain-mxm-ai.sh` |
 | 跳过构建只同步 dist | 各命令加 `-- --skip-build` |
@@ -80,13 +86,18 @@ DEPLOY_HOST=mxm-hk DEPLOY_PATH=/opt/supermxmai pnpm deploy:server   # 同 deploy
 ```bash
 # 单业务：先本地导入，再导入生产
 cd mxmcgi
-pnpm run apply:bundle -- src/tasks/examples/writing-group-seek.business.json   # 本地 Supabase
+pnpm run apply:bundle -- src/tasks/examples/writing-group-deck.business.json   # 本地 Supabase
 # 验收：本地 Admin → 业务管理 → 执行管线（应看到人工审核等步骤）
 bash scripts/seed-writing-bundle-production.sh   # 或单文件 + MXM_SEED_PRODUCTION=1
 
 # 全量：把本地库已生效的业务导出后 upsert 到香港生产库
+# （同步后会自动 deactivate:legacy-audio-speak，清掉旧 taskKey）
 bash scripts/sync-local-businesses-to-production.sh [--dry-run]
 ```
+
+**生产上架硬约束（非 text）**：`type` 只能是 `generator` | `group` | `series`。  
+**禁止**把 `audio/speak`、旧 taskKey（`voiceover`/`editorial`/…）等不符合 [业务命名规范](../mxmai_business_naming/SKILL.md) 的业务写进香港库。  
+发现残留：`MXM_SEED_PRODUCTION=1 pnpm --filter @mxmai/mxmcgi run deactivate:legacy-audio-speak`。
 
 **现象对照**：本地 Admin 管线缺「人工审核」，但仓库 JSON / 香港已有 → 说明**本地 DB 未 apply**，不是前端丢了。按上面先 `apply:bundle` 本地，再考虑是否同步香港。
 
@@ -104,18 +115,19 @@ ssh mxm-hk 'pm2 list; curl -sS http://127.0.0.1:3000/health'
 ### B. 仅 Admin Web 前端
 
 ```bash
-pnpm deploy:admin-china
-# 境外入口也更新时：
+# 2026-07-28 起：Admin 静态只发到香港，不再同步副机
 pnpm deploy:hk -- --web-only
+# ~pnpm deploy:admin-china~ 已停
 ```
 
-`deploy:admin-china` 在 `mxm-hk` 可用时会自动 patch 香港 `.env`（无需 `HK_SSH_PASS`）。
+`deploy:admin-china` 在 `mxm-hk` 可用时会自动 patch 香港 `.env`（无需 `HK_SSH_PASS`）。~~`pnpm deploy:admin-china`~~ 保留命令但**不主动运行**。
 
 ### C. 全栈大版本
 
 ```bash
 pnpm deploy:hk
-pnpm deploy:admin-china -- --skip-build
+# 2026-07-28 起不再走副机 Admin：
+# ~pnpm deploy:admin-china -- --skip-build~ 已停
 ```
 
 ### D. H5 变更
@@ -161,8 +173,9 @@ curl -sS -o /dev/null -w 'admin %{http_code}\n' http://8.136.186.242:8080/
 1. **更新顺序：本地 → 香港**（见上文「更新顺序」）。禁止只改香港业务库/源码、本地不落库。
 2. **香港操作一律 `ssh mxm-hk`**（8.218.14.129:2222）
 3. **发布香港用 `pnpm deploy:hk`**
-4. **Admin 前端变更**：`deploy:admin-china` + 视情况 `deploy:hk -- --web-only`
+4. **Admin 前端变更**（2026-07-28 起）：仅 `deploy:hk -- --web-only` 把 Admin 静态发到香港；副机 Admin 入口已停，不要再跑 `deploy:admin-china`
 5. 修改 `mxmdata` 后必须先 `pnpm build:mxmdata` 再 `deploy:hk`
 6. **业务 bundle**：先本地 `apply:bundle` 验收，再用 `sync-local-businesses-to-production.sh` 或对应 `seed-*-production.sh` 同步香港
+7. **禁止上架不合规业务到香港**：非 text 仅 `generator|group|series`；全量 sync 后必须清旧 `audio/speak`；不得用 `seed:task-v2-media` 往生产写 `speak`
 
 详细命令与 nginx 路径见 [reference.md](reference.md)。

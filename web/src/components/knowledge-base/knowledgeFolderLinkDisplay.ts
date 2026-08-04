@@ -1,6 +1,7 @@
 import type { KnowledgeFolderLinkItem } from '../../api/client';
 import i18n from '../../i18n/config';
 import { decodePossiblyMojibakeFilename } from '../../lib/filenameEncoding';
+import { extractMarkdownHeadline } from '../task-list/taskPreviewText';
 import {
   isWritingManuscriptLink,
   WRITING_MANUSCRIPT_ASSET_TYPE,
@@ -46,12 +47,30 @@ function stripManuscriptFilename(name: string): string {
     .trim();
 }
 
+/** 业务大类名 alone 不能当任务标题（与列表刊头不对齐） */
+function isGenericScopeTitle(title: string): boolean {
+  const t = title.trim().toLowerCase();
+  return (
+    t === '写作' ||
+    t === 'writing' ||
+    t === '文本' ||
+    t === 'text' ||
+    t === '任务' ||
+    t === 'task'
+  );
+}
+
+/** 「写作 #abc」这类兜底名 */
+function isFallbackScopeShortIdTitle(title: string): boolean {
+  return /^(写作|writing|文本|text|任务|task)\s*#[0-9a-f]{4,}\s*$/i.test(title.trim());
+}
+
 /**
- * 卡片标题派生（不展示 prompt / 原始 name 等可能含角色指令的内容）：
- * 1. 音色资产：metadata.label → voice_id → 业务名 + 短码
- * 2. 写作文稿（任务或文集单篇上传）：label / 去后缀文件名
- * 3. storage_object：业务名（音频/图片/视频/文件）+ 原文件名（如有）
- * 4. task：业务名 + 短码；写作/音频的 metadata.label 优先
+ * 卡片标题派生（与「我的创作」列表对齐；不展示 prompt）：
+ * 1. 音色资产：metadata.label → voice_id
+ * 2. 文集单篇（storage writing_manuscript）：label / 去后缀文件名 —— 单独引入路径，保持人话篇名
+ * 3. 写作任务：label → contentPreview 刊头 → link.name（后端已对齐）→ subtypeLabel
+ * 4. 其它 task：label → subtype → 业务名+#短码
  */
 export function resolveLinkDisplayTitle(link: KnowledgeFolderLinkItem): string {
   const id = link.task_id ?? link.object_id ?? link.id;
@@ -104,17 +123,29 @@ export function resolveLinkDisplayTitle(link: KnowledgeFolderLinkItem): string {
     typeof meta.subtypeLabel === 'string' && meta.subtypeLabel.trim()
       ? meta.subtypeLabel.trim()
       : '';
+  const contentPreview =
+    typeof meta.contentPreview === 'string' && meta.contentPreview.trim()
+      ? meta.contentPreview.trim()
+      : '';
+  const contentHeadline = contentPreview ? extractMarkdownHeadline(contentPreview, 56) : '';
+  const linkName = link.name?.trim() || '';
+  const isWritingTask = link.task_type === 'writing' || link.task_type === 'text';
 
-  // 显示策略（与「我的创作」列表保持一致字段）：
-  // 1. 用户填的标题（meta.label）
-  // 2. 业务子类标签（subtypeLabel）：能精确匹配列表卡片上的「类型 · 子类型」
-  // 3. 业务大类 + 子类（taskLabel · subtypeLabel）
-  // 4. 兜底：业务大类 + 短码
-  // 注意：写作任务的 name 常为 prompt，禁止当标题
+  // 与写作列表：label → 正文刊头 → 后端派生 name → 子类名
   if (metaLabel) return metaLabel;
+  if (isWritingTask && contentHeadline) return contentHeadline;
+  if (
+    linkName &&
+    !isGenericScopeTitle(linkName) &&
+    !isFallbackScopeShortIdTitle(linkName)
+  ) {
+    return linkName;
+  }
   if (subtypeLabel) return subtypeLabel;
   if (taskLabel && subtypeLabel) return `${taskLabel} · ${subtypeLabel}`;
-  if (taskLabel) return taskLabel;
+  // 单独「写作」不够当标题
+  if (taskLabel && !isGenericScopeTitle(taskLabel)) return taskLabel;
+  if (contentHeadline) return contentHeadline;
   const kindLabel = knowledgeFolderLinkTypeLabel(link);
   return `${kindLabel} ${taskShort}`;
 }

@@ -215,6 +215,19 @@
   color: var(--status-review-fg);
 }
 
+/* 「待补充信息」与「待审核」共用底色，但语义不同 → 用同色 token，区别靠文案。
+   留独立选择器以便后续单独配色（如调整为待办橙）。 */
+.status-badge--awaiting_user_input,
+.graph-task-status--awaiting_user_input,
+.video-task-status--awaiting_user_input,
+.audio-task-status--awaiting_user_input,
+.writing-task-status--awaiting_user_input,
+.music-task-status--awaiting_user_input,
+.outline-task-status--awaiting_user_input {
+  background: var(--status-review-bg);
+  color: var(--status-review-fg);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btn-danger {
     transition: none;

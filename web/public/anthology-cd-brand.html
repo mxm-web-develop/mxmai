@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>文集 C+D 品牌色 · 亮/暗</title>
+<style>
+  :root {
+    --brand-machine: #002fa7;
+    --brand-mind: #38bdf8;
+    --brand-mind-strong: #0ea5e9;
+    --action-primary-solid: #0284c7;
+    --action-primary-border: rgba(14,165,233,.42);
+    --action-primary-shadow: 0 8px 22px rgba(14,165,233,.26);
+    --action-primary-gradient: linear-gradient(135deg, var(--brand-mind-strong), var(--action-primary-solid) 48%, var(--brand-machine));
+    --pill-writing-fg: #0c4a6e;
+    --glass-surface: #fff;
+    --card-border: rgba(148,163,184,.35);
+    --radius-md: 10px; --radius-lg: 14px; --radius-sm: 6px; --radius-pill: 999px;
+    --shadow-lg: 0 10px 25px rgba(0,0,0,.1);
+    --bg: #f3f4f6; --ink: #0f172a;
+  }
+  html.dark {
+    --action-primary-solid: #0ea5e9;
+    --action-primary-border: rgba(56,189,248,.38);
+    --action-primary-shadow: 0 8px 24px rgba(14,165,233,.22);
+    --glass-surface: #0f172a;
+    --card-border: rgba(148,163,184,.25);
+    --bg: #020617; --ink: #e2e8f0;
+  }
+  body { margin:0; font-family: DM Sans, system-ui, sans-serif; background:var(--bg); color:var(--ink); padding:28px; }
+  .bar { display:flex; gap:10px; align-items:center; margin-bottom:20px; }
+  button { border:0; border-radius:10px; padding:8px 12px; font-weight:700; cursor:pointer; background:#0f172a; color:#fff; }
+  html.dark button { background:#e2e8f0; color:#0f172a; }
+  .row { display:flex; gap:16px; flex-wrap:wrap; }
+  .card {
+    width:220px; padding:8px 8px 12px; border-radius:var(--radius-lg);
+    background: var(--glass-surface); border:1px solid var(--card-border);
+  }
+  .anth {
+    --anthology-fg: var(--pill-writing-fg);
+    --anthology-track-bg: rgba(255,255,255,.82);
+    --anthology-track-border: rgba(255,255,255,.92);
+    --anthology-piece-bg: rgba(2,132,199,.06);
+    --anthology-piece-bg-alt: rgba(2,132,199,.1);
+    --anthology-idx: var(--action-primary-solid);
+    --anthology-label: #0c4a6e;
+    border-color: color-mix(in srgb, var(--action-primary-solid) 28%, var(--card-border));
+    background: linear-gradient(165deg, color-mix(in srgb, var(--brand-mind) 12%, transparent), transparent 44%), var(--glass-surface);
+  }
+  html.dark .anth {
+    --anthology-fg: var(--brand-mind);
+    --anthology-track-bg: rgba(15,23,42,.78);
+    --anthology-track-border: rgba(56,189,248,.14);
+    --anthology-piece-bg: rgba(56,189,248,.06);
+    --anthology-piece-bg-alt: rgba(56,189,248,.11);
+    --anthology-idx: var(--brand-mind);
+    --anthology-label: #e0f2fe;
+  }
+  .wrap { position:relative; padding-top:.7rem; }
+  .tab { position:absolute; top:0; left:.7rem; width:3.4rem; height:.78rem; border-radius:8px 8px 0 0; background:var(--action-primary-gradient); }
+  .face { aspect-ratio:1; border-radius:0 var(--radius-md) var(--radius-md) var(--radius-md); overflow:hidden; display:flex; flex-direction:column;
+    border:1px solid color-mix(in srgb, var(--brand-machine) 22%, rgba(148,163,184,.3));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 8px 20px rgba(0,47,167,.12); }
+  html.dark .face { border-color: rgba(56,189,248,.28); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 24px rgba(0,0,0,.35); }
+  .cover { flex:1; min-height:0; padding:.65rem .7rem; color:#fff; display:flex; flex-direction:column; gap:.35rem; position:relative; overflow:hidden;
+    background: radial-gradient(120% 90% at 0% 0%, rgba(56,189,248,.55), transparent 55%), var(--action-primary-gradient); }
+  html.dark .cover { background: radial-gradient(120% 90% at 0% 0%, rgba(56,189,248,.4), transparent 55%), linear-gradient(145deg,#001a6e,var(--brand-machine) 42%,#0369a1); }
+  .row1 { display:flex; justify-content:space-between; align-items:center; }
+  .eye { font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .count { font-size:9px; font-weight:800; padding:2px 7px; border-radius:999px; background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.36); }
+  .hero { margin-top:auto; }
+  .hero strong { font-size:24px; font-weight:800; letter-spacing:-.04em; }
+  .hero strong small { font-size:10px; margin-left:2px; opacity:.9; }
+  .hero span { display:block; margin-top:2px; font-size:11px; opacity:.9; }
+  .tracks { max-height:46%; padding:8px; background:var(--anthology-track-bg); border-top:1px solid var(--anthology-track-border); backdrop-filter:blur(10px); display:flex; flex-direction:column; gap:3px; }
+  .piece { display:grid; grid-template-columns:22px 1fr; gap:6px; padding:3px 5px; border-radius:6px; background:var(--anthology-piece-bg); font-size:11px; font-weight:650; color:var(--anthology-label); }
+  .piece:nth-child(odd){ background:var(--anthology-piece-bg-alt); }
+  .idx { color:var(--anthology-idx); font-size:9px; font-weight:800; }
+  .title { margin:8px 4px 0; font-size:13px; font-weight:650; color:var(--anthology-fg); }
+  .doc .mast { background:linear-gradient(90deg,#0284c7,#0ea5e9); color:#fff; padding:10px; min-height:68px; }
+  .doc .face2 { aspect-ratio:1; border-radius:10px; overflow:hidden; border:1px solid rgba(148,163,184,.3); display:grid; grid-template-rows:auto 1fr; }
+  .doc .sheet { background:#fff; padding:10px; font-size:11px; color:#94a3b8; font-style:italic; }
+  html.dark .doc .sheet { background:#0f172a; }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <strong>C+D 混搭 · 品牌色</strong>
+    <button type="button" id="tog">切换暗色</button>
+  </div>
+  <div class="row">
+    <div class="card anth">
+      <div class="wrap">
+        <div class="tab"></div>
+        <div class="face">
+          <div class="cover">
+            <div class="row1"><span class="eye">文集</span><span class="count">3 篇</span></div>
+            <div class="hero"><strong>3<small>篇</small></strong><span>角度探索合集</span></div>
+          </div>
+          <div class="tracks">
+            <div class="piece"><span class="idx">01</span>第1路</div>
+            <div class="piece"><span class="idx">02</span>第2路</div>
+            <div class="piece"><span class="idx">03</span>第3路</div>
+          </div>
+        </div>
+      </div>
+      <div class="title">seek-e2e-验证4</div>
+    </div>
+    <div class="card doc">
+      <div class="face2">
+        <div class="mast"><div class="eye">文稿</div><div style="font-weight:750;font-size:12px;margin-top:4px">用新闻稿结构输出…</div></div>
+        <div class="sheet">正文摘要加载中…</div>
+      </div>
+      <div class="title" style="color:inherit">单篇写作任务</div>
+    </div>
+  </div>
+<script>
+  document.getElementById('tog').onclick = () => {
+    document.documentElement.classList.toggle('dark');
+    document.getElementById('tog').textContent = document.documentElement.classList.contains('dark') ? '切换亮色' : '切换暗色';
+  };
+</script>
+</body>
+</html>

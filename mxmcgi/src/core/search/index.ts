@@ -41,4 +41,10 @@ export {
   getAllSearchProviderConfigs,
   clearSearchConfigCache,
   saveSearchProviderConfig,
+  listUsableProvidersForDimension,
+  resolveProviderForDimension,
+  clearSearchProviderCooldowns,
+  listApiKeysInPriority,
+  promoteApiKey,
+  promoteApiKeyAndPersist,
 } from './search-config';

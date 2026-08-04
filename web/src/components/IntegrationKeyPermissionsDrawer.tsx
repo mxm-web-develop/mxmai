@@ -46,6 +46,7 @@ import {
   type PublishedApiItem,
 } from '../api/client';
 import { PartnerAppUploadsPanel } from './PartnerAppUploadsPanel';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 const DEFAULT_H5_ORIGIN = import.meta.env.VITE_PARTNER_H5_ORIGIN ?? '';
 
@@ -118,7 +119,7 @@ export function IntegrationKeyPermissionsDrawer({ open, apiKeyId, apiKeyName, on
       const apis = apisRes.data?.data ?? (apisRes.data as { data?: PublishedApiItem[] })?.data ?? [];
       setPublishedApis(Array.isArray(apis) ? apis : []);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('common.loadFailed'));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: t('common.loadFailed') }));
     } finally {
       setLoading(false);
     }
@@ -133,7 +134,7 @@ export function IntegrationKeyPermissionsDrawer({ open, apiKeyId, apiKeyName, on
       setEndUsers(body?.data ?? []);
       setUsersLoaded(true);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('assets.openApi.loadEndUsersFailed'));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: t('assets.openApi.loadEndUsersFailed') }));
     } finally {
       setUsersLoading(false);
     }
@@ -146,7 +147,7 @@ export function IntegrationKeyPermissionsDrawer({ open, apiKeyId, apiKeyName, on
       const res = await listPartnerAllowlist(app.id);
       setAllowlist(res.data?.data ?? []);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('assets.openApi.loadWhitelistFailed'));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: t('assets.openApi.loadWhitelistFailed') }));
     } finally {
       setAllowlistLoading(false);
     }
@@ -159,7 +160,7 @@ export function IntegrationKeyPermissionsDrawer({ open, apiKeyId, apiKeyName, on
       const res = await listPartnerInvites(app.id);
       setInvites(res.data?.data ?? []);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('assets.openApi.loadInviteFailed'));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: t('assets.openApi.loadInviteFailed') }));
     } finally {
       setInvitesLoading(false);
     }
@@ -236,7 +237,7 @@ export function IntegrationKeyPermissionsDrawer({ open, apiKeyId, apiKeyName, on
         void loadShareLink();
       }
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('account.saveFailed'));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: t('account.saveFailed') }));
     } finally {
       setSaving(false);
     }
@@ -263,7 +264,7 @@ export function IntegrationKeyPermissionsDrawer({ open, apiKeyId, apiKeyName, on
       }
       void loadInvites();
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('common.submitFailed'));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: t('common.submitFailed') }));
     } finally {
       setCreatingInvite(false);
     }
@@ -286,7 +287,7 @@ export function IntegrationKeyPermissionsDrawer({ open, apiKeyId, apiKeyName, on
   const handleRevokeInvite = async (inviteId: string) => {
     if (!app?.id) return;
     const res = await revokePartnerInvite(app.id, inviteId);
-    if (res.error) message.error(res.error);
+    if (res.error) message.error(toUserFacingErrorMessage(res.error));
     else {
       message.success(t('assets.openApi.inviteRevoked'));
       void loadInvites();
@@ -297,7 +298,7 @@ export function IntegrationKeyPermissionsDrawer({ open, apiKeyId, apiKeyName, on
     if (!app?.id || !newPhone.trim()) return;
     const res = await addPartnerAllowlist(app.id, { provider: 'sms', subject: newPhone.trim() });
     if (res.error) {
-      message.error(res.error);
+      message.error(toUserFacingErrorMessage(res.error));
       return;
     }
     message.success(t('assets.openApi.addedWhitelist'));
@@ -344,7 +345,7 @@ export function IntegrationKeyPermissionsDrawer({ open, apiKeyId, apiKeyName, on
             onClick={async () => {
               if (!app?.id) return;
               const res = await unblockPartnerEndUser(app.id, r.id);
-              if (res.error) message.error(res.error);
+              if (res.error) message.error(toUserFacingErrorMessage(res.error));
               else {
                 message.success(t('assets.openApi.unblocked'));
                 void loadEndUsers();
@@ -359,7 +360,7 @@ export function IntegrationKeyPermissionsDrawer({ open, apiKeyId, apiKeyName, on
             onConfirm={async () => {
               if (!app?.id) return;
               const res = await blockPartnerEndUser(app.id, r.id);
-              if (res.error) message.error(res.error);
+              if (res.error) message.error(toUserFacingErrorMessage(res.error));
               else {
                 message.success(t('assets.openApi.blockedMsg'));
                 void loadEndUsers();
@@ -393,7 +394,7 @@ export function IntegrationKeyPermissionsDrawer({ open, apiKeyId, apiKeyName, on
           onConfirm={async () => {
             if (!app?.id) return;
             const res = await removePartnerAllowlist(app.id, r.id);
-            if (res.error) message.error(res.error);
+            if (res.error) message.error(toUserFacingErrorMessage(res.error));
             else {
               message.success(t('assets.openApi.removed'));
               void loadAllowlist();

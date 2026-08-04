@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { App, Button, Input, Upload } from 'antd';
 import BrandLoading from '../BrandLoading';
-import { Loader2, Mic, Pause, Play, Square, Upload as UploadIcon } from 'lucide-react';
+import { Loader2, Mic, Pause, Play, Square, Upload as UploadIcon, UserRound } from 'lucide-react';
 import {
   cloneMinimaxVoice,
+  getKnowledgeFolders,
+  getSystemKnowledgeFolders,
   listMinimaxVoices,
   listMinimaxVoicesFromFolder,
+  type FolderItem,
   type MinimaxVoiceItem,
 } from '../../api/client';
 import { fetchMinimaxVoicePreviewBlob } from '../../shared/minimaxVoicePreview';
@@ -17,12 +20,17 @@ import {
   microphoneUnavailableReason,
   pickMediaRecorderMimeType,
 } from '../../shared/audioCapture';
+import { resolveHostPersona } from '../../shared/hostPersonaFromVoice';
+import { resolveHostPersonaAsync } from '../../shared/resolveHostPersonaAsync';
 import './minimax-voice-field.css';
 
 export type MinimaxVoiceValue = {
-  mode: 'system' | 'clone';
+  mode: 'system' | 'clone' | 'character';
   voice_id: string;
   label?: string;
+  /** 从角色卡选用时回写，便于展示与后续注入 */
+  character_folder_id?: string;
+  character_folder_label?: string;
 };
 
 type MinimaxVoiceFieldProps = {
@@ -30,10 +38,23 @@ type MinimaxVoiceFieldProps = {
   voiceModel?: string;
   cloneFolderId?: string;
   onChange: (next: MinimaxVoiceValue) => void;
+  /**
+   * 选音色后建议主播人设。
+   * 系统音色：先 loading，再由 LLM 回填；角色卡同步；克隆为空。
+   */
+  onPersonaSuggest?: (persona: string, meta?: { status: 'ready' | 'loading' | 'empty' }) => void;
 };
 
 type GenderFilter = 'all' | 'male' | 'female' | 'other';
 type LanguageFilter = 'all' | 'zh' | 'en' | 'other';
+type VoiceTab = 'system' | 'clone' | 'character';
+
+type CharacterVoiceRow = {
+  folder: FolderItem;
+  displayName: string;
+  /** 角色卡 summary 中绑定的 voice_id */
+  boundVoiceId: string;
+};
 
 const DEFAULT_VALUE: MinimaxVoiceValue = {
   mode: 'system',
@@ -43,14 +64,35 @@ const DEFAULT_VALUE: MinimaxVoiceValue = {
 
 const CLONE_ACCEPT = 'audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a,audio/m4a,.mp3,.wav,.m4a';
 
+function readCharacterBoundVoice(folder: FolderItem): {
+  voiceId: string;
+  displayName: string;
+  character: Record<string, unknown> | null;
+} {
+  const summary = (folder.card_summary ?? null) as { character?: Record<string, unknown> } | null;
+  const ch = summary?.character && typeof summary.character === 'object' ? summary.character : null;
+  const voiceId = typeof ch?.voice_id === 'string' ? ch.voice_id.trim() : '';
+  const displayName =
+    (typeof ch?.display_name === 'string' && ch.display_name.trim()) || folder.name || folder.id;
+  return { voiceId, displayName, character: ch };
+}
 
 function normalizeValue(raw: unknown): MinimaxVoiceValue {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_VALUE };
   const o = raw as Record<string, unknown>;
   const voiceId = typeof o.voice_id === 'string' && o.voice_id.trim() ? o.voice_id.trim() : DEFAULT_VALUE.voice_id;
-  const mode = o.mode === 'clone' ? 'clone' : 'system';
+  const mode: MinimaxVoiceValue['mode'] =
+    o.mode === 'clone' ? 'clone' : o.mode === 'character' ? 'character' : 'system';
   const label = typeof o.label === 'string' && o.label.trim() ? o.label.trim() : voiceId;
-  return { mode, voice_id: voiceId, label };
+  const character_folder_id =
+    typeof o.character_folder_id === 'string' && o.character_folder_id.trim()
+      ? o.character_folder_id.trim()
+      : undefined;
+  const character_folder_label =
+    typeof o.character_folder_label === 'string' && o.character_folder_label.trim()
+      ? o.character_folder_label.trim()
+      : undefined;
+  return { mode, voice_id: voiceId, label, character_folder_id, character_folder_label };
 }
 
 function matchesGender(voice: MinimaxVoiceItem, filter: GenderFilter): boolean {
@@ -63,7 +105,20 @@ function matchesLanguage(voice: MinimaxVoiceItem, filter: LanguageFilter): boole
   return (voice.language ?? 'other') === filter;
 }
 
-export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFolderId, onChange }: MinimaxVoiceFieldProps) {
+function statusLabel(status: FolderItem['card_status'], t: (k: string) => string): string {
+  if (status === 'ready') return t('form.minimax.charReady');
+  if (status === 'parsing') return t('form.minimax.charParsing');
+  if (status === 'failed') return t('form.minimax.charFailed');
+  return t('form.minimax.charIdle');
+}
+
+export function MinimaxVoiceField({
+  value,
+  voiceModel = 'speech-2.8-hd',
+  cloneFolderId,
+  onChange,
+  onPersonaSuggest,
+}: MinimaxVoiceFieldProps) {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const currentRaw = normalizeValue(value);
@@ -89,12 +144,23 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
     if (language === 'en') return t('form.minimax.langTagEn');
     return t('form.minimax.langTagJa');
   };
-  const [tab, setTab] = useState<'system' | 'clone'>(current.mode === 'clone' ? 'clone' : 'system');
+
+  const initialTab: VoiceTab =
+    current.mode === 'clone' ? 'clone' : current.mode === 'character' ? 'character' : 'system';
+  const [tab, setTab] = useState<VoiceTab>(initialTab);
   const [systemVoices, setSystemVoices] = useState<MinimaxVoiceItem[]>([]);
   const [cloneVoices, setCloneVoices] = useState<MinimaxVoiceItem[]>([]);
+  const [characterRows, setCharacterRows] = useState<CharacterVoiceRow[]>([]);
+  const [characterFolderVoices, setCharacterFolderVoices] = useState<Record<string, MinimaxVoiceItem[]>>({});
+  const [expandedCharacterId, setExpandedCharacterId] = useState<string | null>(
+    current.character_folder_id ?? null
+  );
   const [loadingSystem, setLoadingSystem] = useState(false);
   const [loadingClone, setLoadingClone] = useState(false);
+  const [loadingCharacters, setLoadingCharacters] = useState(false);
+  const [loadingCharacterFolderId, setLoadingCharacterFolderId] = useState<string | null>(null);
   const [systemLoaded, setSystemLoaded] = useState(false);
+  const [charactersLoaded, setCharactersLoaded] = useState(false);
   const [search, setSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('all');
   const [languageFilter, setLanguageFilter] = useState<LanguageFilter>('all');
@@ -109,6 +175,12 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
   const recordTimerRef = useRef<number | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const previewObjectUrlRef = useRef<string | null>(null);
+  const personaSuggestSeqRef = useRef(0);
+  /** 角色卡 Tab 下「克隆到此角色」目标夹 */
+  const [cloneTargetFolderId, setCloneTargetFolderId] = useState<string | null>(null);
+
+  const effectiveCloneFolderId =
+    (tab === 'character' && cloneTargetFolderId?.trim()) || cloneFolderId?.trim() || undefined;
 
   const loadSystemVoices = useCallback(async () => {
     setLoadingSystem(true);
@@ -140,6 +212,64 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
     }
   }, [cloneFolderId, message, t]);
 
+  const loadCharacterFolderVoices = useCallback(async (folderId: string): Promise<MinimaxVoiceItem[]> => {
+    setLoadingCharacterFolderId(folderId);
+    try {
+      const list = await listMinimaxVoicesFromFolder(folderId);
+      setCharacterFolderVoices((prev) => ({ ...prev, [folderId]: list }));
+      return list;
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('form.minimax.loadCloneFailed'));
+      setCharacterFolderVoices((prev) => ({ ...prev, [folderId]: [] }));
+      return [];
+    } finally {
+      setLoadingCharacterFolderId(null);
+    }
+  }, [message, t]);
+
+  const loadCharacterCards = useCallback(async () => {
+    setLoadingCharacters(true);
+    try {
+      const mine = await getKnowledgeFolders({ force: true });
+      const filtered = mine.filter((f) => f.card_tag === 'character');
+      const sys = await getSystemKnowledgeFolders('character');
+      const seen = new Set(filtered.map((f) => f.id));
+      const merged = [...filtered, ...sys.filter((s) => !seen.has(s.id))];
+      merged.sort((a, b) => {
+        const ra = a.card_status === 'ready' ? 0 : 1;
+        const rb = b.card_status === 'ready' ? 0 : 1;
+        if (ra !== rb) return ra - rb;
+        if (Boolean(a.is_system) !== Boolean(b.is_system)) return a.is_system ? -1 : 1;
+        return (a.name || '').localeCompare(b.name || '', 'zh');
+      });
+      const rows: CharacterVoiceRow[] = merged.map((folder) => {
+        const { voiceId, displayName } = readCharacterBoundVoice(folder);
+        return { folder, displayName, boundVoiceId: voiceId };
+      });
+      setCharacterRows(rows);
+      setCharactersLoaded(true);
+
+      // 未在 summary 绑音色的就绪卡：静默拉文件夹内克隆音色，便于一眼可见
+      const needProbe = rows
+        .filter((r) => !r.boundVoiceId && r.folder.card_status === 'ready')
+        .slice(0, 16);
+      await Promise.all(
+        needProbe.map(async (r) => {
+          try {
+            const list = await listMinimaxVoicesFromFolder(r.folder.id);
+            setCharacterFolderVoices((prev) => ({ ...prev, [r.folder.id]: list }));
+          } catch {
+            setCharacterFolderVoices((prev) => ({ ...prev, [r.folder.id]: [] }));
+          }
+        })
+      );
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('form.minimax.loadCharacterFailed'));
+    } finally {
+      setLoadingCharacters(false);
+    }
+  }, [message, t]);
+
   useEffect(() => {
     if (tab === 'system' && !systemLoaded) void loadSystemVoices();
   }, [tab, systemLoaded, loadSystemVoices]);
@@ -147,6 +277,10 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
   useEffect(() => {
     if (tab === 'clone') void loadCloneVoices();
   }, [tab, loadCloneVoices, cloneFolderId]);
+
+  useEffect(() => {
+    if (tab === 'character' && !charactersLoaded) void loadCharacterCards();
+  }, [tab, charactersLoaded, loadCharacterCards]);
 
   useEffect(() => {
     return () => {
@@ -180,12 +314,68 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
     );
   }, [cloneVoices, search]);
 
+  const filteredCharacters = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return characterRows;
+    return characterRows.filter((row) => {
+      const voices = characterFolderVoices[row.folder.id] ?? [];
+      return (
+        row.displayName.toLowerCase().includes(q) ||
+        row.folder.name.toLowerCase().includes(q) ||
+        row.boundVoiceId.toLowerCase().includes(q) ||
+        voices.some(
+          (v) => v.voice_name.toLowerCase().includes(q) || v.voice_id.toLowerCase().includes(q)
+        )
+      );
+    });
+  }, [characterRows, characterFolderVoices, search]);
+
   const selectVoice = (mode: 'system' | 'clone', item: MinimaxVoiceItem) => {
     onChange({
       mode,
       voice_id: item.voice_id,
       label: item.voice_name || item.voice_id,
     });
+    if (!onPersonaSuggest) return;
+    if (mode === 'clone') {
+      personaSuggestSeqRef.current += 1;
+      onPersonaSuggest('', { status: 'empty' });
+      return;
+    }
+    const seq = ++personaSuggestSeqRef.current;
+    onPersonaSuggest('', { status: 'loading' });
+    void resolveHostPersonaAsync({
+      kind: 'system',
+      label: item.voice_name || item.voice_id,
+      descriptions: item.description,
+      voiceId: item.voice_id,
+    }).then((persona) => {
+      if (seq !== personaSuggestSeqRef.current) return;
+      onPersonaSuggest(persona, { status: persona ? 'ready' : 'empty' });
+    });
+  };
+
+  const selectCharacterVoice = (
+    row: CharacterVoiceRow,
+    voiceId: string,
+    voiceLabel?: string
+  ) => {
+    const name = voiceLabel?.trim() || voiceId;
+    onChange({
+      mode: 'character',
+      voice_id: voiceId,
+      label: `${row.displayName} · ${name}`,
+      character_folder_id: row.folder.id,
+      character_folder_label: row.displayName,
+    });
+    setExpandedCharacterId(row.folder.id);
+    setCloneTargetFolderId(row.folder.id);
+    if (onPersonaSuggest) {
+      personaSuggestSeqRef.current += 1;
+      const { character } = readCharacterBoundVoice(row.folder);
+      const persona = resolveHostPersona({ kind: 'character', character: character ?? {} });
+      onPersonaSuggest(persona, { status: persona ? 'ready' : 'empty' });
+    }
   };
 
   const revokePreviewObjectUrl = () => {
@@ -203,7 +393,7 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
     setLoadingPreviewId(null);
   };
 
-  const togglePreview = async (item: MinimaxVoiceItem, event: React.MouseEvent) => {
+  const togglePreview = async (item: MinimaxVoiceItem, event: ReactMouseEvent) => {
     event.stopPropagation();
 
     if (playingVoiceId === item.voice_id) {
@@ -255,6 +445,60 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
   const micBlockedReason = microphoneUnavailableReason();
   const micSupported = canUseMicrophoneCapture() && isMediaRecorderSupported();
 
+  const handleCloneFile = async (file: File, folderIdOverride?: string) => {
+    const name = cloneName.trim() || file.name.replace(/\.[^.]+$/, '');
+    const targetFolder = (folderIdOverride ?? effectiveCloneFolderId)?.trim() || undefined;
+    setCloning(true);
+    try {
+      const result = await cloneMinimaxVoice(file, {
+        voiceName: name,
+        model: voiceModel,
+        knowledgeFolderId: targetFolder,
+      });
+      if (targetFolder && tab === 'character') {
+        const row = characterRows.find((r) => r.folder.id === targetFolder);
+        if (row) {
+          selectCharacterVoice(row, result.voice_id, result.label || result.voice_id);
+        } else {
+          onChange({
+            mode: 'character',
+            voice_id: result.voice_id,
+            label: result.label || result.voice_id,
+            character_folder_id: targetFolder,
+          });
+        }
+        void loadCharacterFolderVoices(targetFolder);
+      } else {
+        onChange({
+          mode: 'clone',
+          voice_id: result.voice_id,
+          label: result.label || result.voice_id,
+        });
+        setTab('clone');
+        void loadCloneVoices();
+      }
+      message.success(
+        result.virtual_folder_id
+          ? t('form.minimax.cloneSuccessFolder')
+          : targetFolder
+            ? t('form.minimax.cloneSuccessFolderWarn')
+            : t('form.minimax.cloneSuccess')
+      );
+      if (result.demo_audio) {
+        try {
+          const audio = new Audio(result.demo_audio);
+          void audio.play();
+        } catch {
+          // ignore
+        }
+      }
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('form.minimax.cloneFailed'));
+    } finally {
+      setCloning(false);
+    }
+  };
+
   const startRecording = async () => {
     try {
       if (!micSupported) {
@@ -269,7 +513,7 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
         if (ev.data.size > 0) recordChunksRef.current.push(ev.data);
       };
       rec.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
+        stream.getTracks().forEach((track) => track.stop());
         const blob = new Blob(recordChunksRef.current, { type: rec.mimeType || 'audio/webm' });
         const ext = rec.mimeType.includes('mp4') ? 'm4a' : 'webm';
         if (ext === 'webm') {
@@ -289,43 +533,41 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
     }
   };
 
-  const handleCloneFile = async (file: File) => {
-    const name = cloneName.trim() || file.name.replace(/\.[^.]+$/, '');
-    setCloning(true);
-    try {
-      const result = await cloneMinimaxVoice(file, {
-        voiceName: name,
-        model: voiceModel,
-        knowledgeFolderId: cloneFolderId?.trim() || undefined,
-      });
-      onChange({
-        mode: 'clone',
-        voice_id: result.voice_id,
-        label: result.label || result.voice_id,
-      });
-      setTab('clone');
-      message.success(
-        result.virtual_folder_id
-          ? t('form.minimax.cloneSuccessFolder')
-          : cloneFolderId?.trim()
-            ? t('form.minimax.cloneSuccessFolderWarn')
-            : t('form.minimax.cloneSuccess')
-      );
-      if (result.demo_audio) {
-        try {
-          const audio = new Audio(result.demo_audio);
-          void audio.play();
-        } catch {
-          // ignore
-        }
-      }
-      void loadCloneVoices();
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : t('form.minimax.cloneFailed'));
-    } finally {
-      setCloning(false);
+  const handleCharacterActivate = async (row: CharacterVoiceRow) => {
+    setExpandedCharacterId(row.folder.id);
+    setCloneTargetFolderId(row.folder.id);
+
+    if (row.boundVoiceId) {
+      selectCharacterVoice(row, row.boundVoiceId);
+      return;
+    }
+
+    const cached = characterFolderVoices[row.folder.id];
+    const voices = cached ?? (await loadCharacterFolderVoices(row.folder.id));
+    if (voices.length === 1) {
+      selectCharacterVoice(row, voices[0].voice_id, voices[0].voice_name);
+      return;
+    }
+    if (voices.length === 0) {
+      message.info(t('form.minimax.characterNoVoiceHint'));
     }
   };
+
+  const refreshCurrentTab = () => {
+    if (tab === 'system') void loadSystemVoices();
+    else if (tab === 'clone') void loadCloneVoices();
+    else {
+      setCharactersLoaded(false);
+      void loadCharacterCards();
+    }
+  };
+
+  const modeBadge =
+    current.mode === 'clone'
+      ? t('form.minimax.modeClone')
+      : current.mode === 'character'
+        ? t('form.minimax.modeCharacter')
+        : t('form.minimax.modeSystem');
 
   const renderFilterChips = <T extends string>(
     options: { value: T; label: string }[],
@@ -384,7 +626,7 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
                           e.stopPropagation();
-                          void togglePreview(item, e as unknown as React.MouseEvent);
+                          void togglePreview(item, e as unknown as ReactMouseEvent);
                         }
                       }}
                     >
@@ -417,39 +659,200 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
     );
   };
 
+  const renderCharacterPanel = () => {
+    if (loadingCharacters && characterRows.length === 0) {
+      return (
+        <div className="minimax-voice-field__loading">
+          <BrandLoading tip={t('form.minimax.loadingCharacters')} />
+        </div>
+      );
+    }
+    if (filteredCharacters.length === 0) {
+      return <div className="minimax-voice-field__empty">{t('form.minimax.noCharacterCards')}</div>;
+    }
+
+    return (
+      <div className="minimax-voice-field__char-list">
+        {filteredCharacters.map((row) => {
+          const folderVoices = characterFolderVoices[row.folder.id] ?? [];
+          const expanded = expandedCharacterId === row.folder.id;
+          const active =
+            current.mode === 'character' && current.character_folder_id === row.folder.id;
+          const primaryVoiceId = row.boundVoiceId || (folderVoices.length === 1 ? folderVoices[0].voice_id : '');
+          const hasVoice = Boolean(row.boundVoiceId || folderVoices.length > 0);
+          const busy = loadingCharacterFolderId === row.folder.id;
+
+          return (
+            <div
+              key={row.folder.id}
+              className={`minimax-voice-field__char-card${active ? ' is-active' : ''}${expanded ? ' is-expanded' : ''}`}
+            >
+              <button
+                type="button"
+                className="minimax-voice-field__char-main"
+                onClick={() => void handleCharacterActivate(row)}
+              >
+                <span className="minimax-voice-field__char-icon" aria-hidden>
+                  <UserRound size={18} strokeWidth={1.75} />
+                </span>
+                <span className="minimax-voice-field__char-copy">
+                  <span className="minimax-voice-field__char-name">
+                    {row.displayName}
+                    {row.folder.is_system ? (
+                      <span className="minimax-voice-field__char-sys">{t('form.minimax.charSystem')}</span>
+                    ) : null}
+                  </span>
+                  <span className="minimax-voice-field__char-meta">
+                    <span className="minimax-voice-field__tag">{statusLabel(row.folder.card_status, t)}</span>
+                    {hasVoice ? (
+                      <span className="minimax-voice-field__tag minimax-voice-field__tag--voice">
+                        {row.boundVoiceId
+                          ? t('form.minimax.characterBoundVoice')
+                          : t('form.minimax.characterFolderVoices', { count: folderVoices.length })}
+                      </span>
+                    ) : (
+                      <span className="minimax-voice-field__tag minimax-voice-field__tag--muted">
+                        {t('form.minimax.characterNoVoice')}
+                      </span>
+                    )}
+                  </span>
+                  {primaryVoiceId ? (
+                    <span className="minimax-voice-field__char-voice-id">{primaryVoiceId}</span>
+                  ) : null}
+                </span>
+                {busy ? <BrandLoading size="small" /> : null}
+              </button>
+
+              {expanded ? (
+                <div className="minimax-voice-field__char-detail">
+                  {folderVoices.length > 1 ? (
+                    <div className="minimax-voice-field__char-voices">
+                      {folderVoices.map((v) => {
+                        const voiceActive =
+                          current.mode === 'character' && current.voice_id === v.voice_id;
+                        return (
+                          <button
+                            key={v.voice_id}
+                            type="button"
+                            className={`minimax-voice-field__char-voice${voiceActive ? ' is-active' : ''}`}
+                            onClick={() => selectCharacterVoice(row, v.voice_id, v.voice_name)}
+                          >
+                            <span className="minimax-voice-field__char-voice-name">{v.voice_name}</span>
+                            <span className="minimax-voice-field__char-voice-id">{v.voice_id}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+
+                  {!row.boundVoiceId && folderVoices.length === 0 ? (
+                    <div className="minimax-voice-field__char-clone">
+                      <p className="minimax-voice-field__hint">{t('form.minimax.characterCloneHint')}</p>
+                      <Input
+                        placeholder={t('form.minimax.cloneNamePlaceholder')}
+                        value={cloneName}
+                        onChange={(e) => setCloneName(e.target.value)}
+                        maxLength={32}
+                      />
+                      <div className="minimax-voice-field__clone-actions">
+                        <Upload
+                          accept={CLONE_ACCEPT}
+                          showUploadList={false}
+                          beforeUpload={(file) => {
+                            void handleCloneFile(file, row.folder.id);
+                            return false;
+                          }}
+                        >
+                          <Button icon={<UploadIcon size={16} />} loading={cloning} size="small">
+                            {t('form.minimax.uploadClone')}
+                          </Button>
+                        </Upload>
+                        {!recording ? (
+                          <Button
+                            size="small"
+                            icon={<Mic size={16} />}
+                            onClick={() => {
+                              setCloneTargetFolderId(row.folder.id);
+                              void startRecording();
+                            }}
+                            disabled={cloning || !micSupported}
+                            title={micBlockedReason ?? undefined}
+                          >
+                            {t('form.minimax.micRecord')}
+                          </Button>
+                        ) : (
+                          <Button danger size="small" icon={<Square size={16} />} onClick={stopRecording}>
+                            {t('form.minimax.stopRecord', { sec: recordSeconds })}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const searchPlaceholder =
+    tab === 'system'
+      ? t('form.minimax.searchSystem')
+      : tab === 'clone'
+        ? t('form.minimax.searchClone')
+        : t('form.minimax.searchCharacter');
+
   return (
     <div className="minimax-voice-field">
       <div className="minimax-voice-field__selected">
         <div className="minimax-voice-field__selected-main">
           <div className="minimax-voice-field__selected-label">
             {t('form.minimax.current', { label: current.label || current.voice_id })}
-            <span className="minimax-voice-field__selected-badge">
-              ({current.mode === 'clone' ? t('form.minimax.modeClone') : t('form.minimax.modeSystem')})
-            </span>
+            <span className="minimax-voice-field__selected-badge">({modeBadge})</span>
           </div>
           <div className="minimax-voice-field__selected-id">{current.voice_id}</div>
         </div>
-        <Button size="small" onClick={() => (tab === 'system' ? loadSystemVoices() : loadCloneVoices())}>
+        <Button size="small" onClick={refreshCurrentTab}>
           {t('form.minimax.refresh')}
         </Button>
       </div>
 
-      <div className="minimax-voice-field__tabs" role="tablist" aria-label={t("form.minimax.sourceAria")}>
+      <div className="minimax-voice-field__tabs" role="tablist" aria-label={t('form.minimax.sourceAria')}>
         <button
           type="button"
           role="tab"
           aria-selected={tab === 'system'}
           className={`minimax-voice-field__tab${tab === 'system' ? ' is-active' : ''}`}
-          onClick={() => setTab('system')}
+          onClick={() => {
+            setSearch('');
+            setTab('system');
+          }}
         >
           {t('form.minimax.systemVoices')}
         </button>
         <button
           type="button"
           role="tab"
+          aria-selected={tab === 'character'}
+          className={`minimax-voice-field__tab${tab === 'character' ? ' is-active' : ''}`}
+          onClick={() => {
+            setSearch('');
+            setTab('character');
+          }}
+        >
+          {t('form.minimax.characterCards')}
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={tab === 'clone'}
           className={`minimax-voice-field__tab${tab === 'clone' ? ' is-active' : ''}`}
-          onClick={() => setTab('clone')}
+          onClick={() => {
+            setSearch('');
+            setTab('clone');
+          }}
         >
           {t('form.minimax.myClones')}
         </button>
@@ -459,7 +862,7 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
         <Input
           className="minimax-voice-field__search"
           allowClear
-          placeholder={tab === 'system' ? t('form.minimax.searchSystem') : t('form.minimax.searchClone')}
+          placeholder={searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -480,7 +883,19 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
             </>
           )}
         </>
-      ) : (
+      ) : null}
+
+      {tab === 'character' ? (
+        <>
+          <p className="minimax-voice-field__hint">{t('form.minimax.characterTabHint')}</p>
+          <div className="minimax-voice-field__result-count">
+            {t('form.minimax.characterCount', { count: filteredCharacters.length })}
+          </div>
+          {renderCharacterPanel()}
+        </>
+      ) : null}
+
+      {tab === 'clone' ? (
         <div className="minimax-voice-field__clone-panel">
           <p className="minimax-voice-field__hint">
             {t('form.minimax.cloneHint')}
@@ -492,7 +907,7 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
             ) : null}
           </p>
           <Input
-            placeholder={t("form.minimax.cloneNamePlaceholder")}
+            placeholder={t('form.minimax.cloneNamePlaceholder')}
             value={cloneName}
             onChange={(e) => setCloneName(e.target.value)}
             maxLength={32}
@@ -539,7 +954,7 @@ export function MinimaxVoiceField({ value, voiceModel = 'speech-2.8-hd', cloneFo
             renderGrid('clone', filteredClone)
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1,0 +1,62 @@
+{
+  "title": "Pulse 产品说明会",
+  "deck_type": "product",
+  "visual_system": {
+    "palette": {
+      "background": "#111827",
+      "foreground": "#F9FAFB",
+      "accent": "#34D399",
+      "muted": "#9CA3AF"
+    },
+    "typography": {
+      "title_font": "Microsoft YaHei",
+      "body_font": "Microsoft YaHei",
+      "title_size_pt": 34,
+      "body_size_pt": 17
+    },
+    "motif": "clean product grid",
+    "ratio": "16:9"
+  },
+  "slides": [
+    {
+      "id": "s1",
+      "order": 1,
+      "role": "cover",
+      "title": "Pulse 产品说明会",
+      "subtitle": "面向内部培训 · 20 分钟",
+      "layout_hint": "title_center"
+    },
+    {
+      "id": "s2",
+      "order": 2,
+      "role": "agenda",
+      "title": "今天讲什么",
+      "layout_hint": "agenda_list",
+      "bullets": ["问题与用户", "核心能力", "关键指标", "上手路径"]
+    },
+    {
+      "id": "s3",
+      "order": 3,
+      "role": "content",
+      "title": "核心能力",
+      "layout_hint": "two_column",
+      "bullets": ["实时协作画布", "权限与审计", "模板市场", "开放 API", "移动端审阅", "导出与归档"]
+    },
+    {
+      "id": "s4",
+      "order": 4,
+      "role": "chart",
+      "title": "上线 90 天",
+      "layout_hint": "big_number",
+      "bullets": ["+48% 周活", "任务完成时长下降 22%"]
+    },
+    {
+      "id": "s5",
+      "order": 5,
+      "role": "closing",
+      "title": "下周试点名单",
+      "subtitle": "销售 / 客成 / 设计三组",
+      "layout_hint": "closing"
+    }
+  ]
+}

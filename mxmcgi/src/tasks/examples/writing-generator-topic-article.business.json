@@ -1,0 +1,746 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-08-02T04:12:23.493Z",
+  "items": [
+    {
+      "scope": "writing",
+      "type": "generator",
+      "subtype": "topic-article",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "文稿",
+          "subtypeLabel": "话题写作",
+          "description": "语言默认跟系统（选类别时可切换）；再定风格与话题后成稿。体裁由类别自动决定。",
+          "taskLabelI18n": {
+            "zh": "文稿",
+            "en": "Editorial",
+            "zh-TW": "文稿",
+            "ja": "原稿"
+          },
+          "subtypeLabelI18n": {
+            "zh": "话题写作",
+            "en": "Topic article",
+            "zh-TW": "話題寫作",
+            "ja": "トピック執筆"
+          },
+          "descriptionI18n": {
+            "zh": "类别（可切换语言）→风格（或自有文风卡）→话题→篇幅→结构→大纲→成稿。用途体裁由类别自动决定。",
+            "en": "Category (switch language)→voice or your writing card→topic→length→structure→outline→draft. Purpose derived from category."
+          }
+        },
+        "executionMode": "mxm-warp",
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "topic",
+              "voice_category",
+              "voice_id",
+              "purpose"
+            ],
+            "x-createUx": "warp-gates",
+            "properties": {
+              "language": {
+                "type": "string",
+                "title": "语言",
+                "description": "默认跟 App 语言；在选类别/风格时可切换",
+                "enum": [
+                  "zh",
+                  "zh-TW",
+                  "en",
+                  "ja"
+                ],
+                "default": "zh",
+                "x-enum-labels": [
+                  "简体中文",
+                  "繁体中文",
+                  "English",
+                  "日本語"
+                ],
+                "x-ui-type": "selection",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-guided-hidden": true
+              },
+              "voice_category": {
+                "type": "string",
+                "title": "类别方向",
+                "description": "先选类别方向（各语言完整可选），再进写作风格按语言挑选平台热门笔法",
+                "enum": [
+                  "talk_brief",
+                  "literary_column",
+                  "fanqie_web",
+                  "hongguo_drama",
+                  "finance_narrative",
+                  "political_report",
+                  "self_media",
+                  "voiceover_brief",
+                  "course_tutorial"
+                ],
+                "x-enum-labels": [
+                  "谈话资料",
+                  "文学·专栏",
+                  "短篇网文",
+                  "短剧节拍",
+                  "财经叙事",
+                  "时政报道",
+                  "热点锐评",
+                  "短视频解说",
+                  "网课教程"
+                ],
+                "x-ui-type": "selection",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "voice_id": {
+                "type": "string",
+                "title": "写作风格",
+                "description": "按成稿语言切换；点选平台热门参考风格，或不选内置、改用自己的语感文风卡",
+                "enum": [
+                  "talk_qq_three",
+                  "talk_yuanzhuo",
+                  "talk_luyu",
+                  "talk_face_probe",
+                  "talk_yanglan_salon",
+                  "talk_fresh_air",
+                  "talk_hardtalk",
+                  "talk_oprah_arc",
+                  "cn_cold_irony",
+                  "cn_plain_warm",
+                  "cn_lyrical_landscape",
+                  "cn_sharp_society",
+                  "cn_absurd_reason",
+                  "cn_beijing_vernacular",
+                  "cn_sensory_rich",
+                  "cn_cold_cruelty",
+                  "cn_dense_society",
+                  "cn_inward_reflect",
+                  "cn_investigative_restraint",
+                  "cn_culture_feature",
+                  "gat_public_rebuke",
+                  "gat_ornate_sorrow",
+                  "gat_playful_erudite",
+                  "gat_dense_sensual",
+                  "gat_sharp_self",
+                  "gat_polemic_edge",
+                  "gat_humor_genial",
+                  "gat_elegant_chat",
+                  "gat_weird_plain",
+                  "gat_urban_stream",
+                  "gat_light_magic",
+                  "gat_dialogue_probe",
+                  "ja_intellectual_irony",
+                  "ja_cold_short",
+                  "ja_mono_no_aware",
+                  "ja_self_mock_confide",
+                  "ja_ornate_severe",
+                  "ja_heavy_dialectic",
+                  "ja_urban_detach",
+                  "ja_soft_melancholy",
+                  "ja_mystery_restraint",
+                  "ja_detective_lay",
+                  "ja_erudite_density",
+                  "ja_magazine_clean",
+                  "en_clear_politics",
+                  "en_cool_anatomy",
+                  "en_iceberg_minimal",
+                  "en_moral_heat",
+                  "en_stream_fine",
+                  "en_gonzo_heat",
+                  "en_science_poetic",
+                  "en_epistle_weight",
+                  "en_case_narrative",
+                  "en_longform_mag",
+                  "en_cold_leader",
+                  "en_web_hook",
+                  "fq_zs_huigui",
+                  "fq_shenhao",
+                  "fq_tianchong",
+                  "fq_nuelian",
+                  "fq_xuanhuan_lv",
+                  "fq_dushi_zhi",
+                  "fq_xuanyi_naodong",
+                  "hg_conflict_hook",
+                  "hg_identity_twist",
+                  "hg_emotion_wall",
+                  "hg_counterattack",
+                  "fin_bu_mian_night",
+                  "fin_deal_anatomy",
+                  "fin_market_scene",
+                  "fin_company_story",
+                  "pol_wire_restraint",
+                  "pol_policy_explain",
+                  "pol_local_implement",
+                  "pol_press_brief",
+                  "sm_opin_sharp",
+                  "sm_story_case",
+                  "sm_list_practical",
+                  "sm_hot_take_fast",
+                  "vo_news_host",
+                  "vo_story_host",
+                  "vo_knowledge",
+                  "vo_hot_chat",
+                  "course_dedao",
+                  "course_bilibili",
+                  "course_openuni",
+                  "course_project",
+                  "course_tw_hahow",
+                  "course_en_masterclass",
+                  "course_en_coursera",
+                  "course_en_khan",
+                  "course_ja_schoo",
+                  "course_ja_study",
+                  "course_ja_udemy",
+                  "kb_writing"
+                ],
+                "x-enum-labels": [
+                  "锵锵三人行式交锋闲谈（锵锵三人行）",
+                  "圆桌派式议题深挖（圆桌派）",
+                  "鲁豫有约式生命叙事（鲁豫有约）",
+                  "面对面式追问核实（面对面）",
+                  "杨澜访谈录式格局提问（杨澜访谈录）",
+                  "Fresh Air式细读追问（Fresh Air）",
+                  "HARDtalk式立场对峙（BBC HARDtalk）",
+                  "Oprah式情感揭示弧线（Oprah 式情感访谈）",
+                  "鲁迅式冷峭",
+                  "汪曾祺式冲淡",
+                  "沈从文式抒情白描",
+                  "张爱玲式尖细世情",
+                  "王小波式理趣荒诞",
+                  "老舍式京味市井",
+                  "莫言式丰沛感官",
+                  "余华式冷静残酷",
+                  "王安忆式细密世情",
+                  "史铁生式沉思内省",
+                  "财新式调查克制",
+                  "三联式文化特稿",
+                  "龙应台式公共直谏",
+                  "白先勇式华丽悲悯",
+                  "张大春式戏谑博识",
+                  "朱天文式绵密感官",
+                  "朱天心式锐利自省",
+                  "李敖式论战犀利",
+                  "林语堂式幽默通达",
+                  "梁实秋式雅谑闲话",
+                  "倪匡式奇想直白",
+                  "刘以鬯式意识流都市",
+                  "西西式轻巧魔幻日常",
+                  "梁文道式对谈追问",
+                  "夏目漱石式知性反讽",
+                  "芥川式冷冽短制",
+                  "川端式幽玄余情",
+                  "太宰式自嘲告白",
+                  "三岛式华丽峻烈",
+                  "大江式厚重思辨",
+                  "村上春树式疏离都市",
+                  "吉本式轻柔伤感",
+                  "东野式谜面克制",
+                  "江户川式推理铺陈",
+                  "京极式考据密度",
+                  "暮しの手帖式清爽短句",
+                  "Orwell式清晰论政",
+                  "Didion式冷静解剖",
+                  "Hemingway式极简冰山",
+                  "Baldwin式道德热力",
+                  "Woolf式意识流细密",
+                  "Thompson式新新闻狂想",
+                  "Sagan式科普诗意",
+                  "Coates式书信体沉痛",
+                  "Sacks式病例叙事温厚",
+                  "New Yorker式长特稿",
+                  "Economist式冷峭社论",
+                  "Medium式长文钩子",
+                  "战神回归·打脸节拍（番茄热门战神/兵王回归写手笔法）",
+                  "神豪捡漏·金流爽点（番茄热门神豪/重生捡漏写手）",
+                  "甜宠日常·轻冲突（番茄热门甜宠写手笔法）",
+                  "虐恋拉扯·情绪刀（番茄热门虐恋/拉扯写手）",
+                  "玄幻升级·战力信息（番茄热门玄幻升级写手）",
+                  "都市智斗·局与筹码（番茄热门都市权谋/职场智斗）",
+                  "悬疑脑洞·线索投放（番茄热门悬疑/脑洞写手）",
+                  "红果强冲突开钩（红果热门强冲突短剧写手）",
+                  "身份反转·打脸连击（红果隐藏身份/马甲短剧）",
+                  "情绪墙哭戏·关系决裂（红果家庭/姻亲冲突短剧）",
+                  "逆袭反击·证据局（红果职场/婚姻反击短剧）",
+                  "资本永不眠式博弈人性（资本永不眠写手群像）",
+                  "财新式交易条款拆解（财新硬核并购/一级市场拆解）",
+                  "华尔街见闻式市场现场（华尔街见闻/交易员现场专栏）",
+                  "晚点LatePost式公司人物（晚点/公司深度人物财经稿）",
+                  "新华社电讯体·事实序（新华社/主流电讯体）",
+                  "澎湃新闻式政策拆解（澎湃政策解读）",
+                  "南方周末式地方温差（南方周末地方观察）",
+                  "央视发布会式问答速写（央视/主流发布会报道）",
+                  "虎嗅式锐评立场（判断句靠前的互联网锐评）",
+                  "正午故事式个案（以人带出结构问题的非虚构）",
+                  "少数派式实用清单（可照做的工具文清单体）",
+                  "微博热搜快评体（短平快记忆点快评）",
+                  "抖音资讯号·稳准清（平台资讯口播账号）",
+                  "故事FM式钩子讲述（人物故事可停顿口播）",
+                  "罗翔式普法解说（一次只讲清一个概念）",
+                  "小红书伴聊式热梗（第二人称亲密度口播）",
+                  "得到式知识精讲（得到知识服务课）",
+                  "B站知识区式跟练教程（B站知识区跟练向）",
+                  "网易公开课式系统讲解（网易公开课/系统讲解）",
+                  "实战项目式交付课（实战营/项目交付课）",
+                  "Hahow式專題課精講（參考：華文線上專題課）",
+                  "MasterClass式叙事精讲（參考：英文大师叙事课）",
+                  "Coursera式模块课（參考：英文平台模块课）",
+                  "Khan Academy式小步拆解（參考：可汗小步讲解）",
+                  "Schoo式ビジネス講座（參考：日式在线商务课）",
+                  "スタディサプリ式考点精讲（參考：日式应试精讲课）",
+                  "Udemy式项目跟练课（參考：日式项目跟练课）",
+                  "我的文风卡"
+                ],
+                "x-ui-type": "selection",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "writing_folder_id": {
+                "type": "string",
+                "title": "参考文风",
+                "description": "可选。用推荐或 @ 选择语感文风；选「我的文风卡」时必填。",
+                "x-ui-type": "folderCard",
+                "x-card-tag": "writing",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-guided-hidden": true,
+                "x-show-when": {
+                  "field": "voice_id",
+                  "op": "eq",
+                  "value": "kb_writing"
+                },
+                "x-asset-source": {
+                  "from": "folder_card",
+                  "need": "writing_summary",
+                  "folder_param": "writing_folder_id",
+                  "inject_as_param": "writing_summary"
+                }
+              },
+              "topic": {
+                "type": "string",
+                "title": "话题",
+                "description": "点选写作选题或自填；推荐在选定风格后检索生成",
+                "maxLength": 200,
+                "x-ui": "recommend-topic",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "topic_source": {
+                "type": "string",
+                "title": "话题来源",
+                "description": "内部标记：推荐点选 / 用户自填；不对用户展示",
+                "enum": [
+                  "recommend",
+                  "user",
+                  "search_refine"
+                ],
+                "default": "user",
+                "x-user-visible": false,
+                "x-guided-hidden": true,
+                "x-zone": "basic"
+              },
+              "purpose": {
+                "type": "string",
+                "title": "用途方向",
+                "description": "由类别方向自动决定，不对用户再问",
+                "enum": [
+                  "publish_article",
+                  "fiction_short",
+                  "drama_beat",
+                  "talk_show_brief",
+                  "voiceover_brief",
+                  "investigative",
+                  "course_tutorial"
+                ],
+                "x-enum-labels": [
+                  "发文稿·自媒体",
+                  "短篇网文·完整故事",
+                  "短剧节拍·单集打完",
+                  "对话节目资料稿",
+                  "口播节目资料稿",
+                  "深度调查稿",
+                  "网课教程"
+                ],
+                "default": "publish_article",
+                "x-ui-type": "selection",
+                "x-zone": "basic",
+                "x-user-visible": false,
+                "x-guided-hidden": true
+              },
+              "article_length": {
+                "type": "string",
+                "title": "篇幅",
+                "description": "短篇 / 中篇 / 长篇（叙事类按完整性选体量；长篇仍一次读完）。成稿须达到该档体量，不得偷短。",
+                "enum": [
+                  "brief",
+                  "standard",
+                  "long"
+                ],
+                "x-enum-labels": [
+                  "短篇",
+                  "中篇",
+                  "长篇"
+                ],
+                "default": "standard",
+                "x-ui-type": "selection",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "structure_id": {
+                "type": "string",
+                "title": "结构",
+                "enum": [
+                  "hook_point_case",
+                  "scene_mechanism",
+                  "list_contrast",
+                  "desire_conflict_turn",
+                  "scene_stakes_payoff",
+                  "reveal_close",
+                  "cold_open_twist",
+                  "countdown_payoff",
+                  "face_slap_close",
+                  "talk_dossier",
+                  "talk_timeline",
+                  "vo_hook_body",
+                  "vo_explain",
+                  "inv_timeline",
+                  "inv_doc",
+                  "course_hook_steps",
+                  "course_misconception",
+                  "course_project"
+                ],
+                "x-enum-labels": [
+                  "钩子→论点→案例→收束",
+                  "场景→机制→影响分层",
+                  "清单对照",
+                  "欲望→冲突→反转→收束",
+                  "开场压力→加码→兑现",
+                  "隐瞒→揭破→落点",
+                  "冷开场→爆发→反转→收束",
+                  "倒计时→抉择→兑现",
+                  "被压→翻盘→落点",
+                  "刺点·立场·追问",
+                  "时间线·情绪节拍",
+                  "钩子→展开→金句",
+                  "误区→解释→记住一句",
+                  "问题→时间线→多方→边界",
+                  "材料对照→责任层",
+                  "目标→步骤→练习→小结",
+                  "误区→正解→迁移",
+                  "项目驱动·交付验收"
+                ],
+                "x-ui-type": "chips",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "outline": {
+                "type": "object",
+                "title": "大纲预览",
+                "description": "改标题或各节内容后确认即可；确认后成稿会按这份大纲写",
+                "x-ui": "outline-pre",
+                "x-ui-type": "outline",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "additionalProperties": true,
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "sections": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "heading": {
+                          "type": "string"
+                        },
+                        "intent": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充说明",
+                "maxLength": 500,
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "article_length_guide": {
+                "type": "string",
+                "title": "篇幅引导",
+                "description": "由注入步按档位生成，不对用户展示",
+                "x-zone": "basic",
+                "x-user-visible": false,
+                "x-guided-hidden": true
+              }
+            }
+          },
+          "contractSchema": {
+            "type": "object",
+            "properties": {
+              "language": {
+                "type": "string",
+                "x-zone": "basic"
+              },
+              "voice_category": {
+                "type": "string",
+                "x-zone": "basic"
+              },
+              "voice_id": {
+                "type": "string",
+                "x-zone": "basic"
+              },
+              "writing_folder_id": {
+                "type": "string",
+                "x-zone": "basic"
+              },
+              "topic": {
+                "type": "string",
+                "x-zone": "basic"
+              },
+              "topic_source": {
+                "type": "string",
+                "x-zone": "basic"
+              },
+              "purpose": {
+                "type": "string",
+                "x-zone": "basic"
+              },
+              "article_length": {
+                "type": "string",
+                "x-zone": "basic"
+              },
+              "structure_id": {
+                "type": "string",
+                "x-zone": "basic"
+              },
+              "outline": {
+                "type": "object",
+                "x-zone": "basic",
+                "additionalProperties": true
+              },
+              "supplement": {
+                "type": "string",
+                "x-zone": "basic"
+              },
+              "voice_profile": {
+                "type": "object",
+                "x-zone": "business",
+                "additionalProperties": true
+              },
+              "voice_injection": {
+                "type": "string",
+                "x-zone": "business"
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是「话题写作」主笔。根据合同一次写完一篇可交付稿件（或资料稿），禁止多版本合集。\n\n【语言】全文使用 contract.basic.language（缺省 zh）。\n【话题锁定】唯一写作种子 = contract.basic.topic；禁止换题材/改设定。标题须另拟短标题，≠把 topic 原文当标题。\n【用途 purpose】${purpose}\n- publish_article：完整可读自媒体文（判断/案例/收束），首行 # 短标题（见【文章标题·硬】）；比喻须与论点同构，禁假精确概率金句与脱语境城市梗，宁少勿歪\n- fiction_short：完整短篇故事；欲望→冲突→至少一次可感反转→情绪或利益落点；读完须知「故事讲完了什么」；禁止「未完」「待续」「下章见」「连载钩」；禁止专栏式「机制拆解」打断叙事；首行 # 短标题（见【文章标题·硬】）\n- drama_beat：完整单集/一场戏；冷开场→冲突爆发→反转→收束；禁止「未完」「下集见」；首行 # 短标题（见【文章标题·硬】）\n- talk_show_brief：谈话资料稿（板块清晰，可追问），勿写成综艺逐字稿\n- voiceover_brief：可播口播稿，短句换气，少书面倒装\n- investigative：调查体，事实与未证实边界分开；禁止编造引语/数字\n- course_tutorial：网课讲义/跟练稿，目标→步骤→练习清晰；可 ## 分节；禁止短剧腔\n\n【篇幅】article_length=${article_length}；必须遵循 article_length_guide=${article_length_guide}（注入步按档位写入）。fiction_short/drama_beat：短篇/中篇/长篇是体量档，有软下限；不得明显短于 guide 所述汉字量。长篇仍一次读完，≠连载。口播按分钟；发文按专栏体量。\n【可读性·叙事类硬规则】purpose 为 fiction_short / drama_beat 时：\n- 主要人物须有名字或稳定称呼（至少姓/名/关系称谓），禁止全文只靠「他」「她」让读者分不清人\n- 每节以可感场面（动作/对话/物件互动）推进，禁止整节只有气氛旁白\n- 收束节一次说清走或留与情绪落点；禁止破折号碎片蒙太奇堆砌超过三段余韵\n- 中篇/长篇：现状与回放都要有当面戏，不能只靠短句跳切\n【结构】structure_id=${structure_id}；若 outline 非空，必须按 outline.sections 的 heading/intent 组织，可微调措辞不可丢节。fiction_short/drama_beat 末节必须落点收束，不得改成开放悬念。\n【大纲】${outline}\n【文风】只执行 business.voice_injection / voice_profile.craft（运行时已按内置风格或知识库文风卡注入单条详参）。禁止把文风预设人名、节目名、平台写手名写进读者可见正文。\n【补充】${supplement}\n【检索】若有 evidence/web 材料，可引用可核对事实；无证据则写清边界，禁止伪精确。禁止输出「未能检索/方法论提示」等后端回复腔。\n\n【输出】只输出交付正文（Markdown）。talk_show_brief 可用 ## 分资料板块；course_tutorial 可用 ## 分学习节；其余用途一篇连贯文。第一个非空行：publish/fiction_short/drama_beat/investigative/course_tutorial 必须是 # 短标题（遵守【文章标题·硬】）；口播/谈话可用短标题或直接正文。\n\n【文章标题·硬】首行 # 标题必须是**可发表的短标题**，不是选题原文。中文约 8～22 字（最长 28 字）；英文 ≤12 词。禁止把 basic.topic 整段粘贴为标题（尤其带【号外】/超长剧情摘要的网文选题）；topic 只作故事/论点种子，标题须另拟：抓住冲突或人物，干净可读。若 outline.title 已短且贴题，可作标题基础再润色；勿把大纲 intent 写进 H1。"
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "interactiveCard",
+                "params": {
+                  "id": "topic-article-pre",
+                  "label": "话题写作",
+                  "hint": "先选类别与风格（可改用自己的语感文风卡）；选定风格后检索写作选题供点选，也可自填，再定篇幅与结构；选定结构后生成可编辑大纲。",
+                  "kind": "interactive-card",
+                  "fields": [
+                    {
+                      "name": "voice_category",
+                      "type": "string",
+                      "title": "类别方向",
+                      "required": true
+                    },
+                    {
+                      "name": "voice_id",
+                      "type": "string",
+                      "title": "写作风格",
+                      "required": true
+                    },
+                    {
+                      "name": "topic",
+                      "type": "string",
+                      "title": "话题",
+                      "required": true
+                    },
+                    {
+                      "name": "article_length",
+                      "type": "string",
+                      "title": "篇幅"
+                    },
+                    {
+                      "name": "structure_id",
+                      "type": "string",
+                      "title": "文章结构"
+                    },
+                    {
+                      "name": "outline",
+                      "type": "object",
+                      "title": "大纲预览"
+                    },
+                    {
+                      "name": "supplement",
+                      "type": "string",
+                      "title": "补充说明"
+                    }
+                  ],
+                  "editable": true
+                }
+              },
+              {
+                "step": "webSearch",
+                "params": {
+                  "queryBuilder": "voiceCategoryTrend",
+                  "target": "sources.websource",
+                  "clientPreview": true,
+                  "depth": "standard",
+                  "maxResults": 24,
+                  "topicCount": 24,
+                  "resultClean": true
+                }
+              },
+              {
+                "step": "extractHotTopics",
+                "params": {
+                  "textKey": "text/expert/writing-style-topics",
+                  "maxTopics": 24,
+                  "maxInputItems": 24,
+                  "resultClean": true
+                }
+              }
+            ],
+            "enrich": [
+              {
+                "step": "injectWritingVoice",
+                "params": {}
+              },
+              {
+                "step": "webSearch",
+                "when": {
+                  "any": [
+                    {
+                      "field": "params.purpose",
+                      "op": "eq",
+                      "value": "investigative"
+                    },
+                    {
+                      "field": "params.voice_category",
+                      "op": "eq",
+                      "value": "finance_narrative"
+                    },
+                    {
+                      "field": "params.voice_category",
+                      "op": "eq",
+                      "value": "political_report"
+                    }
+                  ]
+                },
+                "params": {
+                  "target": "enrich_search.result",
+                  "queryTemplate": "${contract.basic.topic}",
+                  "maxResults": 8
+                }
+              }
+            ],
+            "post": [
+              {
+                "step": "markdownToPdf",
+                "params": {
+                  "storageMode": "sidecar",
+                  "includeCover": true,
+                  "includeToc": true,
+                  "useLayoutLlm": false,
+                  "fallbackRenderer": "markdown"
+                },
+                "inputMapping": {
+                  "markdown": "${state.coreArtifact.text}"
+                }
+              }
+            ]
+          },
+          "createGuide": {
+            "webSearch": {
+              "clientPreview": true,
+              "midPreAfterField": "voice_id",
+              "topicField": "topic",
+              "maxResults": 24,
+              "topicCount": 24,
+              "topicExtractTextKey": "text/expert/writing-style-topics"
+            },
+            "outlinePreview": {
+              "clientPreview": true,
+              "midPreAfterField": "structure_id",
+              "outlineField": "outline",
+              "textKey": "text/expert/topic-article-outline",
+              "loadingHint": "正在根据话题与结构生成简要大纲，请稍候…"
+            },
+            "extractHotTopics": {
+              "textKey": "text/expert/writing-style-topics"
+            }
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.55,
+              "maxTokens": 24000
+            },
+            "skillPack": {
+              "SKILL.md": {
+                "content": "---\nname: writing-generator-topic-article\ndescription: 话题写作主笔：按用途与单条文风注入成稿。\nloadReferences:\n  - references/contract.md\n  - references/rules.md\n---\n\n按 contract.basic 的 topic / purpose / article_length / article_length_guide / structure_id / outline 与 business.voice_injection 写一篇交付稿。\n必须遵守 article_length_guide 的档位体量（不得明显短于软下限）。\n禁止多版本；禁止文风人名节目名入正文；无证据不编造。\n"
+              },
+              "references/rules.md": {
+                "content": "# 规则\n\n1. 话题锁定 basic.topic。\n2. 只使用已注入的 voice_injection（单条），不要假设其它文风。\n3. purpose 由 voice_category 推导（注入步锁定）：发文 / 短篇网文完整故事 / 短剧单集打完 / 谈话资料 / 口播 / 调查 / 网课；勿与类别冲突。\n4. **篇幅硬遵循**：读 basic.article_length 与 basic.article_length_guide。短篇/中篇/长篇是体量档；guide 里的汉字量为软下限——成稿不得明显短于该档（例如中篇约 3500+）。不以「意境小品」偷短。长篇仍须一次读完，禁止写成 series 连载开篇。\n5. fiction_short 与 drama_beat：必须一次读完成立；禁止输出「未完」「待续」「下章」「下集见」；末节必须落点收束。\n6. **可读性（叙事类）**：主要人物要有名字或稳定称呼；每节有可感场面（动作/对话）；收束一次说清，禁止破折号碎片尾注堆砌。\n7. outline.sections 有则遵从；网文/短剧勿改成专栏「机制拆解」体。\n8. 禁止后端回复腔与伪精确数字引语。\n\n9. **比喻/类比（发文稿 publish_article）**：须与论点同构——比较双方共享同一稀缺机制或可核对结构。若论点是「编排/表演/算账」而非「碰巧极少」，优先写可核对证据（机位、跟拍、通稿节奏），禁止「偶遇概率≈××城市梗」式半对半错的聪明话。脱语境或过时城市意象（早高峰空出租等）一律不用。宁可少比喻，读者念完要觉得「对，就是这个意思」。\n\n10. **文章标题**：首行 # 必须是短标题（中文约 8～22 字，最长 28）。禁止把 basic.topic / 超长剧情摘要原文当标题；topic 是种子，标题另拟。\n"
+              },
+              "references/contract.md": {
+                "content": "# Business contract\n\n## basic\n- language, voice_category, voice_id（含 kb_writing）, writing_folder_id?\n- topic, topic_source?\n- purpose, article_length, article_length_guide\n- structure_id, outline: { title?, sections: [{ heading, intent, notes? }] }\n- supplement?\n\n## business\n- voice_profile / voice_injection（injectWritingVoice 写入；kb_writing 时来自语感文风卡）\n"
+              }
+            }
+          },
+          "storage": {
+            "scope": "writing",
+            "extension": "md",
+            "mime": "text/markdown",
+            "bucket": "user-media",
+            "pathTemplate": "{userId}/writing/topic-article/{timestamp}-{randomId}/",
+            "filenameTemplate": "topic_{taskId}.md"
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "writing-generator-topic-article",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "writing-generator-topic-article",
+          "charge_metric": "per_request",
+          "price_in_tokens": 80,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "topic-article"
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

@@ -4,7 +4,7 @@
  *
  *   pnpm exec tsx src/scripts/convert-writing-taskTemplate-to-bundle.ts \
  *     src/tasks/examples/writing-outlines-tech-article.taskTemplate.json \
- *     outlines tech-article deer deepseek-v3.2
+ *     generator tech-outline maxplan MiniMax-M3
  */
 
 import * as fs from 'fs';

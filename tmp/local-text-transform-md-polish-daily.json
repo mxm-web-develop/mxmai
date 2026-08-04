@@ -1,0 +1,56 @@
+{
+  "display": {
+    "taskLabel": "转换",
+    "userFacing": false,
+    "subtypeLabel": "日报·Markdown抛光",
+    "taskLabelI18n": {
+      "en": "Transform",
+      "ja": "Transform",
+      "zh": "转换",
+      "zh-TW": "轉換"
+    },
+    "subtypeLabelI18n": {
+      "en": "Daily MD polish",
+      "ja": "Daily MD polish",
+      "zh": "日报·Markdown抛光",
+      "zh-TW": "日報·Markdown抛光"
+    }
+  },
+  "taskTemplate": {
+    "extra": {
+      "generateParams": {
+        "maxTokens": 8192,
+        "temperature": 0.1
+      }
+    },
+    "prompt": {
+      "unifiedTemplate": "You polish Markdown structure only. Do NOT change facts, claims, numbers, or names.\n\nInstruction:\n${instruction}\n\nInput:\n${input}\n\nOutput: cleaned Markdown only. No fence wrapping the whole document."
+    },
+    "pipeline": {
+      "pre": [],
+      "post": [],
+      "enrich": []
+    },
+    "formSchema": {
+      "type": "object",
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "required": [
+        "input",
+        "instruction"
+      ],
+      "properties": {
+        "input": {
+          "type": "string",
+          "title": "输入内容",
+          "minLength": 1
+        },
+        "instruction": {
+          "type": "string",
+          "title": "转换说明",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

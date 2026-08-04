@@ -1,0 +1,894 @@
+{
+  "voices": [
+    {
+      "id": "cn_cold_irony",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "鲁迅式冷峭",
+        "zh-TW": "魯迅式冷峭",
+        "en": "Cold irony (Lu Xun–esque)",
+        "ja": "冷峭な皮肉調"
+      },
+      "blurb": {
+        "zh": "短句刺点，反讽压着写，不煽情喊口号",
+        "zh-TW": "短句刺點，反諷壓著寫，不煽情喊口號",
+        "en": "Short thrusts, irony under pressure; no slogans",
+        "ja": "短い刺、抑えめの皮肉。スローガン禁止"
+      }
+    },
+    {
+      "id": "cn_plain_warm",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "汪曾祺式冲淡",
+        "zh-TW": "汪曾祺式沖淡",
+        "en": "Plain warmth (Wang Zengqi–esque)",
+        "ja": "淡く温かい日常調"
+      },
+      "blurb": {
+        "zh": "白描烟火气，闲笔有味，不用力",
+        "zh-TW": "白描煙火氣，閒筆有味，不用力",
+        "en": "Quiet daily detail; unforced digressions",
+        "ja": "日常の素描。力まない余談"
+      }
+    },
+    {
+      "id": "cn_lyrical_landscape",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "沈从文式抒情白描",
+        "zh-TW": "沈從文式抒情白描",
+        "en": "Lyrical landscape sketch",
+        "ja": "叙情的な風景素描"
+      },
+      "blurb": {
+        "zh": "景物带人，缓慢干净，少说教",
+        "zh-TW": "景物帶人，緩慢乾淨，少說教",
+        "en": "Landscape carries people; slow, clean, little sermon",
+        "ja": "風景が人を運ぶ。遅く、清い。説教少"
+      }
+    },
+    {
+      "id": "cn_sharp_society",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "张爱玲式尖细世情",
+        "zh-TW": "張愛玲式尖細世情",
+        "en": "Sharp worldly detail",
+        "ja": "鋭く細い世俗描写"
+      },
+      "blurb": {
+        "zh": "物象凉感，世情刀，华丽里发冷",
+        "zh-TW": "物象涼感，世情刀，華麗裡發冷",
+        "en": "Cool objects, worldly blade; glamour with chill",
+        "ja": "物の冷たさ、世俗の刃。華やかさの中の冷気"
+      }
+    },
+    {
+      "id": "cn_absurd_reason",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "王小波式理趣荒诞",
+        "zh-TW": "王小波式理趣荒誕",
+        "en": "Reasoned absurdity",
+        "ja": "理知的な不条理"
+      },
+      "blurb": {
+        "zh": "理趣反常识，比喻跳脱但逻辑自洽",
+        "zh-TW": "理趣反常識，比喻跳脫但邏輯自洽",
+        "en": "Playful counter-intuition; odd metaphors, sound logic",
+        "ja": "反常識の理。奇妙な比喩、筋は通る"
+      }
+    },
+    {
+      "id": "cn_beijing_vernacular",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "老舍式京味市井",
+        "zh-TW": "老舍式京味市井",
+        "en": "Beijing vernacular street life",
+        "ja": "市井の話し言葉調"
+      },
+      "blurb": {
+        "zh": "口语市井，人物声口活，烟火里见性格",
+        "zh-TW": "口語市井，人物聲口活，煙火裡見性格",
+        "en": "Colloquial street voices; character in chatter",
+        "ja": "口語の街。話し方に性格"
+      }
+    },
+    {
+      "id": "cn_sensory_rich",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "莫言式丰沛感官",
+        "zh-TW": "莫言式豐沛感官",
+        "en": "Sensory abundance",
+        "ja": "感覚の奔流"
+      },
+      "blurb": {
+        "zh": "感官密集，土气猛烈，叙事有冲力",
+        "zh-TW": "感官密集，土氣猛烈，敘事有衝力",
+        "en": "Dense senses, earthy force, narrative drive",
+        "ja": "濃密な感覚。土の勢い。物語の推力"
+      }
+    },
+    {
+      "id": "cn_cold_cruelty",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "余华式冷静残酷",
+        "zh-TW": "余華式冷靜殘酷",
+        "en": "Calm cruelty",
+        "ja": "冷静な残酷"
+      },
+      "blurb": {
+        "zh": "语气极稳，事态很狠，少渲染表情",
+        "zh-TW": "語氣極穩，事態很狠，少渲染表情",
+        "en": "Even tone, harsh facts, little facial drama",
+        "ja": "声は平。事態は酷。表情描写は少"
+      }
+    },
+    {
+      "id": "cn_dense_society",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "王安忆式细密世情",
+        "zh-TW": "王安憶式細密世情",
+        "en": "Dense social weave",
+        "ja": "密な世情の織物"
+      },
+      "blurb": {
+        "zh": "关系网细密，城市生活纹理清楚",
+        "zh-TW": "關係網細密，城市生活紋理清楚",
+        "en": "Fine social mesh; clear urban texture",
+        "ja": "人間関係が細かい。都市の肌理がはっきり"
+      }
+    },
+    {
+      "id": "cn_inward_reflect",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "史铁生式沉思内省",
+        "zh-TW": "史鐵生式沉思內省",
+        "en": "Inward reflection",
+        "ja": "内省的な思索"
+      },
+      "blurb": {
+        "zh": "向内问，慢，带哲思但不玄虚",
+        "zh-TW": "向內問，慢，帶哲思但不玄虛",
+        "en": "Inward questions; slow; philosophical without fog",
+        "ja": "内へ問う。遅い。哲理はあるが霞まない"
+      }
+    },
+    {
+      "id": "cn_investigative_restraint",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "财新式调查克制",
+        "zh-TW": "財新式調查克制",
+        "en": "Investigative restraint",
+        "ja": "調査報道の抑制"
+      },
+      "blurb": {
+        "zh": "事实链清晰，判断克制，禁鸡血",
+        "zh-TW": "事實鏈清晰，判斷克制，禁雞血",
+        "en": "Clear fact chain; restrained judgment; no hype",
+        "ja": "事実の鎖が明確。判断は控え。煽らない"
+      }
+    },
+    {
+      "id": "cn_culture_feature",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "三联式文化特稿",
+        "zh-TW": "三聯式文化特稿",
+        "en": "Culture longfeature",
+        "ja": "文化長尺の特集調"
+      },
+      "blurb": {
+        "zh": "文化语境厚，叙述稳，观点藏在材料里",
+        "zh-TW": "文化語境厚，敘述穩，觀點藏在材料裡",
+        "en": "Thick cultural context; steady narration; view in material",
+        "ja": "文化の文脈が厚い。叙述は安定。見解は材料の中"
+      }
+    },
+    {
+      "id": "gat_public_rebuke",
+      "region": "zh_gat",
+      "label": {
+        "zh": "龙应台式公共直谏",
+        "zh-TW": "龍應台式公共直諫",
+        "en": "Public civic rebuke",
+        "ja": "公共への直諫調"
+      },
+      "blurb": {
+        "zh": "公共议题，第二人称逼问感，道德压力清楚",
+        "zh-TW": "公共議題，第二人稱逼問感，道德壓力清楚",
+        "en": "Civic issues; second-person pressure; clear moral ask",
+        "ja": "公共課題。二人称の追及。道徳的な圧"
+      }
+    },
+    {
+      "id": "gat_ornate_sorrow",
+      "region": "zh_gat",
+      "label": {
+        "zh": "白先勇式华丽悲悯",
+        "zh-TW": "白先勇式華麗悲憫",
+        "en": "Ornate compassion",
+        "ja": "華麗な悲憫"
+      },
+      "blurb": {
+        "zh": "辞藻华丽，人物命运感强，悲悯大于控诉",
+        "zh-TW": "辭藻華麗，人物命運感強，悲憫大於控訴",
+        "en": "Lush diction; strong fate; pity over rant",
+        "ja": "華麗な語。運命感。非難より哀しみ"
+      }
+    },
+    {
+      "id": "gat_playful_erudite",
+      "region": "zh_gat",
+      "label": {
+        "zh": "张大春式戏谑博识",
+        "zh-TW": "張大春式戲謔博識",
+        "en": "Playful erudition",
+        "ja": "戲れの博識"
+      },
+      "blurb": {
+        "zh": "博学玩笑，叙事爱绕，智性俏皮",
+        "zh-TW": "博學玩笑，敘事愛繞，智性俏皮",
+        "en": "Learned jokes; winding narrative; witty intellect",
+        "ja": "博識な冗談。回り道の語り。知的な軽妙"
+      }
+    },
+    {
+      "id": "gat_dense_sensual",
+      "region": "zh_gat",
+      "label": {
+        "zh": "朱天文式绵密感官",
+        "zh-TW": "朱天文式綿密感官",
+        "en": "Dense sensual prose",
+        "ja": "綿密な感覚散文"
+      },
+      "blurb": {
+        "zh": "感官绵密，时间黏稠，情绪内收",
+        "zh-TW": "感官綿密，時間黏稠，情緒內收",
+        "en": "Thick senses; sticky time; emotion held in",
+        "ja": "感覚が密。時間が粘る。情は内へ"
+      }
+    },
+    {
+      "id": "gat_sharp_self",
+      "region": "zh_gat",
+      "label": {
+        "zh": "朱天心式锐利自省",
+        "zh-TW": "朱天心式銳利自省",
+        "en": "Sharp self-audit",
+        "ja": "鋭い自己監査"
+      },
+      "blurb": {
+        "zh": "自我解剖锋利，世代感强，不自怜",
+        "zh-TW": "自我解剖鋒利，世代感強，不自憐",
+        "en": "Sharp self-dissection; generational; no self-pity",
+        "ja": "自己解剖が鋭い。世代感。自憐なし"
+      }
+    },
+    {
+      "id": "gat_polemic_edge",
+      "region": "zh_gat",
+      "label": {
+        "zh": "李敖式论战犀利",
+        "zh-TW": "李敖式論戰犀利",
+        "en": "Polemic edge",
+        "ja": "論戦の切れ味"
+      },
+      "blurb": {
+        "zh": "论战节奏，拆招快，气势压人但不脏话堆砌",
+        "zh-TW": "論戰節奏，拆招快，氣勢壓人但不髒話堆砌",
+        "en": "Debate pace; fast dismantling; force without slur piles",
+        "ja": "論戦の速度。速い崩し。罵倒の山は作らない"
+      }
+    },
+    {
+      "id": "gat_humor_genial",
+      "region": "zh_gat",
+      "label": {
+        "zh": "林语堂式幽默通达",
+        "zh-TW": "林語堂式幽默通達",
+        "en": "Genial humor",
+        "ja": "通達なユーモア"
+      },
+      "blurb": {
+        "zh": "闲谈幽默，通达人情，不尖酸",
+        "zh-TW": "閒談幽默，通達人情，不尖酸",
+        "en": "Conversational humor; humane; not bitter",
+        "ja": "雑談のユーモア。人情に通ず。辛辣すぎない"
+      }
+    },
+    {
+      "id": "gat_elegant_chat",
+      "region": "zh_gat",
+      "label": {
+        "zh": "梁实秋式雅谑闲话",
+        "zh-TW": "梁實秋式雅謔閒話",
+        "en": "Elegant chat essay",
+        "ja": "雅な世間話"
+      },
+      "blurb": {
+        "zh": "雅谑小品，生活审美，点到为止",
+        "zh-TW": "雅謔小品，生活審美，點到為止",
+        "en": "Elegant light essay; tasteful life; stop on time",
+        "ja": "雅なお洒落小品。生活の美。言い過ぎない"
+      }
+    },
+    {
+      "id": "gat_weird_plain",
+      "region": "zh_gat",
+      "label": {
+        "zh": "倪匡式奇想直白",
+        "zh-TW": "倪匡式奇想直白",
+        "en": "Weird ideas, plain talk",
+        "ja": "奇想を直截に"
+      },
+      "blurb": {
+        "zh": "奇想大胆，说话直白，节奏快",
+        "zh-TW": "奇想大膽，說話直白，節奏快",
+        "en": "Bold weird premises; plain speech; fast pace",
+        "ja": "大胆な奇想。言い方は率直。テンポ速い"
+      }
+    },
+    {
+      "id": "gat_urban_stream",
+      "region": "zh_gat",
+      "label": {
+        "zh": "刘以鬯式意识流都市",
+        "zh-TW": "劉以鬯式意識流都市",
+        "en": "Urban stream-of-consciousness",
+        "ja": "都市の意識の流れ"
+      },
+      "blurb": {
+        "zh": "都市意识流，片段拼贴，心理外翻",
+        "zh-TW": "都市意識流，片段拼貼，心理外翻",
+        "en": "Urban SoC; collage fragments; psyche outward",
+        "ja": "都市の意識流。断片のコラージュ。心理が外へ"
+      }
+    },
+    {
+      "id": "gat_light_magic",
+      "region": "zh_gat",
+      "label": {
+        "zh": "西西式轻巧魔幻日常",
+        "zh-TW": "西西式輕巧魔幻日常",
+        "en": "Light magic in daily life",
+        "ja": "日常の軽い魔術"
+      },
+      "blurb": {
+        "zh": "轻巧奇想，日常里长出一点魔幻",
+        "zh-TW": "輕巧奇想，日常裡長出一點魔幻",
+        "en": "Light fancy; a little magic from the ordinary",
+        "ja": "軽い奇想。日常から小さな魔術"
+      }
+    },
+    {
+      "id": "gat_dialogue_probe",
+      "region": "zh_gat",
+      "label": {
+        "zh": "梁文道式对谈追问",
+        "zh-TW": "梁文道式對談追問",
+        "en": "Dialogic probing",
+        "ja": "対談の追問"
+      },
+      "blurb": {
+        "zh": "谈话体层层追问，把概念拆开再拼",
+        "zh-TW": "談話體層層追問，把概念拆開再拼",
+        "en": "Talk-show logic; unpack then rebuild concepts",
+        "ja": "対話体で層層と問う。概念を分解し再構成"
+      }
+    },
+    {
+      "id": "ja_intellectual_irony",
+      "region": "ja",
+      "label": {
+        "zh": "夏目漱石式知性反讽",
+        "zh-TW": "夏目漱石式知性反諷",
+        "en": "Intellectual irony",
+        "ja": "夏目漱石風の知的アイロニー"
+      },
+      "blurb": {
+        "zh": "知性反讽，文明病轻轻刺",
+        "zh-TW": "知性反諷，文明病輕輕刺",
+        "en": "Intellectual irony; light stab at modern malaise",
+        "ja": "知的皮肉。近代の病を軽く突く"
+      }
+    },
+    {
+      "id": "ja_cold_short",
+      "region": "ja",
+      "label": {
+        "zh": "芥川式冷冽短制",
+        "zh-TW": "芥川式冷冽短制",
+        "en": "Cold short form",
+        "ja": "芥川風の冷たい短制"
+      },
+      "blurb": {
+        "zh": "短制冷冽，收束狠，余味尖",
+        "zh-TW": "短制冷冽，收束狠，餘味尖",
+        "en": "Cold brevity; hard close; sharp aftertaste",
+        "ja": "短い。冷たい。締めが酷。余韻が鋭い"
+      }
+    },
+    {
+      "id": "ja_mono_no_aware",
+      "region": "ja",
+      "label": {
+        "zh": "川端式幽玄余情",
+        "zh-TW": "川端式幽玄餘情",
+        "en": "Mono no aware lyricism",
+        "ja": "川端風の幽玄の余情"
+      },
+      "blurb": {
+        "zh": "幽玄余情，物哀轻触，美而淡",
+        "zh-TW": "幽玄餘情，物哀輕觸，美而淡",
+        "en": "Subtle pathos; beauty in restraint",
+        "ja": "幽玄。物の哀れ。美は控えに"
+      }
+    },
+    {
+      "id": "ja_self_mock_confide",
+      "region": "ja",
+      "label": {
+        "zh": "太宰式自嘲告白",
+        "zh-TW": "太宰式自嘲告白",
+        "en": "Self-mocking confession",
+        "ja": "太宰風の自嘲の告白"
+      },
+      "blurb": {
+        "zh": "自嘲告白，脆弱摊开，笑里发颤",
+        "zh-TW": "自嘲告白，脆弱攤開，笑裡發顫",
+        "en": "Self-mock confession; frailty shown; laugh that shakes",
+        "ja": "自嘲の告白。弱さを晒す。笑いが震える"
+      }
+    },
+    {
+      "id": "ja_ornate_severe",
+      "region": "ja",
+      "label": {
+        "zh": "三岛式华丽峻烈",
+        "zh-TW": "三島式華麗峻烈",
+        "en": "Ornate severity",
+        "ja": "三島風の華麗で峻烈"
+      },
+      "blurb": {
+        "zh": "辞藻华丽，意志峻烈，美与决断并置",
+        "zh-TW": "辭藻華麗，意志峻烈，美與決斷並置",
+        "en": "Ornate diction; severe will; beauty beside decision",
+        "ja": "華麗な語。峻烈な意志。美と決断が並ぶ"
+      }
+    },
+    {
+      "id": "ja_heavy_dialectic",
+      "region": "ja",
+      "label": {
+        "zh": "大江式厚重思辨",
+        "zh-TW": "大江式厚重思辨",
+        "en": "Heavy dialectic",
+        "ja": "大江風の重厚な思弁"
+      },
+      "blurb": {
+        "zh": "思辨厚重，句子可缠，伦理压力大",
+        "zh-TW": "思辨厚重，句子可纏，倫理壓力大",
+        "en": "Heavy thought; winding sentences; ethical pressure",
+        "ja": "思弁が重い。文が絡む。倫理の圧"
+      }
+    },
+    {
+      "id": "ja_urban_detach",
+      "region": "ja",
+      "label": {
+        "zh": "村上春树式疏离都市",
+        "zh-TW": "村上春樹式疏離都市",
+        "en": "Detached urban cool",
+        "ja": "村上春樹風の都市の疎外"
+      },
+      "blurb": {
+        "zh": "都市疏离，平淡句子下涌动不安",
+        "zh-TW": "都市疏離，平淡句子下湧動不安",
+        "en": "Urban detachment; flat sentences over unease",
+        "ja": "都市の距離。平坦な文の下の不安"
+      }
+    },
+    {
+      "id": "ja_soft_melancholy",
+      "region": "ja",
+      "label": {
+        "zh": "吉本式轻柔伤感",
+        "zh-TW": "吉本式輕柔傷感",
+        "en": "Soft melancholy",
+        "ja": "吉本風のやわらかな哀しみ"
+      },
+      "blurb": {
+        "zh": "轻柔伤感，治愈向，伤口不血腥展示",
+        "zh-TW": "輕柔傷感，治癒向，傷口不血腥展示",
+        "en": "Soft melancholy; healing; wounds without gore",
+        "ja": "柔い哀しみ。癒やし。傷を血腥く晒さない"
+      }
+    },
+    {
+      "id": "ja_mystery_restraint",
+      "region": "ja",
+      "label": {
+        "zh": "东野式谜面克制",
+        "zh-TW": "東野式謎面克制",
+        "en": "Mystery restraint",
+        "ja": "東野風の謎の抑制"
+      },
+      "blurb": {
+        "zh": "信息克制，线索安静放，结局前不泄压",
+        "zh-TW": "資訊克制，線索安靜放，結局前不洩壓",
+        "en": "Sparse info; quiet clues; no early release",
+        "ja": "情報は控え。手がかりは静かに。早期解圧なし"
+      }
+    },
+    {
+      "id": "ja_detective_lay",
+      "region": "ja",
+      "label": {
+        "zh": "江户川式推理铺陈",
+        "zh-TW": "江戶川式推理鋪陳",
+        "en": "Classic detective laying-out",
+        "ja": "江戸川風の古典推理"
+      },
+      "blurb": {
+        "zh": "谜题意识强，铺陈线索，读者可参与推理",
+        "zh-TW": "謎題意識強，鋪陳線索，讀者可參與推理",
+        "en": "Puzzle-forward; clues laid; reader can reason",
+        "ja": "謎が先。手がかりを並べ、読者も推理できる"
+      }
+    },
+    {
+      "id": "ja_erudite_density",
+      "region": "ja",
+      "label": {
+        "zh": "京极式考据密度",
+        "zh-TW": "京極式考據密度",
+        "en": "Erudite density",
+        "ja": "京極風の考証の密度"
+      },
+      "blurb": {
+        "zh": "考据密集，知识压进叙事， denseness 有快感",
+        "zh-TW": "考據密集，知識壓進敘事，稠密有快感",
+        "en": "Dense lore pressed into story; density as pleasure",
+        "ja": "考証が密。知識が物語に圧入される快感"
+      }
+    },
+    {
+      "id": "ja_magazine_clean",
+      "region": "ja",
+      "label": {
+        "zh": "生活杂志式清爽短句",
+        "zh-TW": "生活雜誌式清爽短句",
+        "en": "Clean magazine prose",
+        "ja": "生活誌風の爽快短文"
+      },
+      "blurb": {
+        "zh": "当代生活刊文体：清爽、短句、可执行感",
+        "zh-TW": "當代生活刊文體：清爽、短句、可執行感",
+        "en": "Lifestyle-mag clarity; short; actionable feel",
+        "ja": "生活誌の明快。短文。実行できそう"
+      }
+    },
+    {
+      "id": "en_clear_politics",
+      "region": "en",
+      "label": {
+        "zh": "Orwell式清晰论政",
+        "zh-TW": "Orwell式清晰論政",
+        "en": "Orwell — clear political prose",
+        "ja": "明晰な政治散文"
+      },
+      "blurb": {
+        "zh": "用词干净，反套话，政治书写求清楚",
+        "zh-TW": "用詞乾淨，反套話，政治書寫求清楚",
+        "en": "Clean diction; anti-cant; clarity in politics",
+        "ja": "語をきれいに。空語を嫌う。政治を明晰に"
+      }
+    },
+    {
+      "id": "en_cool_anatomy",
+      "region": "en",
+      "label": {
+        "zh": "Didion式冷静解剖",
+        "zh-TW": "Didion式冷靜解剖",
+        "en": "Didion — cool cultural anatomy",
+        "ja": "冷静な文化解剖"
+      },
+      "blurb": {
+        "zh": "冷静解剖现场与自我，句子精确",
+        "zh-TW": "冷靜解剖現場與自我，句子精確",
+        "en": "Cool dissection of scene and self; precise sentences",
+        "ja": "現場と自己を冷静に解剖。文が精確"
+      }
+    },
+    {
+      "id": "en_iceberg_minimal",
+      "region": "en",
+      "label": {
+        "zh": "Hemingway式极简冰山",
+        "zh-TW": "Hemingway式極簡冰山",
+        "en": "Hemingway — iceberg minimalism",
+        "ja": "氷山の極少主義"
+      },
+      "blurb": {
+        "zh": "极简对白与动作，情绪在水面下",
+        "zh-TW": "極簡對白與動作，情緒在水面下",
+        "en": "Minimal talk and action; feeling under the waterline",
+        "ja": "最小の会話と動作。情は水面下"
+      }
+    },
+    {
+      "id": "en_moral_heat",
+      "region": "en",
+      "label": {
+        "zh": "Baldwin式道德热力",
+        "zh-TW": "Baldwin式道德熱力",
+        "en": "Baldwin — moral heat essay",
+        "ja": "道徳的な熱を帯びたエッセイ"
+      },
+      "blurb": {
+        "zh": "道德热力强，节奏如演讲，直指结构不义",
+        "zh-TW": "道德熱力強，節奏如演講，直指結構不義",
+        "en": "Moral heat; oratorical rhythm; names structural wrongs",
+        "ja": "道徳の熱。演説のリズム。構造的不正を指す"
+      }
+    },
+    {
+      "id": "en_stream_fine",
+      "region": "en",
+      "label": {
+        "zh": "Woolf式意识流细密",
+        "zh-TW": "Woolf式意識流細密",
+        "en": "Woolf — fine-grained stream",
+        "ja": "繊細な意識の流れ"
+      },
+      "blurb": {
+        "zh": "意识流细密，时间在内心折叠",
+        "zh-TW": "意識流細密，時間在內心折疊",
+        "en": "Fine SoC; time folds inward",
+        "ja": "意識流が細い。時間が内で折れる"
+      }
+    },
+    {
+      "id": "en_gonzo_heat",
+      "region": "en",
+      "label": {
+        "zh": "Thompson式新新闻狂想",
+        "zh-TW": "Thompson式新新聞狂想",
+        "en": "Thompson — gonzo heat",
+        "ja": "ゴンゾ的な熱狂"
+      },
+      "blurb": {
+        "zh": "现场狂想，主观冲进报道，节奏疯但信息在",
+        "zh-TW": "現場狂想，主觀衝進報導，節奏瘋但資訊在",
+        "en": "Gonzo rush into reportage; wild pace, info still there",
+        "ja": "現場へ主観が突入。狂った速度でも情報はある"
+      }
+    },
+    {
+      "id": "en_science_poetic",
+      "region": "en",
+      "label": {
+        "zh": "Sagan式科普诗意",
+        "zh-TW": "Sagan式科普詩意",
+        "en": "Sagan — poetic popular science",
+        "ja": "詩的な科学普及"
+      },
+      "blurb": {
+        "zh": "科普有诗意，宇宙尺度对照人类渺小与珍贵",
+        "zh-TW": "科普有詩意，宇宙尺度對照人類渺小與珍貴",
+        "en": "Poetic science; cosmic scale vs human smallness/worth",
+        "ja": "詩的科学。宇宙尺度と人間の小ささ／尊さ"
+      }
+    },
+    {
+      "id": "en_epistle_weight",
+      "region": "en",
+      "label": {
+        "zh": "Coates式书信体沉痛",
+        "zh-TW": "Coates式書信體沉痛",
+        "en": "Coates — epistolary moral weight",
+        "ja": "書簡体の重み"
+      },
+      "blurb": {
+        "zh": "书信体沉痛，对「你」说话，历史压在私人语气上",
+        "zh-TW": "書信體沉痛，對「你」說話，歷史壓在私人語氣上",
+        "en": "Letter to “you”; history pressing on private voice",
+        "ja": "「あなた」へ。歴史が私的な声に圧す"
+      }
+    },
+    {
+      "id": "en_case_narrative",
+      "region": "en",
+      "label": {
+        "zh": "Sacks式病例叙事温厚",
+        "zh-TW": "Sacks式病例敘事溫厚",
+        "en": "Sacks — humane case narrative",
+        "ja": "温厚な症例叙事"
+      },
+      "blurb": {
+        "zh": "病例叙事温厚，奇异症状里见人性尊严",
+        "zh-TW": "病例敘事溫厚，奇異症狀裡見人性尊嚴",
+        "en": "Humane case tales; dignity inside strange symptoms",
+        "ja": "温厚な症例。奇妙な症状に尊厳"
+      }
+    },
+    {
+      "id": "en_longform_mag",
+      "region": "en",
+      "label": {
+        "zh": "New Yorker式长特稿",
+        "zh-TW": "New Yorker式長特稿",
+        "en": "New Yorker — magazine longform",
+        "ja": "雑誌長尺特集調"
+      },
+      "blurb": {
+        "zh": "长特稿节奏，场景丰富，引语精准",
+        "zh-TW": "長特稿節奏，場景豐富，引語精準",
+        "en": "Longform pacing; rich scenes; precise quotes",
+        "ja": "長尺。場面が豊か。引用が精確"
+      }
+    },
+    {
+      "id": "en_cold_leader",
+      "region": "en",
+      "label": {
+        "zh": "Economist式冷峭社论",
+        "zh-TW": "Economist式冷峭社論",
+        "en": "Economist — cold editorial voice",
+        "ja": "冷たい社説調"
+      },
+      "blurb": {
+        "zh": "社论冷峭，判断利落，全球视野压缩表达",
+        "zh-TW": "社論冷峭，判斷利落，全球視野壓縮表達",
+        "en": "Cold leaders; brisk judgment; compressed global view",
+        "ja": "社説は冷たい。判断が速い。世界を圧縮して書く"
+      }
+    },
+    {
+      "id": "en_web_hook",
+      "region": "en",
+      "label": {
+        "zh": "互联网长文钩子体",
+        "zh-TW": "互聯網長文鉤子體",
+        "en": "Web longform — hook voice",
+        "ja": "ウェブ長文のフック体"
+      },
+      "blurb": {
+        "zh": "网感长文：强钩子、小节推进、可读但不廉价",
+        "zh-TW": "網感長文：強鉤子、小節推進、可讀但不廉價",
+        "en": "Web longform: strong hook, section drive, readable not cheap",
+        "ja": "フックが強い。小節で進む。安くない読みやすさ"
+      }
+    }
+  ],
+  "genres": [
+    {
+      "id": "brief_flash",
+      "label": {
+        "zh": "短讯速报",
+        "zh-TW": "短訊速報",
+        "en": "Flash brief",
+        "ja": "速報短報"
+      },
+      "blurb": {
+        "zh": "一篇短讯：事实优先、短、少评；禁止拆成多则/多版本",
+        "zh-TW": "一篇短訊：事實優先、短、少評；禁止拆成多則/多版本",
+        "en": "One flash brief: facts first, short, little commentary — not a multi-item pack",
+        "ja": "速報は1本のみ。事実優先・短く・評少。複数バージョン禁止"
+      }
+    },
+    {
+      "id": "deep_feature",
+      "label": {
+        "zh": "深度特稿",
+        "zh-TW": "深度特稿",
+        "en": "Deep feature",
+        "ja": "深掘り特集"
+      },
+      "blurb": {
+        "zh": "背景 + 现场感 + 因果",
+        "zh-TW": "背景 + 現場感 + 因果",
+        "en": "Background + scene + cause-effect",
+        "ja": "背景＋現場感＋因果"
+      }
+    },
+    {
+      "id": "column_comment",
+      "label": {
+        "zh": "专栏评论",
+        "zh-TW": "專欄評論",
+        "en": "Column / op-ed",
+        "ja": "コラム評論"
+      },
+      "blurb": {
+        "zh": "明确立场，论证型",
+        "zh-TW": "明確立場，論證型",
+        "en": "Clear stance; argumentative",
+        "ja": "立場明確・論証型"
+      }
+    },
+    {
+      "id": "explainer",
+      "label": {
+        "zh": "解说/科普",
+        "zh-TW": "解說/科普",
+        "en": "Explainer",
+        "ja": "解説・科普"
+      },
+      "blurb": {
+        "zh": "把复杂事讲清楚（适产业/科技话题）",
+        "zh-TW": "把複雜事講清楚（適產業/科技話題）",
+        "en": "Make complexity clear (industry/tech)",
+        "ja": "複雑なことを分かりやすく（産業・科技向け）"
+      }
+    },
+    {
+      "id": "profile_story",
+      "label": {
+        "zh": "人物/故事",
+        "zh-TW": "人物/故事",
+        "en": "Profile / story",
+        "ja": "人物・物語"
+      },
+      "blurb": {
+        "zh": "以人带事（适品牌、创作者、事件主角）",
+        "zh-TW": "以人帶事（適品牌、創作者、事件主角）",
+        "en": "People lead the story (brand/creators/protagonists)",
+        "ja": "人で事を運ぶ（ブランド・創作者・当事者向け）"
+      }
+    },
+    {
+      "id": "list_compare",
+      "label": {
+        "zh": "清单/对照",
+        "zh-TW": "清單/對照",
+        "en": "List / compare",
+        "ja": "リスト・対照"
+      },
+      "blurb": {
+        "zh": "要点并列、对比表（适选型、盘点）",
+        "zh-TW": "要點並列、對比表（適選型、盤點）",
+        "en": "Parallel points / comparison (picks, roundups)",
+        "ja": "要点並列・対照表（選定・まとめ向け）"
+      }
+    },
+    {
+      "id": "social_post",
+      "label": {
+        "zh": "社媒帖",
+        "zh-TW": "社媒帖",
+        "en": "Social post",
+        "ja": "SNS投稿"
+      },
+      "blurb": {
+        "zh": "短、钩子、可转发",
+        "zh-TW": "短、鉤子、可轉發",
+        "en": "Short, hooky, shareable",
+        "ja": "短く・フック・拡散向き"
+      }
+    },
+    {
+      "id": "spoken_script",
+      "label": {
+        "zh": "口播稿",
+        "zh-TW": "口播稿",
+        "en": "Spoken script",
+        "ja": "口頭原稿"
+      },
+      "blurb": {
+        "zh": "说出来顺口（若以后要接音频）",
+        "zh-TW": "說出來順口（若以後要接音頻）",
+        "en": "Reads aloud smoothly (audio-ready later)",
+        "ja": "声に出して自然（将来の音声向け）"
+      }
+    }
+  ]
+}

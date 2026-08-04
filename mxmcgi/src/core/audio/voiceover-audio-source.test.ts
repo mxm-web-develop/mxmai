@@ -20,13 +20,12 @@ describe('parseMinioDirectObjectUrl', () => {
     expect(parseMinioDirectObjectUrl('https://cdn.example.com/a.mp3')).toBeNull();
   });
 
-  it('parses private IP MinIO :9000 URL', () => {
+  it('returns null for gateway media URLs on localhost', () => {
     expect(
-      parseMinioDirectObjectUrl('http://10.0.0.8:9000/generated/user-1/clip.mp4')
-    ).toEqual({
-      bucket: 'generated',
-      key: 'user-1/clip.mp4',
-    });
+      parseMinioDirectObjectUrl(
+        'http://localhost:3000/api/v1/media/asset?bucket=aigc&key=u1%2Fa.mp3'
+      )
+    ).toBeNull();
   });
 });
 
@@ -40,5 +39,12 @@ describe('normalizeClientAccessibleMediaUrl', () => {
     expect(out).toContain(
       'key=8ee5db88-b157-4ce5-ab98-fcf7f2880f3b%2Faudio%2F1783330664325-8rseed.mp3'
     );
+  });
+
+  it('does not corrupt absolute gateway asset URLs', () => {
+    const raw =
+      'http://localhost:3000/api/v1/media/asset?bucket=aigc&key=user%2Faudio%2Fx.mp3';
+    const out = normalizeClientAccessibleMediaUrl(raw);
+    expect(out).toBe('/api/v1/media/asset?bucket=aigc&key=user%2Faudio%2Fx.mp3');
   });
 });

@@ -30,4 +30,5 @@ docs/
 | mxmcgi/guides/SETUP_DATABASE.md | 数据库初始化 |
 | mxmcgi/api/ | 各模块 API 文档 |
 | mxmdata/ | 数据层架构与迁移 |
-| shared/PRICING_SETUP_GUIDE.md | 定价配置指南 |
+| `.cursor/skills/mxmai_provider_maintain/SKILL.md` | 主通道 atlascloud / maxplan 定价与模型维护 |
+| `adr/writing-group-deck-pptx.md` | writing/group/deck 结构化 slides → PPTX sidecar |

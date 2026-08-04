@@ -52,6 +52,10 @@ log "3/3 写入生产库 upsert..."
 pnpm run apply:bundle -- "$OUT" ${DRY_ARGS[@]+"${DRY_ARGS[@]}"}
 
 if [[ ${#DRY_ARGS[@]} -eq 0 ]]; then
+  # 硬约束：生产库禁止残留旧 taskKey（audio/speak 等），全量 sync 后必须再扫一遍
+  log "停用不符合新规范的旧业务（audio/speak/*）..."
+  pnpm --filter @mxmai/mxmcgi run deactivate:legacy-audio-speak
+
   log "reload mxmcgi..."
   ssh_cmd "cd '${DEPLOY_PATH:-/opt/supermxmai}' && pm2 reload mxmcgi-api mxmcgi-worker 2>/dev/null || true"
 fi

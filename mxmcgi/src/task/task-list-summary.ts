@@ -413,6 +413,9 @@ export function extractOutputFormatFromResult(result: unknown): WritingOutputFor
   const metadata = r.metadata;
   if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
     const meta = metadata as Record<string, unknown>;
+    // 阅读态优先：sidecar PDF 成功时列表展示 PDF
+    const reading = normalizeOutputFormat(meta.reading_format);
+    if (reading === 'pdf' && meta.pdfRenderStatus !== 'failed') return 'pdf';
     const fromMeta =
       normalizeOutputFormat(meta.format) ??
       normalizeOutputFormat(meta.storage_form) ??
@@ -493,6 +496,44 @@ export function pruneTaskResultForListView(result: unknown): Record<string, unkn
     typeof meta?.collectionTitle === 'string' ? meta.collectionTitle.trim() : undefined;
   const resultKind = typeof meta?.resultKind === 'string' ? meta.resultKind : undefined;
   const collectionTeasers = buildCollectionTeasers(meta);
+  const pdfRenderStatus =
+    typeof meta?.pdfRenderStatus === 'string' ? meta.pdfRenderStatus : undefined;
+  const pdfRenderError =
+    typeof meta?.pdfRenderError === 'string' ? meta.pdfRenderError : undefined;
+  const readingFormat =
+    typeof meta?.reading_format === 'string' ? meta.reading_format : undefined;
+  const presentationRenderStatus =
+    typeof meta?.presentationRenderStatus === 'string'
+      ? meta.presentationRenderStatus
+      : undefined;
+  const presentationSlideCount =
+    typeof meta?.presentationSlideCount === 'number' ? meta.presentationSlideCount : undefined;
+  const warnings = Array.isArray(meta?.warnings)
+    ? meta!.warnings!.filter((w): w is string => typeof w === 'string').slice(0, 5)
+    : undefined;
+  const hasPdfPreview = Boolean(
+    meta?.pdfStorage &&
+      typeof meta.pdfStorage === 'object' &&
+      typeof (meta.pdfStorage as { key?: unknown }).key === 'string'
+  );
+  const presentationStorage =
+    meta?.presentationStorage &&
+    typeof meta.presentationStorage === 'object' &&
+    !Array.isArray(meta.presentationStorage) &&
+    typeof (meta.presentationStorage as { key?: unknown }).key === 'string'
+      ? {
+          key: String((meta.presentationStorage as { key: string }).key),
+          bucket:
+            typeof (meta.presentationStorage as { bucket?: unknown }).bucket === 'string'
+              ? String((meta.presentationStorage as { bucket: string }).bucket)
+              : undefined,
+          url:
+            typeof (meta.presentationStorage as { url?: unknown }).url === 'string'
+              ? String((meta.presentationStorage as { url: string }).url)
+              : undefined,
+        }
+      : undefined;
+  const hasPresentationPreview = Boolean(presentationStorage?.key);
 
   return {
     hasMedia: typeof r.hasMedia === 'boolean' ? r.hasMedia : mediaCount > 0,
@@ -506,7 +547,14 @@ export function pruneTaskResultForListView(result: unknown): Record<string, unkn
     collectionItemCount != null ||
     collectionTitle ||
     collectionTeasers ||
-    resultKind)
+    resultKind ||
+    pdfRenderStatus ||
+    presentationRenderStatus ||
+    presentationSlideCount != null ||
+    readingFormat ||
+    warnings ||
+    hasPdfPreview ||
+    hasPresentationPreview)
       ? {
           metadata: {
             ...(resultKind ? { resultKind } : {}),
@@ -517,6 +565,15 @@ export function pruneTaskResultForListView(result: unknown): Record<string, unkn
             ...(collectionReadyCount != null ? { collectionReadyCount } : {}),
             ...(collectionFailedCount != null ? { collectionFailedCount } : {}),
             ...(collectionTeasers ? { collectionTeasers } : {}),
+            ...(pdfRenderStatus ? { pdfRenderStatus } : {}),
+            ...(pdfRenderError ? { pdfRenderError } : {}),
+            ...(presentationRenderStatus ? { presentationRenderStatus } : {}),
+            ...(presentationSlideCount != null ? { presentationSlideCount } : {}),
+            ...(presentationStorage ? { presentationStorage } : {}),
+            ...(readingFormat ? { reading_format: readingFormat } : {}),
+            ...(warnings?.length ? { warnings } : {}),
+            ...(hasPdfPreview ? { hasPdfPreview: true } : {}),
+            ...(hasPresentationPreview ? { hasPresentationPreview: true } : {}),
           },
         }
       : {}),
@@ -533,7 +590,14 @@ function buildCollectionTeasers(
       ? (collection as { items?: unknown }).items
       : null;
   if (!Array.isArray(items) || items.length === 0) return undefined;
-  if (meta.resultKind !== 'writing-collection' && items.length < 2) return undefined;
+  // writing-collection / presentation-deck 都可出页/篇 teasers；其它仅多篇时
+  if (
+    meta.resultKind !== 'writing-collection' &&
+    meta.resultKind !== 'presentation-deck' &&
+    items.length < 2
+  ) {
+    return undefined;
+  }
   const out: Array<{
     id: string;
     name?: string;

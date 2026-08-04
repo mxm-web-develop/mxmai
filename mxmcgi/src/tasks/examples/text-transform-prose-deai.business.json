@@ -62,7 +62,7 @@
           "extra": {
             "generateParams": {
               "temperature": 0.25,
-              "maxTokens": 16384
+              "maxTokens": 20000
             }
           }
         }

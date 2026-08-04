@@ -48,18 +48,211 @@ async function uploadWritingMarkdownToMinio(args: {
   return { key, bucket, url };
 }
 
+type WritingGenerateResultSlice = {
+  text?: string;
+  metadata?: Record<string, unknown>;
+  storageInfo?: { key?: string; bucket?: string; url?: string };
+  format?: string;
+};
+
+type PdfStorageRefLike = { key?: string; bucket?: string; url?: string };
+
+/**
+ * 将 post markdownToPdf 产出的 sidecar 写入写作结果。
+ * mxm-warp 在 runPostPhase 内已跑完 PDF，必须在此合并；否则预览只能落到 Markdown。
+ */
+export function attachPdfSidecarToWritingResult(
+  result: WritingGenerateResultSlice,
+  state: Record<string, unknown> | null | undefined
+): WritingGenerateResultSlice {
+  if (!state || typeof state !== 'object') return result;
+
+  const fromState = (state.markdownToPdfStorage ?? state.renderDocumentPdfStorage) as
+    | PdfStorageRefLike
+    | undefined;
+  const finalMeta =
+    state.finalArtifact &&
+    typeof state.finalArtifact === 'object' &&
+    (state.finalArtifact as { metadata?: unknown }).metadata &&
+    typeof (state.finalArtifact as { metadata?: unknown }).metadata === 'object'
+      ? ((state.finalArtifact as { metadata: Record<string, unknown> }).metadata)
+      : undefined;
+  const fromFinal = (finalMeta?.pdfStorage as PdfStorageRefLike | undefined) ?? undefined;
+  const pdfStorage =
+    fromState?.key && fromState.bucket
+      ? fromState
+      : fromFinal?.key && fromFinal.bucket
+        ? fromFinal
+        : undefined;
+
+  const pdfStatus =
+    typeof state.markdownToPdfStatus === 'string'
+      ? String(state.markdownToPdfStatus)
+      : typeof finalMeta?.pdfRenderStatus === 'string'
+        ? String(finalMeta.pdfRenderStatus)
+        : pdfStorage?.key
+          ? 'ok'
+          : undefined;
+  const pdfError =
+    typeof state.markdownToPdfError === 'string'
+      ? String(state.markdownToPdfError)
+      : typeof finalMeta?.pdfRenderError === 'string'
+        ? String(finalMeta.pdfRenderError)
+        : undefined;
+  const storageMode =
+    state.markdownToPdfStorageMode === 'overwrite' ||
+    finalMeta?.markdownToPdfStorageMode === 'overwrite'
+      ? 'overwrite'
+      : 'sidecar';
+
+  const mergedMeta: Record<string, unknown> = {
+    ...((result.metadata as Record<string, unknown> | undefined) ?? {}),
+  };
+  let storageInfo = result.storageInfo;
+  let format = result.format ?? (mergedMeta.format ? String(mergedMeta.format) : undefined);
+
+  if (pdfStorage?.key && pdfStatus !== 'failed') {
+    if (storageMode === 'overwrite') {
+      if (storageInfo?.key) {
+        mergedMeta.markdownStorage = storageInfo;
+      }
+      storageInfo = {
+        key: pdfStorage.key,
+        bucket: pdfStorage.bucket,
+        url: pdfStorage.url,
+      };
+      format = 'pdf';
+      mergedMeta.format = 'pdf';
+      mergedMeta.storage_form = 'pdf';
+      mergedMeta.reading_format = 'pdf';
+    } else {
+      mergedMeta.pdfStorage = {
+        key: pdfStorage.key,
+        bucket: pdfStorage.bucket,
+        url: pdfStorage.url,
+      };
+      mergedMeta.storage_form = 'markdown';
+      mergedMeta.format = 'markdown';
+      mergedMeta.reading_format = 'pdf';
+      format = 'markdown';
+    }
+    mergedMeta.pdfRenderStatus = 'ok';
+    delete mergedMeta.pdfRenderError;
+  } else if (pdfStatus === 'failed') {
+    mergedMeta.pdfRenderStatus = 'failed';
+    if (pdfError) mergedMeta.pdfRenderError = pdfError;
+    const warning = `PDF 生成失败：${pdfError || '未知错误'}`;
+    const prev = Array.isArray(mergedMeta.warnings)
+      ? mergedMeta.warnings.filter((w): w is string => typeof w === 'string')
+      : [];
+    if (!prev.includes(warning)) mergedMeta.warnings = [...prev, warning];
+    mergedMeta.storage_form = 'markdown';
+    mergedMeta.format = 'markdown';
+    format = 'markdown';
+  } else {
+    return result;
+  }
+
+  return {
+    ...result,
+    metadata: mergedMeta,
+    storageInfo,
+    format,
+  };
+}
+
+/**
+ * 将 post renderPptx 产出的 sidecar 写入写作结果。
+ */
+export function attachPresentationSidecarToWritingResult(
+  result: WritingGenerateResultSlice,
+  state: Record<string, unknown> | null | undefined
+): WritingGenerateResultSlice {
+  if (!state || typeof state !== 'object') return result;
+
+  const fromState = (state.presentationStorage ?? state.renderPptxStorage) as
+    | PdfStorageRefLike
+    | undefined;
+  const finalMeta =
+    state.finalArtifact &&
+    typeof state.finalArtifact === 'object' &&
+    (state.finalArtifact as { metadata?: unknown }).metadata &&
+    typeof (state.finalArtifact as { metadata?: unknown }).metadata === 'object'
+      ? ((state.finalArtifact as { metadata: Record<string, unknown> }).metadata)
+      : undefined;
+  const fromFinal = (finalMeta?.presentationStorage as PdfStorageRefLike | undefined) ?? undefined;
+  const presentationStorage =
+    fromState?.key && fromState.bucket
+      ? fromState
+      : fromFinal?.key && fromFinal.bucket
+        ? fromFinal
+        : undefined;
+
+  const pptStatus =
+    typeof state.renderPptxStatus === 'string'
+      ? String(state.renderPptxStatus)
+      : typeof finalMeta?.presentationRenderStatus === 'string'
+        ? String(finalMeta.presentationRenderStatus)
+        : presentationStorage?.key
+          ? 'ok'
+          : undefined;
+  const pptError =
+    typeof state.renderPptxError === 'string'
+      ? String(state.renderPptxError)
+      : typeof finalMeta?.presentationRenderError === 'string'
+        ? String(finalMeta.presentationRenderError)
+        : undefined;
+
+  const mergedMeta: Record<string, unknown> = {
+    ...((result.metadata as Record<string, unknown> | undefined) ?? {}),
+  };
+
+  if (presentationStorage?.key && pptStatus !== 'failed') {
+    mergedMeta.presentationStorage = {
+      key: presentationStorage.key,
+      bucket: presentationStorage.bucket,
+      url: presentationStorage.url,
+    };
+    mergedMeta.presentationRenderStatus = 'ok';
+    mergedMeta.reading_format = 'pptx';
+    // PPTX 成功后主产物语义是演示文稿，避免列表/查看器仍按「写作文集」渲染
+    mergedMeta.resultKind = 'presentation-deck';
+    delete mergedMeta.presentationRenderError;
+    if (typeof finalMeta?.presentationSlideCount === 'number') {
+      mergedMeta.presentationSlideCount = finalMeta.presentationSlideCount;
+    } else if (typeof state.deckSlideCount === 'number') {
+      mergedMeta.presentationSlideCount = state.deckSlideCount;
+    } else if (
+      typeof mergedMeta.collectionItemCount === 'number' &&
+      mergedMeta.presentationSlideCount == null
+    ) {
+      mergedMeta.presentationSlideCount = mergedMeta.collectionItemCount;
+    }
+  } else if (pptStatus === 'failed') {
+    mergedMeta.presentationRenderStatus = 'failed';
+    if (pptError) mergedMeta.presentationRenderError = pptError;
+    const warning = `PPTX 生成失败：${pptError || '未知错误'}`;
+    const prev = Array.isArray(mergedMeta.warnings)
+      ? mergedMeta.warnings.filter((w): w is string => typeof w === 'string')
+      : [];
+    if (!prev.includes(warning)) mergedMeta.warnings = [...prev, warning];
+  } else {
+    return result;
+  }
+
+  return {
+    ...result,
+    metadata: mergedMeta,
+  };
+}
+
 async function applyWritingPostPipelineIfNeeded(args: {
   taskId: string;
   userId: string;
   taskParams: Record<string, unknown>;
-  result: {
-    text?: string;
-    metadata?: Record<string, unknown>;
-    storageInfo?: { key?: string; bucket?: string; url?: string };
-    format?: string;
-  };
+  result: WritingGenerateResultSlice;
   taskManager: TaskManager;
-}): Promise<{ paused: true } | { paused: false; result: typeof args.result }> {
+}): Promise<{ paused: true } | { paused: false; result: WritingGenerateResultSlice }> {
   const nestedParams = (args.taskParams.params ?? args.taskParams) as Record<string, unknown>;
   const taskV2 = (nestedParams.taskV2 ?? args.taskParams.taskV2) as
     | { scope?: string; taskKey?: string; subtype?: string | null }
@@ -178,53 +371,20 @@ async function applyWritingPostPipelineIfNeeded(args: {
     },
   });
 
-  const pdfStorage = ctx.state.renderDocumentPdfStorage as
-    | { key?: string; bucket?: string; url?: string }
-    | undefined;
-
   return {
     paused: false,
-    result: {
-      ...args.result,
-      text: merged.text ?? args.result.text,
-      metadata: merged.metadata as Record<string, unknown>,
-      storageInfo: pdfStorage?.key
-        ? {
-            key: pdfStorage.key,
-            bucket: pdfStorage.bucket,
-            url: pdfStorage.url,
-          }
-        : args.result.storageInfo,
-      format: (merged.metadata as Record<string, unknown> | undefined)?.format
-        ? String((merged.metadata as Record<string, unknown>).format)
-        : args.result.format,
-    },
+    result: attachPresentationSidecarToWritingResult(
+      attachPdfSidecarToWritingResult(
+        {
+          ...args.result,
+          text: merged.text ?? args.result.text,
+          metadata: (merged.metadata as Record<string, unknown> | undefined) ?? args.result.metadata,
+        },
+        ctx.state as Record<string, unknown>
+      ),
+      ctx.state as Record<string, unknown>
+    ),
   };
-}
-
-async function writingPostPipelineHasRenderPdf(taskParams: Record<string, unknown>): Promise<boolean> {
-  const nestedParams = (taskParams.params ?? taskParams) as Record<string, unknown>;
-  const taskV2 = (nestedParams.taskV2 ?? taskParams.taskV2) as
-    | { scope?: string; taskKey?: string; subtype?: string | null }
-    | undefined;
-  if (!taskV2?.scope || !taskV2.taskKey) return false;
-  try {
-    const { loadTaskDefinition } = await import('../../tasks/task-definition');
-    const { mergeEffectivePipeline } = await import('../../tasks/business-pipeline-defaults');
-    const { row, template } = await loadTaskDefinition({
-      scope: taskV2.scope as import('../../tasks/types').TaskScope,
-      taskKey: taskV2.taskKey,
-      subtype: taskV2.subtype ?? null,
-    });
-    const { post } = mergeEffectivePipeline(
-      taskV2.scope,
-      template,
-      (row.extra ?? null) as Record<string, unknown> | null
-    );
-    return post.some((s) => s.step === 'renderDocumentPdf');
-  } catch {
-    return false;
-  }
 }
 
 export interface WritingTaskParams {
@@ -520,6 +680,34 @@ export async function startWritingTask(taskId: string): Promise<void> {
                   logs: [u.message],
                 });
               };
+              const persistAdminPipelineCheckpoint = async (checkpointCtx: TaskContext) => {
+                const { isAdminPipelineDebug } = await import('../../tasks/mxm-warp/evidence');
+                if (!isAdminPipelineDebug(checkpointCtx)) return;
+                try {
+                  const snap = await taskManager.getTask(taskId);
+                  const existing = {
+                    ...((snap?.task?.requestParams ?? {}) as Record<string, unknown>),
+                  };
+                  const prevBps = {
+                    ...((existing.businessPipelineState as Record<string, unknown> | undefined) ?? {}),
+                    ...((bps ?? {}) as Record<string, unknown>),
+                  };
+                  await taskManager.updateTaskRequestParams(taskId, {
+                    ...existing,
+                    businessPipelineState: {
+                      ...prevBps,
+                      pipelineTrace: checkpointCtx.state.pipelineTrace,
+                      evidence: checkpointCtx.state.evidence,
+                      warpCursor: checkpointCtx.state.warpCursor,
+                      contract:
+                        contractSnapshotFromCtx(checkpointCtx) ?? checkpointCtx.state.contract,
+                      executionMode: 'mxm-warp',
+                    },
+                  });
+                } catch (persistErr) {
+                  console.warn('[mxm-warp] admin pipelineTrace 中途落库失败:', persistErr);
+                }
+              };
               const { ctx: afterWarp, text, usageBag, paused } = await executeMxmWarpTask({
                 ctx: warpCtx,
                 template,
@@ -528,13 +716,13 @@ export async function startWritingTask(taskId: string): Promise<void> {
                 provider,
                 resumeAt,
                 onProgress: reportWarpProgress,
+                onPipelineCheckpoint: persistAdminPipelineCheckpoint,
               });
 
               if (paused) {
-                const nextResume =
-                  paused.gate.kind === 'interactive-card' || paused.gate.kind === 'basic-form'
-                    ? 'start'
-                    : 'output';
+                const isInputGate =
+                  paused.gate.kind === 'interactive-card' || paused.gate.kind === 'basic-form';
+                const nextResume = isInputGate ? 'start' : 'output';
                 const execParams = {
                   ...(taskParams as Record<string, unknown>),
                   businessPipelineState: {
@@ -568,13 +756,27 @@ export async function startWritingTask(taskId: string): Promise<void> {
                 } catch {
                   /* ignore */
                 }
-                await taskManager.updateTaskStatus(taskId, 'awaiting_review', {
-                  progress: 55,
-                  phase: 'enrich',
-                  phaseIndex: 2,
+                // 闸门语义：interactive-card / basic-form = 「我还没开始干活，等你补字段」
+                // → 用 awaiting_user_input，与 awaiting_review（已出活等审核）严格区分。
+                const pauseStatus: 'awaiting_user_input' | 'awaiting_review' = isInputGate
+                  ? 'awaiting_user_input'
+                  : 'awaiting_review';
+                const pauseProgress = isInputGate ? 20 : 55;
+                const pausePhase = isInputGate ? 'pre' : 'enrich';
+                const pausePhaseIndex = isInputGate ? 0 : 2;
+                const pauseMessage = isInputGate
+                  ? `${paused.gate.label ?? '请补全信息'}，等待你输入`
+                  : `${paused.gate.label ?? '内容确认'}，等待你确认`;
+                const pauseLog = isInputGate
+                  ? `${paused.gate.label ?? 'pre 引导'}，等待用户补全后再继续`
+                  : `${paused.gate.label ?? 'enrich 审核'}，等待人工审核后再成文`;
+                await taskManager.updateTaskStatus(taskId, pauseStatus, {
+                  progress: pauseProgress,
+                  phase: pausePhase,
+                  phaseIndex: pausePhaseIndex,
                   phaseTotal: 5,
-                  message: `${paused.gate.label ?? '内容确认'}，等待你确认`,
-                  logs: [`${paused.gate.label ?? 'enrich 审核'}，等待人工审核后再成文`],
+                  message: pauseMessage,
+                  logs: [pauseLog],
                 });
                 return;
               }
@@ -600,8 +802,13 @@ export async function startWritingTask(taskId: string): Promise<void> {
                   ? ((afterWarp.state.coreArtifact as { metadata: Record<string, unknown> }).metadata)
                   : {};
               const collectionMeta: Record<string, unknown> = {};
-              if (coreMeta.resultKind === 'writing-collection') {
-                collectionMeta.resultKind = 'writing-collection';
+              if (
+                coreMeta.resultKind === 'writing-collection' ||
+                coreMeta.resultKind === 'presentation-deck'
+              ) {
+                if (coreMeta.resultKind === 'writing-collection') {
+                  collectionMeta.resultKind = 'writing-collection';
+                }
                 if (typeof coreMeta.collectionTitle === 'string') {
                   collectionMeta.collectionTitle = coreMeta.collectionTitle;
                 }
@@ -620,6 +827,9 @@ export async function startWritingTask(taskId: string): Promise<void> {
                 if (coreMeta.assembledFromGroup === true) {
                   collectionMeta.assembledFromGroup = true;
                 }
+                if (typeof coreMeta.presentationSlideCount === 'number') {
+                  collectionMeta.presentationSlideCount = coreMeta.presentationSlideCount;
+                }
               }
               result = {
                 text,
@@ -633,6 +843,7 @@ export async function startWritingTask(taskId: string): Promise<void> {
                   mxmWarp: true,
                   contract: contractSnapshotFromCtx(afterWarp),
                   pipelineTrace: afterWarp.state.pipelineTrace,
+                  evidence: afterWarp.state.evidence,
                   ...collectionMeta,
                 },
                 _llmMetadata: {
@@ -641,6 +852,15 @@ export async function startWritingTask(taskId: string): Promise<void> {
                   provider: usageBag.provider ?? provider,
                 },
               };
+              // warp 的 post（含 markdownToPdf / renderPptx）已跑完；必须把 sidecar 写入结果
+              result = attachPdfSidecarToWritingResult(
+                result,
+                afterWarp.state as Record<string, unknown>
+              );
+              result = attachPresentationSidecarToWritingResult(
+                result,
+                afterWarp.state as Record<string, unknown>
+              );
               break;
             }
           }
@@ -660,12 +880,9 @@ export async function startWritingTask(taskId: string): Promise<void> {
           });
         };
 
-        const skipCoreMinio = await writingPostPipelineHasRenderPdf(taskParams as Record<string, unknown>);
+        // 主存始终 Markdown；PDF 由 post markdownToPdf 以 sidecar 产出
         const writingResult = await generateWriting(
-          {
-            ...generateParams,
-            ...(skipCoreMinio ? { storeToMinio: false } : {}),
-          },
+          generateParams,
           params.userId,
           params.provider as any,
           onProgress
@@ -715,8 +932,17 @@ export async function startWritingTask(taskId: string): Promise<void> {
     });
 
     // 对于 outline 任务，将大纲内容直接存储在 metadata 中
+    const pdfUrl =
+      result.metadata &&
+      typeof result.metadata === 'object' &&
+      (result.metadata as Record<string, unknown>).pdfStorage &&
+      typeof (result.metadata as { pdfStorage?: { url?: string } }).pdfStorage === 'object'
+        ? (result.metadata as { pdfStorage?: { url?: string } }).pdfStorage?.url
+        : undefined;
     const taskResult: any = {
-      mediaUrls: result.storageInfo?.url ? [result.storageInfo.url] : [],
+      mediaUrls: [pdfUrl, result.storageInfo?.url].filter(
+        (u): u is string => typeof u === 'string' && u.length > 0
+      ),
       metadata: result.metadata || {},
       ...(result.storageInfo ? { storageInfo: result.storageInfo } : {}),
     };

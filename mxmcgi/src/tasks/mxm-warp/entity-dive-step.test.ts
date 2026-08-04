@@ -7,7 +7,7 @@ import type { TaskContext, PipelineStep } from '../types';
 function baseCtx(overrides?: Partial<TaskContext>): TaskContext {
   return {
     scope: 'writing',
-    taskKey: 'editorial',
+    taskKey: 'generator',
     subtype: 'company-deep-dive',
     taskId: 't1',
     params: { language: 'zh' },
@@ -26,7 +26,7 @@ function makeSeedContract(opts: {
     emptyContract({
       version: MXM_WARP_CONTRACT_VERSION,
       scope: 'writing',
-      taskKey: 'editorial',
+      taskKey: 'generator',
       subtype: null,
       taskId: 't1',
     })

@@ -449,9 +449,11 @@ export async function runGroupItemBatchStep(
 
       if (itemManuscript && createWarpLlmAdapter) {
         const field = String(itemManuscript.field ?? 'manuscript').trim() || 'manuscript';
-        const systemPrompt = String(itemManuscript.systemPrompt ?? '').trim();
+        let systemPrompt = String(itemManuscript.systemPrompt ?? '').trim();
         if (!systemPrompt) {
-          throw new Error('itemManuscript.systemPrompt 不能为空');
+          throw new Error(
+            'itemManuscript.systemPrompt 不能为空（Core Skill 业务应由 warp-runner 注入 SKILL+references）'
+          );
         }
         if (!modelKey || !provider) {
           throw new Error('itemManuscript 需要宿主 params.model / params.provider（或 logicalModel）');
@@ -473,9 +475,14 @@ export async function runGroupItemBatchStep(
           basicOverlay.language ?? itemContract.basic?.language ?? 'zh'
         ).trim();
         const languageDirective = buildManuscriptLanguageDirective(lang);
+        const { sliceContractForSkill } = await import('./skill/context');
         const text = await llm({
           system: `${systemPrompt}\n\n${languageDirective}`,
-          user: JSON.stringify({ contract: manuscriptContract }, null, 2),
+          user: JSON.stringify(
+            { contract: sliceContractForSkill(manuscriptContract as unknown as Record<string, unknown>) },
+            null,
+            2
+          ),
           ctx: itemCtx,
         });
         let manuscript = text.trim();
@@ -490,6 +497,25 @@ export async function runGroupItemBatchStep(
           manuscript = polishEditorialMarkdown(manuscript, { language: lang }).trim();
         } catch (polishErr) {
           console.warn('[groupItemBatch] deterministicPolish 跳过:', polishErr);
+        }
+        // seek 成稿：补缺标题、控粗体、拆墙字（不改事实）
+        try {
+          const { normalizeSeekManuscript } = await import('./mxm-warp/seek-manuscript-normalize');
+          const topicFallback = String(
+            basicOverlay.topic ??
+              itemContract.basic?.topic ??
+              item.topic ??
+              ''
+          ).trim();
+          const voiceId = String(
+            basicOverlay.voice_id ?? item.voice_id ?? itemContract.basic?.voice_id ?? ''
+          ).trim();
+          manuscript = normalizeSeekManuscript(manuscript, {
+            fallbackTitle: topicFallback || undefined,
+            voiceId: voiceId || undefined,
+          }).trim();
+        } catch (seekNormErr) {
+          console.warn('[groupItemBatch] seekManuscriptNormalize 跳过:', seekNormErr);
         }
         item[field] = manuscript;
       }

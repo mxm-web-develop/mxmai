@@ -4,6 +4,7 @@ import { ConfigurationError } from './errors';
 import { composeLegacyPromptToUnified } from './prompt-template';
 import { mergePlatformFieldsIntoTemplateFormSchema } from './platform-fields';
 import { normalizeTaskTemplatePipeline } from './business-pipeline-defaults';
+import { sanitizeNumericEnumsInJsonSchema } from './form-param-normalize';
 
 /**
  * Graph 子业务由请求体 taskKey + subtype 路由；`subtype` 同时出现在 formSchema 里会与顶部业务选择重复，
@@ -22,6 +23,49 @@ function stripGraphSubtypeDupFromFormSchema(scope: TaskScope, template: TaskTemp
   fs.properties = nextProps;
   if (Array.isArray(fs.required)) {
     fs.required = (fs.required as unknown[]).map(String).filter((k) => k !== 'subtype');
+  }
+}
+
+/**
+ * 派生/机器字段不得进入用户表单与引导步：
+ * - voice_id：由 minimaxVoice 对象扁平化
+ * - speed：由 broadcast_style 推导（TTS）
+ * - character_folder_id：由角色卡音色选用回写
+ * 历史 Admin/合并可能把 contract 字段写进 formSchema，加载时剥离。
+ */
+function stripDerivedMachineFieldsFromFormSchema(template: TaskTemplate): void {
+  const fs = template.formSchema as Record<string, unknown> | undefined;
+  if (!fs || typeof fs !== 'object') return;
+  const props = fs.properties;
+  if (!props || typeof props !== 'object' || Array.isArray(props)) return;
+  const p = props as Record<string, unknown>;
+  const next = { ...p };
+  let changed = false;
+
+  const voice = p.voice;
+  const voiceIsMinimax =
+    voice &&
+    typeof voice === 'object' &&
+    !Array.isArray(voice) &&
+    (voice as Record<string, unknown>)['x-ui-type'] === 'minimaxVoice';
+  if (voiceIsMinimax && Object.prototype.hasOwnProperty.call(next, 'voice_id')) {
+    delete next.voice_id;
+    changed = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(next, 'broadcast_style') && Object.prototype.hasOwnProperty.call(next, 'speed')) {
+    delete next.speed;
+    changed = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(next, 'character_folder_id')) {
+    delete next.character_folder_id;
+    changed = true;
+  }
+  if (!changed) return;
+
+  fs.properties = next;
+  if (Array.isArray(fs.required)) {
+    const drop = new Set(['voice_id', 'speed', 'character_folder_id']);
+    fs.required = (fs.required as unknown[]).map(String).filter((k) => !drop.has(k));
   }
 }
 
@@ -57,6 +101,7 @@ export async function loadTaskDefinition(params: {
     throw new ConfigurationError(`TaskTemplate.formSchema 缺失或无效：scope=${scope} taskKey=${taskKey}`);
   }
   stripGraphSubtypeDupFromFormSchema(scope, template);
+  stripDerivedMachineFieldsFromFormSchema(template);
   if (!template.prompt || typeof template.prompt !== 'object') {
     throw new ConfigurationError(`TaskTemplate.prompt 缺失或无效：scope=${scope} taskKey=${taskKey}`);
   }
@@ -100,6 +145,11 @@ export async function loadTaskDefinition(params: {
   mergePlatformFieldsIntoTemplateFormSchema(template, scope);
 
   normalizeTaskTemplatePipeline(template, scope, extra);
+
+  sanitizeNumericEnumsInJsonSchema(template.formSchema);
+  sanitizeNumericEnumsInJsonSchema(
+    (template as { contractSchema?: import('./types').JsonSchemaV2 }).contractSchema
+  );
 
   return { row, template };
 }

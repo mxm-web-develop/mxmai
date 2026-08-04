@@ -28,9 +28,14 @@ import {
 } from '../provider-model-catalog';
 import { requireUpstreamPhysicalId } from '../physical-model-id';
 import type { ProviderModel } from '@mxmai/mxmdata';
-import { resolveTtsInputText } from '../../tasks/audio-tts-params';
+import { resolveTtsInputText, resolveTtsSubtitleApiParams } from '../../tasks/audio-tts-params';
+import {
+  ProviderContentPolicyError,
+  extractHitWordsFromUpstreamJson,
+} from '../../tasks/provider-content-policy';
 import { Agent, fetch as undiciFetch } from 'undici';
-import { formatNodeFetchError } from '../../core/utils/format-node-fetch-error';
+import { throwMappedFetchError } from '../../core/utils/format-node-fetch-error';
+import { mapUpstreamError } from '../../errors';
 
 type MaxplanModality = 'text' | 'image' | 'audio' | 'music';
 
@@ -71,27 +76,15 @@ function formatMiniMaxSensitiveHint(json: Record<string, unknown>): string {
     const label = MINIMAX_SENSITIVE_TYPE_LABEL[outType] ?? (outType > 0 ? `类型${outType}` : '未分类');
     parts.push(`输出涉敏·${label}`);
   }
-  // 偶发字段：若上游将来返回命中片段则透出（当前官方文档无此字段）
-  for (const key of [
-    'sensitive_word',
-    'sensitive_words',
-    'hit_words',
-    'input_sensitive_words',
-    'output_sensitive_words',
-  ]) {
-    const v = json[key];
-    if (typeof v === 'string' && v.trim()) parts.push(`命中：${v.trim().slice(0, 80)}`);
-    else if (Array.isArray(v) && v.length > 0) {
-      const words = v
-        .map((x) => (typeof x === 'string' ? x : typeof x === 'object' && x && 'word' in x ? String((x as { word: unknown }).word) : ''))
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .slice(0, 8);
-      if (words.length) parts.push(`命中：${words.join('、')}`);
-    }
+  const hitWords = extractHitWordsFromUpstreamJson(json);
+  if (hitWords.length > 0) {
+    parts.push(`命中：${hitWords.slice(0, 8).join('、')}`);
   }
   if (parts.length === 0) return '';
-  return `${parts.join('；')}（上游不返回具体敏感词，仅类型）`;
+  if (hitWords.length === 0) {
+    return `${parts.join('；')}（上游不返回具体敏感词，仅类型）`;
+  }
+  return parts.join('；');
 }
 
 export function formatMiniMaxBusinessError(json: Record<string, unknown>, label: string): string {
@@ -107,7 +100,21 @@ export function formatMiniMaxBusinessError(json: Record<string, unknown>, label:
 function assertMiniMaxBaseResp(json: Record<string, unknown>, label: string): void {
   const base = json.base_resp as { status_code?: number; status_msg?: string } | undefined;
   if (base?.status_code != null && Number(base.status_code) !== 0) {
-    throw new Error(formatMiniMaxBusinessError(json, label));
+    const code = Number(base.status_code);
+    const message = formatMiniMaxBusinessError(json, label);
+    // 1026/1027：结构化抛出，便于管道按命中词清洗重试
+    if (code === 1026 || code === 1027) {
+      throw new ProviderContentPolicyError(message, {
+        hitWords: extractHitWordsFromUpstreamJson(json),
+        statusCode: code,
+        sensitiveType:
+          Number(json.input_sensitive_type) ||
+          Number(json.output_sensitive_type) ||
+          undefined,
+        upstreamJson: json,
+      });
+    }
+    throw new Error(message);
   }
 }
 
@@ -127,17 +134,46 @@ export function extractMaxplanChatText(message: Record<string, unknown> | undefi
     }
   }
   let text = parts.join('\n').trim();
-  // M2/M3 thinking 块：剥离 … 或 …，保留块外正文
+  // M2/M3 thinking 块：剥离后只保留块外正文
   text = text
     .replace(/[\s\S]*?<\/think>/gi, '')
     .replace(/[\s\S]*?<\/redacted_thinking>/gi, '')
     .trim();
-  if (text) return text;
-  const reasoning = message.reasoning_content;
-  if (typeof reasoning === 'string' && reasoning.trim()) {
-    return reasoning.trim();
+  // reasoning_content / thinking 仅过程，禁止当正文、禁止落库回退
+  return text;
+}
+
+/** 从上游 raw 去掉思维链字段，避免写入任务 metadata / MinIO */
+export function stripReasoningFromUpstreamRaw(json: unknown): unknown {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return json;
+  try {
+    const cloned = JSON.parse(JSON.stringify(json)) as Record<string, unknown>;
+    const choices = cloned.choices;
+    if (Array.isArray(choices)) {
+      for (const ch of choices) {
+        if (!ch || typeof ch !== 'object') continue;
+        const msg = (ch as { message?: Record<string, unknown> }).message;
+        if (!msg || typeof msg !== 'object') continue;
+        delete msg.reasoning_content;
+        delete msg.reasoning_details;
+        delete msg.thinking;
+        if (typeof msg.content === 'string') {
+          msg.content = extractMaxplanChatText(msg);
+        }
+      }
+    }
+    return cloned;
+  } catch {
+    return json;
   }
-  return '';
+}
+
+function isThinkingDisabled(params: Record<string, unknown>): boolean {
+  const t = params.thinking;
+  if (t && typeof t === 'object' && !Array.isArray(t)) {
+    return String((t as { type?: unknown }).type ?? '').toLowerCase() === 'disabled';
+  }
+  return false;
 }
 
 function hexToDataUri(hex: string, mime = 'audio/mpeg'): string {
@@ -224,14 +260,20 @@ export class MaxplanProvider implements ModelProvider {
     modelKey: string,
     raw: Record<string, unknown>,
   ): Record<string, unknown> {
-    const defaults = (this.getCatalogRow(modelKey)?.default_parameters ?? {}) as Record<
-      string,
-      unknown
-    >;
+    const defaults = {
+      ...((this.getCatalogRow(modelKey)?.default_parameters ?? {}) as Record<string, unknown>),
+    };
+    // thinking / reasoning_split 须由业务 generateParams.parameters 显性传入，勿从 catalog 隐式继承
+    delete defaults.thinking;
+    delete defaults.reasoning_split;
     return { ...defaults, ...raw };
   }
 
-  /** M3 等模型：同步 max_completion_tokens，避免仅用已弃用的 max_tokens 导致输出过短 */
+  /**
+   * M3：同步 max_completion_tokens。
+   * thinking 须由业务 generateParams.parameters（或调用方）显性传入，此处不偷偷默认。
+   * 若已开 thinking 且未设 reasoning_split，则补 true，防思考混进 content；思维链永不作为成稿。
+   */
   private normalizeTextRequestParams(
     upstreamModel: string,
     raw: Record<string, unknown>,
@@ -246,6 +288,9 @@ export class MaxplanProvider implements ModelProvider {
           : undefined;
     if (maxOut != null && maxOut > 0) {
       out.max_completion_tokens = maxOut;
+    }
+    if (out.thinking !== undefined && out.reasoning_split === undefined) {
+      out.reasoning_split = true;
     }
     return out;
   }
@@ -286,7 +331,8 @@ export class MaxplanProvider implements ModelProvider {
     const baseUrl = this.getBaseUrl();
     const url = `${baseUrl}${path}`;
     const timeoutMs = Number(process.env.MAXPLAN_FETCH_TIMEOUT_MS || 900_000);
-    const maxAttempts = Math.max(1, Number(process.env.MAXPLAN_FETCH_RETRIES || 2));
+    // 529 overloaded 常见：默认多试几次；可用 MAXPLAN_FETCH_RETRIES 覆盖
+    const maxAttempts = Math.max(1, Number(process.env.MAXPLAN_FETCH_RETRIES || 4));
 
     let lastErr: unknown;
     const agent = new Agent({
@@ -317,14 +363,21 @@ export class MaxplanProvider implements ModelProvider {
           msg.includes('HEADERS_TIMEOUT') ||
           msg.includes('UND_ERR_HEADERS_TIMEOUT') ||
           msg.includes('AbortError') ||
-          msg.includes('timeout');
+          msg.includes('timeout') ||
+          /\b529\b/.test(msg) ||
+          /overloaded_error|负载较高|系统繁忙|服务集群负载/i.test(msg) ||
+          /\b502\b|\b503\b|\b504\b/.test(msg);
         if (!retriable || attempt >= maxAttempts) {
-          throw new Error(formatNodeFetchError(url, err));
+          throwMappedFetchError(url, err);
         }
-        await new Promise((r) => setTimeout(r, 1500 * attempt));
+        const backoffMs = Math.min(12_000, 1500 * attempt * attempt);
+        console.warn(
+          `[Maxplan] 可重试错误 attempt=${attempt}/${maxAttempts} backoff=${backoffMs}ms path=${path}: ${msg.slice(0, 180)}`
+        );
+        await new Promise((r) => setTimeout(r, backoffMs));
       }
     }
-    throw new Error(formatNodeFetchError(url, lastErr));
+    throwMappedFetchError(url, lastErr);
   }
 
   private async parseMaxplanJsonResponse(
@@ -337,13 +390,17 @@ export class MaxplanProvider implements ModelProvider {
       json = text ? (JSON.parse(text) as Record<string, unknown>) : {};
     } catch {
       if (!resp.ok) {
-        throw new Error(`Maxplan API 请求失败: ${resp.status} ${resp.statusText} ${text}`);
+        throw mapUpstreamError(
+          new Error(`Maxplan API 请求失败: ${resp.status} ${resp.statusText} ${text}`)
+        );
       }
-      throw new Error(`Maxplan API 返回非 JSON: ${text.slice(0, 500)}`);
+      throw mapUpstreamError(new Error(`Maxplan API 返回非 JSON: ${text.slice(0, 500)}`));
     }
 
     if (!resp.ok) {
-      throw new Error(`Maxplan API 请求失败: ${resp.status} ${resp.statusText} ${text}`);
+      throw mapUpstreamError(
+        new Error(`Maxplan API 请求失败: ${resp.status} ${resp.statusText} ${text}`)
+      );
     }
     return json;
   }
@@ -415,22 +472,129 @@ export class MaxplanProvider implements ModelProvider {
       messages,
     };
 
-    const json = await this.postJson('/v1/text/chatcompletion_v2', body);
-    assertMiniMaxBaseResp(json, '文本');
-    const choices = json.choices as Array<{ message?: Record<string, unknown>; finish_reason?: string }> | undefined;
-    const content = extractMaxplanChatText(choices?.[0]?.message);
+    const { MANUSCRIPT_CONTINUE_USER_PROMPT } = await import('../../tasks/llm-budget-policy');
+    type Attempt = {
+      phase: 'initial' | 'disable_thinking_retry' | 'continue';
+      finish_reason?: string | null;
+      completion_tokens?: number;
+      had_reasoning: boolean;
+      content_chars: number;
+    };
+    const attempts: Attempt[] = [];
+    let thinkingDisabledRetry = false;
+    let continued = false;
+
+    const runOnce = async (reqBody: Record<string, unknown>, phase: Attempt['phase']) => {
+      const json = await this.postJson('/v1/text/chatcompletion_v2', reqBody);
+      assertMiniMaxBaseResp(json, '文本');
+      const choices = json.choices as
+        | Array<{ message?: Record<string, unknown>; finish_reason?: string }>
+        | undefined;
+      const choice = choices?.[0];
+      const message = choice?.message;
+      const content = extractMaxplanChatText(message);
+      const usageRaw = json.usage as
+        | { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+        | undefined;
+      const hadReasoning =
+        typeof message?.reasoning_content === 'string' &&
+        String(message.reasoning_content).trim().length > 0;
+      attempts.push({
+        phase,
+        finish_reason: choice?.finish_reason ?? null,
+        completion_tokens: Number(usageRaw?.completion_tokens ?? 0) || undefined,
+        had_reasoning: hadReasoning,
+        content_chars: content.length,
+      });
+      return { json, choice, message, content, usageRaw, hadReasoning };
+    };
+
+    let { json, choice, message, content, usageRaw, hadReasoning } = await runOnce(
+      body,
+      'initial'
+    );
+
+    // ① 关思考重试：空正文 +（length 或仅有 reasoning）
+    if (
+      !content.trim() &&
+      !isThinkingDisabled(cleanedParams) &&
+      (choice?.finish_reason === 'length' || hadReasoning)
+    ) {
+      thinkingDisabledRetry = true;
+      ({ json, choice, message, content, usageRaw, hadReasoning } = await runOnce(
+        {
+          ...body,
+          thinking: { type: 'disabled' },
+          reasoning_split: true,
+        },
+        'disable_thinking_retry'
+      ));
+    }
+
+    // ② continue：仍 length 且已有部分正文（或关思考后仍 length 且有正文）
+    if (choice?.finish_reason === 'length' && content.trim()) {
+      const baseMessages = Array.isArray(body.messages) ? [...(body.messages as unknown[])] : [];
+      const continueBody: Record<string, unknown> = {
+        ...body,
+        thinking: { type: 'disabled' },
+        reasoning_split: true,
+        messages: [
+          ...baseMessages,
+          { role: 'assistant', content },
+          { role: 'user', content: MANUSCRIPT_CONTINUE_USER_PROMPT },
+        ],
+      };
+      const cont = await runOnce(continueBody, 'continue');
+      if (cont.content.trim()) {
+        continued = true;
+        content = `${content.trim()}\n${cont.content.trim()}`.trim();
+        json = cont.json;
+        choice = cont.choice;
+        message = cont.message;
+        usageRaw = {
+          prompt_tokens:
+            Number(usageRaw?.prompt_tokens ?? 0) + Number(cont.usageRaw?.prompt_tokens ?? 0),
+          completion_tokens:
+            Number(usageRaw?.completion_tokens ?? 0) +
+            Number(cont.usageRaw?.completion_tokens ?? 0),
+          total_tokens:
+            Number(usageRaw?.total_tokens ?? 0) + Number(cont.usageRaw?.total_tokens ?? 0),
+        };
+        hadReasoning = hadReasoning || cont.hadReasoning;
+      }
+    }
+
+    const finishReason = choice?.finish_reason;
+    const budget = {
+      attempts,
+      finish_reason: finishReason ?? null,
+      completion_tokens: Number(usageRaw?.completion_tokens ?? 0) || undefined,
+      prompt_tokens: Number(usageRaw?.prompt_tokens ?? 0) || undefined,
+      total_tokens: Number(usageRaw?.total_tokens ?? 0) || undefined,
+      had_reasoning: hadReasoning,
+      truncated: finishReason === 'length',
+      continued,
+      thinking_disabled_retry: thinkingDisabledRetry,
+    };
+
     if (!content.trim()) {
       const sensHint = formatMiniMaxSensitiveHint(json);
+      const detail = [
+        finishReason ? `finish_reason=${finishReason}` : null,
+        hadReasoning ? '有 reasoning_content（过程，已忽略，不落库）' : null,
+        thinkingDisabledRetry ? '已关思考重试' : null,
+        continued ? '已 continue' : null,
+      ]
+        .filter(Boolean)
+        .join('；');
       throw new Error(
         sensHint
           ? `Maxplan 文本返回为空（疑似内容审核拦截）· ${sensHint}`
-          : `Maxplan 文本返回为空（model=${upstreamModel}）。请检查 upstream_model 是否为 api.minimaxi.com 支持的 ID（如 MiniMax-M3）。`,
+          : `Maxplan 文本返回为空（model=${upstreamModel}${detail ? `；${detail}` : ''}）。已执行：关思考重试→continue；思考不落库。`
       );
     }
-    const finishReason = choices?.[0]?.finish_reason;
-    const usageRaw = json.usage as
-      | { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
-      | undefined;
+
+    // length 且 continue 后仍截断：有正文则接受并打 truncated，由上层 hygiene/观测处理
     const usage = {
       prompt_tokens: Number(usageRaw?.prompt_tokens ?? 0),
       completion_tokens: Number(usageRaw?.completion_tokens ?? 0),
@@ -447,8 +611,10 @@ export class MaxplanProvider implements ModelProvider {
         text: content,
         usage,
         finish_reason: finishReason,
+        had_reasoning: hadReasoning,
+        budget,
         vision_images: referenceUrls.length,
-        raw: json,
+        raw: stripReasoningFromUpstreamRaw(json),
       },
     } as GenerateResult;
   }
@@ -623,6 +789,15 @@ export class MaxplanProvider implements ModelProvider {
       stream: false,
       voice_setting: voiceSetting,
     };
+    // MiniMax 字幕：默认开启 sentence；仅当 params.subtitle_enable===false 时关闭
+    const subtitle = resolveTtsSubtitleApiParams(upstreamModel, rawParams);
+    if (subtitle.subtitle_enable) {
+      body.subtitle_enable = true;
+      if (subtitle.subtitle_type) body.subtitle_type = subtitle.subtitle_type;
+    } else {
+      delete body.subtitle_enable;
+      delete body.subtitle_type;
+    }
 
     const json = await this.postJson('/v1/t2a_v2', body);
     assertMiniMaxBaseResp(json, 'TTS');
@@ -662,7 +837,7 @@ export class MaxplanProvider implements ModelProvider {
         audio_seconds: extra?.audio_length != null ? Number(extra.audio_length) / 1000 : undefined,
         duration: extra?.audio_length != null ? Number(extra.audio_length) / 1000 : undefined,
         subtitle_file: subtitleFile,
-        subtitle_enabled: rawParams.subtitle_enable !== false,
+        subtitle_enabled: Boolean(subtitle.subtitle_enable),
         extra_info: extra,
         // 字数 → prompt_tokens，配合 provider_pricing token_based（$/千字）计费
         usage: {

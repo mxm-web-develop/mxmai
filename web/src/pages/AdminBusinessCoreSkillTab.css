@@ -1,0 +1,272 @@
+.admin-core-skill-ios {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-core-skill-ios__workspace {
+  display: flex;
+  gap: 0;
+  min-height: 480px;
+  border: 1px solid rgba(60, 60, 67, 0.12);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+:is(html.dark, html.dark-mode, .dark) .admin-core-skill-ios__workspace {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(28, 28, 30, 0.92);
+}
+
+.admin-core-skill-ios__sidebar {
+  width: 268px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(242, 242, 247, 0.92);
+  border-right: 1px solid rgba(60, 60, 67, 0.12);
+}
+
+:is(html.dark, html.dark-mode, .dark) .admin-core-skill-ios__sidebar {
+  background: rgba(44, 44, 46, 0.96);
+  border-right-color: rgba(255, 255, 255, 0.1);
+}
+
+.admin-core-skill-ios__sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.08);
+}
+
+.admin-core-skill-ios__sidebar-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgba(60, 60, 67, 0.85);
+}
+
+:is(html.dark, html.dark-mode, .dark) .admin-core-skill-ios__sidebar-title {
+  color: rgba(235, 235, 245, 0.7);
+}
+
+.admin-core-skill-ios__sidebar-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.admin-core-skill-ios__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #007aff;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.admin-core-skill-ios__icon-btn:hover {
+  background: #fff;
+}
+
+.admin-core-skill-ios__icon-btn:active {
+  transform: scale(0.96);
+}
+
+:is(html.dark, html.dark-mode, .dark) .admin-core-skill-ios__icon-btn {
+  background: rgba(72, 72, 74, 0.9);
+  color: #0a84ff;
+}
+
+.admin-core-skill-ios__tree {
+  flex: 1;
+  overflow: auto;
+  padding: 6px 8px 10px;
+  list-style: none;
+  margin: 0;
+}
+
+.admin-core-skill-ios__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 8px 0 4px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  transition: background 140ms ease;
+}
+
+.admin-core-skill-ios__row:hover {
+  background: rgba(60, 60, 67, 0.06);
+}
+
+:is(html.dark, html.dark-mode, .dark) .admin-core-skill-ios__row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-core-skill-ios__row.is-selected {
+  background: rgba(0, 122, 255, 0.14);
+}
+
+:is(html.dark, html.dark-mode, .dark) .admin-core-skill-ios__row.is-selected {
+  background: rgba(10, 132, 255, 0.22);
+}
+
+.admin-core-skill-ios__row.is-folder {
+  cursor: pointer;
+}
+
+.admin-core-skill-ios__chevron {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  color: rgba(60, 60, 67, 0.45);
+  flex-shrink: 0;
+  transition: transform 160ms ease;
+}
+
+.admin-core-skill-ios__chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.admin-core-skill-ios__chevron.is-spacer {
+  visibility: hidden;
+}
+
+.admin-core-skill-ios__glyph {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #007aff;
+}
+
+.admin-core-skill-ios__glyph.is-file {
+  color: rgba(60, 60, 67, 0.55);
+}
+
+:is(html.dark, html.dark-mode, .dark) .admin-core-skill-ios__glyph {
+  color: #0a84ff;
+}
+
+:is(html.dark, html.dark-mode, .dark) .admin-core-skill-ios__glyph.is-file {
+  color: rgba(235, 235, 245, 0.45);
+}
+
+.admin-core-skill-ios__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.admin-core-skill-ios__row.is-folder .admin-core-skill-ios__label {
+  font-weight: 600;
+}
+
+.admin-core-skill-ios__lock {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(60, 60, 67, 0.45);
+  background: rgba(120, 120, 128, 0.12);
+  border-radius: 999px;
+  padding: 1px 6px;
+  line-height: 16px;
+}
+
+:is(html.dark, html.dark-mode, .dark) .admin-core-skill-ios__lock {
+  color: rgba(235, 235, 245, 0.45);
+  background: rgba(120, 120, 128, 0.28);
+}
+
+.admin-core-skill-ios__children {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 2px 14px;
+}
+
+.admin-core-skill-ios__editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #fff;
+}
+
+:is(html.dark, html.dark-mode, .dark) .admin-core-skill-ios__editor {
+  background: transparent;
+}
+
+.admin-core-skill-ios__editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.08);
+}
+
+.admin-core-skill-ios__editor-path {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-core-skill-ios__editor-body {
+  flex: 1;
+  padding: 12px 14px 16px;
+  overflow: auto;
+}
+
+.admin-core-skill-ios__textarea.ant-input {
+  border-radius: 10px !important;
+  border-color: rgba(60, 60, 67, 0.12) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  padding: 12px 14px !important;
+  box-shadow: none !important;
+}
+
+.admin-core-skill-ios__textarea.ant-input:focus {
+  border-color: rgba(0, 122, 255, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-core-skill-ios__icon-btn,
+  .admin-core-skill-ios__row,
+  .admin-core-skill-ios__chevron {
+    transition: none;
+  }
+}

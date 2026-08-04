@@ -32,20 +32,17 @@ export async function resolveKnowledgeFolderText(link: KnowledgeFolderLinkItem):
     const objectId = link.object_id ?? link.id;
     if (!objectId) throw new Error('缺少 storage object id');
     const contentUrl = storageObjectPublicUrl(objectId);
+    // blob URL 由 mediaBlobCache 统一管理，不得 revoke（否则缓存命中后 ERR_FILE_NOT_FOUND）
     const blobUrl = await fetchStorageObjectBlobUrl(contentUrl, objectId);
-    try {
-      const res = await fetch(blobUrl);
-      if (!res.ok) throw new Error(`读取文件失败 (${res.status})`);
-      const blob = await res.blob();
-      const file = new File([blob], link.name, {
-        type: blob.type || link.content_type || 'application/octet-stream',
-      });
-      const text = (await extractTextFromFile(file)).trim();
-      if (!text) throw new Error('文件内容为空');
-      return text;
-    } finally {
-      URL.revokeObjectURL(blobUrl);
-    }
+    const res = await fetch(blobUrl);
+    if (!res.ok) throw new Error(`读取文件失败 (${res.status})`);
+    const blob = await res.blob();
+    const file = new File([blob], link.name, {
+      type: blob.type || link.content_type || 'application/octet-stream',
+    });
+    const text = (await extractTextFromFile(file)).trim();
+    if (!text) throw new Error('文件内容为空');
+    return text;
   }
   const taskId = link.task_id ?? link.id;
   if (!taskId) throw new Error('缺少任务 id');

@@ -1,0 +1,55 @@
+{
+  "title": "Aurora 品牌视觉手册",
+  "deck_type": "brand",
+  "visual_system": {
+    "palette": {
+      "background": "#0B1220",
+      "foreground": "#F8FAFC",
+      "accent": "#38BDF8",
+      "muted": "#94A3B8"
+    },
+    "typography": {
+      "title_font": "Microsoft YaHei",
+      "body_font": "Microsoft YaHei",
+      "title_size_pt": 36,
+      "body_size_pt": 18
+    },
+    "motif": "aurora glow",
+    "ratio": "16:9"
+  },
+  "slides": [
+    {
+      "id": "s1",
+      "order": 1,
+      "role": "cover",
+      "title": "Aurora 品牌视觉手册",
+      "subtitle": "识别系统 · 2026",
+      "layout_hint": "title_center",
+      "notes": "开场：品牌一句话定位"
+    },
+    {
+      "id": "s2",
+      "order": 2,
+      "role": "agenda",
+      "title": "目录",
+      "layout_hint": "agenda_list",
+      "bullets": ["品牌故事", "色彩系统", "字体层级", "应用场景"]
+    },
+    {
+      "id": "s3",
+      "order": 3,
+      "role": "content",
+      "title": "色彩系统",
+      "layout_hint": "three_cards",
+      "bullets": ["主色 Sky 600", "背景 Slate 950", "点缀 Amber 400"]
+    },
+    {
+      "id": "s4",
+      "order": 4,
+      "role": "closing",
+      "title": "保持克制，留白说话",
+      "subtitle": "下一步：落地物料清单",
+      "layout_hint": "closing"
+    }
+  ]
+}

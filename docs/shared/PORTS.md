@@ -10,6 +10,7 @@
 | **mxmcgi-api** | 4003 | `MXMCGI_PORT` | 内容生成 API（含 Agent/Smartflow） |
 | **mxmcgi-worker** | 4004 | `WORKER_PORT` | 异步任务 worker（`MXMCGI_ROLE=worker`） |
 | **mxmnotify** | 4005 | `MXMNOTIFY_PORT` | 任务和通知服务 |
+| **pptx-compiler** | 4010 | `PPTX_COMPILER_PORT` | PPTX 异步编译（同机，供 `renderPptx`） |
 
 > 端口 4004 为 **mxmcgi-worker**，不是已废弃的独立 `mxmagent` 服务。见 `docs/adr/mxmagent-merged-into-mxmcgi.md`。
 
@@ -21,6 +22,7 @@ MXMAUTH_URL=http://localhost:4001
 MXMPAY_URL=http://localhost:4002
 MXMCGI_URL=http://localhost:4003
 MXMNOTIFY_URL=http://localhost:4005
+PPTX_COMPILER_URL=http://127.0.0.1:4010
 ```
 
 ## 启动顺序

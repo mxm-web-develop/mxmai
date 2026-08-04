@@ -1,0 +1,59 @@
+{
+  "display": {
+    "taskLabel": "专家填合同",
+    "userFacing": false,
+    "subtypeLabel": "日报·论据编剧",
+    "taskLabelI18n": {
+      "en": "Expert",
+      "ja": "Expert",
+      "zh": "专家填合同",
+      "zh-TW": "专家填合同"
+    },
+    "subtypeLabelI18n": {
+      "en": "Industry daily body",
+      "ja": "Industry daily body",
+      "zh": "日报·论据编剧",
+      "zh-TW": "日報·論據编剧"
+    }
+  },
+  "taskTemplate": {
+    "extra": {
+      "generateParams": {
+        "maxTokens": 12288,
+        "temperature": 0.3
+      }
+    },
+    "prompt": {
+      "unifiedTemplate": "You are an evidence-focused body writer for an industry daily brief.\n\nThe structure director already set titles, angle, section purpose/thesis/guide. Your job: ground every section with beats, evidence, entities, quotes, timeline, data_points, and source_map using enrich_search.result and sources.websource.\n\nFill keys ⊆ field_specs: body_sections (enrich existing items), key_takeaways, entities, quotes, timeline, data_points, source_map, risks_or_unknowns.\n\nRules:\n- Prefer not to change heading/purpose; only adjust thesis if facts contradict.\n- data_points must be concrete; if unknown, put the gap in risks_or_unknowns instead of fabricating.\n- Output ONE JSON object only. No markdown fences.\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+    },
+    "pipeline": {
+      "pre": [],
+      "post": [],
+      "enrich": []
+    },
+    "formSchema": {
+      "type": "object",
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "required": [
+        "contract",
+        "field_specs"
+      ],
+      "properties": {
+        "contract": {
+          "type": "object",
+          "title": "运行时合同",
+          "additionalProperties": true
+        },
+        "field_specs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "title": "待填字段"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -57,9 +57,9 @@
 | `deferred-media-pipeline` | 检测到 warp 则跳过旧 deferred pre（避免 pre 双跑） |
 | `writing-task` `generate` | 检测到 warp 则 `executeMxmWarpTask`，不再 `generateWriting` + 旧 post |
 
-## 示例包（未激活）
+## 示例包
 
-`mxmcgi/src/tasks/examples/writing-editorial-warp-demo-daily.business.json`
+现行写作示例：`writing-generator-industry-daily.business.json`、`writing-generator-topic-article.business.json`、`writing-group-deck.business.json`（均在 `mxmcgi/src/tasks/examples/`）。
 
 ## 网络检索节点（`step: webSearch`）
 

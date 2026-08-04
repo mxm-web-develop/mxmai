@@ -26,6 +26,7 @@ import {
   useReviewBillingEstimate,
 } from './billing/ReviewBillingEstimate';
 import { WarpGateWizard, type WarpGateField } from './WarpGateWizard';
+import { InteractiveCardReviewWizard } from './InteractiveCardReviewWizard';
 import {
   ContractBusinessReviewEditor,
   isWarpContractWithBusiness,
@@ -34,6 +35,13 @@ import {
   type WarpContractLike,
 } from './ContractBusinessReviewEditor';
 import { WritingChatReviewModal } from './WritingChatReviewModal';
+import {
+  VoiceoverScriptEditor,
+  looksLikeVoiceoverTtsMarkup,
+} from './voiceover-script/VoiceoverScriptEditor';
+import { DialogueGuidanceTimelineReview } from './DialogueGuidanceTimelineReview';
+import type { DialogueGuidanceCast, DialogueGuidanceLine } from '../lib/dialogueGuidanceTimeline';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 type ManualReviewGateMeta = {
   gateId?: string;
@@ -50,6 +58,8 @@ type ManualReviewModalProps = {
   task: WritingTaskItem | null;
   title?: string;
   hint?: string;
+  /** 强制使用口播 TTS 可视化编辑器（音频页审核） */
+  voiceoverScriptEditor?: boolean;
   onClose: () => void;
   onApproved?: () => void;
 };
@@ -57,6 +67,24 @@ type ManualReviewModalProps = {
 function resolveGateMeta(task: WritingTaskItem | null): ManualReviewGateMeta | undefined {
   const meta = task?.metadata as { manualReviewGate?: ManualReviewGateMeta } | undefined;
   return meta?.manualReviewGate;
+}
+
+/** 多角色口播仅 audio/group、audio/series；generator 隐藏相关入口 */
+function resolveAllowVoiceoverMultiRole(task: WritingTaskItem | null): boolean {
+  if (!task) return false;
+  const fromMeta = (
+    task.metadata as { taskV2?: { taskKey?: string } } | undefined
+  )?.taskV2?.taskKey;
+  const fromReq = (
+    task.requestParams as
+      | { taskV2?: { taskKey?: string }; params?: { taskV2?: { taskKey?: string } } }
+      | undefined
+  )?.taskV2?.taskKey;
+  const fromNested = (
+    task.requestParams as { params?: { taskV2?: { taskKey?: string } } } | undefined
+  )?.params?.taskV2?.taskKey;
+  const taskKey = String(fromMeta ?? fromReq ?? fromNested ?? '').trim().toLowerCase();
+  return taskKey === 'group' || taskKey === 'series';
 }
 
 function buildTitle(
@@ -79,6 +107,7 @@ export function ManualReviewModal({
   task,
   title,
   hint,
+  voiceoverScriptEditor = false,
   onClose,
   onApproved,
 }: ManualReviewModalProps) {
@@ -127,6 +156,27 @@ export function ManualReviewModal({
   }, [draft?.metadata?.topicChips]);
 
   const warpSkippable = draft?.metadata?.skippable === true;
+  const warpInitialValues = useMemo(() => {
+    const raw = draft?.metadata?.initialValues;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      return raw as Record<string, unknown>;
+    }
+    return undefined;
+  }, [draft?.metadata?.initialValues]);
+  const useGuidedInteractiveCard = useMemo(() => {
+    if (kind !== 'interactive-card') return false;
+    return warpFields.some((f) => {
+      const ui = f['x-ui-type'];
+      return (
+        ui === 'dialogueCast' ||
+        ui === 'textFileOrPaste' ||
+        ui === 'minimaxVoice' ||
+        f.name === 'cast' ||
+        f.name === 'source_material' ||
+        f.name === 'voice'
+      );
+    });
+  }, [kind, warpFields]);
 
   const reviewSurfaceMeta = draft?.metadata?.reviewSurface;
   const useBusinessSurface =
@@ -195,7 +245,7 @@ export function ManualReviewModal({
       })
       .catch((e) => {
         if (!cancelled) {
-          const errMsg = e instanceof Error ? e.message : String(e);
+          const errMsg = toUserFacingErrorMessage(e instanceof Error ? e.message : e);
           setDraftLoadError(errMsg);
           messageRef.current.error(errMsg);
           setDraft(null);
@@ -295,7 +345,7 @@ export function ManualReviewModal({
       onApproved?.();
       onClose();
     } catch (e) {
-      message.error(e instanceof Error ? e.message : String(e));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e));
     } finally {
       setSubmitting(false);
     }
@@ -324,7 +374,7 @@ export function ManualReviewModal({
       message.success(t('common.manualReview.savedToFolder'));
       setSaveOpen(false);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : String(e));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e));
     } finally {
       setSavingFile(false);
     }
@@ -332,6 +382,35 @@ export function ManualReviewModal({
 
   const confirmLabel =
     gateMeta?.phase === 'post' ? t('common.manualReview.confirmOutput') : t('common.manualReview.startGenerate');
+
+  const useVoiceoverEditor =
+    kind === 'text' &&
+    (voiceoverScriptEditor ||
+      looksLikeVoiceoverTtsMarkup(text) ||
+      String(task?.type ?? '').toLowerCase().includes('audio'));
+  const allowVoiceoverMultiRole = resolveAllowVoiceoverMultiRole(task);
+
+  const dialogueReviewMeta = useMemo(() => {
+    const raw = draft?.metadata?.dialogueReview;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const o = raw as {
+      lines?: unknown;
+      cast?: unknown;
+      broadcast_style?: unknown;
+    };
+    if (!Array.isArray(o.lines) || o.lines.length === 0) return null;
+    return {
+      lines: o.lines as DialogueGuidanceLine[],
+      cast: (Array.isArray(o.cast) ? o.cast : []) as DialogueGuidanceCast[],
+      broadcastStyle:
+        typeof o.broadcast_style === 'string' ? o.broadcast_style : undefined,
+    };
+  }, [draft?.metadata?.dialogueReview]);
+
+  const useDialogueGuidanceTimeline =
+    allowVoiceoverMultiRole &&
+    (draft?.metadata?.ui === 'dialogue-guidance-timeline' || dialogueReviewMeta != null) &&
+    dialogueReviewMeta != null;
 
   if (kind === 'video-timeline' || gateKind === 'video-timeline') {
     return (
@@ -376,6 +455,16 @@ export function ManualReviewModal({
             <p className="manual-review-modal__empty">{t('common.manualReview.loadingDraft')}</p>
           ) : draftLoadError ? (
             <p className="manual-review-modal__error-hint">{draftLoadError}</p>
+          ) : useGuidedInteractiveCard ? (
+            <InteractiveCardReviewWizard
+              label={draft?.label ?? gateMeta?.label}
+              hint={displayHint}
+              fields={warpFields}
+              initialValues={warpInitialValues}
+              topicChips={topicChips}
+              submitting={submitting}
+              onSubmit={(vals) => void handleApprove(vals)}
+            />
           ) : (
             <WarpGateWizard
               kind={kind}
@@ -474,6 +563,27 @@ export function ManualReviewModal({
               className="manual-review-modal__editor"
             />
           )
+        ) : useDialogueGuidanceTimeline && dialogueReviewMeta ? (
+          <DialogueGuidanceTimelineReview
+            key={draft?.gateId ?? task?.id ?? 'dgt'}
+            lines={dialogueReviewMeta.lines}
+            cast={dialogueReviewMeta.cast}
+            broadcastStyle={dialogueReviewMeta.broadcastStyle}
+            disabled={loadingDraft || !editable}
+            onChangeScript={setText}
+          />
+        ) : useVoiceoverEditor ? (
+          <VoiceoverScriptEditor
+            value={text}
+            onChange={setText}
+            disabled={loadingDraft || !editable}
+            allowMultiRole={allowVoiceoverMultiRole}
+            placeholder={
+              loadingDraft
+                ? t('common.manualReview.loadingDraft')
+                : t('common.manualReview.editorPlaceholder')
+            }
+          />
         ) : (
           <Input.TextArea
             value={text}

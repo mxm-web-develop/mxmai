@@ -1,9 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import {
+  estimateSubtitlePlayerPayload,
   fetchSubtitleJsonFromUrl,
   hasPersistedSubtitle,
   persistTtsSubtitleInResult,
   pickSubtitleFileUrl,
+  plainTtsScriptText,
+  resolveVoiceoverScriptText,
 } from './tts-subtitle-persist';
 import type { Task, TaskResult } from './types';
 
@@ -25,8 +28,13 @@ describe('tts-subtitle-persist', () => {
   });
 
   describe('hasPersistedSubtitle', () => {
-    it('detects inline subtitle_data', () => {
-      expect(hasPersistedSubtitle({ subtitle_data: { sentences: [] } })).toBe(true);
+    it('requires non-empty subtitle_data rows', () => {
+      expect(hasPersistedSubtitle({ subtitle_data: { sentences: [] } })).toBe(false);
+      expect(
+        hasPersistedSubtitle({
+          subtitle_data: { sentences: [{ text: 'a', time_begin: 0, time_end: 1 }] },
+        })
+      ).toBe(true);
     });
 
     it('detects storage keys', () => {
@@ -39,23 +47,14 @@ describe('tts-subtitle-persist', () => {
     });
   });
 
-  describe('fetchSubtitleJsonFromUrl', () => {
-    const originalFetch = global.fetch;
-
-    afterEach(() => {
-      global.fetch = originalFetch;
-    });
-
-    it('parses JSON body', async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        text: async () => JSON.stringify({ sentences: [{ text: '你好', time_begin: 0, time_end: 1 }] }),
-      }) as unknown as typeof fetch;
-
-      const data = await fetchSubtitleJsonFromUrl('https://example.com/s.json');
-      expect(data).toEqual({
-        sentences: [{ text: '你好', time_begin: 0, time_end: 1 }],
-      });
+  describe('estimateSubtitlePlayerPayload', () => {
+    it('strips TTS pause tags and splits by sentence', () => {
+      expect(plainTtsScriptText('你好<#0.8#>世界')).toBe('你好 世界');
+      const payload = estimateSubtitlePlayerPayload('第一句。第二句！', 10);
+      expect(payload?.source).toBe('script_only');
+      expect(payload?.sentences.length).toBeGreaterThanOrEqual(2);
+      expect(payload?.sentences[0]?.time_begin).toBe(0);
+      expect(payload?.sentences.at(-1)?.time_end).toBe(10000);
     });
   });
 
@@ -94,6 +93,28 @@ describe('tts-subtitle-persist', () => {
       expect(typeof next.metadata?.subtitle_persisted_at).toBe('string');
     });
 
+    it('estimates script_only when speech model returns no subtitle_file', async () => {
+      const task = {
+        id: 'task-audio-2',
+        type: 'audio',
+        metadata: { userId: 'user-1' },
+        requestParams: { prompt: '今天天气不错。适合出门走走。' },
+      } as Task;
+      const result: TaskResult = {
+        mediaUrls: ['https://cdn.example/a.mp3'],
+        metadata: { duration: 8, model: 'speech-2.8-hd' },
+      };
+
+      const next = await persistTtsSubtitleInResult(task, result);
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(next.metadata?.subtitle_source).toBe('script_only');
+      const data = next.metadata?.subtitle_data as {
+        sentences: Array<{ text: string; time_begin: number; time_end: number }>;
+      };
+      expect(data.sentences.length).toBeGreaterThanOrEqual(2);
+      expect(data.sentences[0]?.text).toContain('今天天气不错');
+    });
+
     it('skips non-audio tasks', async () => {
       const task = { id: 't1', type: 'graph', metadata: {} } as Task;
       const result: TaskResult = {
@@ -103,6 +124,41 @@ describe('tts-subtitle-persist', () => {
       const next = await persistTtsSubtitleInResult(task, result);
       expect(next.metadata?.subtitle_data).toBeUndefined();
       expect(global.fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resolveVoiceoverScriptText', () => {
+    it('reads nested warp finalPrompt', () => {
+      const task = {
+        id: 't',
+        type: 'audio',
+        requestParams: {
+          params: {
+            businessPipelineState: { finalPrompt: '口播正文<#0.5#>第二句。' },
+          },
+        },
+      } as Task;
+      expect(resolveVoiceoverScriptText(task, {})).toBe('口播正文 第二句。');
+    });
+  });
+});
+
+describe('fetchSubtitleJsonFromUrl', () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('parses JSON body', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ sentences: [{ text: '你好', time_begin: 0, time_end: 1 }] }),
+    }) as unknown as typeof fetch;
+
+    const data = await fetchSubtitleJsonFromUrl('https://example.com/s.json');
+    expect(data).toEqual({
+      sentences: [{ text: '你好', time_begin: 0, time_end: 1 }],
     });
   });
 });

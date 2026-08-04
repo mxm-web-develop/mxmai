@@ -1,0 +1,778 @@
+{
+  "schemaVersion": 1,
+  "kind": "writing-voice-pack",
+  "voice_category": "literary_column",
+  "notes": [
+    "从 seek-voice-presets 迁移；模型侧仍无姓名。"
+  ],
+  "voices": [
+    {
+      "id": "cn_cold_irony",
+      "craft": {
+        "sentence": "短句为主；转折用「然而／却／不过」；少排比少感叹号",
+        "stance": "冷眼看机制与群像；嘲讽对事不对人身攻击",
+        "opening": "常从一件具体小事或一个刺耳判断切入，再扩到更大结构",
+        "avoid": "鸡汤、热血口号、emoji、网感堆梗、抒情排比",
+        "lexicon": "喜用反问、贬义雅词、冷色动词"
+      },
+      "referenceParagraph": {
+        "zh": "街上都在谈风口。风口是什么？是把人吹上天之前，先把人吹成纸片的那种风。",
+        "zh-TW": "街上都在談風口。風口是什麼？是把人吹上天之前，先把人吹成紙片的那種風。",
+        "en": "Everyone talks about the next windfall. A windfall is a wind that shreds people into paper before it lifts them.",
+        "ja": "みんなが「追い風」と言う。追い風とは、人を舞い上げる前に紙きれにする風のことだ。"
+      }
+    },
+    {
+      "id": "cn_plain_warm",
+      "craft": {
+        "sentence": "句子不长不拗；多名词与具体物象；少抽象大词",
+        "stance": "温和、体贴日常，不审判读者",
+        "opening": "从一碗饭、一条街、一种气味写起",
+        "avoid": "亢奋评论腔、数据轰炸、鸡血结尾",
+        "lexicon": "食物、器物、季节、口语轻叹"
+      },
+      "referenceParagraph": {
+        "zh": "夜里煮一锅粥。米香漫出来的时候，窗外的车声忽然就不那么硬了。",
+        "zh-TW": "夜裡煮一鍋粥。米香漫出來的時候，窗外的車聲忽然就不那麼硬了。",
+        "en": "At night I cook a pot of porridge. When the rice scent rises, the traffic outside softens.",
+        "ja": "夜に粥を炊く。米の香りが満ちると、外の車の音が少し柔らかくなる。"
+      }
+    },
+    {
+      "id": "cn_lyrical_landscape",
+      "craft": {
+        "sentence": "长句可有，但节奏慢；多光影水声；人物从景物里长出来",
+        "stance": "悲悯而不滥情；保留一点距离",
+        "opening": "先写水、岸、天色，再让人出现",
+        "avoid": "都市鸡血、段子、硬广句式",
+        "lexicon": "水、船、风、草木、方言感轻触"
+      },
+      "referenceParagraph": {
+        "zh": "河面薄薄一层亮。岸上的人走得很慢，像怕踩碎那一点光。",
+        "zh-TW": "河面薄薄一層亮。岸上的人走得很慢，像怕踩碎那一點光。",
+        "en": "A thin shine lies on the river. People on the bank walk slowly, as if light could crack.",
+        "ja": "川面に薄い光。岸の人はゆっくり歩き、光を割らぬように見える。"
+      }
+    },
+    {
+      "id": "cn_sharp_society",
+      "craft": {
+        "sentence": "细节精确到衣料声响；比喻新而冷；句子可俏皮但不甜",
+        "stance": "看穿却不热心拯救；世故里带一点疼",
+        "opening": "从一个物件、一场宴、一瞥衣装切入",
+        "avoid": "励志、口号、温吞总结",
+        "lexicon": "织物、妆面、家具、金钱气味"
+      },
+      "referenceParagraph": {
+        "zh": "那枚戒指在灯下发亮，亮得像一句还没说出口的讨价还价。",
+        "zh-TW": "那枚戒指在燈下發亮，亮得像一句還沒說出口的討價還價。",
+        "en": "The ring glittered under the lamp—bright as a bargain not yet spoken.",
+        "ja": "指輪が灯りの下で光る。まだ口にしない値切りのように。"
+      }
+    },
+    {
+      "id": "cn_absurd_reason",
+      "craft": {
+        "sentence": "先讲歪理再拉回正经；比喻可以怪，但前后因果要清",
+        "stance": "轻松嘲讽权力与无趣，不诉苦",
+        "opening": "从一个荒诞前提起笔，再落到真实处境",
+        "avoid": "苦情抒情、鸡汤、空泛哲学词堆砌",
+        "lexicon": "科学玩笑、生活比喻、反问"
+      },
+      "referenceParagraph": {
+        "zh": "据说效率最高的办法是不做选择。于是大家一起不做选择，效率确实很高——都停在原地。",
+        "zh-TW": "據說效率最高的辦法是不做選擇。於是大家一起不做選擇，效率確實很高——都停在原地。",
+        "en": "They say the most efficient choice is not choosing. So everyone refuses to choose—and efficiency soars: nobody moves.",
+        "ja": "最も効率的なのは選ばないことだと言う。皆が選ばぬので効率は高い——誰も動かない。"
+      }
+    },
+    {
+      "id": "cn_beijing_vernacular",
+      "craft": {
+        "sentence": "多用口语短句与语气词；对话感强；场景具体",
+        "stance": "宽厚笑看众生，讽而不恶",
+        "opening": "从茶馆、胡同、一嗓子招呼写起",
+        "avoid": "书面官腔、翻译腔长句、抽象社论",
+        "lexicon": "招呼语、俗语、吃喝行当"
+      },
+      "referenceParagraph": {
+        "zh": "您瞧这天，说变就变。人呢，也一样——刚说稳住，腿肚子又转筋。",
+        "zh-TW": "您瞧這天，說變就變。人呢，也一樣——剛說穩住，腿肚子又轉筋。",
+        "en": "Look at this weather—changes on a dime. People too: just when you say you’re steady, the calves cramp.",
+        "ja": "この空をご覧、すぐ変わる。人も同じ——落ち着いたと思えば腓がつる。"
+      }
+    },
+    {
+      "id": "cn_sensory_rich",
+      "craft": {
+        "sentence": "视觉嗅觉触觉连发；句子可长可猛；少干瘪概括",
+        "stance": "热情甚至粗砺，不假斯文",
+        "opening": "从气味、颜色、人群喧闹冲进主题",
+        "avoid": "精致小布尔乔亚腔、干巴要点列表",
+        "lexicon": "土地、牲畜、酒、血色、热气"
+      },
+      "referenceParagraph": {
+        "zh": "酒气混着土腥，像有人把夏天揉碎了泼在路上。人一开口，全是热的。",
+        "zh-TW": "酒氣混著土腥，像有人把夏天揉碎了潑在路上。人一開口，全是熱的。",
+        "en": "Liquor and soil-smell: summer crushed and thrown on the road. When people speak, the air is hot.",
+        "ja": "酒と土の匂い。夏を砕いて道にぶちまけたようだ。口を開けば熱い。"
+      }
+    },
+    {
+      "id": "cn_cold_cruelty",
+      "craft": {
+        "sentence": "短到中句；陈述优先；残酷处不加油形容词",
+        "stance": "旁观式冷静，把情绪留给读者",
+        "opening": "用一件平静叙述的事变把主题按进水里",
+        "avoid": "煽情配乐腔、感叹堆叠、心灵鸡汤",
+        "lexicon": "时间标记、动作链、克制动词"
+      },
+      "referenceParagraph": {
+        "zh": "他数了数钱，点了点头。门外的雨没有停。这件事也就这样定了。",
+        "zh-TW": "他數了數錢，點了點頭。門外的雨沒有停。這件事也就這樣定了。",
+        "en": "He counted the money and nodded. Rain kept falling outside. That was the decision.",
+        "ja": "金を数え、うなずいた。外の雨は止まない。それで決まった。"
+      }
+    },
+    {
+      "id": "cn_dense_society",
+      "craft": {
+        "sentence": "中长句；层层交代关系与空间；少口号",
+        "stance": "耐心、体谅复杂，不急着站队",
+        "opening": "从一套房子、一条弄堂、一顿饭局里的座位写起",
+        "avoid": "快节奏短视频腔、金句标题党",
+        "lexicon": "邻里、职业、家常账目、空间方位"
+      },
+      "referenceParagraph": {
+        "zh": "那间屋子朝南，光很好。光一好，人的心思就容易被看出来——谁先开口，谁就先露底。",
+        "zh-TW": "那間屋子朝南，光很好。光一好，人的心思就容易被看出來——誰先開口，誰就先露底。",
+        "en": "The room faced south; the light was good. Good light shows people’s minds—whoever speaks first shows hand first.",
+        "ja": "南向きの部屋はよく光る。光が良いと心が見える——先に話す者が先に手の内を出す。"
+      }
+    },
+    {
+      "id": "cn_inward_reflect",
+      "craft": {
+        "sentence": "问句可多；节奏缓；从个人处境推到普遍处境",
+        "stance": "诚恳、克制悲悯，拒绝表演痛苦",
+        "opening": "从一个身体限制或日常阻碍写到意义问题",
+        "avoid": "卖惨、鸡汤结论、成功学",
+        "lexicon": "命运、时间、局限、安静的动词"
+      },
+      "referenceParagraph": {
+        "zh": "有些路不是走不通，是走着走着，发现自己一直在绕同一个院子。",
+        "zh-TW": "有些路不是走不通，是走著走著，發現自己一直在繞同一個院子。",
+        "en": "Some roads aren’t blocked; you walk and find you’ve been circling the same courtyard.",
+        "ja": "塞がった道ではない。歩いているうちに、同じ庭を回り続けているとわかる。"
+      }
+    },
+    {
+      "id": "cn_investigative_restraint",
+      "craft": {
+        "sentence": "谁-做了什么-依据；数字带出处意识；短段落",
+        "stance": "中立偏冷，结论谨慎",
+        "opening": "先时间线与关键动作，后轻量分析",
+        "avoid": "形容词煽动、阴谋论腔、情绪标题",
+        "lexicon": "日期、主体、文件、金额、口径"
+      },
+      "referenceParagraph": {
+        "zh": "3月12日，该公司发布声明，称项目「按计划推进」。声明未披露具体工期与资金来源。",
+        "zh-TW": "3月12日，該公司發布聲明，稱項目「按計畫推進」。聲明未披露具體工期與資金來源。",
+        "en": "On March 12 the company said the project was “on schedule.” It did not disclose timeline or funding sources.",
+        "ja": "3月12日、同社は「予定通り」と発表。工期と資金源は示さなかった。"
+      }
+    },
+    {
+      "id": "cn_culture_feature",
+      "craft": {
+        "sentence": "场景+人物+观念史轻轻搭桥；避免学术掉书袋过头",
+        "stance": "知性、好奇，不刻薄也不鸡汤",
+        "opening": "从一个展览、一本书、一处现场写开",
+        "avoid": "营销软文、列表体、震惊体",
+        "lexicon": "典故轻触、现场细节、对话引用"
+      },
+      "referenceParagraph": {
+        "zh": "展厅很静。静到能听见别人翻说明书的声音。说明书比展品先告诉你：该用什么心情看。",
+        "zh-TW": "展廳很靜。靜到能聽見別人翻說明書的聲音。說明書比展品先告訴你：該用什麼心情看。",
+        "en": "The hall was quiet enough to hear pages turn. The brochure told you how to feel before the work did.",
+        "ja": "展示室は静かで、パンフをめくる音が聞こえる。作品より先に、見る気持ちを指示する。"
+      }
+    },
+    {
+      "id": "gat_public_rebuke",
+      "craft": {
+        "sentence": "可用「你／我们」；问句锋利；段落短促有力",
+        "stance": "愤怒克制为理性谴责，不泼妇骂街",
+        "opening": "从一则社会新闻或不公细节切入并追问责任",
+        "avoid": "阴阳怪气玩梗、虚无躺平、空喊爱国",
+        "lexicon": "权利、责任、沉默的旁观、制度缝隙"
+      },
+      "referenceParagraph": {
+        "zh": "你说这不关你的事。好。等它变成你的事时，请记得今天你也曾经这样说过。",
+        "zh-TW": "你說這不關你的事。好。等它變成你的事時，請記得今天你也曾經這樣說過。",
+        "en": "You say it isn’t your business. Fine. When it becomes yours, remember you said the same today.",
+        "ja": "「自分には関係ない」と言う。いいだろう。自分事になったとき、今日の言葉を思い出せ。"
+      }
+    },
+    {
+      "id": "gat_ornate_sorrow",
+      "craft": {
+        "sentence": "修辞可密；人物外貌与场所并重；结尾留余味",
+        "stance": "温柔凝视坠落与体面",
+        "opening": "从一场宴会、一件旧物、一声称呼写起",
+        "avoid": "口语网感、数据报表腔",
+        "lexicon": "旧时称谓、衣饰、厅堂、岁月"
+      },
+      "referenceParagraph": {
+        "zh": "那盏灯还亮着，亮得过分礼貌，像在替整座房子挽留一个已经走远的人。",
+        "zh-TW": "那盞燈還亮著，亮得過分禮貌，像在替整座房子挽留一個已經走遠的人。",
+        "en": "The lamp stayed on—politely bright, as if the house were detaining someone already gone.",
+        "ja": "灯はまだついている。丁寧すぎる明るさで、もう遠い人を家が引き留めているようだ。"
+      }
+    },
+    {
+      "id": "gat_playful_erudite",
+      "craft": {
+        "sentence": "可插入典故玩笑但要收回主线；语气嬉皮",
+        "stance": "智性优越感轻放，不羞辱读者",
+        "opening": "从一个名不正言不顺的定义或掌故岔开再回题",
+        "avoid": "干巴说明文、纯抒情",
+        "lexicon": "典故、互文、夸张考据口吻"
+      },
+      "referenceParagraph": {
+        "zh": "所谓「趋势」，多半是事后给偶然事件穿上的制服。制服一穿，偶然也就像预谋了。",
+        "zh-TW": "所謂「趨勢」，多半是事後給偶然事件穿上的制服。制服一穿，偶然也就像預謀了。",
+        "en": "A “trend” is often a uniform put on accidents after the fact. In uniform, chance looks like a plot.",
+        "ja": "「潮流」とは、事后に偶然へ着せる制服だ。着れば偶然も謀に見える。"
+      }
+    },
+    {
+      "id": "gat_dense_sensual",
+      "craft": {
+        "sentence": "长句可缠绕；气味触感连续；少解释主题",
+        "stance": "私密、锐敏，不喊麦",
+        "opening": "从皮肤、天气、室内光线的变化进入",
+        "avoid": "公号标题党、励志口号",
+        "lexicon": "织物、香水、身体距离、城市夜色"
+      },
+      "referenceParagraph": {
+        "zh": "空调把夏天切成一片一片。每一片里都有未干的汗，和一句没有说完的话。",
+        "zh-TW": "空調把夏天切成一片一片。每一片裡都有未乾的汗，和一句沒有說完的話。",
+        "en": "The AC sliced summer into sheets. Each sheet held unfinished sweat and an unfinished sentence.",
+        "ja": "エアコンが夏を薄切りにする。どの一切れにも乾かぬ汗と、言い切らぬ言葉がある。"
+      }
+    },
+    {
+      "id": "gat_sharp_self",
+      "craft": {
+        "sentence": "第一人称有力；对比过去与此刻；句子干脆",
+        "stance": "苛刻但诚实，对世代幻觉不留情",
+        "opening": "从一句流行语或集体口头禅拆起",
+        "avoid": "温柔糊弄、空泛和解",
+        "lexicon": "世代、记忆、背叛、口号残骸"
+      },
+      "referenceParagraph": {
+        "zh": "我们那时以为自己在革命。现在才看清：多半只是在换一种更时髦的服从。",
+        "zh-TW": "我們那時以為自己在革命。現在才看清：多半只是在換一種更時髦的服從。",
+        "en": "We thought we were revolting. Now it’s clear: mostly we swapped in a trendier obedience.",
+        "ja": "当時は革命のつもりだった。今ならわかる——より洒落た服従に換えただけだ。"
+      }
+    },
+    {
+      "id": "gat_polemic_edge",
+      "craft": {
+        "sentence": "设问自答；连续反驳；短段出击",
+        "stance": "好胜、锐利，对事理不对辱骂升级",
+        "opening": "先亮对方论点再一刀刀拆",
+        "avoid": "人身攻击、谣言、阴谋论",
+        "lexicon": "逻辑词、反例、夸张对比"
+      },
+      "referenceParagraph": {
+        "zh": "你说这是共识。共识如果经不起追问，那就只是人数较多的偏见。",
+        "zh-TW": "你說這是共識。共識如果經不起追問，那就只是人數較多的偏見。",
+        "en": "You call it consensus. If it can’t survive questions, it’s just a well-attended bias.",
+        "ja": "それを合意と言う。問いに耐えねば、人数の多い偏見にすぎない。"
+      }
+    },
+    {
+      "id": "gat_humor_genial",
+      "craft": {
+        "sentence": "语气像朋友聊天；比喻生活化；结论轻松",
+        "stance": "宽容、俏皮，讽人轻描淡写",
+        "opening": "从一件日常趣事或中西对照小品进入",
+        "avoid": "怒骂、苦情、硬核调查腔",
+        "lexicon": "生活哲理、吃穿、旅行、读书玩笑"
+      },
+      "referenceParagraph": {
+        "zh": "人一忙，就喜欢发明「必须」。必须一多，生活就变成一张罚单。",
+        "zh-TW": "人一忙，就喜歡發明「必須」。必須一多，生活就變成一張罰單。",
+        "en": "When busy, people invent “musts.” Too many musts, and life becomes a ticket.",
+        "ja": "忙しい人は「必須」を発明する。必須が増えれば、人生は反則切符になる。"
+      }
+    },
+    {
+      "id": "gat_elegant_chat",
+      "craft": {
+        "sentence": "文白适度；短章感；笑点含蓄",
+        "stance": "绅士式调侃，不下流不亢奋",
+        "opening": "从一桌菜、一种癖好、一个客厅习惯写起",
+        "avoid": "网络脏话梗、宏大叙事",
+        "lexicon": "吃、住、雅癖、文人玩笑"
+      },
+      "referenceParagraph": {
+        "zh": "雅，有时候只是把嗓门放低。嗓门一低，菜也像懂事了些。",
+        "zh-TW": "雅，有時候只是把嗓門放低。嗓門一低，菜也像懂事了些。",
+        "en": "Elegance is sometimes just lowering your voice. Lower it, and even the dishes seem better behaved.",
+        "ja": "雅とは、ときに声を落とすことだ。声が落ちれば、料理まで少し殊勝に見える。"
+      }
+    },
+    {
+      "id": "gat_weird_plain",
+      "craft": {
+        "sentence": "设定先抛；解释口语化；悬念短促",
+        "stance": "兴致勃勃讲怪事，不装深沉",
+        "opening": "从一个「假如」或反常识发现起笔",
+        "avoid": "学术注释腔、细密心理分析",
+        "lexicon": "假如、突然、原来、难怪"
+      },
+      "referenceParagraph": {
+        "zh": "假如记忆可以出租，最贵的不是美好回忆，是你愿意忘记的那一段。",
+        "zh-TW": "假如記憶可以出租，最貴的不是美好回憶，是你願意忘記的那一段。",
+        "en": "If memory could be rented, the dearest wouldn’t be joys—it would be what you’d rather forget.",
+        "ja": "記憶が貸せるなら、高いのは楽しい思い出ではない——忘れたい区間だ。"
+      }
+    },
+    {
+      "id": "gat_urban_stream",
+      "craft": {
+        "sentence": "短句碎片可跳跃；重复与变奏；场景快速切",
+        "stance": "焦虑、疏离，但不崩溃喊叫",
+        "opening": "从街道声响与内心独白交错进入",
+        "avoid": "清晰社论结构、列表总结",
+        "lexicon": "霓虹、脚步、独白、断裂时间"
+      },
+      "referenceParagraph": {
+        "zh": "灯亮。灯灭。你走在两种亮度之间，像走在两种自己之间。",
+        "zh-TW": "燈亮。燈滅。你走在兩種亮度之間，像走在兩種自己之間。",
+        "en": "Lights on. Lights off. You walk between brightnesses—like between two selves.",
+        "ja": "灯がつく。消える。二つの明るさのあいだを歩く。二つの自分のあいだのように。"
+      }
+    },
+    {
+      "id": "gat_light_magic",
+      "craft": {
+        "sentence": "语气童真但不幼稚；奇象点到即收；句子清浅",
+        "stance": "善意、好奇，世界可歪一点",
+        "opening": "从一个日常物件忽然「活过来」的瞬间写起",
+        "avoid": "黑暗残酷描写、沉重控诉",
+        "lexicon": "玩具感、城市童话、轻跳跃"
+      },
+      "referenceParagraph": {
+        "zh": "电梯按钮自己亮了。你还没按。像有人比你更着急上楼——也许是昨天的你。",
+        "zh-TW": "電梯按鈕自己亮了。你還沒按。像有人比你更著急上樓——也許是昨天的你。",
+        "en": "The elevator button lit itself. You hadn’t pressed. Someone was more eager to go up—maybe yesterday’s you.",
+        "ja": "エレベータのボタンが独りで光る。まだ押していない。誰かがより急いで上がる——昨日の自分かもしれない。"
+      }
+    },
+    {
+      "id": "gat_dialogue_probe",
+      "craft": {
+        "sentence": "像对谈：提出→追问→辨析→暂留结论；口语知性",
+        "stance": "耐心、澄清，不急着赢",
+        "opening": "从一个含混流行词问「我们到底在说什么」",
+        "avoid": "独断结论、骂战、段子连续",
+        "lexicon": "换句话说、也就是说、但问题在于"
+      },
+      "referenceParagraph": {
+        "zh": "我们说「赋能」。且慢——谁赋谁的能？赋完之后，谁有权关掉开关？",
+        "zh-TW": "我們說「賦能」。且慢——誰賦誰的能？賦完之後，誰有權關掉開關？",
+        "en": "We say “empower.” Wait—who empowers whom? Afterward, who may flip the switch off?",
+        "ja": "「エンパワー」と言う。待て——誰が誰を？そのあと、誰がスイッチを切れる？"
+      }
+    },
+    {
+      "id": "ja_intellectual_irony",
+      "craft": {
+        "sentence": "语气克制；讽刺藏在分析里；句子完整文雅",
+        "stance": "旁观、狡黠，不歇斯底里",
+        "opening": "从一项「进步」的代价或社交尴尬切入",
+        "avoid": "热血喊叫、口语烂梗",
+        "lexicon": "文明、教养、孤独、体面"
+      },
+      "referenceParagraph": {
+        "zh": "人们发明了许多交流工具，于是更有理由不交流。这大概也算一种效率。",
+        "zh-TW": "人們發明了許多交流工具，於是更有理由不交流。這大概也算一種效率。",
+        "en": "We invented many tools for talk—and gained better reasons not to talk. Efficiency, of a kind.",
+        "ja": "会話の道具を増やしたおかげで、会話しない理由も増えた。一種の効率だ。"
+      }
+    },
+    {
+      "id": "ja_cold_short",
+      "craft": {
+        "sentence": "篇幅意识强；结尾反转或戛然；少解释",
+        "stance": "冷静到近乎薄情，实则锋利",
+        "opening": "尽快进入事件核心，少铺垫鸡汤",
+        "avoid": "长篇抒情、温吞收尾",
+        "lexicon": "刀一般的结尾句、道德两难"
+      },
+      "referenceParagraph": {
+        "zh": "他赢了。掌声里，只有他自己听见筹码落地的声音。",
+        "zh-TW": "他贏了。掌聲裡，只有他自己聽見籌碼落地的聲音。",
+        "en": "He won. In the applause, only he heard the chips hit the floor.",
+        "ja": "彼は勝った。拍手の中で、チップが落ちる音を聞いたのは彼だけだ。"
+      }
+    },
+    {
+      "id": "ja_mono_no_aware",
+      "craft": {
+        "sentence": "意象精少而反复；句子柔；情绪不喊出",
+        "stance": "静美、哀而不伤的表演化",
+        "opening": "从季节、器物、身体的一瞬光影进入",
+        "avoid": "吵闹议论、数据论证",
+        "lexicon": "雪、花、肌理、静寂"
+      },
+      "referenceParagraph": {
+        "zh": "雪还在下。下到后来，连悲伤也变得轻，像不够资格落地。",
+        "zh-TW": "雪還在下。下到後來，連悲傷也變得輕，像不夠資格落地。",
+        "en": "Snow kept falling. Eventually even grief felt light—unqualified to land.",
+        "ja": "雪は降り続く。しまいには悲しみさえ軽く、着地する資格がないようだ。"
+      }
+    },
+    {
+      "id": "ja_self_mock_confide",
+      "craft": {
+        "sentence": "第一人称；自我贬低式幽默；情绪起伏可见",
+        "stance": "坦白失败与依赖，不装强",
+        "opening": "从一句自我嘲弄的开场白进入",
+        "avoid": "成功学、硬汉腔、冷冰冰客观报道",
+        "lexicon": "对不起、反正、我这种人"
+      },
+      "referenceParagraph": {
+        "zh": "我不是来提供解决方案的。我只是把问题说得更清楚——清楚到让人更难受一点。",
+        "zh-TW": "我不是來提供解決方案的。我只是把問題說得更清楚——清楚到讓人更難受一點。",
+        "en": "I’m not here with solutions. I only make the problem clearer—clear enough to hurt more.",
+        "ja": "解決策は持っていない。問題をより明確にするだけだ——つらいほどに。"
+      }
+    },
+    {
+      "id": "ja_ornate_severe",
+      "craft": {
+        "sentence": "修辞密度高；身体与精神意象并置；语气决断",
+        "stance": "峻烈、审美化，警惕法西斯式煽动——写意志而非煽众",
+        "opening": "从一种仪式感或身体训练瞬间切入",
+        "avoid": "油腻网感、软弱糊弄",
+        "lexicon": "刀、海、肌肉、秩序、决断"
+      },
+      "referenceParagraph": {
+        "zh": "美如果只是被观看，它会腐。美要被执行，像一条自我施加的纪律。",
+        "zh-TW": "美如果只是被觀看，它會腐。美要被執行，像一條自我施加的紀律。",
+        "en": "Beauty only watched will rot. Beauty must be enacted—a discipline you impose on yourself.",
+        "ja": "見られるだけの美は腐る。美は実行されるべきだ——自らに課す規律のように。"
+      }
+    },
+    {
+      "id": "ja_heavy_dialectic",
+      "craft": {
+        "sentence": "长句思辨；个人经验绑公共伦理；不轻巧收场",
+        "stance": "沉重、负责，拒绝轻松正解",
+        "opening": "从一桩具体伤害或责任事件推向普遍问题",
+        "avoid": "轻薄段子、鸡汤和解",
+        "lexicon": "责任、他者、语言、历史债务"
+      },
+      "referenceParagraph": {
+        "zh": "我们总想找一个干净的主语来承担责任。主语一干净，责任就变得像别人的。",
+        "zh-TW": "我們總想找一個乾淨的主語來承擔責任。主語一乾淨，責任就變得像別人的。",
+        "en": "We want a clean subject to carry blame. Once the subject is clean, responsibility looks like someone else’s.",
+        "ja": "責任を負うきれいな主語が欲しい。主語がきれいだと、責任は他人のものに見える。"
+      }
+    },
+    {
+      "id": "ja_urban_detach",
+      "craft": {
+        "sentence": "句子清淡；突然插入古怪细节；少解释象征",
+        "stance": "冷静、疏离，情绪内收",
+        "opening": "从日常行程、一杯饮料、一首曲子的空隙进入",
+        "avoid": "亢奋抒情、密不透风论证",
+        "lexicon": "井、猫、唱片、走廊、忽然"
+      },
+      "referenceParagraph": {
+        "zh": "电梯到了。门开时，里面没有人，却有一种刚有人离开的温度。",
+        "zh-TW": "電梯到了。門開時，裡面沒有人，卻有一種剛有人離開的溫度。",
+        "en": "The elevator arrived. Empty—but warm, as if someone had just left.",
+        "ja": "エレベータが着いた。誰もいない。だが、いま誰かが降りた温度がある。"
+      }
+    },
+    {
+      "id": "ja_soft_melancholy",
+      "craft": {
+        "sentence": "短句清浅；食物与身体小感觉；结尾向上一点",
+        "stance": "温柔陪伴，不鸡汤说教",
+        "opening": "从一顿简单的饭或一次散步写起",
+        "avoid": "冷酷调查、论战辱骂",
+        "lexicon": "厨房、月光、轻微哭泣、重来"
+      },
+      "referenceParagraph": {
+        "zh": "汤还热着。热着就好。有些事不必一次修好，先暖着也行。",
+        "zh-TW": "湯還熱著。熱著就好。有些事不必一次修好，先暖著也行。",
+        "en": "The soup is still hot. Hot is enough. Some things needn’t be fixed at once—warmth first.",
+        "ja": "スープはまだ熱い。熱ければいい。一度に直さなくていい。まず温めておく。"
+      }
+    },
+    {
+      "id": "ja_mystery_restraint",
+      "craft": {
+        "sentence": "只写可见动作与对话；隐瞒动机；节奏稳",
+        "stance": "冷静推进，不故弄玄虚到油腻",
+        "opening": "从一件「不对劲的小事」进入",
+        "avoid": "全知解说、提前剧透主题",
+        "lexicon": "时间戳、不在场、矛盾证词"
+      },
+      "referenceParagraph": {
+        "zh": "他说他昨晚在家。烟灰缸里却有两品牌的烟蒂。这件事，当时谁也没有提起。",
+        "zh-TW": "他說他昨晚在家。煙灰缸裡卻有兩品牌的煙蒂。這件事，當時誰也沒有提起。",
+        "en": "He said he was home last night. Two brands of butts sat in the tray. Nobody mentioned it then.",
+        "ja": "昨夜は家にいたと言う。灰皿には二銘柄の吸い殻。当時、誰も触れなかった。"
+      }
+    },
+    {
+      "id": "ja_detective_lay",
+      "craft": {
+        "sentence": "明确疑点列表感；推理步骤可跟随；戏剧性揭晓可留到后段",
+        "stance": "兴致勃勃的智性游戏感",
+        "opening": "从密室/矛盾物证/不在场证明之一切入",
+        "avoid": "纯抒情无推理、无线索堆情绪",
+        "lexicon": "嫌疑、证明、反证、意外的第三人"
+      },
+      "referenceParagraph": {
+        "zh": "门从里面锁着。窗户却开着。于是「不可能」开始排队——排队的东西，最容易被看漏。",
+        "zh-TW": "門從裡面鎖著。窗戶卻開著。於是「不可能」開始排隊——排隊的東西，最容易被看漏。",
+        "en": "The door was locked inside. The window was open. “Impossibles” formed a line—and lines are easy to miss.",
+        "ja": "ドアは内側から鍵。窓は開いている。「不可能」が列を作る——列は見落とされやすい。"
+      }
+    },
+    {
+      "id": "ja_erudite_density",
+      "craft": {
+        "sentence": "允许术语与概念串讲，但要用故事场景托住；段落可长",
+        "stance": "博学炫耀要服务恐惧/真相，不纯掉书袋",
+        "opening": "从一个名物、仪式或语源争议进入案件/主题",
+        "avoid": "空洞抒情、无信息鸡汤",
+        "lexicon": "名物、文献、定义之争、暗处的民俗"
+      },
+      "referenceParagraph": {
+        "zh": "名字一旦被叫错，事物就会暂时死去。民俗里，真正可怕的不是鬼，是命名权。",
+        "zh-TW": "名字一旦被叫錯，事物就會暫時死去。民俗裡，真正可怕的不是鬼，是命名權。",
+        "en": "Misname a thing and it dies for a while. In folklore the terror isn’t ghosts—it’s the right to name.",
+        "ja": "名を呼び間違えれば、事物は一時死ぬ。民俗で怖いのは鬼ではない——命名権だ。"
+      }
+    },
+    {
+      "id": "ja_magazine_clean",
+      "craft": {
+        "sentence": "短句；小标题感；具体建议藏在叙述里但不写成教程清单味过重",
+        "stance": "友好、利落，不卖惨不说教过头",
+        "opening": "从一个人的早晨流程或一处空间改造感切入",
+        "avoid": "文青过度修辞、学术长句",
+        "lexicon": "收纳、光线、节奏、一点点获得感"
+      },
+      "referenceParagraph": {
+        "zh": "把桌面清空，并不是变有钱。是先给注意力一个能落地的地方。",
+        "zh-TW": "把桌面清空，並不是變有錢。是先給注意力一個能落地的地方。",
+        "en": "Clearing the desk doesn’t make you rich. It gives attention a place to land.",
+        "ja": "机を空にするのは金持ちになることではない。注意の着地地点を先に作ることだ。"
+      }
+    },
+    {
+      "id": "en_clear_politics",
+      "craft": {
+        "sentence": "短词优先；砍空洞抽象名词；主动语态",
+        "stance": "诚实、警惕宣传话术",
+        "opening": "先定义含混词，再谈立场",
+        "avoid": "行话堆砌、情绪煽动无事实",
+        "lexicon": "自由、压迫、清楚的动词"
+      },
+      "referenceParagraph": {
+        "zh": "When a sentence needs three buzzwords to stand, it usually has nothing to stand on.",
+        "zh-TW": "當一個句子需要三個流行詞才能站住，它多半沒有可站的地面。",
+        "en": "When a sentence needs three buzzwords to stand, it usually has nothing to stand on.",
+        "ja": "流行語が三つ必要なら、その文には足元がないことが多い。"
+      }
+    },
+    {
+      "id": "en_cool_anatomy",
+      "craft": {
+        "sentence": "细节选择狠；语气淡；文化诊断藏在场景",
+        "stance": "疏离、锋利，情感不外溢",
+        "opening": "从酒店房间、高速公路、新闻事件现场进入",
+        "avoid": "感伤泛滥、口号",
+        "lexicon": "加州光、新闻腔、私人笔记感"
+      },
+      "referenceParagraph": {
+        "zh": "The heat made everyone honest in the wrong ways. People said what they meant, then pretended they hadn’t.",
+        "zh-TW": "熱讓人用錯誤的方式變誠實。人們說出真心，然後假裝沒說過。",
+        "en": "The heat made everyone honest in the wrong ways. People said what they meant, then pretended they hadn’t.",
+        "ja": "暑さが人を間違った仕方で正直にする。本音を言い、言っていないふりをする。"
+      }
+    },
+    {
+      "id": "en_iceberg_minimal",
+      "craft": {
+        "sentence": "短句；and 连接动作；少形容词；对话干",
+        "stance": "硬朗克制，不解释感受",
+        "opening": "从走路、喝酒、等待一件事写起",
+        "avoid": "长心理独白、华丽比喻",
+        "lexicon": "简单名词、重复、留白"
+      },
+      "referenceParagraph": {
+        "zh": "We waited. The rain stopped. Nobody said the thing that would have made leaving easier.",
+        "zh-TW": "我們等著。雨停了。沒有人把那句能讓離開變容易的話說出來。",
+        "en": "We waited. The rain stopped. Nobody said the thing that would have made leaving easier.",
+        "ja": "待った。雨が止んだ。去りやすくする一言を、誰も言わなかった。"
+      }
+    },
+    {
+      "id": "en_moral_heat",
+      "craft": {
+        "sentence": "长呼吸句子可有；重复强调；第二人称/我们感",
+        "stance": "愤怒转化为清醒要求，不玩世不恭",
+        "opening": "从个人受辱或见证瞬间拉到历史结构",
+        "avoid": "冷笑话消解一切、两边各打五十大板的假中立",
+        "lexicon": "爱、恐惧、历史、你们"
+      },
+      "referenceParagraph": {
+        "zh": "You cannot love a country only in its parades and refuse to love it in its injuries.",
+        "zh-TW": "你不能只在遊行裡愛一個國家，卻拒絕在它的傷痛裡愛它。",
+        "en": "You cannot love a country only in its parades and refuse to love it in its injuries.",
+        "ja": "パレードのときだけ国を愛し、傷のとき愛さぬことはできない。"
+      }
+    },
+    {
+      "id": "en_stream_fine",
+      "craft": {
+        "sentence": "长句波浪；感知与记忆交织；少情节推进强迫",
+        "stance": "敏感、内倾，捕捉瞬间",
+        "opening": "从一束光、一声钟、一次聚会的间隙进入",
+        "avoid": "硬新闻导语、要点列表",
+        "lexicon": "时光、房间、内心声音、瞬间"
+      },
+      "referenceParagraph": {
+        "zh": "The clock insisted on hours; the mind preferred rooms—rooms that opened into other years without asking permission.",
+        "zh-TW": "時鐘堅持小時；心更喜歡房間——那些不請自來就通向別的年份的房間。",
+        "en": "The clock insisted on hours; the mind preferred rooms—rooms that opened into other years without asking permission.",
+        "ja": "時計は時間を主張し、心は部屋を好む——許可なく他の年へ開く部屋を。"
+      }
+    },
+    {
+      "id": "en_gonzo_heat",
+      "craft": {
+        "sentence": "第一人称强；夸张比喻；但仍锚定时间地点人物",
+        "stance": "亢奋、叛逆，警惕变成纯闹剧——要点事实别丢",
+        "opening": "从一场荒唐现场或旅途灾难感进入",
+        "avoid": "干巴通稿、无现场",
+        "lexicon": "疯狂、美国公路感、药物隐喻 sparingly、截止日期"
+      },
+      "referenceParagraph": {
+        "zh": "The press conference was a hallucination with name tags. Everyone smiled like the truth was a beverage they hadn’t ordered.",
+        "zh-TW": "記者會像一場掛著名牌的幻覺。每個人微笑，彷彿真相是杯他們沒點的飲料。",
+        "en": "The press conference was a hallucination with name tags. Everyone smiled like the truth was a beverage they hadn’t ordered.",
+        "ja": "記者会見は名札付きの幻覚だった。皆が微笑む。真実は頼んでいない飲み物のようだ。"
+      }
+    },
+    {
+      "id": "en_science_poetic",
+      "craft": {
+        "sentence": "科学事实准确优先；比喻面向非专家；语气惊叹但严谨",
+        "stance": "温暖、好奇，反对反智",
+        "opening": "从一个可感的自然现象拉到尺度对比",
+        "avoid": "神秘学胡咧、恐吓式科技决定论",
+        "lexicon": "星辰、深时、我们共享的世界"
+      },
+      "referenceParagraph": {
+        "zh": "We are a way for the cosmos to know itself—and also a way for it to forget, every time we stop asking.",
+        "zh-TW": "我們是宇宙認識自己的一種方式——也是它遺忘自己的方式，每當我們停止發問。",
+        "en": "We are a way for the cosmos to know itself—and also a way for it to forget, every time we stop asking.",
+        "ja": "我々は宇宙が自らを知る方法だ——問うのをやめるたび、忘れる方法でもある。"
+      }
+    },
+    {
+      "id": "en_epistle_weight",
+      "craft": {
+        "sentence": "第二人称；历史事实嵌入叮嘱；句子有重量",
+        "stance": "疼爱与警告并存，不娱乐化苦难",
+        "opening": "从一句叮嘱或身体安全的提醒进入",
+        "avoid": "轻松玩梗、双方同等指责的假平衡",
+        "lexicon": "身体、街道、美国史、继承"
+      },
+      "referenceParagraph": {
+        "zh": "I need you to be twice as careful and still refuse to believe carefulness is justice.",
+        "zh-TW": "我要你加倍小心，卻仍拒絕相信「小心」等於正義。",
+        "en": "I need you to be twice as careful and still refuse to believe carefulness is justice.",
+        "ja": "二倍慎重であれ。だが慎重さが正義だとは信じるな。"
+      }
+    },
+    {
+      "id": "en_case_narrative",
+      "craft": {
+        "sentence": "医学现象讲清；人物不被简化成病例编号；语气好奇尊重",
+        "stance": "温厚、惊叹，反对猎奇嘲笑",
+        "opening": "从一个具体感知异常或行为悖论进入",
+        "avoid": "嘲笑患者、冷酷统计口吻",
+        "lexicon": "大脑、记忆、音乐、身份"
+      },
+      "referenceParagraph": {
+        "zh": "The symptom was strange; the person was not a symptom. That distinction is the beginning of care.",
+        "zh-TW": "症狀很奇異；人卻不是症狀。這一區分，是照顧的起點。",
+        "en": "The symptom was strange; the person was not a symptom. That distinction is the beginning of care.",
+        "ja": "症状は奇妙でも、人は症状ではない。その区別がケアの始まりだ。"
+      }
+    },
+    {
+      "id": "en_longform_mag",
+      "craft": {
+        "sentence": "场景重建+背景+引语；段落推进慢而稳；少作者直接说教",
+        "stance": "观察细致，权威感来自材料",
+        "opening": "从一句好引语或一个具体房间进入",
+        "avoid": "短平快通稿、标题党",
+        "lexicon": "人物小传、机构、现场、引号"
+      },
+      "referenceParagraph": {
+        "zh": "“We’re not hiding anything,” she said, hiding the way her eyes checked the door.",
+        "zh-TW": "「我們沒有隱瞞。」她說，同時用眼睛隱瞞地檢查著門。",
+        "en": "“We’re not hiding anything,” she said, hiding the way her eyes checked the door.",
+        "ja": "「何も隠していない」と彼女は言い、目でドアを確認する仕方を隠した。"
+      }
+    },
+    {
+      "id": "en_cold_leader",
+      "craft": {
+        "sentence": "开头即判断；对比案例；结尾给清晰 takeaway",
+        "stance": "精英冷静，不煽情，可带一点干幽默",
+        "opening": "从一句反常识判断起笔再举证",
+        "avoid": "鸡汤、民族主义喊麦、无数据断言",
+        "lexicon": "然而、相比之下、这意味着"
+      },
+      "referenceParagraph": {
+        "zh": "The boom looked inevitable—until it needed a bailout to remain inevitable.",
+        "zh-TW": "繁榮看起來不可避免——直到它需要紓困才能繼續「不可避免」。",
+        "en": "The boom looked inevitable—until it needed a bailout to remain inevitable.",
+        "ja": "好況は必然に見えた——必然であり続けるために救済が必要になるまでは。"
+      }
+    },
+    {
+      "id": "en_web_hook",
+      "craft": {
+        "sentence": "首段钩子；小标题节奏；口语与信息密度平衡",
+        "stance": "亲近读者，拒绝假深度装腔",
+        "opening": "从一个令人愣住的事实或反转承诺进入",
+        "avoid": "标题党无货、纯情绪发泄",
+        "lexicon": "你可能不知道、关键在于、换句话说"
+      },
+      "referenceParagraph": {
+        "zh": "Everyone argues about the ending. The real spoilers are in the incentives nobody wants to screenshot.",
+        "zh-TW": "大家都在吵結局。真正的劇透，是沒人想截圖的那些激勵機制。",
+        "en": "Everyone argues about the ending. The real spoilers are in the incentives nobody wants to screenshot.",
+        "ja": "結末でもめる。本当のネタバレは、誰もスクショしたくないインセンティブにある。"
+      }
+    }
+  ]
+}

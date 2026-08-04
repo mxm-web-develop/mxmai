@@ -62,11 +62,9 @@ function hasMeaningfulCost(row: {
 const WRITING_TEXT_TO_MAXPLAN: Array<{ table: string; task_key: string; sub_type: string }> = [
   { table: 'writing_scope_config', task_key: 'academy', sub_type: 'wenxian' },
   { table: 'writing_scope_config', task_key: 'acdemy', sub_type: 'news' },
-  { table: 'writing_scope_config', task_key: 'articles', sub_type: 'tech-intelligence' },
-  { table: 'writing_scope_config', task_key: 'articles', sub_type: 'with-context' },
   { table: 'writing_scope_config', task_key: 'basic-text', sub_type: 'default' },
   { table: 'writing_scope_config', task_key: 'business', sub_type: 'ad' },
-  { table: 'writing_scope_config', task_key: 'editorial', sub_type: 'warp-demo-daily' },
+  { table: 'writing_scope_config', task_key: 'generator', sub_type: 'warp-demo-daily' },
   { table: 'writing_scope_config', task_key: 'outlines', sub_type: 'default' },
   { table: 'writing_scope_config', task_key: 'resumes', sub_type: 'it' },
   { table: 'writing_scope_config', task_key: 'voice-scripts', sub_type: 'default' },

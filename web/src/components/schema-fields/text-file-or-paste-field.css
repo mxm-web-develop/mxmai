@@ -1,7 +1,26 @@
-/* 源文本：粘贴 / 上传解析 / 知识库 — 与 ref-images 上传 UI 对齐 */
+/* 源文本：粘贴 / 上传解析 / 我的资源 */
 
 .text-file-or-paste {
   color: var(--text-main, #0f172a);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.text-file-or-paste--embedded .ref-images__panel {
+  background: #fff;
+  border-color: rgba(148, 163, 184, 0.32);
+  padding: 10px;
+}
+
+.text-file-or-paste__tabs .ref-images__source-tabs {
+  width: 100%;
+}
+
+.text-file-or-paste__tabs .ref-images__source-tab {
+  flex: 1;
+  justify-content: center;
+  min-height: 36px;
 }
 
 .text-file-or-paste__panel {
@@ -11,28 +30,186 @@
   min-width: 0;
 }
 
-.text-file-or-paste__panel--virtual {
-  gap: 12px;
+.text-file-or-paste__panel--drag {
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 1px rgba(2, 132, 199, 0.25);
 }
 
-.text-file-or-paste__file-meta {
+.text-file-or-paste__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
-  font-size: 0.75rem;
-  color: var(--text-muted, #64748b);
+  font-size: 12px;
+  color: #64748b;
 }
 
-.text-file-or-paste__file-name {
+.text-file-or-paste__hint {
+  min-width: 0;
+}
+
+.text-file-or-paste__count {
+  font-variant-numeric: tabular-nums;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.text-file-or-paste__dropzone {
+  min-height: 112px;
+}
+
+.text-file-or-paste__drop-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  text-align: center;
+}
+
+.text-file-or-paste__drop-icon {
+  color: #0284c7;
+  opacity: 0.9;
+}
+
+.text-file-or-paste__drop-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.text-file-or-paste__drop-sub {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.text-file-or-paste__selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(2, 132, 199, 0.06);
+  border: 1px solid rgba(2, 132, 199, 0.18);
+}
+
+.text-file-or-paste__selected-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  color: #0369a1;
+}
+
+.text-file-or-paste__selected-copy {
+  min-width: 0;
+}
+
+.text-file-or-paste__selected-name {
+  margin: 0;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--text-main, #0f172a);
+  color: #0f172a;
   word-break: break-all;
+  line-height: 1.35;
+}
+
+.text-file-or-paste__selected-meta {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.text-file-or-paste__selected-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.text-file-or-paste__link-btn {
+  border: none;
+  background: transparent;
+  color: #0284c7;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.text-file-or-paste__link-btn:hover {
+  background: rgba(2, 132, 199, 0.1);
+}
+
+.text-file-or-paste__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.text-file-or-paste__icon-btn:hover {
+  background: rgba(148, 163, 184, 0.2);
+  color: #0f172a;
+}
+
+.text-file-or-paste__resource-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 88px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px dashed rgba(2, 132, 199, 0.4);
+  background: rgba(2, 132, 199, 0.04);
+  color: #0369a1;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.text-file-or-paste__resource-cta:hover {
+  border-color: #0284c7;
+  background: rgba(2, 132, 199, 0.08);
+}
+
+.text-file-or-paste__resource-cta span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.text-file-or-paste__resource-cta strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.text-file-or-paste__resource-cta em {
+  font-style: normal;
+  font-size: 12px;
+  color: #64748b;
 }
 
 .text-file-or-paste__panel .doc-reader {
   margin-top: 0;
+  max-height: 220px;
 }
 
 .text-file-or-paste__error {
@@ -49,35 +226,22 @@ html.dark .text-file-or-paste__error {
   display: none;
 }
 
-.text-file-or-paste__writing-loading {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8125rem;
-  color: var(--text-muted, #64748b);
-}
-
-.text-file-or-paste .ant-input-textarea,
+.text-file-or-paste .ant-input-textarea textarea,
 .text-file-or-paste .ant-input {
-  background: var(--surface-elevated, #fff) !important;
-  border-color: var(--border-subtle, rgba(148, 163, 184, 0.45)) !important;
+  background: #fff !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
   color: var(--text-main, #0f172a) !important;
+  box-shadow: none !important;
 }
 
-html.dark .text-file-or-paste .ant-input-textarea,
-html.dark .text-file-or-paste .ant-input {
-  background: rgba(15, 23, 42, 0.55) !important;
-  color: #f1f5f9 !important;
+.text-file-or-paste .ant-input-textarea textarea:focus,
+.text-file-or-paste .ant-input:focus {
+  border-color: #0284c7 !important;
 }
 
 @media (max-width: 768px) {
-  .text-file-or-paste__panel--virtual .voiceover-audio__vf-layout:not(.voiceover-audio__vf-layout--compact) {
-    grid-template-columns: 1fr;
-    min-height: 220px;
-  }
-
-  .text-file-or-paste__panel--virtual .voiceover-audio__vf-layout:not(.voiceover-audio__vf-layout--compact) .voiceover-audio__vf-sidebar {
-    max-height: 140px;
-    overflow-y: auto;
+  .text-file-or-paste__tabs .ref-images__source-tab {
+    padding: 7px 10px;
+    font-size: 12px;
   }
 }

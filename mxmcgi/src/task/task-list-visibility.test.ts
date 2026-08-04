@@ -37,6 +37,21 @@ describe('isInternalListTask', () => {
     ).toBe(true);
   });
 
+  it('hides Admin pipeline debug monitor runs from user list', () => {
+    expect(
+      isInternalListTask({
+        type: 'writing',
+        metadata: { adminPipelineDebug: true, hideFromUserList: true, label: '【Admin 调试】' },
+      })
+    ).toBe(true);
+    expect(
+      isInternalListTask({
+        type: 'writing',
+        requestParams: { __adminPipelineDebug: true, taskV2: { taskKey: 'generator' } },
+      })
+    ).toBe(true);
+  });
+
   it('keeps user-facing autocut and generator tasks', () => {
     expect(
       isInternalListTask({

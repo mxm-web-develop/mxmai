@@ -3,6 +3,11 @@ import type { PDFDocumentProxy } from 'pdfjs-dist';
 
 export type PdfDocumentSource = string | ArrayBuffer | Uint8Array | File | Blob;
 
+export type LoadPdfDocumentOptions = {
+  /** 鉴权头（Bearer / x-user-id）；配合 URL Range 流式加载 */
+  httpHeaders?: Record<string, string>;
+};
+
 let workerReady = false;
 
 async function ensurePdfjs() {
@@ -32,11 +37,26 @@ async function normalizeSource(
   return { data: source };
 }
 
-/** 加载 PDF 文档（blob URL / ArrayBuffer / File） */
-export async function loadPdfDocument(source: PdfDocumentSource): Promise<PDFDocumentProxy> {
+/** 加载 PDF 文档（URL+Range / blob URL / ArrayBuffer / File） */
+export async function loadPdfDocument(
+  source: PdfDocumentSource,
+  options?: LoadPdfDocumentOptions,
+): Promise<PDFDocumentProxy> {
   const pdfjs = await ensurePdfjs();
   const params = await normalizeSource(source);
-  return pdfjs.getDocument(params).promise;
+  const httpHeaders = options?.httpHeaders;
+  return pdfjs.getDocument({
+    ...params,
+    ...(httpHeaders && Object.keys(httpHeaders).length > 0 ? { httpHeaders } : {}),
+    withCredentials: false,
+    ...(params.url
+      ? {
+          disableAutoFetch: false,
+          disableStream: false,
+          rangeChunkSize: 65536,
+        }
+      : {}),
+  }).promise;
 }
 
 /** 从已加载文档提取纯文本 */

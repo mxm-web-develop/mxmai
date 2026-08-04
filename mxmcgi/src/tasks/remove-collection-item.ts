@@ -45,7 +45,7 @@ function assembleMarkdown(
   }
   for (let i = 0; i < items.length; i++) {
     const it = items[i]!;
-    const heading = it.title?.trim() || it.name?.trim() || `路线 ${i + 1}`;
+    const heading = it.title?.trim() || it.name?.trim() || `探索稿 ${i + 1}`;
     parts.push(`## ${heading}`, '');
     if (it.angle?.trim()) {
       parts.push(`> ${it.angle.trim()}`, '');

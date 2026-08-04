@@ -101,6 +101,21 @@
   word-break: break-word;
 }
 
+.tvd-error-debug {
+  margin: 0.65rem 0 0;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 12rem;
+  overflow: auto;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, #b91c1c 8%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #7f1d1d;
+}
+
 .tvd-muted {
   color: var(--text-muted, #64748b);
   font-size: 0.8125rem;

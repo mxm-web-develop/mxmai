@@ -30,7 +30,7 @@ export interface PipelineStep {
   nestedTextTaskKey?: string;
   /** @deprecated 兼容旧配置；新管线用 step=videoTimelineRender */
   nestedVideoTaskKey?: string;
-  /** renderDocumentPdf 专用：layout LLM 子业务 key */
+  /** markdownToPdf 可选：layout LLM 子业务 key */
   layoutTaskKey?: string;
   /** 输入映射：如 { prompt: '${state.coreArtifact.text}' } */
   inputMapping?: Record<string, string>;
@@ -61,9 +61,30 @@ export type PipelineTraceEntry = {
   durationMs: number;
   nestedTaskId?: string;
   costUsd?: number;
-  phase?: 'pre' | 'post' | 'enrich';
+  phase?: 'pre' | 'post' | 'enrich' | 'input' | 'output';
   /** when 条件未满足而跳过 */
   skipped?: boolean;
+  /** 该步执行失败（抛错被捕获后写入） */
+  ok?: boolean;
+  /** 失败原因（与 ok===false 同时出现） */
+  error?: string;
+  /** Admin 流程测试：可读标签（如 nestedTextTaskKey / webSearch target） */
+  label?: string;
+  /** Admin 流程测试：该步投喂摘要（已截断） */
+  inputSnapshot?: unknown;
+  /** Admin 流程测试：该步产出摘要（已截断） */
+  outputSnapshot?: unknown;
+  /** 产出预算观测：completion_tokens / reasoning / length / continue */
+  budget?: {
+    completion_tokens?: number;
+    prompt_tokens?: number;
+    total_tokens?: number;
+    finish_reason?: string | null;
+    had_reasoning?: boolean;
+    truncated?: boolean;
+    continued?: boolean;
+    thinking_disabled_retry?: boolean;
+  };
 };
 
 
@@ -175,7 +196,11 @@ export interface TaskTemplate {
       temperature?: number;
       maxTokens?: number;
       topP?: number;
-      /** 透传至 provider API（如 MiniMax M3 thinking / max_completion_tokens） */
+      /**
+       * 透传至 provider API。
+       * MiniMax-M3 思考开关须显性写 parameters.thinking = { type: 'disabled' | 'adaptive' }，
+       * 勿依赖 provider / catalog 隐式默认。
+       */
       parameters?: Record<string, unknown>;
     };
     /** mxm-warp：启用五段合同执行（pre→input→enrich→output→post） */
@@ -221,6 +246,10 @@ export interface TaskRunV2Request {
      * 用于自动剪辑管线内的 AI 视频 / AI 配图子任务。
      */
     keepTask?: boolean;
+    /**
+     * Admin 业务管理「流程测试」：与用户同链路执行，但 pipelineTrace 保存每步 input/output 快照。
+     */
+    adminPipelineDebug?: boolean;
   };
 }
 

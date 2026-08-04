@@ -1,5 +1,6 @@
 /**
  * 展开 Node/undici 的 `TypeError: fetch failed`（常见底层在 `error.cause`），便于任务进度与日志排查。
+ * 对外抛错请用 throwMappedFetchError，避免 proxy/URL 泄漏到非 admin UI。
  */
 export function formatNodeFetchError(url: string, err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
@@ -25,4 +26,14 @@ export function formatNodeFetchError(url: string, err: unknown): string {
   bits.push(proxy ? `proxy=${String(proxy).slice(0, 120)}` : 'proxy=direct');
 
   return `${bits.join(' | ')} @ ${url}`;
+}
+
+/** 日志保留全文，抛出 PlatformError（用户文案已脱敏） */
+export function throwMappedFetchError(url: string, err: unknown): never {
+  const debug = formatNodeFetchError(url, err);
+  console.error('[fetch]', debug);
+  // 延迟 require 避免循环依赖
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { mapUpstreamError } = require('../../errors') as typeof import('../../errors');
+  throw mapUpstreamError(new Error(debug));
 }

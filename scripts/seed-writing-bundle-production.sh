@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 向生产 Supabase 导入「现行」Writing 业务（仅行业日报 + 角度探索）
+# 向生产 Supabase 导入「现行」Writing 业务（行业日报 + 话题写作可选 + 演示文稿）
 # 用法: bash scripts/seed-writing-bundle-production.sh
 set -euo pipefail
 
@@ -38,10 +38,14 @@ fi
 export MXM_SEED_PRODUCTION=1
 cd "$ROOT/mxmcgi"
 
-# 现行 writing 仅此两套（含各自依赖的 text/*）
+# 先删角度探索，再写入现行 writing
+log "删除生产库 writing/group/seek（角度探索）..."
+MXM_ALLOW_REMOTE_WIPE=1 pnpm exec tsx src/scripts/delete-writing-group-seek.ts
+
 BUNDLES=(
-  src/tasks/examples/writing-editorial-industry-daily.business.json
-  src/tasks/examples/writing-group-seek.business.json
+  src/tasks/examples/writing-generator-industry-daily.business.json
+  src/tasks/examples/writing-generator-topic-article.business.json
+  src/tasks/examples/writing-group-deck.business.json
 )
 
 for b in "${BUNDLES[@]}"; do
@@ -52,4 +56,4 @@ done
 log "reload mxmcgi..."
 ssh_cmd "cd '${DEPLOY_PATH:-/opt/supermxmai}' && pm2 reload mxmcgi-api mxmcgi-worker mxmcgi-scheduler 2>/dev/null || pm2 reload mxmcgi-api mxmcgi-worker"
 
-log "完成。Admin 写作新建应仅见：行业日报、角度探索"
+log "完成。Admin 写作新建应见：话题写作、行业日报、演示文稿（方案）"

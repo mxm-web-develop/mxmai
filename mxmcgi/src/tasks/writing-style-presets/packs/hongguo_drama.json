@@ -1,0 +1,339 @@
+{
+  "schemaVersion": 1,
+  "kind": "writing-voice-pack",
+  "voice_category": "hongguo_drama",
+  "notes": [
+    "短剧节拍：番茄/红果/ReelShort/縦型等环境热门叶子。"
+  ],
+  "voices": [
+    {
+      "id": "hg_conflict_hook",
+      "craft": {
+        "sentence": "对白短促；旁白极少；场面可拍",
+        "stance": "情绪浓但因果清楚",
+        "opening": "冲突已爆发的第一句",
+        "avoid": "长内心独白、慢热铺垫超过两场",
+        "lexicon": "你凭什么、当着大家、从今天起、我不同意"
+      },
+      "referenceParagraph": {
+        "zh": "红毯麦克风还亮着。她把证件举起来：「婚，我拒绝。」掌声卡住，像被掐断。",
+        "zh-TW": "红毯麦克风还亮着。她把证件举起来：「婚，我拒绝。」掌声卡住，像被掐断。",
+        "en": "The red-carpet mic was still live. She raised the papers: “I refuse this marriage.” Applause died mid-clap.",
+        "ja": "The red-carpet mic was still live. She raised the papers: “I refuse this marriage.” Applause died mid-clap."
+      },
+      "fictionPack": {
+        "platform": "hongguo",
+        "pace": "episode_hook",
+        "must_have": [
+          "可视冲突",
+          "可拍对白",
+          "集末反转"
+        ],
+        "chapter_end": "更大丑闻或身份将爆"
+      }
+    },
+    {
+      "id": "hg_identity_twist",
+      "craft": {
+        "sentence": "揭身份用物证/第三人；少解释段落",
+        "stance": "爽感来自信息对称瞬间",
+        "opening": "被错待的场景",
+        "avoid": "无铺垫神豪空降、羞辱弱势群体",
+        "lexicon": "你认错人了、合同在这、请他进来"
+      },
+      "referenceParagraph": {
+        "zh": "保安还想拦，门口却响起「董事长到」。她把工牌翻面，字不需要念出声。",
+        "zh-TW": "保安还想拦，门口却响起「董事长到」。她把工牌翻面，字不需要念出声。",
+        "en": "Security moved to stop her as “Chair’s here” rang at the door. She flipped her badge—no one needed it read aloud.",
+        "ja": "Security moved to stop her as “Chair’s here” rang at the door. She flipped her badge—no one needed it read aloud."
+      },
+      "fictionPack": {
+        "platform": "hongguo",
+        "pace": "reveal_ladder",
+        "must_have": [
+          "错误对待",
+          "物证揭穿",
+          "连击打脸"
+        ],
+        "chapter_end": "更大马甲未揭"
+      }
+    },
+    {
+      "id": "hg_emotion_wall",
+      "craft": {
+        "sentence": "一句一句砸；重复关键词强化伤口",
+        "stance": "站在被压迫者情绪，但不煽动违法报复",
+        "opening": "不公平条款或当众贬低",
+        "avoid": "儿童伤害细节、过度血腥",
+        "lexicon": "我退出、你选吧、从今以后、别再叫我"
+      },
+      "referenceParagraph": {
+        "zh": "她把钥匙放在茶几上：「孩子跟我。房子你们争。从今以后，别再用家人两个字叫我回来。」",
+        "zh-TW": "她把钥匙放在茶几上：「孩子跟我。房子你们争。从今以后，别再用家人两个字叫我回来。」",
+        "en": "She set the keys on the table: “The child comes with me. Fight over the house. Don’t call me family to pull me back.”",
+        "ja": "She set the keys on the table: “The child comes with me. Fight over the house. Don’t call me family to pull me back.”"
+      },
+      "fictionPack": {
+        "platform": "hongguo",
+        "pace": "emotion_peak",
+        "must_have": [
+          "决裂台词",
+          "关系重组",
+          "集末反击预告"
+        ],
+        "chapter_end": "反击资源出现"
+      }
+    },
+    {
+      "id": "hg_counterattack",
+      "craft": {
+        "sentence": "证据出示即转折；台词服务围观",
+        "stance": "合法合规的反击框架",
+        "opening": "被陷害或被逼到墙角",
+        "avoid": "教唆犯罪细节、仇恨动员",
+        "lexicon": "证据、公证、直播、你们看、结束了"
+      },
+      "referenceParagraph": {
+        "zh": "发布会大屏切到邮件时间戳。他只说：「诬陷我的人，也在今天的邀请名单里。」",
+        "zh-TW": "发布会大屏切到邮件时间戳。他只说：「诬陷我的人，也在今天的邀请名单里。」",
+        "en": "The launch screen cut to email timestamps. He said only: “The people who framed me are also on today’s invite list.”",
+        "ja": "The launch screen cut to email timestamps. He said only: “The people who framed me are also on today’s invite list.”"
+      },
+      "fictionPack": {
+        "platform": "hongguo",
+        "pace": "payback",
+        "must_have": [
+          "证据出示",
+          "公开场面",
+          "反派失措"
+        ],
+        "chapter_end": "更大幕后黑手"
+      }
+    },
+    {
+      "id": "hg_tw_conflict",
+      "craft": {
+        "sentence": "對白短促；旁白極少",
+        "stance": "情緒濃但因果清",
+        "opening": "衝突已爆發的第一句",
+        "avoid": "長內心、慢熱超過兩場",
+        "lexicon": "你憑什麼、當著大家、從今天起"
+      },
+      "referenceParagraph": {
+        "zh": "紅毯麥克風還亮著。她把證件舉起來：「婚，我拒絕。」",
+        "zh-TW": "紅毯麥克風還亮著。她把證件舉起來：「婚，我拒絕。」",
+        "en": "The mic was still live. She raised the papers: “I refuse this marriage.”",
+        "ja": "マイクはまだ生きていた。書類を掲げた。「結婚、拒否します。」"
+      },
+      "fictionPack": {
+        "platform": "short_drama_tw",
+        "pace": "episode_hook",
+        "must_have": [
+          "可視衝突",
+          "集末反轉"
+        ],
+        "chapter_end": "更大醜聞將爆"
+      }
+    },
+    {
+      "id": "hg_tw_identity",
+      "craft": {
+        "sentence": "物證揭身份；少解釋段",
+        "stance": "爽感來自信息對稱瞬間",
+        "opening": "被錯待的場景",
+        "avoid": "無鋪墊神豪空降",
+        "lexicon": "你認錯人了、合同在這"
+      },
+      "referenceParagraph": {
+        "zh": "保安還想攔，門口卻響起職稱。她把工牌翻面。",
+        "zh-TW": "保安還想攔，門口卻響起職稱。她把工牌翻面。",
+        "en": "Security moved as the title was announced at the door. She flipped her badge.",
+        "ja": "止めに来た警備の横で肩書が呼ばれた。名札を裏返した。"
+      },
+      "fictionPack": {
+        "platform": "short_drama_tw",
+        "pace": "reveal_ladder",
+        "must_have": [
+          "錯待",
+          "物證"
+        ],
+        "chapter_end": "更大馬甲"
+      }
+    },
+    {
+      "id": "hg_tw_payback",
+      "craft": {
+        "sentence": "證據出示即轉折",
+        "stance": "合法框架內反擊",
+        "opening": "被逼到牆角",
+        "avoid": "教唆犯罪細節",
+        "lexicon": "證據、公證、你們看"
+      },
+      "referenceParagraph": {
+        "zh": "大屏切到郵件時間戳。他只說：「誣陷我的人也在邀請名單裡。」",
+        "zh-TW": "大屏切到郵件時間戳。",
+        "en": "The screen cut to email timestamps: “The people who framed me are also invited.”",
+        "ja": "画面がメールの時刻印へ。「陥れた人も、招待リストにいる。」"
+      },
+      "fictionPack": {
+        "platform": "short_drama_tw",
+        "pace": "payback",
+        "must_have": [
+          "證據",
+          "公開場面"
+        ],
+        "chapter_end": "幕後黑手"
+      }
+    },
+    {
+      "id": "hg_en_reel_conflict",
+      "craft": {
+        "sentence": "Staccato dialogue; almost no VO",
+        "stance": "Big emotion, clear cause",
+        "opening": "First line already mid-fight",
+        "avoid": "Long interior monologue",
+        "lexicon": "how dare you, in front of everyone, from today"
+      },
+      "referenceParagraph": {
+        "zh": "红毯麦还亮着。她举起证件：「婚，我拒绝。」",
+        "zh-TW": "紅毯麥還亮著。",
+        "en": "The red-carpet mic was still live. She raised the papers: “I refuse this marriage.”",
+        "ja": "マイクはまだ生きていた。「結婚、拒否します。」"
+      },
+      "fictionPack": {
+        "platform": "reelshort",
+        "pace": "episode_hook",
+        "must_have": [
+          "visual conflict",
+          "episode twist"
+        ],
+        "chapter_end": "bigger scandal incoming"
+      }
+    },
+    {
+      "id": "hg_en_ceo_twist",
+      "craft": {
+        "sentence": "Reveal via props/third party",
+        "stance": "Pleasure from information symmetry",
+        "opening": "Wronged in public",
+        "avoid": "Unforeshadowed billionaire drop",
+        "lexicon": "wrong person, contract, let them in"
+      },
+      "referenceParagraph": {
+        "zh": "保安还想拦，门口却响起董事长到。她把工牌翻面。",
+        "zh-TW": "保安還想攔，門口卻響起職稱。",
+        "en": "Security moved as “Chair’s here” hit the door. She flipped her badge.",
+        "ja": "警備が動いた瞬間、肩書が呼ばれた。名札を裏返した。"
+      },
+      "fictionPack": {
+        "platform": "dramabox",
+        "pace": "reveal_ladder",
+        "must_have": [
+          "mistreatment",
+          "proof"
+        ],
+        "chapter_end": "bigger mask"
+      }
+    },
+    {
+      "id": "hg_en_revenge_ep",
+      "craft": {
+        "sentence": "Proof = plot turn",
+        "stance": "Legalistic payback frame",
+        "opening": "Cornered",
+        "avoid": "Crime how-to detail",
+        "lexicon": "evidence, notary, watch this"
+      },
+      "referenceParagraph": {
+        "zh": "大屏切到邮件时间戳：「诬陷我的人也在邀请名单里。」",
+        "zh-TW": "大屏切到郵件時間戳。",
+        "en": "The launch screen cut to timestamps: “The people who framed me are also on the invite list.”",
+        "ja": "時刻印が映った。「陥れた人も招待されている。」"
+      },
+      "fictionPack": {
+        "platform": "reelshort",
+        "pace": "payback",
+        "must_have": [
+          "proof",
+          "public"
+        ],
+        "chapter_end": "bigger villain"
+      }
+    },
+    {
+      "id": "hg_ja_tate_conflict",
+      "craft": {
+        "sentence": "短い台詞。ナレほぼ無し",
+        "stance": "感情は濃いが因果は明確",
+        "opening": "すでに壊れている第一声",
+        "avoid": "長い独白",
+        "lexicon": "何の権利で、皆の前で、今日から"
+      },
+      "referenceParagraph": {
+        "zh": "麦克风还亮着。她举起证件拒绝婚礼。",
+        "zh-TW": "麥克風還亮著。她拒絕婚禮。",
+        "en": "The mic was still live. She raised the papers and refused the marriage.",
+        "ja": "マイクは生きていた。書類を掲げ、結婚を拒んだ。"
+      },
+      "fictionPack": {
+        "platform": "jp_vertical",
+        "pace": "episode_hook",
+        "must_have": [
+          "可視衝突",
+          "話末反轉"
+        ],
+        "chapter_end": "より大きい醜聞"
+      }
+    },
+    {
+      "id": "hg_ja_kakushi",
+      "craft": {
+        "sentence": "物証で明かす",
+        "stance": "対称が快感",
+        "opening": "不当な扱い",
+        "avoid": "伏線ゼロの大富豪",
+        "lexicon": "人違い、契約はここ"
+      },
+      "referenceParagraph": {
+        "zh": "保安要拦时门口响起职称，她翻过工牌。",
+        "zh-TW": "保安要攔時門口響起職稱。",
+        "en": "Security moved as the title was called; she flipped her badge.",
+        "ja": "止めに来た横で肩書が呼ばれ、名札を裏返した。"
+      },
+      "fictionPack": {
+        "platform": "jp_vertical",
+        "pace": "reveal_ladder",
+        "must_have": [
+          "錯待",
+          "物證"
+        ],
+        "chapter_end": "更大面具"
+      }
+    },
+    {
+      "id": "hg_ja_gyakushu",
+      "craft": {
+        "sentence": "証拠提示＝転換",
+        "stance": "合法枠の反撃",
+        "opening": "追い詰め",
+        "avoid": "犯罪手順",
+        "lexicon": "証拠、公证、見て"
+      },
+      "referenceParagraph": {
+        "zh": "大屏切到时间戳：「诬陷我的人也在名单里。」",
+        "zh-TW": "大屏切到時間戳。",
+        "en": "Timestamps hit the screen: “My framers are also invited.”",
+        "ja": "時刻印が映った。「陥れた人も招待されている。」"
+      },
+      "fictionPack": {
+        "platform": "jp_vertical",
+        "pace": "payback",
+        "must_have": [
+          "證據",
+          "公開"
+        ],
+        "chapter_end": "黒幕"
+      }
+    }
+  ]
+}

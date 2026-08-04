@@ -49,6 +49,7 @@ import { useSmartflowExecutionSync } from '../hooks/useSmartflowExecutionSync';
 import { mergeSmartflowExecution } from '../notifications/smartflow-ws';
 import { PublishOpenApiDrawer, type PublishOpenApiPreset } from '../components/PublishOpenApiDrawer';
 import { PageHint } from '../components/PageHint';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 const DEFAULT_INPUT_JSON = `{
   "photography_type": "人像",
@@ -294,7 +295,7 @@ export default function Smartflow() {
     try {
       const res = await listSmartflows({ limit: 200 });
       if (res.error) {
-        message.error(res.error);
+        message.error(toUserFacingErrorMessage(res.error));
         setFlows([]);
         return;
       }
@@ -315,7 +316,7 @@ export default function Smartflow() {
     try {
       const res = await listSmartflowTasks({ smartflowId: selectedId, limit: 30 });
       if (res.error) {
-        message.error(res.error);
+        message.error(toUserFacingErrorMessage(res.error));
         setTasks([]);
         return;
       }
@@ -351,7 +352,7 @@ export default function Smartflow() {
     async (executionId: string, opts?: { silent?: boolean }) => {
       const res = await getSmartflowTask(executionId);
       if (res.error) {
-        if (!opts?.silent) message.error(res.error);
+        if (!opts?.silent) message.error(toUserFacingErrorMessage(res.error));
         return;
       }
       const body = res.data as { data?: SmartflowExecutionItem } | undefined;
@@ -413,7 +414,7 @@ export default function Smartflow() {
     try {
       const res = await exportSmartflowBundle(selectedId);
       if (res.error) {
-        message.error(res.error);
+        message.error(toUserFacingErrorMessage(res.error));
         return;
       }
       const body = res.data as { success?: boolean; data?: unknown; warnings?: string[] } | undefined;
@@ -436,7 +437,7 @@ export default function Smartflow() {
         const parsed: unknown = JSON.parse(await file.text());
         const dry = await importSmartflowBundle({ bundle: parsed, conflictPolicy: 'dry-run' });
         if (dry.error) {
-          message.error(dry.error);
+          message.error(toUserFacingErrorMessage(dry.error));
           return;
         }
         const body = dry.data as
@@ -468,7 +469,7 @@ export default function Smartflow() {
       try {
         const res = await importSmartflowBundle({ bundle: pendingBundle, conflictPolicy: policy });
         if (res.error) {
-          message.error(res.error);
+          message.error(toUserFacingErrorMessage(res.error));
           return;
         }
         const body = res.data as
@@ -512,7 +513,7 @@ export default function Smartflow() {
     try {
       const res = await getSmartflow(id);
       if (res.error) {
-        message.error(res.error);
+        message.error(toUserFacingErrorMessage(res.error));
         return;
       }
       const body = res.data as { data?: SmartflowListItem } | undefined;
@@ -579,7 +580,7 @@ export default function Smartflow() {
           schema,
         });
         if (res.error) {
-          message.error(res.error);
+          message.error(toUserFacingErrorMessage(res.error));
           return;
         }
         const body = res.data as { data?: SmartflowListItem } | undefined;
@@ -607,7 +608,7 @@ export default function Smartflow() {
         schema,
       });
       if (res.error) {
-        message.error(res.error);
+        message.error(toUserFacingErrorMessage(res.error));
         return;
       }
       message.success(t('smartflow.page.saved'));
@@ -623,7 +624,7 @@ export default function Smartflow() {
     try {
       const res = await deleteSmartflow(selectedId);
       if (res.error) {
-        message.error(res.error);
+        message.error(toUserFacingErrorMessage(res.error));
         return;
       }
       message.success(t('smartflow.page.deleted'));
@@ -664,7 +665,7 @@ export default function Smartflow() {
         setLastError(res.error);
         const body = res.data as { data?: SmartflowExecutionItem } | undefined;
         if (body?.data) setLastExecution(body.data);
-        message.error(res.error);
+        message.error(toUserFacingErrorMessage(res.error));
         return;
       }
       const body = res.data as { success?: boolean; data?: SmartflowExecutionItem } | undefined;
@@ -686,7 +687,7 @@ export default function Smartflow() {
   const refreshOneTask = async (id: string) => {
     const res = await getSmartflowTask(id);
     if (res.error) {
-      message.error(res.error);
+      message.error(toUserFacingErrorMessage(res.error));
       return;
     }
     const body = res.data as { data?: SmartflowExecutionItem } | undefined;
@@ -713,7 +714,7 @@ export default function Smartflow() {
   const onPauseTask = async (row: SmartflowExecutionItem) => {
     const res = await pauseSmartflowTask(row.id);
     if (res.error) {
-      message.error(res.error);
+      message.error(toUserFacingErrorMessage(res.error));
       return;
     }
     message.success(t('smartflow.page.paused'));
@@ -724,7 +725,7 @@ export default function Smartflow() {
   const onCancelTask = async (row: SmartflowExecutionItem) => {
     const res = await cancelSmartflowTask(row.id);
     if (res.error) {
-      message.error(res.error);
+      message.error(toUserFacingErrorMessage(res.error));
       return;
     }
     message.success(t('smartflow.page.cancelled'));
@@ -735,7 +736,7 @@ export default function Smartflow() {
   const onDeleteTask = async (row: SmartflowExecutionItem) => {
     const res = await deleteSmartflowTask(row.id);
     if (res.error) {
-      message.error(res.error);
+      message.error(toUserFacingErrorMessage(res.error));
       return;
     }
     message.success(t('smartflow.page.deleted'));

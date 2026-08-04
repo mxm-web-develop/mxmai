@@ -94,7 +94,8 @@ export class AnysearchSearchProvider implements SearchProvider {
       };
     } catch (error) {
       console.error('[Anysearch] Search failed:', error);
-      return this.createEmptyResult(dimension, query);
+      const msg = error instanceof Error ? error.message : String(error);
+      return this.createEmptyResult(dimension, query, msg);
     }
   }
 
@@ -192,7 +193,8 @@ export class AnysearchSearchProvider implements SearchProvider {
 
   private createEmptyResult(
     dimension: SearchDimension,
-    query: string
+    query: string,
+    error?: string
   ): DimensionSearchResult {
     return {
       dimension,
@@ -201,6 +203,7 @@ export class AnysearchSearchProvider implements SearchProvider {
       total: 0,
       query,
       timestamp: new Date().toISOString(),
+      ...(error ? { error } : {}),
     };
   }
 }

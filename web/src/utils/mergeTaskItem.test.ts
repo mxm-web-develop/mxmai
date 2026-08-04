@@ -155,6 +155,19 @@ describe('resolveTaskListStatus', () => {
     ).toBe('awaiting_review');
   });
 
+  it('shows completed when processing row already has writing media output at 100%', () => {
+    expect(
+      resolveTaskListStatus(
+        base({
+          type: 'writing',
+          status: 'processing',
+          progress: { status: 'processing', progress: 100 },
+          result: { hasMedia: true, mediaCount: 1, mediaUrls: ['http://x/a.md'] },
+        })
+      )
+    ).toBe('completed');
+  });
+
   it('shows completed for writing when status completed despite leftover text gate', () => {
     expect(
       resolveTaskListStatus(
@@ -170,6 +183,58 @@ describe('resolveTaskListStatus', () => {
       )
     ).toBe('completed');
   });
+  it('shows awaiting_user_input for interactive-card gate (not 待审核)', () => {
+    expect(
+      resolveTaskListStatus(
+        base({
+          type: 'writing',
+          status: 'awaiting_user_input',
+          progress: { status: 'awaiting_user_input', progress: 20 },
+          metadata: {
+            manualReviewGate: {
+              gateId: 'topic-article-pre',
+              kind: 'interactive-card',
+              label: '话题写作',
+            },
+          },
+        })
+      )
+    ).toBe('awaiting_user_input');
+  });
+
+  it('does not remap interactive-card to awaiting_review even if status wrongly awaiting_review', () => {
+    expect(
+      resolveTaskListStatus(
+        base({
+          type: 'writing',
+          status: 'awaiting_review',
+          progress: { status: 'awaiting_review', progress: 20 },
+          metadata: {
+            manualReviewGate: {
+              gateId: 'topic-article-pre',
+              kind: 'interactive-card',
+              label: '话题写作',
+            },
+          },
+        })
+      )
+    ).toBe('awaiting_user_input');
+  });
+});
+
+describe('hasPendingManualReviewGate', () => {
+  it('ignores interactive-card gates', () => {
+    expect(
+      hasPendingManualReviewGate(
+        base({
+          status: 'awaiting_user_input',
+          metadata: {
+            manualReviewGate: { gateId: 'g1', kind: 'interactive-card', label: '话题写作' },
+          },
+        })
+      )
+    ).toBe(false);
+  });
 });
 
 describe('isTaskEligibleForManualReview', () => {
@@ -183,6 +248,22 @@ describe('isTaskEligibleForManualReview', () => {
           progress: { status: 'completed', progress: 100 },
           metadata: {
             manualReviewGate: { gateId: 'g1', kind: 'interactive-card', label: '行业' },
+          },
+        })
+      )
+    ).toBe(false);
+  });
+
+  it('does not open modal for interactive-card (create-time guide only)', async () => {
+    const { isTaskEligibleForManualReview } = await import('./mergeTaskItem');
+    expect(
+      isTaskEligibleForManualReview(
+        base({
+          type: 'writing',
+          status: 'awaiting_user_input',
+          progress: { status: 'awaiting_user_input', progress: 20 },
+          metadata: {
+            manualReviewGate: { gateId: 'g1', kind: 'interactive-card', label: '话题写作' },
           },
         })
       )

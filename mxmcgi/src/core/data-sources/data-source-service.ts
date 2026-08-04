@@ -6,6 +6,7 @@ import type {
 } from './types';
 import type { DataSourceProvider } from './providers/base';
 import { CoinGeckoProvider } from './providers/coingecko';
+import { CnMarketProvider } from './providers/cn-market';
 import { FinnhubProvider } from './providers/finnhub';
 import { DefiLlamaProvider } from './providers/defillama';
 import { PkulawProvider } from './providers/pkulaw';
@@ -29,6 +30,7 @@ export class DataSourceService {
   private registerDefaultProviders() {
     const list: DataSourceProvider[] = [
       new CoinGeckoProvider(),
+      new CnMarketProvider(),
       new FinnhubProvider(),
       new DefiLlamaProvider(),
       new PkulawProvider(),

@@ -21,7 +21,8 @@
 5. **C1 · 平台固定五段**：`pre → input → enrich → output → post`（可跳过空管道段）。
    - **pre / enrich / post**：Admin 管道可配；**禁止写死业务逻辑**。
    - **input**：按 Schema/`description` **简单回填**；不做角色/高复杂字段。
-   - **output**：Admin Prompt（业务理解 + 角色）；吃齐前序数据再生成。
+   - **output**：吃齐前序数据再生成。写作 = Admin Prompt（业务理解 + 角色）+ 完整合同 → 文本 LLM；**媒体** = 从合同取参调用本 scope 主生成接口（speech / 生图 / 视频 / 音乐等）。`generator`|`group`|`series` **一致**：group 在 output **遍历**合同数组，series 带历史调同一套 output。
+   - **`skipOutputLlm`**：仅跳过 output 的**文本 LLM**；**不**跳过媒体 output，**禁止**把主 TTS/成片链塞进 post 冒充「跳过了 output」。规范见 `.cursor/skills/mxmai_business_pipeline/SKILL.md` §2.1。
 6. **C2**：input 只简单回填；复杂字段交 enrich 的 text(tools)。
 7. **检索层次**：pre≈大话题/趋势；enrich≈面向业务内容的深检索。
 8. **C3**：复杂 text(tools) 回填主要挂 **enrich**。
@@ -100,7 +101,7 @@
     9. **本分支数据策略**：**C**——本地 `scope=text` **全部清空**，按四档从零重建示范；不做旧业务迁移。
 
 30. **D · 行业日报**（2026-07-23；**人机流修订同日**）：
-    1. **宿主**：`writing` / `generator` / `industry-daily`（资讯/行业日报；历史行可能仍为 `editorial`）；一次任务一篇 Markdown（generator）；板块在 `business`，非 group/series。
+    1. **宿主**：`writing` / `generator` / `industry-daily`（资讯/行业日报）；一次任务一篇 Markdown（generator）；板块在 `business`，非 group/series。
     2. **basic 字段**（分步采集，见 §31）：
        - `industry` 枚举（金融/娱乐/科技/体育/其他）+ `industry_custom`（其他时）— **pre 交互卡**
        - `date_mode`：today | yesterday | custom；custom 时 `report_date`（YYYY-MM-DD）；时区默认 `Asia/Shanghai` — **亦在 pre 采集**（确认日期后才检索）
@@ -218,7 +219,7 @@
 | 2026-07-21 | B4e：enrich 同为节点级配置；节点细则延后专题 |
 | 2026-07-21 | B5：output 完整引入回填合同；不插值、先不压缩 |
 | 2026-07-22 | **T**：text 四档、固定入参、无管道/无合同双区、validation 停步、本地清空重建 |
-| 2026-07-23 | **D**：行业日报 writing/editorial/industry-daily + enrich 双 expert + 审核 + post md-polish |
+| 2026-07-23 | **D**：行业日报 writing/generator/industry-daily + enrich 双 expert + 审核 + post md-polish |
 | 2026-07-23 | **U/D 修订**：pre 交互卡→趋势检索→分步 basic（GSAP）；话题 chips+手写 |
 | 2026-07-23 | **U 落地**：后端 queryTemplate + interactiveCard 闸门；前端 WarpGateWizard + Admin 测试续跑 + Writing 审核弹窗 |
 | 2026-07-23 | **U C 端**：form-config `createUx=warp-gates`；Writing 新建抽屉不再渲长表单，开任务后进分步闸门 |
@@ -229,4 +230,5 @@
 | 2026-07-23 | **U §34**：pre 不建任务；废止 pre「分步 basic」卡；basic 归 input；create 在 input 齐套后 |
 | 2026-07-23 | **U §35**：日报 pre = 行业+日期；确认日期后按该日检索热门话题；input 不再问日期；过滤栏目噪声 chips |
 | 2026-07-25 | **N**：管线节点必须跨业务可复用；ADR pipeline-reusable-steps；webSearch 插件化
-| 2026-07-23 | **命名**：非 text taskKey 统一 `generator`\|`group`\|`series`；旧 editorial/gallery/autocut 等作英文显示+解析别名；见 mxmai_business_naming |
+| 2026-07-23 | **命名**：非 text taskKey 统一 `generator`\|`group`\|`series`；Editorial/Gallery/Autocut 仅作英文**显示名**，禁止作 type；见 mxmai_business_naming |
+| 2026-07-29 | **C1 修订**：output = 合同→本 scope 主生成接口（写作 LLM / 媒体路由）；`skipOutputLlm` 仅跳文本 LLM；group 遍历在 output；禁止主合成挂 post。见 pipeline skill §2.1 |

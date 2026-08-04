@@ -1,6 +1,5 @@
-import { formatToPdf } from '../writing/document-formatter';
+import { formatToPdf, type FormatToPdfOptions } from '../writing/document-formatter';
 import type {
-  DocumentPdfRenderer,
   DocumentRenderContext,
   DocumentRenderMeta,
   DocumentRenderSpecV1,
@@ -19,8 +18,9 @@ export async function renderDocumentPdfBuffer(options: {
   context: DocumentRenderContext;
   spec?: DocumentRenderSpecV1 | null;
   title?: string;
+  pdfOptions?: FormatToPdfOptions;
 }): Promise<RenderDocumentPdfResult> {
-  const { context, spec, title } = options;
+  const { context, spec, title, pdfOptions } = options;
   const renderer = context.renderer;
 
   if (spec) {
@@ -28,9 +28,12 @@ export async function renderDocumentPdfBuffer(options: {
     if (validated.ok) {
       const mergedSpec: DocumentRenderSpecV1 = {
         ...validated.spec,
-        assets: [...(validated.spec.assets ?? []), ...context.assets.filter(
-          (a) => !(validated.spec.assets ?? []).some((x) => x.id === a.id)
-        )],
+        assets: [
+          ...(validated.spec.assets ?? []),
+          ...context.assets.filter(
+            (a) => !(validated.spec.assets ?? []).some((x) => x.id === a.id)
+          ),
+        ],
       };
 
       if (renderer === 'html') {
@@ -67,12 +70,7 @@ export async function renderDocumentPdfBuffer(options: {
         };
       }
 
-      // markdown renderer with minimal spec: still use markdown path for body
-      const body =
-        mergedSpec.blocks.find((b) => b.type === 'markdown' || b.type === 'section') != null
-          ? context.markdown
-          : context.markdown;
-      const buffer = await formatToPdf(body, title);
+      const buffer = await formatToPdf(context.markdown, title, pdfOptions);
       return {
         buffer,
         spec: mergedSpec,
@@ -85,7 +83,7 @@ export async function renderDocumentPdfBuffer(options: {
     }
   }
 
-  const buffer = await formatToPdf(context.markdown, title);
+  const buffer = await formatToPdf(context.markdown, title, pdfOptions);
   return {
     buffer,
     meta: {

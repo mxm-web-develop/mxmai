@@ -1,0 +1,356 @@
+{
+  "schemaVersion": 1,
+  "kind": "writing-voice-pack",
+  "voice_category": "political_report",
+  "notes": [
+    "时政报道多语言叶子。"
+  ],
+  "voices": [
+    {
+      "id": "pol_wire_restraint",
+      "craft": {
+        "sentence": "谁在何时做了什么；引语短且可核对意识",
+        "stance": "中立克制，判断后置",
+        "opening": "最新动作，不先抒情",
+        "avoid": "煽动、阴谋论、伪造官员引语",
+        "lexicon": "表示、指出、截至、口径、回应"
+      },
+      "referenceParagraph": {
+        "zh": "3日下午，主管部门发布通知，称相关措施「稳妥实施」。通知未披露具体时间表与适用范围。",
+        "zh-TW": "3日下午，主管部门发布通知，称相关措施「稳妥实施」。通知未披露具体时间表与适用范围。",
+        "en": "On the afternoon of the 3rd, the regulator said measures would be carried out “prudently.” No timeline or scope was published.",
+        "ja": "On the afternoon of the 3rd, the regulator said measures would be carried out “prudently.” No timeline or scope was published."
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "假引语",
+          "煽动"
+        ],
+        "shape": [
+          "事实序",
+          "口径",
+          "未知"
+        ]
+      }
+    },
+    {
+      "id": "pol_policy_explain",
+      "craft": {
+        "sentence": "机制句完整；例子生活化但不煽情",
+        "stance": "解说清楚，不下煽动结论",
+        "opening": "读者能感知的变化",
+        "avoid": "民粹口号、恐吓式预测",
+        "lexicon": "适用、门槛、过渡期、承压、例外"
+      },
+      "referenceParagraph": {
+        "zh": "表面是「优化流程」，对企业来说变化是：少盖两个章，多准备一套可抽查的台账。",
+        "zh-TW": "表面是「优化流程」，对企业来说变化是：少盖两个章，多准备一套可抽查的台账。",
+        "en": "Billed as “streamlining,” the real shift is fewer stamps—and one more ledger that can be audited.",
+        "ja": "Billed as “streamlining,” the real shift is fewer stamps—and one more ledger that can be audited."
+      },
+      "reportPack": {
+        "evidence": "soft_required",
+        "forbid": [
+          "恐吓预测"
+        ],
+        "shape": [
+          "机制",
+          "分层影响",
+          "未决细则"
+        ]
+      }
+    },
+    {
+      "id": "pol_local_implement",
+      "craft": {
+        "sentence": "对比两组做法；不升格为阴谋",
+        "stance": "记录温差，慎下全国性判断",
+        "opening": "具体窗口/具体一天",
+        "avoid": "地域歧视、伪造基层对话",
+        "lexicon": "窗口、细则、过渡、排队、口径"
+      },
+      "referenceParagraph": {
+        "zh": "同一份指南，甲区要预审材料，乙区说「直接提交」。两边都拿出截图——读者需要的是差异，不是站队。",
+        "zh-TW": "同一份指南，甲区要预审材料，乙区说「直接提交」。两边都拿出截图——读者需要的是差异，不是站队。",
+        "en": "Same guide: District A wants pre-check; District B says “submit directly.” Both show screenshots—readers need the gap, not a team.",
+        "ja": "Same guide: District A wants pre-check; District B says “submit directly.” Both show screenshots—readers need the gap, not a team."
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "伪造对话"
+        ],
+        "shape": [
+          "对照",
+          "材料",
+          "范围限制"
+        ]
+      }
+    },
+    {
+      "id": "pol_press_brief",
+      "craft": {
+        "sentence": "要点条目化；问答分开写",
+        "stance": "准确优先于犀利",
+        "opening": "最硬的新信息",
+        "avoid": "断章取义、夸张标题",
+        "lexicon": "通报、答问、未披露、进一步"
+      },
+      "referenceParagraph": {
+        "zh": "发布要点三条。追问环节里，关于时间表的问题被转引至「另行通知」——本文将其列入未答清单。",
+        "zh-TW": "发布要点三条。追问环节里，关于时间表的问题被转引至「另行通知」——本文将其列入未答清单。",
+        "en": "Three bulletin points. On timeline questions, answers deferred to “further notice”—listed here as unanswered.",
+        "ja": "Three bulletin points. On timeline questions, answers deferred to “further notice”—listed here as unanswered."
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "断章标题"
+        ],
+        "shape": [
+          "要点",
+          "问答",
+          "未答"
+        ]
+      }
+    },
+    {
+      "id": "pol_tw_wire",
+      "craft": {
+        "sentence": "誰在何時做了什麼",
+        "stance": "中立克制，判斷後置",
+        "opening": "最新動作，不先抒情",
+        "avoid": "煽動、陰謀、假引語",
+        "lexicon": "表示、指出、截至、口徑"
+      },
+      "referenceParagraph": {
+        "zh": "主管部門發布通知稱措施「穩妥實施」，未披露時間表與範圍。",
+        "zh-TW": "通知稱「穩妥實施」，未披露時間表。",
+        "en": "The regulator said measures would proceed “prudently,” with no timeline or scope.",
+        "ja": "「着実に実施」と通知。日程も範囲もなし。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "假引語",
+          "煽動"
+        ],
+        "shape": [
+          "事實序",
+          "口徑",
+          "未知"
+        ]
+      }
+    },
+    {
+      "id": "pol_tw_explain",
+      "craft": {
+        "sentence": "機制句完整；例子生活化",
+        "stance": "解說清楚，不煽動",
+        "opening": "讀者能感知的變化",
+        "avoid": "民粹口號、恐嚇預測",
+        "lexicon": "適用、門檻、過渡期、承壓"
+      },
+      "referenceParagraph": {
+        "zh": "表面優化流程：少蓋兩章，多準備可抽查台賬。",
+        "zh-TW": "表面優化流程：少蓋兩章，多一套台賬。",
+        "en": "Billed as streamlining: fewer stamps, one more auditable ledger.",
+        "ja": "「簡素化」の実態は、判が二つ減り台帳が一つ増えること。"
+      },
+      "reportPack": {
+        "evidence": "soft_required",
+        "forbid": [
+          "恐嚇預測"
+        ],
+        "shape": [
+          "機制",
+          "分層影響"
+        ]
+      }
+    },
+    {
+      "id": "pol_tw_local",
+      "craft": {
+        "sentence": "對比兩組做法，不升格陰謀",
+        "stance": "記錄溫差，慎下全國判斷",
+        "opening": "具體窗口/具體一天",
+        "avoid": "地域歧視、偽造對話",
+        "lexicon": "窗口、細則、過渡、排隊"
+      },
+      "referenceParagraph": {
+        "zh": "同一指南：甲區要預審，乙區說直接提交——讀者需要差異不是站隊。",
+        "zh-TW": "同一指南兩個窗口兩套做法。",
+        "en": "Same guide: A wants pre-check; B says submit directly—readers need the gap, not a team.",
+        "ja": "同じ指針で、事前審査と直提出が並ぶ。必要なのは差であり陣営ではない。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "偽造對話"
+        ],
+        "shape": [
+          "對照",
+          "範圍限制"
+        ]
+      }
+    },
+    {
+      "id": "pol_en_wire",
+      "craft": {
+        "sentence": "Who did what when; short attributable lines",
+        "stance": "Neutral; judgment last",
+        "opening": "Newest action, not lyric",
+        "avoid": "Incitement, conspiracy, fake quotes",
+        "lexicon": "said, as of, according to, declined to"
+      },
+      "referenceParagraph": {
+        "zh": "主管部门称措施稳妥实施，未披露时间表。",
+        "zh-TW": "稱措施穩妥實施，未披露時間表。",
+        "en": "The agency said measures would proceed “prudently,” without publishing a timeline or scope.",
+        "ja": "「着実に実施」と発表。日程も範囲もなし。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "fake quotes"
+        ],
+        "shape": [
+          "fact order",
+          "unknowns"
+        ]
+      }
+    },
+    {
+      "id": "pol_en_explain",
+      "craft": {
+        "sentence": "Full mechanism sentences; lived examples",
+        "stance": "Explain, don’t whip",
+        "opening": "A change readers can feel",
+        "avoid": "Populist slogans, scare forecasts",
+        "lexicon": "applies to, threshold, transition, carve-out"
+      },
+      "referenceParagraph": {
+        "zh": "表面优化流程：少盖章，多一套可抽查台账。",
+        "zh-TW": "表面優化：少蓋章多台賬。",
+        "en": "Sold as streamlining: fewer stamps—and one more ledger that can be audited.",
+        "ja": "簡素化の看板の裏で、判が減り台帳が増える。"
+      },
+      "reportPack": {
+        "evidence": "soft_required",
+        "forbid": [
+          "scare forecasts"
+        ],
+        "shape": [
+          "mechanism",
+          "layered impact"
+        ]
+      }
+    },
+    {
+      "id": "pol_en_brief",
+      "craft": {
+        "sentence": "Bullet the news; separate Q&A",
+        "stance": "Accuracy over snark",
+        "opening": "Hardest new fact",
+        "avoid": "Out-of-context headlines",
+        "lexicon": "briefed, asked, declined, further notice"
+      },
+      "referenceParagraph": {
+        "zh": "要点三条；时间表问题被转到另行通知——列入未答。",
+        "zh-TW": "要點三條；時間表列入未答。",
+        "en": "Three bulletin points. Timeline questions deferred to “further notice”—listed as unanswered.",
+        "ja": "三点。日程は「追って」へ。未回答に入れる。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "bait headlines"
+        ],
+        "shape": [
+          "points",
+          "Q&A",
+          "unanswered"
+        ]
+      }
+    },
+    {
+      "id": "pol_ja_wire",
+      "craft": {
+        "sentence": "誰がいつ何をしたか",
+        "stance": "抑制。判断は後",
+        "opening": "最新の動作から",
+        "avoid": "扇動、陰謀、偽引用",
+        "lexicon": "発表した、時点で、応じる"
+      },
+      "referenceParagraph": {
+        "zh": "称稳妥实施，未披露时间表与范围。",
+        "zh-TW": "稱穩妥實施，未披露時間表。",
+        "en": "Said “prudently,” with no timeline or scope.",
+        "ja": "「着実に実施」と通知。日程も範囲も示さず。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "偽引用"
+        ],
+        "shape": [
+          "事実順",
+          "未知"
+        ]
+      }
+    },
+    {
+      "id": "pol_ja_explain",
+      "craft": {
+        "sentence": "機制を完結文で。例は生活へ",
+        "stance": "解説。扇動しない",
+        "opening": "読者が感じる変化",
+        "avoid": "ポピュリズム、恫喝予測",
+        "lexicon": "適用、閾値、経過、例外"
+      },
+      "referenceParagraph": {
+        "zh": "表面简化：少盖章，多一套台账。",
+        "zh-TW": "表面簡化：少蓋章多台賬。",
+        "en": "Sold as simpler: fewer stamps, one more ledger.",
+        "ja": "簡素化の実態は、判が減り台帳が増えること。"
+      },
+      "reportPack": {
+        "evidence": "soft_required",
+        "forbid": [
+          "恫喝予測"
+        ],
+        "shape": [
+          "機制",
+          "層別影響"
+        ]
+      }
+    },
+    {
+      "id": "pol_ja_local",
+      "craft": {
+        "sentence": "二つの運用を対照。陰謀に昇格しない",
+        "stance": "差を記録。全国断定を慎む",
+        "opening": "具体的な窓口の一日",
+        "avoid": "地域差別、偽対話",
+        "lexicon": "窓口、細則、経過、行列"
+      },
+      "referenceParagraph": {
+        "zh": "同一指南两区两套做法——需要差异不是站队。",
+        "zh-TW": "同一指南兩套做法。",
+        "en": "Same guide, two queues—readers need the gap, not a team.",
+        "ja": "同じ指針で事前審査と直提出が並ぶ。必要なのは差だ。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "偽対話"
+        ],
+        "shape": [
+          "対照",
+          "範囲"
+        ]
+      }
+    }
+  ]
+}

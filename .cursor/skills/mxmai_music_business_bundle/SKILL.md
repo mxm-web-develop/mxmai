@@ -9,7 +9,7 @@ description: 在 SuperMXMai 中新增或更新 Music 子业务（formSchema + un
 > 历史示例：[`music-compose-maxplan-test.business.json`](../../../mxmcgi/src/tasks/examples/music-compose-maxplan-test.business.json)（旧 `compose/*` / `fragment`）。  
 > **新上架**例如：`type=generator` + `subtype=full-track`；成组短 hook 用 `type=group`。subtypeLabel ≤ 8 字。
 
-**可选执行管线**（前置歌词 nestedText / 人工审核，**非必须**）：见 [`.cursor/skills/mxmai_business_pipeline/SKILL.md`](../mxmai_business_pipeline/SKILL.md)。`generator` 直出可 **不配** pipeline。
+**可选执行管线**（前置歌词 nestedText / 人工审核，**非必须**）：见 [`.cursor/skills/mxmai_business_pipeline/SKILL.md`](../mxmai_business_pipeline/SKILL.md)。`generator` 直出可 **不配** pipeline。**主成曲在 output**；`skipOutputLlm` 只跳文本 LLM，不把音乐路由挪到 post。
 
 ## 1. 数据落在哪里
 
@@ -28,7 +28,7 @@ description: 在 SuperMXMai 中新增或更新 Music 子业务（formSchema + un
 | `group` | 片段 | Fragment | 短 hook / 切片向成组产出；合同为对象数组 |
 | `series` | 系列 | Series | 带历史曲目上下文的续作 / 变奏 |
 
-**不得新建**旧 type：`fragment`（请改 `group`）、`compose` 等（历史可暂留）。
+**禁止**作 type：`fragment`（请改 `group`）、`compose` 等。
 
 ## 2. 与 Audio 的差异
 

@@ -1,16 +1,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { notification, Drawer, Button, Select, Modal, message, App } from 'antd';
+import { Drawer, Button, Modal, message, App } from 'antd';
 import {
   listCgiTasks,
   deleteTask,
-  runTaskV2,
   type WritingTaskItem,
   type WritingTaskListResponse,
 } from '../api/client';
 import {
-  TaskBillingBar,
-  formatGenerateButtonLabel,
-  handleTaskBillingResponseError,
   type TaskBillingState,
 } from '../components/billing/TaskBillingBar';
 import { useAuth } from '../context/AuthContext';
@@ -32,18 +28,13 @@ import { downloadGenerationTask } from '../lib/downloadGenerationTask';
 import {
   useTaskV2FormConfig,
   formatTaskSelectionKey,
-  parseTaskSelectionKey,
-  TaskV2SchemaForm,
-  TaskV2TaskNameField,
   TASK_V2_DRAWER_FORM_CLASS,
   TaskV2CreateSurface,
   TaskV2CreateModeSwitch,
   type TaskV2CreateMode,
-  pickTaskIdFromRunTaskV2Response,
-  pickParallelFromRunTaskV2Response,
-  prepareTaskV2SubmitParams,
   buildTaskSelectionSelectOptions,
 } from '../task-v2';
+import { WritingCreateWizard } from '../components/WritingCreateWizard';
 import { ManualReviewModal } from '../components/ManualReviewModal';
 import { isTaskEligibleForManualReview } from '../shared/manualReview';
 import { resolveTaskListStatus } from '../utils/mergeTaskItem';
@@ -54,6 +45,7 @@ import { toAppLang } from '../i18n/appLocale';
 import { getTaskStatusLabel } from '../i18n/taskStatus';
 import { useTaskScopeLabels } from '../i18n/useTaskScopeLabels';
 import { useTaskStatusOptions } from '../i18n/useTaskStatusOptions';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 function getTaskTitle(task: WritingTaskItem, defaultTitle: string): string {
   const labelVal = (task.metadata?.label as string)?.trim();
@@ -70,7 +62,7 @@ export default function Audio() {
   const { t, i18n } = useTranslation();
   const scopeLabels = useTaskScopeLabels('audio');
   const statusOptions = useTaskStatusOptions();
-  const { notification: ctxNotification, modal, message: ctxMessage } = App.useApp();
+  const { modal, message: ctxMessage } = App.useApp();
   const { isLoggedIn } = useAuth();
 
   const [filterStatus, setFilterStatus] = useState<string>('');
@@ -119,7 +111,6 @@ export default function Audio() {
     prevTaskCountRef.current = tasks.length;
   }, [tasks.length]);
 
-  const [submitting, setSubmitting] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [createMode, setCreateMode] = useState<TaskV2CreateMode>('form');
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -141,8 +132,6 @@ export default function Audio() {
     clearPendingForm,
     taskOptions,
     formConfig,
-    formValues,
-    setFormValues,
     resetFormValues,
     configLoading,
     listLoading,
@@ -180,65 +169,56 @@ export default function Audio() {
     },
   });
 
-  const handleSubmit = async () => {
-    if (!isLoggedIn) {
-      ctxNotification.warning({ message: t('auth.pleaseLogin'), placement: 'top' });
-      return;
-    }
-    if (!taskOptions.length) {
-      ctxNotification.warning({
-        message: t('common.task.noBusinessConfig', { scope: scopeLabels.scopeLabel }),
-        placement: 'top',
-      });
-      return;
-    }
+  const [billing, setBilling] = useState<TaskBillingState>({
+    canSubmit: true,
+    blockReason: null,
+    estimate: null,
+    loading: false,
+  });
+  const onBillingStateChange = useCallback((s: TaskBillingState) => setBilling(s), []);
 
-    setSubmitting(true);
-    try {
-      const res = await runTaskV2({
-        scope: 'audio',
-        taskKey,
-        subtype,
-        params: mergeTaskLabelIntoParams(
-          prepareTaskV2SubmitParams(formValues as Record<string, unknown>, formConfig?.schema, {
-            scope: 'audio',
-          })
-        ),
-      });
-      if (res.error) {
-        if (handleTaskBillingResponseError(res)) return;
-        throw new Error(res.error);
-      }
-      const taskId = pickTaskIdFromRunTaskV2Response(res.data);
-      const parallel = pickParallelFromRunTaskV2Response(res.data);
-      const parallelHint =
-        parallel && parallel.total > 1
-          ? `\n${t('common.task.created.parallel', { count: parallel.total })}。`
-          : '';
-      ctxNotification.success({
-        message:
-          parallel && parallel.total > 1
-            ? t('common.task.created.batch', { count: parallel.total })
-            : t('common.task.created.single'),
-        description: taskId
-          ? `${taskId}${parallelHint}\n${t('common.task.created.hint')}`
-          : t('common.task.created.hint'),
-        placement: 'top',
-      });
-      setFormOpen(false);
-      resetFormValues();
-      resetTaskLabelAfterSubmit();
-      if (taskId) void fetchTaskIntoList(taskId);
-    } catch (e) {
-      ctxNotification.error({
-        message: t('common.submitFailed'),
-        description: e instanceof Error ? e.message : String(e),
-        placement: 'top',
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const finishCreateDrawer = useCallback(() => {
+    setFormOpen(false);
+    resetFormValues();
+    resetTaskLabelAfterSubmit();
+    void loadTasks();
+  }, [resetFormValues, resetTaskLabelAfterSubmit, loadTasks]);
+
+  const onGuidedTaskCreated = useCallback(
+    (id: string) => {
+      void fetchTaskIntoList(id);
+    },
+    [fetchTaskIntoList]
+  );
+
+  const renderForm = () => (
+    <div className={TASK_V2_DRAWER_FORM_CLASS}>
+      <WritingCreateWizard
+        scope="audio"
+        taskOptions={taskOptions}
+        selectOptions={audioSelectOptions}
+        selectedValue={selectedValue}
+        onSelectBusiness={(k, st) => {
+          setTaskKey(k);
+          setSubtype(st);
+          clearPendingForm();
+        }}
+        taskKey={taskKey}
+        subtype={subtype}
+        formConfig={formConfig}
+        configLoading={configLoading || listLoading}
+        taskLabel={taskLabel}
+        onTaskLabelChange={onTaskLabelChange}
+        mergeTaskLabelIntoParams={mergeTaskLabelIntoParams}
+        locale={toAppLang(i18n.language)}
+        generateLabel={t('common.generate')}
+        billing={billing}
+        onBillingStateChange={onBillingStateChange}
+        onTaskCreated={onGuidedTaskCreated}
+        onFinished={finishCreateDrawer}
+      />
+    </div>
+  );
 
   const handleDeleteTask = async (e: React.MouseEvent, task: WritingTaskItem) => {
     e.stopPropagation();
@@ -252,7 +232,7 @@ export default function Audio() {
         try {
           const res = await deleteTask(task.id);
           if (res.error) {
-            message.error(res.error);
+            message.error(toUserFacingErrorMessage(res.error));
           } else {
             setTasks((prev) => prev.filter((item) => item.id !== task.id));
             if (viewerTask?.id === task.id) setViewerVisible(false);
@@ -286,56 +266,6 @@ export default function Audio() {
     setCreationSourceTab,
     onOpenTask: handleTaskClick,
   });
-
-  const [billing, setBilling] = useState<TaskBillingState>({
-    canSubmit: true,
-    blockReason: null,
-    estimate: null,
-    loading: false,
-  });
-  const onBillingStateChange = useCallback((s: TaskBillingState) => setBilling(s), []);
-
-  const renderForm = () => (
-    <div className={TASK_V2_DRAWER_FORM_CLASS}>
-      <Select
-        placeholder={t('common.task.selectBusiness')}
-        value={taskOptions.length > 0 ? selectedValue : undefined}
-        options={audioSelectOptions}
-        onChange={(v) => {
-          const p = parseTaskSelectionKey(String(v));
-          setTaskKey(p.taskKey);
-          setSubtype(p.subtype);
-          clearPendingForm();
-        }}
-      />
-      <TaskV2TaskNameField value={taskLabel} onChange={onTaskLabelChange} />
-      <TaskV2SchemaForm
-        formConfig={formConfig}
-        formValues={formValues}
-        onChange={setFormValues}
-        loading={configLoading || listLoading}
-      />
-      <TaskBillingBar
-        scope="audio"
-        taskKey={taskKey}
-        subtype={subtype}
-        params={formValues as Record<string, unknown>}
-        enabled={!!formConfig?.schema && isLoggedIn}
-        onStateChange={onBillingStateChange}
-      />
-      <Button
-        type="primary"
-        loading={submitting || billing.loading}
-        disabled={!formConfig?.schema || !billing.canSubmit}
-        onClick={() => void handleSubmit()}
-      >
-        {formatGenerateButtonLabel(t('common.generate'), billing.estimate, billing.loading, {
-          insufficientBalance: billing.blockReason === 'insufficient_balance',
-          locale: toAppLang(i18n.language),
-        })}
-      </Button>
-    </div>
-  );
 
   return (
     <section className="page-card generation-console-page audio-page">
@@ -432,7 +362,8 @@ export default function Audio() {
         open={reviewVisible}
         task={reviewTask}
         title={reviewTask ? `${getTaskTitle(reviewTask, scopeLabels.defaultTitle)} · 口播稿审核` : '口播稿审核'}
-      hint="前置 text 子任务已生成口播稿。请检查、编辑后点击「开始生成」继续 TTS 合成。正文为临时草稿，确认后不会长期保存在任务里；如需保留请展开下方「保存到知识库」。"
+      hint="请检查口播稿后开始生成。多人语音会展示指导性时间轴（预估语速，与最终成片可能有偏差）。确认后草稿不会长期保存在任务里；如需保留请展开「保存到知识库」。"
+        voiceoverScriptEditor
         onClose={() => {
           setReviewVisible(false);
           setReviewTask(null);

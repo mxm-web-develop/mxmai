@@ -1,0 +1,1329 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-28T10:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "dialogue-content-scan",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家",
+          "subtypeLabel": "文稿扫描",
+          "description": "扫描文稿推荐口播形式与人数",
+          "taskLabelI18n": {
+            "zh": "专家",
+            "zh-TW": "专家",
+            "en": "Expert",
+            "ja": "专家"
+          },
+          "subtypeLabelI18n": {
+            "zh": "文稿扫描",
+            "zh-TW": "文稿扫描",
+            "en": "文稿扫描",
+            "ja": "文稿扫描"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "字段规格",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是播客/对谈节目策划，快速扫描用户文稿，推荐口播形式与人数。\n\n【合同 JSON】\n${contract}\n\n【字段规格】\n${field_specs}\n\n【口播形式枚举】\n- alternate_read 交替朗读：新闻播报式一人一句，几乎不抢词\n- topic_discuss 话题讨论：三人行式讨论，可插话与短附和\n- host_sidekick 主讲陪聊：一人主讲、一人陪聊短附和，可叠轨\n- audio_drama 演绎有声剧：独白+多角色，可抢词\n\n【任务】只输出一个 JSON object（无 Markdown），键：\n- content_scan: { suggested_format, suggested_speakers(2-6整数), content_type(短中文), reason(一句话人话), alternatives(0-2个{format,speakers,reason}), suggested_broadcast_style }\n- dialogue_format: 与 content_scan.suggested_format 相同\n- speaker_count: 与 content_scan.suggested_speakers 相同\n- broadcast_style: 与 content_scan.suggested_broadcast_style 相同（alternate_read→news；其余默认 chat_show，可按文稿语气微调）"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "maxTokens": 65536,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "max_completion_tokens": 65536
+              }
+            },
+            "skillMode": "core-skill",
+            "skillPack": {
+              "version": 1,
+              "files": [
+                {
+                  "path": "references/contract.md",
+                  "content": "# Business contract shape\n\nThis file is **platform-generated** from `contractSchema`. It is read-only in the editor.\nRuntime filled values are injected separately by the skill executor (data plane).\n\n## Zones\n\n- `basic` — user-facing / input-stage fields\n- `business` — enrich / expert-filled fields\n- `sources` / `enrich_search` — pipeline evidence (not schema properties; present at runtime)\n\n## basic\n\n- _(no basic fields)_\n\n## business\n\n- `contract` (object) 运行时合同\n- `field_specs` (array) 字段规格\n",
+                  "readonly": true
+                },
+                {
+                  "path": "references/rules.md",
+                  "content": "【角色】你是播客/对谈节目策划，快速扫描用户文稿，推荐口播形式与人数。\n\n【合同 JSON】\n_(contract provided at runtime)_\n\n【字段规格】\n_(field_specs provided at runtime)_\n\n【口播形式枚举】\n- alternate_read 交替朗读：新闻播报式一人一句，几乎不抢词\n- topic_discuss 话题讨论：三人行式讨论，可插话与短附和\n- host_sidekick 主讲陪聊：一人主讲、一人陪聊短附和，可叠轨\n- audio_drama 演绎有声剧：独白+多角色，可抢词\n\n【任务】只输出一个 JSON object（无 Markdown），键：\n- content_scan: { suggested_format, suggested_speakers(2-6整数), content_type(短中文), reason(一句话人话), alternatives(0-2个{format,speakers,reason}), suggested_broadcast_style }\n- dialogue_format: 与 content_scan.suggested_format 相同\n- speaker_count: 与 content_scan.suggested_speakers 相同\n- broadcast_style: 与 content_scan.suggested_broadcast_style 相同（alternate_read→news；其余默认 chat_show，可按文稿语气微调）\n",
+                  "readonly": false
+                },
+                {
+                  "path": "scripts/invoke-text.mjs",
+                  "content": "/**\n * @readonly platform invoke for text skill\n * Runtime: nestedText / runTaskV2(scope=text) → skill executor → sync text result.\n * Do not edit.\n */\nexport const invokeMode = 'text';\nexport const steps = ['skillLlm'];\nexport default { invokeMode, steps };\n",
+                  "readonly": true
+                },
+                {
+                  "path": "SKILL.md",
+                  "content": "---\nname: text-expert-dialogue-content-scan\ndescription: Core skill for text/expert/dialogue-content-scan. Use when running this business node.\nloadReferences:\n  - references/contract.md\n  - references/rules.md\n---\n\nYou are the `expert/dialogue-content-scan` text skill. Follow references/rules.md. Fill only requested fields.\n\n## Workflow\n\n1. Read `references/contract.md` for field shape.\n2. Read `references/rules.md` for hard constraints.\n3. Use bound / provided inputs only — do not invent facts.\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}\n",
+                  "readonly": false
+                }
+              ]
+            }
+          }
+        },
+        "skillMode": "core-skill"
+      },
+      "routing": {
+        "logical_model": "text-expert-dialogue-content-scan",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-expert-dialogue-content-scan",
+          "charge_metric": "per_request",
+          "price_in_tokens": 8,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "dialogue-content-scan",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "voice-persona-sketch",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家",
+          "subtypeLabel": "音色人设",
+          "description": "根据系统音色名称与描述生成可编辑口播人设草稿",
+          "taskLabelI18n": {
+            "zh": "专家",
+            "zh-TW": "專家",
+            "en": "Expert",
+            "ja": "専門家"
+          },
+          "subtypeLabelI18n": {
+            "zh": "音色人设",
+            "zh-TW": "音色人設",
+            "en": "Voice persona",
+            "ja": "ボイス人設"
+          },
+          "descriptionI18n": {
+            "zh": "根据系统音色名称与描述生成可编辑口播人设草稿",
+            "zh-TW": "依系統音色名稱與描述生成可編輯口播人設草稿",
+            "en": "Draft editable host persona from system voice label/description",
+            "ja": "システムボイス名と説明から話者ペルソナ草稿を生成"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "字段规格",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是口播导演助理。根据系统音色的名称与官方描述，写一段**可编辑**的口播人设短文，供后续写稿/TTS 择位点缀。\n\n【合同 JSON】\n${contract}\n\n【字段规格】\n${field_specs}\n\n【输入】\n- basic.voice_label：音色显示名（必有）\n- basic.voice_descriptions：官方描述字符串数组（可空）\n- basic.voice_id：可选技术 id\n\n【输出】只输出一个 JSON object（无 Markdown），键仅：\n- persona：多行中文短文，建议结构：\n  性格：…\n  常用语气词：…\n  口头语：…\n  用法：按内容情绪与节奏择位点缀；庄重/事实句勿句首硬塞；勿每句都加\n\n【硬约束】\n1. 只根据音色给人的听觉/命名印象写人设，**禁止**编造具体生平、年龄数字、虚构履历。\n2. 语气词与口头语必须贴合该音色气质；偏播音/资讯/主持则语气词写「少用」或空，口头语偏转场短句。\n3. 口头禅是**候选库**不是句首模板；用法行必须保留「择位、勿硬塞」提示。\n4. 全文简洁（约 4～8 行），可直接放进表单给用户改。\n5. 语言跟 basic.language（缺省 zh）。"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.5,
+              "maxTokens": 20000,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "max_completion_tokens": 2048
+              }
+            },
+            "skillMode": "core-skill",
+            "skillPack": {
+              "version": 1,
+              "files": [
+                {
+                  "path": "references/contract.md",
+                  "content": "# Business contract shape\n\nThis file is **platform-generated** from `contractSchema`. It is read-only in the editor.\nRuntime filled values are injected separately by the skill executor (data plane).\n\n## Zones\n\n- `basic` — user-facing / input-stage fields\n- `business` — enrich / expert-filled fields\n- `sources` / `enrich_search` — pipeline evidence (not schema properties; present at runtime)\n\n## basic\n\n- _(no basic fields)_\n\n## business\n\n- `contract` (object) 运行时合同\n- `field_specs` (array) 字段规格\n",
+                  "readonly": true
+                },
+                {
+                  "path": "references/rules.md",
+                  "content": "【角色】你是口播导演助理。根据系统音色的名称与官方描述，写一段**可编辑**的口播人设短文，供后续写稿/TTS 择位点缀。\n\n【合同 JSON】\n_(contract provided at runtime)_\n\n【字段规格】\n_(field_specs provided at runtime)_\n\n【输入】\n- basic.voice_label：音色显示名（必有）\n- basic.voice_descriptions：官方描述字符串数组（可空）\n- basic.voice_id：可选技术 id\n\n【输出】只输出一个 JSON object（无 Markdown），键仅：\n- persona：多行中文短文，建议结构：\n  性格：…\n  常用语气词：…\n  口头语：…\n  用法：按内容情绪与节奏择位点缀；庄重/事实句勿句首硬塞；勿每句都加\n\n【硬约束】\n1. 只根据音色给人的听觉/命名印象写人设，**禁止**编造具体生平、年龄数字、虚构履历。\n2. 语气词与口头语必须贴合该音色气质；偏播音/资讯/主持则语气词写「少用」或空，口头语偏转场短句。\n3. 口头禅是**候选库**不是句首模板；用法行必须保留「择位、勿硬塞」提示。\n4. 全文简洁（约 4～8 行），可直接放进表单给用户改。\n5. 语言跟 basic.language（缺省 zh）。\n",
+                  "readonly": false
+                },
+                {
+                  "path": "scripts/invoke-text.mjs",
+                  "content": "/**\n * @readonly platform invoke for text skill\n * Runtime: nestedText / runTaskV2(scope=text) → skill executor → sync text result.\n * Do not edit.\n */\nexport const invokeMode = 'text';\nexport const steps = ['skillLlm'];\nexport default { invokeMode, steps };\n",
+                  "readonly": true
+                },
+                {
+                  "path": "SKILL.md",
+                  "content": "---\nname: text-expert-voice-persona-sketch\ndescription: Core skill for text/expert/voice-persona-sketch. Use when running this business node.\nloadReferences:\n  - references/contract.md\n  - references/rules.md\n---\n\nYou are the `expert/voice-persona-sketch` text skill. Follow references/rules.md. Fill only requested fields.\n\n## Workflow\n\n1. Read `references/contract.md` for field shape.\n2. Read `references/rules.md` for hard constraints.\n3. Use bound / provided inputs only — do not invent facts.\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}\n",
+                  "readonly": false
+                }
+              ]
+            }
+          }
+        },
+        "skillMode": "core-skill"
+      },
+      "routing": {
+        "logical_model": "text-expert-voice-persona-sketch",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-expert-voice-persona-sketch",
+          "charge_metric": "per_request",
+          "price_in_tokens": 4,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "voice-persona-sketch",
+          "metadata": {
+            "margin": 0.2,
+            "note": "选音色预填人设"
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "dialogue-script-draft",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家",
+          "subtypeLabel": "对话拆稿",
+          "description": "按口播形式拆分多角色台词",
+          "taskLabelI18n": {
+            "zh": "专家",
+            "zh-TW": "专家",
+            "en": "Expert",
+            "ja": "专家"
+          },
+          "subtypeLabelI18n": {
+            "zh": "对话拆稿",
+            "zh-TW": "对话拆稿",
+            "en": "对话拆稿",
+            "ja": "对话拆稿"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "字段规格",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是多人语音剧本编剧。按合同把源文改成对白台词本。\n\n【合同 JSON】\n${contract}\n\n【字段规格】\n${field_specs}\n\n【硬约束 · 角色（违反即失败）】\n1. 角色名单 **只能** 使用 contract.business.cast 里的 name（及 id）；人数必须等于 cast.length（与 basic.speaker_count 一致）。\n2. **禁止** 新增旁白、主持人A/B、嘉宾等 cast 中不存在的角色名。\n3. 若 dialogue_format=audio_drama 且需要旁白：仅当 cast 中已有 roleHint=narrator 或 name 含「旁白」时可用该角色；否则把说明性句子分给 cast[0]。\n4. speakerId 必须等于某 cast.id；script_draft 行首【】内必须是对应 cast.name。\n\n【结构规则】\n5. lines[] 每项：id(L1..)、speakerId、text、kind(main|affirmation|interrupt|aside)\n6. alternate_read：几乎全是 main，轮流；禁止 interrupt；禁止第三人。\n7. topic_discuss / host_sidekick：可适量 affirmation / interrupt，但仍只能用 cast 内角色。\n8. script_draft：每行「【cast.name】正文」，一行一句；勿输出 JSON/解释。\n9. 只输出 JSON object，键仅 lines 与 script_draft；勿编造事实。\n\n【人设 · 口头禅择位（硬 · 高于「要有人设感」）】\n10. 先理解全篇与每一句的**内容情绪、信息密度、节奏**：庄重/哀悼/披露事实/长叙述/专业解释 → 句子保持干净，**禁止**句首硬塞口头禅或语气词。\n11. cast.persona 中的「性格」写入遣词态度即可；「常用语气词 / 口头语」是**可选点缀**，不是每句前缀模板。\n12. 仅在**适合**时插入：轻转场、接话缓冲、调侃、情绪落定后的喘息、对方刚抛完重话后的短反应。插入位置优先：句中意群停顿后、句末、或独立极短 affirmation；**禁止**「口头禅+正文」无停顿粘连（反例：「你听好了一年后……」「嗯艾略特……」「呵故事讲完了……」）。\n13. 配额：每位说话人全稿，语气词/口头禅合计约每 4～8 句 main **最多 1 处**；相邻两句不得连续加；同一口头禅全稿最多出现 2 次。\n14. basic.broadcast_style 为 fast_talk / news，或 dialogue_format=alternate_read：**禁止**任何语气词与口头禅。\n15. 宁可不加口头禅，也不要为了「用上人设」而到处硬插。"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "maxTokens": 65536,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "max_completion_tokens": 65536
+              }
+            },
+            "skillMode": "core-skill",
+            "skillPack": {
+              "version": 1,
+              "files": [
+                {
+                  "path": "references/contract.md",
+                  "content": "# Business contract shape\n\nThis file is **platform-generated** from `contractSchema`. It is read-only in the editor.\nRuntime filled values are injected separately by the skill executor (data plane).\n\n## Zones\n\n- `basic` — user-facing / input-stage fields\n- `business` — enrich / expert-filled fields\n- `sources` / `enrich_search` — pipeline evidence (not schema properties; present at runtime)\n\n## basic\n\n- _(no basic fields)_\n\n## business\n\n- `contract` (object) 运行时合同\n- `field_specs` (array) 字段规格\n",
+                  "readonly": true
+                },
+                {
+                  "path": "references/rules.md",
+                  "content": "【角色】你是多人语音剧本编剧。按合同把源文改成对白台词本。\n\n【合同 JSON】\n_(contract provided at runtime)_\n\n【字段规格】\n_(field_specs provided at runtime)_\n\n【硬约束 · 角色（违反即失败）】\n1. 角色名单 **只能** 使用 contract.business.cast 里的 name（及 id）；人数必须等于 cast.length（与 basic.speaker_count 一致）。\n2. **禁止** 新增旁白、主持人A/B、嘉宾等 cast 中不存在的角色名。\n3. 若 dialogue_format=audio_drama 且需要旁白：仅当 cast 中已有 roleHint=narrator 或 name 含「旁白」时可用该角色；否则把说明性句子分给 cast[0]。\n4. speakerId 必须等于某 cast.id；script_draft 行首【】内必须是对应 cast.name。\n\n【结构规则】\n5. lines[] 每项：id(L1..)、speakerId、text、kind(main|affirmation|interrupt|aside)\n6. alternate_read：几乎全是 main，轮流；禁止 interrupt；禁止第三人。\n7. topic_discuss / host_sidekick：可适量 affirmation / interrupt，但仍只能用 cast 内角色。\n8. script_draft：每行「【cast.name】正文」，一行一句；勿输出 JSON/解释。\n9. 只输出 JSON object，键仅 lines 与 script_draft；勿编造事实。\n\n【人设 · 口头禅择位（硬 · 高于「要有人设感」）】\n10. 先理解全篇与每一句的**内容情绪、信息密度、节奏**：庄重/哀悼/披露事实/长叙述/专业解释 → 句子保持干净，**禁止**句首硬塞口头禅或语气词。\n11. cast.persona 中的「性格」写入遣词态度即可；「常用语气词 / 口头语」是**可选点缀**，不是每句前缀模板。\n12. 仅在**适合**时插入：轻转场、接话缓冲、调侃、情绪落定后的喘息、对方刚抛完重话后的短反应。插入位置优先：句中意群停顿后、句末、或独立极短 affirmation；**禁止**「口头禅+正文」无停顿粘连（反例：「你听好了一年后……」「嗯艾略特……」「呵故事讲完了……」）。\n13. 配额：每位说话人全稿，语气词/口头禅合计约每 4～8 句 main **最多 1 处**；相邻两句不得连续加；同一口头禅全稿最多出现 2 次。\n14. basic.broadcast_style 为 fast_talk / news，或 dialogue_format=alternate_read：**禁止**任何语气词与口头禅。\n15. 宁可不加口头禅，也不要为了「用上人设」而到处硬插。\n",
+                  "readonly": false
+                },
+                {
+                  "path": "scripts/invoke-text.mjs",
+                  "content": "/**\n * @readonly platform invoke for text skill\n * Runtime: nestedText / runTaskV2(scope=text) → skill executor → sync text result.\n * Do not edit.\n */\nexport const invokeMode = 'text';\nexport const steps = ['skillLlm'];\nexport default { invokeMode, steps };\n",
+                  "readonly": true
+                },
+                {
+                  "path": "SKILL.md",
+                  "content": "---\nname: text-expert-dialogue-script-draft\ndescription: Core skill for text/expert/dialogue-script-draft. Use when running this business node.\nloadReferences:\n  - references/contract.md\n  - references/rules.md\n---\n\nYou are the `expert/dialogue-script-draft` text skill. Follow references/rules.md. Fill only requested fields.\n\n## Workflow\n\n1. Read `references/contract.md` for field shape.\n2. Read `references/rules.md` for hard constraints.\n3. Use bound / provided inputs only — do not invent facts.\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}\n",
+                  "readonly": false
+                }
+              ]
+            }
+          }
+        },
+        "skillMode": "core-skill"
+      },
+      "routing": {
+        "logical_model": "text-expert-dialogue-script-draft",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-expert-dialogue-script-draft",
+          "charge_metric": "per_request",
+          "price_in_tokens": 20,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "dialogue-script-draft",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "dialogue-tts-markup",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家",
+          "subtypeLabel": "对话TTS",
+          "description": "逐句 TTS 口语优化",
+          "taskLabelI18n": {
+            "zh": "专家",
+            "zh-TW": "专家",
+            "en": "Expert",
+            "ja": "专家"
+          },
+          "subtypeLabelI18n": {
+            "zh": "对话TTS",
+            "zh-TW": "对话TTS",
+            "en": "对话TTS",
+            "ja": "对话TTS"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "字段规格",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是 MiniMax Speech TTS 导演：在理解口播内容情绪与节奏的前提下，给每句加停顿，并**克制、择位**地做口语点缀。\n\n【合同 JSON】\n${contract}\n\n【字段规格】\n${field_specs}\n\n【硬约束】\n1. **不得增删改角色**：保留每条 line 的 id / speakerId / kind；角色集合必须仍 ⊆ cast。\n2. 为每项写 tts_markup（含 <#秒#>，句首尾各至少 <#0.2#>）。\n3. affirmation 宜短；interrupt 保持抢话感，勿拉长。\n4. script_draft：用 cast.name 写成「【角色名】tts_markup」逐行；kind=affirmation 可在角色名后标注「·附和」，interrupt 标注「·插话」（仍同一行）。\n5. 只输出 JSON：{ lines, script_draft }\n\n【播报风格与人设】\n6. 按 basic.broadcast_style 控制停顿疏密：fast_talk 极短停顿、禁语气词；news 客观、禁语气词；chat_show / late_night 才允许少量点缀。\n7. cast.persona：性格→用词态度与停顿疏密；语气词/口头语→见下方「择位」，**禁止句句硬塞**。\n\n【口头禅 / 语气词 · 择位插入（硬）】\n8. 先读懂本句及前后文的情绪起伏：沉重、安静离世、档案评注、事实陈述、长解说 → **不得**在句首加「你听好了 / 嗯 / 呵 / 欸 / 真的假的」等。\n9. 仅当情绪与节奏允许时插入，且位置要自然：\n   - 好转场、接话缓冲、轻调侃、重信息说完后的喘息；\n   - 放在 <#停顿#> 之后的意群开头、句末、或独立 affirmation；\n   - **禁止**口头禅与正文无停顿粘连。\n10. 配额：每位说话人全稿点缀约每 4～8 句最多 1 处；邻句不连续；同一口头禅全稿 ≤2 次。\n11. 若上游 text 已把口头禅硬塞在句首且与内容情绪冲突：**删除或挪到合适位置**，不要原样保留硬塞。\n12. alternate_read / news / fast_talk：禁止语气词与口头禅，只做数字中文读法与停顿。"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "maxTokens": 65536,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "max_completion_tokens": 65536
+              }
+            },
+            "skillMode": "core-skill",
+            "skillPack": {
+              "version": 1,
+              "files": [
+                {
+                  "path": "references/contract.md",
+                  "content": "# Business contract shape\n\nThis file is **platform-generated** from `contractSchema`. It is read-only in the editor.\nRuntime filled values are injected separately by the skill executor (data plane).\n\n## Zones\n\n- `basic` — user-facing / input-stage fields\n- `business` — enrich / expert-filled fields\n- `sources` / `enrich_search` — pipeline evidence (not schema properties; present at runtime)\n\n## basic\n\n- _(no basic fields)_\n\n## business\n\n- `contract` (object) 运行时合同\n- `field_specs` (array) 字段规格\n",
+                  "readonly": true
+                },
+                {
+                  "path": "references/rules.md",
+                  "content": "【角色】你是 MiniMax Speech TTS 导演：在理解口播内容情绪与节奏的前提下，给每句加停顿，并**克制、择位**地做口语点缀。\n\n【合同 JSON】\n_(contract provided at runtime)_\n\n【字段规格】\n_(field_specs provided at runtime)_\n\n【硬约束】\n1. **不得增删改角色**：保留每条 line 的 id / speakerId / kind；角色集合必须仍 ⊆ cast。\n2. 为每项写 tts_markup（含 <#秒#>，句首尾各至少 <#0.2#>）。\n3. affirmation 宜短；interrupt 保持抢话感，勿拉长。\n4. script_draft：用 cast.name 写成「【角色名】tts_markup」逐行；kind=affirmation 可在角色名后标注「·附和」，interrupt 标注「·插话」（仍同一行）。\n5. 只输出 JSON：{ lines, script_draft }\n\n【播报风格与人设】\n6. 按 basic.broadcast_style 控制停顿疏密：fast_talk 极短停顿、禁语气词；news 客观、禁语气词；chat_show / late_night 才允许少量点缀。\n7. cast.persona：性格→用词态度与停顿疏密；语气词/口头语→见下方「择位」，**禁止句句硬塞**。\n\n【口头禅 / 语气词 · 择位插入（硬）】\n8. 先读懂本句及前后文的情绪起伏：沉重、安静离世、档案评注、事实陈述、长解说 → **不得**在句首加「你听好了 / 嗯 / 呵 / 欸 / 真的假的」等。\n9. 仅当情绪与节奏允许时插入，且位置要自然：\n   - 好转场、接话缓冲、轻调侃、重信息说完后的喘息；\n   - 放在 <#停顿#> 之后的意群开头、句末、或独立 affirmation；\n   - **禁止**口头禅与正文无停顿粘连。\n10. 配额：每位说话人全稿点缀约每 4～8 句最多 1 处；邻句不连续；同一口头禅全稿 ≤2 次。\n11. 若上游 text 已把口头禅硬塞在句首且与内容情绪冲突：**删除或挪到合适位置**，不要原样保留硬塞。\n12. alternate_read / news / fast_talk：禁止语气词与口头禅，只做数字中文读法与停顿。\n",
+                  "readonly": false
+                },
+                {
+                  "path": "scripts/invoke-text.mjs",
+                  "content": "/**\n * @readonly platform invoke for text skill\n * Runtime: nestedText / runTaskV2(scope=text) → skill executor → sync text result.\n * Do not edit.\n */\nexport const invokeMode = 'text';\nexport const steps = ['skillLlm'];\nexport default { invokeMode, steps };\n",
+                  "readonly": true
+                },
+                {
+                  "path": "SKILL.md",
+                  "content": "---\nname: text-expert-dialogue-tts-markup\ndescription: Core skill for text/expert/dialogue-tts-markup. Use when running this business node.\nloadReferences:\n  - references/contract.md\n  - references/rules.md\n---\n\nYou are the `expert/dialogue-tts-markup` text skill. Follow references/rules.md. Fill only requested fields.\n\n## Workflow\n\n1. Read `references/contract.md` for field shape.\n2. Read `references/rules.md` for hard constraints.\n3. Use bound / provided inputs only — do not invent facts.\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}\n",
+                  "readonly": false
+                }
+              ]
+            }
+          }
+        },
+        "skillMode": "core-skill"
+      },
+      "routing": {
+        "logical_model": "text-expert-dialogue-tts-markup",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-expert-dialogue-tts-markup",
+          "charge_metric": "per_request",
+          "price_in_tokens": 18,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "dialogue-tts-markup",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "dialogue-timeline-cues",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家",
+          "subtypeLabel": "对话时间轴",
+          "description": "写相对 cue 支持重叠",
+          "taskLabelI18n": {
+            "zh": "专家",
+            "zh-TW": "专家",
+            "en": "Expert",
+            "ja": "专家"
+          },
+          "subtypeLabelI18n": {
+            "zh": "对话时间轴",
+            "zh-TW": "对话时间轴",
+            "en": "对话时间轴",
+            "ja": "对话时间轴"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "字段规格",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是对谈节目时间轴导演，为每句写相对 cue（不写绝对墙钟时间）。\n\n【合同 JSON】\n${contract}\n\n【字段规格】\n${field_specs}\n\n【硬约束】\n1. 保留 lines 全部字段与角色；**禁止**新增角色或句子主题改写。\n2. 为每项写 cue：{ afterLineId?, offsetMs?, gapMs? }\n3. 首句无 afterLineId；其后默认 after 上一句。\n4. interrupt / affirmation：offsetMs 可为 -200～-500（抢词叠轨）。\n5. alternate_read：gapMs 50～150，offsetMs=0。\n6. 只输出 JSON：{ lines }"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "maxTokens": 65536,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "max_completion_tokens": 65536
+              }
+            },
+            "skillMode": "core-skill",
+            "skillPack": {
+              "version": 1,
+              "files": [
+                {
+                  "path": "references/contract.md",
+                  "content": "# Business contract shape\n\nThis file is **platform-generated** from `contractSchema`. It is read-only in the editor.\nRuntime filled values are injected separately by the skill executor (data plane).\n\n## Zones\n\n- `basic` — user-facing / input-stage fields\n- `business` — enrich / expert-filled fields\n- `sources` / `enrich_search` — pipeline evidence (not schema properties; present at runtime)\n\n## basic\n\n- _(no basic fields)_\n\n## business\n\n- `contract` (object) 运行时合同\n- `field_specs` (array) 字段规格\n",
+                  "readonly": true
+                },
+                {
+                  "path": "references/rules.md",
+                  "content": "【角色】你是对谈节目时间轴导演，为每句写相对 cue（不写绝对墙钟时间）。\n\n【合同 JSON】\n_(contract provided at runtime)_\n\n【字段规格】\n_(field_specs provided at runtime)_\n\n【硬约束】\n1. 保留 lines 全部字段与角色；**禁止**新增角色或句子主题改写。\n2. 为每项写 cue：{ afterLineId?, offsetMs?, gapMs? }\n3. 首句无 afterLineId；其后默认 after 上一句。\n4. interrupt / affirmation：offsetMs 可为 -200～-500（抢词叠轨）。\n5. alternate_read：gapMs 50～150，offsetMs=0。\n6. 只输出 JSON：{ lines }\n",
+                  "readonly": false
+                },
+                {
+                  "path": "scripts/invoke-text.mjs",
+                  "content": "/**\n * @readonly platform invoke for text skill\n * Runtime: nestedText / runTaskV2(scope=text) → skill executor → sync text result.\n * Do not edit.\n */\nexport const invokeMode = 'text';\nexport const steps = ['skillLlm'];\nexport default { invokeMode, steps };\n",
+                  "readonly": true
+                },
+                {
+                  "path": "SKILL.md",
+                  "content": "---\nname: text-expert-dialogue-timeline-cues\ndescription: Core skill for text/expert/dialogue-timeline-cues. Use when running this business node.\nloadReferences:\n  - references/contract.md\n  - references/rules.md\n---\n\nYou are the `expert/dialogue-timeline-cues` text skill. Follow references/rules.md. Fill only requested fields.\n\n## Workflow\n\n1. Read `references/contract.md` for field shape.\n2. Read `references/rules.md` for hard constraints.\n3. Use bound / provided inputs only — do not invent facts.\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}\n",
+                  "readonly": false
+                }
+              ]
+            }
+          }
+        },
+        "skillMode": "core-skill"
+      },
+      "routing": {
+        "logical_model": "text-expert-dialogue-timeline-cues",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-expert-dialogue-timeline-cues",
+          "charge_metric": "per_request",
+          "price_in_tokens": 12,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "dialogue-timeline-cues",
+          "metadata": {
+            "margin": 0.2
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "audio",
+      "type": "group",
+      "subtype": "multi-voice",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "executionMode": "mxm-warp",
+      "extra": {
+        "executionMode": "mxm-warp",
+        "skipOutputLlm": true,
+        "subtitle_enable": true,
+        "warpTextModel": {
+          "provider": "maxplan",
+          "model": "MiniMax-M3"
+        },
+        "display": {
+          "taskLabel": "对话",
+          "subtypeLabel": "多人语音",
+          "description": "先交文稿，系统扫描后推荐口播形式与人数；确认角色音色后生成对白并混音。",
+          "taskLabelI18n": {
+            "zh": "对话",
+            "zh-TW": "對話",
+            "en": "Dialogue",
+            "ja": "対話"
+          },
+          "subtypeLabelI18n": {
+            "zh": "多人语音",
+            "zh-TW": "多人語音",
+            "en": "Multi-voice",
+            "ja": "マルチボイス"
+          },
+          "descriptionI18n": {
+            "zh": "先交文稿，系统扫描后推荐口播形式与人数；确认角色音色后生成对白并混音。",
+            "zh-TW": "先交文稿，系統掃描後推薦口播形式與人數；確認角色音色後生成對白並混音。",
+            "en": "Submit a script, get format/cast recommendations, confirm voices, then generate and mix.",
+            "ja": "原稿提出→形式・人数の推薦→声確認→生成・ミックス。"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "x-createUx": "warp-gates",
+            "required": [
+              "source_material",
+              "dialogue_format",
+              "speaker_count",
+              "cast"
+            ],
+            "properties": {
+              "source_material": {
+                "type": "string",
+                "title": "文稿",
+                "description": "粘贴文章或对话稿，也可上传文本。",
+                "x-ui-type": "textFileOrPaste",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-max-chars": 120000,
+                "minLength": 1,
+                "default": ""
+              },
+              "dialogue_format": {
+                "type": "string",
+                "title": "口播形式",
+                "description": "决定结构、语速感与插话密度。可按文稿推荐改选。",
+                "x-ui-type": "selection",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "enum": [
+                  "alternate_read",
+                  "topic_discuss",
+                  "host_sidekick",
+                  "audio_drama"
+                ],
+                "x-enum-labels": [
+                  "交替朗读",
+                  "话题讨论",
+                  "主讲陪聊",
+                  "演绎有声剧"
+                ],
+                "default": "topic_discuss"
+              },
+              "speaker_count": {
+                "type": "integer",
+                "title": "参与人数",
+                "description": "2～6 人，可按推荐调整。",
+                "x-ui-type": "selection",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "minimum": 2,
+                "maximum": 6,
+                "default": 2,
+                "enum": [
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ],
+                "x-enum-labels": [
+                  "2人",
+                  "3人",
+                  "4人",
+                  "5人",
+                  "6人"
+                ]
+              },
+              "broadcast_style": {
+                "type": "string",
+                "title": "语速风格",
+                "description": "可选；默认随口播形式，仍可改。",
+                "x-ui-type": "selection",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "enum": [
+                  "fast_talk",
+                  "news",
+                  "chat_show",
+                  "late_night"
+                ],
+                "x-enum-labels": [
+                  "快嘴",
+                  "资讯",
+                  "聊天",
+                  "深夜"
+                ],
+                "default": "chat_show"
+              },
+              "cast": {
+                "type": "array",
+                "title": "角色与音色",
+                "description": "为每位参与者选音色或角色卡。",
+                "x-zone": "business",
+                "x-collect": "pre",
+                "x-ui-type": "dialogueCast",
+                "minItems": 2,
+                "maxItems": 6,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "voice"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string",
+                      "title": "角色名"
+                    },
+                    "roleHint": {
+                      "type": "string",
+                      "enum": [
+                        "host",
+                        "guest",
+                        "sidekick",
+                        "narrator",
+                        "character"
+                      ]
+                    },
+                    "voice": {
+                      "type": "object",
+                      "x-ui-type": "minimaxVoice",
+                      "x-voice-model": "speech-2.8-hd",
+                      "properties": {
+                        "mode": {
+                          "type": "string"
+                        },
+                        "voice_id": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "persona": {
+                      "type": "string",
+                      "title": "人设",
+                      "description": "性格写入用词态度；语气词/口头语仅择位点缀，勿句句硬塞。"
+                    }
+                  }
+                },
+                "default": [
+                  {
+                    "id": "host",
+                    "name": "主持",
+                    "roleHint": "host",
+                    "voice": {
+                      "mode": "system",
+                      "voice_id": "female-shaonv",
+                      "label": "少女音色"
+                    },
+                    "persona": ""
+                  },
+                  {
+                    "id": "guest",
+                    "name": "嘉宾",
+                    "roleHint": "guest",
+                    "voice": {
+                      "mode": "system",
+                      "voice_id": "male-qn-qingse",
+                      "label": "青涩青年音色"
+                    },
+                    "persona": ""
+                  }
+                ]
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充说明",
+                "x-zone": "basic"
+              },
+              "script_draft": {
+                "type": "string",
+                "title": "台词本",
+                "x-zone": "business"
+              },
+              "lines": {
+                "type": "array",
+                "title": "台词行",
+                "x-zone": "business",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "contractSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "source_material": {
+                "type": "string",
+                "title": "文稿",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "dialogue_format": {
+                "type": "string",
+                "title": "口播形式",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "speaker_count": {
+                "type": "integer",
+                "title": "参与人数",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "broadcast_style": {
+                "type": "string",
+                "title": "语速风格",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充说明",
+                "x-zone": "basic"
+              },
+              "cast": {
+                "type": "array",
+                "title": "角色与音色",
+                "x-zone": "business",
+                "x-collect": "pre",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "content_scan": {
+                "type": "object",
+                "title": "文稿扫描",
+                "x-zone": "business",
+                "additionalProperties": true
+              },
+              "lines": {
+                "type": "array",
+                "title": "台词行",
+                "x-zone": "business",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "script_draft": {
+                "type": "string",
+                "title": "台词本",
+                "x-zone": "business"
+              },
+              "timeline_json": {
+                "type": "object",
+                "title": "时间轴",
+                "x-zone": "business",
+                "additionalProperties": true
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "# Rules\n\n(No legacy prompt body; edit this file to add domain rules.)"
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "interactiveCard",
+                "params": {
+                  "id": "multi-voice-source-card",
+                  "label": "引入文稿",
+                  "hint": "粘贴或上传文章/对话稿。确认后将快速分析内容并给出推荐。",
+                  "kind": "interactive-card",
+                  "fields": [
+                    {
+                      "name": "source_material",
+                      "type": "string",
+                      "title": "文稿",
+                      "description": "粘贴文章或对话稿，也可上传文本。",
+                      "required": true,
+                      "x-ui-type": "textFileOrPaste"
+                    }
+                  ],
+                  "editable": true,
+                  "postPreHint": "文稿已收。正在分析内容类型并推荐口播形式与人数…"
+                }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/expert/dialogue-content-scan",
+                "inputMapping": {
+                  "contract": "${state.contract}"
+                },
+                "params": {
+                  "outputTarget": "business",
+                  "claimPaths": [
+                    "basic.source_material",
+                    "basic.supplement"
+                  ],
+                  "commitPaths": [
+                    "content_scan",
+                    "dialogue_format",
+                    "speaker_count",
+                    "broadcast_style"
+                  ],
+                  "seedParamsIfEmpty": {
+                    "dialogue_format": "dialogue_format",
+                    "speaker_count": "speaker_count",
+                    "broadcast_style": "broadcast_style",
+                    "content_scan": "content_scan"
+                  },
+                  "field_specs": [
+                    {
+                      "name": "content_scan",
+                      "type": "object",
+                      "description": "扫描结果（含推荐与理由）"
+                    },
+                    {
+                      "name": "dialogue_format",
+                      "type": "string",
+                      "description": "推荐口播形式"
+                    },
+                    {
+                      "name": "speaker_count",
+                      "type": "integer",
+                      "description": "推荐人数 2-6"
+                    },
+                    {
+                      "name": "broadcast_style",
+                      "type": "string",
+                      "description": "推荐语速风格"
+                    }
+                  ]
+                },
+                "when": {
+                  "all": [
+                    {
+                      "field": "params.content_scan",
+                      "op": "empty"
+                    }
+                  ]
+                }
+              },
+              {
+                "step": "interactiveCard",
+                "params": {
+                  "id": "multi-voice-cast-card",
+                  "label": "确认形式与角色",
+                  "hint": "已按文稿给出推荐，可改选；请确认人数并为每位选音色。",
+                  "kind": "interactive-card",
+                  "fields": [
+                    {
+                      "name": "dialogue_format",
+                      "type": "string",
+                      "title": "口播形式",
+                      "required": true,
+                      "enum": [
+                        "alternate_read",
+                        "topic_discuss",
+                        "host_sidekick",
+                        "audio_drama"
+                      ],
+                      "x-enum-labels": [
+                        "交替朗读",
+                        "话题讨论",
+                        "主讲陪聊",
+                        "演绎有声剧"
+                      ]
+                    },
+                    {
+                      "name": "speaker_count",
+                      "type": "integer",
+                      "title": "参与人数",
+                      "required": true,
+                      "enum": [
+                        2,
+                        3,
+                        4,
+                        5,
+                        6
+                      ],
+                      "x-enum-labels": [
+                        "2人",
+                        "3人",
+                        "4人",
+                        "5人",
+                        "6人"
+                      ]
+                    },
+                    {
+                      "name": "broadcast_style",
+                      "type": "string",
+                      "title": "语速风格",
+                      "required": false,
+                      "enum": [
+                        "fast_talk",
+                        "news",
+                        "chat_show",
+                        "late_night"
+                      ],
+                      "x-enum-labels": [
+                        "快嘴",
+                        "资讯",
+                        "聊天",
+                        "深夜"
+                      ]
+                    },
+                    {
+                      "name": "cast",
+                      "type": "array",
+                      "title": "角色与音色",
+                      "required": true,
+                      "x-ui-type": "dialogueCast"
+                    }
+                  ],
+                  "editable": true,
+                  "postPreHint": "配置已确认。接下来将拆分台词并合成多人语音。"
+                }
+              }
+            ],
+            "enrich": [
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/expert/dialogue-script-draft",
+                "inputMapping": {
+                  "contract": "${state.contract}"
+                },
+                "params": {
+                  "outputTarget": "business",
+                  "overwriteCoreArtifact": true,
+                  "claimPaths": [
+                    "basic.source_material",
+                    "basic.dialogue_format",
+                    "basic.speaker_count",
+                    "basic.broadcast_style",
+                    "basic.supplement",
+                    "business.cast",
+                    "business.content_scan",
+                    "business.dialogue_format",
+                    "business.speaker_count",
+                    "business.broadcast_style"
+                  ],
+                  "commitPaths": [
+                    "lines",
+                    "script_draft"
+                  ],
+                  "field_specs": [
+                    {
+                      "name": "lines",
+                      "type": "array",
+                      "description": "台词行数组"
+                    },
+                    {
+                      "name": "script_draft",
+                      "type": "string",
+                      "description": "【角色】可读台词本"
+                    }
+                  ]
+                }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/expert/dialogue-tts-markup",
+                "inputMapping": {
+                  "contract": "${state.contract}"
+                },
+                "params": {
+                  "outputTarget": "business",
+                  "overwriteCoreArtifact": true,
+                  "claimPaths": [
+                    "basic.broadcast_style",
+                    "basic.dialogue_format",
+                    "business.cast",
+                    "business.lines",
+                    "business.script_draft"
+                  ],
+                  "commitPaths": [
+                    "lines",
+                    "script_draft"
+                  ],
+                  "field_specs": [
+                    {
+                      "name": "lines",
+                      "type": "array",
+                      "description": "含 tts_markup 的台词行"
+                    },
+                    {
+                      "name": "script_draft",
+                      "type": "string",
+                      "description": "可读台词本"
+                    }
+                  ]
+                }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/expert/dialogue-timeline-cues",
+                "inputMapping": {
+                  "contract": "${state.contract}"
+                },
+                "params": {
+                  "outputTarget": "business",
+                  "claimPaths": [
+                    "basic.dialogue_format",
+                    "business.cast",
+                    "business.lines"
+                  ],
+                  "commitPaths": [
+                    "lines"
+                  ],
+                  "field_specs": [
+                    {
+                      "name": "lines",
+                      "type": "array",
+                      "description": "含 cue 的台词行"
+                    }
+                  ]
+                }
+              },
+              {
+                "step": "manualReview",
+                "params": {
+                  "id": "multi-voice-script-review",
+                  "label": "确认对话台词本",
+                  "hint": "请在指导性时间轴上核对各角色台词与先后（含抢词/附和）。改字即可；时间轴为预估，最终混音以 TTS 成片为准。",
+                  "kind": "text",
+                  "draftFrom": "${state.contract.business.script_draft}",
+                  "syncDialogueLines": true,
+                  "applyMapping": {
+                    "script_draft": "${review.text}",
+                    "prompt": "${review.text}"
+                  },
+                  "editable": true
+                }
+              }
+            ],
+            "post": [
+              {
+                "step": "dialogueLineTts",
+                "params": {
+                  "linesFrom": "contract.business.lines",
+                  "castFrom": "contract.business.cast",
+                  "model": "speech-2.8-hd",
+                  "concurrency": 2,
+                  "maxItems": 120
+                }
+              },
+              {
+                "step": "resolveDialogueTimeline",
+                "params": {
+                  "linesFrom": "contract.business.lines"
+                }
+              },
+              {
+                "step": "renderAudioTimeline",
+                "params": {
+                  "linesFrom": "contract.business.lines"
+                }
+              }
+            ]
+          },
+          "extra": {
+            "subtitle_enable": true,
+            "executionMode": "mxm-warp",
+            "skipOutputLlm": true,
+            "createGuide": {
+              "interactiveCard": {
+                "id": "multi-voice-source-card",
+                "label": "引入文稿",
+                "hint": "粘贴或上传文章/对话稿。确认后将快速分析内容并给出推荐。",
+                "fields": [
+                  {
+                    "name": "source_material",
+                    "type": "string",
+                    "title": "文稿",
+                    "required": true,
+                    "x-ui-type": "textFileOrPaste"
+                  }
+                ]
+              }
+            },
+            "skillMode": "core-skill",
+            "skillPack": {
+              "version": 1,
+              "files": [
+                {
+                  "path": "references/contract.md",
+                  "content": "# Business contract shape\n\nThis file is **platform-generated** from `contractSchema`. It is read-only in the editor.\nRuntime filled values are injected separately by the skill executor (data plane).\n\n## Zones\n\n- `basic` — user-facing / input-stage fields\n- `business` — enrich / expert-filled fields\n- `sources` / `enrich_search` — pipeline evidence (not schema properties; present at runtime)\n\n## basic\n\n- `source_material` (string) 文稿\n- `dialogue_format` (string) 口播形式\n- `speaker_count` (integer) 参与人数\n- `broadcast_style` (string) 语速风格\n- `supplement` (string) 补充说明\n\n## business\n\n- `cast` (array) 角色与音色\n- `content_scan` (object) 文稿扫描\n- `lines` (array) 台词行\n- `script_draft` (string) 台词本\n- `timeline_json` (object) 时间轴\n",
+                  "readonly": true
+                },
+                {
+                  "path": "references/rules.md",
+                  "content": "# Rules\n\n(No legacy prompt body; edit this file to add domain rules.)\n",
+                  "readonly": false
+                },
+                {
+                  "path": "scripts/invoke-group.mjs",
+                  "content": "/**\n * @readonly platform invoke-group\n * Output skill entry for taskKey=group.\n * Runtime: warp-runner → groupItemBatch (+ itemManuscript from SKILL.md) → assembleGroupText.\n * Do not edit; concurrency / itemsFrom stay in taskTemplate.extra.groupOutput.\n */\nexport const invokeMode = 'group';\nexport const steps = ['groupItemBatch', 'assembleGroupText'];\nexport default { invokeMode, steps };\n",
+                  "readonly": true
+                },
+                {
+                  "path": "SKILL.md",
+                  "content": "---\nname: audio-group-multi-voice\ndescription: Core skill for audio/group/multi-voice. Use when running this business node.\nloadReferences:\n  - references/contract.md\n  - references/rules.md\n---\n\nYou are the group manuscript writer for `audio/multi-voice`. Follow references/rules.md. Write publishable Markdown for this route only.\n\n## Workflow\n\n1. Read `references/contract.md` for field shape.\n2. Read `references/rules.md` for hard constraints.\n3. Use bound / provided inputs only — do not invent facts.\n",
+                  "readonly": false
+                }
+              ]
+            }
+          },
+          "storage": {
+            "bucket": "generated",
+            "pathTemplate": "{userId}/audio/{timestamp}-{randomId}-{index}.{ext}"
+          }
+        },
+        "skillMode": "core-skill"
+      },
+      "routing": {
+        "logical_model": "audio-group-multi-voice",
+        "provider": "maxplan",
+        "model": "speech-2.8-hd",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "audio-group-multi-voice",
+          "charge_metric": "per_audio_second",
+          "price_in_tokens": 8,
+          "min_charge_tokens": 50,
+          "provider": "maxplan",
+          "model_key": "speech-2.8-hd",
+          "subtype": "multi-voice",
+          "metadata": {
+            "margin": 0.25,
+            "note": "按成片墙钟秒计费"
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

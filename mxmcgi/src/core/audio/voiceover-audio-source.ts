@@ -22,17 +22,41 @@ function guessFilename(key: string, fallback = 'voiceover.mp3'): string {
 
 function isInternalMinioHost(hostname: string, port: string): boolean {
   const host = hostname.toLowerCase();
-  if (host === 'localhost' || host === '127.0.0.1' || host === 'minio') return true;
-  if (host.includes('minio')) return true;
-  if (port === '9000') return true;
+  const minioPort = String(process.env.MINIO_PORT || '9000');
   const endpoint = (process.env.MINIO_ENDPOINT || 'localhost').toLowerCase();
-  return host === endpoint;
+  // 关键：端口等于 MinIO 端口（默认 9000）。勿把 localhost:3000 Gateway 判成对象存储。
+  if (port === minioPort || port === '9000') {
+    return true;
+  }
+  // 无端口时仅认明确的 minio 主机名 / 配置 endpoint（少见）
+  if (!port && (host === 'minio' || host === endpoint)) return true;
+  return false;
 }
 
 /** 将内网 MinIO / Gateway 绝对地址转为前端可访问的相对媒体路径 */
 export function normalizeClientAccessibleMediaUrl(url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
+
+  // 已是 Gateway 媒体代理：保留 query，只剥绝对域名为相对路径
+  try {
+    const abs = trimmed.startsWith('http') ? new URL(trimmed) : new URL(trimmed, 'http://local');
+    const path = abs.pathname;
+    if (path.includes('/api/v1/media/asset') || path.endsWith('/media/asset')) {
+      const bucket = abs.searchParams.get('bucket');
+      const key = abs.searchParams.get('key');
+      if (bucket && key) {
+        return `/api/v1/media/asset?bucket=${encodeURIComponent(bucket)}&key=${encodeURIComponent(key)}`;
+      }
+    }
+    if (path.includes('/api/v1/media/object/') || path.includes('/api/v1/media/public/object/')) {
+      const base = (process.env.PUBLIC_GATEWAY_ORIGIN || '').replace(/\/+$/, '');
+      if (base && trimmed.startsWith(`${base}/`)) return trimmed.slice(base.length);
+      if (path.startsWith('/')) return `${path}${abs.search}`;
+    }
+  } catch {
+    // ignore
+  }
 
   const minio = parseMinioDirectObjectUrl(trimmed);
   if (minio) {
@@ -52,9 +76,13 @@ export function parseMinioDirectObjectUrl(url: string): { bucket: string; key: s
   try {
     const u = new URL(url.trim());
     if (!isInternalMinioHost(u.hostname, u.port)) return null;
+    // Gateway 路径绝不是 MinIO object key
+    if (u.pathname.includes('/api/v1/media/') || u.pathname.includes('/api/v1/static/')) {
+      return null;
+    }
     const parts = u.pathname.replace(/^\/+/, '').split('/').filter(Boolean);
     if (parts.length < 2) return null;
-    return { bucket: parts[0], key: parts.slice(1).join('/') };
+    return { bucket: parts[0]!, key: parts.slice(1).join('/') };
   } catch {
     return null;
   }

@@ -22,6 +22,14 @@ function pickFromParams(params: Record<string, unknown> | undefined): WritingDoc
   );
 }
 
+function pickReadingFormat(meta: Record<string, unknown> | undefined): WritingDocFormat | null {
+  if (!meta) return null;
+  if (meta.pdfRenderStatus === 'failed') return null;
+  if (meta.hasPdfPreview === true) return 'pdf';
+  const reading = normalizeFormat(meta.reading_format);
+  return reading === 'pdf' ? 'pdf' : null;
+}
+
 /** 从列表行推断文档格式（不请求详情 API） */
 export function resolveWritingDocFormat(task: WritingTaskItem): WritingDocFormat {
   const result = task.result as
@@ -29,16 +37,20 @@ export function resolveWritingDocFormat(task: WritingTaskItem): WritingDocFormat
         outputFormat?: string;
         format?: string;
         hasMedia?: boolean;
-        metadata?: { format?: string; storage_form?: string; storageForm?: string };
+        metadata?: Record<string, unknown>;
       }
     | undefined;
+
+  const resultMeta = result?.metadata;
+  const readingFromResult = pickReadingFormat(resultMeta);
+  if (readingFromResult) return readingFromResult;
 
   const fromResult =
     normalizeFormat(result?.outputFormat) ??
     normalizeFormat(result?.format) ??
-    normalizeFormat(result?.metadata?.format) ??
-    normalizeFormat(result?.metadata?.storage_form) ??
-    normalizeFormat(result?.metadata?.storageForm);
+    normalizeFormat(resultMeta?.format) ??
+    normalizeFormat(resultMeta?.storage_form) ??
+    normalizeFormat(resultMeta?.storageForm);
   if (fromResult) return fromResult;
 
   const rp = task.requestParams as Record<string, unknown> | undefined;
@@ -54,7 +66,10 @@ export function resolveWritingDocFormat(task: WritingTaskItem): WritingDocFormat
     pickFromParams(task.metadata as Record<string, unknown> | undefined);
   if (fromParams) return fromParams;
 
-  const meta = task.metadata;
+  const meta = task.metadata as Record<string, unknown> | undefined;
+  const readingFromMeta = pickReadingFormat(meta);
+  if (readingFromMeta) return readingFromMeta;
+
   const fromMeta =
     normalizeFormat(meta?.listOutputFormat) ??
     normalizeFormat(meta?.format) ??

@@ -12,6 +12,7 @@ import {
   mediaBlobCacheKey,
   mediaPreviewCacheKey,
   removeCachedMediaBlobByObjectId,
+  removeCachedMediaBlobUrl,
   setCachedMediaBlobUrl,
   storageObjectPreviewCacheKey,
 } from '../lib/mediaBlobCache';
@@ -113,21 +114,32 @@ function extractErrorMessage(data: unknown, fallback: string): string {
   if (typeof data === 'string') return data || fallback;
   if (typeof data !== 'object') return String(data);
   const obj = data as Record<string, unknown>;
-  if (typeof obj.message === 'string' && obj.message.trim()) return obj.message;
-  if (typeof obj.error === 'string' && obj.error.trim()) return obj.error;
+  // 优先平台契约：code + error（已是用户文案）
+  if (typeof obj.error === 'string' && obj.error.trim()) return obj.error.trim();
+  if (typeof obj.message === 'string' && obj.message.trim()) return obj.message.trim();
   if (obj.error && typeof obj.error === 'object') {
     const nested = obj.error as Record<string, unknown>;
-    if (typeof nested.message === 'string' && nested.message.trim()) return nested.message;
+    if (typeof nested.message === 'string' && nested.message.trim()) return nested.message.trim();
   }
   if (typeof obj.data === 'object' && obj.data) {
     const nested = obj.data as Record<string, unknown>;
-    if (typeof nested.message === 'string' && nested.message.trim()) return nested.message;
+    if (typeof nested.message === 'string' && nested.message.trim()) return nested.message.trim();
+    if (typeof nested.error === 'string' && nested.error.trim()) return nested.error.trim();
   }
-  try {
-    return JSON.stringify(data);
-  } catch {
-    return fallback;
-  }
+  // 禁止把整段 JSON 抛给 UI；兜底用人话
+  return fallback || '操作失败，请稍后重试';
+}
+
+function extractErrorCode(data: unknown): string | undefined {
+  if (!data || typeof data !== 'object') return undefined;
+  const c = (data as { code?: unknown }).code;
+  return typeof c === 'string' && c.trim() ? c.trim() : undefined;
+}
+
+function extractDebugDetail(data: unknown): string | undefined {
+  if (!data || typeof data !== 'object') return undefined;
+  const d = (data as { debugDetail?: unknown }).debugDetail;
+  return typeof d === 'string' && d.trim() ? d.trim() : undefined;
 }
 
 export async function request<T = unknown>(
@@ -137,7 +149,14 @@ export async function request<T = unknown>(
     headers?: Record<string, string>;
     body?: object | FormData | string | null;
   } = {}
-): Promise<{ data?: T; error?: string; status: number; code?: string; extras?: Record<string, unknown> }> {
+): Promise<{
+  data?: T;
+  error?: string;
+  status: number;
+  code?: string;
+  debugDetail?: string;
+  extras?: Record<string, unknown>;
+}> {
   const base = getBaseUrl().replace(/\/$/, '');
   const url = path.startsWith('http') ? path : base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
   const token = getToken();
@@ -183,18 +202,19 @@ export async function request<T = unknown>(
       }
       const errMsg = extractErrorMessage(data, res.statusText);
       const bodyObj = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
-      const errCode =
+      const code = extractErrorCode(data) ?? (
         typeof bodyObj.error === 'string' && /^[A-Z][A-Z0-9_]+$/.test(bodyObj.error)
           ? bodyObj.error
-          : undefined;
-      const code = errCode ?? (typeof bodyObj.code === 'string' ? bodyObj.code : undefined);
+          : undefined
+      );
+      const debugDetail = extractDebugDetail(data);
       const extras: Record<string, unknown> = {};
       if (bodyObj.estimatedTokens != null) extras.estimatedTokens = bodyObj.estimatedTokens;
       if (bodyObj.currentBalance != null) extras.currentBalance = bodyObj.currentBalance;
       if (bodyObj.data != null && typeof bodyObj.data === 'object') {
         Object.assign(extras, bodyObj.data as object);
       }
-      return { error: errMsg, status: res.status, code, extras };
+      return { error: errMsg, status: res.status, code, debugDetail, extras };
     }
     return { data, status: res.status };
   } catch (e) {
@@ -267,12 +287,15 @@ export async function login(
 ) {
   const id = usernameOrEmail.trim();
   const isEmail = id.includes('@');
+  const isPhone = /^1[3-9]\d{9}$/.test(id);
+  const identifier = isEmail ? 'email' : isPhone ? 'phone' : 'username';
+  const value = isEmail ? id.toLowerCase() : id;
   const res = await request<{ data?: { tokens?: { accessToken: string }; user?: LoginUser } }>(
     '/api/v1/account/login',
     {
       method: 'POST',
       body: {
-        ...(isEmail ? { email: id.toLowerCase() } : { username: id }),
+        ...(identifier === 'email' ? { email: value } : identifier === 'phone' ? { phone: value } : { username: value }),
         password,
         ...(captcha?.captchaId && captcha.captchaAnswer
           ? { captchaId: captcha.captchaId, captchaAnswer: captcha.captchaAnswer }
@@ -632,7 +655,7 @@ export type KnowledgeFolderLinkItem = {
     piece_id?: string;
     /** 业务大类展示名（如「写作」「音频」「视频」），由后端从 admin 配置透传 */
     taskLabel?: string;
-    /** 业务子类展示名（如「AI 科技情报报道」「营销方案」），由后端从 admin 配置透传 */
+    /** 业务子类展示名（如「行业日报」「选题长文」），由后端从 admin 配置透传 */
     subtypeLabel?: string;
     /** Task V2 身份（scope/taskKey/subtype），用于前端按字段差异化展示 */
     taskV2?: {
@@ -940,12 +963,247 @@ export type PreTrendSearchResult = {
     truncated: boolean;
     text: string;
     items: Array<{ title: string; url: string; snippet: string; domain: string }>;
+    topicPool?: string[];
   };
   topicChips: string[];
+  /** 发现池：换一批本地翻窗 */
+  topicPool?: string[];
   topicExtractTaskId?: string | null;
   search_track?: string;
   track_source?: string;
 };
+
+export type DialogueContentScanPreview = {
+  suggested_format: 'alternate_read' | 'topic_discuss' | 'host_sidekick' | 'audio_drama';
+  suggested_speakers: number;
+  content_type: string;
+  reason: string;
+  alternatives?: Array<{ format: string; speakers: number; reason: string }>;
+  suggested_broadcast_style?: 'fast_talk' | 'news' | 'chat_show' | 'late_night';
+};
+
+export async function previewDialogueContentScan(opts: {
+  sourceMaterial: string;
+  language?: string;
+}): Promise<{ data?: DialogueContentScanPreview; error?: string }> {
+  const res = await request<DialogueContentScanPreview & { error?: string }>(
+    '/api/v1/search/dialogue-content-scan',
+    {
+      method: 'POST',
+      body: {
+        sourceMaterial: opts.sourceMaterial,
+        language: opts.language,
+      },
+    }
+  );
+  if (res.error) return { error: res.error };
+  return { data: res.data as DialogueContentScanPreview };
+}
+
+export type DeckPlanRecommendPreview = {
+  plans: Array<{
+    id: string;
+    label: string;
+    page_count: number;
+    density: string;
+    narrative_arc?: string;
+    why?: string;
+  }>;
+  plan_id: string;
+};
+
+/** 演示文稿：推荐 3 套页数/密度方案（chips 点选） */
+export async function previewDeckPlanRecommend(opts: {
+  usageDirection?: string;
+  usageDirectionCustom?: string;
+  sourceMaterial?: string;
+  brief?: string;
+  language?: string;
+}): Promise<{ data?: DeckPlanRecommendPreview; error?: string }> {
+  const res = await request<DeckPlanRecommendPreview & { error?: string }>(
+    '/api/v1/search/deck-plan-recommend',
+    {
+      method: 'POST',
+      body: {
+        usageDirection: opts.usageDirection,
+        usageDirectionCustom: opts.usageDirectionCustom,
+        sourceMaterial: opts.sourceMaterial,
+        brief: opts.brief,
+        language: opts.language,
+      },
+    }
+  );
+  if (res.error) return { error: res.error };
+  return { data: res.data as DeckPlanRecommendPreview };
+}
+
+export type VoicePersonaSketchPreview = {
+  persona: string;
+};
+
+/** 选系统音色 → LLM 生成可编辑人设草稿 */
+export async function previewVoicePersonaSketch(opts: {
+  label: string;
+  descriptions?: string[];
+  voiceId?: string;
+  language?: string;
+}): Promise<{ data?: VoicePersonaSketchPreview; error?: string }> {
+  const res = await request<VoicePersonaSketchPreview & { error?: string }>(
+    '/api/v1/search/voice-persona-sketch',
+    {
+      method: 'POST',
+      body: {
+        label: opts.label,
+        descriptions: opts.descriptions,
+        voiceId: opts.voiceId,
+        language: opts.language,
+      },
+    }
+  );
+  if (res.error) return { error: res.error };
+  return { data: res.data as VoicePersonaSketchPreview };
+}
+
+/** 话题写作：按已选类别/风格/话题/篇幅/结构生成可编辑简要大纲 */
+export async function previewTopicArticleOutline(opts: {
+  topic: string;
+  voiceCategory: string;
+  voiceId: string;
+  language?: string;
+  articleLength?: string;
+  structureId?: string;
+  purpose?: string;
+  supplement?: string;
+  textKey?: string;
+}): Promise<{
+  data?: {
+    outline: { title: string; sections: Array<{ heading: string; intent: string; notes?: string }> };
+    textKey: string;
+    topicExtractTaskId?: string | null;
+  };
+  error?: string;
+}> {
+  const res = await request<{
+    outline?: {
+      title?: string;
+      sections?: Array<{ heading?: string; intent?: string; notes?: string }>;
+    };
+    textKey?: string;
+    topicExtractTaskId?: string | null;
+    error?: string;
+  }>('/api/v1/search/topic-article-outline', {
+    method: 'POST',
+    body: {
+      topic: opts.topic,
+      voiceCategory: opts.voiceCategory,
+      voiceId: opts.voiceId,
+      language: opts.language,
+      articleLength: opts.articleLength,
+      structureId: opts.structureId,
+      purpose: opts.purpose,
+      supplement: opts.supplement,
+      textKey: opts.textKey,
+    },
+  });
+  if (res.error) return { error: res.error };
+  const body = res.data as {
+    outline?: {
+      title?: string;
+      sections?: Array<{ heading?: string; intent?: string; notes?: string }>;
+    };
+    textKey?: string;
+    topicExtractTaskId?: string | null;
+    error?: string;
+  };
+  if (body?.error) return { error: body.error };
+  const sections = Array.isArray(body?.outline?.sections)
+    ? body.outline!.sections!
+        .map((s) => ({
+          heading: String(s?.heading ?? '').trim(),
+          intent: String(s?.intent ?? '').trim(),
+          ...(String(s?.notes ?? '').trim() ? { notes: String(s!.notes).trim() } : {}),
+        }))
+        .filter((s) => s.heading || s.intent)
+    : [];
+  if (sections.length === 0) return { error: '大纲生成未返回可用内容' };
+  return {
+    data: {
+      outline: {
+        title: String(body?.outline?.title ?? '').trim() || sections[0]!.heading,
+        sections,
+      },
+      textKey: String(body?.textKey ?? opts.textKey ?? 'text/expert/topic-article-outline'),
+      topicExtractTaskId: body?.topicExtractTaskId ?? null,
+    },
+  };
+}
+
+/** 话题写作：按类别+风格检索创作素材，经 writing-style-topics 提炼可写选题 */
+export async function previewVoiceStyleTopics(opts: {
+  voiceCategory: string;
+  voiceId: string;
+  language?: string;
+  searchRegion?: string;
+  maxResults?: number;
+  topicCount?: number;
+  writingTaskKey?: string;
+  writingSubtype?: string | null;
+  topicExtractTextKey?: string;
+}): Promise<{ data?: PreTrendSearchResult & { intentLabel?: string }; error?: string }> {
+  const res = await request<{
+    topicChips?: string[];
+    topicPool?: string[];
+    websource?: PreTrendSearchResult['websource'];
+    topicExtractTaskId?: string | null;
+    intentLabel?: string;
+    error?: string;
+  }>('/api/v1/search/voice-style-topics', {
+    method: 'POST',
+    body: {
+      voiceCategory: opts.voiceCategory,
+      voiceId: opts.voiceId,
+      language: opts.language,
+      searchRegion: opts.searchRegion ?? 'global',
+      maxResults: opts.maxResults ?? 24,
+      topicCount: opts.topicCount ?? 24,
+      writingTaskKey: opts.writingTaskKey,
+      writingSubtype: opts.writingSubtype,
+      topicExtractTextKey: opts.topicExtractTextKey,
+    },
+  });
+  if (res.error) return { error: res.error };
+  const body = res.data as {
+    topicChips?: string[];
+    topicPool?: string[];
+    websource?: PreTrendSearchResult['websource'];
+    topicExtractTaskId?: string | null;
+    intentLabel?: string;
+    error?: string;
+  };
+  if (body?.error) return { error: body.error };
+  const websource = body?.websource;
+  if (!websource) return { error: '检索未返回结果' };
+  const topicChips = Array.isArray(body.topicChips) ? body.topicChips : [];
+  if (topicChips.length === 0) {
+    return { error: '话题提炼未返回可用话题' };
+  }
+  const fromBody = Array.isArray(body.topicPool) ? body.topicPool.map(String) : [];
+  const fromWs = Array.isArray((websource as { topicPool?: unknown }).topicPool)
+    ? ((websource as { topicPool: unknown[] }).topicPool).map(String)
+    : [];
+  const topicPool = [
+    ...new Set([...topicChips.map(String), ...fromBody, ...fromWs].map((s) => s.trim()).filter(Boolean)),
+  ];
+  return {
+    data: {
+      websource,
+      topicChips,
+      topicPool,
+      topicExtractTaskId: body.topicExtractTaskId ?? null,
+      intentLabel: body.intentLabel,
+    },
+  };
+}
 
 export async function previewWritingTrendSearch(opts: {
   industry: string;
@@ -993,6 +1251,7 @@ export async function previewWritingTrendSearch(opts: {
   if (res.error) return { error: res.error };
   const body = res.data as {
     topicChips?: string[];
+    topicPool?: string[];
     websource?: PreTrendSearchResult['websource'];
     topicExtractTaskId?: string | null;
     search_track?: string;
@@ -1006,10 +1265,16 @@ export async function previewWritingTrendSearch(opts: {
   if (topicChips.length === 0) {
     return { error: '话题提炼未返回可用话题' };
   }
+  const fromBody = Array.isArray(body.topicPool) ? body.topicPool.map(String) : [];
+  const fromWs = Array.isArray((websource as { topicPool?: unknown }).topicPool)
+    ? ((websource as { topicPool: unknown[] }).topicPool).map(String)
+    : [];
+  const topicPool = [...new Set([...topicChips.map(String), ...fromBody, ...fromWs].map((s) => s.trim()).filter(Boolean))];
   return {
     data: {
       websource,
       topicChips,
+      topicPool,
       topicExtractTaskId: body.topicExtractTaskId ?? null,
       search_track: body.search_track,
       track_source: body.track_source,
@@ -1825,7 +2090,12 @@ export async function runTaskV2(params: {
   params: Record<string, unknown>;
   /** Admin 调试：不落任务列表，响应内直接带 syncResult */
   ephemeral?: boolean;
+  /** Admin 业务列表「调试」：保存每步 input/output 到 pipelineTrace */
+  adminPipelineDebug?: boolean;
 }) {
+  const options: Record<string, boolean> = {};
+  if (params.ephemeral) options.ephemeral = true;
+  if (params.adminPipelineDebug) options.adminPipelineDebug = true;
   const res = await request<TaskRunV2ResponseBody>(
     '/api/v2/tasks/run',
     {
@@ -1835,7 +2105,7 @@ export async function runTaskV2(params: {
         taskKey: params.taskKey,
         subtype: params.subtype ?? null,
         params: params.params,
-        ...(params.ephemeral ? { options: { ephemeral: true } } : {}),
+        ...(Object.keys(options).length ? { options } : {}),
       },
     }
   );
@@ -2239,7 +2509,21 @@ export async function getMediaWriting(taskId: string) {
 
 export type WritingMediaContent =
   | { kind: 'text'; text: string }
-  | { kind: 'pdf'; blobUrl: string; revoke: () => void };
+  | {
+      kind: 'pdf';
+      /** 同源 /api 路径，pdf.js 可带鉴权头做 Range 分块加载 */
+      sourceUrl: string;
+      httpHeaders: Record<string, string>;
+      /** @deprecated 兼容旧调用；Range 模式下无需 revoke */
+      blobUrl?: string;
+      revoke?: () => void;
+    }
+  | {
+      kind: 'pptx';
+      /** 同源媒体 URL（鉴权流式 PPTX） */
+      sourceUrl: string;
+      httpHeaders: Record<string, string>;
+    };
 
 async function isPdfBlob(blob: Blob, contentType: string): Promise<boolean> {
   if (contentType.toLowerCase().includes('pdf')) return true;
@@ -2247,21 +2531,91 @@ async function isPdfBlob(blob: Blob, contentType: string): Promise<boolean> {
   return head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46;
 }
 
-/** 获取写作媒体内容（PDF 走 blob URL，文本/Markdown 走 string） */
+function isPptxContentType(contentType: string): boolean {
+  const ct = contentType.toLowerCase();
+  return (
+    ct.includes('presentationml') ||
+    ct.includes('presentation') ||
+    ct.includes('vnd.ms-powerpoint') ||
+    ct.endsWith('pptx')
+  );
+}
+
+function writingMediaUrl(taskId: string): string {
+  const base = getBaseUrl().replace(/\/$/, '');
+  const path = `/api/v1/media/writing/${encodeURIComponent(taskId)}`;
+  return base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
+}
+
+/** 任务是否声明了可读 PDF sidecar（预览应优先 Range/stream，而非 Markdown） */
+export function writingTaskPrefersPdfPreview(
+  task: { result?: { metadata?: unknown }; metadata?: unknown } | null | undefined
+): boolean {
+  const meta = (task?.result?.metadata ?? task?.metadata) as Record<string, unknown> | undefined;
+  if (!meta || typeof meta !== 'object') return false;
+  if (meta.pdfRenderStatus === 'failed') return false;
+  if (String(meta.reading_format ?? '').toLowerCase() === 'pdf') return true;
+  const pdf = meta.pdfStorage;
+  return Boolean(
+    pdf &&
+      typeof pdf === 'object' &&
+      !Array.isArray(pdf) &&
+      typeof (pdf as { key?: unknown }).key === 'string' &&
+      String((pdf as { key: string }).key).trim()
+  );
+}
+
+/** 任务是否声明了可读 PPTX sidecar */
+export function writingTaskPrefersPptxPreview(
+  task: { result?: { metadata?: unknown }; metadata?: unknown } | null | undefined
+): boolean {
+  const meta = (task?.result?.metadata ?? task?.metadata) as Record<string, unknown> | undefined;
+  if (!meta || typeof meta !== 'object') return false;
+  if (meta.presentationRenderStatus === 'failed') return false;
+  if (meta.resultKind === 'presentation-deck') return true;
+  if (String(meta.reading_format ?? '').toLowerCase() === 'pptx') return true;
+  const pptx = meta.presentationStorage;
+  return Boolean(
+    pptx &&
+      typeof pptx === 'object' &&
+      !Array.isArray(pptx) &&
+      typeof (pptx as { key?: unknown }).key === 'string' &&
+      String((pptx as { key: string }).key).trim()
+  );
+}
+
+/** 获取写作媒体内容（PDF/PPTX 走鉴权 URL；文本/Markdown 走 string） */
 export async function fetchWritingMediaContent(
   taskId: string,
   options?: { timeoutMs?: number }
 ): Promise<WritingMediaContent> {
-  const base = getBaseUrl().replace(/\/$/, '');
-  const path = `/api/v1/media/writing/${encodeURIComponent(taskId)}`;
-  const url = base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
+  const url = writingMediaUrl(taskId);
   const token = getToken();
+  const headers = authMediaHeaders(token);
   const controller = new AbortController();
   const timeout = options?.timeoutMs ?? 30000;
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
+    // 先 HEAD 判断是否 PDF/PPTX，避免整包 blob 后再二次 arrayBuffer
+    const headRes = await fetch(url, {
+      method: 'HEAD',
+      headers,
+      signal: controller.signal,
+    });
+    if (headRes.ok) {
+      const headType = (headRes.headers.get('Content-Type') ?? '').toLowerCase();
+      if (headType.includes('pdf')) {
+        clearTimeout(timer);
+        return { kind: 'pdf', sourceUrl: url, httpHeaders: headers };
+      }
+      if (isPptxContentType(headType)) {
+        clearTimeout(timer);
+        return { kind: 'pptx', sourceUrl: url, httpHeaders: headers };
+      }
+    }
+
     const res = await fetch(url, {
-      headers: authMediaHeaders(token),
+      headers,
       signal: controller.signal,
     });
     clearTimeout(timer);
@@ -2277,10 +2631,26 @@ export async function fetchWritingMediaContent(
       throw new Error(msg);
     }
     const contentType = res.headers.get('Content-Type') ?? '';
+    if (contentType.toLowerCase().includes('pdf')) {
+      // 不消费 body：交给 pdf.js 按 Range 再拉
+      try {
+        await res.body?.cancel();
+      } catch {
+        /* ignore */
+      }
+      return { kind: 'pdf', sourceUrl: url, httpHeaders: headers };
+    }
+    if (isPptxContentType(contentType)) {
+      try {
+        await res.body?.cancel();
+      } catch {
+        /* ignore */
+      }
+      return { kind: 'pptx', sourceUrl: url, httpHeaders: headers };
+    }
     const blob = await res.blob();
     if (await isPdfBlob(blob, contentType)) {
-      const blobUrl = URL.createObjectURL(blob);
-      return { kind: 'pdf', blobUrl, revoke: () => URL.revokeObjectURL(blobUrl) };
+      return { kind: 'pdf', sourceUrl: url, httpHeaders: headers };
     }
     const text = await blob.text();
     return { kind: 'text', text };
@@ -2293,7 +2663,7 @@ export async function fetchWritingMediaContent(
   }
 }
 
-export type WritingExportFormat = 'pdf' | 'markdown';
+export type WritingExportFormat = 'pdf' | 'markdown' | 'pptx';
 
 /** 下载写作导出文件（服务端按需转换，不改变存储） */
 export async function downloadWritingExport(
@@ -2301,7 +2671,7 @@ export async function downloadWritingExport(
   format: WritingExportFormat
 ): Promise<void> {
   const base = getBaseUrl().replace(/\/$/, '');
-  const q = format === 'markdown' ? 'markdown' : 'pdf';
+  const q = format === 'markdown' ? 'markdown' : format === 'pptx' ? 'pptx' : 'pdf';
   const path = `/api/v1/media/writing/${encodeURIComponent(taskId)}/export?format=${encodeURIComponent(q)}`;
   const url = base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
   const token = getToken();
@@ -2320,7 +2690,7 @@ export async function downloadWritingExport(
     throw new Error(msg);
   }
   const blob = await res.blob();
-  let filename = `writing-${taskId}.${format === 'pdf' ? 'pdf' : 'md'}`;
+  let filename = `writing-${taskId}.${format === 'pdf' ? 'pdf' : format === 'pptx' ? 'pptx' : 'md'}`;
   const disposition = res.headers.get('Content-Disposition');
   const encoded = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
   const quoted = disposition?.match(/filename="([^"]+)"/i)?.[1];
@@ -2646,6 +3016,17 @@ export function shouldUseBlobMediaPreview(contentUrl?: string, objectId?: string
   return !!resolveStoragePreviewCacheKey(contentUrl, objectId);
 }
 
+/** 探测 blob: URL 是否仍可用（被误 revoke 后缓存会留下死链） */
+async function isBlobObjectUrlAlive(blobUrl: string): Promise<boolean> {
+  if (!blobUrl.startsWith('blob:')) return true;
+  try {
+    const res = await fetch(blobUrl);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** 获取 storage_objects 代理资源的 Blob URL（供预览组件使用） */
 export async function fetchStorageObjectBlobUrl(
   contentUrl: string,
@@ -2655,7 +3036,10 @@ export async function fetchStorageObjectBlobUrl(
   if (!objectId) throw new Error('Invalid storage object URL');
   const cacheKey = storageObjectPreviewCacheKey(objectId);
   const cached = getCachedMediaBlobUrl(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    if (await isBlobObjectUrlAlive(cached)) return cached;
+    removeCachedMediaBlobUrl(cacheKey);
+  }
 
   const usePublicPath =
     contentUrl.includes('/media/public/') ||
@@ -3612,6 +3996,19 @@ export interface TaskFormConfig {
       postPreHint?: string;
       fields: Array<Record<string, unknown> & { name: string }>;
     } | null;
+    /** 双卡 pre：nestedText 客户端预览后的第二张交互卡 */
+    followUpInteractiveCard?: {
+      label?: string;
+      hint?: string;
+      postPreHint?: string;
+      fields: Array<Record<string, unknown> & { name: string }>;
+    } | null;
+    /** 双卡之间的 nestedText，C 端预跑 */
+    nestedTextPreview?: {
+      nestedTextTaskKey: string;
+      clientPreview?: boolean;
+      loadingHint?: string;
+    } | null;
     webSearch: {
       /** 显式：pre 后在 C 端跑话题预览检索 */
       clientPreview?: boolean;
@@ -3619,6 +4016,17 @@ export interface TaskFormConfig {
       depth?: string;
       topicExtractTextKey?: string;
       topicCount?: number;
+      /** 中途触发：答完该字段后检索推荐话题 */
+      midPreAfterField?: string;
+      topicField?: string;
+    } | null;
+    /** 答完结构后预生成可编辑大纲 */
+    outlinePreview?: {
+      clientPreview?: boolean;
+      midPreAfterField?: string;
+      outlineField?: string;
+      textKey?: string;
+      loadingHint?: string;
     } | null;
   };
   schema: {

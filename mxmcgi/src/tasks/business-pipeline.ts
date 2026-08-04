@@ -1,10 +1,11 @@
-import type { CoreArtifact, PipelineStep, PipelineTraceEntry, TaskContext, TaskTemplate } from './types';
+import type { CoreArtifact, PipelineStep, TaskContext, TaskTemplate } from './types';
 import { mergeEffectivePipeline } from './business-pipeline-defaults';
 import { runInputPipeline, runOutputPipeline } from './pipeline-registry';
 import {
   appendSkippedPipelineTrace,
   shouldRunPipelineStep,
 } from './pipeline-step-when';
+import { finalizePipelineStepTrace } from './pipeline-trace';
 import './pipeline';
 import './business-pipeline-steps';
 
@@ -80,23 +81,6 @@ export function interpolatePipelineTemplate(template: string, ctx: TaskContext):
   });
 }
 
-function appendTrace(
-  ctx: TaskContext,
-  entry: Omit<PipelineTraceEntry, 'durationMs'> & { durationMs?: number }
-): TaskContext {
-  const trace = Array.isArray(ctx.state.pipelineTrace)
-    ? [...(ctx.state.pipelineTrace as PipelineTraceEntry[])]
-    : [];
-  trace.push({
-    step: entry.step,
-    durationMs: entry.durationMs ?? 0,
-    nestedTaskId: entry.nestedTaskId,
-    costUsd: entry.costUsd,
-    phase: entry.phase,
-  });
-  return { ...ctx, state: { ...ctx.state, pipelineTrace: trace } };
-}
-
 function mergeEnhancedPrompt(ctx: TaskContext): TaskContext {
   const stateFp =
     typeof ctx.state.finalPrompt === 'string' ? String(ctx.state.finalPrompt).trim() : '';
@@ -137,6 +121,7 @@ export async function runBusinessPrePipeline(
       continue;
     }
     const started = Date.now();
+    const before = next;
     if (step.step === 'resolveContextFields') {
       const { resolveContextFields } = await import('./context-field-resolver');
       const phase = (step.params?.phase as 'pre' | 'post' | undefined) ?? 'pre';
@@ -155,7 +140,7 @@ export async function runBusinessPrePipeline(
       const { runInputPipeline: runPre } = await import('./pipeline-registry');
       next = await runPre(next, [step]);
     }
-    next = appendTrace(next, { step: step.step, durationMs: Date.now() - started, phase: 'pre' });
+    next = finalizePipelineStepTrace(before, next, { step, phase: 'pre', startedAt: started });
   }
   return mergeEnhancedPrompt(next);
 }
@@ -180,9 +165,10 @@ export async function runBusinessPrePromptSteps(
       continue;
     }
     const started = Date.now();
+    const before = next;
     const { runNestedTextStep } = await import('./business-pipeline-steps');
     next = await runNestedTextStep(next, step);
-    next = appendTrace(next, { step: step.step, durationMs: Date.now() - started, phase: 'pre' });
+    next = finalizePipelineStepTrace(before, next, { step, phase: 'pre', startedAt: started });
   }
   return next;
 }
@@ -232,6 +218,7 @@ export async function runBusinessPostPipeline(
       continue;
     }
     const started = Date.now();
+    const before = next;
     if (step.step === 'resolveContextFields') {
       const { resolveContextFields } = await import('./context-field-resolver');
       const phase = (step.params?.phase as 'pre' | 'post' | undefined) ?? 'post';
@@ -246,16 +233,24 @@ export async function runBusinessPostPipeline(
     } else if (step.step === 'nestedVideo' || step.step === 'videoTimelineRender') {
       const { runNestedVideoStep } = await import('./business-pipeline-steps');
       next = await runNestedVideoStep(next, step);
-    } else if (step.step === 'renderDocumentPdf') {
-      const { runRenderDocumentPdfStep } = await import('../core/document-render/render-document-pdf-step');
-      next = await runRenderDocumentPdfStep(next, step);
+    } else if (step.step === 'markdownToPdf' || step.step === 'renderDocumentPdf') {
+      const { runMarkdownToPdfStep } = await import('../core/document-render/markdown-to-pdf-step');
+      next = await runMarkdownToPdfStep(next, {
+        ...step,
+        step: 'markdownToPdf',
+        params: {
+          storageMode: 'sidecar',
+          ...(step.step === 'renderDocumentPdf' ? { useLayoutLlm: true } : {}),
+          ...(step.params ?? {}),
+        },
+      });
     } else if (step.step === 'albumImageBatch') {
       const { runAlbumImageBatchStep } = await import('../core/graph/album/album-image-batch-step');
       next = await runAlbumImageBatchStep(next, step);
     } else {
       next = await runOutputPipeline(next, [step]);
     }
-    next = appendTrace(next, { step: step.step, durationMs: Date.now() - started, phase: 'post' });
+    next = finalizePipelineStepTrace(before, next, { step, phase: 'post', startedAt: started });
   }
   return next;
 }

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildTopicExtractFieldSpecs,
+  buildTopicSourceMap,
   clampSearchMaxResults,
   clampTopicMaxResults,
   fallbackTopicsFromSearchItems,
+  parseTopicLinksFromTextBusinessOutput,
   parseTopicsFromTextBusinessOutput,
   prepareItemsForTopicExtract,
   sanitizeWebsourceForLlm,
@@ -12,7 +14,7 @@ import {
 describe('clampTopicMaxResults / buildTopicExtractFieldSpecs', () => {
   it('clamps topic output to 1..30; search hits separately to 200', () => {
     expect(clampTopicMaxResults(20)).toBe(20);
-    expect(clampTopicMaxResults(99)).toBe(30);
+    expect(clampTopicMaxResults(99)).toBe(48);
     expect(clampTopicMaxResults(0)).toBe(1);
     expect(clampTopicMaxResults(undefined, 8)).toBe(8);
     expect(clampSearchMaxResults(200)).toBe(200);
@@ -22,8 +24,8 @@ describe('clampTopicMaxResults / buildTopicExtractFieldSpecs', () => {
   it('field_specs mention configured count instead of hardcoded 6～12', () => {
     const specs = buildTopicExtractFieldSpecs(20);
     expect(specs[0]?.description).toMatch(/最多 20 条/);
-    expect(specs[0]?.description).toMatch(/绝不超过|不得超过|最多 20/);
     expect(specs[0]?.description).toMatch(/禁止返回空数组|禁止为凑数/);
+    expect(specs[0]?.description).toMatch(/sources/);
     expect(specs[0]?.description).not.toMatch(/6～12/);
   });
 });
@@ -179,5 +181,72 @@ describe('parseTopicsFromTextBusinessOutput', () => {
       ],
     });
     expect(parseTopicsFromTextBusinessOutput(raw)).toEqual(['某某公司发布季度财报营收超预期']);
+  });
+
+  it('parses sources indices into topicSourceMap urls', () => {
+    const items = [
+      { title: 'Norris wins Hungary', url: 'https://ex.com/1' },
+      { title: 'Ferrari struggle', url: 'https://ex.com/2' },
+      { title: 'Other', url: 'https://ex.com/3' },
+    ];
+    const raw = JSON.stringify({
+      topics: [
+        { topic: '诺里斯匈牙利大奖赛夺冠麦凯伦积分领跑赛事', sources: [1] },
+        { topic: '法拉利匈牙利站表现不佳领队承认执行不力', sources: [2, 3] },
+      ],
+    });
+    const links = parseTopicLinksFromTextBusinessOutput(raw, 8, items);
+    expect(links).toHaveLength(2);
+    expect(links[0]?.urls).toEqual(['https://ex.com/1']);
+    expect(links[1]?.urls).toEqual(['https://ex.com/2', 'https://ex.com/3']);
+    expect(buildTopicSourceMap(links)['诺里斯匈牙利大奖赛夺冠麦凯伦积分领跑赛事']).toEqual([
+      'https://ex.com/1',
+    ]);
+  });
+
+  it('keeps long fiction hooks with dialogue as one chip (not quote fragments)', () => {
+    const topics = [
+      '【二十二点的外卖】同一栋写字楼里，每晚二十二点零三分准时有人往七楼前台放一杯美式，杯壁手写备注「第二杯半价已用」。电梯门开，穿物业背心的男人把杯子塞到你手里：「哥，你订的啊，你不记得了？」你说没订。他打量你：「你不是上个月来装宽带的吗？」',
+      '【单元门口的快递柜】从没人通知过我这栋楼装了快递柜，可我下楼扔垃圾时它就蹲在一楼大厅里，屏幕亮着，上面显示「您的件已到」，语音又响：「您的件已超时，请尽快领取」',
+      '【小区群里那个从不说话的人】业主群四百多号人，从没人@过备注名是「7-2-1302」的账号，今晚他私聊我：「睡得不好？时间点到了，你该醒了。」「如果你读到这一行，时间点到了，去翻你大学时那本红色笔记本第四十七页。」',
+      '【楼下烧烤摊的常客】我从没在楼下吃过烧烤，可烧烤摊老板每次远远看见我都会喊：「老位子？」我坐下后他忽然变脸：「你到底是谁？这座位，从来没人坐过。」我说：「那你又是谁？」',
+    ];
+    const out = parseTopicsFromTextBusinessOutput(JSON.stringify({ topics }), 24);
+    expect(out).toHaveLength(4);
+    expect(out.every((t) => t.startsWith('【'))).toBe(true);
+    expect(out.some((t) => t === '哥，你订的啊，你不记得了？')).toBe(false);
+    expect(out.some((t) => t === '您的件已超时，请尽快领取')).toBe(false);
+    expect(out[0]).toContain('「第二杯半价已用」');
+  });
+
+  it('salvages numbered fiction list without splitting dialogue into chips', () => {
+    const prose = `1. 【二十二点的外卖】同一栋写字楼里，每晚二十二点零三分准时有人往七楼前台放一杯美式，杯壁手写备注「第二杯半价已用」
+「哥，你订的啊，你不记得了？」
+「你不是上个月来装宽带的吗？」
+2. 【单元门口的快递柜】从没人通知过我这栋楼装了快递柜，可我下楼扔垃圾时它就蹲在一楼大厅里，屏幕亮着，上面显示「您的件已到」
+「您的件已超时，请尽快领取」
+3. 【楼下烧烤摊的常客】我从没在楼下吃过烧烤，可烧烤摊老板每次远远看见我都会喊：「老位子？」
+「你到底是谁？这座位，从来没人坐过。」`;
+    const out = parseTopicsFromTextBusinessOutput(prose, 24);
+    expect(out.length).toBeGreaterThanOrEqual(3);
+    expect(out.length).toBeLessThanOrEqual(6);
+    expect(out.filter((t) => t.startsWith('【')).length).toBeGreaterThanOrEqual(3);
+    expect(out.some((t) => t === '哥，你订的啊，你不记得了？')).toBe(false);
+    expect(out.some((t) => /^你到底是谁/.test(t))).toBe(false);
+  });
+
+  it('drops orphan dialogue fragments when model already split JSON topics', () => {
+    const raw = JSON.stringify({
+      topics: [
+        '【二十二点的外卖】同一栋写字楼里，每晚二十二点零三分准时有人往七楼前台放一杯美式，杯壁手写备注「第二杯半价已用」',
+        '哥，你订的啊，你不记得了？',
+        '你不是上个月来装宽带的吗？',
+        '【楼下烧烤摊的常客】我从没在楼下吃过烧烤，可烧烤摊老板每次远远看见我都会喊：「老位子？」',
+        '那你又是谁？',
+      ],
+    });
+    const out = parseTopicsFromTextBusinessOutput(raw, 24);
+    expect(out).toHaveLength(2);
+    expect(out.every((t) => t.startsWith('【'))).toBe(true);
   });
 });

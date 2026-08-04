@@ -5,6 +5,8 @@ import {
   invalidateTaskListCache,
   deleteTask,
   fetchWritingMediaContent,
+  writingTaskPrefersPdfPreview,
+  writingTaskPrefersPptxPreview,
   getTask,
   removeCollectionItem,
   type WritingTaskItem,
@@ -33,7 +35,7 @@ import {
   extractCgiTaskFromApiResponse,
   extractFullCgiTaskFromApiResponse,
 } from '../notifications/task-snapshot';
-import { mergeTaskIntoList } from '../utils/mergeTaskItem';
+import { mergeTaskIntoList, resolveTaskListStatus } from '../utils/mergeTaskItem';
 import {
   useTaskV2FormConfig,
   formatTaskSelectionKey,
@@ -53,6 +55,7 @@ import { toAppLang } from '../i18n/appLocale';
 import { getTaskStatusLabel } from '../i18n/taskStatus';
 import { useTaskScopeLabels } from '../i18n/useTaskScopeLabels';
 import { useTaskStatusOptions } from '../i18n/useTaskStatusOptions';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 async function waitForAwaitingReview(
   taskId: string,
@@ -177,16 +180,17 @@ export default function Writing() {
   const [viewerTask, setViewerTask] = useState<WritingTaskItem | null>(null);
   const [viewerContent, setViewerContent] = useState<string>('');
   const [viewerPdfUrl, setViewerPdfUrl] = useState<string | null>(null);
-  const viewerPdfRevokeRef = useRef<(() => void) | null>(null);
+  const [viewerPdfHeaders, setViewerPdfHeaders] = useState<Record<string, string> | null>(null);
+  const [viewerPptxUrl, setViewerPptxUrl] = useState<string | null>(null);
   const [viewerLoading, setViewerLoading] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [reviewVisible, setReviewVisible] = useState(false);
   const [reviewTask, setReviewTask] = useState<WritingTaskItem | null>(null);
 
   const clearViewerPdf = useCallback(() => {
-    viewerPdfRevokeRef.current?.();
-    viewerPdfRevokeRef.current = null;
     setViewerPdfUrl(null);
+    setViewerPdfHeaders(null);
+    setViewerPptxUrl(null);
   }, []);
 
   useEffect(() => () => clearViewerPdf(), [clearViewerPdf]);
@@ -194,6 +198,21 @@ export default function Writing() {
   const { fetchTaskIntoList } = useCgiTaskListSync(isLoggedIn, setAllTasks, loadTasks, {
     listScope: 'writing',
   });
+
+  // 进行中任务：5s 主动拉一次状态（WS 丢包时列表不会卡在「生成中」两分钟）
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const inflight = allTasks.filter((t) =>
+      ['pending', 'queued', 'processing'].includes(String(t.status ?? ''))
+    );
+    if (inflight.length === 0) return;
+    const timer = window.setInterval(() => {
+      for (const t of inflight.slice(0, 8)) {
+        void fetchTaskIntoList(t.id);
+      }
+    }, 5_000);
+    return () => window.clearInterval(timer);
+  }, [isLoggedIn, allTasks, fetchTaskIntoList]);
 
   const filteredTasks = useMemo(
     () =>
@@ -290,7 +309,7 @@ export default function Writing() {
         try {
           const res = await deleteTask(task.id);
           if (res.error) {
-            message.error(res.error);
+            message.error(toUserFacingErrorMessage(res.error));
           } else {
             setAllTasks((prev) => prev.filter((item) => item.id !== task.id));
             if (viewerTask?.id === task.id) setViewerVisible(false);
@@ -318,6 +337,9 @@ export default function Writing() {
         if (full) {
           detail = full;
           setViewerTask(full);
+          // 详情已终态时回写列表，避免正文已出但卡片仍显示「生成中」
+          setAllTasks((prev) => mergeTaskIntoList(prev, full));
+          if (full.status !== t.status) invalidateTaskListCache();
         }
       } catch {
         /* 详情失败仍可用列表行打开数据页 */
@@ -331,10 +353,34 @@ export default function Writing() {
 
       const media = await fetchWritingMediaContent(t.id);
       if (media.kind === 'pdf') {
-        setViewerPdfUrl(media.blobUrl);
-        viewerPdfRevokeRef.current = media.revoke;
+        setViewerPdfUrl(media.sourceUrl);
+        setViewerPdfHeaders(media.httpHeaders);
+      } else if (media.kind === 'pptx') {
+        // 始终用鉴权媒体 URL；本地 MinIO 预签名不能给 Office Online，会白屏
+        setViewerPptxUrl(media.sourceUrl);
       } else {
         setViewerContent(media.text);
+        const meta = (detail.result?.metadata ?? detail.metadata) as
+          | Record<string, unknown>
+          | undefined;
+        if (meta?.pdfRenderStatus === 'failed') {
+          const hint =
+            typeof meta.pdfRenderError === 'string' && meta.pdfRenderError.trim()
+              ? meta.pdfRenderError
+              : 'PDF 生成失败，已降级为 Markdown 阅读';
+          ctxMessage.warning(hint);
+        } else if (meta?.presentationRenderStatus === 'failed') {
+          const hint =
+            typeof meta.presentationRenderError === 'string' &&
+            meta.presentationRenderError.trim()
+              ? meta.presentationRenderError
+              : 'PPTX 生成失败，已降级为大纲阅读';
+          ctxMessage.warning(hint);
+        } else if (writingTaskPrefersPdfPreview(detail)) {
+          ctxMessage.warning('PDF 缓存未能流式打开，已降级为 Markdown 阅读');
+        } else if (writingTaskPrefersPptxPreview(detail)) {
+          ctxMessage.warning('PPTX 缓存未能打开，已降级为大纲阅读');
+        }
       }
     } catch (e) {
       setViewerError(e instanceof Error ? e.message : String(e));
@@ -361,8 +407,12 @@ export default function Writing() {
       const media = await fetchWritingMediaContent(taskId);
       if (media.kind === 'pdf') {
         clearViewerPdf();
-        setViewerPdfUrl(media.blobUrl);
-        viewerPdfRevokeRef.current = media.revoke;
+        setViewerPdfUrl(media.sourceUrl);
+        setViewerPdfHeaders(media.httpHeaders);
+        setViewerContent('');
+      } else if (media.kind === 'pptx') {
+        clearViewerPdf();
+        setViewerPptxUrl(media.sourceUrl);
         setViewerContent('');
       } else {
         clearViewerPdf();
@@ -461,13 +511,14 @@ export default function Writing() {
                 taskSelectionLabelMap,
                 task
               );
+              const displayStatus = resolveTaskListStatus(task);
               return (
                 <WritingTaskCard
                   key={task.id}
                   task={task}
                   title={getTaskTitle(task, scopeLabels.defaultTitle)}
-                  status={task.status}
-                  statusLabel={getTaskStatusLabel(task.status, t)}
+                  status={displayStatus}
+                  statusLabel={getTaskStatusLabel(displayStatus, t)}
                   typeLabel={typeLabel || undefined}
                   subtypeLabel={subtypeLabel || undefined}
                   animateKey={gridEpoch}
@@ -527,6 +578,8 @@ export default function Writing() {
         title={viewerTask ? getTaskTitle(viewerTask, scopeLabels.defaultTitle) : '写作内容'}
         content={viewerContent}
         pdfPreviewUrl={viewerPdfUrl}
+        pdfHttpHeaders={viewerPdfHeaders}
+        pptxPreviewUrl={viewerPptxUrl}
         task={viewerTask}
         loading={viewerLoading}
         error={viewerError}

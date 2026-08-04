@@ -1,7 +1,6 @@
 // src/app.ts
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import { RepositoryFactory as RepositoryFactory2, loadDataConfig } from "@mxmai/mxmdata";
 
 // src/payment/providers/alipay.gateway.ts
@@ -105,6 +104,8 @@ var CardGateway = class {
 };
 
 // src/config/env.ts
+import { loadMonorepoEnv } from "@mxmai/mxmdata";
+loadMonorepoEnv({ service: "mxmpay", warnLegacy: false });
 function parseJSONSafe(raw, fallback) {
   if (!raw) return fallback;
   try {
@@ -114,7 +115,7 @@ function parseJSONSafe(raw, fallback) {
   }
 }
 var env = {
-  port: Number(process.env.PORT ?? 4002),
+  port: Number(process.env.MXMPAY_PORT || process.env.PORT || 4002),
   payment: {
     expireMinutes: Number(process.env.PAYMENT_EXPIRE_MINUTES || 15)
   },
@@ -2536,6 +2537,7 @@ function createWalletRoutes(walletService, walletTaskService) {
   router.post(
     "/:assetCode/deposit",
     [
+      adminMiddleware,
       param3("assetCode").isString().notEmpty(),
       body2("amount").isString().notEmpty().withMessage("amount \u4E0D\u80FD\u4E3A\u7A7A"),
       body2("referenceId").optional().isString(),
@@ -2655,6 +2657,50 @@ function createWalletRoutes(walletService, walletTaskService) {
         res.json(ApiResponseDto.success(result, "\u83B7\u53D6\u4EFB\u52A1\u5217\u8868\u6210\u529F"));
       } catch (error) {
         res.status(400).json(ApiResponseDto.error(error.message || "\u67E5\u8BE2\u5931\u8D25", 400));
+      }
+    }
+  );
+  router.get(
+    "/admin/:targetUserId/:assetCode",
+    [adminMiddleware, param3("targetUserId").isString().notEmpty(), param3("assetCode").isString().notEmpty(), validate],
+    async (req, res) => {
+      const wallet = await walletService.getWallet(req.params.targetUserId, req.params.assetCode);
+      if (!wallet) {
+        return res.status(404).json(ApiResponseDto.error("\u94B1\u5305\u4E0D\u5B58\u5728", 404));
+      }
+      res.json(ApiResponseDto.success(wallet, "\u83B7\u53D6\u7528\u6237\u94B1\u5305\u6210\u529F"));
+    }
+  );
+  router.get(
+    "/admin/:targetUserId",
+    [adminMiddleware, param3("targetUserId").isString().notEmpty(), validate],
+    async (req, res) => {
+      const wallets = await walletService.getWallets(req.params.targetUserId);
+      res.json(ApiResponseDto.success(wallets, "\u83B7\u53D6\u7528\u6237\u94B1\u5305\u5217\u8868\u6210\u529F"));
+    }
+  );
+  router.post(
+    "/admin/:targetUserId/:assetCode/deposit",
+    [
+      adminMiddleware,
+      param3("targetUserId").isString().notEmpty(),
+      param3("assetCode").isString().notEmpty(),
+      body2("amount").isString().notEmpty().withMessage("amount \u4E0D\u80FD\u4E3A\u7A7A"),
+      body2("referenceId").optional().isString(),
+      body2("metadata").optional().isObject(),
+      validate
+    ],
+    async (req, res) => {
+      try {
+        const wallet = await walletService.deposit(
+          req.params.targetUserId,
+          req.params.assetCode,
+          req.body.amount,
+          req.body
+        );
+        res.status(201).json(ApiResponseDto.success(wallet, "\u5145\u503C\u6210\u529F"));
+      } catch (error) {
+        res.status(400).json(ApiResponseDto.error(error.message || "\u5145\u503C\u5931\u8D25", 400));
       }
     }
   );
@@ -2803,8 +2849,6 @@ var PaymentExpirationScheduler = class {
 };
 
 // src/app.ts
-process.env.DOTENV_CONFIG_DEBUG = "false";
-dotenv.config();
 async function createApp() {
   try {
     const config = loadDataConfig();
@@ -2869,12 +2913,10 @@ async function bootstrap() {
     const app = await createApp();
     const port = env.port;
     app.listen(port, "127.0.0.1", () => {
-      console.log(`\u{1F680} mxmpay \u670D\u52A1\u5DF2\u542F\u52A8: http://127.0.0.1:${port}`);
-      console.log(`\u{1F4DA} Swagger \u6587\u6863: http://127.0.0.1:${port}/api`);
-      console.log(`\u26A0\uFE0F  \u6CE8\u610F\uFF1A\u6B64\u670D\u52A1\u4EC5\u7528\u4E8E\u5185\u90E8\u8BBF\u95EE\uFF0C\u5BA2\u6237\u7AEF\u5E94\u901A\u8FC7 Gateway (http://localhost:3000/api/v1) \u8BBF\u95EE`);
+      console.log(`[mxmpay] \u{1F680} Listening on port ${port}`);
     });
   } catch (error) {
-    console.error("\u274C \u5E94\u7528\u542F\u52A8\u5931\u8D25:", error);
+    console.error("[mxmpay] \u274C \u542F\u52A8\u5931\u8D25:", error);
     process.exit(1);
   }
 }

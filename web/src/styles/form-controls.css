@@ -285,6 +285,13 @@ html.dark .mxm-form-surface .ant-input-data-count {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  min-height: 0;
+  flex: 1;
+}
+
+.manual-review-modal__body .vos-editor {
+  flex: 1;
+  min-height: 0;
 }
 
 .manual-review-modal__editor {

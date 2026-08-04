@@ -5,8 +5,14 @@ import type {
   SearchDepth,
   DeepSearchRequest,
 } from '../core/search/types';
+import { shapeErrorForViewer, isAdminFromRequest } from '../errors';
 
 const router = Router();
+
+function sendShapedSearchError(req: Request, res: Response, error: unknown): void {
+  const { status, body } = shapeErrorForViewer(error, { isAdmin: isAdminFromRequest(req) });
+  res.status(status).json(body);
+}
 
 // Lazy-initialized service
 let _searchService: SearchService | null = null;
@@ -46,7 +52,7 @@ router.get('/', async (req: Request, res: Response) => {
     res.json(result);
   } catch (error: any) {
     console.error('[Search API] GET / failed:', error);
-    res.status(500).json({ error: error.message });
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -98,7 +104,7 @@ router.post('/industry-daily-topics', async (req: Request, res: Response) => {
 
     let topicExtractTextKey = String(body.topicExtractTextKey ?? '').trim();
     if (!topicExtractTextKey.startsWith('text/')) {
-      const writingTaskKey = String(body.writingTaskKey ?? body.taskKey ?? 'editorial').trim();
+      const writingTaskKey = String(body.writingTaskKey ?? body.taskKey ?? 'generator').trim();
       const writingSubtypeRaw = body.writingSubtype ?? body.subtype;
       const writingSubtype =
         writingSubtypeRaw == null || String(writingSubtypeRaw).trim() === ''
@@ -230,6 +236,7 @@ router.post('/industry-daily-topics', async (req: Request, res: Response) => {
       text: result.text,
       items: result.items,
       topicChips: result.topicChips,
+      topicPool: result.topicPool,
     };
 
     res.json({
@@ -241,6 +248,7 @@ router.post('/industry-daily-topics', async (req: Request, res: Response) => {
       providers: result.providers,
       aggregated: result.items,
       topicChips: result.topicChips,
+      topicPool: result.topicPool,
       search_track: result.search_track,
       track_source: result.track_source,
       topicExtractTextKey,
@@ -250,7 +258,349 @@ router.post('/industry-daily-topics', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('[Search API] POST /industry-daily-topics failed:', error);
-    res.status(500).json({ error: error.message });
+    sendShapedSearchError(req, res, error);
+  }
+});
+
+/** POST /api/v1/search/voice-style-topics — 话题写作：类别+风格后检索并经 text 提炼热门话题 */
+router.post('/voice-style-topics', async (req: Request, res: Response) => {
+  try {
+    const userId = String(req.headers['x-user-id'] ?? '').trim();
+    if (!userId) {
+      return res.status(401).json({ error: 'Missing x-user-id header' });
+    }
+    const body = (req.body ?? {}) as {
+      voiceCategory?: string;
+      voice_category?: string;
+      voiceId?: string;
+      voice_id?: string;
+      language?: string;
+      searchRegion?: string;
+      search_region?: string;
+      maxResults?: number;
+      topicCount?: number;
+      topic_count?: number;
+      topicExtractTextKey?: string;
+      writingTaskKey?: string;
+      writingSubtype?: string | null;
+      taskKey?: string;
+      subtype?: string | null;
+    };
+    const voiceCategory = String(body.voiceCategory ?? body.voice_category ?? '').trim();
+    const voiceId = String(body.voiceId ?? body.voice_id ?? '').trim();
+    if (!voiceCategory || !voiceId) {
+      return res.status(400).json({ error: 'Missing voiceCategory / voiceId' });
+    }
+
+    const {
+      WRITING_STYLE_TOPIC_EXTRACT_TEXT_KEY,
+      extractTopicChipsViaTextBusiness,
+      readTopicExtractTextKeyFromWritingPipeline,
+    } = await import('../tasks/websearch-topic-extract');
+    const { previewVoiceStyleTopics } = await import('../tasks/mxm-warp/voice-style-topics');
+    const { RepositoryFactory } = await import('@mxmai/mxmdata');
+
+    let topicExtractTextKey = String(body.topicExtractTextKey ?? '').trim();
+    if (!topicExtractTextKey.startsWith('text/')) {
+      const writingTaskKey = String(body.writingTaskKey ?? body.taskKey ?? 'generator').trim();
+      const writingSubtypeRaw = body.writingSubtype ?? body.subtype;
+      const writingSubtype =
+        writingSubtypeRaw == null || String(writingSubtypeRaw).trim() === ''
+          ? 'topic-article'
+          : String(writingSubtypeRaw).trim();
+      try {
+        const repo = RepositoryFactory.createPromptEngineeringConfigRepository();
+        const row = await repo.findByKey('writing', writingTaskKey, writingSubtype);
+        const extra = (row?.extra ?? {}) as Record<string, unknown>;
+        const taskTemplate = extra.taskTemplate as
+          | {
+              pipeline?: { pre?: Array<{ step?: string; params?: Record<string, unknown> }> };
+              createGuide?: { webSearch?: { topicExtractTextKey?: string } };
+            }
+          | undefined;
+        const fromGuide = String(taskTemplate?.createGuide?.webSearch?.topicExtractTextKey ?? '').trim();
+        // 仅接受写作选题 textKey；旧日报 key 视为未配置
+        topicExtractTextKey =
+          fromGuide === WRITING_STYLE_TOPIC_EXTRACT_TEXT_KEY
+            ? fromGuide
+            : fromGuide.startsWith('text/') && fromGuide.includes('writing-style')
+              ? fromGuide
+              : '';
+        if (!topicExtractTextKey.startsWith('text/')) {
+          const fromPipe = readTopicExtractTextKeyFromWritingPipeline(taskTemplate?.pipeline) || '';
+          if (fromPipe === WRITING_STYLE_TOPIC_EXTRACT_TEXT_KEY) topicExtractTextKey = fromPipe;
+        }
+      } catch (e) {
+        console.warn(
+          '[Search API] resolve voice-style topicExtractTextKey failed:',
+          e instanceof Error ? e.message : e
+        );
+      }
+    }
+    // 强制与日报 industry-hot-topics 隔离
+    if (
+      !topicExtractTextKey.startsWith('text/') ||
+      topicExtractTextKey === 'text/expert/industry-hot-topics' ||
+      topicExtractTextKey === 'text/expert/conclusion'
+    ) {
+      topicExtractTextKey = WRITING_STYLE_TOPIC_EXTRACT_TEXT_KEY;
+    }
+
+    const service = getSearchService();
+    const language = String(body.language ?? 'zh').trim() || 'zh';
+    let topicExtractTaskId: string | null = null;
+
+    const result = await previewVoiceStyleTopics(
+      {
+        voiceCategory,
+        voiceId,
+        language,
+        searchRegion: String(body.searchRegion ?? body.search_region ?? 'global').trim() || 'global',
+        maxResults: body.maxResults,
+        topicCount: body.topicCount ?? body.topic_count ?? 32,
+        userId,
+      },
+      async ({ query, dimensions, depth, numResults, timeRange, language: searchLang }) => {
+        const r = await service.deepSearch({
+          query,
+          dimensions,
+          depth,
+          numResults,
+          timeRange,
+          language: searchLang,
+        });
+        const providers = [
+          ...new Set(
+            (r.aggregated ?? [])
+              .map((it) => String((it as { source?: string }).source ?? '').trim())
+              .filter(Boolean)
+          ),
+        ];
+        return {
+          aggregated: r.aggregated ?? [],
+          providers,
+          depth: String(r.depth ?? depth),
+        };
+      },
+      {
+        extractTopics: async ({
+          items,
+          intentLabel,
+          query,
+          maxTopics,
+          language: topicLang,
+          voiceCategory: vc,
+          voiceId: vid,
+          maxInputItems,
+          voiceStyle,
+        }) => {
+          const extracted = await extractTopicChipsViaTextBusiness({
+            textKey: topicExtractTextKey,
+            userId,
+            industry: intentLabel,
+            language: topicLang || language,
+            websource: {
+              query,
+              hitCount: items.length,
+              items,
+            },
+            maxTopics,
+            maxInputItems,
+            voiceCategory: vc,
+            voiceId: vid,
+            voiceStyle,
+          });
+          topicExtractTaskId = extracted.textTaskId;
+          return extracted.topics;
+        },
+      }
+    );
+
+    const websource = {
+      query: result.query,
+      depth: result.depth,
+      providers: result.providers,
+      hitCount: result.hitCount,
+      truncated: result.truncated,
+      text: result.text,
+      items: result.items,
+      topicChips: result.topicChips,
+      topicPool: result.topicPool,
+      intentLabel: result.intentLabel,
+    };
+
+    res.json({
+      query: result.query,
+      queries: result.queries,
+      depth: result.depth,
+      providers: result.providers,
+      topicChips: result.topicChips,
+      topicPool: result.topicPool,
+      intentLabel: result.intentLabel,
+      topicExtractTextKey,
+      topicExtractTaskId,
+      diagnostics: result.diagnostics,
+      websource,
+    });
+  } catch (error: any) {
+    console.error('[Search API] POST /voice-style-topics failed:', error);
+    sendShapedSearchError(req, res, error);
+  }
+});
+
+/** POST /api/v1/search/topic-article-outline — 话题写作：结构选定后生成可编辑简要大纲 */
+router.post('/topic-article-outline', async (req: Request, res: Response) => {
+  try {
+    const userId = String(req.headers['x-user-id'] ?? '').trim();
+    if (!userId) {
+      return res.status(401).json({ error: 'Missing x-user-id header' });
+    }
+    const body = (req.body ?? {}) as {
+      topic?: string;
+      voiceCategory?: string;
+      voice_category?: string;
+      voiceId?: string;
+      voice_id?: string;
+      language?: string;
+      articleLength?: string;
+      article_length?: string;
+      structureId?: string;
+      structure_id?: string;
+      purpose?: string;
+      supplement?: string;
+      textKey?: string;
+    };
+    const topic = String(body.topic ?? '').trim();
+    const voiceCategory = String(body.voiceCategory ?? body.voice_category ?? '').trim();
+    const voiceId = String(body.voiceId ?? body.voice_id ?? '').trim();
+    if (!topic || !voiceCategory || !voiceId) {
+      return res.status(400).json({ error: 'Missing topic / voiceCategory / voiceId' });
+    }
+    const { previewTopicArticleOutline, TOPIC_ARTICLE_OUTLINE_TEXT_KEY } = await import(
+      '../tasks/mxm-warp/topic-article-outline-preview'
+    );
+    const result = await previewTopicArticleOutline({
+      topic,
+      voiceCategory,
+      voiceId,
+      language: body.language,
+      articleLength: body.articleLength ?? body.article_length,
+      structureId: body.structureId ?? body.structure_id,
+      purpose: body.purpose,
+      supplement: body.supplement,
+      userId,
+      textKey: String(body.textKey ?? TOPIC_ARTICLE_OUTLINE_TEXT_KEY).trim(),
+    });
+    res.json({
+      outline: result.outline,
+      textKey: result.textKey,
+      topicExtractTaskId: result.textTaskId,
+    });
+  } catch (error: any) {
+    console.error('[Search API] POST /topic-article-outline failed:', error);
+    sendShapedSearchError(req, res, error);
+  }
+});
+
+/** POST /api/v1/search/dialogue-content-scan — 多人语音 pre：扫描文稿推荐口播形式/人数 */
+router.post('/dialogue-content-scan', async (req: Request, res: Response) => {
+  try {
+    const userId = String(req.headers['x-user-id'] ?? '').trim();
+    if (!userId) {
+      return res.status(401).json({ error: 'Missing x-user-id header' });
+    }
+    const body = (req.body ?? {}) as {
+      sourceMaterial?: string;
+      source_material?: string;
+      language?: string;
+    };
+    const sourceMaterial = String(body.sourceMaterial ?? body.source_material ?? '').trim();
+    if (!sourceMaterial) {
+      return res.status(400).json({ error: 'Missing sourceMaterial' });
+    }
+    const { previewDialogueContentScan } = await import('../tasks/mxm-warp/dialogue-content-scan');
+    const result = await previewDialogueContentScan({
+      sourceMaterial,
+      language: body.language,
+      userId,
+    });
+    res.json(result);
+  } catch (error: any) {
+    console.error('[Search API] POST /dialogue-content-scan failed:', error);
+    sendShapedSearchError(req, res, error);
+  }
+});
+
+/** POST /api/v1/search/deck-plan-recommend — 演示文稿 pre：推荐 3 套方案供 chips 点选 */
+router.post('/deck-plan-recommend', async (req: Request, res: Response) => {
+  try {
+    const userId = String(req.headers['x-user-id'] ?? '').trim();
+    if (!userId) {
+      return res.status(401).json({ error: 'Missing x-user-id header' });
+    }
+    const body = (req.body ?? {}) as {
+      usageDirection?: string;
+      usage_direction?: string;
+      usageDirectionCustom?: string;
+      usage_direction_custom?: string;
+      sourceMaterial?: string;
+      source_material?: string;
+      brief?: string;
+      language?: string;
+    };
+    const { previewDeckPlanRecommend } = await import('../tasks/mxm-warp/deck-plan-recommend-preview');
+    const result = await previewDeckPlanRecommend({
+      usageDirection: body.usageDirection ?? body.usage_direction,
+      usageDirectionCustom: body.usageDirectionCustom ?? body.usage_direction_custom,
+      sourceMaterial: body.sourceMaterial ?? body.source_material,
+      brief: body.brief,
+      language: body.language,
+      userId,
+    });
+    res.json(result);
+  } catch (error: any) {
+    console.error('[Search API] POST /deck-plan-recommend failed:', error);
+    sendShapedSearchError(req, res, error);
+  }
+});
+
+/** POST /api/v1/search/voice-persona-sketch — 选系统音色时 LLM 生成口播人设草稿 */
+router.post('/voice-persona-sketch', async (req: Request, res: Response) => {
+  try {
+    const userId = String(req.headers['x-user-id'] ?? '').trim();
+    if (!userId) {
+      return res.status(401).json({ error: 'Missing x-user-id header' });
+    }
+    const body = (req.body ?? {}) as {
+      label?: string;
+      voice_label?: string;
+      voiceId?: string;
+      voice_id?: string;
+      descriptions?: string[] | string;
+      language?: string;
+    };
+    const label = String(body.label ?? body.voice_label ?? '').trim();
+    if (!label) {
+      return res.status(400).json({ error: 'Missing label' });
+    }
+    const descriptionsRaw = body.descriptions;
+    const descriptions = Array.isArray(descriptionsRaw)
+      ? descriptionsRaw.map((d) => String(d ?? '').trim()).filter(Boolean)
+      : typeof descriptionsRaw === 'string' && descriptionsRaw.trim()
+        ? [descriptionsRaw.trim()]
+        : [];
+    const { previewVoicePersonaSketch } = await import('../tasks/mxm-warp/voice-persona-sketch');
+    const result = await previewVoicePersonaSketch({
+      label,
+      descriptions,
+      voiceId: String(body.voiceId ?? body.voice_id ?? '').trim() || undefined,
+      language: body.language,
+      userId,
+    });
+    res.json(result);
+  } catch (error: any) {
+    console.error('[Search API] POST /voice-persona-sketch failed:', error);
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -269,7 +619,7 @@ router.post('/deep', async (req: Request, res: Response) => {
     res.json(result);
   } catch (error: any) {
     console.error('[Search API] POST /deep failed:', error);
-    res.status(500).json({ error: error.message });
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -299,7 +649,7 @@ router.get('/providers/enabled', async (_req: Request, res: Response) => {
     const providers = await listUsableSearchProviderNames();
     res.json({ providers });
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+    sendShapedSearchError(req, res, e);
   }
 });
 
@@ -336,7 +686,17 @@ router.get('/providers/:name/test', async (req: Request, res: Response) => {
         });
       }
     }
-    res.json({ ok: hitCount > 0, hitCount, provider: name, query });
+    res.json({
+      ok: hitCount > 0,
+      hitCount,
+      provider: name,
+      query,
+      ...(hitCount === 0 && result.error ? { error: result.error } : {}),
+      sample: (result.items ?? []).slice(0, 3).map((it) => ({
+        title: it.title,
+        url: it.url,
+      })),
+    });
   } catch (e) {
     res.status(500).json({ ok: false, error: e instanceof Error ? e.message : String(e) });
   }
@@ -409,7 +769,7 @@ router.post('/extract', async (req: Request, res: Response) => {
     res.json({ extractedContent: extracted });
   } catch (error: any) {
     console.error('[Search API] POST /extract failed:', error);
-    res.status(500).json({ error: error.message });
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -444,7 +804,7 @@ router.post('/analyze', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('[Search API] POST /analyze failed:', error);
-    res.status(500).json({ error: error.message });
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -466,7 +826,7 @@ router.post('/auto', async (req: Request, res: Response) => {
     res.json(result);
   } catch (error: any) {
     console.error('[Search API] POST /auto failed:', error);
-    res.status(500).json({ error: error.message });
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -505,7 +865,7 @@ router.get('/admin/search/config', requireAdmin, async (_req: Request, res: Resp
     res.json({ items: configs });
   } catch (error) {
     console.error('[Search Admin] GET /config failed:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -529,7 +889,7 @@ router.post('/admin/search/config', requireAdmin, async (req: Request, res: Resp
     res.json({ success: true, data: config });
   } catch (error) {
     console.error('[Search Admin] POST /config failed:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -548,7 +908,7 @@ router.post('/datasource/query', async (req: Request, res: Response) => {
     res.json(result);
   } catch (error: any) {
     console.error('[DataSource API] POST /datasource/query failed:', error);
-    res.status(500).json({ error: error.message });
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -565,7 +925,7 @@ router.post('/datasource/combined', async (req: Request, res: Response) => {
     res.json(result);
   } catch (error: any) {
     console.error('[DataSource API] POST /datasource/combined failed:', error);
-    res.status(500).json({ error: error.message });
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -576,7 +936,7 @@ router.get('/datasource/providers/enabled', async (_req: Request, res: Response)
     const providers = await listUsableDataSourceProviderNames();
     res.json({ providers });
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+    sendShapedSearchError(req, res, e);
   }
 });
 
@@ -587,13 +947,15 @@ router.get('/datasource/health', async (_req: Request, res: Response) => {
     const configs = await getAllDataSourceProviderConfigs();
     const providerStatus: Record<string, string> = {
       coingecko: 'keyless',
+      'cn-market': 'keyless',
       defillama: 'keyless',
       finnhub: 'missing',
       pkulaw: 'missing',
       tianyancha: 'missing',
     };
     for (const config of configs) {
-      const keyless = config.name === 'coingecko' || config.name === 'defillama';
+      const keyless =
+        config.name === 'coingecko' || config.name === 'defillama' || config.name === 'cn-market';
       if (config.apiKeys && config.apiKeys.length > 0) {
         providerStatus[config.name] = config.enabled ? 'configured' : 'inactive';
       } else if (keyless) {
@@ -602,7 +964,7 @@ router.get('/datasource/health', async (_req: Request, res: Response) => {
     }
     res.json({ status: 'healthy', timestamp: new Date().toISOString(), providers: providerStatus });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -613,7 +975,7 @@ router.get('/admin/datasource/config', requireAdmin, async (_req: Request, res: 
     const configs = await getAllDataSourceProviderConfigs();
     res.json({ items: configs });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    sendShapedSearchError(req, res, error);
   }
 });
 
@@ -633,7 +995,7 @@ router.post('/admin/datasource/config', requireAdmin, async (req: Request, res: 
     });
     res.json({ success: true, data: config });
   } catch (error) {
-    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    sendShapedSearchError(req, res, error);
   }
 });
 

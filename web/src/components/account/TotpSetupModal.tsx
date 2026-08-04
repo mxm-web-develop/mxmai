@@ -3,6 +3,7 @@ import { App, Button, Input, Modal, Steps, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { enableMfaTotp, setupMfaTotp } from '../../api/client';
 import { MfaCodeInput } from './MfaCodeInput';
+import { toUserFacingErrorMessage } from '../../lib/platformErrors';
 
 type TotpSetupModalProps = {
   open: boolean;
@@ -61,7 +62,7 @@ export function TotpSetupModal({ open, onClose, onEnabled }: TotpSetupModalProps
     const res = await setupMfaTotp(password);
     setBusy(false);
     if (res.error) {
-      message.error(res.error);
+      message.error(toUserFacingErrorMessage(res.error));
       return;
     }
     const data = (res.data as { data?: { secret: string; otpauthUrl: string } })?.data;
@@ -83,7 +84,7 @@ export function TotpSetupModal({ open, onClose, onEnabled }: TotpSetupModalProps
     const res = await enableMfaTotp(password, code);
     setBusy(false);
     if (res.error) {
-      message.error(res.error);
+      message.error(toUserFacingErrorMessage(res.error));
       return;
     }
     message.success(t('account.mfa.enabledSuccess'));

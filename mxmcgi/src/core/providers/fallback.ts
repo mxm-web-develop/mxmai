@@ -16,8 +16,8 @@ export interface FallbackRule {
 /** 默认 Fallback 规则（空：由 Admin / 后续 DB 配置扩展，不在代码写死 model） */
 export const FALLBACK_RULES: FallbackRule[] = [];
 
-/** Fallback 触发状态码 */
-const TRIGGER_STATUS_CODES = new Set([401, 403, 429, 500, 502, 503, 504]);
+/** Fallback 触发状态码（含 529 overloaded） */
+const TRIGGER_STATUS_CODES = new Set([401, 403, 429, 500, 502, 503, 504, 529]);
 
 /** Fallback 触发关键词（不区分大小写） */
 const TRIGGER_KEYWORDS = [
@@ -28,6 +28,16 @@ const TRIGGER_KEYWORDS = [
   '余额',
   '限额',
   '额度',
+  'overloaded',
+  '负载较高',
+  '529',
+  // 上游内容审核：有 fallback 规则时换模重试（无规则则走 nestedText 清洗重试）
+  '1026',
+  'new_sensitive',
+  'input_sensitive',
+  '涉敏',
+  'content_policy',
+  'content filter',
 ];
 
 /** 已触发过 fallback 的请求ID集合（避免同一请求重复触发） */
@@ -54,11 +64,17 @@ function shouldTriggerFallback(error: Error, responseStatus?: number, responseBo
     }
   }
 
-  // 3. 检查错误消息（超时等情况）
+  // 3. 检查错误消息（超时 / 网络 / 内容审核）
   const errorMsg = error.message.toLowerCase();
   if (errorMsg.includes('timeout') || errorMsg.includes('network') || errorMsg.includes('ECONNREFUSED')) {
     console.log(`[Fallback] 触发条件: 网络错误 - ${error.message}`);
     return true;
+  }
+  for (const keyword of TRIGGER_KEYWORDS) {
+    if (errorMsg.includes(keyword.toLowerCase())) {
+      console.log(`[Fallback] 触发条件: 错误消息含 "${keyword}"`);
+      return true;
+    }
   }
 
   return false;

@@ -73,7 +73,7 @@ describe('mxm-warp input/output runner', () => {
   it('assembles contract without llm', () => {
     const ctx: TaskContext = {
       scope: 'writing',
-      taskKey: 'editorial',
+      taskKey: 'generator',
       subtype: 'work-daily',
       taskId: 't1',
       params: { topic: '知识库改名' },
@@ -88,7 +88,7 @@ describe('mxm-warp input/output runner', () => {
   it('runs full warp with mock llm', async () => {
     const ctx: TaskContext = {
       scope: 'writing',
-      taskKey: 'editorial',
+      taskKey: 'generator',
       subtype: 'work-daily',
       userId: 'u1',
       taskId: 't1',
@@ -118,7 +118,7 @@ describe('mxm-warp input/output runner', () => {
   it('input llm only fills basic keys', async () => {
     const ctx: TaskContext = {
       scope: 'writing',
-      taskKey: 'editorial',
+      taskKey: 'generator',
       taskId: 't1',
       params: {},
       state: {},
@@ -141,7 +141,7 @@ describe('mxm-warp input/output runner', () => {
   it('requires enrich_search.query and synthesizes when LLM omits it', async () => {
     const ctx: TaskContext = {
       scope: 'writing',
-      taskKey: 'editorial',
+      taskKey: 'generator',
       subtype: 'industry-daily',
       taskId: 't1',
       params: {
@@ -178,7 +178,7 @@ describe('mxm-warp input/output runner', () => {
   it('keeps LLM enrich_search.query when provided', async () => {
     const ctx: TaskContext = {
       scope: 'writing',
-      taskKey: 'editorial',
+      taskKey: 'generator',
       taskId: 't1',
       params: { industry: '科技', core_topic: '芯片' },
       state: {},
@@ -221,5 +221,33 @@ describe('enrichPipelineNeedsSearchPlan', () => {
         { step: 'webSearch', params: { queryBuilder: 'industryTrend', target: 'sources.websource' } },
       ])
     ).toBe(false);
+  });
+});
+
+describe('resolveGroupOutputAssembleParams', () => {
+  it('inherits itemsFrom from groupOutput root (deck slides, not seek variants)', async () => {
+    const { resolveGroupOutputAssembleParams } = await import('./warp-runner');
+    const { assembleParams } = resolveGroupOutputAssembleParams({
+      itemsFrom: 'contract.business.slides',
+      itemManuscript: { field: 'manuscript', systemPrompt: 'x' },
+      assemble: {
+        titleFrom: 'contract.business.slides.0.title',
+        collectionTitleFallback: '演示文稿',
+        headingTemplate: '## ${item.title}',
+      },
+    });
+    expect(assembleParams.itemsFrom).toBe('contract.business.slides');
+    expect(assembleParams.textField).toBe('manuscript');
+    expect(assembleParams.titleFrom).toBe('contract.business.slides.0.title');
+    expect(assembleParams.headingTemplate).toBe('## ${item.title}');
+  });
+
+  it('assemble.itemsFrom overrides root when explicitly set', async () => {
+    const { resolveGroupOutputAssembleParams } = await import('./warp-runner');
+    const { assembleParams } = resolveGroupOutputAssembleParams({
+      itemsFrom: 'contract.business.variants',
+      assemble: { itemsFrom: 'contract.business.slides' },
+    });
+    expect(assembleParams.itemsFrom).toBe('contract.business.slides');
   });
 });

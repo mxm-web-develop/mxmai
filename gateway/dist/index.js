@@ -5611,10 +5611,10 @@ var require_raw_body = __commonJS({
       if (done) {
         return readStream(stream, encoding, length, limit, wrap(done));
       }
-      return new Promise(function executor(resolve2, reject) {
+      return new Promise(function executor(resolve, reject) {
         readStream(stream, encoding, length, limit, function onRead(err, buf) {
           if (err) return reject(err);
-          resolve2(buf);
+          resolve(buf);
         });
       });
     }
@@ -22331,7 +22331,7 @@ var require_view = __commonJS({
     var basename = path.basename;
     var extname = path.extname;
     var join = path.join;
-    var resolve2 = path.resolve;
+    var resolve = path.resolve;
     module2.exports = View;
     function View(name, options) {
       var opts = options || {};
@@ -22365,7 +22365,7 @@ var require_view = __commonJS({
       debug('lookup "%s"', name);
       for (var i = 0; i < roots.length && !path2; i++) {
         var root = roots[i];
-        var loc = resolve2(root, name);
+        var loc = resolve(root, name);
         var dir = dirname(loc);
         var file = basename(loc);
         path2 = this.resolve(dir, file);
@@ -22390,7 +22390,7 @@ var require_view = __commonJS({
       });
       sync = false;
     };
-    View.prototype.resolve = function resolve3(dir, file) {
+    View.prototype.resolve = function resolve2(dir, file) {
       var ext = this.ext;
       var path2 = join(dir, file);
       var stat = tryStat(path2);
@@ -24138,27 +24138,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module2.exports = Router3;
+    module2.exports = Router4;
     module2.exports.Route = Route;
-    function Router3(options) {
-      if (!(this instanceof Router3)) {
-        return new Router3(options);
+    function Router4(options) {
+      if (!(this instanceof Router4)) {
+        return new Router4(options);
       }
       const opts = options || {};
-      function router2(req, res, next) {
-        router2.handle(req, res, next);
+      function router3(req, res, next) {
+        router3.handle(req, res, next);
       }
-      Object.setPrototypeOf(router2, this);
-      router2.caseSensitive = opts.caseSensitive;
-      router2.mergeParams = opts.mergeParams;
-      router2.params = {};
-      router2.strict = opts.strict;
-      router2.stack = [];
-      return router2;
+      Object.setPrototypeOf(router3, this);
+      router3.caseSensitive = opts.caseSensitive;
+      router3.mergeParams = opts.mergeParams;
+      router3.params = {};
+      router3.strict = opts.strict;
+      router3.stack = [];
+      return router3;
     }
-    Router3.prototype = function() {
+    Router4.prototype = function() {
     };
-    Router3.prototype.param = function param(name, fn) {
+    Router4.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -24178,7 +24178,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router3.prototype.handle = function handle(req, res, callback) {
+    Router4.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -24305,7 +24305,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router3.prototype.use = function use(handler) {
+    Router4.prototype.use = function use(handler) {
       let offset = 0;
       let path = "/";
       if (typeof handler !== "function") {
@@ -24338,7 +24338,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router3.prototype.route = function route(path) {
+    Router4.prototype.route = function route(path) {
       const route2 = new Route(path);
       const layer = new Layer(path, {
         sensitive: this.caseSensitive,
@@ -24353,7 +24353,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router3.prototype[method] = function(path) {
+      Router4.prototype[method] = function(path) {
         const route = this.route(path);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -24534,15 +24534,15 @@ var require_application = __commonJS({
     var compileETag = require_utils3().compileETag;
     var compileQueryParser = require_utils3().compileQueryParser;
     var compileTrust = require_utils3().compileTrust;
-    var resolve2 = require("path").resolve;
+    var resolve = require("path").resolve;
     var once = require_once();
-    var Router3 = require_router();
+    var Router4 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports2 = module2.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router2 = null;
+      var router3 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -24551,13 +24551,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router2 === null) {
-            router2 = new Router3({
+          if (router3 === null) {
+            router3 = new Router4({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router2;
+          return router3;
         }
       });
     };
@@ -24588,7 +24588,7 @@ var require_application = __commonJS({
       this.mountpath = "/";
       this.locals.settings = this.settings;
       this.set("view", View);
-      this.set("views", resolve2("views"));
+      this.set("views", resolve("views"));
       this.set("jsonp callback name", "callback");
       if (env === "production") {
         this.enable("view cache");
@@ -24628,15 +24628,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router2 = this.router;
+      var router3 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router2.use(path, fn2);
+          return router3.use(path, fn2);
         }
         debug(".use app under %s", path);
         fn2.mountpath = path;
         fn2.parent = this;
-        router2.use(path, function mounted_app(req, res, next) {
+        router3.use(path, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -26049,7 +26049,7 @@ var require_send = __commonJS({
     var extname = path.extname;
     var join = path.join;
     var normalize = path.normalize;
-    var resolve2 = path.resolve;
+    var resolve = path.resolve;
     var sep = path.sep;
     var BYTES_RANGE_REGEXP = /^ *bytes=/;
     var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1e3;
@@ -26078,7 +26078,7 @@ var require_send = __commonJS({
       this._maxage = opts.maxAge || opts.maxage;
       this._maxage = typeof this._maxage === "string" ? ms(this._maxage) : Number(this._maxage);
       this._maxage = !isNaN(this._maxage) ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE) : 0;
-      this._root = opts.root ? resolve2(opts.root) : null;
+      this._root = opts.root ? resolve(opts.root) : null;
     }
     util.inherits(SendStream, Stream);
     SendStream.prototype.error = function error(status, err) {
@@ -26227,7 +26227,7 @@ var require_send = __commonJS({
           return res;
         }
         parts = normalize(path2).split(sep);
-        path2 = resolve2(path2);
+        path2 = resolve(path2);
       }
       if (containsDotFile(parts)) {
         debug('%s dotfile "%s"', this._dotfiles, path2);
@@ -26604,7 +26604,7 @@ var require_response = __commonJS({
     var cookie = require_cookie();
     var send = require_send();
     var extname = path.extname;
-    var resolve2 = path.resolve;
+    var resolve = path.resolve;
     var vary = require_vary();
     var res = Object.create(http.ServerResponse.prototype);
     module2.exports = res;
@@ -26809,7 +26809,7 @@ var require_response = __commonJS({
       }
       opts = Object.create(opts);
       opts.headers = headers;
-      var fullPath = !opts.root ? resolve2(path2) : path2;
+      var fullPath = !opts.root ? resolve(path2) : path2;
       return this.sendFile(fullPath, opts, done);
     };
     res.contentType = res.type = function contentType(type) {
@@ -27049,7 +27049,7 @@ var require_serve_static = __commonJS({
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
     var parseUrl = require_parseurl();
-    var resolve2 = require("path").resolve;
+    var resolve = require("path").resolve;
     var send = require_send();
     var url = require("url");
     module2.exports = serveStatic;
@@ -27068,7 +27068,7 @@ var require_serve_static = __commonJS({
         throw new TypeError("option setHeaders must be function");
       }
       opts.maxage = opts.maxage || opts.maxAge || 0;
-      opts.root = resolve2(root);
+      opts.root = resolve(root);
       var onDirectory = redirect ? createRedirectDirectoryListener() : createNotFoundDirectoryListener();
       return function serveStatic2(req, res, next) {
         if (req.method !== "GET" && req.method !== "HEAD") {
@@ -27154,7 +27154,7 @@ var require_express = __commonJS({
     var EventEmitter = require("events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router3 = require_router();
+    var Router4 = require_router();
     var req = require_request();
     var res = require_response();
     exports2 = module2.exports = createApplication;
@@ -27176,8 +27176,8 @@ var require_express = __commonJS({
     exports2.application = proto;
     exports2.request = req;
     exports2.response = res;
-    exports2.Route = Router3.Route;
-    exports2.Router = Router3;
+    exports2.Route = Router4.Route;
+    exports2.Router = Router4;
     exports2.json = bodyParser.json;
     exports2.raw = bodyParser.raw;
     exports2.static = require_serve_static();
@@ -27191,404 +27191,6 @@ var require_express2 = __commonJS({
   "../node_modules/.pnpm/express@5.1.0/node_modules/express/index.js"(exports2, module2) {
     "use strict";
     module2.exports = require_express();
-  }
-});
-
-// ../node_modules/.pnpm/dotenv@17.2.3/node_modules/dotenv/package.json
-var require_package = __commonJS({
-  "../node_modules/.pnpm/dotenv@17.2.3/node_modules/dotenv/package.json"(exports2, module2) {
-    module2.exports = {
-      name: "dotenv",
-      version: "17.2.3",
-      description: "Loads environment variables from .env file",
-      main: "lib/main.js",
-      types: "lib/main.d.ts",
-      exports: {
-        ".": {
-          types: "./lib/main.d.ts",
-          require: "./lib/main.js",
-          default: "./lib/main.js"
-        },
-        "./config": "./config.js",
-        "./config.js": "./config.js",
-        "./lib/env-options": "./lib/env-options.js",
-        "./lib/env-options.js": "./lib/env-options.js",
-        "./lib/cli-options": "./lib/cli-options.js",
-        "./lib/cli-options.js": "./lib/cli-options.js",
-        "./package.json": "./package.json"
-      },
-      scripts: {
-        "dts-check": "tsc --project tests/types/tsconfig.json",
-        lint: "standard",
-        pretest: "npm run lint && npm run dts-check",
-        test: "tap run tests/**/*.js --allow-empty-coverage --disable-coverage --timeout=60000",
-        "test:coverage": "tap run tests/**/*.js --show-full-coverage --timeout=60000 --coverage-report=text --coverage-report=lcov",
-        prerelease: "npm test",
-        release: "standard-version"
-      },
-      repository: {
-        type: "git",
-        url: "git://github.com/motdotla/dotenv.git"
-      },
-      homepage: "https://github.com/motdotla/dotenv#readme",
-      funding: "https://dotenvx.com",
-      keywords: [
-        "dotenv",
-        "env",
-        ".env",
-        "environment",
-        "variables",
-        "config",
-        "settings"
-      ],
-      readmeFilename: "README.md",
-      license: "BSD-2-Clause",
-      devDependencies: {
-        "@types/node": "^18.11.3",
-        decache: "^4.6.2",
-        sinon: "^14.0.1",
-        standard: "^17.0.0",
-        "standard-version": "^9.5.0",
-        tap: "^19.2.0",
-        typescript: "^4.8.4"
-      },
-      engines: {
-        node: ">=12"
-      },
-      browser: {
-        fs: false
-      }
-    };
-  }
-});
-
-// ../node_modules/.pnpm/dotenv@17.2.3/node_modules/dotenv/lib/main.js
-var require_main = __commonJS({
-  "../node_modules/.pnpm/dotenv@17.2.3/node_modules/dotenv/lib/main.js"(exports2, module2) {
-    "use strict";
-    var fs = require("fs");
-    var path = require("path");
-    var os = require("os");
-    var crypto = require("crypto");
-    var packageJson = require_package();
-    var version = packageJson.version;
-    var TIPS = [
-      "\u{1F510} encrypt with Dotenvx: https://dotenvx.com",
-      "\u{1F510} prevent committing .env to code: https://dotenvx.com/precommit",
-      "\u{1F510} prevent building .env in docker: https://dotenvx.com/prebuild",
-      "\u{1F4E1} add observability to secrets: https://dotenvx.com/ops",
-      "\u{1F465} sync secrets across teammates & machines: https://dotenvx.com/ops",
-      "\u{1F5C2}\uFE0F backup and recover secrets: https://dotenvx.com/ops",
-      "\u2705 audit secrets and track compliance: https://dotenvx.com/ops",
-      "\u{1F504} add secrets lifecycle management: https://dotenvx.com/ops",
-      "\u{1F511} add access controls to secrets: https://dotenvx.com/ops",
-      "\u{1F6E0}\uFE0F  run anywhere with `dotenvx run -- yourcommand`",
-      "\u2699\uFE0F  specify custom .env file path with { path: '/custom/path/.env' }",
-      "\u2699\uFE0F  enable debug logging with { debug: true }",
-      "\u2699\uFE0F  override existing env vars with { override: true }",
-      "\u2699\uFE0F  suppress all logs with { quiet: true }",
-      "\u2699\uFE0F  write to custom object with { processEnv: myObject }",
-      "\u2699\uFE0F  load multiple .env files with { path: ['.env.local', '.env'] }"
-    ];
-    function _getRandomTip() {
-      return TIPS[Math.floor(Math.random() * TIPS.length)];
-    }
-    function parseBoolean(value) {
-      if (typeof value === "string") {
-        return !["false", "0", "no", "off", ""].includes(value.toLowerCase());
-      }
-      return Boolean(value);
-    }
-    function supportsAnsi() {
-      return process.stdout.isTTY;
-    }
-    function dim(text) {
-      return supportsAnsi() ? `\x1B[2m${text}\x1B[0m` : text;
-    }
-    var LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
-    function parse(src) {
-      const obj = {};
-      let lines = src.toString();
-      lines = lines.replace(/\r\n?/mg, "\n");
-      let match;
-      while ((match = LINE.exec(lines)) != null) {
-        const key = match[1];
-        let value = match[2] || "";
-        value = value.trim();
-        const maybeQuote = value[0];
-        value = value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2");
-        if (maybeQuote === '"') {
-          value = value.replace(/\\n/g, "\n");
-          value = value.replace(/\\r/g, "\r");
-        }
-        obj[key] = value;
-      }
-      return obj;
-    }
-    function _parseVault(options) {
-      options = options || {};
-      const vaultPath = _vaultPath(options);
-      options.path = vaultPath;
-      const result = DotenvModule.configDotenv(options);
-      if (!result.parsed) {
-        const err = new Error(`MISSING_DATA: Cannot parse ${vaultPath} for an unknown reason`);
-        err.code = "MISSING_DATA";
-        throw err;
-      }
-      const keys = _dotenvKey(options).split(",");
-      const length = keys.length;
-      let decrypted;
-      for (let i = 0; i < length; i++) {
-        try {
-          const key = keys[i].trim();
-          const attrs = _instructions(result, key);
-          decrypted = DotenvModule.decrypt(attrs.ciphertext, attrs.key);
-          break;
-        } catch (error) {
-          if (i + 1 >= length) {
-            throw error;
-          }
-        }
-      }
-      return DotenvModule.parse(decrypted);
-    }
-    function _warn(message) {
-      console.error(`[dotenv@${version}][WARN] ${message}`);
-    }
-    function _debug(message) {
-      console.log(`[dotenv@${version}][DEBUG] ${message}`);
-    }
-    function _log(message) {
-      console.log(`[dotenv@${version}] ${message}`);
-    }
-    function _dotenvKey(options) {
-      if (options && options.DOTENV_KEY && options.DOTENV_KEY.length > 0) {
-        return options.DOTENV_KEY;
-      }
-      if (process.env.DOTENV_KEY && process.env.DOTENV_KEY.length > 0) {
-        return process.env.DOTENV_KEY;
-      }
-      return "";
-    }
-    function _instructions(result, dotenvKey) {
-      let uri;
-      try {
-        uri = new URL(dotenvKey);
-      } catch (error) {
-        if (error.code === "ERR_INVALID_URL") {
-          const err = new Error("INVALID_DOTENV_KEY: Wrong format. Must be in valid uri format like dotenv://:key_1234@dotenvx.com/vault/.env.vault?environment=development");
-          err.code = "INVALID_DOTENV_KEY";
-          throw err;
-        }
-        throw error;
-      }
-      const key = uri.password;
-      if (!key) {
-        const err = new Error("INVALID_DOTENV_KEY: Missing key part");
-        err.code = "INVALID_DOTENV_KEY";
-        throw err;
-      }
-      const environment = uri.searchParams.get("environment");
-      if (!environment) {
-        const err = new Error("INVALID_DOTENV_KEY: Missing environment part");
-        err.code = "INVALID_DOTENV_KEY";
-        throw err;
-      }
-      const environmentKey = `DOTENV_VAULT_${environment.toUpperCase()}`;
-      const ciphertext = result.parsed[environmentKey];
-      if (!ciphertext) {
-        const err = new Error(`NOT_FOUND_DOTENV_ENVIRONMENT: Cannot locate environment ${environmentKey} in your .env.vault file.`);
-        err.code = "NOT_FOUND_DOTENV_ENVIRONMENT";
-        throw err;
-      }
-      return { ciphertext, key };
-    }
-    function _vaultPath(options) {
-      let possibleVaultPath = null;
-      if (options && options.path && options.path.length > 0) {
-        if (Array.isArray(options.path)) {
-          for (const filepath of options.path) {
-            if (fs.existsSync(filepath)) {
-              possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
-            }
-          }
-        } else {
-          possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
-        }
-      } else {
-        possibleVaultPath = path.resolve(process.cwd(), ".env.vault");
-      }
-      if (fs.existsSync(possibleVaultPath)) {
-        return possibleVaultPath;
-      }
-      return null;
-    }
-    function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path.join(os.homedir(), envPath.slice(1)) : envPath;
-    }
-    function _configVault(options) {
-      const debug = parseBoolean(process.env.DOTENV_CONFIG_DEBUG || options && options.debug);
-      const quiet = parseBoolean(process.env.DOTENV_CONFIG_QUIET || options && options.quiet);
-      if (debug || !quiet) {
-        _log("Loading env from encrypted .env.vault");
-      }
-      const parsed = DotenvModule._parseVault(options);
-      let processEnv = process.env;
-      if (options && options.processEnv != null) {
-        processEnv = options.processEnv;
-      }
-      DotenvModule.populate(processEnv, parsed, options);
-      return { parsed };
-    }
-    function configDotenv(options) {
-      const dotenvPath = path.resolve(process.cwd(), ".env");
-      let encoding = "utf8";
-      let processEnv = process.env;
-      if (options && options.processEnv != null) {
-        processEnv = options.processEnv;
-      }
-      let debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || options && options.debug);
-      let quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || options && options.quiet);
-      if (options && options.encoding) {
-        encoding = options.encoding;
-      } else {
-        if (debug) {
-          _debug("No encoding is specified. UTF-8 is used by default");
-        }
-      }
-      let optionPaths = [dotenvPath];
-      if (options && options.path) {
-        if (!Array.isArray(options.path)) {
-          optionPaths = [_resolveHome(options.path)];
-        } else {
-          optionPaths = [];
-          for (const filepath of options.path) {
-            optionPaths.push(_resolveHome(filepath));
-          }
-        }
-      }
-      let lastError;
-      const parsedAll = {};
-      for (const path2 of optionPaths) {
-        try {
-          const parsed = DotenvModule.parse(fs.readFileSync(path2, { encoding }));
-          DotenvModule.populate(parsedAll, parsed, options);
-        } catch (e) {
-          if (debug) {
-            _debug(`Failed to load ${path2} ${e.message}`);
-          }
-          lastError = e;
-        }
-      }
-      const populated = DotenvModule.populate(processEnv, parsedAll, options);
-      debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || debug);
-      quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || quiet);
-      if (debug || !quiet) {
-        const keysCount = Object.keys(populated).length;
-        const shortPaths = [];
-        for (const filePath of optionPaths) {
-          try {
-            const relative = path.relative(process.cwd(), filePath);
-            shortPaths.push(relative);
-          } catch (e) {
-            if (debug) {
-              _debug(`Failed to load ${filePath} ${e.message}`);
-            }
-            lastError = e;
-          }
-        }
-        _log(`injecting env (${keysCount}) from ${shortPaths.join(",")} ${dim(`-- tip: ${_getRandomTip()}`)}`);
-      }
-      if (lastError) {
-        return { parsed: parsedAll, error: lastError };
-      } else {
-        return { parsed: parsedAll };
-      }
-    }
-    function config(options) {
-      if (_dotenvKey(options).length === 0) {
-        return DotenvModule.configDotenv(options);
-      }
-      const vaultPath = _vaultPath(options);
-      if (!vaultPath) {
-        _warn(`You set DOTENV_KEY but you are missing a .env.vault file at ${vaultPath}. Did you forget to build it?`);
-        return DotenvModule.configDotenv(options);
-      }
-      return DotenvModule._configVault(options);
-    }
-    function decrypt(encrypted, keyStr) {
-      const key = Buffer.from(keyStr.slice(-64), "hex");
-      let ciphertext = Buffer.from(encrypted, "base64");
-      const nonce = ciphertext.subarray(0, 12);
-      const authTag = ciphertext.subarray(-16);
-      ciphertext = ciphertext.subarray(12, -16);
-      try {
-        const aesgcm = crypto.createDecipheriv("aes-256-gcm", key, nonce);
-        aesgcm.setAuthTag(authTag);
-        return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
-      } catch (error) {
-        const isRange = error instanceof RangeError;
-        const invalidKeyLength = error.message === "Invalid key length";
-        const decryptionFailed = error.message === "Unsupported state or unable to authenticate data";
-        if (isRange || invalidKeyLength) {
-          const err = new Error("INVALID_DOTENV_KEY: It must be 64 characters long (or more)");
-          err.code = "INVALID_DOTENV_KEY";
-          throw err;
-        } else if (decryptionFailed) {
-          const err = new Error("DECRYPTION_FAILED: Please check your DOTENV_KEY");
-          err.code = "DECRYPTION_FAILED";
-          throw err;
-        } else {
-          throw error;
-        }
-      }
-    }
-    function populate(processEnv, parsed, options = {}) {
-      const debug = Boolean(options && options.debug);
-      const override = Boolean(options && options.override);
-      const populated = {};
-      if (typeof parsed !== "object") {
-        const err = new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");
-        err.code = "OBJECT_REQUIRED";
-        throw err;
-      }
-      for (const key of Object.keys(parsed)) {
-        if (Object.prototype.hasOwnProperty.call(processEnv, key)) {
-          if (override === true) {
-            processEnv[key] = parsed[key];
-            populated[key] = parsed[key];
-          }
-          if (debug) {
-            if (override === true) {
-              _debug(`"${key}" is already defined and WAS overwritten`);
-            } else {
-              _debug(`"${key}" is already defined and was NOT overwritten`);
-            }
-          }
-        } else {
-          processEnv[key] = parsed[key];
-          populated[key] = parsed[key];
-        }
-      }
-      return populated;
-    }
-    var DotenvModule = {
-      configDotenv,
-      _configVault,
-      _parseVault,
-      config,
-      decrypt,
-      parse,
-      populate
-    };
-    module2.exports.configDotenv = DotenvModule.configDotenv;
-    module2.exports._configVault = DotenvModule._configVault;
-    module2.exports._parseVault = DotenvModule._parseVault;
-    module2.exports.config = DotenvModule.config;
-    module2.exports.decrypt = DotenvModule.decrypt;
-    module2.exports.parse = DotenvModule.parse;
-    module2.exports.populate = DotenvModule.populate;
-    module2.exports = DotenvModule;
   }
 });
 
@@ -28638,9 +28240,9 @@ var require_decode = __commonJS({
   "../node_modules/.pnpm/jsonwebtoken@9.0.2/node_modules/jsonwebtoken/decode.js"(exports2, module2) {
     "use strict";
     var jws = require_jws();
-    module2.exports = function(jwt3, options) {
+    module2.exports = function(jwt5, options) {
       options = options || {};
-      var decoded = jws.decode(jwt3, options);
+      var decoded = jws.decode(jwt5, options);
       if (!decoded) {
         return null;
       }
@@ -31938,7 +31540,7 @@ function createTaskNotificationHandler(req) {
     // 在请求发送前创建任务
     onProxyReq: async (proxyReq, req2) => {
       const authReq = req2;
-      if (!req2.path.includes("/cgi/graph") && !req2.path.includes("/cgi/text") && !req2.path.includes("/cgi/audio") && !req2.path.includes("/cgi/video")) {
+      if (!req2.path.includes("/cgi/text") && !req2.path.includes("/cgi/audio") && !req2.path.includes("/cgi/video")) {
         return;
       }
       if (!authReq.user) {
@@ -31948,7 +31550,7 @@ function createTaskNotificationHandler(req) {
       if (!enableNotification) {
         return;
       }
-      const mediaType = req2.path.includes("/graph") ? "graph" : req2.path.includes("/audio") ? "audio" : req2.path.includes("/video") ? "video" : "text";
+      const mediaType = req2.path.includes("/audio") ? "audio" : req2.path.includes("/video") ? "video" : "text";
       const modelName = req2.params.modelName || "unknown";
       const prompt = authReq.body?.prompt || "";
       const params = authReq.body;
@@ -32032,14 +31634,14 @@ var init_taskNotification = __esm({
 });
 
 // src/index.ts
-var import_express3 = __toESM(require_express2());
-var import_dotenv = __toESM(require_main());
-var import_path = require("path");
+var import_mxmdata3 = require("@mxmai/mxmdata");
+var import_express4 = __toESM(require_express2());
 var import_cors = __toESM(require_lib4());
 var import_http_proxy_middleware2 = require("http-proxy-middleware");
 var import_http = require("http");
 
 // src/routes/websocket-proxy.ts
+var import_crypto = require("crypto");
 var import_ws = require("ws");
 var import_jsonwebtoken = __toESM(require_jsonwebtoken());
 init_logger();
@@ -32060,42 +31662,69 @@ function getTokenFromRequest(url, headers) {
   }
   return null;
 }
-function authenticateToken(token) {
+async function authenticateToken(token) {
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (adminToken && token === adminToken) {
+    return { userId: "admin-test-user", username: "admin-test" };
+  }
+  const secret = process.env.JWT_SECRET || "your-secret-key-change-in-production";
   try {
-    const secret = process.env.JWT_SECRET || "your-secret-key-change-in-production";
-    const adminToken = process.env.ADMIN_TOKEN;
-    if (adminToken && token === adminToken) {
-      return {
-        userId: "admin-test-user",
-        username: "admin-test"
-      };
-    }
     const decoded = import_jsonwebtoken.default.verify(token, secret);
     if (decoded.type !== "access") {
       logger.warn(`[WebSocketProxy] Invalid token type: expected 'access', got '${decoded.type}'`);
       return null;
     }
-    return {
-      userId: decoded.userId,
-      username: decoded.username
-    };
+    return { userId: decoded.userId, username: decoded.username };
   } catch (error) {
-    if (error.name === "TokenExpiredError") {
+    const err = error;
+    if (err.name === "TokenExpiredError") {
       logger.warn("[WebSocketProxy] Token expired");
       return null;
     }
-    if (error.name === "JsonWebTokenError") {
-      logger.warn(`[WebSocketProxy] Invalid JWT token: ${error.message}`);
+    if (err.name !== "JsonWebTokenError") {
+      logger.error("[WebSocketProxy] Failed to authenticate token:", error);
       return null;
     }
-    logger.error("[WebSocketProxy] Failed to authenticate token:", error);
+  }
+  try {
+    const { RepositoryFactory: RepositoryFactory2 } = require("@mxmai/mxmdata");
+    const keyHash = (0, import_crypto.createHash)("sha256").update(token).digest("hex");
+    const userApiKeyRepo = RepositoryFactory2.createUserApiKeyRepository();
+    const keyRecord = await userApiKeyRepo.findByKeyHash(keyHash);
+    if (!keyRecord) return null;
+    const expiresAt = keyRecord.expires_at ? new Date(keyRecord.expires_at).getTime() : null;
+    if (expiresAt != null && Date.now() > expiresAt) {
+      logger.warn("[WebSocketProxy] API Key expired");
+      return null;
+    }
+    const userRepo = RepositoryFactory2.createUserRepository();
+    const user = await userRepo.findById(keyRecord.user_id);
+    if (!user) return null;
+    if (keyRecord.key_type === "integration") {
+      logger.warn("[WebSocketProxy] integration API Key cannot use WebSocket");
+      return null;
+    }
+    await userApiKeyRepo.updateLastUsedAt(keyRecord.id).catch(() => {
+    });
+    logger.debug(`[WebSocketProxy] API Key authenticated for user ${user.username ?? user.id}`);
+    return {
+      userId: user.id,
+      username: user.username ?? user.id
+    };
+  } catch (apiKeyErr) {
+    logger.debug(
+      "[WebSocketProxy] API Key lookup failed:",
+      apiKeyErr instanceof Error ? apiKeyErr.message : apiKeyErr
+    );
     return null;
   }
 }
 function setupWebSocketProxy(server2) {
   const wss = new import_ws.WebSocketServer({
     server: server2,
-    path: "/api/v1/ws/notifications"
+    path: "/api/v1/ws/notifications",
+    // 双层 WS 代理 + 默认 perMessageDeflate 会在部分环境下触发 RSV1 / Invalid frame header
+    perMessageDeflate: false
   });
   wss.on("connection", async (socket, req) => {
     logger.info("[WebSocketProxy] New WebSocket connection attempt");
@@ -32107,7 +31736,7 @@ function setupWebSocketProxy(server2) {
         socket.close(1008, "Unauthorized: No token provided");
         return;
       }
-      const user = authenticateToken(token);
+      const user = await authenticateToken(token);
       if (!user) {
         logger.warn("[WebSocketProxy] Token validation failed, closing connection");
         socket.close(1008, "Unauthorized: Invalid token");
@@ -32116,7 +31745,7 @@ function setupWebSocketProxy(server2) {
       logger.info(`[WebSocketProxy] Client authenticated: user ${user.userId}`);
       const notifyUrl = `${MXMNOTIFY_WS_URL}/ws/notifications?token=${token}`;
       logger.info(`[WebSocketProxy] Connecting to mxmnotify: ${notifyUrl.replace(/token=[^&]+/, "token=***")}`);
-      const notifySocket = new import_ws.WebSocket(notifyUrl);
+      const notifySocket = new import_ws.WebSocket(notifyUrl, { perMessageDeflate: false });
       notifySocket.on("error", (error) => {
         logger.error(`[WebSocketProxy] mxmnotify socket error for user ${user.userId}:`, error);
         logger.error(`[WebSocketProxy] Error details:`, {
@@ -32139,11 +31768,9 @@ function setupWebSocketProxy(server2) {
         }
       });
       notifySocket.on("message", (data) => {
-        if (socket.readyState === import_ws.WebSocket.OPEN) {
-          socket.send(data);
-        } else {
-          logger.warn(`[WebSocketProxy] Cannot forward message: client socket not open (state: ${socket.readyState})`);
-        }
+        if (socket.readyState !== import_ws.WebSocket.OPEN) return;
+        const text = Buffer.isBuffer(data) ? data.toString("utf8") : String(data);
+        socket.send(text);
       });
       socket.on("close", (code, reason) => {
         logger.info(`[WebSocketProxy] Client disconnected: user ${user.userId}, code: ${code}, reason: ${reason.toString()}`);
@@ -32190,6 +31817,104 @@ function setupWebSocketProxy(server2) {
   logger.info("[WebSocketProxy] WebSocket proxy server initialized on path /api/v1/ws/notifications");
 }
 
+// src/routes/open-websocket-proxy.ts
+var import_crypto2 = require("crypto");
+var import_ws2 = require("ws");
+var import_jsonwebtoken2 = __toESM(require_jsonwebtoken());
+init_logger();
+var MXMCGI_URL = process.env.MXMCGI_URL || "http://localhost:4003";
+async function authenticatePartnerSession(token) {
+  const secret = process.env.JWT_SECRET || "your-secret-key-change-in-production";
+  try {
+    const decoded = import_jsonwebtoken2.default.verify(token, secret);
+    if (decoded.type !== "partner_session") return null;
+    const { RepositoryFactory: RepositoryFactory2 } = require("@mxmai/mxmdata");
+    const tokenHash = (0, import_crypto2.createHash)("sha256").update(token).digest("hex");
+    const partnerRepo = RepositoryFactory2.createPartnerRepository();
+    const session = await partnerRepo.findSessionByTokenHash(tokenHash);
+    if (!session || session.revoked_at) return null;
+    if (new Date(session.expires_at).getTime() < Date.now()) return null;
+    return {
+      callerUserId: decoded.callerUserId,
+      partnerAppId: decoded.partnerAppId,
+      endUserId: decoded.endUserId
+    };
+  } catch {
+    return null;
+  }
+}
+function parseJobQuery(url) {
+  try {
+    const u = new URL(url, "http://localhost");
+    const slug = u.searchParams.get("slug");
+    const jobId = u.searchParams.get("jobId");
+    if (!slug || !jobId) return null;
+    return { slug, jobId };
+  } catch {
+    return null;
+  }
+}
+function setupOpenApiWebSocketProxy(server2) {
+  const wss = new import_ws2.WebSocketServer({ server: server2, path: "/api/v1/ws/open/subscribe" });
+  wss.on("connection", async (socket, req) => {
+    const url = req.url ?? "";
+    const tokenMatch = url.match(/[?&]token=([^&]+)/);
+    const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+    const jobQ = parseJobQuery(url);
+    if (!token || !jobQ) {
+      socket.close(1008, "token, slug, jobId required");
+      return;
+    }
+    const auth = await authenticatePartnerSession(token);
+    if (!auth) {
+      socket.close(1008, "Invalid partner session");
+      return;
+    }
+    const { RepositoryFactory: RepositoryFactory2 } = require("@mxmai/mxmdata");
+    const usageRepo = RepositoryFactory2.createPublishedApiUsageRepository();
+    const event = await usageRepo.findByJobId(jobQ.jobId);
+    if (event && event.partner_app_id === auth.partnerAppId && event.end_user_id && event.end_user_id !== auth.endUserId) {
+      socket.close(1008, "Job not owned by end user");
+      return;
+    }
+    logger.info(`[OpenWs] subscribe slug=${jobQ.slug} job=${jobQ.jobId} endUser=${auth.endUserId}`);
+    let closed = false;
+    const poll = async () => {
+      if (closed) return;
+      try {
+        const res = await fetch(
+          `${MXMCGI_URL}/api/v1/open/${encodeURIComponent(jobQ.slug)}/jobs/${encodeURIComponent(jobQ.jobId)}`,
+          {
+            headers: {
+              "x-user-id": auth.callerUserId,
+              "x-partner-app-id": auth.partnerAppId,
+              "x-partner-end-user-id": auth.endUserId
+            }
+          }
+        );
+        if (res.ok) {
+          const json = await res.json();
+          socket.send(JSON.stringify({ type: "job_snapshot", data: json.data ?? json }));
+          const status = String((json.data ?? json)?.status ?? "");
+          if (status === "completed" || status === "failed") {
+            closed = true;
+            socket.close(1e3, "terminal");
+            return;
+          }
+        }
+      } catch (e) {
+        logger.debug("[OpenWs] poll error", e);
+      }
+      if (!closed) setTimeout(poll, 2e3);
+    };
+    void poll();
+    socket.on("close", () => {
+      closed = true;
+    });
+  });
+  logger.info("[OpenWs] Partner scoped WS on /api/v1/ws/open/subscribe");
+}
+
 // src/routes/health.ts
 var import_express = __toESM(require_express2());
 var router = (0, import_express.Router)();
@@ -32209,15 +31934,174 @@ router.get("/", (req, res) => {
 });
 var health_default = router;
 
+// src/routes/client-hints.ts
+var import_express2 = __toESM(require_express2());
+var router2 = (0, import_express2.Router)();
+function extractClientIp(req) {
+  const cfConnecting = req.headers["cf-connecting-ip"];
+  if (typeof cfConnecting === "string" && cfConnecting.trim()) return cfConnecting.trim();
+  const xff = req.headers["x-forwarded-for"];
+  if (typeof xff === "string") {
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const realIp = req.headers["x-real-ip"];
+  if (typeof realIp === "string" && realIp.trim()) return realIp.trim();
+  return req.ip || req.socket.remoteAddress || "";
+}
+function isPrivateIp(ip) {
+  const normalized = ip.replace(/^::ffff:/, "");
+  if (!normalized || normalized === "127.0.0.1" || normalized === "::1") return true;
+  if (normalized.startsWith("10.")) return true;
+  if (normalized.startsWith("192.168.")) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized)) return true;
+  return false;
+}
+async function lookupCountryByIp(ip) {
+  try {
+    const res = await fetch(
+      `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,countryCode`,
+      { signal: AbortSignal.timeout(2500) }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.status === "success" && data.countryCode) {
+      return String(data.countryCode).toUpperCase();
+    }
+  } catch {
+  }
+  return null;
+}
+async function resolveCountryCode(req) {
+  const cfCountry = req.headers["cf-ipcountry"];
+  if (typeof cfCountry === "string") {
+    const code = cfCountry.trim().toUpperCase();
+    if (code.length === 2 && code !== "XX" && code !== "T1") return code;
+  }
+  const ip = extractClientIp(req);
+  if (!ip || isPrivateIp(ip)) return null;
+  return lookupCountryByIp(ip);
+}
+router2.get("/client-hints", async (req, res) => {
+  const countryCode = await resolveCountryCode(req);
+  res.json({
+    countryCode,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+  });
+});
+var client_hints_default = router2;
+
 // src/middleware/auth.ts
-var import_jsonwebtoken2 = __toESM(require_jsonwebtoken());
-var import_crypto = require("crypto");
+var import_jsonwebtoken4 = __toESM(require_jsonwebtoken());
+var import_crypto4 = require("crypto");
 init_logger();
+
+// src/middleware/partner-auth.ts
+var import_jsonwebtoken3 = __toESM(require_jsonwebtoken());
+var import_crypto3 = require("crypto");
+init_logger();
+function hashSessionToken(token) {
+  return (0, import_crypto3.createHash)("sha256").update(token).digest("hex");
+}
+async function attachPartnerFromToken(req, token, decoded) {
+  if (decoded.type !== "partner_session") return false;
+  try {
+    const { RepositoryFactory: RepositoryFactory2 } = require("@mxmai/mxmdata");
+    const partnerRepo = RepositoryFactory2.createPartnerRepository();
+    const session = await partnerRepo.findSessionByTokenHash(hashSessionToken(token));
+    if (!session || session.revoked_at) {
+      logger.warn("[PartnerAuth] Session revoked or not found");
+      return false;
+    }
+    if (new Date(session.expires_at).getTime() < Date.now()) {
+      logger.warn("[PartnerAuth] Session expired");
+      return false;
+    }
+    const endUser = await partnerRepo.findEndUserById(decoded.endUserId);
+    if (!endUser || endUser.status === "blocked") {
+      logger.warn("[PartnerAuth] End user blocked or missing");
+      return false;
+    }
+    const app2 = await partnerRepo.findAppById(decoded.partnerAppId);
+    if (!app2 || app2.status !== "active") {
+      logger.warn("[PartnerAuth] Partner app disabled");
+      return false;
+    }
+    req.user = {
+      userId: decoded.callerUserId,
+      username: decoded.callerUserId,
+      type: "access",
+      role: "user",
+      authViaPartnerSession: true
+    };
+    req.partner = {
+      partnerAppId: decoded.partnerAppId,
+      endUserId: decoded.endUserId,
+      allowedSlugs: app2.slug_access_mode === "restricted" ? app2.allowed_slugs : decoded.allowedSlugs?.length ? decoded.allowedSlugs : [],
+      sessionId: session.id
+    };
+    return true;
+  } catch (e) {
+    logger.debug("[PartnerAuth] attach failed:", e instanceof Error ? e.message : e);
+    return false;
+  }
+}
+var OPEN_API_PREFIX = "/api/v1/open";
+function partnerSlugMiddleware(req, res, next) {
+  if (!req.partner) return next();
+  const path = String(req.originalUrl || req.url || "").split("?")[0];
+  if (!path.startsWith(OPEN_API_PREFIX)) return next();
+  const match = path.match(/^\/api\/v1\/open\/([^/]+)/);
+  const slug = match?.[1];
+  if (!slug || slug === "jobs") return next();
+  const allowed = req.partner.allowedSlugs;
+  if (allowed.length === 0) return next();
+  if (!allowed.includes(slug)) {
+    res.status(403).json({
+      success: false,
+      error: {
+        code: "PARTNER_SLUG_FORBIDDEN",
+        message: `Partner \u5E94\u7528\u672A\u6388\u6743 slug: ${slug}`
+      }
+    });
+    return;
+  }
+  next();
+}
+function partnerSessionScopeMiddleware(req, res, next) {
+  if (!req.user?.authViaPartnerSession) return next();
+  const path = String(req.originalUrl || req.url || "").split("?")[0];
+  const m = req.method.toUpperCase();
+  const ok = path.startsWith("/api/v1/open") || path.startsWith("/api/v1/cgi/upload") && (m === "POST" || m === "PUT") || path.startsWith("/api/v1/media") && (m === "GET" || m === "HEAD") || path.startsWith("/api/v1/partner/me/uploads") || path.startsWith("/api/v1/partner/sessions/revoke");
+  if (ok) return next();
+  res.status(403).json({
+    success: false,
+    error: {
+      code: "PARTNER_SESSION_SCOPE_FORBIDDEN",
+      message: "Partner session \u4EC5\u53EF\u8BBF\u95EE Open API\u3001\u4E0A\u4F20\u4E0E\u5A92\u4F53\u8BFB\u53D6"
+    }
+  });
+}
+
+// src/middleware/auth.ts
+function extractBearerToken(req) {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.substring(7).trim();
+    return token || null;
+  }
+  if (req.method === "GET" || req.method === "HEAD") {
+    const q = req.query.token;
+    const fromQuery = typeof q === "string" ? q.trim() : Array.isArray(q) ? String(q[0] ?? "").trim() : "";
+    return fromQuery || null;
+  }
+  return null;
+}
 async function authMiddleware(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      logger.warn(`[Auth] Missing authorization header for ${req.method} ${req.path}`);
+    const token = extractBearerToken(req);
+    if (!token) {
+      logger.warn(`[Auth] Missing authorization for ${req.method} ${req.path}`);
       res.status(401).json({
         success: false,
         error: {
@@ -32227,31 +32111,6 @@ async function authMiddleware(req, res, next) {
       });
       return;
     }
-    if (!authHeader.startsWith("Bearer ")) {
-      const lowerHeader = authHeader.toLowerCase();
-      if (lowerHeader.startsWith("bearer") || lowerHeader.startsWith("beaerer")) {
-        logger.warn(`[Auth] Authorization header format error: expected "Bearer <token>", got "${authHeader.substring(0, 20)}..."`);
-        res.status(401).json({
-          success: false,
-          error: {
-            code: "UNAUTHORIZED",
-            message: 'Invalid authorization header format. Expected: "Bearer <token>"',
-            hint: 'Make sure there is a space after "Bearer" and the spelling is correct.'
-          }
-        });
-        return;
-      }
-      logger.warn(`[Auth] Invalid authorization header format for ${req.method} ${req.path}: "${authHeader.substring(0, 20)}..."`);
-      res.status(401).json({
-        success: false,
-        error: {
-          code: "UNAUTHORIZED",
-          message: "Missing or invalid authorization header"
-        }
-      });
-      return;
-    }
-    const token = authHeader.substring(7);
     if (!token || token.trim().length === 0) {
       logger.warn(`[Auth] Empty token provided for ${req.method} ${req.path}`);
       res.status(401).json({
@@ -32279,12 +32138,23 @@ async function authMiddleware(req, res, next) {
       logger.warn(`[Auth] JWT_SECRET not set in environment, using default value`);
       logger.warn(`[Auth] \u26A0\uFE0F  \u8B66\u544A: \u4F7F\u7528\u9ED8\u8BA4 JWT_SECRET \u53EF\u80FD\u5BFC\u81F4\u8BA4\u8BC1\u5931\u8D25`);
       logger.warn(`[Auth] \u{1F4A1} \u63D0\u793A: \u8BF7\u786E\u4FDD gateway \u548C mxmauth \u4F7F\u7528\u76F8\u540C\u7684 JWT_SECRET`);
-      logger.warn(`[Auth] \u{1F4A1} \u5EFA\u8BAE: \u5728 mxmdata/.env \u4E2D\u914D\u7F6E JWT_SECRET`);
+      logger.warn(`[Auth] \u{1F4A1} \u5EFA\u8BAE: \u5728\u9879\u76EE\u6839 .env \u4E2D\u914D\u7F6E JWT_SECRET`);
     } else {
     }
     try {
       const clockTolerance = Number(process.env.JWT_CLOCK_TOLERANCE_SECONDS) || 120;
-      const decoded = import_jsonwebtoken2.default.verify(token, secret, { clockTolerance });
+      const decoded = import_jsonwebtoken4.default.verify(token, secret, { clockTolerance });
+      if (decoded.type === "partner_session") {
+        const ok = await attachPartnerFromToken(req, token, decoded);
+        if (!ok) {
+          res.status(401).json({
+            success: false,
+            error: { code: "INVALID_PARTNER_SESSION", message: "Partner session \u65E0\u6548\u6216\u5DF2\u64A4\u9500" }
+          });
+          return;
+        }
+        return next();
+      }
       if (decoded.type !== "access") {
         logger.warn(`[Auth] Invalid token type: expected 'access', got '${decoded.type}'`);
         res.status(401).json({
@@ -32306,7 +32176,7 @@ async function authMiddleware(req, res, next) {
     } catch (error) {
       try {
         const { RepositoryFactory: RepositoryFactory2 } = require("@mxmai/mxmdata");
-        const keyHash = (0, import_crypto.createHash)("sha256").update(token).digest("hex");
+        const keyHash = (0, import_crypto4.createHash)("sha256").update(token).digest("hex");
         const userApiKeyRepo = RepositoryFactory2.createUserApiKeyRepository();
         const keyRecord = await userApiKeyRepo.findByKeyHash(keyHash);
         if (keyRecord) {
@@ -32327,15 +32197,21 @@ async function authMiddleware(req, res, next) {
             });
             return;
           }
+          const keyType = keyRecord.key_type === "integration" ? "integration" : "personal";
           req.user = {
             userId: user.id,
             username: user.username ?? user.id,
             type: "access",
-            role: user.role === "admin" ? "admin" : "user"
+            role: user.role === "admin" ? "admin" : "user",
+            apiKeyType: keyType,
+            apiKeyId: keyRecord.id,
+            authViaApiKey: true
           };
           await userApiKeyRepo.updateLastUsedAt(keyRecord.id).catch(() => {
           });
-          logger.debug(`[Auth] API Key authenticated for user ${req.user.username} (${req.method} ${req.path})`);
+          logger.debug(
+            `[Auth] API Key (${keyType}) authenticated for user ${req.user.username} (${req.method} ${req.path})`
+          );
           return next();
         }
       } catch (apiKeyErr) {
@@ -32385,6 +32261,133 @@ async function authMiddleware(req, res, next) {
   }
 }
 
+// src/middleware/api-key-scope.ts
+var OPEN_API_PREFIX2 = "/api/v1/open";
+var INTEGRATION_UPLOAD_PREFIX = "/api/v1/cgi/upload";
+var INTEGRATION_MEDIA_PREFIX = "/api/v1/media";
+function isIntegrationAllowedPath(path, method) {
+  if (path.startsWith(OPEN_API_PREFIX2)) return true;
+  const m = method.toUpperCase();
+  if (path.startsWith(INTEGRATION_UPLOAD_PREFIX) && (m === "POST" || m === "PUT")) {
+    return true;
+  }
+  if (path.startsWith(INTEGRATION_MEDIA_PREFIX) && (m === "GET" || m === "HEAD")) {
+    return true;
+  }
+  return false;
+}
+function apiKeyScopeMiddleware(req, res, next) {
+  if (req.user?.apiKeyType !== "integration") {
+    return next();
+  }
+  const path = String(req.originalUrl || req.url || "").split("?")[0];
+  if (isIntegrationAllowedPath(path, req.method)) {
+    return next();
+  }
+  res.status(403).json({
+    success: false,
+    error: {
+      code: "API_KEY_SCOPE_FORBIDDEN",
+      message: "\u6B64\u5BC6\u94A5\u4E3A\u300C\u5F00\u653E API \u5BA2\u6237\u7AEF\u300D\u7C7B\u578B\uFF0C\u4EC5\u53EF\u8BBF\u95EE /api/v1/open/*\u3002\u5E73\u53F0\u81EA\u52A8\u5316\u8BF7\u4F7F\u7528\u300C\u4E2A\u4EBA\u8BBF\u95EE\u51ED\u8BC1\u300D\u7C7B\u578B\u5BC6\u94A5\u3002"
+    }
+  });
+}
+
+// src/middleware/integration-partner-acl.ts
+init_logger();
+var OPEN_API_PREFIX3 = "/api/v1/open";
+async function integrationPartnerAclMiddleware(req, res, next) {
+  if (req.user?.apiKeyType !== "integration" || !req.user.apiKeyId) {
+    return next();
+  }
+  if (req.partner) {
+    return next();
+  }
+  const path = String(req.originalUrl || req.url || "").split("?")[0];
+  if (!path.startsWith(OPEN_API_PREFIX3)) return next();
+  const match = path.match(/^\/api\/v1\/open\/([^/]+)/);
+  const slug = match?.[1];
+  if (!slug || slug === "jobs") return next();
+  try {
+    const { RepositoryFactory: RepositoryFactory2 } = require("@mxmai/mxmdata");
+    const partnerRepo = RepositoryFactory2.createPartnerRepository();
+    const app2 = await partnerRepo.findAppByApiKeyId(req.user.apiKeyId);
+    if (!app2) return next();
+    if (app2.slug_access_mode !== "restricted") return next();
+    if (app2.allowed_slugs.length === 0 || !app2.allowed_slugs.includes(slug)) {
+      logger.warn("[IntegrationPartnerACL] Slug forbidden", {
+        slug,
+        apiKeyId: req.user.apiKeyId,
+        allowed: app2.allowed_slugs
+      });
+      res.status(403).json({
+        success: false,
+        error: {
+          code: "PARTNER_SLUG_FORBIDDEN",
+          message: `\u5F53\u524D API Key \u65E0\u6743\u8BBF\u95EE slug: ${slug}`
+        }
+      });
+      return;
+    }
+    next();
+  } catch (e) {
+    logger.error("[IntegrationPartnerACL] Error:", e instanceof Error ? e.message : e);
+    next(e);
+  }
+}
+
+// src/middleware/partner-rate-limit.ts
+var appWindows = /* @__PURE__ */ new Map();
+function checkLimit(store, key, limit, windowMs) {
+  const now = Date.now();
+  const cur = store.get(key);
+  if (!cur || now - cur.windowStart >= windowMs) {
+    store.set(key, { count: 1, windowStart: now });
+    return true;
+  }
+  if (cur.count >= limit) return false;
+  cur.count += 1;
+  return true;
+}
+async function partnerRateLimitMiddleware(req, res, next) {
+  if (!req.partner) return next();
+  try {
+    const { RepositoryFactory: RepositoryFactory2 } = require("@mxmai/mxmdata");
+    const partnerRepo = RepositoryFactory2.createPartnerRepository();
+    const app2 = await partnerRepo.findAppById(req.partner.partnerAppId);
+    if (!app2) return next();
+    const qps = app2.qps_limit ?? Number(process.env.PARTNER_DEFAULT_QPS_LIMIT || 0);
+    if (qps > 0) {
+      const ok = checkLimit(appWindows, app2.id, qps, 1e3);
+      if (!ok) {
+        res.status(429).json({
+          success: false,
+          error: { code: "PARTNER_QPS_EXCEEDED", message: "Partner \u5E94\u7528 QPS \u8D85\u9650" }
+        });
+        return;
+      }
+    }
+    const dailyQuota = app2.daily_end_user_quota ?? Number(process.env.PARTNER_DEFAULT_DAILY_QUOTA || 0);
+    if (dailyQuota > 0 && req.path.includes("/run")) {
+      const usageRepo = RepositoryFactory2.createPublishedApiUsageRepository();
+      const count = await usageRepo.countCallsByEndUserToday(app2.id, req.partner.endUserId);
+      if (count >= dailyQuota) {
+        res.status(429).json({
+          success: false,
+          error: {
+            code: "PARTNER_DAILY_QUOTA_EXCEEDED",
+            message: "\u7EC8\u7AEF\u7528\u6237\u65E5\u8C03\u7528\u914D\u989D\u5DF2\u7528\u5C3D"
+          }
+        });
+        return;
+      }
+    }
+    next();
+  } catch {
+    next();
+  }
+}
+
 // src/middleware/errorHandler.ts
 init_logger();
 function notFoundHandler(req, res, next) {
@@ -32428,9 +32431,55 @@ function responseMiddleware(req, res, next) {
 }
 
 // src/routes/proxy.ts
-var import_express2 = __toESM(require_express2());
+var import_express3 = __toESM(require_express2());
 var import_http_proxy_middleware = require("http-proxy-middleware");
 init_logger();
+var authProtected = [authMiddleware, apiKeyScopeMiddleware];
+function runAuthProtected(req, res, next) {
+  authMiddleware(req, res, (err) => {
+    if (err) return next(err);
+    if (res.headersSent) return;
+    apiKeyScopeMiddleware(req, res, next);
+  });
+}
+function rewriteSystemProxyPath(path, req) {
+  const originalPath = req.originalUrl || path;
+  return originalPath.replace(/^\/api\/v1\/system/, "/system");
+}
+function createSystemProxyHandlers() {
+  return {
+    proxyReq: (proxyReq, req) => {
+      const authReq = req;
+      if (authReq.user) {
+        proxyReq.setHeader("x-user-id", authReq.user.userId);
+        proxyReq.setHeader("x-username", authReq.user.username);
+        if (authReq.user.role) {
+          proxyReq.setHeader("x-user-role", authReq.user.role);
+        }
+      }
+      (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
+    },
+    proxyRes: (proxyRes, req) => {
+      logger.debug(
+        `Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`
+      );
+    },
+    error: (err, req, res) => {
+      const r = req;
+      logger.error(`Proxy error: ${r.method} ${r.path}`, err);
+      const response = res;
+      if (response && typeof response.status === "function" && !response.headersSent) {
+        response.status(502).json({
+          success: false,
+          error: {
+            code: "PROXY_ERROR",
+            message: "Service unavailable"
+          }
+        });
+      }
+    }
+  };
+}
 function isLegacyGatewayTaskNotificationEnabled() {
   return String(process.env.ENABLE_LEGACY_GATEWAY_TASK_NOTIFICATION || "").toLowerCase() === "true";
 }
@@ -32438,17 +32487,16 @@ function isLegacyGatewayCgiStorageEnabled() {
   return String(process.env.ENABLE_LEGACY_GATEWAY_CGI_STORAGE || "").toLowerCase() === "true";
 }
 function createProxyRouter() {
-  const router2 = (0, import_express2.Router)();
+  const router3 = (0, import_express3.Router)();
   const services = {
     account: process.env.MXMAUTH_URL || "http://localhost:4001",
     payment: process.env.MXMPAY_URL || "http://localhost:4002",
     generation: process.env.MXMCGI_URL || "http://localhost:4003",
-    agents: process.env.MXMAGENT_URL || "http://localhost:4004",
     notifications: process.env.MXMNOTIFY_URL || "http://localhost:4005"
   };
-  router2.use(
+  router3.use(
     "/notifications",
-    authMiddleware,
+    ...authProtected,
     (0, import_http_proxy_middleware.createProxyMiddleware)({
       target: services.notifications,
       changeOrigin: true,
@@ -32488,9 +32536,9 @@ function createProxyRouter() {
       }
     })
   );
-  router2.use(
+  router3.use(
     "/tasks",
-    authMiddleware,
+    ...authProtected,
     (0, import_http_proxy_middleware.createProxyMiddleware)({
       target: services.notifications,
       changeOrigin: true,
@@ -32500,9 +32548,9 @@ function createProxyRouter() {
       }
     })
   );
-  router2.use(
+  router3.use(
     "/sse",
-    authMiddleware,
+    ...authProtected,
     (req, res, next) => {
       const authReq = req;
       const userId = req.params.userId || req.path.split("/").pop();
@@ -32600,44 +32648,69 @@ function createProxyRouter() {
       }
     }
   });
-  router2.use(
+  router3.use(
     "/account",
     (req, res, next) => {
-      if (req.path === "/register" || req.path === "/login" || req.path === "/captcha" || req.path === "/health") {
+      if (req.path === "/register" || req.path === "/login" || req.path === "/captcha" || req.path === "/captcha/config" || req.path === "/captcha/verify" || req.path === "/health" || req.path === "/refresh-token" || req.path === "/auth/providers" || req.path === "/verify-email" || req.path === "/resend-verification" || req.path === "/forgot-password" || req.path === "/reset-password" || req.path === "/oauth/google/start" || req.path === "/oauth/google/callback" || req.path === "/oauth/github/start" || req.path === "/oauth/github/callback" || req.path === "/auth/mfa/verify") {
         return next();
       }
-      return authMiddleware(req, res, next);
+      return runAuthProtected(req, res, next);
     },
     (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.account))
   );
-  router2.use(
+  router3.use(
     "/assets",
-    authMiddleware,
+    ...authProtected,
     (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.account))
   );
-  router2.use(
+  router3.use(
     "/payment",
     (req, res, next) => {
       if (req.path.startsWith("/webhook/")) {
         return next();
       }
-      return authMiddleware(req, res, next);
+      return runAuthProtected(req, res, next);
     },
     (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.payment, true))
   );
-  router2.use(
+  router3.use(
     "/wallets",
-    authMiddleware,
+    ...authProtected,
     (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.payment, true))
   );
-  router2.use(
+  router3.use(
     "/generation",
-    authMiddleware,
+    ...authProtected,
     (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.generation))
   );
-  router2.use(
+  router3.use(
+    "/search",
+    ...authProtected,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath;
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          const authReq = req;
+          if (authReq.user) {
+            proxyReq.setHeader("x-user-id", authReq.user.userId);
+            proxyReq.setHeader("x-username", authReq.user.username);
+            if (authReq.user.role) {
+              proxyReq.setHeader("x-user-role", authReq.user.role);
+            }
+          }
+          (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
+        }
+      }
+    })
+  );
+  router3.use(
     "/cgi/graph",
-    authMiddleware,
+    ...authProtected,
     (req, res, next) => {
       const authReq = req;
       const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
@@ -32700,9 +32773,9 @@ function createProxyRouter() {
       proxyMiddleware(req, res, next);
     }
   );
-  router2.use(
+  router3.use(
     "/cgi/upload",
-    authMiddleware,
+    runAuthProtected,
     (0, import_http_proxy_middleware.createProxyMiddleware)({
       target: services.generation,
       changeOrigin: true,
@@ -32717,6 +32790,10 @@ function createProxyRouter() {
             proxyReq.setHeader("x-user-id", authReq.user.userId);
             proxyReq.setHeader("x-username", authReq.user.username);
           }
+          const ct = String(req.headers["content-type"] ?? "");
+          if (!ct.includes("multipart/form-data")) {
+            (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
+          }
         },
         proxyRes: (proxyRes, req, res) => {
           logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
@@ -32724,9 +32801,9 @@ function createProxyRouter() {
       }
     })
   );
-  router2.use(
+  router3.use(
     "/cgi/text",
-    authMiddleware,
+    ...authProtected,
     (req, res, next) => {
       const authReq = req;
       const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
@@ -32793,9 +32870,9 @@ function createProxyRouter() {
       proxyMiddleware(req, res, next);
     }
   );
-  router2.use(
+  router3.use(
     "/cgi/audio",
-    authMiddleware,
+    ...authProtected,
     (req, res, next) => {
       const authReq = req;
       const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
@@ -32868,9 +32945,9 @@ function createProxyRouter() {
       proxyMiddleware(req, res, next);
     }
   );
-  router2.use(
+  router3.use(
     "/cgi/video",
-    authMiddleware,
+    ...authProtected,
     (req, res, next) => {
       const authReq = req;
       const enableLegacyTaskNotify = isLegacyGatewayTaskNotificationEnabled();
@@ -32936,18 +33013,74 @@ function createProxyRouter() {
       proxyMiddleware(req, res, next);
     }
   );
-  router2.use(
+  router3.use(
+    "/system/admin/providers/models/test",
+    ...authProtected,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      timeout: 3e5,
+      proxyTimeout: 3e5,
+      pathRewrite: rewriteSystemProxyPath,
+      on: createSystemProxyHandlers()
+    })
+  );
+  router3.use(
+    "/system/admin/quality-eval",
+    ...authProtected,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      timeout: 3e5,
+      proxyTimeout: 3e5,
+      pathRewrite: rewriteSystemProxyPath,
+      on: createSystemProxyHandlers()
+    })
+  );
+  router3.use(
     "/system",
-    authMiddleware,
+    ...authProtected,
     (0, import_http_proxy_middleware.createProxyMiddleware)({
       target: services.generation,
       changeOrigin: true,
       timeout: 6e4,
       // 60 秒（敏感词等 admin 操作）
       proxyTimeout: 6e4,
+      pathRewrite: rewriteSystemProxyPath,
+      on: createSystemProxyHandlers()
+    })
+  );
+  router3.use(
+    "/storage",
+    ...authProtected,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
       pathRewrite: (path, req) => {
         const originalPath = req.originalUrl || path;
-        return originalPath.replace(/^\/api\/v1\/system/, "/system");
+        return originalPath.replace("/api/v1/storage", "/storage");
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          const authReq = req;
+          if (authReq.user) {
+            proxyReq.setHeader("x-user-id", authReq.user.userId);
+            proxyReq.setHeader("x-username", authReq.user.username);
+          }
+          (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
+        }
+      }
+    })
+  );
+  router3.use(
+    "/admin/storage",
+    ...authProtected,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace("/api/v1/admin/storage", "/admin/storage");
       },
       on: {
         proxyReq: (proxyReq, req) => {
@@ -32960,28 +33093,35 @@ function createProxyRouter() {
             }
           }
           (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
-        },
-        proxyRes: (proxyRes, req, res) => {
-          logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
-        },
-        error: (err, req, res) => {
-          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
-          if (res && typeof res.status === "function" && !res.headersSent) {
-            res.status(502).json({
-              success: false,
-              error: {
-                code: "PROXY_ERROR",
-                message: "Service unavailable"
-              }
-            });
-          }
         }
       }
     })
   );
-  router2.use(
+  router3.use(
+    "/static",
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace("/api/v1/static", "/static");
+      }
+    })
+  );
+  router3.use(
+    "/media/public",
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace("/api/v1/media", "/media");
+      }
+    })
+  );
+  router3.use(
     "/media",
-    authMiddleware,
+    ...authProtected,
     (0, import_http_proxy_middleware.createProxyMiddleware)({
       target: services.generation,
       changeOrigin: true,
@@ -33018,15 +33158,37 @@ function createProxyRouter() {
       }
     })
   );
-  router2.use(
-    "/cgi-tasks",
-    authMiddleware,
+  router3.use(
+    "/agents",
+    (req, res, next) => {
+      if (req.method === "GET" && (req.path === "/" || req.path === "/search" || /^\/[^/]+$/.test(req.path))) {
+        return next();
+      }
+      return runAuthProtected(req, res, next);
+    },
+    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.generation))
+  );
+  router3.use(
+    "/smartflows",
+    (req, res, next) => {
+      if (req.method === "GET" && (req.path === "/" || /^\/[^/]+$/.test(req.path))) {
+        return next();
+      }
+      if (req.method === "GET" && (/^\/[^/]+\/status$/.test(req.path) || /^\/[^/]+\/execute$/.test(req.path))) {
+        return runAuthProtected(req, res, next);
+      }
+      if (req.method === "POST" && /^\/[^/]+\/execute$/.test(req.path)) {
+        return runAuthProtected(req, res, next);
+      }
+      return runAuthProtected(req, res, next);
+    },
     (0, import_http_proxy_middleware.createProxyMiddleware)({
       target: services.generation,
+      // mxmcgi (port 4003)
       changeOrigin: true,
       pathRewrite: (path, req) => {
         const originalPath = req.originalUrl || path;
-        return originalPath;
+        return originalPath.replace("/api/v1/smartflows", "/api/v1/smartflows");
       },
       on: {
         proxyReq: (proxyReq, req) => {
@@ -33035,57 +33197,63 @@ function createProxyRouter() {
             proxyReq.setHeader("x-user-id", authReq.user.userId);
             proxyReq.setHeader("x-username", authReq.user.username);
           }
-        },
-        proxyRes: (proxyRes, req, res) => {
+          (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
         },
         error: (err, req, res) => {
-          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
+          logger.error(`[Smartflow Proxy] Error: ${req.method} ${req.path}`, {
+            message: err.message,
+            code: err.code,
+            target: services.generation
+          });
           if (res && typeof res.status === "function" && !res.headersSent) {
             res.status(502).json({
               success: false,
-              error: {
-                code: "PROXY_ERROR",
-                message: "Service unavailable"
-              }
+              error: { code: "PROXY_ERROR", message: `Smartflow service unavailable: ${err.message}` }
             });
           }
         }
       }
     })
   );
-  router2.use(
-    "/agents",
-    (req, res, next) => {
-      if (req.method === "GET" && (req.path === "/" || req.path === "/search" || /^\/[^/]+$/.test(req.path))) {
-        return next();
+  router3.use(
+    "/smartflow-tasks",
+    ...authProtected,
+    (0, import_http_proxy_middleware.createProxyMiddleware)({
+      target: services.generation,
+      // mxmcgi (port 4003)
+      changeOrigin: true,
+      pathRewrite: (path, req) => {
+        const originalPath = req.originalUrl || path;
+        return originalPath.replace("/api/v1/smartflow-tasks", "/api/v1/smartflow-tasks");
+      },
+      on: {
+        proxyReq: (proxyReq, req) => {
+          const authReq = req;
+          if (authReq.user) {
+            proxyReq.setHeader("x-user-id", authReq.user.userId);
+            proxyReq.setHeader("x-username", authReq.user.username);
+          }
+          (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
+        },
+        error: (err, req, res) => {
+          logger.error(`[Smartflow Tasks Proxy] Error: ${req.method} ${req.path}`, {
+            message: err.message,
+            code: err.code,
+            target: services.generation
+          });
+          if (res && typeof res.status === "function" && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: { code: "PROXY_ERROR", message: `Smartflow tasks service unavailable: ${err.message}` }
+            });
+          }
+        }
       }
-      return authMiddleware(req, res, next);
-    },
-    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.agents))
+    })
   );
-  router2.use(
-    "/models",
-    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.agents))
-  );
-  router2.use(
-    "/smartflows",
-    (req, res, next) => {
-      if (req.method === "GET" && (req.path === "/" || /^\/[^/]+$/.test(req.path))) {
-        return next();
-      }
-      if (req.method === "GET" && (/^\/[^/]+\/status$/.test(req.path) || /^\/[^/]+\/execute$/.test(req.path))) {
-        return authMiddleware(req, res, next);
-      }
-      if (req.method === "POST" && /^\/[^/]+\/execute$/.test(req.path)) {
-        return authMiddleware(req, res, next);
-      }
-      return authMiddleware(req, res, next);
-    },
-    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.agents))
-  );
-  router2.use(
+  router3.use(
     "/writing",
-    authMiddleware,
+    ...authProtected,
     (0, import_http_proxy_middleware.createProxyMiddleware)({
       target: services.generation,
       changeOrigin: true,
@@ -33139,68 +33307,13 @@ function createProxyRouter() {
       }
     })
   );
-  router2.use(
-    "/characters",
-    authMiddleware,
-    (0, import_http_proxy_middleware.createProxyMiddleware)({
-      target: services.generation,
-      changeOrigin: true,
-      timeout: 3e4,
-      // 30秒超时
-      proxyTimeout: 3e4,
-      pathRewrite: (path, req) => {
-        const originalPath = req.originalUrl || path;
-        logger.debug(`[Character Proxy] Path rewrite: ${originalPath} -> ${originalPath}`);
-        return originalPath;
-      },
-      on: {
-        proxyReq: (proxyReq, req) => {
-          if (req.headers["x-forwarded-for"]) {
-            proxyReq.setHeader("x-forwarded-for", req.headers["x-forwarded-for"]);
-          }
-          if (req.headers["x-real-ip"]) {
-            proxyReq.setHeader("x-real-ip", req.headers["x-real-ip"]);
-          }
-          const authReq = req;
-          if (authReq.user) {
-            proxyReq.setHeader("x-user-id", authReq.user.userId);
-            proxyReq.setHeader("x-username", authReq.user.username);
-            logger.debug(`[Character Proxy] Forwarding user: ${authReq.user.userId}`);
-          }
-          (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
-        },
-        proxyRes: (proxyRes, req, res) => {
-          logger.debug(`[Character Proxy] Response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
-          if (proxyRes.headers["transfer-encoding"]) {
-            delete proxyRes.headers["transfer-encoding"];
-          }
-          if (!proxyRes.headers["connection"]) {
-            proxyRes.headers["connection"] = "close";
-          }
-        },
-        error: (err, req, res) => {
-          logger.error(`[Character Proxy] Error: ${req.method} ${req.path}`, err);
-          if (res && typeof res.status === "function" && !res.headersSent) {
-            res.status(502).json({
-              success: false,
-              error: {
-                code: "PROXY_ERROR",
-                message: "Character service unavailable",
-                details: err.message
-              }
-            });
-          }
-        }
-      }
-    })
-  );
-  router2.use(
+  router3.use(
     "/knowledge",
     (req, res, next) => {
       logger.info(`[Knowledge Proxy] Incoming request: ${req.method} ${req.originalUrl || req.path}`);
       next();
     },
-    authMiddleware,
+    ...authProtected,
     (req, res, next) => {
       logger.info(`[Knowledge Proxy] After auth, proceeding to proxy: ${req.method} ${req.originalUrl || req.path}`);
       next();
@@ -33257,66 +33370,33 @@ function createProxyRouter() {
       }
     })
   );
-  router2.use(
-    "/prompt-templates",
-    (req, res, next) => {
-      if (req.method === "GET") {
-        return next();
-      }
-      return authMiddleware(req, res, next);
-    },
-    (0, import_http_proxy_middleware.createProxyMiddleware)(createProxyConfig(services.agents))
-  );
-  router2.use(
-    "/smartflow-tasks",
-    authMiddleware,
+  router3.use(
+    "/virtual-folder-index",
+    ...authProtected,
     (0, import_http_proxy_middleware.createProxyMiddleware)({
-      target: services.agents,
+      target: services.generation,
       changeOrigin: true,
+      timeout: 12e4,
+      proxyTimeout: 12e4,
       pathRewrite: (path, req) => {
         const originalPath = req.originalUrl || path;
-        return originalPath.replace("/api/v1/smartflow-tasks", "/api/v1/tasks");
+        return originalPath.replace(/^\/api\/v1\/virtual-folder-index/, "/virtual-folder-index");
       },
       on: {
         proxyReq: (proxyReq, req) => {
-          if (req.headers["x-forwarded-for"]) {
-            proxyReq.setHeader("x-forwarded-for", req.headers["x-forwarded-for"]);
-          }
-          if (req.headers["x-real-ip"]) {
-            proxyReq.setHeader("x-real-ip", req.headers["x-real-ip"]);
-          }
           const authReq = req;
           if (authReq.user) {
             proxyReq.setHeader("x-user-id", authReq.user.userId);
             proxyReq.setHeader("x-username", authReq.user.username);
           }
-          if (req.body && Object.keys(req.body).length > 0 && req.headers["content-type"] && req.headers["content-type"].includes("application/json")) {
-            const bodyData = JSON.stringify(req.body);
-            proxyReq.setHeader("Content-Length", Buffer.byteLength(bodyData));
-            proxyReq.write(bodyData);
-          }
-        },
-        proxyRes: (proxyRes, req, res) => {
-          logger.debug(`Proxy response: ${req.method} ${req.path} -> ${proxyRes.statusCode}`);
-        },
-        error: (err, req, res) => {
-          logger.error(`Proxy error: ${req.method} ${req.path}`, err);
-          if (res && typeof res.status === "function" && !res.headersSent) {
-            res.status(502).json({
-              success: false,
-              error: {
-                code: "PROXY_ERROR",
-                message: "Service unavailable"
-              }
-            });
-          }
+          (0, import_http_proxy_middleware.fixRequestBody)(proxyReq, req);
         }
       }
     })
   );
-  router2.use(
+  router3.use(
     "/task-events",
-    authMiddleware,
+    ...authProtected,
     (0, import_http_proxy_middleware.createProxyMiddleware)({
       target: services.notifications,
       changeOrigin: true,
@@ -33326,62 +33406,477 @@ function createProxyRouter() {
       }
     })
   );
-  return router2;
+  return router3;
 }
 
 // src/index.ts
 init_logger();
-process.env.DOTENV_CONFIG_DEBUG = "false";
-var workspaceEnvPath = (0, import_path.resolve)(__dirname, "../../../mxmdata/.env");
-logger.info(`[Gateway] \u5C1D\u8BD5\u4ECE\u4EE5\u4E0B\u8DEF\u5F84\u52A0\u8F7D\u73AF\u5883\u53D8\u91CF: ${workspaceEnvPath}`);
-logger.info(`[Gateway] __dirname: ${__dirname}`);
-var envResult1 = import_dotenv.default.config({ path: workspaceEnvPath });
-if (envResult1.error) {
-  logger.warn(`[Gateway] \u672A\u80FD\u4ECE mxmdata/.env \u52A0\u8F7D\u73AF\u5883\u53D8\u91CF: ${envResult1.error.message}`);
-  logger.warn(`[Gateway] \u5C1D\u8BD5\u7684\u8DEF\u5F84: ${workspaceEnvPath}`);
-  logger.warn(`[Gateway] \u6587\u4EF6\u662F\u5426\u5B58\u5728: ${require("fs").existsSync(workspaceEnvPath) ? "\u662F" : "\u5426"}`);
-} else if (envResult1.parsed) {
-  logger.info(`[Gateway] \u2705 \u5DF2\u4ECE mxmdata/.env \u52A0\u8F7D\u73AF\u5883\u53D8\u91CF`);
-  logger.info(`[Gateway] \u52A0\u8F7D\u7684\u8DEF\u5F84: ${workspaceEnvPath}`);
-  logger.info(`[Gateway] \u52A0\u8F7D\u7684\u53D8\u91CF\u6570\u91CF: ${Object.keys(envResult1.parsed).length}`);
+
+// src/openapi/setup.ts
+var import_swagger_ui_express = __toESM(require("swagger-ui-express"));
+
+// src/openapi/catalog.ts
+var GATEWAY_ROUTE_CATALOG = [
+  // ── Gateway 自身 ──
+  { path: "/health", method: "get", tag: "Gateway", summary: "\u7F51\u5173\u5065\u5EB7\u68C0\u67E5", auth: "none", upstream: "gateway" },
+  { path: "/", method: "get", tag: "Gateway", summary: "\u7F51\u5173\u7248\u672C\u4FE1\u606F", auth: "none", upstream: "gateway" },
+  // ── 账户 / mxmauth ──
+  { path: "/api/v1/account/captcha/config", method: "get", tag: "Account", summary: "\u9A8C\u8BC1\u7801\u662F\u5426\u542F\u7528", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/captcha", method: "get", tag: "Account", summary: "\u83B7\u53D6\u6ED1\u52A8\u62FC\u56FE\u9A8C\u8BC1\u7801", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/captcha/verify", method: "post", tag: "Account", summary: "\u6821\u9A8C\u6ED1\u52A8\u62FC\u56FE", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/register", method: "post", tag: "Account", summary: "\u90AE\u7BB1\u6CE8\u518C\uFF08\u9700\u9A8C\u8BC1\u90AE\u4EF6\uFF09", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/login", method: "post", tag: "Account", summary: "\u7528\u6237\u767B\u5F55", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/auth/providers", method: "get", tag: "Account", summary: "\u53EF\u7528\u767B\u5F55\u65B9\u5F0F\uFF08OAuth/SMTP\uFF09", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/auth/mfa/verify", method: "post", tag: "Account", summary: "\u767B\u5F55 MFA \u9A8C\u8BC1", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/mfa/status", method: "get", tag: "Account", summary: "MFA \u72B6\u6001", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/mfa/totp/setup", method: "post", tag: "Account", summary: "TOTP \u7ED1\u5B9A\u51C6\u5907", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/mfa/totp/enable", method: "post", tag: "Account", summary: "\u542F\u7528 TOTP", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/mfa/totp/disable", method: "post", tag: "Account", summary: "\u5173\u95ED TOTP", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/verify-email", method: "get", tag: "Account", summary: "\u9A8C\u8BC1\u90AE\u7BB1", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/resend-verification", method: "post", tag: "Account", summary: "\u91CD\u53D1\u9A8C\u8BC1\u90AE\u4EF6", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/forgot-password", method: "post", tag: "Account", summary: "\u5FD8\u8BB0\u5BC6\u7801", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/reset-password", method: "post", tag: "Account", summary: "\u91CD\u7F6E\u5BC6\u7801", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/oauth/google/start", method: "get", tag: "Account", summary: "Google OAuth \u5F00\u59CB", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/oauth/google/callback", method: "get", tag: "Account", summary: "Google OAuth \u56DE\u8C03", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/oauth/github/start", method: "get", tag: "Account", summary: "GitHub OAuth \u5F00\u59CB", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/oauth/github/callback", method: "get", tag: "Account", summary: "GitHub OAuth \u56DE\u8C03", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/logout", method: "post", tag: "Account", summary: "\u7528\u6237\u767B\u51FA", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/refresh-token", method: "post", tag: "Account", summary: "\u5237\u65B0 Access Token", auth: "none", upstream: "mxmauth" },
+  { path: "/api/v1/account/profile", method: "get", tag: "Account", summary: "\u83B7\u53D6\u4E2A\u4EBA\u8D44\u6599", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/profile", method: "put", tag: "Account", summary: "\u66F4\u65B0\u4E2A\u4EBA\u8D44\u6599", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/password", method: "put", tag: "Account", summary: "\u4FEE\u6539\u5BC6\u7801", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/settings", method: "get", tag: "Account", summary: "\u83B7\u53D6\u7528\u6237\u8BBE\u7F6E", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/settings", method: "put", tag: "Account", summary: "\u66F4\u65B0\u7528\u6237\u8BBE\u7F6E", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/membership", method: "get", tag: "Account", summary: "\u83B7\u53D6\u4F1A\u5458\u4FE1\u606F", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/media", method: "get", tag: "Account", summary: "\u83B7\u53D6\u7528\u6237\u5A92\u4F53\u8D44\u6E90\u5217\u8868", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/agents", method: "get", tag: "Account", summary: "\u83B7\u53D6\u7528\u6237\u52A9\u624B\u5217\u8868", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/updateAgents", method: "put", tag: "Account", summary: "\u66F4\u65B0\u7528\u6237\u52A9\u624B\u5173\u8054", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/updateMedia", method: "put", tag: "Account", summary: "\u66F4\u65B0\u7528\u6237\u5A92\u4F53\u5173\u8054", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/api-keys", method: "get", tag: "API Keys", summary: "\u5217\u51FA\u4E2A\u4EBA API Key", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/api-keys", method: "post", tag: "API Keys", summary: "\u521B\u5EFA\u4E2A\u4EBA API Key", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/api-keys/{id}", method: "delete", tag: "API Keys", summary: "\u5220\u9664\u4E2A\u4EBA API Key", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/account/admin/users", method: "get", tag: "Account Admin", summary: "\u7BA1\u7406\u5458\uFF1A\u7528\u6237\u5217\u8868", auth: "admin", upstream: "mxmauth" },
+  { path: "/api/v1/account/admin/user_profile", method: "put", tag: "Account Admin", summary: "\u7BA1\u7406\u5458\uFF1A\u66F4\u65B0\u7528\u6237\u8D44\u6599", auth: "admin", upstream: "mxmauth" },
+  { path: "/api/v1/account/admin/users/{id}/status", method: "put", tag: "Account Admin", summary: "\u7BA1\u7406\u5458\uFF1A\u66F4\u65B0\u7528\u6237\u72B6\u6001", auth: "admin", upstream: "mxmauth" },
+  { path: "/api/v1/account/admin/users/{id}/force-logout", method: "post", tag: "Account Admin", summary: "\u7BA1\u7406\u5458\uFF1A\u5F3A\u5236\u767B\u51FA\u7528\u6237", auth: "admin", upstream: "mxmauth" },
+  { path: "/api/v1/account/health", method: "get", tag: "Account", summary: "mxmauth \u5065\u5EB7\u68C0\u67E5", auth: "none", upstream: "mxmauth" },
+  // ── 资源 / mxmauth ──
+  { path: "/api/v1/assets/folders", method: "get", tag: "Assets", summary: "\u5217\u51FA\u8D44\u6E90\u6587\u4EF6\u5939", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/assets/folders", method: "post", tag: "Assets", summary: "\u521B\u5EFA\u8D44\u6E90\u6587\u4EF6\u5939", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/assets/folders/{id}", method: "put", tag: "Assets", summary: "\u66F4\u65B0\u8D44\u6E90\u6587\u4EF6\u5939", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/assets/folders/{id}", method: "delete", tag: "Assets", summary: "\u5220\u9664\u8D44\u6E90\u6587\u4EF6\u5939", auth: "jwt", upstream: "mxmauth" },
+  // ── Partner / mxmauth ──
+  { path: "/api/v1/partner/apps", method: "get", tag: "Partner", summary: "\u5217\u51FA Partner \u5E94\u7528", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/partner/apps", method: "post", tag: "Partner", summary: "\u521B\u5EFA Partner \u5E94\u7528", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/partner/apps/{id}/settings", method: "put", tag: "Partner", summary: "\u66F4\u65B0 Partner \u5E94\u7528\u8BBE\u7F6E", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/partner/apps/{id}/slugs", method: "put", tag: "Partner", summary: "\u914D\u7F6E Partner \u53EF\u7528 slug", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/partner/apps/{id}/rotate-secret", method: "post", tag: "Partner", summary: "\u8F6E\u6362 Partner \u5BC6\u94A5", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/partner/apps/{id}/stats", method: "get", tag: "Partner", summary: "Partner \u8C03\u7528\u7EDF\u8BA1", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/partner/me/uploads", method: "post", tag: "Partner", summary: "Partner \u7EC8\u7AEF\u7528\u6237\u4E0A\u4F20", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/partner/auth/sms/send", method: "post", tag: "Partner", summary: "Partner \u77ED\u4FE1\u9A8C\u8BC1\u7801\u53D1\u9001", auth: "jwt", upstream: "mxmauth" },
+  { path: "/api/v1/partner/auth/sms/verify", method: "post", tag: "Partner", summary: "Partner \u77ED\u4FE1\u9A8C\u8BC1\u7801\u6821\u9A8C", auth: "jwt", upstream: "mxmauth" },
+  // ── 支付 / mxmpay ──
+  { path: "/api/v1/payment/create", method: "post", tag: "Payment", summary: "\u521B\u5EFA\u652F\u4ED8\u8BA2\u5355", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/payment", method: "get", tag: "Payment", summary: "\u67E5\u8BE2\u8BA2\u5355\u5217\u8868", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/payment/{orderId}", method: "get", tag: "Payment", summary: "\u83B7\u53D6\u8BA2\u5355\u8BE6\u60C5", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/payment/confirm", method: "post", tag: "Payment", summary: "\u786E\u8BA4\u652F\u4ED8", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/payment/{orderId}/cancel", method: "post", tag: "Payment", summary: "\u53D6\u6D88\u8BA2\u5355", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/payment/stats/overview", method: "get", tag: "Payment", summary: "\u652F\u4ED8\u7EDF\u8BA1\u6982\u89C8", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/payment/admin/orders", method: "get", tag: "Payment Admin", summary: "\u7BA1\u7406\u5458\uFF1A\u8BA2\u5355\u5217\u8868", auth: "admin", upstream: "mxmpay" },
+  { path: "/api/v1/payment/admin/voucher/issue", method: "post", tag: "Payment Admin", summary: "\u7BA1\u7406\u5458\uFF1A\u53D1\u653E\u4EE3\u91D1\u5238", auth: "admin", upstream: "mxmpay" },
+  { path: "/api/v1/payment/webhook/{channel}", method: "post", tag: "Payment", summary: "\u652F\u4ED8\u6E20\u9053 Webhook \u56DE\u8C03", auth: "webhook", upstream: "mxmpay" },
+  // ── 钱包 / mxmpay ──
+  { path: "/api/v1/wallets/assets", method: "get", tag: "Wallet", summary: "\u7CFB\u7EDF\u652F\u6301\u7684\u8D44\u4EA7\u5217\u8868", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/wallets", method: "get", tag: "Wallet", summary: "\u7528\u6237\u5168\u90E8\u8D44\u4EA7\u4F59\u989D", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/wallets/{assetCode}", method: "get", tag: "Wallet", summary: "\u5355\u4E2A\u8D44\u4EA7\u4F59\u989D", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/wallets/{assetCode}/transactions", method: "get", tag: "Wallet", summary: "\u8D44\u4EA7\u4EA4\u6613\u6D41\u6C34", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/wallets/{assetCode}/deposit", method: "post", tag: "Wallet", summary: "\u5145\u503C / \u589E\u52A0\u4F59\u989D", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/wallets/{assetCode}/withdraw", method: "post", tag: "Wallet", summary: "\u6263\u51CF\u4F59\u989D", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/wallets/payment", method: "post", tag: "Wallet", summary: "\u94B1\u5305\u652F\u4ED8\uFF08\u6D88\u8D39\u6263\u6B3E\uFF09", auth: "jwt", upstream: "mxmpay" },
+  { path: "/api/v1/wallets/tasks", method: "get", tag: "Wallet", summary: "\u94B1\u5305\u4EFB\u52A1\u5217\u8868", auth: "jwt", upstream: "mxmpay" },
+  // ── Task V2 / mxmcgi ──
+  { path: "/api/v2/tasks/form-config", method: "get", tag: "Task V2", summary: "\u83B7\u53D6\u4E1A\u52A1\u8868\u5355\u914D\u7F6E", description: "query: scope, taskKey, subtype", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/tasks/form-config/list", method: "get", tag: "Task V2", summary: "\u5217\u51FA scope \u4E0B\u53EF\u7528\u4E1A\u52A1", description: "query: scope", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/tasks/run", method: "post", tag: "Task V2", summary: "\u8FD0\u884C\u4E1A\u52A1\u4EFB\u52A1\uFF08\u63A8\u8350\u5165\u53E3\uFF09", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/tasks", method: "get", tag: "Task V2", summary: "\u5F53\u524D\u7528\u6237\u4EFB\u52A1\u5217\u8868", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/tasks/admin", method: "get", tag: "Task V2 Admin", summary: "\u7BA1\u7406\u5458\u4EFB\u52A1\u5217\u8868", auth: "admin", upstream: "mxmcgi" },
+  { path: "/api/v2/tasks/by-user/{userId}", method: "get", tag: "Task V2 Admin", summary: "\u6309\u7528\u6237\u67E5\u8BE2\u4EFB\u52A1", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/tasks/{taskId}", method: "get", tag: "Task V2", summary: "\u83B7\u53D6\u4EFB\u52A1\u8BE6\u60C5", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/tasks/{taskId}", method: "delete", tag: "Task V2", summary: "\u5220\u9664\u4EFB\u52A1", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/tasks/{taskId}/cancel", method: "post", tag: "Task V2", summary: "\u53D6\u6D88\u4EFB\u52A1", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/tasks/{taskId}/recover", method: "post", tag: "Task V2", summary: "\u6062\u590D\u4EFB\u52A1", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/tasks/{taskId}/retry", method: "post", tag: "Task V2", summary: "\u91CD\u8BD5\u4EFB\u52A1", auth: "jwt", upstream: "mxmcgi" },
+  // ── 开放 API / mxmcgi ──
+  { path: "/api/v1/open/jobs", method: "get", tag: "Open API", summary: "Partner session \u4EFB\u52A1\u5217\u8868", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/open/{slug}", method: "get", tag: "Open API", summary: "\u83B7\u53D6\u5DF2\u53D1\u5E03 API Manifest", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/open/{slug}/run", method: "post", tag: "Open API", summary: "\u8C03\u7528\u5DF2\u53D1\u5E03 API", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/open/{slug}/jobs/{jobId}", method: "get", tag: "Open API", summary: "\u67E5\u8BE2\u5F00\u653E API \u4EFB\u52A1\u72B6\u6001", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/open/{slug}/jobs/{jobId}/events", method: "get", tag: "Open API", summary: "SSE \u8BA2\u9605\u4EFB\u52A1\u4E8B\u4EF6", auth: "jwt", upstream: "mxmcgi" },
+  // ── 发布管理 / mxmcgi ──
+  { path: "/api/v1/account/published-apis", method: "get", tag: "Published API", summary: "\u6211\u7684\u5DF2\u53D1\u5E03 API \u5217\u8868", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/account/published-apis", method: "post", tag: "Published API", summary: "\u53D1\u5E03 API", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/account/published-apis/{id}", method: "put", tag: "Published API", summary: "\u66F4\u65B0\u5DF2\u53D1\u5E03 API", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/account/published-apis/{id}/republish", method: "post", tag: "Published API", summary: "\u91CD\u65B0\u53D1\u5E03 API", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/account/published-apis/stats", method: "get", tag: "Published API", summary: "\u53D1\u5E03 API \u7EDF\u8BA1\u6C47\u603B", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/account/published-apis/{id}/stats", method: "get", tag: "Published API", summary: "\u5355\u4E2A API \u7EDF\u8BA1", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/account/usage/summary", method: "get", tag: "Account", summary: "\u5168\u5E73\u53F0\u7528\u91CF\u7EDF\u8BA1\u6C47\u603B", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/account/usage/events", method: "get", tag: "Account", summary: "\u5168\u5E73\u53F0\u7528\u91CF\u8C03\u7528\u660E\u7EC6\u5206\u9875", auth: "jwt", upstream: "mxmcgi" },
+  // ── Agent / mxmcgi ──
+  { path: "/api/v1/agent/catalog", method: "get", tag: "Agent", summary: "Agent \u4E1A\u52A1\u76EE\u5F55", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/agent/conversations", method: "get", tag: "Agent V2", summary: "\u4F1A\u8BDD\u5217\u8868", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/agent/conversations", method: "post", tag: "Agent V2", summary: "\u521B\u5EFA\u4F1A\u8BDD", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/agent/conversations/{id}/messages", method: "post", tag: "Agent V2", summary: "\u53D1\u9001\u6D88\u606F\u5E76\u5165\u961F run", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/agent/conversations/{id}/stream", method: "get", tag: "Agent V2", summary: "SSE \u4E8B\u4EF6\u6D41\uFF08cursor \u56DE\u653E\uFF09", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v2/agent/runs/{id}/cancel", method: "post", tag: "Agent V2", summary: "\u53D6\u6D88 run", auth: "jwt", upstream: "mxmcgi" },
+  // ── Smartflow / mxmcgi ──
+  { path: "/api/v1/smartflows", method: "get", tag: "Smartflow", summary: "\u5DE5\u4F5C\u6D41\u5217\u8868", auth: "none", upstream: "mxmcgi" },
+  { path: "/api/v1/smartflows/{id}", method: "get", tag: "Smartflow", summary: "\u5DE5\u4F5C\u6D41\u8BE6\u60C5", auth: "none", upstream: "mxmcgi" },
+  { path: "/api/v1/smartflows", method: "post", tag: "Smartflow", summary: "\u521B\u5EFA\u5DE5\u4F5C\u6D41", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/smartflows/{id}", method: "put", tag: "Smartflow", summary: "\u66F4\u65B0\u5DE5\u4F5C\u6D41", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/smartflows/{id}", method: "delete", tag: "Smartflow", summary: "\u5220\u9664\u5DE5\u4F5C\u6D41", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/smartflows/{id}/execute", method: "post", tag: "Smartflow", summary: "\u6267\u884C\u5DE5\u4F5C\u6D41", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/smartflow-tasks", method: "get", tag: "Smartflow", summary: "Smartflow \u6267\u884C\u4EFB\u52A1\u5217\u8868", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/smartflow-tasks/{id}", method: "get", tag: "Smartflow", summary: "Smartflow \u6267\u884C\u4EFB\u52A1\u8BE6\u60C5", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/smartflow-tasks/{id}/pause", method: "post", tag: "Smartflow", summary: "\u6682\u505C Smartflow \u4EFB\u52A1", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/smartflow-tasks/{id}/cancel", method: "post", tag: "Smartflow", summary: "\u53D6\u6D88 Smartflow \u4EFB\u52A1", auth: "jwt", upstream: "mxmcgi" },
+  // ── 助手 / mxmcgi ──
+  { path: "/api/v1/agents", method: "get", tag: "Agents", summary: "\u52A9\u624B\u5217\u8868", auth: "none", upstream: "mxmcgi" },
+  { path: "/api/v1/agents/{agentId}", method: "get", tag: "Agents", summary: "\u52A9\u624B\u8BE6\u60C5", auth: "none", upstream: "mxmcgi" },
+  // ── 媒体 / 存储 / mxmcgi ──
+  { path: "/api/v1/media/graph/{taskId}", method: "get", tag: "Media", summary: "\u83B7\u53D6\u56FE\u50CF\u4EFB\u52A1\u5A92\u4F53", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/media/video/{taskId}", method: "get", tag: "Media", summary: "\u83B7\u53D6\u89C6\u9891\u4EFB\u52A1\u5A92\u4F53", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/media/writing/{taskId}", method: "get", tag: "Media", summary: "\u83B7\u53D6\u5199\u4F5C\u4EFB\u52A1\u5185\u5BB9", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/media/audio/{taskId}", method: "get", tag: "Media", summary: "\u83B7\u53D6\u97F3\u9891\u4EFB\u52A1\u5A92\u4F53", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/media/public/object/{objectId}", method: "get", tag: "Media", summary: "\u516C\u5F00\u8BFB\u7528\u6237\u4E0A\u4F20\u5BF9\u8C61", auth: "none", upstream: "mxmcgi" },
+  { path: "/api/v1/cgi/upload/temp", method: "post", tag: "Upload", summary: "\u4E34\u65F6\u6587\u4EF6\u4E0A\u4F20", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/cgi/upload/assets", method: "post", tag: "Upload", summary: "\u8D44\u6E90\u6587\u4EF6\u4E0A\u4F20", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/storage", method: "get", tag: "Storage", summary: "\u7528\u6237\u5B58\u50A8\u6982\u89C8", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/static/{path}", method: "get", tag: "Storage", summary: "\u7CFB\u7EDF\u9759\u6001\u8D44\u6E90\uFF08\u516C\u5F00\uFF09", auth: "none", upstream: "mxmcgi" },
+  // ── 写作 / 音频 / 视频（遗留 CGI，推荐 Task V2）──
+  { path: "/api/v1/writing/models", method: "get", tag: "Writing (Legacy)", summary: "\u5199\u4F5C\u6A21\u578B\u5217\u8868", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/writing/completion/{modelName}", method: "post", tag: "Writing (Legacy)", summary: "\u5199\u4F5C\u8865\u5168\uFF08\u652F\u6301 SSE\uFF09", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/audio/models", method: "get", tag: "Audio (Legacy)", summary: "\u97F3\u9891\u6A21\u578B\u5217\u8868", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/audio/voices", method: "get", tag: "Audio (Legacy)", summary: "MiniMax \u97F3\u8272\u5217\u8868", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/audio/voice-clone", method: "post", tag: "Audio (Legacy)", summary: "MiniMax \u97F3\u8272\u514B\u9686", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/audio/{modelName}", method: "post", tag: "Audio (Legacy)", summary: "\u97F3\u9891\u751F\u6210", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/cgi/video/models", method: "get", tag: "Video (Legacy)", summary: "\u89C6\u9891\u6A21\u578B\u5217\u8868", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/cgi/video/generate", method: "post", tag: "Video (Legacy)", summary: "\u89C6\u9891\u751F\u6210", auth: "jwt", upstream: "mxmcgi" },
+  {
+    path: "/api/v1/cgi/graph/{modelName}",
+    method: "post",
+    tag: "Graph (Legacy)",
+    summary: "\u56FE\u50CF\u751F\u6210\uFF08\u5DF2\u5E9F\u5F03\uFF09",
+    description: "mxmcgi \u5BF9\u65E7 /graph \u8FD4\u56DE 410\uFF0C\u8BF7\u6539\u7528 POST /api/v2/tasks/run",
+    auth: "jwt",
+    upstream: "mxmcgi",
+    deprecated: true
+  },
+  // ── 知识库 / 角色 / 搜索 / mxmcgi ──
+  { path: "/api/v1/knowledge/bases", method: "get", tag: "Knowledge", summary: "\u77E5\u8BC6\u5E93\u5217\u8868", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/knowledge/bases", method: "post", tag: "Knowledge", summary: "\u521B\u5EFA\u77E5\u8BC6\u5E93", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/knowledge/bases/{id}/documents", method: "post", tag: "Knowledge", summary: "\u4E0A\u4F20\u77E5\u8BC6\u5E93\u6587\u6863", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/knowledge/bases/{id}/search", method: "post", tag: "Knowledge", summary: "\u77E5\u8BC6\u5E93\u68C0\u7D22", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/search/web", method: "post", tag: "Search", summary: "Web \u641C\u7D22", auth: "jwt", upstream: "mxmcgi" },
+  // ── 系统 / Admin / mxmcgi ──
+  { path: "/api/v1/system/models", method: "get", tag: "System", summary: "\u7CFB\u7EDF\u6A21\u578B\u5217\u8868", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/system/bills", method: "get", tag: "System", summary: "\u7528\u6237\u8D26\u5355", auth: "jwt", upstream: "mxmcgi" },
+  { path: "/api/v1/system/admin/stats", method: "get", tag: "System Admin", summary: "\u7BA1\u7406\u5458\u7EDF\u8BA1", auth: "admin", upstream: "mxmcgi" },
+  { path: "/api/v1/system/admin/providers/models", method: "get", tag: "System Admin", summary: "Provider \u6A21\u578B\u7BA1\u7406", auth: "admin", upstream: "mxmcgi" },
+  { path: "/api/v1/system/admin/quality-eval/rubrics", method: "get", tag: "System Admin", summary: "\u5199\u4F5C\u8D28\u68C0\u8BC4\u5206\u914D\u7F6E", auth: "admin", upstream: "mxmcgi" },
+  { path: "/api/v1/system/admin/quality-eval/runs", method: "post", tag: "System Admin", summary: "\u53D1\u8D77\u5199\u4F5C\u8D28\u68C0\u8BC4\u4F30", auth: "admin", upstream: "mxmcgi" },
+  { path: "/api/v1/admin/storage", method: "get", tag: "System Admin", summary: "Admin \u7CFB\u7EDF\u5B58\u50A8", auth: "admin", upstream: "mxmcgi" },
+  // ── 通知 / mxmnotify ──
+  { path: "/api/v1/notifications", method: "get", tag: "Notifications", summary: "\u901A\u77E5\u5217\u8868", auth: "jwt", upstream: "mxmnotify" },
+  { path: "/api/v1/notifications/{notificationId}/read", method: "put", tag: "Notifications", summary: "\u6807\u8BB0\u901A\u77E5\u5DF2\u8BFB", auth: "jwt", upstream: "mxmnotify" },
+  { path: "/api/v1/notifications/read-all", method: "put", tag: "Notifications", summary: "\u5168\u90E8\u6807\u8BB0\u5DF2\u8BFB", auth: "jwt", upstream: "mxmnotify" },
+  { path: "/api/v1/notifications/{notificationId}", method: "delete", tag: "Notifications", summary: "\u5220\u9664\u901A\u77E5", auth: "jwt", upstream: "mxmnotify" },
+  { path: "/api/v1/sse/{userId}", method: "get", tag: "Notifications", summary: "SSE \u5B9E\u65F6\u901A\u77E5\u6D41", auth: "jwt", upstream: "mxmnotify" },
+  { path: "/api/v1/tasks/{taskId}", method: "get", tag: "Notifications", summary: "\u901A\u77E5\u4FA7\u4EFB\u52A1\u67E5\u8BE2", auth: "jwt", upstream: "mxmnotify" },
+  { path: "/api/v1/task-events/status-changed", method: "post", tag: "Notifications", summary: "\u4EFB\u52A1\u72B6\u6001\u53D8\u66F4\u4E8B\u4EF6\uFF08\u5185\u90E8\uFF09", auth: "jwt", upstream: "mxmnotify" },
+  // ── WebSocket（非 REST，仅文档说明）──
+  {
+    path: "/api/v1/ws/notifications",
+    method: "get",
+    tag: "WebSocket",
+    summary: "WebSocket \u901A\u77E5\u8FDE\u63A5",
+    description: "\u534F\u8BAE\u5347\u7EA7\u4E3A WebSocket\uFF0C\u975E HTTP JSON \u54CD\u5E94\u3002\u8BE6\u89C1 gateway WebSocket \u4EE3\u7406\u914D\u7F6E\u3002",
+    auth: "jwt",
+    upstream: "mxmnotify"
+  },
+  {
+    path: "/api/v1/ws/open/{slug}/jobs/{jobId}",
+    method: "get",
+    tag: "WebSocket",
+    summary: "\u5F00\u653E API WebSocket \u4EFB\u52A1\u8BA2\u9605",
+    description: "\u534F\u8BAE\u5347\u7EA7\u4E3A WebSocket\u3002",
+    auth: "jwt",
+    upstream: "mxmcgi"
+  }
+];
+var OPENAPI_TAGS = [
+  { name: "Gateway", description: "\u7F51\u5173\u81EA\u8EAB\u5065\u5EB7\u68C0\u67E5\u4E0E\u5143\u4FE1\u606F" },
+  { name: "Account", description: "\u7528\u6237\u6CE8\u518C\u3001\u767B\u5F55\u3001\u8D44\u6599\u4E0E\u8BBE\u7F6E\uFF08mxmauth\uFF09" },
+  { name: "Account Admin", description: "\u8D26\u6237\u7BA1\u7406\u5458\u63A5\u53E3" },
+  { name: "API Keys", description: "\u4E2A\u4EBA\u8BBF\u95EE\u51ED\u8BC1\u7BA1\u7406" },
+  { name: "Assets", description: "\u7528\u6237\u8D44\u6E90\u6587\u4EF6\u5939" },
+  { name: "Partner", description: "Partner \u96C6\u6210\u4E0E\u7EC8\u7AEF\u7528\u6237" },
+  { name: "Payment", description: "\u652F\u4ED8\u8BA2\u5355\u4E0E Webhook\uFF08mxmpay\uFF09" },
+  { name: "Payment Admin", description: "\u652F\u4ED8\u7BA1\u7406\u5458\u63A5\u53E3" },
+  { name: "Wallet", description: "\u591A\u8D44\u4EA7\u94B1\u5305\uFF08mxmpay\uFF09" },
+  { name: "Task V2", description: "\u7EDF\u4E00\u4E1A\u52A1\u4EFB\u52A1\u5165\u53E3\uFF08mxmcgi\uFF0C\u63A8\u8350\u4F7F\u7528\uFF09" },
+  { name: "Task V2 Admin", description: "\u4EFB\u52A1\u7BA1\u7406\u5458\u63A5\u53E3" },
+  { name: "Open API", description: "\u5DF2\u53D1\u5E03\u5F00\u653E API \u8C03\u7528" },
+  { name: "Published API", description: "\u5F00\u653E API \u53D1\u5E03\u4E0E\u7BA1\u7406" },
+  { name: "Agent", description: "Agent \u4E1A\u52A1\u76EE\u5F55" },
+  { name: "Smartflow", description: "Smartflow \u5DE5\u4F5C\u6D41" },
+  { name: "Agents", description: "\u52A9\u624B\u5217\u8868\u4E0E Agent Chat" },
+  { name: "Media", description: "\u4EFB\u52A1\u5A92\u4F53\u8BBF\u95EE" },
+  { name: "Upload", description: "\u6587\u4EF6\u4E0A\u4F20" },
+  { name: "Storage", description: "\u7528\u6237\u4E0E\u7CFB\u7EDF\u5B58\u50A8" },
+  { name: "Writing (Legacy)", description: "\u9057\u7559\u5199\u4F5C\u63A5\u53E3\uFF0C\u63A8\u8350 Task V2" },
+  { name: "Audio (Legacy)", description: "\u9057\u7559\u97F3\u9891\u63A5\u53E3\uFF0C\u63A8\u8350 Task V2" },
+  { name: "Video (Legacy)", description: "\u9057\u7559\u89C6\u9891\u63A5\u53E3\uFF0C\u63A8\u8350 Task V2" },
+  { name: "Graph (Legacy)", description: "\u5DF2\u5E9F\u5F03\uFF0C\u8BF7\u7528 Task V2" },
+  { name: "Knowledge", description: "\u77E5\u8BC6\u5E93" },
+  { name: "Search", description: "\u641C\u7D22\u5F15\u64CE" },
+  { name: "System", description: "\u7CFB\u7EDF\u4FE1\u606F\u4E0E\u8D26\u5355" },
+  { name: "System Admin", description: "\u7CFB\u7EDF\u7BA1\u7406\u5458\u63A5\u53E3" },
+  { name: "Notifications", description: "\u901A\u77E5\u3001SSE\u3001\u4EFB\u52A1\u4E8B\u4EF6\uFF08mxmnotify\uFF09" },
+  { name: "WebSocket", description: "WebSocket \u957F\u8FDE\u63A5\uFF08\u975E REST\uFF09" }
+];
+
+// src/openapi/build-spec.ts
+function gatewayBaseUrl() {
+  const port2 = Number(process.env.GATEWAY_PORT || process.env.PORT || 3e3);
+  const publicUrl = process.env.GATEWAY_PUBLIC_URL?.replace(/\/$/, "");
+  if (publicUrl) return publicUrl;
+  return `http://localhost:${port2}`;
 }
-var gatewayEnvPath = (0, import_path.resolve)(__dirname, "../.env");
-var envResult2 = import_dotenv.default.config({ path: gatewayEnvPath });
-if (envResult2.parsed) {
-  logger.info(`[Gateway] \u2705 \u5DF2\u4ECE gateway/.env \u52A0\u8F7D\u73AF\u5883\u53D8\u91CF\uFF08\u8986\u76D6 mxmdata/.env\uFF09`);
-  logger.info(`[Gateway] gateway/.env \u8DEF\u5F84: ${gatewayEnvPath}`);
+function securityForAuth(auth) {
+  switch (auth) {
+    case "jwt":
+    case "admin":
+      return [{ bearerAuth: [] }];
+    case "none":
+    case "webhook":
+      return void 0;
+    default:
+      return void 0;
+  }
 }
-import_dotenv.default.config();
+function buildParameters(path) {
+  const params = [];
+  const segments = path.split("/").filter(Boolean);
+  for (const seg of segments) {
+    if (seg.startsWith("{") && seg.endsWith("}")) {
+      const name = seg.slice(1, -1);
+      params.push({
+        name,
+        in: "path",
+        required: true,
+        schema: { type: "string" },
+        description: name
+      });
+    }
+  }
+  return params;
+}
+function buildOperation(route) {
+  const op = {
+    tags: [route.tag],
+    summary: route.summary,
+    operationId: `${route.method}_${route.path.replace(/[^a-zA-Z0-9]+/g, "_")}`,
+    responses: {
+      "200": {
+        description: "\u6210\u529F",
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/ApiResponse" }
+          }
+        }
+      },
+      "400": { description: "\u8BF7\u6C42\u53C2\u6570\u9519\u8BEF" },
+      "401": { description: "\u672A\u8BA4\u8BC1\u6216 Token \u65E0\u6548" },
+      "403": { description: "\u65E0\u6743\u9650" },
+      "404": { description: "\u8D44\u6E90\u4E0D\u5B58\u5728" },
+      "502": { description: "\u4E0A\u6E38\u670D\u52A1\u4E0D\u53EF\u7528\uFF08Gateway \u4EE3\u7406\u9519\u8BEF\uFF09" }
+    },
+    "x-upstream": route.upstream,
+    "x-auth": route.auth
+  };
+  if (route.description) {
+    op.description = route.description;
+  }
+  if (route.deprecated) {
+    op.deprecated = true;
+  }
+  const security = securityForAuth(route.auth);
+  if (security) {
+    op.security = security;
+  }
+  const parameters = buildParameters(route.path);
+  if (parameters.length > 0) {
+    op.parameters = parameters;
+  }
+  if (["post", "put", "patch"].includes(route.method)) {
+    op.requestBody = {
+      required: route.auth !== "webhook",
+      content: {
+        "application/json": {
+          schema: { type: "object", additionalProperties: true }
+        }
+      }
+    };
+  }
+  if (route.tag === "WebSocket") {
+    op.responses = {
+      "101": { description: "Switching Protocols \u2014 WebSocket \u5347\u7EA7\u6210\u529F" },
+      "401": { description: "\u672A\u8BA4\u8BC1" },
+      "502": { description: "\u4E0A\u6E38 WebSocket \u4EE3\u7406\u5931\u8D25" }
+    };
+    delete op.requestBody;
+  }
+  if (route.auth === "admin") {
+    op.description = [route.description, "\u9700\u8981 admin \u89D2\u8272\u6216 ADMIN_TOKEN\u3002"].filter(Boolean).join("\n\n");
+  }
+  return op;
+}
+function buildOpenApiSpec() {
+  const paths = {};
+  for (const route of GATEWAY_ROUTE_CATALOG) {
+    if (!paths[route.path]) {
+      paths[route.path] = {};
+    }
+    paths[route.path][route.method] = buildOperation(route);
+  }
+  return {
+    openapi: "3.0.3",
+    info: {
+      title: "SuperMXMai Gateway API",
+      version: "1.0.0",
+      description: [
+        "SuperMXMai \u7EDF\u4E00 API \u7F51\u5173\u5BF9\u5916\u63A5\u53E3\u6587\u6863\u3002",
+        "",
+        "\u6240\u6709\u5BA2\u6237\u7AEF\u5E94\u901A\u8FC7 Gateway \u8BBF\u95EE\u540E\u7AEF\u5FAE\u670D\u52A1\u3002\u8BA4\u8BC1\u65B9\u5F0F\uFF1A",
+        "- **JWT**\uFF1A`Authorization: Bearer <access_token>`\uFF08\u767B\u5F55\u6216 refresh-token \u83B7\u53D6\uFF09",
+        "- **Personal API Key**\uFF1A\u540C\u4E0A\uFF0CBearer \u524D\u7F00 + Key \u5B57\u7B26\u4E32",
+        "- **Partner Integration Key**\uFF1ABearer + Integration Key\uFF08\u90E8\u5206\u8DEF\u5F84\u53D7\u9650\uFF09",
+        "",
+        `\u5171\u6536\u5F55 **${GATEWAY_ROUTE_CATALOG.length}** \u6761\u8DEF\u7531\u3002\u8BE6\u7EC6\u53C2\u6570\u89C1\u5404\u5FAE\u670D\u52A1\u5B9E\u73B0\u6216 \`docs/API.md\`\u3002`,
+        "",
+        "\u4E0A\u6E38\u670D\u52A1\uFF1Amxmauth (4001) \xB7 mxmpay (4002) \xB7 mxmcgi (4003) \xB7 mxmnotify (4005)"
+      ].join("\n"),
+      contact: { name: "SuperMXMai" }
+    },
+    servers: [
+      { url: gatewayBaseUrl(), description: "Gateway \u7EDF\u4E00\u5165\u53E3" }
+    ],
+    tags: OPENAPI_TAGS,
+    paths,
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT or API Key",
+          description: "JWT Access Token \u6216\u4E2A\u4EBA/Integration API Key"
+        }
+      },
+      schemas: {
+        ApiResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: true },
+            data: { type: "object", additionalProperties: true },
+            message: { type: "string" },
+            error: {
+              type: "object",
+              properties: {
+                code: { type: "string" },
+                message: { type: "string" },
+                details: {}
+              }
+            }
+          }
+        },
+        ProxyError: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: false },
+            error: {
+              type: "object",
+              properties: {
+                code: { type: "string", example: "PROXY_ERROR" },
+                message: { type: "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
+// src/openapi/setup.ts
+var cachedSpec = null;
+function getSpec() {
+  if (!cachedSpec) {
+    cachedSpec = buildOpenApiSpec();
+  }
+  return cachedSpec;
+}
+function setupOpenApiDocs(app2) {
+  app2.get("/openapi.json", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
+    res.type("application/json");
+    res.send(JSON.stringify(getSpec()));
+  });
+  const swaggerOptions = {
+    explorer: true,
+    persistAuthorization: true,
+    docExpansion: "list",
+    filter: true,
+    showExtensions: true,
+    syntaxHighlight: { theme: "monokai" }
+  };
+  app2.use(
+    "/docs",
+    import_swagger_ui_express.default.serve,
+    import_swagger_ui_express.default.setup(getSpec(), {
+      swaggerOptions,
+      customSiteTitle: "SuperMXMai Gateway API",
+      customCss: ".swagger-ui .topbar { display: none }"
+    })
+  );
+  app2.get("/swagger", (_req, res) => res.redirect(301, "/docs"));
+  app2.get("/api-docs", (_req, res) => res.redirect(301, "/docs"));
+}
+
+// src/index.ts
+(0, import_mxmdata3.loadMonorepoEnv)({ service: "gateway" });
 try {
   const { RepositoryFactory: RepositoryFactory2 } = require("@mxmai/mxmdata");
   RepositoryFactory2.init();
-  logger.info("[Gateway] \u2705 mxmdata RepositoryFactory \u5DF2\u521D\u59CB\u5316");
 } catch (e) {
-  logger.warn("[Gateway] mxmdata \u521D\u59CB\u5316\u5931\u8D25\uFF08API Key \u8BA4\u8BC1\u5C06\u4E0D\u53EF\u7528\uFF09:", e instanceof Error ? e.message : String(e));
+  logger.warn("[Gateway] \u26A0\uFE0F  mxmdata \u521D\u59CB\u5316\u5931\u8D25:", e instanceof Error ? e.message : String(e));
 }
-if (process.env.JWT_SECRET) {
-  const secretLength = process.env.JWT_SECRET.length;
-  logger.info(`[Gateway] \u2705 JWT_SECRET \u5DF2\u914D\u7F6E (length: ${secretLength})`);
-  if (process.env.JWT_SECRET === "your-secret-key-change-in-production") {
-    logger.warn(`[Gateway] \u26A0\uFE0F  \u8B66\u544A: \u6B63\u5728\u4F7F\u7528\u9ED8\u8BA4 JWT_SECRET\uFF0C\u8FD9\u4F1A\u5BFC\u81F4\u8BA4\u8BC1\u5931\u8D25\uFF01`);
-    logger.warn(`[Gateway] \u{1F4A1} \u8BF7\u7ACB\u5373\u5728 mxmdata/.env \u4E2D\u914D\u7F6E JWT_SECRET`);
-  }
-} else {
-  logger.warn(`[Gateway] \u26A0\uFE0F  JWT_SECRET \u672A\u914D\u7F6E\uFF0C\u5C06\u4F7F\u7528\u9ED8\u8BA4\u503C\uFF08\u4F1A\u5BFC\u81F4\u8BA4\u8BC1\u5931\u8D25\uFF09`);
-  logger.warn(`[Gateway] \u{1F4A1} \u5EFA\u8BAE: \u5728 mxmdata/.env \u4E2D\u914D\u7F6E JWT_SECRET`);
-  logger.warn(`[Gateway] \u{1F4A1} \u68C0\u67E5\u8DEF\u5F84: ${workspaceEnvPath}`);
-  logger.warn(`[Gateway] \u{1F4A1} \u8FD0\u884C\u8BCA\u65AD\u811A\u672C: ./check_jwt_secret.sh`);
+if (process.env.JWT_SECRET === "your-secret-key-change-in-production") {
+  logger.warn(`[Gateway] \u26A0\uFE0F  \u4F7F\u7528\u9ED8\u8BA4 JWT_SECRET\uFF0C\u8BF7\u5728\u9879\u76EE\u6839 .env \u4E2D\u914D\u7F6E JWT_SECRET`);
+} else if (!process.env.JWT_SECRET) {
+  logger.warn(`[Gateway] \u26A0\uFE0F  JWT_SECRET \u672A\u914D\u7F6E`);
 }
-var app = (0, import_express3.default)();
+var app = (0, import_express4.default)();
 var server = (0, import_http.createServer)(app);
-var port = process.env.PORT ? Number(process.env.PORT) : 3e3;
+var port = Number(process.env.GATEWAY_PORT || process.env.PORT || 3e3);
+setupWebSocketProxy(server);
+setupOpenApiWebSocketProxy(server);
 var corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000,http://localhost:5173";
 app.use(
   (0, import_cors.default)({
     origin: corsOrigin.split(",").map((s) => s.trim()).filter(Boolean),
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: ["Content-Type", "Authorization", "X-Partner-Key", "X-Device-Id", "X-Partner-Timestamp", "X-Partner-Signature", "X-Partner-Secret"]
   })
 );
 app.use((req, res, next) => {
@@ -33390,7 +33885,7 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(import_express3.default.json({
+app.use(import_express4.default.json({
   limit: "10mb",
   strict: false,
   // 允许非数组/对象的 JSON
@@ -33402,9 +33897,9 @@ app.use(import_express3.default.json({
     }
   }
 }));
-app.use(import_express3.default.urlencoded({ extended: true, limit: "10mb" }));
+app.use(import_express4.default.urlencoded({ extended: true, limit: "10mb" }));
 app.use((req, res, next) => {
-  if (req.path.startsWith("/api/v1/cgi-tasks")) {
+  if (req.path.startsWith("/api/v2/tasks/") && req.method === "GET") {
     return next();
   }
   logger.info(`${req.method} ${req.path}`, {
@@ -33415,53 +33910,150 @@ app.use((req, res, next) => {
 });
 app.use(responseMiddleware);
 app.use("/", health_default);
-var proxyRouter = createProxyRouter();
-app.use("/api/v1", proxyRouter);
+app.use("/", client_hints_default);
+setupOpenApiDocs(app);
+var tasksV2ProxyMs = Math.max(
+  6e4,
+  Number(process.env.GATEWAY_TASKS_V2_PROXY_TIMEOUT_MS || 6e5)
+);
 var mxmcgiUrl = process.env.MXMCGI_URL || "http://localhost:4003";
-app.use(
-  "/api/v2/tasks",
-  authMiddleware,
-  (0, import_http_proxy_middleware2.createProxyMiddleware)({
+var mxmauthUrl = process.env.MXMAUTH_URL || "http://localhost:4001";
+function injectAuthHeaders(proxyReq, req) {
+  const user = req.user;
+  if (user) {
+    proxyReq.setHeader("x-user-id", user.userId);
+    proxyReq.setHeader("x-username", user.username);
+    if (user.role) proxyReq.setHeader("x-user-role", user.role);
+  }
+  if (req.partner) {
+    proxyReq.setHeader("x-partner-app-id", req.partner.partnerAppId);
+    proxyReq.setHeader("x-partner-end-user-id", req.partner.endUserId);
+    if (req.partner.allowedSlugs.length > 0) {
+      proxyReq.setHeader("x-partner-allowed-slugs", req.partner.allowedSlugs.join(","));
+    }
+  }
+}
+function mxmcgiAuthProxy(label) {
+  return (0, import_http_proxy_middleware2.createProxyMiddleware)({
     target: mxmcgiUrl,
     changeOrigin: true,
-    pathRewrite: (path, req) => {
-      return req.originalUrl || path;
-    },
-    onProxyReq: (proxyReq, req) => {
-      const user = req.user;
-      if (user) {
-        proxyReq.setHeader("x-user-id", user.userId);
-        proxyReq.setHeader("x-username", user.username);
+    timeout: tasksV2ProxyMs,
+    proxyTimeout: tasksV2ProxyMs,
+    pathRewrite: (_path, req) => req.originalUrl || _path,
+    on: {
+      proxyReq: (proxyReq, req) => {
+        injectAuthHeaders(proxyReq, req);
+        (0, import_http_proxy_middleware2.fixRequestBody)(proxyReq, req);
+      },
+      proxyRes: (proxyRes, req) => {
+        logger.debug(`[${label}] ${req.method} ${req.originalUrl || req.url} -> ${proxyRes.statusCode}`);
+      },
+      error: (err, req, res) => {
+        logger.error(`[${label}] Error: ${req?.method} ${req?.originalUrl || req?.url}`, {
+          message: err?.message,
+          code: err?.code,
+          target: mxmcgiUrl
+        });
+        try {
+          if (res && typeof res.status === "function" && !res.headersSent) {
+            res.status(502).json({
+              success: false,
+              error: { code: "PROXY_ERROR", message: `${label} unavailable: ${err?.message || "unknown error"}` }
+            });
+          }
+        } catch {
+        }
+      }
+    }
+  });
+}
+function runAuthWithScope(req, res, next) {
+  authMiddleware(req, res, (err) => {
+    if (err) return next(err);
+    if (res.headersSent) return;
+    partnerSessionScopeMiddleware(req, res, () => {
+      if (res.headersSent) return;
+      apiKeyScopeMiddleware(req, res, () => {
+        if (res.headersSent) return;
+        void integrationPartnerAclMiddleware(req, res, () => {
+          if (res.headersSent) return;
+          partnerSlugMiddleware(req, res, () => {
+            if (res.headersSent) return;
+            void partnerRateLimitMiddleware(req, res, next);
+          });
+        });
+      });
+    });
+  });
+}
+app.use("/api/v1/partner/me/uploads", runAuthWithScope, mxmcgiAuthProxy("Partner Me Uploads Proxy"));
+app.use(
+  "/api/v1/partner",
+  (0, import_http_proxy_middleware2.createProxyMiddleware)({
+    target: mxmauthUrl,
+    changeOrigin: true,
+    pathRewrite: (_path, req) => req.originalUrl || _path,
+    on: {
+      proxyReq: (proxyReq, req) => {
+        injectAuthHeaders(proxyReq, req);
+        (0, import_http_proxy_middleware2.fixRequestBody)(proxyReq, req);
       }
     }
   })
 );
+app.use("/api/v2/tasks", runAuthWithScope, mxmcgiAuthProxy("TasksV2 Proxy"));
+app.use("/api/v2/agent", runAuthWithScope, mxmcgiAuthProxy("AgentV2 Proxy"));
+app.use("/api/v1/open", runAuthWithScope, mxmcgiAuthProxy("Open API Proxy"));
+app.use("/api/v1/agent", runAuthWithScope, mxmcgiAuthProxy("Agent Catalog Proxy"));
+app.use(
+  "/api/v1/account/published-apis",
+  runAuthWithScope,
+  mxmcgiAuthProxy("Published APIs Account Proxy")
+);
+app.use(
+  "/api/v1/account/usage",
+  runAuthWithScope,
+  mxmcgiAuthProxy("Account Usage Proxy")
+);
+app.use(
+  "/api/v1/cgi/upload",
+  runAuthWithScope,
+  (req, _res, next) => {
+    if (req.user) {
+      req.headers["x-user-id"] = req.user.userId;
+      req.headers["x-username"] = req.user.username;
+      if (req.user.role) req.headers["x-user-role"] = req.user.role;
+    }
+    if (req.partner) {
+      req.headers["x-partner-app-id"] = req.partner.partnerAppId;
+      req.headers["x-partner-end-user-id"] = req.partner.endUserId;
+    }
+    next();
+  },
+  (0, import_http_proxy_middleware2.createProxyMiddleware)({
+    target: mxmcgiUrl,
+    changeOrigin: true,
+    pathRewrite: (_path, req) => {
+      const originalPath = req.originalUrl || _path;
+      return originalPath.replace("/api/v1/cgi/upload", "/upload");
+    },
+    on: {
+      proxyReq: (proxyReq, req) => {
+        injectAuthHeaders(proxyReq, req);
+        const ct = String(req.headers["content-type"] ?? "");
+        if (!ct.includes("multipart/form-data")) {
+          (0, import_http_proxy_middleware2.fixRequestBody)(proxyReq, req);
+        }
+      }
+    }
+  })
+);
+var proxyRouter = createProxyRouter();
+app.use("/api/v1", proxyRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
-setupWebSocketProxy(server);
 server.listen(port, () => {
-  logger.info(`\u{1F680} Gateway service listening on port ${port}`);
-  logger.info(`\u{1F4E1} Routes configured:`);
-  logger.info(`   - /api/v1/account -> mxmauth (${process.env.MXMAUTH_URL || "http://localhost:4001"})`);
-  logger.info(`   - /api/v1/assets -> mxmauth (${process.env.MXMAUTH_URL || "http://localhost:4001"})`);
-  logger.info(`   - /api/v1/payment -> mxmpay (${process.env.MXMPAY_URL || "http://localhost:4002"})`);
-  logger.info(`   - /api/v1/wallets -> mxmpay (${process.env.MXMPAY_URL || "http://localhost:4002"})`);
-  logger.info(`   - /api/v1/generation -> mxmcgi (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
-  logger.info(`   - /api/v1/cgi/graph -> mxmcgi/graph (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
-  logger.info(`   - /api/v1/cgi/text -> mxmcgi/text (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
-  logger.info(`   - /api/v1/cgi/audio -> mxmcgi/audio (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
-  logger.info(`   - /api/v1/cgi/video -> mxmcgi/video (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
-  logger.info(`   - /api/v1/system -> mxmcgi/system (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
-  logger.info(`   - /api/v1/knowledge -> mxmcgi/knowledge (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
-  logger.info(`   - /api/v1/characters -> mxmcgi/characters (${process.env.MXMCGI_URL || "http://localhost:4003"})`);
-  logger.info(`   - /api/v1/agents -> mxmagent (${process.env.MXMAGENT_URL || "http://localhost:4004"})`);
-  logger.info(`   - /api/v1/smartflows -> mxmagent (${process.env.MXMAGENT_URL || "http://localhost:4004"})`);
-  logger.info(`   - /api/v1/smartflow-tasks -> mxmagent/tasks (${process.env.MXMAGENT_URL || "http://localhost:4004"})`);
-  logger.info(`   - /api/v1/notifications -> mxmnotify (${process.env.MXMNOTIFY_URL || "http://localhost:4005"})`);
-  logger.info(`   - /api/v1/tasks -> mxmnotify (${process.env.MXMNOTIFY_URL || "http://localhost:4005"})`);
-  logger.info(`   - /api/v1/sse -> mxmnotify SSE (${process.env.MXMNOTIFY_URL || "http://localhost:4005"})`);
-  logger.info(`   - /api/v1/task-events -> mxmnotify (${process.env.MXMNOTIFY_URL || "http://localhost:4005"})`);
-  logger.info(`   - WS /api/v1/ws/notifications -> mxmnotify WebSocket (${process.env.MXMNOTIFY_URL || "http://localhost:4005"})`);
+  logger.info(`\u{1F680} Gateway listening on port ${port}`);
 });
 /*! Bundled license information:
 

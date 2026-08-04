@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRangeHeader } from './http-range-stream';
+import { inferMediaContentType, parseRangeHeader } from './http-range-stream';
 
 describe('parseRangeHeader', () => {
   const total = 1000;
@@ -22,5 +22,11 @@ describe('parseRangeHeader', () => {
 
   it('returns unsatisfiable for out of bounds', () => {
     expect(parseRangeHeader('bytes=2000-3000', total)).toBe('unsatisfiable');
+  });
+});
+
+describe('inferMediaContentType', () => {
+  it('detects pdf by extension', () => {
+    expect(inferMediaContentType('user/writing/a.pdf')).toBe('application/pdf');
   });
 });

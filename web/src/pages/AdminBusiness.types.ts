@@ -24,6 +24,13 @@ export type GenerateParamsConfig = Partial<{
   temperature: number;
   maxTokens: number;
   topP: number;
+  /**
+   * MiniMax-M3 等：是否启用模型思考。
+   * 写入 generateParams.parameters.thinking = { type: 'disabled' | 'adaptive' }。
+   * undefined = 业务尚未显性配置（勿在运行时偷加默认）。
+   */
+  enableThinking?: boolean;
+  parameters?: Record<string, unknown>;
 }>;
 
 export type PromptConfigRow = {

@@ -95,3 +95,106 @@
 .vf-style-feature-tags {
   margin-top: 4px;
 }
+
+/* 「我的资源」选择器：紧凑行列表，提高信息密度 */
+.graph-task-list.vf-content-list--compact,
+.vf-content-list--compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  grid-template-columns: unset !important;
+  max-height: min(420px, 52vh);
+  overflow: auto;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.vf-picker-row-wrap {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.vf-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.vf-picker-row:hover:not(:disabled) {
+  border-color: rgba(2, 132, 199, 0.45);
+  background: rgba(2, 132, 199, 0.04);
+}
+
+.vf-picker-row:focus-visible {
+  outline: 2px solid rgba(2, 132, 199, 0.45);
+  outline-offset: 1px;
+}
+
+.vf-picker-row:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.vf-picker-row--broken {
+  border-color: rgba(239, 68, 68, 0.35);
+  opacity: 0.75;
+}
+
+.vf-picker-row__icon {
+  flex-shrink: 0;
+  color: #0284c7;
+}
+
+.vf-picker-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.vf-picker-row__name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vf-picker-row__meta {
+  font-size: 11px;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vf-picker-row__action {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0284c7;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.vf-picker-row:hover:not(:disabled) .vf-picker-row__action,
+.vf-picker-row:focus-visible .vf-picker-row__action,
+.vf-picker-row--busy .vf-picker-row__action {
+  opacity: 1;
+}

@@ -75,6 +75,7 @@ import { toAppLang } from '../i18n/appLocale';
 import { getTaskStatusLabel } from '../i18n/taskStatus';
 import { useTaskScopeLabels } from '../i18n/useTaskScopeLabels';
 import { useTaskStatusOptions } from '../i18n/useTaskStatusOptions';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 function getTaskTitle(
   task: WritingTaskItem,
@@ -360,7 +361,7 @@ export default function Video() {
     } catch (err) {
       ctxNotification.error({
         message: t('common.submitFailed'),
-        description: err instanceof Error ? err.message : String(err),
+        description: toUserFacingErrorMessage(err instanceof Error ? err.message : err),
         placement: 'top',
       });
     } finally {
@@ -380,7 +381,7 @@ export default function Video() {
         try {
           const res = await deleteTask(task.id);
           if (res.error) {
-            message.error(res.error);
+            message.error(toUserFacingErrorMessage(res.error));
           } else {
             loadTasks();
             if (viewerTask?.id === task.id) setViewerVisible(false);

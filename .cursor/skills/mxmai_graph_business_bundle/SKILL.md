@@ -7,13 +7,13 @@ description: 在 SuperMXMai 中新增或更新 Graph 子业务（formSchema + un
 
 > **Schema / Prompt 全文规范**：[`mxmcgi/docs/GRAPH_SCHEMA_AND_PROMPT_REFERENCE.md`](../../../mxmcgi/docs/GRAPH_SCHEMA_AND_PROMPT_REFERENCE.md)（本 skill 旁 [`reference.md`](./reference.md) 为索引）  
 > **命名（必读）**：[`.cursor/skills/mxmai_business_naming/SKILL.md`](../mxmai_business_naming/SKILL.md) — graph type **仅** `generator`（生成 / Generated）| `group`（图集 / Gallery）| `series`（系列 / Series）。题材进 subtype；工具类归 `generator` subtype 或 internal。  
-> **历史典例**（旧 `type=design` / `generated` / `gallery`）：结构仍可参考。  
+> **禁止** `type=design` / `generated` / `gallery` 等旧 key。  
 > **新上架**请用：`type=generator` + `subtype=product-poster`（subtypeLabel 如「产品海报」，≤ 8 字；补英文 i18n）。`parallel_count` **仅按需**（单图多份时）。  
 > 架构说明：`mxmcgi/docs/GRAPH_BUSINESS_CONFIG_AND_SMARTFLOW.md`
 
 当你需要「从零做一个新的生图子类型 + 表单 + briefing 模板 + 路由/价格」或「改现有子业务并同步 DB」时，按本 skill 执行。
 
-**可选执行管线**（前置 Prompt 格式化 / 后置等，**非必须**）：`generator` 以单次生图 + 可选 Prompt 格式化为主。见 [`.cursor/skills/mxmai_business_pipeline/SKILL.md`](../mxmai_business_pipeline/SKILL.md)。
+**可选执行管线**（前置 Prompt 格式化 / 后置等，**非必须**）：`generator` 以单次生图 + 可选 Prompt 格式化为主。见 [`.cursor/skills/mxmai_business_pipeline/SKILL.md`](../mxmai_business_pipeline/SKILL.md)。**主生图在 output**；勿把主路由调用挂到 post。
 
 ---
 
@@ -26,7 +26,7 @@ description: 在 SuperMXMai 中新增或更新 Graph 子业务（formSchema + un
 | 路由 | `graph_scope_config`（bundle 里 `routing`） | 子类型 → provider / 物理模型 / 是否启用 |
 | 计费 | `businessPricing[]`（bundle 内） | `business_type`、按张/按次等 token 价 |
 
-**产品宣传海报**类业务：`extra.display`（taskLabel=`生成`，taskLabelI18n.en=`Generated`，subtypeLabel ≤ 8 字）、`routing.logical_model`（新：`graph-generator-product-poster`；旧典例仍为 `graph-design-productposter` / `graph-generated-*`）、`businessPricing` 与模型对齐。
+**产品宣传海报**类业务：`extra.display`（taskLabel=`生成`，taskLabelI18n.en=`Generated`，subtypeLabel ≤ 8 字）、`routing.logical_model`（`graph-generator-product-poster`）、`businessPricing` 与模型对齐。`logical_model` 前缀必须是 `graph-generator|group|series-`。
 
 ### 1.1 Graph `type`（钉死）
 

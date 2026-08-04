@@ -6,6 +6,7 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { getSmartflowTask, type SmartflowExecutionItem } from '../../api/client';
 import { ExecutionDetailContent } from './ExecutionDetailContent';
 import { isActiveExecutionStatus } from './execution-detail-utils';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 export function ExecutionDetailModal({
   open,
@@ -35,7 +36,7 @@ export function ExecutionDetailModal({
     try {
       const res = await getSmartflowTask(executionId);
       if (res.error) {
-        if (!silent) message.error(res.error);
+        if (!silent) message.error(toUserFacingErrorMessage(res.error));
         return;
       }
       const body = res.data as { data?: SmartflowExecutionItem } | undefined;

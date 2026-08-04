@@ -1,6 +1,6 @@
 /**
  * 删除已弃用的 writing/generator/seek-piece（探索单稿）。
- * 角度探索已改 groupItemBatch 同任务成稿，勿再通过 bundle upsert 复活此业务。
+ * 勿再通过 bundle upsert 复活；方案类请用 writing/group/deck。
  *
  *   pnpm exec tsx src/scripts/delete-writing-seek-piece.ts
  *   MXM_ALLOW_REMOTE_WIPE=1 pnpm exec tsx src/scripts/delete-writing-seek-piece.ts

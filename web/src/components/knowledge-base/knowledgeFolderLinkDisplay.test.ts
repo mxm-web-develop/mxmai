@@ -45,13 +45,13 @@ describe('resolveLinkDisplayTitle', () => {
       makeLink({
         task_type: 'writing',
         metadata: {
-          label: 'AI科技情报报道-20260711_170150',
+          label: '选题长文-20260711_170150',
           taskLabel: '写作',
-          subtypeLabel: 'AI科技情报报道',
+          subtypeLabel: '选题长文',
         },
       })
     );
-    expect(t).toBe('AI科技情报报道-20260711_170150');
+    expect(t).toBe('选题长文-20260711_170150');
     expect(t).not.toContain('#');
   });
 
@@ -59,10 +59,10 @@ describe('resolveLinkDisplayTitle', () => {
     const t = resolveLinkDisplayTitle(
       makeLink({
         task_type: 'writing',
-        metadata: { subtypeLabel: 'AI 科技情报报道' },
+        metadata: { subtypeLabel: '选题长文' },
       })
     );
-    expect(t).toBe('AI 科技情报报道');
+    expect(t).toBe('选题长文');
     expect(t).not.toContain('#');
   });
 
@@ -70,20 +70,45 @@ describe('resolveLinkDisplayTitle', () => {
     const t = resolveLinkDisplayTitle(
       makeLink({
         task_type: 'writing',
-        metadata: { taskLabel: '写作', subtypeLabel: '营销方案' },
+        metadata: { taskLabel: '写作', subtypeLabel: '行业日报' },
       })
     );
-    // 子类名比「业务 · 子类」更贴近列表卡片上的「营销方案」标签
-    expect(t).toBe('营销方案');
+    // 子类名比「业务 · 子类」更贴近列表卡片上的子类标签
+    expect(t).toBe('行业日报');
     expect(t).not.toContain('#');
   });
 
-  it('写作任务：仅有 taskLabel 时展示业务名，不再拼短码', () => {
+  it('写作任务：仅有 taskLabel「写作」时不单独当标题，回退短码', () => {
     const t = resolveLinkDisplayTitle(
       makeLink({ task_type: 'writing', metadata: { taskLabel: '写作' } })
     );
-    expect(t).toBe('写作');
-    expect(t).not.toContain('#');
+    expect(t).not.toBe('写作');
+    expect(t).toMatch(/#abcdef12$/);
+  });
+
+  it('写作任务：contentPreview 刊头与列表卡片 headline 对齐', () => {
+    const t = resolveLinkDisplayTitle(
+      makeLink({
+        task_type: 'writing',
+        name: '写作',
+        metadata: {
+          taskLabel: '写作',
+          contentPreview: '# 史前文明证据考：方法论视角下的可证伪性\n\n正文…',
+        },
+      })
+    );
+    expect(t).toBe('史前文明证据考：方法论视角下的可证伪性');
+  });
+
+  it('写作任务：后端已写入 link.name 刊头时直接使用', () => {
+    const t = resolveLinkDisplayTitle(
+      makeLink({
+        task_type: 'writing',
+        name: '沉默的证词',
+        metadata: { taskLabel: '写作' },
+      })
+    );
+    expect(t).toBe('沉默的证词');
   });
 
   it('写作任务：用户标题优先于业务标签', () => {
@@ -93,12 +118,12 @@ describe('resolveLinkDisplayTitle', () => {
         metadata: {
           label: '我的自定义标题',
           taskLabel: '写作',
-          subtypeLabel: '营销方案',
+          subtypeLabel: '行业日报',
         },
       })
     );
     expect(t).toBe('我的自定义标题');
-    expect(t).not.toContain('营销方案');
+    expect(t).not.toContain('行业日报');
   });
 
   it('音频任务：不展示包含的指令文案', () => {

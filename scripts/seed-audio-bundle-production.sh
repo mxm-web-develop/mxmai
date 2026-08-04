@@ -4,9 +4,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEPLOY_HOST="${DEPLOY_HOST:-root@121.43.32.168}"
+DEPLOY_HOST="${DEPLOY_HOST:-mxm-hk}"
 REMOTE_ENV="${DEPLOY_PATH:-/opt/supermxmai}/.env"
-BUNDLE="${1:-src/tasks/examples/audio-speak-voice-over-test.business.json}"
+BUNDLE="${1:-src/tasks/examples/audio-generator-voice-over-test.business.json}"
 
 log() { echo "[seed-audio-bundle] $*" ; }
 
@@ -44,4 +44,7 @@ pnpm --filter @mxmai/mxmcgi run apply:bundle -- "$BUNDLE"
 log "reload mxmcgi..."
 ssh_cmd "cd '${DEPLOY_PATH:-/opt/supermxmai}' && pm2 reload mxmcgi-api mxmcgi-worker mxmcgi-scheduler"
 
-log "完成。请刷新 Admin → 业务管理，查找 audio/speak/voice-over-test"
+log "停用全部旧 audio/speak/*..."
+pnpm --filter @mxmai/mxmcgi run deactivate:legacy-audio-speak
+
+log "完成。请刷新 Admin → 业务管理，查找 audio/generator/voice-over-test"

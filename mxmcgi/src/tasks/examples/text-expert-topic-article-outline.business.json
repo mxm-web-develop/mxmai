@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-08-02T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "topic-article-outline",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "话题写作·简要大纲",
+          "description": "按类别/风格/话题/篇幅/结构生成可编辑的简要大纲（title + sections）。",
+          "taskLabelI18n": {
+            "zh": "专家填合同",
+            "zh-TW": "專家填合同",
+            "en": "Expert",
+            "ja": "Expert"
+          },
+          "subtypeLabelI18n": {
+            "zh": "话题写作·简要大纲",
+            "zh-TW": "話題寫作·簡要大綱",
+            "en": "Topic-article brief outline",
+            "ja": "トピック執筆アウトライン"
+          },
+          "descriptionI18n": {
+            "zh": "按类别/风格/话题/篇幅/结构生成可编辑简要大纲。",
+            "zh-TW": "依類別/風格/話題/篇幅/結構生成可編輯簡要大綱。",
+            "en": "Brief editable outline from category/voice/topic/length/structure.",
+            "ja": "カテゴリ・文体・話題・分量・構造から短いアウトラインを生成。"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段说明",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "你是话题写作的大纲编辑。根据合同 basic 里用户已选的类别、风格、话题、篇幅、结构，生成一份**简要可编辑大纲**，供用户确认后成稿严格跟随。\n\n## 输入（只读）\n- topic / voice_category / voice_id / purpose / article_length / article_length_guide / structure_id\n- structure_beats（若有）：结构节拍，大纲 sections 顺序应覆盖这些节拍意图\n- voice_style（若有）：风格工艺，影响各节 intent 的语气，不写进读者可见标题的人名节目名\n\n## 输出格式（最高优先级）\n- 第一个字符 `{`，最后一个字符 `}`。\n- 仅 JSON：{\"outline\":{\"title\":\"…\",\"sections\":[{\"heading\":\"…\",\"intent\":\"…\",\"notes\":\"…\"},…]}}\n- 或扁平：{\"title\":\"…\",\"sections\":[…] }（平台会收成 outline）\n- 禁止 markdown 围栏、解释散文、thinking。\n\n## 内容约束（硬）\n- title：可发表的短标题（中文约 8～22 字，最长 28；英文 ≤12 词）；语言=basic.language。贴合 basic.topic 的冲突/人物，但**禁止**把 topic 整段（尤其【号外】超长摘要）粘贴为 title。\n- sections：3～6 节；每节 heading 短、intent 一句说明本节要写什么；notes 可选（素材提示，勿编造假数字/假引语）。\n- 必须服务 basic.topic，禁止改题。\n- 贴合类别体裁：\n  - purpose=fiction_short：完整短篇故事弧（欲望→冲突→反转→落点）；末节必须是收束/兑现，禁止「未决问题」「开放悬念」「未完」「下章」「连载钩」；禁止灌入专栏「机制拆解」「谁受益谁承压」。\n  - purpose=drama_beat：单集打完（冷开场→爆发→反转→落点）；末节必须落点，禁止「下集见」「未完」。\n  - purpose=publish_article：论点/场景/材料收束；可保留开放问题作议论收尾。\n  - 财经/时政（investigative）：条款与边界；谈话：可追问；解说：可播开口；网课：可跟练步骤。\n- 篇幅：遵循 basic.article_length_guide。brief/standard/long=短篇/中篇/长篇；中篇大纲 intent 须写出可感场面（勿只写气氛）；节数随体量略增；不论档位都必须一次读完成立（长篇≠连载）。\n- 叙事类大纲：sections 里点明关键人物称呼（可用临时名），避免全篇「他/她」无法区分。\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.35,
+              "maxTokens": 2048,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "reasoning_split": true
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-topic-article-outline",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    }
+  ]
+}

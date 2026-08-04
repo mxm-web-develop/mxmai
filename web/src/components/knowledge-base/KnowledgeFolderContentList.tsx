@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Empty } from 'antd';
+import { Folder } from 'lucide-react';
 import type { KnowledgeFolderContentItem, KnowledgeFolderLinkItem } from '../../api/client';
 import { useGraphTaskThumbnails } from '../../hooks/useGraphTaskThumbnails';
 import { useVideoTaskThumbnails } from '../../hooks/useVideoTaskThumbnails';
@@ -117,6 +118,25 @@ export function KnowledgeFolderContentList({
       <ul className={`graph-task-list vf-content-list${compact ? ' vf-content-list--compact' : ''}`}>
         {visibleItems.map((item) => {
           if (item.type === 'dir') {
+            if (compact) {
+              return (
+                <li key={`dir-${item.id}`} className="vf-picker-row-wrap">
+                  <button
+                    type="button"
+                    className="vf-picker-row"
+                    onClick={() => onOpenDir(item.id)}
+                    title={item.name}
+                  >
+                    <Folder size={16} className="vf-picker-row__icon" aria-hidden />
+                    <span className="vf-picker-row__body">
+                      <span className="vf-picker-row__name">{item.name}</span>
+                      <span className="vf-picker-row__meta">子文件夹</span>
+                    </span>
+                    <span className="vf-picker-row__action">打开</span>
+                  </button>
+                </li>
+              );
+            }
             return (
               <li
                 key={`dir-${item.id}`}
@@ -148,6 +168,7 @@ export function KnowledgeFolderContentList({
             <KnowledgeFolderLinkCard
               key={`${link.ref_type}-${link.id}`}
               link={link}
+              compact={compact}
               graphThumbUrl={kind === 'graph' ? graphThumbMap[knowledgeFolderLinkTaskId(link)] : undefined}
               videoThumbUrl={kind === 'video' ? videoThumbMap[knowledgeFolderLinkTaskId(link)] : undefined}
               onRequestGraphThumb={requestGraphThumb}

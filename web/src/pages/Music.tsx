@@ -52,6 +52,7 @@ import { toAppLang } from '../i18n/appLocale';
 import { getTaskStatusLabel } from '../i18n/taskStatus';
 import { useTaskScopeLabels } from '../i18n/useTaskScopeLabels';
 import { useTaskStatusOptions } from '../i18n/useTaskStatusOptions';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 function getTaskTitle(task: WritingTaskItem, defaultTitle: string): string {
   const labelVal = (task.metadata?.label as string)?.trim();
@@ -236,7 +237,7 @@ export default function Music() {
         try {
           const res = await deleteTask(task.id);
           if (res.error) {
-            message.error(res.error);
+            message.error(toUserFacingErrorMessage(res.error));
           } else {
             setTasks((prev) => prev.filter((item) => item.id !== task.id));
             if (viewerTask?.id === task.id) setViewerVisible(false);

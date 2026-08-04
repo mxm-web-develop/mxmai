@@ -61,7 +61,7 @@
             "generateParams": {
               "temperature": 0.2,
               "topP": 0.9,
-              "maxTokens": 4096
+              "maxTokens": 20000
             }
           }
         }

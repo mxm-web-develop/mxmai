@@ -188,6 +188,15 @@ if [[ "$DO_BACKEND" == true ]]; then
   if [[ -d "$ROOT/mxmcgi/scripts" ]]; then
     rsync_dist "$ROOT/mxmcgi/scripts" "$DEPLOY_PATH/mxmcgi/scripts"
   fi
+  # PPTX 编译微服务（FastAPI + build_pptx_from_ir.py），供 ecosystem pptx-compiler / renderPptx 使用
+  if [[ -d "$ROOT/mxmcgi/tools/pptx-compiler" ]]; then
+    ssh_cmd "mkdir -p ${DEPLOY_PATH}/mxmcgi/tools"
+    rsync_dist "$ROOT/mxmcgi/tools/pptx-compiler" "$DEPLOY_PATH/mxmcgi/tools/pptx-compiler"
+    if [[ -f "$ROOT/mxmcgi/tools/pptx-compiler/requirements.txt" ]]; then
+      log "安装 pptx-compiler Python 依赖..."
+      ssh_cmd "python3 -m pip install -q -r ${DEPLOY_PATH}/mxmcgi/tools/pptx-compiler/requirements.txt"
+    fi
+  fi
   if [[ -f "$ROOT/mxmcgi/requirements-asr.txt" ]]; then
     scp_cmd "$ROOT/mxmcgi/requirements-asr.txt" "${DEPLOY_HOST}:${DEPLOY_PATH}/mxmcgi/requirements-asr.txt"
   fi

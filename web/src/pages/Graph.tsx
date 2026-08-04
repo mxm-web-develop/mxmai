@@ -69,6 +69,7 @@ import { toAppLang } from '../i18n/appLocale';
 import { getTaskStatusLabel } from '../i18n/taskStatus';
 import { useTaskScopeLabels } from '../i18n/useTaskScopeLabels';
 import { useTaskStatusOptions } from '../i18n/useTaskStatusOptions';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 function stripPrivateUiFields<T>(input: T): T {
   if (Array.isArray(input)) return input.map((item) => stripPrivateUiFields(item)) as T;
@@ -616,7 +617,7 @@ export default function Graph() {
     } catch (err) {
       ctxNotification.error({
         message: t('common.submitFailed'),
-        description: err instanceof Error ? err.message : String(err),
+        description: toUserFacingErrorMessage(err instanceof Error ? err.message : err),
         placement: 'top',
       });
     } finally {

@@ -69,6 +69,15 @@
   padding: 0;
 }
 
+.wv-body-inner--pptx {
+  max-width: none;
+  overflow: hidden;
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
 .wv-body-inner--data {
   max-width: none;
   padding: 0;
@@ -481,4 +490,100 @@
   .wv-collection__reader-hint {
     display: none;
   }
+}
+
+/* 演示文稿 PPTX 预览 */
+.wv-pptx-frame-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: #0f172a;
+}
+
+.wv-pptx-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.wv-pptx-fallback {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1.25rem 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.wv-pptx-fallback__hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.85rem 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, #0284c7 28%, var(--card-border));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #0c4a6e 14%, transparent), transparent 60%),
+    var(--glass-surface);
+  color: var(--text-primary, #0f172a);
+}
+
+.wv-pptx-fallback__hero strong {
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 0.25rem;
+}
+
+.wv-pptx-fallback__hero p {
+  margin: 0;
+  max-width: 42rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-secondary, #475569);
+}
+
+.wv-pptx-fallback__dl {
+  margin-left: auto;
+  align-self: center;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+  background: #0284c7;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wv-pptx-fallback__dl:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.wv-pptx-fallback__slides {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.wv-pptx-fallback__slides li {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: 0.65rem;
+  align-items: baseline;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, #0284c7 6%, transparent);
+  font-size: 0.92rem;
+}
+
+.wv-pptx-fallback__idx {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #0284c7;
 }

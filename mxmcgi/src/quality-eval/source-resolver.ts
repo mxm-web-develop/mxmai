@@ -6,6 +6,7 @@ import { RepositoryFactory, getSupabaseClient } from '@mxmai/mxmdata';
 import { DatabaseTaskStorage } from '../task/database-storage';
 import { decodePossiblyMojibakeFilename } from '../utils/filename-encoding';
 import { buildPipelineBundle, extractArticleTextFromTask } from './pipeline-bundle';
+import { extractEvalRunContextFromTask } from './eval-run-context';
 import type { QualityEvalSourceKind, QualityEvalSourceRef, ResolvedSource } from './types';
 import { MAX_ARTICLE_CHARS } from './types';
 
@@ -60,6 +61,7 @@ async function resolveFromTask(taskId: string, textOverride?: string): Promise<R
     sourceRef: { taskId },
     taskId,
     pipelineBundle: buildPipelineBundle(task),
+    evalRunContext: extractEvalRunContextFromTask(task),
   };
 }
 

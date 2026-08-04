@@ -17,9 +17,9 @@ var __export = (target, all) => {
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    for (let key2 of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key2) && key2 !== except)
+        __defProp(to, key2, { get: () => from[key2], enumerable: !(desc = __getOwnPropDesc(from, key2)) || desc.enumerable });
   }
   return to;
 };
@@ -32,418 +32,13 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../node_modules/.pnpm/dotenv@17.2.3/node_modules/dotenv/package.json
-var require_package = __commonJS({
-  "../node_modules/.pnpm/dotenv@17.2.3/node_modules/dotenv/package.json"(exports2, module2) {
-    module2.exports = {
-      name: "dotenv",
-      version: "17.2.3",
-      description: "Loads environment variables from .env file",
-      main: "lib/main.js",
-      types: "lib/main.d.ts",
-      exports: {
-        ".": {
-          types: "./lib/main.d.ts",
-          require: "./lib/main.js",
-          default: "./lib/main.js"
-        },
-        "./config": "./config.js",
-        "./config.js": "./config.js",
-        "./lib/env-options": "./lib/env-options.js",
-        "./lib/env-options.js": "./lib/env-options.js",
-        "./lib/cli-options": "./lib/cli-options.js",
-        "./lib/cli-options.js": "./lib/cli-options.js",
-        "./package.json": "./package.json"
-      },
-      scripts: {
-        "dts-check": "tsc --project tests/types/tsconfig.json",
-        lint: "standard",
-        pretest: "npm run lint && npm run dts-check",
-        test: "tap run tests/**/*.js --allow-empty-coverage --disable-coverage --timeout=60000",
-        "test:coverage": "tap run tests/**/*.js --show-full-coverage --timeout=60000 --coverage-report=text --coverage-report=lcov",
-        prerelease: "npm test",
-        release: "standard-version"
-      },
-      repository: {
-        type: "git",
-        url: "git://github.com/motdotla/dotenv.git"
-      },
-      homepage: "https://github.com/motdotla/dotenv#readme",
-      funding: "https://dotenvx.com",
-      keywords: [
-        "dotenv",
-        "env",
-        ".env",
-        "environment",
-        "variables",
-        "config",
-        "settings"
-      ],
-      readmeFilename: "README.md",
-      license: "BSD-2-Clause",
-      devDependencies: {
-        "@types/node": "^18.11.3",
-        decache: "^4.6.2",
-        sinon: "^14.0.1",
-        standard: "^17.0.0",
-        "standard-version": "^9.5.0",
-        tap: "^19.2.0",
-        typescript: "^4.8.4"
-      },
-      engines: {
-        node: ">=12"
-      },
-      browser: {
-        fs: false
-      }
-    };
-  }
-});
-
-// ../node_modules/.pnpm/dotenv@17.2.3/node_modules/dotenv/lib/main.js
-var require_main = __commonJS({
-  "../node_modules/.pnpm/dotenv@17.2.3/node_modules/dotenv/lib/main.js"(exports2, module2) {
-    "use strict";
-    var fs = require("fs");
-    var path = require("path");
-    var os = require("os");
-    var crypto = require("crypto");
-    var packageJson = require_package();
-    var version = packageJson.version;
-    var TIPS = [
-      "\u{1F510} encrypt with Dotenvx: https://dotenvx.com",
-      "\u{1F510} prevent committing .env to code: https://dotenvx.com/precommit",
-      "\u{1F510} prevent building .env in docker: https://dotenvx.com/prebuild",
-      "\u{1F4E1} add observability to secrets: https://dotenvx.com/ops",
-      "\u{1F465} sync secrets across teammates & machines: https://dotenvx.com/ops",
-      "\u{1F5C2}\uFE0F backup and recover secrets: https://dotenvx.com/ops",
-      "\u2705 audit secrets and track compliance: https://dotenvx.com/ops",
-      "\u{1F504} add secrets lifecycle management: https://dotenvx.com/ops",
-      "\u{1F511} add access controls to secrets: https://dotenvx.com/ops",
-      "\u{1F6E0}\uFE0F  run anywhere with `dotenvx run -- yourcommand`",
-      "\u2699\uFE0F  specify custom .env file path with { path: '/custom/path/.env' }",
-      "\u2699\uFE0F  enable debug logging with { debug: true }",
-      "\u2699\uFE0F  override existing env vars with { override: true }",
-      "\u2699\uFE0F  suppress all logs with { quiet: true }",
-      "\u2699\uFE0F  write to custom object with { processEnv: myObject }",
-      "\u2699\uFE0F  load multiple .env files with { path: ['.env.local', '.env'] }"
-    ];
-    function _getRandomTip() {
-      return TIPS[Math.floor(Math.random() * TIPS.length)];
-    }
-    function parseBoolean(value) {
-      if (typeof value === "string") {
-        return !["false", "0", "no", "off", ""].includes(value.toLowerCase());
-      }
-      return Boolean(value);
-    }
-    function supportsAnsi() {
-      return process.stdout.isTTY;
-    }
-    function dim(text) {
-      return supportsAnsi() ? `\x1B[2m${text}\x1B[0m` : text;
-    }
-    var LINE = /(?:^|^)\s*(?:export\s+)?([\w.-]+)(?:\s*=\s*?|:\s+?)(\s*'(?:\\'|[^'])*'|\s*"(?:\\"|[^"])*"|\s*`(?:\\`|[^`])*`|[^#\r\n]+)?\s*(?:#.*)?(?:$|$)/mg;
-    function parse(src) {
-      const obj = {};
-      let lines = src.toString();
-      lines = lines.replace(/\r\n?/mg, "\n");
-      let match;
-      while ((match = LINE.exec(lines)) != null) {
-        const key = match[1];
-        let value = match[2] || "";
-        value = value.trim();
-        const maybeQuote = value[0];
-        value = value.replace(/^(['"`])([\s\S]*)\1$/mg, "$2");
-        if (maybeQuote === '"') {
-          value = value.replace(/\\n/g, "\n");
-          value = value.replace(/\\r/g, "\r");
-        }
-        obj[key] = value;
-      }
-      return obj;
-    }
-    function _parseVault(options) {
-      options = options || {};
-      const vaultPath = _vaultPath(options);
-      options.path = vaultPath;
-      const result = DotenvModule.configDotenv(options);
-      if (!result.parsed) {
-        const err = new Error(`MISSING_DATA: Cannot parse ${vaultPath} for an unknown reason`);
-        err.code = "MISSING_DATA";
-        throw err;
-      }
-      const keys = _dotenvKey(options).split(",");
-      const length = keys.length;
-      let decrypted;
-      for (let i = 0; i < length; i++) {
-        try {
-          const key = keys[i].trim();
-          const attrs = _instructions(result, key);
-          decrypted = DotenvModule.decrypt(attrs.ciphertext, attrs.key);
-          break;
-        } catch (error) {
-          if (i + 1 >= length) {
-            throw error;
-          }
-        }
-      }
-      return DotenvModule.parse(decrypted);
-    }
-    function _warn(message) {
-      console.error(`[dotenv@${version}][WARN] ${message}`);
-    }
-    function _debug(message) {
-      console.log(`[dotenv@${version}][DEBUG] ${message}`);
-    }
-    function _log(message) {
-      console.log(`[dotenv@${version}] ${message}`);
-    }
-    function _dotenvKey(options) {
-      if (options && options.DOTENV_KEY && options.DOTENV_KEY.length > 0) {
-        return options.DOTENV_KEY;
-      }
-      if (process.env.DOTENV_KEY && process.env.DOTENV_KEY.length > 0) {
-        return process.env.DOTENV_KEY;
-      }
-      return "";
-    }
-    function _instructions(result, dotenvKey) {
-      let uri;
-      try {
-        uri = new URL(dotenvKey);
-      } catch (error) {
-        if (error.code === "ERR_INVALID_URL") {
-          const err = new Error("INVALID_DOTENV_KEY: Wrong format. Must be in valid uri format like dotenv://:key_1234@dotenvx.com/vault/.env.vault?environment=development");
-          err.code = "INVALID_DOTENV_KEY";
-          throw err;
-        }
-        throw error;
-      }
-      const key = uri.password;
-      if (!key) {
-        const err = new Error("INVALID_DOTENV_KEY: Missing key part");
-        err.code = "INVALID_DOTENV_KEY";
-        throw err;
-      }
-      const environment = uri.searchParams.get("environment");
-      if (!environment) {
-        const err = new Error("INVALID_DOTENV_KEY: Missing environment part");
-        err.code = "INVALID_DOTENV_KEY";
-        throw err;
-      }
-      const environmentKey = `DOTENV_VAULT_${environment.toUpperCase()}`;
-      const ciphertext = result.parsed[environmentKey];
-      if (!ciphertext) {
-        const err = new Error(`NOT_FOUND_DOTENV_ENVIRONMENT: Cannot locate environment ${environmentKey} in your .env.vault file.`);
-        err.code = "NOT_FOUND_DOTENV_ENVIRONMENT";
-        throw err;
-      }
-      return { ciphertext, key };
-    }
-    function _vaultPath(options) {
-      let possibleVaultPath = null;
-      if (options && options.path && options.path.length > 0) {
-        if (Array.isArray(options.path)) {
-          for (const filepath of options.path) {
-            if (fs.existsSync(filepath)) {
-              possibleVaultPath = filepath.endsWith(".vault") ? filepath : `${filepath}.vault`;
-            }
-          }
-        } else {
-          possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
-        }
-      } else {
-        possibleVaultPath = path.resolve(process.cwd(), ".env.vault");
-      }
-      if (fs.existsSync(possibleVaultPath)) {
-        return possibleVaultPath;
-      }
-      return null;
-    }
-    function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path.join(os.homedir(), envPath.slice(1)) : envPath;
-    }
-    function _configVault(options) {
-      const debug = parseBoolean(process.env.DOTENV_CONFIG_DEBUG || options && options.debug);
-      const quiet = parseBoolean(process.env.DOTENV_CONFIG_QUIET || options && options.quiet);
-      if (debug || !quiet) {
-        _log("Loading env from encrypted .env.vault");
-      }
-      const parsed = DotenvModule._parseVault(options);
-      let processEnv = process.env;
-      if (options && options.processEnv != null) {
-        processEnv = options.processEnv;
-      }
-      DotenvModule.populate(processEnv, parsed, options);
-      return { parsed };
-    }
-    function configDotenv(options) {
-      const dotenvPath = path.resolve(process.cwd(), ".env");
-      let encoding = "utf8";
-      let processEnv = process.env;
-      if (options && options.processEnv != null) {
-        processEnv = options.processEnv;
-      }
-      let debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || options && options.debug);
-      let quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || options && options.quiet);
-      if (options && options.encoding) {
-        encoding = options.encoding;
-      } else {
-        if (debug) {
-          _debug("No encoding is specified. UTF-8 is used by default");
-        }
-      }
-      let optionPaths = [dotenvPath];
-      if (options && options.path) {
-        if (!Array.isArray(options.path)) {
-          optionPaths = [_resolveHome(options.path)];
-        } else {
-          optionPaths = [];
-          for (const filepath of options.path) {
-            optionPaths.push(_resolveHome(filepath));
-          }
-        }
-      }
-      let lastError;
-      const parsedAll = {};
-      for (const path2 of optionPaths) {
-        try {
-          const parsed = DotenvModule.parse(fs.readFileSync(path2, { encoding }));
-          DotenvModule.populate(parsedAll, parsed, options);
-        } catch (e) {
-          if (debug) {
-            _debug(`Failed to load ${path2} ${e.message}`);
-          }
-          lastError = e;
-        }
-      }
-      const populated = DotenvModule.populate(processEnv, parsedAll, options);
-      debug = parseBoolean(processEnv.DOTENV_CONFIG_DEBUG || debug);
-      quiet = parseBoolean(processEnv.DOTENV_CONFIG_QUIET || quiet);
-      if (debug || !quiet) {
-        const keysCount = Object.keys(populated).length;
-        const shortPaths = [];
-        for (const filePath of optionPaths) {
-          try {
-            const relative = path.relative(process.cwd(), filePath);
-            shortPaths.push(relative);
-          } catch (e) {
-            if (debug) {
-              _debug(`Failed to load ${filePath} ${e.message}`);
-            }
-            lastError = e;
-          }
-        }
-        _log(`injecting env (${keysCount}) from ${shortPaths.join(",")} ${dim(`-- tip: ${_getRandomTip()}`)}`);
-      }
-      if (lastError) {
-        return { parsed: parsedAll, error: lastError };
-      } else {
-        return { parsed: parsedAll };
-      }
-    }
-    function config(options) {
-      if (_dotenvKey(options).length === 0) {
-        return DotenvModule.configDotenv(options);
-      }
-      const vaultPath = _vaultPath(options);
-      if (!vaultPath) {
-        _warn(`You set DOTENV_KEY but you are missing a .env.vault file at ${vaultPath}. Did you forget to build it?`);
-        return DotenvModule.configDotenv(options);
-      }
-      return DotenvModule._configVault(options);
-    }
-    function decrypt(encrypted, keyStr) {
-      const key = Buffer.from(keyStr.slice(-64), "hex");
-      let ciphertext = Buffer.from(encrypted, "base64");
-      const nonce = ciphertext.subarray(0, 12);
-      const authTag = ciphertext.subarray(-16);
-      ciphertext = ciphertext.subarray(12, -16);
-      try {
-        const aesgcm = crypto.createDecipheriv("aes-256-gcm", key, nonce);
-        aesgcm.setAuthTag(authTag);
-        return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
-      } catch (error) {
-        const isRange = error instanceof RangeError;
-        const invalidKeyLength = error.message === "Invalid key length";
-        const decryptionFailed = error.message === "Unsupported state or unable to authenticate data";
-        if (isRange || invalidKeyLength) {
-          const err = new Error("INVALID_DOTENV_KEY: It must be 64 characters long (or more)");
-          err.code = "INVALID_DOTENV_KEY";
-          throw err;
-        } else if (decryptionFailed) {
-          const err = new Error("DECRYPTION_FAILED: Please check your DOTENV_KEY");
-          err.code = "DECRYPTION_FAILED";
-          throw err;
-        } else {
-          throw error;
-        }
-      }
-    }
-    function populate(processEnv, parsed, options = {}) {
-      const debug = Boolean(options && options.debug);
-      const override = Boolean(options && options.override);
-      const populated = {};
-      if (typeof parsed !== "object") {
-        const err = new Error("OBJECT_REQUIRED: Please check the processEnv argument being passed to populate");
-        err.code = "OBJECT_REQUIRED";
-        throw err;
-      }
-      for (const key of Object.keys(parsed)) {
-        if (Object.prototype.hasOwnProperty.call(processEnv, key)) {
-          if (override === true) {
-            processEnv[key] = parsed[key];
-            populated[key] = parsed[key];
-          }
-          if (debug) {
-            if (override === true) {
-              _debug(`"${key}" is already defined and WAS overwritten`);
-            } else {
-              _debug(`"${key}" is already defined and was NOT overwritten`);
-            }
-          }
-        } else {
-          processEnv[key] = parsed[key];
-          populated[key] = parsed[key];
-        }
-      }
-      return populated;
-    }
-    var DotenvModule = {
-      configDotenv,
-      _configVault,
-      _parseVault,
-      config,
-      decrypt,
-      parse,
-      populate
-    };
-    module2.exports.configDotenv = DotenvModule.configDotenv;
-    module2.exports._configVault = DotenvModule._configVault;
-    module2.exports._parseVault = DotenvModule._parseVault;
-    module2.exports.config = DotenvModule.config;
-    module2.exports.decrypt = DotenvModule.decrypt;
-    module2.exports.parse = DotenvModule.parse;
-    module2.exports.populate = DotenvModule.populate;
-    module2.exports = DotenvModule;
-  }
-});
-
 // src/config/loadEnv.ts
 var require_loadEnv = __commonJS({
   "src/config/loadEnv.ts"() {
     "use strict";
-    var import_dotenv = __toESM(require_main());
-    var import_path = require("path");
+    var import_mxmdata23 = require("@mxmai/mxmdata");
     if (!global.__MXMAUTH_ENV_LOADED__) {
-      process.env.DOTENV_CONFIG_DEBUG = "false";
-      const projectRootEnvPath = (0, import_path.resolve)(__dirname, "../../..", ".env");
-      const workspaceEnvPath = (0, import_path.resolve)(__dirname, "../../../mxmdata/.env");
-      const mxmauthEnvPath = (0, import_path.resolve)(__dirname, "..", ".env");
-      import_dotenv.default.config({ path: projectRootEnvPath, override: false });
-      import_dotenv.default.config({ path: workspaceEnvPath, override: false });
-      import_dotenv.default.config({ path: mxmauthEnvPath, override: false });
+      (0, import_mxmdata23.loadMonorepoEnv)({ service: "mxmauth" });
       global.__MXMAUTH_ENV_LOADED__ = true;
     }
   }
@@ -571,11 +166,11 @@ var require_depd = __commonJS({
           break;
         }
       }
-      var key = caller ? depSite.join(":") + "__" + caller.join(":") : void 0;
-      if (key !== void 0 && key in this._warned) {
+      var key2 = caller ? depSite.join(":") + "__" + caller.join(":") : void 0;
+      if (key2 !== void 0 && key2 in this._warned) {
         return;
       }
-      this._warned[key] = true;
+      this._warned[key2] = true;
       var msg = message;
       if (!msg) {
         msg = callSite === depSite || !callSite.name ? defaultMessage(depSite) : defaultMessage(callSite);
@@ -1031,9 +626,9 @@ var require_http_errors = __commonJS({
         err.expose = status < 500;
         err.status = err.statusCode = status;
       }
-      for (var key in props) {
-        if (key !== "status" && key !== "statusCode") {
-          err[key] = props[key];
+      for (var key2 in props) {
+        if (key2 !== "status" && key2 !== "statusCode") {
+          err[key2] = props[key2];
         }
       }
       return err;
@@ -1273,8 +868,8 @@ var require_common = __commonJS({
       createDebug.enabled = enabled;
       createDebug.humanize = require_ms();
       createDebug.destroy = destroy;
-      Object.keys(env).forEach((key) => {
-        createDebug[key] = env[key];
+      Object.keys(env).forEach((key2) => {
+        createDebug[key2] = env[key2];
       });
       createDebug.names = [];
       createDebug.skips = [];
@@ -1820,13 +1415,13 @@ var require_node = __commonJS({
       }
     } catch (error) {
     }
-    exports2.inspectOpts = Object.keys(process.env).filter((key) => {
-      return /^debug_/i.test(key);
-    }).reduce((obj, key) => {
-      const prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, (_, k) => {
+    exports2.inspectOpts = Object.keys(process.env).filter((key2) => {
+      return /^debug_/i.test(key2);
+    }).reduce((obj, key2) => {
+      const prop = key2.substring(6).toLowerCase().replace(/_([a-z])/g, (_, k) => {
         return k.toUpperCase();
       });
-      let val = process.env[key];
+      let val = process.env[key2];
       if (/^(yes|on|true|enabled)$/i.test(val)) {
         val = true;
       } else if (/^(no|off|false|disabled)$/i.test(val)) {
@@ -2161,17 +1756,17 @@ var require_safer = __commonJS({
     var buffer = require("buffer");
     var Buffer2 = buffer.Buffer;
     var safer = {};
-    var key;
-    for (key in buffer) {
-      if (!buffer.hasOwnProperty(key)) continue;
-      if (key === "SlowBuffer" || key === "Buffer") continue;
-      safer[key] = buffer[key];
+    var key2;
+    for (key2 in buffer) {
+      if (!buffer.hasOwnProperty(key2)) continue;
+      if (key2 === "SlowBuffer" || key2 === "Buffer") continue;
+      safer[key2] = buffer[key2];
     }
     var Safer = safer.Buffer = {};
-    for (key in Buffer2) {
-      if (!Buffer2.hasOwnProperty(key)) continue;
-      if (key === "allocUnsafe" || key === "allocUnsafeSlow") continue;
-      Safer[key] = Buffer2[key];
+    for (key2 in Buffer2) {
+      if (!Buffer2.hasOwnProperty(key2)) continue;
+      if (key2 === "allocUnsafe" || key2 === "allocUnsafeSlow") continue;
+      Safer[key2] = Buffer2[key2];
     }
     safer.Buffer.prototype = Buffer2.prototype;
     if (!Safer.from || Safer.from === Uint8Array.from) {
@@ -2274,9 +1869,9 @@ var require_merge_exports = __commonJS({
     "use strict";
     var hasOwn = typeof Object.hasOwn === "undefined" ? Function.call.bind(Object.prototype.hasOwnProperty) : Object.hasOwn;
     function mergeModules(target, module3) {
-      for (var key in module3) {
-        if (hasOwn(module3, key)) {
-          target[key] = module3[key];
+      for (var key2 in module3) {
+        if (hasOwn(module3, key2)) {
+          target[key2] = module3[key2];
         }
       }
     }
@@ -5865,8 +5460,8 @@ var require_lib = __commonJS({
             enc = codecDef;
             break;
           case "object":
-            for (var key in codecDef) {
-              codecOptions[key] = codecDef[key];
+            for (var key2 in codecDef) {
+              codecOptions[key2] = codecDef[key2];
             }
             if (!codecOptions.encodingName) {
               codecOptions.encodingName = enc;
@@ -9668,8 +9263,8 @@ var require_lib2 = __commonJS({
             enc = codecDef;
             break;
           case "object":
-            for (var key in codecDef)
-              codecOptions[key] = codecDef[key];
+            for (var key2 in codecDef)
+              codecOptions[key2] = codecDef[key2];
             if (!codecOptions.encodingName)
               codecOptions.encodingName = enc;
             enc = codecDef.type;
@@ -9908,7 +9503,7 @@ var require_content_type = __commonJS({
       }
       var obj = new ContentType(type.toLowerCase());
       if (index !== -1) {
-        var key;
+        var key2;
         var match;
         var value;
         PARAM_REGEXP.lastIndex = index;
@@ -9917,7 +9512,7 @@ var require_content_type = __commonJS({
             throw new TypeError("invalid parameter format");
           }
           index += match[0].length;
-          key = match[1].toLowerCase();
+          key2 = match[1].toLowerCase();
           value = match[2];
           if (value.charCodeAt(0) === 34) {
             value = value.slice(1, -1);
@@ -9925,7 +9520,7 @@ var require_content_type = __commonJS({
               value = value.replace(QESC_REGEXP, "$1");
             }
           }
-          obj.parameters[key] = value;
+          obj.parameters[key2] = value;
         }
         if (index !== header.length) {
           throw new TypeError("invalid parameter format");
@@ -19782,9 +19377,9 @@ var require_json = __commonJS({
     function normalizeJsonSyntaxError(error, obj) {
       var keys = Object.getOwnPropertyNames(error);
       for (var i = 0; i < keys.length; i++) {
-        var key = keys[i];
-        if (key !== "stack" && key !== "message") {
-          delete error[key];
+        var key2 = keys[i];
+        if (key2 !== "stack" && key2 !== "message") {
+          delete error[key2];
         }
       }
       error.stack = obj.stack.replace(error.message, obj.message);
@@ -20095,8 +19690,8 @@ var require_object_inspect = __commonJS({
       if (isMap(obj)) {
         var mapParts = [];
         if (mapForEach) {
-          mapForEach.call(obj, function(value, key) {
-            mapParts.push(inspect(key, obj, true) + " => " + inspect(value, obj));
+          mapForEach.call(obj, function(value, key2) {
+            mapParts.push(inspect(key2, obj, true) + " => " + inspect(value, obj));
           });
         }
         return collectionOf("Map", mapSize.call(obj), mapParts, indent);
@@ -20214,11 +19809,11 @@ var require_object_inspect = __commonJS({
       }
       return false;
     }
-    var hasOwn = Object.prototype.hasOwnProperty || function(key) {
-      return key in this;
+    var hasOwn = Object.prototype.hasOwnProperty || function(key2) {
+      return key2 in this;
     };
-    function has(obj, key) {
-      return hasOwn.call(obj, key);
+    function has(obj, key2) {
+      return hasOwn.call(obj, key2);
     }
     function toStr(obj) {
       return objectToString.call(obj);
@@ -20409,19 +20004,19 @@ var require_object_inspect = __commonJS({
           symMap["$" + syms[k]] = syms[k];
         }
       }
-      for (var key in obj) {
-        if (!has(obj, key)) {
+      for (var key2 in obj) {
+        if (!has(obj, key2)) {
           continue;
         }
-        if (isArr && String(Number(key)) === key && key < obj.length) {
+        if (isArr && String(Number(key2)) === key2 && key2 < obj.length) {
           continue;
         }
-        if (hasShammedSymbols && symMap["$" + key] instanceof Symbol) {
+        if (hasShammedSymbols && symMap["$" + key2] instanceof Symbol) {
           continue;
-        } else if ($test.call(/[^\w$]/, key)) {
-          xs.push(inspect(key, obj) + ": " + inspect(obj[key], obj));
+        } else if ($test.call(/[^\w$]/, key2)) {
+          xs.push(inspect(key2, obj) + ": " + inspect(obj[key2], obj));
         } else {
-          xs.push(key + ": " + inspect(obj[key], obj));
+          xs.push(key2 + ": " + inspect(obj[key2], obj));
         }
       }
       if (typeof gOPS === "function") {
@@ -20442,11 +20037,11 @@ var require_side_channel_list = __commonJS({
     "use strict";
     var inspect = require_object_inspect();
     var $TypeError = require_type();
-    var listGetNode = function(list, key, isDelete) {
+    var listGetNode = function(list, key2, isDelete) {
       var prev = list;
       var curr;
       for (; (curr = prev.next) != null; prev = curr) {
-        if (curr.key === key) {
+        if (curr.key === key2) {
           prev.next = curr.next;
           if (!isDelete) {
             curr.next = /** @type {NonNullable<typeof list.next>} */
@@ -20457,61 +20052,61 @@ var require_side_channel_list = __commonJS({
         }
       }
     };
-    var listGet = function(objects, key) {
+    var listGet = function(objects, key2) {
       if (!objects) {
         return void 0;
       }
-      var node = listGetNode(objects, key);
+      var node = listGetNode(objects, key2);
       return node && node.value;
     };
-    var listSet = function(objects, key, value) {
-      var node = listGetNode(objects, key);
+    var listSet = function(objects, key2, value) {
+      var node = listGetNode(objects, key2);
       if (node) {
         node.value = value;
       } else {
         objects.next = /** @type {import('./list.d.ts').ListNode<typeof value, typeof key>} */
         {
           // eslint-disable-line no-param-reassign, no-extra-parens
-          key,
+          key: key2,
           next: objects.next,
           value
         };
       }
     };
-    var listHas = function(objects, key) {
+    var listHas = function(objects, key2) {
       if (!objects) {
         return false;
       }
-      return !!listGetNode(objects, key);
+      return !!listGetNode(objects, key2);
     };
-    var listDelete = function(objects, key) {
+    var listDelete = function(objects, key2) {
       if (objects) {
-        return listGetNode(objects, key, true);
+        return listGetNode(objects, key2, true);
       }
     };
     module2.exports = function getSideChannelList() {
       var $o;
       var channel = {
-        assert: function(key) {
-          if (!channel.has(key)) {
-            throw new $TypeError("Side channel does not contain " + inspect(key));
+        assert: function(key2) {
+          if (!channel.has(key2)) {
+            throw new $TypeError("Side channel does not contain " + inspect(key2));
           }
         },
-        "delete": function(key) {
+        "delete": function(key2) {
           var root = $o && $o.next;
-          var deletedNode = listDelete($o, key);
+          var deletedNode = listDelete($o, key2);
           if (deletedNode && root && root === deletedNode) {
             $o = void 0;
           }
           return !!deletedNode;
         },
-        get: function(key) {
-          return listGet($o, key);
+        get: function(key2) {
+          return listGet($o, key2);
         },
-        has: function(key) {
-          return listHas($o, key);
+        has: function(key2) {
+          return listHas($o, key2);
         },
-        set: function(key, value) {
+        set: function(key2, value) {
           if (!$o) {
             $o = {
               next: void 0
@@ -20520,7 +20115,7 @@ var require_side_channel_list = __commonJS({
           listSet(
             /** @type {NonNullable<typeof $o>} */
             $o,
-            key,
+            key2,
             value
           );
         }
@@ -21366,14 +20961,14 @@ var require_side_channel_map = __commonJS({
     function getSideChannelMap() {
       var $m;
       var channel = {
-        assert: function(key) {
-          if (!channel.has(key)) {
-            throw new $TypeError("Side channel does not contain " + inspect(key));
+        assert: function(key2) {
+          if (!channel.has(key2)) {
+            throw new $TypeError("Side channel does not contain " + inspect(key2));
           }
         },
-        "delete": function(key) {
+        "delete": function(key2) {
           if ($m) {
-            var result = $mapDelete($m, key);
+            var result = $mapDelete($m, key2);
             if ($mapSize($m) === 0) {
               $m = void 0;
             }
@@ -21381,22 +20976,22 @@ var require_side_channel_map = __commonJS({
           }
           return false;
         },
-        get: function(key) {
+        get: function(key2) {
           if ($m) {
-            return $mapGet($m, key);
+            return $mapGet($m, key2);
           }
         },
-        has: function(key) {
+        has: function(key2) {
           if ($m) {
-            return $mapHas($m, key);
+            return $mapHas($m, key2);
           }
           return false;
         },
-        set: function(key, value) {
+        set: function(key2, value) {
           if (!$m) {
             $m = new $Map();
           }
-          $mapSet($m, key, value);
+          $mapSet($m, key2, value);
         }
       };
       return channel;
@@ -21424,50 +21019,50 @@ var require_side_channel_weakmap = __commonJS({
         var $wm;
         var $m;
         var channel = {
-          assert: function(key) {
-            if (!channel.has(key)) {
-              throw new $TypeError("Side channel does not contain " + inspect(key));
+          assert: function(key2) {
+            if (!channel.has(key2)) {
+              throw new $TypeError("Side channel does not contain " + inspect(key2));
             }
           },
-          "delete": function(key) {
-            if ($WeakMap && key && (typeof key === "object" || typeof key === "function")) {
+          "delete": function(key2) {
+            if ($WeakMap && key2 && (typeof key2 === "object" || typeof key2 === "function")) {
               if ($wm) {
-                return $weakMapDelete($wm, key);
+                return $weakMapDelete($wm, key2);
               }
             } else if (getSideChannelMap) {
               if ($m) {
-                return $m["delete"](key);
+                return $m["delete"](key2);
               }
             }
             return false;
           },
-          get: function(key) {
-            if ($WeakMap && key && (typeof key === "object" || typeof key === "function")) {
+          get: function(key2) {
+            if ($WeakMap && key2 && (typeof key2 === "object" || typeof key2 === "function")) {
               if ($wm) {
-                return $weakMapGet($wm, key);
+                return $weakMapGet($wm, key2);
               }
             }
-            return $m && $m.get(key);
+            return $m && $m.get(key2);
           },
-          has: function(key) {
-            if ($WeakMap && key && (typeof key === "object" || typeof key === "function")) {
+          has: function(key2) {
+            if ($WeakMap && key2 && (typeof key2 === "object" || typeof key2 === "function")) {
               if ($wm) {
-                return $weakMapHas($wm, key);
+                return $weakMapHas($wm, key2);
               }
             }
-            return !!$m && $m.has(key);
+            return !!$m && $m.has(key2);
           },
-          set: function(key, value) {
-            if ($WeakMap && key && (typeof key === "object" || typeof key === "function")) {
+          set: function(key2, value) {
+            if ($WeakMap && key2 && (typeof key2 === "object" || typeof key2 === "function")) {
               if (!$wm) {
                 $wm = new $WeakMap();
               }
-              $weakMapSet($wm, key, value);
+              $weakMapSet($wm, key2, value);
             } else if (getSideChannelMap) {
               if (!$m) {
                 $m = getSideChannelMap();
               }
-              $m.set(key, value);
+              $m.set(key2, value);
             }
           }
         };
@@ -21490,25 +21085,25 @@ var require_side_channel = __commonJS({
     module2.exports = function getSideChannel() {
       var $channelData;
       var channel = {
-        assert: function(key) {
-          if (!channel.has(key)) {
-            throw new $TypeError("Side channel does not contain " + inspect(key));
+        assert: function(key2) {
+          if (!channel.has(key2)) {
+            throw new $TypeError("Side channel does not contain " + inspect(key2));
           }
         },
-        "delete": function(key) {
-          return !!$channelData && $channelData["delete"](key);
+        "delete": function(key2) {
+          return !!$channelData && $channelData["delete"](key2);
         },
-        get: function(key) {
-          return $channelData && $channelData.get(key);
+        get: function(key2) {
+          return $channelData && $channelData.get(key2);
         },
-        has: function(key) {
-          return !!$channelData && $channelData.has(key);
+        has: function(key2) {
+          return !!$channelData && $channelData.has(key2);
         },
-        set: function(key, value) {
+        set: function(key2, value) {
           if (!$channelData) {
             $channelData = makeChannel();
           }
-          $channelData.set(key, value);
+          $channelData.set(key2, value);
         }
       };
       return channel;
@@ -21618,19 +21213,19 @@ var require_utils2 = __commonJS({
         });
         return target;
       }
-      return Object.keys(source).reduce(function(acc, key) {
-        var value = source[key];
-        if (has.call(acc, key)) {
-          acc[key] = merge2(acc[key], value, options);
+      return Object.keys(source).reduce(function(acc, key2) {
+        var value = source[key2];
+        if (has.call(acc, key2)) {
+          acc[key2] = merge2(acc[key2], value, options);
         } else {
-          acc[key] = value;
+          acc[key2] = value;
         }
         return acc;
       }, mergeTarget);
     };
     var assign = function assignSingleSource(target, source) {
-      return Object.keys(source).reduce(function(acc, key) {
-        acc[key] = source[key];
+      return Object.keys(source).reduce(function(acc, key2) {
+        acc[key2] = source[key2];
         return acc;
       }, target);
     };
@@ -21699,10 +21294,10 @@ var require_utils2 = __commonJS({
         var obj = item.obj[item.prop];
         var keys = Object.keys(obj);
         for (var j = 0; j < keys.length; ++j) {
-          var key = keys[j];
-          var val = obj[key];
+          var key2 = keys[j];
+          var val = obj[key2];
           if (typeof val === "object" && val !== null && refs.indexOf(val) === -1) {
-            queue.push({ obj, prop: key });
+            queue.push({ obj, prop: key2 });
             refs.push(val);
           }
         }
@@ -21760,8 +21355,8 @@ var require_stringify = __commonJS({
         return prefix + "[]";
       },
       comma: "comma",
-      indices: function indices(prefix, key) {
-        return prefix + "[" + key + "]";
+      indices: function indices(prefix, key2) {
+        return prefix + "[" + key2 + "]";
       },
       repeat: function repeat(prefix) {
         return prefix;
@@ -21868,12 +21463,12 @@ var require_stringify = __commonJS({
         return adjustedPrefix + "[]";
       }
       for (var j = 0; j < objKeys.length; ++j) {
-        var key = objKeys[j];
-        var value = typeof key === "object" && key && typeof key.value !== "undefined" ? key.value : obj[key];
+        var key2 = objKeys[j];
+        var value = typeof key2 === "object" && key2 && typeof key2.value !== "undefined" ? key2.value : obj[key2];
         if (skipNulls && value === null) {
           continue;
         }
-        var encodedKey = allowDots && encodeDotInKeys ? String(key).replace(/\./g, "%2E") : String(key);
+        var encodedKey = allowDots && encodeDotInKeys ? String(key2).replace(/\./g, "%2E") : String(key2);
         var keyPrefix = isArray(obj) ? typeof generateArrayPrefix === "function" ? generateArrayPrefix(adjustedPrefix, encodedKey) : adjustedPrefix : adjustedPrefix + (allowDots ? "." + encodedKey : "[" + encodedKey + "]");
         sideChannel.set(object, step);
         var valueSideChannel = getSideChannel();
@@ -21990,14 +21585,14 @@ var require_stringify = __commonJS({
       }
       var sideChannel = getSideChannel();
       for (var i = 0; i < objKeys.length; ++i) {
-        var key = objKeys[i];
-        var value = obj[key];
+        var key2 = objKeys[i];
+        var value = obj[key2];
         if (options.skipNulls && value === null) {
           continue;
         }
         pushToArray(keys, stringify(
           value,
-          key,
+          key2,
           generateArrayPrefix,
           commaRoundTrip,
           options.allowEmptyArrays,
@@ -22111,18 +21706,18 @@ var require_parse = __commonJS({
         var part = parts[i];
         var bracketEqualsPos = part.indexOf("]=");
         var pos = bracketEqualsPos === -1 ? part.indexOf("=") : bracketEqualsPos + 1;
-        var key;
+        var key2;
         var val;
         if (pos === -1) {
-          key = options.decoder(part, defaults.decoder, charset, "key");
+          key2 = options.decoder(part, defaults.decoder, charset, "key");
           val = options.strictNullHandling ? null : "";
         } else {
-          key = options.decoder(part.slice(0, pos), defaults.decoder, charset, "key");
+          key2 = options.decoder(part.slice(0, pos), defaults.decoder, charset, "key");
           val = utils.maybeMap(
             parseArrayValue(
               part.slice(pos + 1),
               options,
-              isArray(obj[key]) ? obj[key].length : 0
+              isArray(obj[key2]) ? obj[key2].length : 0
             ),
             function(encodedVal) {
               return options.decoder(encodedVal, defaults.decoder, charset, "value");
@@ -22135,11 +21730,11 @@ var require_parse = __commonJS({
         if (part.indexOf("[]=") > -1) {
           val = isArray(val) ? [val] : val;
         }
-        var existing = has.call(obj, key);
+        var existing = has.call(obj, key2);
         if (existing && options.duplicates === "combine") {
-          obj[key] = utils.combine(obj[key], val);
+          obj[key2] = utils.combine(obj[key2], val);
         } else if (!existing || options.duplicates === "last") {
-          obj[key] = val;
+          obj[key2] = val;
         }
       }
       return obj;
@@ -22178,11 +21773,11 @@ var require_parse = __commonJS({
       if (!givenKey) {
         return;
       }
-      var key = options.allowDots ? givenKey.replace(/\.([^.[]+)/g, "[$1]") : givenKey;
+      var key2 = options.allowDots ? givenKey.replace(/\.([^.[]+)/g, "[$1]") : givenKey;
       var brackets = /(\[[^[\]]*])/;
       var child = /(\[[^[\]]*])/g;
-      var segment = options.depth > 0 && brackets.exec(key);
-      var parent = segment ? key.slice(0, segment.index) : key;
+      var segment = options.depth > 0 && brackets.exec(key2);
+      var parent = segment ? key2.slice(0, segment.index) : key2;
       var keys = [];
       if (parent) {
         if (!options.plainObjects && has.call(Object.prototype, parent)) {
@@ -22193,7 +21788,7 @@ var require_parse = __commonJS({
         keys.push(parent);
       }
       var i = 0;
-      while (options.depth > 0 && (segment = child.exec(key)) !== null && i < options.depth) {
+      while (options.depth > 0 && (segment = child.exec(key2)) !== null && i < options.depth) {
         i += 1;
         if (!options.plainObjects && has.call(Object.prototype, segment[1].slice(1, -1))) {
           if (!options.allowPrototypes) {
@@ -22206,7 +21801,7 @@ var require_parse = __commonJS({
         if (options.strictDepth === true) {
           throw new RangeError("Input depth exceeded depth option of " + options.depth + " and strictDepth is true");
         }
-        keys.push("[" + key.slice(segment.index) + "]");
+        keys.push("[" + key2.slice(segment.index) + "]");
       }
       return parseObject(keys, val, options, valuesParsed);
     };
@@ -22269,8 +21864,8 @@ var require_parse = __commonJS({
       var obj = options.plainObjects ? { __proto__: null } : {};
       var keys = Object.keys(tempObj);
       for (var i = 0; i < keys.length; ++i) {
-        var key = keys[i];
-        var newObj = parseKeys(key, tempObj[key], options, typeof str === "string");
+        var key2 = keys[i];
+        var newObj = parseKeys(key2, tempObj[key2], options, typeof str === "string");
         obj = utils.merge(obj, newObj, options);
       }
       if (options.allowSparse === true) {
@@ -22712,8 +22307,8 @@ var require_finalhandler = __commonJS({
         res.removeHeader("Content-Encoding");
         res.removeHeader("Content-Language");
         res.removeHeader("Content-Range");
-        for (const [key, value] of Object.entries(headers ?? {})) {
-          res.setHeader(key, value);
+        for (const [key2, value] of Object.entries(headers ?? {})) {
+          res.setHeader(key2, value);
         }
         res.setHeader("Content-Security-Policy", "default-src 'none'");
         res.setHeader("X-Content-Type-Options", "nosniff");
@@ -22835,14 +22430,14 @@ var require_etag = __commonJS({
   "../node_modules/.pnpm/etag@1.8.1/node_modules/etag/index.js"(exports2, module2) {
     "use strict";
     module2.exports = etag;
-    var crypto = require("crypto");
+    var crypto11 = require("crypto");
     var Stats = require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash = crypto.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash = crypto11.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash + '"';
     }
@@ -23735,12 +23330,12 @@ var require_utils3 = __commonJS({
           index = str.lastIndexOf(";", splitIndex - 1) + 1;
           continue;
         }
-        var key = str.slice(index, splitIndex).trim();
+        var key2 = str.slice(index, splitIndex).trim();
         var value = str.slice(splitIndex + 1, endIndex).trim();
-        if (key === "q") {
+        if (key2 === "q") {
           ret.quality = parseFloat(value);
         } else {
-          ret.params[key] = value;
+          ret.params[key2] = value;
         }
         index = endIndex + 1;
       }
@@ -24123,10 +23718,10 @@ var require_dist = __commonJS({
     function match(path, options = {}) {
       const { decode = decodeURIComponent, delimiter = DEFAULT_DELIMITER } = options;
       const { regexp, keys } = pathToRegexp(path, options);
-      const decoders = keys.map((key) => {
+      const decoders = keys.map((key2) => {
         if (decode === false)
           return NOOP_VALUE;
-        if (key.type === "param")
+        if (key2.type === "param")
           return decode;
         return (value) => value.split(delimiter).map(decode);
       });
@@ -24139,9 +23734,9 @@ var require_dist = __commonJS({
         for (let i = 1; i < m.length; i++) {
           if (m[i] === void 0)
             continue;
-          const key = keys[i - 1];
+          const key2 = keys[i - 1];
           const decoder = decoders[i - 1];
-          params[key.name] = decoder(m[i]);
+          params[key2.name] = decoder(m[i]);
         }
         return { path: path2, params };
       };
@@ -24311,8 +23906,8 @@ var require_layer = __commonJS({
             }
             const params = {};
             for (let i = 1; i < match.length; i++) {
-              const key = keys[i - 1];
-              const prop = key.name;
+              const key2 = keys[i - 1];
+              const prop = key2.name;
               const val = decodeParam(match[i]);
               if (val !== void 0) {
                 params[prop] = val;
@@ -24554,27 +24149,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module2.exports = Router4;
+    module2.exports = Router6;
     module2.exports.Route = Route;
-    function Router4(options) {
-      if (!(this instanceof Router4)) {
-        return new Router4(options);
+    function Router6(options) {
+      if (!(this instanceof Router6)) {
+        return new Router6(options);
       }
       const opts = options || {};
-      function router4(req, res, next) {
-        router4.handle(req, res, next);
+      function router6(req, res, next) {
+        router6.handle(req, res, next);
       }
-      Object.setPrototypeOf(router4, this);
-      router4.caseSensitive = opts.caseSensitive;
-      router4.mergeParams = opts.mergeParams;
-      router4.params = {};
-      router4.strict = opts.strict;
-      router4.stack = [];
-      return router4;
+      Object.setPrototypeOf(router6, this);
+      router6.caseSensitive = opts.caseSensitive;
+      router6.mergeParams = opts.mergeParams;
+      router6.params = {};
+      router6.strict = opts.strict;
+      router6.stack = [];
+      return router6;
     }
-    Router4.prototype = function() {
+    Router6.prototype = function() {
     };
-    Router4.prototype.param = function param(name, fn) {
+    Router6.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -24594,7 +24189,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router4.prototype.handle = function handle(req, res, callback) {
+    Router6.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -24721,7 +24316,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router4.prototype.use = function use(handler) {
+    Router6.prototype.use = function use(handler) {
       let offset = 0;
       let path = "/";
       if (typeof handler !== "function") {
@@ -24754,7 +24349,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router4.prototype.route = function route(path) {
+    Router6.prototype.route = function route(path) {
       const route2 = new Route(path);
       const layer = new Layer(path, {
         sensitive: this.caseSensitive,
@@ -24769,7 +24364,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router4.prototype[method] = function(path) {
+      Router6.prototype[method] = function(path) {
         const route = this.route(path);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -24837,7 +24432,7 @@ var require_router = __commonJS({
       }
       let i = 0;
       let paramIndex = 0;
-      let key;
+      let key2;
       let paramVal;
       let paramCallbacks;
       let paramCalled;
@@ -24849,18 +24444,18 @@ var require_router = __commonJS({
           return done();
         }
         paramIndex = 0;
-        key = keys[i++];
-        paramVal = req.params[key];
-        paramCallbacks = params[key];
-        paramCalled = called[key];
+        key2 = keys[i++];
+        paramVal = req.params[key2];
+        paramCallbacks = params[key2];
+        paramCalled = called[key2];
         if (paramVal === void 0 || !paramCallbacks) {
           return param();
         }
         if (paramCalled && (paramCalled.match === paramVal || paramCalled.error && paramCalled.error !== "route")) {
-          req.params[key] = paramCalled.value;
+          req.params[key2] = paramCalled.value;
           return param(paramCalled.error);
         }
-        called[key] = paramCalled = {
+        called[key2] = paramCalled = {
           error: null,
           match: paramVal,
           value: paramVal
@@ -24869,7 +24464,7 @@ var require_router = __commonJS({
       }
       function paramCallback(err) {
         const fn = paramCallbacks[paramIndex++];
-        paramCalled.value = req.params[key];
+        paramCalled.value = req.params[key2];
         if (err) {
           paramCalled.error = err;
           param(err);
@@ -24877,7 +24472,7 @@ var require_router = __commonJS({
         }
         if (!fn) return param();
         try {
-          const ret = fn(req, res, paramCallback, paramVal, key);
+          const ret = fn(req, res, paramCallback, paramVal, key2);
           if (isPromise(ret)) {
             if (!(ret instanceof Promise)) {
               deprecate("parameters that are Promise-like are deprecated, use a native Promise instead");
@@ -24952,13 +24547,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve = require("path").resolve;
     var once = require_once();
-    var Router4 = require_router();
+    var Router6 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports2 = module2.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router4 = null;
+      var router6 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -24967,13 +24562,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router4 === null) {
-            router4 = new Router4({
+          if (router6 === null) {
+            router6 = new Router6({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router4;
+          return router6;
         }
       });
     };
@@ -25044,15 +24639,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router4 = this.router;
+      var router6 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router4.use(path, fn2);
+          return router6.use(path, fn2);
         }
         debug(".use app under %s", path);
         fn2.mountpath = path;
         fn2.parent = this;
-        router4.use(path, function mounted_app(req, res, next) {
+        router6.use(path, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -25523,14 +25118,14 @@ var require_mediaType = __commonJS({
         var kvps = splitParameters(match[3]).map(splitKeyValuePair);
         for (var j = 0; j < kvps.length; j++) {
           var pair = kvps[j];
-          var key = pair[0].toLowerCase();
+          var key2 = pair[0].toLowerCase();
           var val = pair[1];
           var value = val && val[0] === '"' && val[val.length - 1] === '"' ? val.slice(1, -1) : val;
-          if (key === "q") {
+          if (key2 === "q") {
             q = parseFloat(value);
             break;
           }
-          params[key] = value;
+          params[key2] = value;
         }
       }
       return {
@@ -25616,15 +25211,15 @@ var require_mediaType = __commonJS({
     }
     function splitKeyValuePair(str) {
       var index = str.indexOf("=");
-      var key;
+      var key2;
       var val;
       if (index === -1) {
-        key = str;
+        key2 = str;
       } else {
-        key = str.slice(0, index);
+        key2 = str.slice(0, index);
         val = str.slice(index + 1);
       }
-      return [key, val];
+      return [key2, val];
     }
     function splitMediaTypes(accept) {
       var accepts = accept.split(",");
@@ -26201,7 +25796,7 @@ var require_content_disposition = __commonJS({
       }
       var index = match[0].length;
       var type = match[1].toLowerCase();
-      var key;
+      var key2;
       var names = [];
       var params = {};
       var value;
@@ -26211,25 +25806,25 @@ var require_content_disposition = __commonJS({
           throw new TypeError("invalid parameter format");
         }
         index += match[0].length;
-        key = match[1].toLowerCase();
+        key2 = match[1].toLowerCase();
         value = match[2];
-        if (names.indexOf(key) !== -1) {
+        if (names.indexOf(key2) !== -1) {
           throw new TypeError("invalid duplicate parameter");
         }
-        names.push(key);
-        if (key.indexOf("*") + 1 === key.length) {
-          key = key.slice(0, -1);
+        names.push(key2);
+        if (key2.indexOf("*") + 1 === key2.length) {
+          key2 = key2.slice(0, -1);
           value = decodefield(value);
-          params[key] = value;
+          params[key2] = value;
           continue;
         }
-        if (typeof params[key] === "string") {
+        if (typeof params[key2] === "string") {
           continue;
         }
         if (value[0] === '"') {
           value = value.slice(1, -1).replace(QESC_REGEXP, "$1");
         }
-        params[key] = value;
+        params[key2] = value;
       }
       if (index !== -1 && index !== string.length) {
         throw new TypeError("invalid parameter format");
@@ -26262,17 +25857,17 @@ var require_content_disposition = __commonJS({
 var require_cookie_signature = __commonJS({
   "../node_modules/.pnpm/cookie-signature@1.2.2/node_modules/cookie-signature/index.js"(exports2) {
     "use strict";
-    var crypto = require("crypto");
+    var crypto11 = require("crypto");
     exports2.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto11.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports2.unsign = function(input, secret) {
       if ("string" != typeof input) throw new TypeError("Signed cookie string must be provided.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
       var tentativeValue = input.slice(0, input.lastIndexOf(".")), expectedInput = exports2.sign(tentativeValue, secret), expectedBuffer = Buffer.from(expectedInput), inputBuffer = Buffer.from(input);
-      return expectedBuffer.length === inputBuffer.length && crypto.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
+      return expectedBuffer.length === inputBuffer.length && crypto11.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
     };
   }
 });
@@ -26312,8 +25907,8 @@ var require_cookie = __commonJS({
         }
         var keyStartIdx = startIndex(str, index, eqIdx);
         var keyEndIdx = endIndex(str, eqIdx, keyStartIdx);
-        var key = str.slice(keyStartIdx, keyEndIdx);
-        if (!__hasOwnProperty.call(obj, key)) {
+        var key2 = str.slice(keyStartIdx, keyEndIdx);
+        if (!__hasOwnProperty.call(obj, key2)) {
           var valStartIdx = startIndex(str, eqIdx + 1, endIdx);
           var valEndIdx = endIndex(str, endIdx, valStartIdx);
           if (str.charCodeAt(valStartIdx) === 34 && str.charCodeAt(valEndIdx - 1) === 34) {
@@ -26321,7 +25916,7 @@ var require_cookie = __commonJS({
             valEndIdx--;
           }
           var val = str.slice(valStartIdx, valEndIdx);
-          obj[key] = tryDecode(val, dec);
+          obj[key2] = tryDecode(val, dec);
         }
         index = endIdx + 1;
       } while (index < len);
@@ -26919,8 +26514,8 @@ var require_send = __commonJS({
     function setHeaders(res, headers) {
       var keys = Object.keys(headers);
       for (var i = 0; i < keys.length; i++) {
-        var key = keys[i];
-        res.setHeader(key, headers[key]);
+        var key2 = keys[i];
+        res.setHeader(key2, headers[key2]);
       }
     }
   }
@@ -27217,9 +26812,9 @@ var require_response = __commonJS({
       if (opts && opts.headers) {
         var keys = Object.keys(opts.headers);
         for (var i = 0; i < keys.length; i++) {
-          var key = keys[i];
-          if (key.toLowerCase() !== "content-disposition") {
-            headers[key] = opts.headers[key];
+          var key2 = keys[i];
+          if (key2.toLowerCase() !== "content-disposition") {
+            headers[key2] = opts.headers[key2];
           }
         }
       }
@@ -27238,11 +26833,11 @@ var require_response = __commonJS({
       var keys = Object.keys(obj).filter(function(v) {
         return v !== "default";
       });
-      var key = keys.length > 0 ? req.accepts(keys) : false;
+      var key2 = keys.length > 0 ? req.accepts(keys) : false;
       this.vary("Accept");
-      if (key) {
-        this.set("Content-Type", normalizeType(key).value);
-        obj[key](req, this, next);
+      if (key2) {
+        this.set("Content-Type", normalizeType(key2).value);
+        obj[key2](req, this, next);
       } else if (obj.default) {
         obj.default(req, this, next);
       } else {
@@ -27280,8 +26875,8 @@ var require_response = __commonJS({
         }
         this.setHeader(field, value);
       } else {
-        for (var key in field) {
-          this.set(key, field[key]);
+        for (var key2 in field) {
+          this.set(key2, field[key2]);
         }
       }
       return this;
@@ -27570,7 +27165,7 @@ var require_express = __commonJS({
     var EventEmitter = require("events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router4 = require_router();
+    var Router6 = require_router();
     var req = require_request();
     var res = require_response();
     exports2 = module2.exports = createApplication;
@@ -27592,8 +27187,8 @@ var require_express = __commonJS({
     exports2.application = proto;
     exports2.request = req;
     exports2.response = res;
-    exports2.Route = Router4.Route;
-    exports2.Router = Router4;
+    exports2.Route = Router6.Route;
+    exports2.Router = Router6;
     exports2.json = bodyParser.json;
     exports2.raw = bodyParser.raw;
     exports2.static = require_serve_static();
@@ -27661,9 +27256,9 @@ var require_object_assign = __commonJS({
       var symbols;
       for (var s = 1; s < arguments.length; s++) {
         from = Object(arguments[s]);
-        for (var key in from) {
-          if (hasOwnProperty.call(from, key)) {
-            to[key] = from[key];
+        for (var key2 in from) {
+          if (hasOwnProperty.call(from, key2)) {
+            to[key2] = from[key2];
           }
         }
         if (getOwnPropertySymbols) {
@@ -27896,8 +27491,8 @@ var require_safe_buffer = __commonJS({
     var buffer = require("buffer");
     var Buffer2 = buffer.Buffer;
     function copyProps(src, dst) {
-      for (var key in src) {
-        dst[key] = src[key];
+      for (var key2 in src) {
+        dst[key2] = src[key2];
       }
     }
     if (Buffer2.from && Buffer2.alloc && Buffer2.allocUnsafe && Buffer2.allocUnsafeSlow) {
@@ -28200,70 +27795,70 @@ var require_jwa = __commonJS({
   "../node_modules/.pnpm/jwa@1.4.2/node_modules/jwa/index.js"(exports2, module2) {
     "use strict";
     var Buffer2 = require_safe_buffer().Buffer;
-    var crypto = require("crypto");
+    var crypto11 = require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
     var util = require("util");
     var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".';
     var MSG_INVALID_SECRET = "secret must be a string or buffer";
     var MSG_INVALID_VERIFIER_KEY = "key must be a string or a buffer";
     var MSG_INVALID_SIGNER_KEY = "key must be a string, a buffer or an object";
-    var supportsKeyObjects = typeof crypto.createPublicKey === "function";
+    var supportsKeyObjects = typeof crypto11.createPublicKey === "function";
     if (supportsKeyObjects) {
       MSG_INVALID_VERIFIER_KEY += " or a KeyObject";
       MSG_INVALID_SECRET += "or a KeyObject";
     }
-    function checkIsPublicKey(key) {
-      if (Buffer2.isBuffer(key)) {
+    function checkIsPublicKey(key2) {
+      if (Buffer2.isBuffer(key2)) {
         return;
       }
-      if (typeof key === "string") {
+      if (typeof key2 === "string") {
         return;
       }
       if (!supportsKeyObjects) {
         throw typeError(MSG_INVALID_VERIFIER_KEY);
       }
-      if (typeof key !== "object") {
+      if (typeof key2 !== "object") {
         throw typeError(MSG_INVALID_VERIFIER_KEY);
       }
-      if (typeof key.type !== "string") {
+      if (typeof key2.type !== "string") {
         throw typeError(MSG_INVALID_VERIFIER_KEY);
       }
-      if (typeof key.asymmetricKeyType !== "string") {
+      if (typeof key2.asymmetricKeyType !== "string") {
         throw typeError(MSG_INVALID_VERIFIER_KEY);
       }
-      if (typeof key.export !== "function") {
+      if (typeof key2.export !== "function") {
         throw typeError(MSG_INVALID_VERIFIER_KEY);
       }
     }
-    function checkIsPrivateKey(key) {
-      if (Buffer2.isBuffer(key)) {
+    function checkIsPrivateKey(key2) {
+      if (Buffer2.isBuffer(key2)) {
         return;
       }
-      if (typeof key === "string") {
+      if (typeof key2 === "string") {
         return;
       }
-      if (typeof key === "object") {
+      if (typeof key2 === "object") {
         return;
       }
       throw typeError(MSG_INVALID_SIGNER_KEY);
     }
-    function checkIsSecretKey(key) {
-      if (Buffer2.isBuffer(key)) {
+    function checkIsSecretKey(key2) {
+      if (Buffer2.isBuffer(key2)) {
         return;
       }
-      if (typeof key === "string") {
-        return key;
+      if (typeof key2 === "string") {
+        return key2;
       }
       if (!supportsKeyObjects) {
         throw typeError(MSG_INVALID_SECRET);
       }
-      if (typeof key !== "object") {
+      if (typeof key2 !== "object") {
         throw typeError(MSG_INVALID_SECRET);
       }
-      if (key.type !== "secret") {
+      if (key2.type !== "secret") {
         throw typeError(MSG_INVALID_SECRET);
       }
-      if (typeof key.export !== "function") {
+      if (typeof key2.export !== "function") {
         throw typeError(MSG_INVALID_SECRET);
       }
     }
@@ -28297,18 +27892,18 @@ var require_jwa = __commonJS({
       return function sign(thing, secret) {
         checkIsSecretKey(secret);
         thing = normalizeInput(thing);
-        var hmac = crypto.createHmac("sha" + bits, secret);
+        var hmac = crypto11.createHmac("sha" + bits, secret);
         var sig = (hmac.update(thing), hmac.digest("base64"));
         return fromBase64(sig);
       };
     }
     var bufferEqual;
-    var timingSafeEqual = "timingSafeEqual" in crypto ? function timingSafeEqual2(a, b) {
+    var timingSafeEqual2 = "timingSafeEqual" in crypto11 ? function timingSafeEqual3(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
-      return crypto.timingSafeEqual(a, b);
-    } : function timingSafeEqual2(a, b) {
+      return crypto11.timingSafeEqual(a, b);
+    } : function timingSafeEqual3(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
       }
@@ -28317,14 +27912,14 @@ var require_jwa = __commonJS({
     function createHmacVerifier(bits) {
       return function verify(thing, signature, secret) {
         var computedSig = createHmacSigner(bits)(thing, secret);
-        return timingSafeEqual(Buffer2.from(signature), Buffer2.from(computedSig));
+        return timingSafeEqual2(Buffer2.from(signature), Buffer2.from(computedSig));
       };
     }
     function createKeySigner(bits) {
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto.createSign("RSA-SHA" + bits);
+        var signer = crypto11.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign(privateKey, "base64"));
         return fromBase64(sig);
       };
@@ -28334,7 +27929,7 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto.createVerify("RSA-SHA" + bits);
+        var verifier = crypto11.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify(publicKey, signature, "base64");
       };
@@ -28343,11 +27938,11 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto.createSign("RSA-SHA" + bits);
+        var signer = crypto11.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign({
           key: privateKey,
-          padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto11.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto11.constants.RSA_PSS_SALTLEN_DIGEST
         }, "base64"));
         return fromBase64(sig);
       };
@@ -28357,12 +27952,12 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto.createVerify("RSA-SHA" + bits);
+        var verifier = crypto11.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify({
           key: publicKey,
-          padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto11.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto11.constants.RSA_PSS_SALTLEN_DIGEST
         }, signature, "base64");
       };
     }
@@ -28656,9 +28251,9 @@ var require_decode = __commonJS({
   "../node_modules/.pnpm/jsonwebtoken@9.0.2/node_modules/jsonwebtoken/decode.js"(exports2, module2) {
     "use strict";
     var jws = require_jws();
-    module2.exports = function(jwt2, options) {
+    module2.exports = function(jwt3, options) {
       options = options || {};
-      var decoded = jws.decode(jwt2, options);
+      var decoded = jws.decode(jwt3, options);
       if (!decoded) {
         return null;
       }
@@ -29598,27 +29193,27 @@ var require_lrucache = __commonJS({
         this.max = 1e3;
         this.map = /* @__PURE__ */ new Map();
       }
-      get(key) {
-        const value = this.map.get(key);
+      get(key2) {
+        const value = this.map.get(key2);
         if (value === void 0) {
           return void 0;
         } else {
-          this.map.delete(key);
-          this.map.set(key, value);
+          this.map.delete(key2);
+          this.map.set(key2, value);
           return value;
         }
       }
-      delete(key) {
-        return this.map.delete(key);
+      delete(key2) {
+        return this.map.delete(key2);
       }
-      set(key, value) {
-        const deleted = this.delete(key);
+      set(key2, value) {
+        const deleted = this.delete(key2);
         if (!deleted && value !== void 0) {
           if (this.map.size >= this.max) {
             const firstKey = this.map.keys().next().value;
             this.delete(firstKey);
           }
-          this.map.set(key, value);
+          this.map.set(key2, value);
         }
         return this;
       }
@@ -30721,9 +30316,9 @@ var require_validateAsymmetricKey = __commonJS({
       ES384: "secp384r1",
       ES512: "secp521r1"
     };
-    module2.exports = function(algorithm, key) {
-      if (!algorithm || !key) return;
-      const keyType = key.asymmetricKeyType;
+    module2.exports = function(algorithm, key2) {
+      if (!algorithm || !key2) return;
+      const keyType = key2.asymmetricKeyType;
       if (!keyType) return;
       const allowedAlgorithms = allowedAlgorithmsForKeys[keyType];
       if (!allowedAlgorithms) {
@@ -30735,7 +30330,7 @@ var require_validateAsymmetricKey = __commonJS({
       if (ASYMMETRIC_KEY_DETAILS_SUPPORTED) {
         switch (keyType) {
           case "ec":
-            const keyCurve = key.asymmetricKeyDetails.namedCurve;
+            const keyCurve = key2.asymmetricKeyDetails.namedCurve;
             const allowedCurve = allowedCurves[algorithm];
             if (keyCurve !== allowedCurve) {
               throw new Error(`"alg" parameter "${algorithm}" requires curve "${allowedCurve}".`);
@@ -30744,7 +30339,7 @@ var require_validateAsymmetricKey = __commonJS({
           case "rsa-pss":
             if (RSA_PSS_KEY_DETAILS_SUPPORTED) {
               const length = parseInt(algorithm.slice(-3), 10);
-              const { hashAlgorithm, mgf1HashAlgorithm, saltLength } = key.asymmetricKeyDetails;
+              const { hashAlgorithm, mgf1HashAlgorithm, saltLength } = key2.asymmetricKeyDetails;
               if (hashAlgorithm !== `sha${length}` || mgf1HashAlgorithm !== hashAlgorithm) {
                 throw new Error(`Invalid key for this operation, its RSA-PSS parameters do not meet the requirements of "alg" ${algorithm}.`);
               }
@@ -31042,8 +30637,8 @@ var require_lodash = __commonJS({
       return result;
     }
     function baseValues(object, props) {
-      return arrayMap(props, function(key) {
-        return object[key];
+      return arrayMap(props, function(key2) {
+        return object[key2];
       });
     }
     function overArg(func, transform) {
@@ -31060,9 +30655,9 @@ var require_lodash = __commonJS({
     function arrayLikeKeys(value, inherited) {
       var result = isArray(value) || isArguments(value) ? baseTimes(value.length, String) : [];
       var length = result.length, skipIndexes = !!length;
-      for (var key in value) {
-        if ((inherited || hasOwnProperty.call(value, key)) && !(skipIndexes && (key == "length" || isIndex(key, length)))) {
-          result.push(key);
+      for (var key2 in value) {
+        if ((inherited || hasOwnProperty.call(value, key2)) && !(skipIndexes && (key2 == "length" || isIndex(key2, length)))) {
+          result.push(key2);
         }
       }
       return result;
@@ -31072,9 +30667,9 @@ var require_lodash = __commonJS({
         return nativeKeys(object);
       }
       var result = [];
-      for (var key in Object(object)) {
-        if (hasOwnProperty.call(object, key) && key != "constructor") {
-          result.push(key);
+      for (var key2 in Object(object)) {
+        if (hasOwnProperty.call(object, key2) && key2 != "constructor") {
+          result.push(key2);
         }
       }
       return result;
@@ -31464,15 +31059,15 @@ var require_sign2 = __commonJS({
       if (!isPlainObject(object)) {
         throw new Error('Expected "' + parameterName + '" to be a plain object.');
       }
-      Object.keys(object).forEach(function(key) {
-        const validator = schema[key];
+      Object.keys(object).forEach(function(key2) {
+        const validator = schema[key2];
         if (!validator) {
           if (!allowUnknown) {
-            throw new Error('"' + key + '" is not allowed in "' + parameterName + '"');
+            throw new Error('"' + key2 + '" is not allowed in "' + parameterName + '"');
           }
           return;
         }
-        if (!validator.isValid(object[key])) {
+        if (!validator.isValid(object[key2])) {
           throw new Error(validator.message);
         }
       });
@@ -31605,13 +31200,13 @@ var require_sign2 = __commonJS({
           return failure(new Error('"expiresIn" should be a number of seconds or string representing a timespan eg: "1d", "20h", 60'));
         }
       }
-      Object.keys(options_to_payload).forEach(function(key) {
-        const claim = options_to_payload[key];
-        if (typeof options[key] !== "undefined") {
+      Object.keys(options_to_payload).forEach(function(key2) {
+        const claim = options_to_payload[key2];
+        if (typeof options[key2] !== "undefined") {
           if (typeof payload[claim] !== "undefined") {
-            return failure(new Error('Bad "options.' + key + '" option. The payload already has an "' + claim + '" property.'));
+            return failure(new Error('Bad "options.' + key2 + '" option. The payload already has an "' + claim + '" property.'));
           }
-          payload[claim] = options[key];
+          payload[claim] = options[key2];
         }
       });
       const encoding = options.encoding || "utf8";
@@ -31659,8 +31254,12 @@ var jwt_exports = {};
 __export(jwt_exports, {
   extractTokenFromHeader: () => extractTokenFromHeader,
   generateAccessToken: () => generateAccessToken,
+  generateMfaChallengeToken: () => generateMfaChallengeToken,
   generateRefreshToken: () => generateRefreshToken,
   generateTokenPair: () => generateTokenPair,
+  getMfaChallengeExpiresIn: () => getMfaChallengeExpiresIn,
+  getRefreshTokenExpiresInSeconds: () => getRefreshTokenExpiresInSeconds,
+  verifyMfaChallengeToken: () => verifyMfaChallengeToken,
   verifyToken: () => verifyToken
 });
 function getJwtSecret() {
@@ -31672,11 +31271,16 @@ function getAccessTokenExpiresIn() {
 function getRefreshTokenExpiresIn() {
   return Number(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN || 604800);
 }
+function getRefreshTokenExpiresInSeconds() {
+  return getRefreshTokenExpiresIn();
+}
 function generateAccessToken(payload) {
   return import_jsonwebtoken.default.sign(
     {
       ...payload,
-      type: "access"
+      type: "access",
+      jti: `${Date.now()}-${Math.random().toString(36).substring(2)}`
+      // 唯一标识
     },
     getJwtSecret(),
     {
@@ -31688,7 +31292,9 @@ function generateRefreshToken(payload) {
   return import_jsonwebtoken.default.sign(
     {
       ...payload,
-      type: "refresh"
+      type: "refresh",
+      jti: `${Date.now()}-${Math.random().toString(36).substring(2)}`
+      // 唯一标识
     },
     getJwtSecret(),
     {
@@ -31702,6 +31308,27 @@ function generateTokenPair(payload) {
     refreshToken: generateRefreshToken(payload),
     expiresIn: getAccessTokenExpiresIn()
   };
+}
+function generateMfaChallengeToken(payload) {
+  return import_jsonwebtoken.default.sign(
+    {
+      ...payload,
+      type: "mfa_challenge",
+      jti: `${Date.now()}-${Math.random().toString(36).substring(2)}`
+    },
+    getJwtSecret(),
+    { expiresIn: MFA_CHALLENGE_TTL_SEC }
+  );
+}
+function verifyMfaChallengeToken(token) {
+  const decoded = verifyToken(token);
+  if (decoded.type !== "mfa_challenge") {
+    throw new Error("Invalid mfa challenge token");
+  }
+  return decoded;
+}
+function getMfaChallengeExpiresIn() {
+  return MFA_CHALLENGE_TTL_SEC;
 }
 function verifyToken(token) {
   try {
@@ -31727,17 +31354,134 @@ function extractTokenFromHeader(authHeader) {
   }
   return parts[1];
 }
-var import_jsonwebtoken;
+var import_jsonwebtoken, MFA_CHALLENGE_TTL_SEC;
 var init_jwt = __esm({
   "src/auth/jwt.ts"() {
     "use strict";
     import_jsonwebtoken = __toESM(require_jsonwebtoken());
+    MFA_CHALLENGE_TTL_SEC = Number(process.env.MFA_CHALLENGE_TTL_SEC || 300);
+  }
+});
+
+// src/partner/phone.ts
+var phone_exports = {};
+__export(phone_exports, {
+  maskPhone: () => maskPhone,
+  normalizeCnPhone: () => normalizeCnPhone,
+  phoneExternalId: () => phoneExternalId
+});
+function normalizeCnPhone(raw) {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  let digits = trimmed.replace(/\D/g, "");
+  if (digits.startsWith("86") && digits.length === 13) digits = digits.slice(2);
+  if (digits.length === 11 && /^1[3-9]\d{9}$/.test(digits)) return digits;
+  return null;
+}
+function phoneExternalId(phone) {
+  return `phone:${phone}`;
+}
+function maskPhone(phone) {
+  if (phone.length !== 11) return phone;
+  return `${phone.slice(0, 3)}****${phone.slice(7)}`;
+}
+var init_phone = __esm({
+  "src/partner/phone.ts"() {
+    "use strict";
+  }
+});
+
+// src/partner/crypto.ts
+var crypto_exports = {};
+__export(crypto_exports, {
+  generatePartnerSecret: () => generatePartnerSecret,
+  hashPartnerSecret: () => hashPartnerSecret,
+  hashSessionToken: () => hashSessionToken,
+  isTimestampFresh: () => isTimestampFresh,
+  verifyPartnerHmac: () => verifyPartnerHmac
+});
+function generatePartnerSecret() {
+  const raw = import_crypto10.default.randomBytes(32).toString("hex");
+  const plain = `${PARTNER_SECRET_PREFIX}${raw}`;
+  const hash = hashPartnerSecret(plain);
+  const prefix = plain.slice(0, 12);
+  return { plain, hash, prefix };
+}
+function hashPartnerSecret(secret) {
+  return import_crypto10.default.createHash("sha256").update(secret).digest("hex");
+}
+function hashSessionToken(token) {
+  return import_crypto10.default.createHash("sha256").update(token).digest("hex");
+}
+function verifyPartnerHmac(secret, timestamp, body, signature) {
+  const expected = import_crypto10.default.createHmac("sha256", secret).update(`${timestamp}${body}`).digest("hex");
+  try {
+    return import_crypto10.default.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  } catch {
+    return false;
+  }
+}
+function isTimestampFresh(timestamp, maxSkewSec = 300) {
+  const ts = Number(timestamp);
+  if (!Number.isFinite(ts)) return false;
+  const now = Math.floor(Date.now() / 1e3);
+  return Math.abs(now - ts) <= maxSkewSec;
+}
+var import_crypto10, PARTNER_SECRET_PREFIX;
+var init_crypto = __esm({
+  "src/partner/crypto.ts"() {
+    "use strict";
+    import_crypto10 = __toESM(require("crypto"));
+    PARTNER_SECRET_PREFIX = "mxmps_";
+  }
+});
+
+// src/partner/session-jwt.ts
+var session_jwt_exports = {};
+__export(session_jwt_exports, {
+  signPartnerSessionToken: () => signPartnerSessionToken,
+  verifyPartnerSessionToken: () => verifyPartnerSessionToken
+});
+function getJwtSecret2() {
+  return process.env.JWT_SECRET || "your-secret-key-change-in-production";
+}
+function getSessionExpiresInSec() {
+  return Number(process.env.PARTNER_SESSION_EXPIRES_IN_SECONDS || 7 * 24 * 3600);
+}
+function signPartnerSessionToken(payload) {
+  const expiresIn = getSessionExpiresInSec();
+  const token = import_jsonwebtoken2.default.sign(
+    {
+      ...payload,
+      type: "partner_session",
+      jti: `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    },
+    getJwtSecret2(),
+    { expiresIn }
+  );
+  const expiresAt = new Date(Date.now() + expiresIn * 1e3).toISOString();
+  return { token, expiresAt, tokenHash: hashSessionToken(token) };
+}
+function verifyPartnerSessionToken(token) {
+  const clockTolerance = Number(process.env.JWT_CLOCK_TOLERANCE_SECONDS) || 120;
+  const decoded = import_jsonwebtoken2.default.verify(token, getJwtSecret2(), { clockTolerance });
+  if (decoded.type !== "partner_session") {
+    throw new Error("Invalid token type");
+  }
+  return decoded;
+}
+var import_jsonwebtoken2;
+var init_session_jwt = __esm({
+  "src/partner/session-jwt.ts"() {
+    "use strict";
+    import_jsonwebtoken2 = __toESM(require_jsonwebtoken());
+    init_crypto();
   }
 });
 
 // src/index.ts
 var import_loadEnv3 = __toESM(require_loadEnv());
-var import_express4 = __toESM(require_express2());
+var import_express6 = __toESM(require_express2());
 var import_cors = __toESM(require_lib4());
 
 // src/routes/health.ts
@@ -31750,8 +31494,9 @@ var health_default = router;
 
 // src/routes/account.ts
 var import_loadEnv = __toESM(require_loadEnv());
+var import_crypto8 = __toESM(require("crypto"));
 var import_express2 = __toESM(require_express2());
-var import_mxmdata5 = require("@mxmai/mxmdata");
+var import_mxmdata12 = require("@mxmai/mxmdata");
 
 // src/auth/password.ts
 var import_bcrypt = __toESM(require("bcrypt"));
@@ -31793,6 +31538,7 @@ function authMiddleware(req, res, next) {
       userId: payload.userId,
       username: payload.username
     };
+    req.token = token;
     next();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Token verification failed";
@@ -31802,6 +31548,17 @@ function authMiddleware(req, res, next) {
       error: "UNAUTHORIZED"
     });
   }
+}
+function gatewayOrJwtAuth(req, res, next) {
+  const userId = req.headers["x-user-id"];
+  if (userId && userId.trim()) {
+    req.user = {
+      userId: userId.trim(),
+      username: req.headers["x-username"] || userId.trim()
+    };
+    return next();
+  }
+  return authMiddleware(req, res, next);
 }
 
 // src/middleware/admin.middleware.ts
@@ -31858,13 +31615,20 @@ function adminMiddleware(req, res, next) {
 }
 
 // src/services/captcha.service.ts
-var import_svg_captcha = __toESM(require("svg-captcha"));
+var import_crypto = require("crypto");
+var import_sharp = __toESM(require("sharp"));
 var import_ioredis = __toESM(require("ioredis"));
+var CAPTCHA_WIDTH = 320;
+var CAPTCHA_HEIGHT = 160;
+var CAPTCHA_PUZZLE_TOP = 75;
+var CAPTCHA_PUZZLE_SIZE = 50;
+var CAPTCHA_VERIFIED = "verified";
+var POSITION_MIN = 55;
+var POSITION_MAX = 249;
 var CaptchaService = class {
   redis;
   prefix = "captcha:";
   expireSeconds = 300;
-  // 5 分钟过期
   constructor() {
     const redisHost = process.env.REDIS_HOST || "localhost";
     const redisPort = Number(process.env.REDIS_PORT || 6379);
@@ -31874,9 +31638,7 @@ var CaptchaService = class {
       port: redisPort,
       password: redisPassword,
       retryStrategy: (times) => {
-        if (times > 3) {
-          return null;
-        }
+        if (times > 3) return null;
         return Math.min(times * 200, 2e3);
       },
       maxRetriesPerRequest: 3
@@ -31885,74 +31647,164 @@ var CaptchaService = class {
       console.error("Redis connection error:", err);
     });
   }
-  /**
-   * 生成验证码
-   * @returns 验证码 ID 和 SVG 图片
-   */
+  redisKey(captchaId) {
+    return `${this.prefix}${captchaId}`;
+  }
+  toDataUrl(buffer, mime = "image/jpeg") {
+    return `data:${mime};base64,${buffer.toString("base64")}`;
+  }
+  async buildBackgroundImage() {
+    const w = CAPTCHA_WIDTH;
+    const h = CAPTCHA_HEIGHT;
+    const blobs = [
+      { cx: w * 0.22, cy: h * 0.35, r: 72, color: "#38bdf8", op: 0.55 },
+      { cx: w * 0.78, cy: h * 0.28, r: 64, color: "#0ea5e9", op: 0.45 },
+      { cx: w * 0.55, cy: h * 0.72, r: 80, color: "#7dd3fc", op: 0.4 },
+      { cx: w * 0.15, cy: h * 0.78, r: 48, color: "#0284c7", op: 0.28 }
+    ].map(
+      (b) => `<circle cx="${b.cx}" cy="${b.cy}" r="${b.r}" fill="${b.color}" opacity="${b.op}"/>`
+    ).join("");
+    const grid = Array.from({ length: 9 }, (_, i) => {
+      const x = (i % 3 + 1) * (w / 4);
+      const y = (Math.floor(i / 3) + 1) * (h / 4);
+      return `<rect x="${x - 18}" y="${y - 18}" width="36" height="36" rx="8" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.22"/>`;
+    }).join("");
+    const svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0f9ff"/>
+      <stop offset="45%" stop-color="#e0f2fe"/>
+      <stop offset="100%" stop-color="#bae6fd"/>
+    </linearGradient>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.06"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#bg)"/>
+  ${blobs}
+  ${grid}
+  <rect width="100%" height="100%" filter="url(#grain)" opacity="0.35"/>
+</svg>`;
+    return (0, import_sharp.default)(Buffer.from(svg)).png().toBuffer();
+  }
+  async createSlideImages(image, sliderOffset) {
+    const originalImage = (0, import_sharp.default)(image);
+    const hole = await (0, import_sharp.default)({
+      create: {
+        width: CAPTCHA_PUZZLE_SIZE,
+        height: CAPTCHA_PUZZLE_SIZE,
+        channels: 4,
+        background: { r: 15, g: 23, b: 42, alpha: 0.55 }
+      }
+    }).png().toBuffer();
+    const puzzlePiece = await originalImage.clone().extract({
+      left: sliderOffset,
+      top: CAPTCHA_PUZZLE_TOP,
+      width: CAPTCHA_PUZZLE_SIZE,
+      height: CAPTCHA_PUZZLE_SIZE
+    }).png().toBuffer();
+    const puzzleWithShadow = await (0, import_sharp.default)(puzzlePiece).extend({ top: 2, bottom: 4, left: 2, right: 2, background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+    const composedImage = await originalImage.composite([
+      {
+        input: hole,
+        top: CAPTCHA_PUZZLE_TOP,
+        left: sliderOffset,
+        blend: "over"
+      }
+    ]).jpeg({ quality: 90 }).toBuffer();
+    return { puzzlePieceBuffer: puzzleWithShadow, composedImage };
+  }
   async generate() {
     try {
-      const captcha = import_svg_captcha.default.create({
-        size: 4,
-        // 验证码长度
-        ignoreChars: "0o1il",
-        // 忽略容易混淆的字符
-        noise: 2,
-        // 干扰线条数
-        color: true,
-        // 彩色
-        background: "#f0f0f0",
-        // 背景色
-        width: 120,
-        height: 40,
-        fontSize: 50,
-        charPreset: "123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
-        // 字符集（排除容易混淆的字符）
-      });
-      const captchaId = `cap_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const answer = captcha.text.toLowerCase();
+      const image = await this.buildBackgroundImage();
+      const sliderOffset = Math.max(
+        POSITION_MIN,
+        Math.floor(Math.random() * (POSITION_MAX - POSITION_MIN + 1))
+      );
+      const captchaId = `cap_${Date.now()}_${(0, import_crypto.randomUUID)().slice(0, 8)}`;
+      const { puzzlePieceBuffer, composedImage } = await this.createSlideImages(
+        image,
+        sliderOffset
+      );
       await this.redis.setex(
-        `${this.prefix}${captchaId}`,
+        this.redisKey(captchaId),
         this.expireSeconds,
-        answer
+        String(sliderOffset)
       );
       return {
         captchaId,
-        image: captcha.data
+        bgUrl: this.toDataUrl(composedImage),
+        puzzleUrl: this.toDataUrl(puzzlePieceBuffer, "image/png")
       };
     } catch (error) {
-      console.error("\u751F\u6210\u9A8C\u8BC1\u7801\u5931\u8D25:", error);
+      console.error("\u751F\u6210\u6ED1\u52A8\u9A8C\u8BC1\u7801\u5931\u8D25:", error);
       throw new Error("\u751F\u6210\u9A8C\u8BC1\u7801\u5931\u8D25");
     }
   }
-  /**
-   * 验证验证码
-   * @param captchaId 验证码 ID
-   * @param answer 用户输入的答案
-   * @returns 是否验证通过
-   */
-  async verify(captchaId, answer) {
-    if (!captchaId || !answer) {
-      return false;
+  isSuspiciousSlide(payload) {
+    const duration = payload.duration ?? 0;
+    const trail = payload.trail ?? [];
+    if (duration < 280) return true;
+    if (trail.length < 4) return true;
+    return false;
+  }
+  async verifySlide(captchaId, payload) {
+    if (!captchaId || !Number.isFinite(payload.x)) {
+      return { success: false, reason: "\u53C2\u6570\u65E0\u6548" };
+    }
+    if (this.isSuspiciousSlide(payload)) {
+      return { success: false, reason: "\u64CD\u4F5C\u5F02\u5E38\uFF0C\u8BF7\u91CD\u8BD5" };
     }
     try {
-      const key = `${this.prefix}${captchaId}`;
-      const storedAnswer = await this.redis.get(key);
-      if (!storedAnswer) {
-        return false;
+      const storedValue = await this.redis.get(this.redisKey(captchaId));
+      if (!storedValue) {
+        return { success: false, reason: "\u9A8C\u8BC1\u7801\u4E0D\u5B58\u5728\u6216\u5DF2\u8FC7\u671F" };
       }
-      const isValid = storedAnswer.toLowerCase() === answer.toLowerCase();
-      if (isValid) {
-        await this.redis.del(key);
+      if (storedValue === CAPTCHA_VERIFIED) {
+        return { success: true };
       }
-      return isValid;
+      const userPosition = Math.round(payload.x);
+      const correctPosition = parseInt(storedValue, 10);
+      if (Number.isNaN(correctPosition)) {
+        return { success: false, reason: "\u9A8C\u8BC1\u7801\u72B6\u6001\u5F02\u5E38" };
+      }
+      const tolerance = 8;
+      if (Math.abs(correctPosition - userPosition) <= tolerance) {
+        await this.redis.setex(
+          this.redisKey(captchaId),
+          this.expireSeconds,
+          CAPTCHA_VERIFIED
+        );
+        return { success: true };
+      }
+      return { success: false, reason: "\u8BF7\u628A\u62FC\u56FE\u6ED1\u5230\u6B63\u786E\u4F4D\u7F6E" };
     } catch (error) {
-      console.error("\u9A8C\u8BC1\u9A8C\u8BC1\u7801\u5931\u8D25:", error);
+      console.error("\u9A8C\u8BC1\u6ED1\u52A8\u9A8C\u8BC1\u7801\u5931\u8D25:", error);
+      return { success: false, reason: "\u9A8C\u8BC1\u5931\u8D25" };
+    }
+  }
+  async isVerified(captchaId) {
+    if (!captchaId) return false;
+    try {
+      const storedValue = await this.redis.get(this.redisKey(captchaId));
+      return storedValue === CAPTCHA_VERIFIED;
+    } catch (error) {
+      console.error("\u68C0\u67E5\u9A8C\u8BC1\u7801\u72B6\u6001\u5931\u8D25:", error);
       return false;
     }
   }
-  /**
-   * 检查 Redis 连接
-   */
+  async consumeVerified(captchaId) {
+    if (!captchaId) return;
+    try {
+      await this.redis.del(this.redisKey(captchaId));
+    } catch (error) {
+      console.error("\u6E05\u7406\u9A8C\u8BC1\u7801\u5931\u8D25:", error);
+    }
+  }
   async checkConnection() {
     try {
       await this.redis.ping();
@@ -31962,9 +31814,6 @@ var CaptchaService = class {
       return false;
     }
   }
-  /**
-   * 关闭 Redis 连接
-   */
   async close() {
     await this.redis.quit();
   }
@@ -31977,24 +31826,25 @@ function captchaMiddleware(req, res, next) {
   if (!captchaEnabled) {
     return next();
   }
-  const { captchaId, captchaAnswer } = req.body;
-  if (!captchaId || !captchaAnswer) {
+  const { captchaId } = req.body;
+  if (!captchaId) {
     res.status(400).json({
       code: 400,
-      message: "\u9A8C\u8BC1\u7801\u4E0D\u80FD\u4E3A\u7A7A",
+      message: "\u8BF7\u5148\u5B8C\u6210\u6ED1\u52A8\u9A8C\u8BC1",
       error: "CAPTCHA_REQUIRED"
     });
     return;
   }
-  captchaService.verify(captchaId, captchaAnswer).then((isValid) => {
+  captchaService.isVerified(captchaId).then(async (isValid) => {
     if (!isValid) {
       res.status(400).json({
         code: 400,
-        message: "\u9A8C\u8BC1\u7801\u9519\u8BEF\u6216\u5DF2\u8FC7\u671F",
+        message: "\u8BF7\u5148\u5B8C\u6210\u6ED1\u52A8\u9A8C\u8BC1\u6216\u9A8C\u8BC1\u5DF2\u8FC7\u671F",
         error: "CAPTCHA_INVALID"
       });
       return;
     }
+    await captchaService.consumeVerified(captchaId);
     next();
   }).catch((error) => {
     console.error("\u9A8C\u8BC1\u7801\u9A8C\u8BC1\u5F02\u5E38:", error);
@@ -32007,7 +31857,7 @@ function captchaMiddleware(req, res, next) {
 }
 
 // src/routes/account.ts
-var import_mxmdata6 = require("@mxmai/mxmdata");
+var import_mxmdata13 = require("@mxmai/mxmdata");
 
 // src/services/wallet.service.ts
 var import_axios = __toESM(require("axios"));
@@ -32151,77 +32001,72 @@ var import_mxmdata2 = require("@mxmai/mxmdata");
 var import_mxmdata3 = require("@mxmai/mxmdata");
 var FolderService = class {
   folderRepo = import_mxmdata2.RepositoryFactory.createFolderRepository();
-  /**
-   * 检查文件夹服务是否可用
-   */
   async checkServiceAvailable() {
     try {
       await this.folderRepo.getFolders("00000000-0000-0000-0000-000000000000", {});
       return true;
     } catch (error) {
-      if (error?.message?.includes("Could not find the table") || error?.message?.includes("does not exist")) {
+      const err = error;
+      if (err?.message?.includes("Could not find the table") || err?.message?.includes("does not exist")) {
         return false;
       }
       return true;
     }
   }
   /**
-   * 为用户创建默认文件夹
-   * @param userId 用户 ID
-   * @returns 文件夹信息，如果创建失败或服务不可用则返回 null
+   * 为用户创建上传管理器默认目录。
+   * 虚拟文件夹不预置「默认收藏」——由用户自行建树。
    */
-  async createDefaultFolder(userId) {
+  async createDefaultFolders(userId) {
     const isAvailable = await this.checkServiceAvailable();
     if (!isAvailable) {
-      console.warn(`\u26A0\uFE0F \u6587\u4EF6\u5939\u670D\u52A1\u4E0D\u53EF\u7528\uFF0C\u8DF3\u8FC7\u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA`);
-      return null;
+      console.warn("\u26A0\uFE0F \u6587\u4EF6\u5939\u670D\u52A1\u4E0D\u53EF\u7528\uFF0C\u8DF3\u8FC7\u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA");
+      return [];
     }
+    const results = [];
+    const created = await this.ensureDefaultFolder(userId, "\u9ED8\u8BA4", "upload");
+    if (created) results.push(created);
+    return results;
+  }
+  /** @deprecated 使用 createDefaultFolders */
+  async createDefaultFolder(userId) {
+    const list = await this.createDefaultFolders(userId);
+    return list.find((f) => f.folder_kind === "upload") ?? list[0] ?? null;
+  }
+  async ensureDefaultFolder(userId, name, folderKind) {
     try {
-      const folders = await this.folderRepo.getFolders(userId, { parent_id: null });
-      const defaultFolder = folders.find((f) => f.name === "\u9ED8\u8BA4");
-      if (defaultFolder) {
-        console.log(`\u2705 \u7528\u6237 ${userId} \u5DF2\u5B58\u5728\u9ED8\u8BA4\u6587\u4EF6\u5939:`, defaultFolder.id);
-        return {
-          id: defaultFolder.id,
-          name: defaultFolder.name,
-          created: false
-        };
+      const folders = await this.folderRepo.getFolders(userId, { parent_id: null, folder_kind: folderKind });
+      const existing = folders.find((f) => f.name === name);
+      if (existing) {
+        return { id: existing.id, name: existing.name, created: false, folder_kind: folderKind };
       }
       const folder = await this.folderRepo.createFolder(userId, {
-        name: "\u9ED8\u8BA4",
-        parent_id: null
+        name,
+        parent_id: null,
+        folder_kind: folderKind
       });
-      console.log(`\u2705 \u7528\u6237 ${userId} \u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA\u6210\u529F:`, folder.id);
-      return {
-        id: folder.id,
-        name: folder.name,
-        created: true
-      };
+      console.log(`\u2705 \u7528\u6237 ${userId} ${folderKind} \u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA\u6210\u529F:`, folder.id);
+      return { id: folder.id, name: folder.name, created: true, folder_kind: folderKind };
     } catch (error) {
       if (error instanceof import_mxmdata3.DuplicateError) {
-        console.warn(`\u26A0\uFE0F \u7528\u6237 ${userId} \u9ED8\u8BA4\u6587\u4EF6\u5939\u5DF2\u5B58\u5728\uFF08\u91CD\u590D\u521B\u5EFA\uFF09`);
         try {
-          const folders = await this.folderRepo.getFolders(userId, { parent_id: null });
-          const defaultFolder = folders.find((f) => f.name === "\u9ED8\u8BA4");
-          if (defaultFolder) {
-            return {
-              id: defaultFolder.id,
-              name: defaultFolder.name,
-              created: false
-            };
+          const folders = await this.folderRepo.getFolders(userId, { parent_id: null, folder_kind: folderKind });
+          const existing = folders.find((f) => f.name === name);
+          if (existing) {
+            return { id: existing.id, name: existing.name, created: false, folder_kind: folderKind };
           }
-        } catch (e) {
+        } catch {
         }
         return null;
       }
-      console.error(`\u274C \u7528\u6237 ${userId} \u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA\u5931\u8D25:`, error);
+      console.error(`\u274C \u7528\u6237 ${userId} ${folderKind} \u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA\u5931\u8D25:`, error);
       return null;
     }
   }
 };
 
 // src/routes/account.ts
-var import_mxmdata7 = require("@mxmai/mxmdata");
+var import_mxmdata14 = require("@mxmai/mxmdata");
 
 // src/services/media.service.ts
 var import_mxmdata4 = require("@mxmai/mxmdata");
@@ -32285,13 +32130,1120 @@ var MediaService = class {
   }
 };
 
-// src/routes/account.ts
-var router2 = (0, import_express2.Router)();
-var userRepo2 = import_mxmdata5.RepositoryFactory.createUserRepository();
-var walletService = new WalletService();
+// src/services/mail.service.ts
+var import_nodemailer = __toESM(require("nodemailer"));
+var import_mxmdata5 = require("@mxmai/mxmdata");
+function smtpConfigured() {
+  return Boolean(
+    process.env.SMTP_HOST?.trim() && process.env.SMTP_USER?.trim() && process.env.SMTP_PASS?.trim() && process.env.MAIL_FROM?.trim()
+  );
+}
+function isSmtpConfigured() {
+  return smtpConfigured();
+}
+function getAppPublicUrl() {
+  return (process.env.APP_PUBLIC_URL || "http://localhost:5173").replace(/\/$/, "");
+}
+function createTransport() {
+  const port2 = Number(process.env.SMTP_PORT || 465);
+  const secureEnv = process.env.SMTP_SECURE;
+  const secure = secureEnv != null ? secureEnv === "true" || secureEnv === "1" : port2 === 465;
+  const options = {
+    host: process.env.SMTP_HOST,
+    port: port2,
+    secure,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  };
+  return import_nodemailer.default.createTransport(options);
+}
+var VERIFY = {
+  en: {
+    subject: "Verify your MXM AI email",
+    text: (link) => `Open this link to verify your email:
+${link}
+
+This link expires in 24 hours.`,
+    html: (link) => `<p>Open this link to verify your email:</p><p><a href="${link}">${link}</a></p><p>This link expires in 24 hours.</p>`
+  },
+  zh: {
+    subject: "\u9A8C\u8BC1\u4F60\u7684 MXM AI \u90AE\u7BB1",
+    text: (link) => `\u8BF7\u6253\u5F00\u4EE5\u4E0B\u94FE\u63A5\u5B8C\u6210\u90AE\u7BB1\u9A8C\u8BC1\uFF1A
+${link}
+
+\u94FE\u63A5 24 \u5C0F\u65F6\u5185\u6709\u6548\u3002`,
+    html: (link) => `<p>\u8BF7\u6253\u5F00\u4EE5\u4E0B\u94FE\u63A5\u5B8C\u6210\u90AE\u7BB1\u9A8C\u8BC1\uFF1A</p><p><a href="${link}">${link}</a></p><p>\u94FE\u63A5 24 \u5C0F\u65F6\u5185\u6709\u6548\u3002</p>`
+  },
+  "zh-TW": {
+    subject: "\u9A57\u8B49\u4F60\u7684 MXM AI \u4FE1\u7BB1",
+    text: (link) => `\u8ACB\u958B\u555F\u4EE5\u4E0B\u9023\u7D50\u5B8C\u6210\u4FE1\u7BB1\u9A57\u8B49\uFF1A
+${link}
+
+\u9023\u7D50 24 \u5C0F\u6642\u5167\u6709\u6548\u3002`,
+    html: (link) => `<p>\u8ACB\u958B\u555F\u4EE5\u4E0B\u9023\u7D50\u5B8C\u6210\u4FE1\u7BB1\u9A57\u8B49\uFF1A</p><p><a href="${link}">${link}</a></p><p>\u9023\u7D50 24 \u5C0F\u6642\u5167\u6709\u6548\u3002</p>`
+  },
+  ja: {
+    subject: "MXM AI \u30E1\u30FC\u30EB\u30A2\u30C9\u30EC\u30B9\u306E\u78BA\u8A8D",
+    text: (link) => `\u6B21\u306E\u30EA\u30F3\u30AF\u3092\u958B\u3044\u3066\u30E1\u30FC\u30EB\u30A2\u30C9\u30EC\u30B9\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\uFF1A
+${link}
+
+\u30EA\u30F3\u30AF\u306E\u6709\u52B9\u671F\u9650\u306F 24 \u6642\u9593\u3067\u3059\u3002`,
+    html: (link) => `<p>\u6B21\u306E\u30EA\u30F3\u30AF\u3092\u958B\u3044\u3066\u30E1\u30FC\u30EB\u30A2\u30C9\u30EC\u30B9\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\uFF1A</p><p><a href="${link}">${link}</a></p><p>\u30EA\u30F3\u30AF\u306E\u6709\u52B9\u671F\u9650\u306F 24 \u6642\u9593\u3067\u3059\u3002</p>`
+  }
+};
+var RESET = {
+  en: {
+    subject: "Reset your MXM AI password",
+    text: (link) => `Open this link to reset your password:
+${link}
+
+This link expires in 1 hour. If you did not request this, ignore the email.`,
+    html: (link) => `<p>Open this link to reset your password:</p><p><a href="${link}">${link}</a></p><p>This link expires in 1 hour. If you did not request this, ignore the email.</p>`
+  },
+  zh: {
+    subject: "\u91CD\u7F6E\u4F60\u7684 MXM AI \u5BC6\u7801",
+    text: (link) => `\u8BF7\u6253\u5F00\u4EE5\u4E0B\u94FE\u63A5\u91CD\u7F6E\u5BC6\u7801\uFF1A
+${link}
+
+\u94FE\u63A5 1 \u5C0F\u65F6\u5185\u6709\u6548\u3002\u5982\u975E\u672C\u4EBA\u64CD\u4F5C\u8BF7\u5FFD\u7565\u3002`,
+    html: (link) => `<p>\u8BF7\u6253\u5F00\u4EE5\u4E0B\u94FE\u63A5\u91CD\u7F6E\u5BC6\u7801\uFF1A</p><p><a href="${link}">${link}</a></p><p>\u94FE\u63A5 1 \u5C0F\u65F6\u5185\u6709\u6548\u3002\u5982\u975E\u672C\u4EBA\u64CD\u4F5C\u8BF7\u5FFD\u7565\u3002</p>`
+  },
+  "zh-TW": {
+    subject: "\u91CD\u8A2D\u4F60\u7684 MXM AI \u5BC6\u78BC",
+    text: (link) => `\u8ACB\u958B\u555F\u4EE5\u4E0B\u9023\u7D50\u91CD\u8A2D\u5BC6\u78BC\uFF1A
+${link}
+
+\u9023\u7D50 1 \u5C0F\u6642\u5167\u6709\u6548\u3002\u5982\u975E\u672C\u4EBA\u64CD\u4F5C\u8ACB\u5FFD\u7565\u3002`,
+    html: (link) => `<p>\u8ACB\u958B\u555F\u4EE5\u4E0B\u9023\u7D50\u91CD\u8A2D\u5BC6\u78BC\uFF1A</p><p><a href="${link}">${link}</a></p><p>\u9023\u7D50 1 \u5C0F\u6642\u5167\u6709\u6548\u3002\u5982\u975E\u672C\u4EBA\u64CD\u4F5C\u8ACB\u5FFD\u7565\u3002</p>`
+  },
+  ja: {
+    subject: "MXM AI \u30D1\u30B9\u30EF\u30FC\u30C9\u306E\u30EA\u30BB\u30C3\u30C8",
+    text: (link) => `\u6B21\u306E\u30EA\u30F3\u30AF\u3092\u958B\u3044\u3066\u30D1\u30B9\u30EF\u30FC\u30C9\u3092\u30EA\u30BB\u30C3\u30C8\u3057\u3066\u304F\u3060\u3055\u3044\uFF1A
+${link}
+
+\u30EA\u30F3\u30AF\u306E\u6709\u52B9\u671F\u9650\u306F 1 \u6642\u9593\u3067\u3059\u3002\u5FC3\u5F53\u305F\u308A\u304C\u306A\u3044\u5834\u5408\u306F\u3053\u306E\u30E1\u30FC\u30EB\u3092\u7121\u8996\u3057\u3066\u304F\u3060\u3055\u3044\u3002`,
+    html: (link) => `<p>\u6B21\u306E\u30EA\u30F3\u30AF\u3092\u958B\u3044\u3066\u30D1\u30B9\u30EF\u30FC\u30C9\u3092\u30EA\u30BB\u30C3\u30C8\u3057\u3066\u304F\u3060\u3055\u3044\uFF1A</p><p><a href="${link}">${link}</a></p><p>\u30EA\u30F3\u30AF\u306E\u6709\u52B9\u671F\u9650\u306F 1 \u6642\u9593\u3067\u3059\u3002\u5FC3\u5F53\u305F\u308A\u304C\u306A\u3044\u5834\u5408\u306F\u3053\u306E\u30E1\u30FC\u30EB\u3092\u7121\u8996\u3057\u3066\u304F\u3060\u3055\u3044\u3002</p>`
+  }
+};
+var MailService = class {
+  async sendMail(params) {
+    if (!smtpConfigured()) {
+      console.warn("[MailService] SMTP not configured; skip send to", params.to, params.subject);
+      if (true) {
+        console.info("[MailService] DEV mail body:\n", params.text);
+      }
+      const err = new Error("SMTP is not configured");
+      err.code = "SMTP_NOT_CONFIGURED";
+      throw err;
+    }
+    const transport = createTransport();
+    await transport.sendMail({
+      from: process.env.MAIL_FROM,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      text: params.text
+    });
+  }
+  buildVerifyEmail(params) {
+    const locale = (0, import_mxmdata5.normalizeAppLocale)(params.locale);
+    const link = `${getAppPublicUrl()}/?verify_email=${encodeURIComponent(params.token)}`;
+    const t = VERIFY[locale];
+    return { subject: t.subject, link, text: t.text(link), html: t.html(link) };
+  }
+  buildResetPassword(params) {
+    const locale = (0, import_mxmdata5.normalizeAppLocale)(params.locale);
+    const link = `${getAppPublicUrl()}/?reset_password=${encodeURIComponent(params.token)}`;
+    const t = RESET[locale];
+    return { subject: t.subject, link, text: t.text(link), html: t.html(link) };
+  }
+};
+var mailService = new MailService();
+
+// src/services/auth-email-token.service.ts
+var import_crypto2 = __toESM(require("crypto"));
+var import_mxmdata6 = require("@mxmai/mxmdata");
+var TTL_MS = {
+  email_verify: 24 * 60 * 60 * 1e3,
+  password_reset: 60 * 60 * 1e3
+};
+function hashToken(raw) {
+  return import_crypto2.default.createHash("sha256").update(raw).digest("hex");
+}
+var AuthEmailTokenService = class {
+  client = (0, import_mxmdata6.getSupabaseClient)();
+  /** 创建 token，返回明文（仅用于邮件链接） */
+  async issue(userId, type) {
+    const raw = import_crypto2.default.randomBytes(32).toString("hex");
+    const token_hash = hashToken(raw);
+    const expires_at = new Date(Date.now() + TTL_MS[type]).toISOString();
+    await this.client.from("auth_email_tokens").update({ used_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("user_id", userId).eq("type", type).is("used_at", null);
+    const { error } = await this.client.from("auth_email_tokens").insert({
+      user_id: userId,
+      type,
+      token_hash,
+      expires_at
+    });
+    if (error) {
+      throw new Error(`Failed to issue auth email token: ${error.message}`);
+    }
+    return raw;
+  }
+  async consume(rawToken, type) {
+    const token_hash = hashToken(rawToken);
+    const { data, error } = await this.client.from("auth_email_tokens").select("id, user_id, expires_at, used_at").eq("token_hash", token_hash).eq("type", type).maybeSingle();
+    if (error || !data) return null;
+    if (data.used_at) return null;
+    if (new Date(data.expires_at).getTime() < Date.now()) return null;
+    const { error: updErr } = await this.client.from("auth_email_tokens").update({ used_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", data.id).is("used_at", null);
+    if (updErr) return null;
+    return { userId: data.user_id };
+  }
+};
+var authEmailTokenService = new AuthEmailTokenService();
+
+// src/routes/account-auth-public.ts
+var import_crypto7 = __toESM(require("crypto"));
+var import_mxmdata10 = require("@mxmai/mxmdata");
+
+// src/services/auth-session.service.ts
+var import_crypto3 = __toESM(require("crypto"));
+var import_mxmdata7 = require("@mxmai/mxmdata");
+init_jwt();
+function issueSessionTokens(user) {
+  const tokens = generateTokenPair({
+    userId: user.id,
+    username: user.username,
+    role: user.role
+  });
+  const tokenHash = import_crypto3.default.createHash("sha256").update(tokens.accessToken).digest("hex");
+  const refreshHash = import_crypto3.default.createHash("sha256").update(tokens.refreshToken).digest("hex");
+  const expiresAt = new Date(Date.now() + getRefreshTokenExpiresInSeconds() * 1e3);
+  void (async () => {
+    try {
+      const { error } = await (0, import_mxmdata7.getSupabaseClient)().from("user_sessions").insert({
+        user_id: user.id,
+        token_hash: tokenHash,
+        refresh_token_hash: refreshHash,
+        expires_at: expiresAt.toISOString()
+      });
+      if (error) console.warn("[auth-session] user_sessions insert failed:", error.message);
+    } catch (e) {
+      console.warn("[auth-session] user_sessions insert error:", e instanceof Error ? e.message : e);
+    }
+  })();
+  return tokens;
+}
+function publicUser(user) {
+  const { password_hash: _, ...rest } = user;
+  return rest;
+}
+
+// src/routes/account-auth-public.ts
+init_jwt();
+
+// src/services/mfa-totp.service.ts
+var import_otplib = require("otplib");
+var import_mxmdata8 = require("@mxmai/mxmdata");
+
+// src/services/mfa-crypto.ts
+var import_crypto4 = __toESM(require("crypto"));
+var ALGO = "aes-256-gcm";
+var IV_LEN = 12;
+function getEncryptionKey() {
+  const raw = process.env.MFA_ENCRYPTION_KEY || process.env.JWT_SECRET || "your-secret-key-change-in-production";
+  return import_crypto4.default.createHash("sha256").update(raw).digest();
+}
+function encryptSecret(plain) {
+  const iv = import_crypto4.default.randomBytes(IV_LEN);
+  const cipher = import_crypto4.default.createCipheriv(ALGO, getEncryptionKey(), iv);
+  const enc = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, enc]).toString("base64");
+}
+function decryptSecret(payload) {
+  const buf = Buffer.from(payload, "base64");
+  const iv = buf.subarray(0, IV_LEN);
+  const tag = buf.subarray(IV_LEN, IV_LEN + 16);
+  const data = buf.subarray(IV_LEN + 16);
+  const decipher = import_crypto4.default.createDecipheriv(ALGO, getEncryptionKey(), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(data), decipher.final()]).toString("utf8");
+}
+
+// src/services/mfa-totp.service.ts
+var ISSUER = process.env.MFA_TOTP_ISSUER || "SuperMXM";
+import_otplib.authenticator.options = { window: 1 };
+var mfaAttemptMap = /* @__PURE__ */ new Map();
+var MFA_MAX_ATTEMPTS = Number(process.env.MFA_MAX_ATTEMPTS || 5);
+var MFA_ATTEMPT_WINDOW_MS = 5 * 60 * 1e3;
+function attemptKey(kind, id) {
+  return `${kind}:${id}`;
+}
+function checkRateLimit(kind, id) {
+  const key2 = attemptKey(kind, id);
+  const now = Date.now();
+  const row = mfaAttemptMap.get(key2);
+  if (!row || now > row.resetAt) {
+    mfaAttemptMap.set(key2, { count: 1, resetAt: now + MFA_ATTEMPT_WINDOW_MS });
+    return false;
+  }
+  row.count += 1;
+  if (row.count > MFA_MAX_ATTEMPTS) return true;
+  return false;
+}
+function clearRateLimit(kind, id) {
+  mfaAttemptMap.delete(attemptKey(kind, id));
+}
+var MfaTotpService = class {
+  client = (0, import_mxmdata8.getSupabaseClient)();
+  async getStatus(user) {
+    const hasPassword = Boolean(user.password_hash);
+    const { data } = await this.client.from("user_mfa_totp").select("enabled_at").eq("user_id", user.id).maybeSingle();
+    return {
+      totpEnabled: Boolean(user.mfa_totp_enabled),
+      hasPassword,
+      oauthOnly: !hasPassword,
+      pendingSetup: Boolean(data && !data.enabled_at)
+    };
+  }
+  async assertPassword(user, password) {
+    if (!user.password_hash) {
+      throw Object.assign(new Error("OAUTH_ONLY"), { code: "OAUTH_ONLY" });
+    }
+    const ok = await verifyPassword(password, user.password_hash);
+    if (!ok) {
+      throw Object.assign(new Error("INVALID_PASSWORD"), { code: "INVALID_PASSWORD" });
+    }
+  }
+  async setup(user, password) {
+    await this.assertPassword(user, password);
+    const secret = import_otplib.authenticator.generateSecret();
+    const label = user.email || user.username;
+    const otpauthUrl = import_otplib.authenticator.keyuri(label, ISSUER, secret);
+    const { error } = await this.client.from("user_mfa_totp").upsert(
+      {
+        user_id: user.id,
+        secret_encrypted: encryptSecret(secret),
+        enabled_at: null,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      { onConflict: "user_id" }
+    );
+    if (error) {
+      throw new Error(`Failed to save MFA setup: ${error.message}`);
+    }
+    return { secret, otpauthUrl };
+  }
+  async enable(user, password, code) {
+    await this.assertPassword(user, password);
+    const row = await this.getTotpRow(user.id);
+    if (!row) {
+      throw Object.assign(new Error("MFA_SETUP_REQUIRED"), { code: "MFA_SETUP_REQUIRED" });
+    }
+    const secret = decryptSecret(row.secret_encrypted);
+    if (!import_otplib.authenticator.check(code.replace(/\s/g, ""), secret)) {
+      throw Object.assign(new Error("INVALID_TOTP"), { code: "INVALID_TOTP" });
+    }
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const { error: totpErr } = await this.client.from("user_mfa_totp").update({ enabled_at: now, updated_at: now }).eq("user_id", user.id);
+    if (totpErr) throw new Error(totpErr.message);
+    const { error: userErr } = await this.client.from("users").update({ mfa_totp_enabled: true, updated_at: now }).eq("id", user.id);
+    if (userErr) throw new Error(userErr.message);
+    await this.clearUserSessions(user.id);
+  }
+  async disable(user, password, code) {
+    await this.assertPassword(user, password);
+    await this.verifyEnabledCode(user.id, code);
+    await this.client.from("user_mfa_totp").delete().eq("user_id", user.id);
+    await this.client.from("users").update({ mfa_totp_enabled: false, updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", user.id);
+    await this.clearUserSessions(user.id);
+  }
+  async verifyEnabledCode(userId, code) {
+    if (checkRateLimit("totp", userId)) {
+      throw Object.assign(new Error("MFA_RATE_LIMITED"), { code: "MFA_RATE_LIMITED" });
+    }
+    const row = await this.getTotpRow(userId);
+    if (!row?.enabled_at) {
+      throw Object.assign(new Error("MFA_NOT_ENABLED"), { code: "MFA_NOT_ENABLED" });
+    }
+    const secret = decryptSecret(row.secret_encrypted);
+    const normalized = code.replace(/\s/g, "");
+    if (!import_otplib.authenticator.check(normalized, secret)) {
+      throw Object.assign(new Error("INVALID_TOTP"), { code: "INVALID_TOTP" });
+    }
+    clearRateLimit("totp", userId);
+  }
+  async verifyLoginChallenge(userId, code) {
+    return this.verifyEnabledCode(userId, code);
+  }
+  async getTotpRow(userId) {
+    const { data, error } = await this.client.from("user_mfa_totp").select("secret_encrypted, enabled_at").eq("user_id", userId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data;
+  }
+  async clearUserSessions(userId) {
+    try {
+      await this.client.from("user_sessions").delete().eq("user_id", userId);
+    } catch {
+    }
+  }
+};
+var mfaTotpService = new MfaTotpService();
+
+// src/auth/oauth/providers.ts
+function isOAuthProvider(v) {
+  return v === "google" || v === "github";
+}
+function getOAuthRedirectBase() {
+  return (process.env.OAUTH_REDIRECT_BASE || process.env.APP_PUBLIC_URL || "http://localhost:3000").replace(
+    /\/$/,
+    ""
+  );
+}
+function getOAuthCallbackUrl(provider) {
+  return `${getOAuthRedirectBase()}/api/v1/account/oauth/${provider}/callback`;
+}
+function getAppPublicUrl2() {
+  return (process.env.APP_PUBLIC_URL || "http://localhost:5173").replace(/\/$/, "");
+}
+function isOAuthProviderConfigured(provider) {
+  if (provider === "google") {
+    return Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID?.trim() && process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim());
+  }
+  return Boolean(process.env.GITHUB_OAUTH_CLIENT_ID?.trim() && process.env.GITHUB_OAUTH_CLIENT_SECRET?.trim());
+}
+function buildAuthorizeUrl(provider, state) {
+  const redirectUri = getOAuthCallbackUrl(provider);
+  if (provider === "google") {
+    const params2 = new URLSearchParams({
+      client_id: process.env.GOOGLE_OAUTH_CLIENT_ID,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "openid email profile",
+      state,
+      access_type: "online",
+      prompt: "select_account"
+    });
+    return `https://accounts.google.com/o/oauth2/v2/auth?${params2.toString()}`;
+  }
+  const params = new URLSearchParams({
+    client_id: process.env.GITHUB_OAUTH_CLIENT_ID,
+    redirect_uri: redirectUri,
+    scope: "read:user user:email",
+    state
+  });
+  return `https://github.com/login/oauth/authorize?${params.toString()}`;
+}
+async function exchangeGoogleCode(code) {
+  const redirectUri = getOAuthCallbackUrl("google");
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      client_id: process.env.GOOGLE_OAUTH_CLIENT_ID,
+      client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+      redirect_uri: redirectUri,
+      grant_type: "authorization_code"
+    })
+  });
+  if (!tokenRes.ok) {
+    const t = await tokenRes.text();
+    throw new Error(`Google token exchange failed: ${t}`);
+  }
+  const tokenJson = await tokenRes.json();
+  if (!tokenJson.access_token) throw new Error("Google token missing access_token");
+  const profileRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+    headers: { Authorization: `Bearer ${tokenJson.access_token}` }
+  });
+  if (!profileRes.ok) {
+    const t = await profileRes.text();
+    throw new Error(`Google userinfo failed: ${t}`);
+  }
+  const profile = await profileRes.json();
+  if (!profile.sub) throw new Error("Google profile missing sub");
+  return {
+    provider: "google",
+    providerUserId: profile.sub,
+    email: profile.email?.toLowerCase() || null,
+    usernameHint: profile.name || profile.email?.split("@")[0] || null,
+    avatarUrl: profile.picture || null,
+    raw: profile
+  };
+}
+async function exchangeGithubCode(code) {
+  const redirectUri = getOAuthCallbackUrl("github");
+  const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      client_id: process.env.GITHUB_OAUTH_CLIENT_ID,
+      client_secret: process.env.GITHUB_OAUTH_CLIENT_SECRET,
+      code,
+      redirect_uri: redirectUri
+    })
+  });
+  if (!tokenRes.ok) {
+    const t = await tokenRes.text();
+    throw new Error(`GitHub token exchange failed: ${t}`);
+  }
+  const tokenJson = await tokenRes.json();
+  if (!tokenJson.access_token) {
+    throw new Error(`GitHub token missing access_token: ${tokenJson.error || "unknown"}`);
+  }
+  const userRes = await fetch("https://api.github.com/user", {
+    headers: {
+      Authorization: `Bearer ${tokenJson.access_token}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "MXM-AI"
+    }
+  });
+  if (!userRes.ok) {
+    const t = await userRes.text();
+    throw new Error(`GitHub user failed: ${t}`);
+  }
+  const user = await userRes.json();
+  let email = user.email?.toLowerCase() || null;
+  if (!email) {
+    const emailsRes = await fetch("https://api.github.com/user/emails", {
+      headers: {
+        Authorization: `Bearer ${tokenJson.access_token}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "MXM-AI"
+      }
+    });
+    if (emailsRes.ok) {
+      const emails = await emailsRes.json();
+      const primary = emails.find((e) => e.primary && e.verified) || emails.find((e) => e.verified) || emails[0];
+      email = primary?.email?.toLowerCase() || null;
+    }
+  }
+  if (user.id == null) throw new Error("GitHub profile missing id");
+  return {
+    provider: "github",
+    providerUserId: String(user.id),
+    email,
+    usernameHint: user.login || email?.split("@")[0] || null,
+    avatarUrl: user.avatar_url || null,
+    raw: user
+  };
+}
+async function exchangeOAuthCode(provider, code) {
+  if (provider === "google") return exchangeGoogleCode(code);
+  return exchangeGithubCode(code);
+}
+
+// src/auth/oauth/state.ts
+var import_crypto5 = __toESM(require("crypto"));
+var import_ioredis2 = __toESM(require("ioredis"));
+var redisSingleton = null;
+function getRedis() {
+  if (!redisSingleton) {
+    redisSingleton = new import_ioredis2.default({
+      host: process.env.REDIS_HOST || "localhost",
+      port: Number(process.env.REDIS_PORT || 6379),
+      password: process.env.REDIS_PASSWORD,
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => times > 3 ? null : Math.min(times * 200, 2e3)
+    });
+  }
+  return redisSingleton;
+}
+var TTL_SEC = 600;
+function key(state) {
+  return `oauth:state:${state}`;
+}
+var memoryStates = /* @__PURE__ */ new Map();
+async function createOAuthState(provider) {
+  const state = import_crypto5.default.randomBytes(24).toString("hex");
+  try {
+    await getRedis().set(key(state), provider, "EX", TTL_SEC);
+  } catch (e) {
+    console.warn("[oauth/state] Redis unavailable, using memory:", e instanceof Error ? e.message : e);
+    memoryStates.set(state, { provider, exp: Date.now() + TTL_SEC * 1e3 });
+  }
+  return state;
+}
+async function consumeOAuthState(state) {
+  if (!state) return null;
+  try {
+    const redis = getRedis();
+    const provider = await redis.get(key(state));
+    if (provider) {
+      await redis.del(key(state));
+      return provider;
+    }
+  } catch {
+  }
+  const mem = memoryStates.get(state);
+  if (!mem) return null;
+  memoryStates.delete(state);
+  if (mem.exp < Date.now()) return null;
+  return mem.provider;
+}
+
+// src/auth/oauth/upsert-user.ts
+var import_crypto6 = __toESM(require("crypto"));
+var import_mxmdata9 = require("@mxmai/mxmdata");
+var userRepo2 = import_mxmdata9.RepositoryFactory.createUserRepository();
 var folderService = new FolderService();
+function sanitizeUsernameBase(hint, email) {
+  const raw = (hint || email?.split("@")[0] || "user").toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").slice(0, 24);
+  return raw || "user";
+}
+async function allocateUsername(base) {
+  let candidate = base;
+  for (let i = 0; i < 20; i++) {
+    const existing = await userRepo2.findByUsername(candidate);
+    if (!existing) return candidate;
+    candidate = `${base}_${import_crypto6.default.randomBytes(2).toString("hex")}`;
+  }
+  return `user_${import_crypto6.default.randomBytes(4).toString("hex")}`;
+}
+async function findIdentity(provider, providerUserId) {
+  const { data, error } = await (0, import_mxmdata9.getSupabaseClient)().from("oauth_identities").select("user_id").eq("provider", provider).eq("provider_user_id", providerUserId).maybeSingle();
+  if (error || !data) return null;
+  return { user_id: data.user_id };
+}
+async function linkIdentity(userId, profile) {
+  const { error } = await (0, import_mxmdata9.getSupabaseClient)().from("oauth_identities").upsert(
+    {
+      user_id: userId,
+      provider: profile.provider,
+      provider_user_id: profile.providerUserId,
+      email: profile.email,
+      raw_profile: profile.raw
+    },
+    { onConflict: "provider,provider_user_id" }
+  );
+  if (error) {
+    throw new Error(`Failed to link oauth identity: ${error.message}`);
+  }
+}
+async function upsertUserFromOAuth(profile) {
+  const existingIdentity = await findIdentity(profile.provider, profile.providerUserId);
+  if (existingIdentity) {
+    const user2 = await userRepo2.findById(existingIdentity.user_id);
+    if (!user2) throw new Error("OAuth identity points to missing user");
+    if (!user2.email_verified_at && profile.email) {
+      await userRepo2.update(user2.id, {
+        email_verified_at: (/* @__PURE__ */ new Date()).toISOString(),
+        ...user2.email ? {} : { email: profile.email },
+        ...profile.avatarUrl && !user2.avatar_url ? { avatar_url: profile.avatarUrl } : {}
+      });
+      return await userRepo2.findById(user2.id);
+    }
+    return user2;
+  }
+  let user = null;
+  if (profile.email) {
+    user = await userRepo2.findByEmail(profile.email);
+  }
+  if (user) {
+    await linkIdentity(user.id, profile);
+    const patch = {};
+    if (!user.email_verified_at) patch.email_verified_at = (/* @__PURE__ */ new Date()).toISOString();
+    if (profile.avatarUrl && !user.avatar_url) patch.avatar_url = profile.avatarUrl;
+    if (Object.keys(patch).length) {
+      await userRepo2.update(user.id, patch);
+      user = await userRepo2.findById(user.id);
+    }
+    return user;
+  }
+  const username = await allocateUsername(sanitizeUsernameBase(profile.usernameHint, profile.email));
+  const password_hash = await hashPassword(import_crypto6.default.randomBytes(32).toString("hex"));
+  try {
+    user = await userRepo2.create({
+      username,
+      email: profile.email || void 0,
+      password_hash,
+      avatar_url: profile.avatarUrl || void 0,
+      email_verified_at: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (e) {
+    if (e instanceof import_mxmdata9.DuplicateError && profile.email) {
+      user = await userRepo2.findByEmail(profile.email);
+      if (!user) throw e;
+    } else {
+      throw e;
+    }
+  }
+  await linkIdentity(user.id, profile);
+  await folderService.createDefaultFolders(user.id);
+  return user;
+}
+
+// src/routes/account-auth-public.ts
+var userRepo3 = import_mxmdata10.RepositoryFactory.createUserRepository();
+var resendCooldown = /* @__PURE__ */ new Map();
+var forgotCooldown = /* @__PURE__ */ new Map();
+function localeFromReq(req) {
+  return (0, import_mxmdata10.normalizeAppLocaleFromAcceptLanguage)(String(req.headers["accept-language"] || ""));
+}
+function rateLimited(map, key2, ms) {
+  const now = Date.now();
+  const prev = map.get(key2) || 0;
+  if (now - prev < ms) return true;
+  map.set(key2, now);
+  return false;
+}
+function registerAccountAuthPublicRoutes(router6) {
+  router6.get("/auth/providers", (_req, res) => {
+    res.json({
+      code: 200,
+      message: "ok",
+      data: {
+        google: isOAuthProviderConfigured("google"),
+        github: isOAuthProviderConfigured("github"),
+        smtp: isSmtpConfigured()
+      }
+    });
+  });
+  router6.post("/resend-verification", captchaMiddleware, async (req, res, next) => {
+    try {
+      const email = String(req.body?.email || "").trim().toLowerCase();
+      if (!email) {
+        return res.status(400).json({
+          code: 400,
+          message: "Email is required",
+          error: "VALIDATION_ERROR"
+        });
+      }
+      if (rateLimited(resendCooldown, email, 6e4)) {
+        return res.status(429).json({
+          code: 429,
+          message: "Please wait before requesting another email",
+          error: "RATE_LIMITED"
+        });
+      }
+      const user = await userRepo3.findByEmail(email);
+      if (!user || user.email_verified_at) {
+        return res.json({
+          code: 200,
+          message: "If the account exists and needs verification, an email has been sent",
+          data: { sent: true }
+        });
+      }
+      if (!isSmtpConfigured()) {
+        return res.status(503).json({
+          code: 503,
+          message: "Email service is not configured",
+          error: "SMTP_NOT_CONFIGURED"
+        });
+      }
+      const token = await authEmailTokenService.issue(user.id, "email_verify");
+      const mail = mailService.buildVerifyEmail({ token, locale: localeFromReq(req) });
+      await mailService.sendMail({ to: email, ...mail });
+      res.json({
+        code: 200,
+        message: "If the account exists and needs verification, an email has been sent",
+        data: { sent: true }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router6.get("/verify-email", async (req, res, next) => {
+    try {
+      const token = String(req.query.token || "").trim();
+      const wantsJson = String(req.headers.accept || "").includes("application/json");
+      const appUrl = getAppPublicUrl2();
+      if (!token) {
+        if (wantsJson) {
+          return res.status(400).json({
+            code: 400,
+            message: "Token is required",
+            error: "VALIDATION_ERROR"
+          });
+        }
+        return res.redirect(`${appUrl}/?verified=0`);
+      }
+      const consumed = await authEmailTokenService.consume(token, "email_verify");
+      if (!consumed) {
+        if (wantsJson) {
+          return res.status(400).json({
+            code: 400,
+            message: "Invalid or expired verification token",
+            error: "TOKEN_INVALID"
+          });
+        }
+        return res.redirect(`${appUrl}/?verified=0`);
+      }
+      await userRepo3.update(consumed.userId, {
+        email_verified_at: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      if (wantsJson) {
+        return res.json({
+          code: 200,
+          message: "Email verified",
+          data: { verified: true }
+        });
+      }
+      return res.redirect(`${appUrl}/?verified=1`);
+    } catch (error) {
+      next(error);
+    }
+  });
+  router6.post("/forgot-password", captchaMiddleware, async (req, res, next) => {
+    try {
+      const email = String(req.body?.email || "").trim().toLowerCase();
+      if (!email) {
+        return res.status(400).json({
+          code: 400,
+          message: "Email is required",
+          error: "VALIDATION_ERROR"
+        });
+      }
+      const okBody = {
+        code: 200,
+        message: "If the account exists, a reset email has been sent",
+        data: { sent: true }
+      };
+      if (rateLimited(forgotCooldown, email, 6e4)) {
+        return res.json(okBody);
+      }
+      const user = await userRepo3.findByEmail(email);
+      if (!user) {
+        return res.json(okBody);
+      }
+      if (!isSmtpConfigured()) {
+        return res.status(503).json({
+          code: 503,
+          message: "Email service is not configured",
+          error: "SMTP_NOT_CONFIGURED"
+        });
+      }
+      const token = await authEmailTokenService.issue(user.id, "password_reset");
+      const mail = mailService.buildResetPassword({ token, locale: localeFromReq(req) });
+      await mailService.sendMail({ to: email, ...mail });
+      return res.json(okBody);
+    } catch (error) {
+      next(error);
+    }
+  });
+  router6.post("/reset-password", async (req, res, next) => {
+    try {
+      const token = String(req.body?.token || "").trim();
+      const newPassword = String(req.body?.newPassword || req.body?.password || "");
+      if (!token || !newPassword) {
+        return res.status(400).json({
+          code: 400,
+          message: "Token and newPassword are required",
+          error: "VALIDATION_ERROR"
+        });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({
+          code: 400,
+          message: "Password must be at least 8 characters",
+          error: "VALIDATION_ERROR"
+        });
+      }
+      const consumed = await authEmailTokenService.consume(token, "password_reset");
+      if (!consumed) {
+        return res.status(400).json({
+          code: 400,
+          message: "Invalid or expired reset token",
+          error: "TOKEN_INVALID"
+        });
+      }
+      const password_hash = await hashPassword(newPassword);
+      await userRepo3.update(consumed.userId, {
+        password_hash,
+        email_verified_at: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      try {
+        const { getSupabaseClient: getSupabaseClient8 } = await import("@mxmai/mxmdata");
+        await getSupabaseClient8().from("user_sessions").delete().eq("user_id", consumed.userId);
+      } catch (e) {
+        console.warn("[reset-password] clear sessions failed:", e instanceof Error ? e.message : e);
+      }
+      res.json({
+        code: 200,
+        message: "Password reset successful",
+        data: { ok: true }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router6.get("/oauth/:provider/start", async (req, res) => {
+    const provider = String(req.params.provider || "").toLowerCase();
+    if (!isOAuthProvider(provider)) {
+      return res.status(400).json({
+        code: 400,
+        message: "Unsupported OAuth provider",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    if (!isOAuthProviderConfigured(provider)) {
+      return res.status(503).json({
+        code: 503,
+        message: `${provider} OAuth is not configured`,
+        error: "OAUTH_NOT_CONFIGURED"
+      });
+    }
+    try {
+      const state = await createOAuthState(provider);
+      const url = buildAuthorizeUrl(provider, state);
+      return res.redirect(302, url);
+    } catch (e) {
+      console.error("[oauth/start]", e);
+      return res.status(500).json({
+        code: 500,
+        message: "Failed to start OAuth",
+        error: "OAUTH_START_FAILED"
+      });
+    }
+  });
+  router6.get("/oauth/:provider/callback", async (req, res, _next) => {
+    const provider = String(req.params.provider || "").toLowerCase();
+    const appUrl = getAppPublicUrl2();
+    const fail = (reason) => res.redirect(`${appUrl}/?oauth_error=${encodeURIComponent(reason)}`);
+    if (!isOAuthProvider(provider)) {
+      return fail("unsupported_provider");
+    }
+    const code = String(req.query.code || "").trim();
+    const state = String(req.query.state || "").trim();
+    const oauthErr = String(req.query.error || "").trim();
+    if (oauthErr) return fail(oauthErr);
+    if (!code || !state) return fail("missing_code");
+    try {
+      const stateProvider = await consumeOAuthState(state);
+      if (!stateProvider || stateProvider !== provider) {
+        return fail("invalid_state");
+      }
+      const profile = await exchangeOAuthCode(provider, code);
+      if (!profile.email) {
+        return fail("email_required");
+      }
+      const user = await upsertUserFromOAuth(profile);
+      if (user.status !== "active") {
+        return fail("account_inactive");
+      }
+      const tokens = issueSessionTokens(user);
+      const payload = Buffer.from(
+        JSON.stringify({
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          user: publicUser(user)
+        }),
+        "utf8"
+      ).toString("base64url");
+      return res.redirect(`${appUrl}/#oauth=${payload}`);
+    } catch (e) {
+      console.error("[oauth/callback]", e);
+      return fail("oauth_failed");
+    }
+  });
+  router6.post("/auth/mfa/verify", async (req, res, next) => {
+    try {
+      const mfaToken = String(req.body?.mfaToken || "").trim();
+      const code = String(req.body?.code || "").trim();
+      if (!mfaToken || !code) {
+        return res.status(400).json({
+          code: 400,
+          message: "mfaToken and code are required",
+          error: "VALIDATION_ERROR"
+        });
+      }
+      let payload;
+      try {
+        payload = verifyMfaChallengeToken(mfaToken);
+      } catch {
+        return res.status(401).json({
+          code: 401,
+          message: "MFA session expired, please login again",
+          error: "MFA_TOKEN_EXPIRED"
+        });
+      }
+      try {
+        await mfaTotpService.verifyLoginChallenge(payload.userId, code);
+      } catch (err) {
+        const errCode = err?.code;
+        if (errCode === "INVALID_TOTP") {
+          return res.status(400).json({
+            code: 400,
+            message: "Invalid verification code",
+            error: "INVALID_TOTP"
+          });
+        }
+        if (errCode === "MFA_RATE_LIMITED") {
+          return res.status(429).json({
+            code: 429,
+            message: "Too many attempts",
+            error: "MFA_RATE_LIMITED"
+          });
+        }
+        throw err;
+      }
+      const user = await userRepo3.findById(payload.userId);
+      if (!user || user.status !== "active") {
+        return res.status(403).json({
+          code: 403,
+          message: "Account unavailable",
+          error: "FORBIDDEN"
+        });
+      }
+      const tokens = issueSessionTokens(user);
+      res.json({
+        code: 200,
+        message: "Login successful",
+        data: {
+          user: publicUser(user),
+          tokens
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+}
+async function allocateUsernameFromEmail(email) {
+  const local = email.split("@")[0].toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").slice(0, 24) || "user";
+  let candidate = local;
+  for (let i = 0; i < 20; i++) {
+    const existing = await userRepo3.findByUsername(candidate);
+    if (!existing) return candidate;
+    candidate = `${local}_${import_crypto7.default.randomBytes(2).toString("hex")}`;
+  }
+  return `user_${import_crypto7.default.randomBytes(4).toString("hex")}`;
+}
+
+// src/routes/account-mfa.ts
+var import_mxmdata11 = require("@mxmai/mxmdata");
+var userRepo4 = import_mxmdata11.RepositoryFactory.createUserRepository();
+function mfaError(res, err) {
+  const code = err?.code;
+  const map = {
+    OAUTH_ONLY: { status: 400, message: "\u8BF7\u5148\u8BBE\u7F6E\u767B\u5F55\u5BC6\u7801\u540E\u518D\u5F00\u542F\u4E24\u6B65\u9A8C\u8BC1", error: "OAUTH_ONLY" },
+    INVALID_PASSWORD: { status: 400, message: "\u5F53\u524D\u5BC6\u7801\u4E0D\u6B63\u786E", error: "INVALID_PASSWORD" },
+    MFA_SETUP_REQUIRED: { status: 400, message: "\u8BF7\u5148\u5B8C\u6210\u9A8C\u8BC1\u5668\u7ED1\u5B9A", error: "MFA_SETUP_REQUIRED" },
+    INVALID_TOTP: { status: 400, message: "\u9A8C\u8BC1\u7801\u4E0D\u6B63\u786E", error: "INVALID_TOTP" },
+    MFA_RATE_LIMITED: { status: 429, message: "\u5C1D\u8BD5\u6B21\u6570\u8FC7\u591A\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5", error: "MFA_RATE_LIMITED" },
+    MFA_NOT_ENABLED: { status: 400, message: "\u4E24\u6B65\u9A8C\u8BC1\u672A\u5F00\u542F", error: "MFA_NOT_ENABLED" }
+  };
+  const mapped = code ? map[code] : null;
+  if (mapped) {
+    res.status(mapped.status).json({ code: mapped.status, message: mapped.message, error: mapped.error });
+    return;
+  }
+  const message = err instanceof Error ? err.message : "MFA operation failed";
+  res.status(500).json({ code: 500, message, error: "INTERNAL_ERROR" });
+}
+function registerAccountMfaRoutes(router6) {
+  router6.get("/mfa/status", authMiddleware, async (req, res, next) => {
+    try {
+      const user = await userRepo4.findById(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ code: 404, message: "User not found", error: "NOT_FOUND" });
+      }
+      const status = await mfaTotpService.getStatus(user);
+      res.json({ code: 200, message: "ok", data: status });
+    } catch (error) {
+      next(error);
+    }
+  });
+  router6.post("/mfa/totp/setup", authMiddleware, async (req, res, next) => {
+    try {
+      const user = await userRepo4.findById(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ code: 404, message: "User not found", error: "NOT_FOUND" });
+      }
+      const password = String(req.body?.password || "");
+      if (!password) {
+        return res.status(400).json({
+          code: 400,
+          message: "password is required",
+          error: "VALIDATION_ERROR"
+        });
+      }
+      const data = await mfaTotpService.setup(user, password);
+      res.json({ code: 200, message: "ok", data });
+    } catch (error) {
+      if (error?.code) {
+        mfaError(res, error);
+        return;
+      }
+      next(error);
+    }
+  });
+  router6.post("/mfa/totp/enable", authMiddleware, async (req, res, next) => {
+    try {
+      const user = await userRepo4.findById(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ code: 404, message: "User not found", error: "NOT_FOUND" });
+      }
+      const password = String(req.body?.password || "");
+      const code = String(req.body?.code || "").trim();
+      if (!password || !code) {
+        return res.status(400).json({
+          code: 400,
+          message: "password and code are required",
+          error: "VALIDATION_ERROR"
+        });
+      }
+      await mfaTotpService.enable(user, password, code);
+      res.json({ code: 200, message: "Two-factor authentication enabled" });
+    } catch (error) {
+      if (error?.code) {
+        mfaError(res, error);
+        return;
+      }
+      next(error);
+    }
+  });
+  router6.post("/mfa/totp/disable", authMiddleware, async (req, res, next) => {
+    try {
+      const user = await userRepo4.findById(req.user.userId);
+      if (!user) {
+        return res.status(404).json({ code: 404, message: "User not found", error: "NOT_FOUND" });
+      }
+      const password = String(req.body?.password || "");
+      const code = String(req.body?.code || "").trim();
+      if (!password || !code) {
+        return res.status(400).json({
+          code: 400,
+          message: "password and code are required",
+          error: "VALIDATION_ERROR"
+        });
+      }
+      await mfaTotpService.disable(user, password, code);
+      res.json({ code: 200, message: "Two-factor authentication disabled" });
+    } catch (error) {
+      if (error?.code) {
+        mfaError(res, error);
+        return;
+      }
+      next(error);
+    }
+  });
+}
+
+// src/routes/account.ts
+init_jwt();
+var router2 = (0, import_express2.Router)();
+var userRepo5 = import_mxmdata12.RepositoryFactory.createUserRepository();
+var userApiKeyRepo = import_mxmdata12.RepositoryFactory.createUserApiKeyRepository();
+var walletService = new WalletService();
+var folderService2 = new FolderService();
 var captchaService2 = new CaptchaService();
 var mediaService = new MediaService();
+registerAccountAuthPublicRoutes(router2);
+registerAccountMfaRoutes(router2);
+router2.get("/captcha/config", (_req, res) => {
+  res.json({
+    code: 200,
+    message: "ok",
+    data: { enabled: process.env.CAPTCHA_ENABLE === "true" }
+  });
+});
 router2.get("/captcha", async (req, res, next) => {
   try {
     const captcha = await captchaService2.generate();
@@ -32304,55 +33256,111 @@ router2.get("/captcha", async (req, res, next) => {
     next(error);
   }
 });
-router2.post("/register", captchaMiddleware, async (req, res, next) => {
+router2.post("/captcha/verify", async (req, res, next) => {
   try {
-    const { username, email, phone, password } = req.body;
-    if (!username || !password) {
+    const { captchaId, x, duration, trail } = req.body ?? {};
+    const result = await captchaService2.verifySlide(captchaId, {
+      x: Number(x),
+      duration: duration != null ? Number(duration) : void 0,
+      trail: Array.isArray(trail) ? trail : void 0
+    });
+    if (!result.success) {
       return res.status(400).json({
         code: 400,
-        message: "Username and password are required",
+        message: result.reason || "\u6ED1\u52A8\u9A8C\u8BC1\u5931\u8D25",
+        error: "CAPTCHA_INVALID"
+      });
+    }
+    res.json({
+      code: 200,
+      message: "\u9A8C\u8BC1\u901A\u8FC7",
+      data: { verified: true }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+router2.post("/register", captchaMiddleware, async (req, res, next) => {
+  try {
+    const emailRaw = String(req.body?.email || "").trim().toLowerCase();
+    const password = String(req.body?.password || "");
+    const phone = req.body?.phone ? String(req.body.phone).trim() : void 0;
+    let username = req.body?.username ? String(req.body.username).trim() : "";
+    if (!emailRaw || !password) {
+      return res.status(400).json({
+        code: 400,
+        message: "Email and password are required",
         error: "VALIDATION_ERROR"
       });
     }
-    if (!email && !phone) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
       return res.status(400).json({
         code: 400,
-        message: "Email or phone is required",
+        message: "Invalid email address",
         error: "VALIDATION_ERROR"
       });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({
+        code: 400,
+        message: "Password must be at least 8 characters",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    if (!isSmtpConfigured() && false) {
+      return res.status(503).json({
+        code: 503,
+        message: "Email service is not configured; cannot register",
+        error: "SMTP_NOT_CONFIGURED"
+      });
+    }
+    if (!username) {
+      username = await allocateUsernameFromEmail(emailRaw);
     }
     const password_hash = await hashPassword(password);
     try {
-      const user = await userRepo2.create({
+      const user = await userRepo5.create({
         username,
-        email,
+        email: emailRaw,
         phone,
-        password_hash
+        password_hash,
+        email_verified_at: null
       });
-      const folderInfo = await folderService.createDefaultFolder(user.id);
+      const folderInfo = await folderService2.createDefaultFolders(user.id);
       if (folderInfo) {
         console.log(`\u2705 \u7528\u6237 ${user.id} \u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA\u6210\u529F:`, folderInfo);
       } else {
         console.warn(`\u26A0\uFE0F \u7528\u6237 ${user.id} \u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA\u5931\u8D25\u6216\u670D\u52A1\u4E0D\u53EF\u7528`);
       }
-      const tokens = generateTokenPair({
-        userId: user.id,
-        username: user.username
-      });
+      const token = await authEmailTokenService.issue(user.id, "email_verify");
+      const al = String(req.headers["accept-language"] || "");
+      const locale = al.toLowerCase().startsWith("en") ? "en" : "zh";
+      const mail = mailService.buildVerifyEmail({ token, locale });
+      try {
+        await mailService.sendMail({ to: emailRaw, ...mail });
+      } catch (mailErr) {
+        const code = mailErr?.code;
+        if (code === "SMTP_NOT_CONFIGURED" && true) {
+          console.warn("[register] SMTP missing; verify link:", mail.link);
+        } else {
+          throw mailErr;
+        }
+      }
       const { password_hash: _, ...userWithoutPassword } = user;
       res.status(201).json({
         code: 201,
-        message: "User registered successfully",
+        message: "User registered; please verify your email",
         data: {
           user: userWithoutPassword,
-          tokens
+          needVerification: true
         }
       });
     } catch (error) {
-      if (error instanceof import_mxmdata6.DuplicateError) {
+      const err = error;
+      if (error instanceof import_mxmdata13.DuplicateError || err?.code === "DUPLICATE") {
         return res.status(409).json({
           code: 409,
-          message: error.message,
+          message: err?.message || "Resource already exists",
           error: "DUPLICATE"
         });
       }
@@ -32364,7 +33372,8 @@ router2.post("/register", captchaMiddleware, async (req, res, next) => {
 });
 router2.post("/login", captchaMiddleware, async (req, res, next) => {
   try {
-    const { username, email, phone, password } = req.body;
+    const { username, phone, password } = req.body;
+    const email = req.body?.email ? String(req.body.email).trim().toLowerCase() : void 0;
     if (!password) {
       return res.status(400).json({
         code: 400,
@@ -32372,7 +33381,8 @@ router2.post("/login", captchaMiddleware, async (req, res, next) => {
         error: "VALIDATION_ERROR"
       });
     }
-    if (!username && !email && !phone) {
+    const identifier = req.body?.identifier ? String(req.body.identifier).trim() : void 0;
+    if (!username && !email && !phone && !identifier) {
       return res.status(400).json({
         code: 400,
         message: "Username, email, or phone is required",
@@ -32380,14 +33390,19 @@ router2.post("/login", captchaMiddleware, async (req, res, next) => {
       });
     }
     let user = null;
-    if (username) {
-      user = await userRepo2.findByUsername(username);
-    } else if (email) {
-      user = await userRepo2.findByEmail(email);
+    if (email) {
+      user = await userRepo5.findByEmail(email);
+    } else if (username) {
+      user = await userRepo5.findByUsername(username);
     } else if (phone) {
-      user = await userRepo2.findByEmail(phone);
+      user = await userRepo5.findByPhone(phone);
+      if (!user) user = await userRepo5.findByUsername(phone);
+    } else if (identifier) {
+      if (identifier.includes("@")) {
+        user = await userRepo5.findByEmail(identifier.toLowerCase());
+      }
       if (!user) {
-        user = await userRepo2.findByUsername(phone);
+        user = await userRepo5.findByUsername(identifier);
       }
     }
     if (!user) {
@@ -32395,6 +33410,13 @@ router2.post("/login", captchaMiddleware, async (req, res, next) => {
         code: 401,
         message: "Invalid credentials",
         error: "UNAUTHORIZED"
+      });
+    }
+    if (!user.password_hash) {
+      return res.status(401).json({
+        code: 401,
+        message: "Please sign in with Google or GitHub",
+        error: "OAUTH_ONLY"
       });
     }
     const isValid = await verifyPassword(password, user.password_hash);
@@ -32412,10 +33434,49 @@ router2.post("/login", captchaMiddleware, async (req, res, next) => {
         error: "FORBIDDEN"
       });
     }
+    if (user.email && !user.email_verified_at && user.role !== "admin") {
+      return res.status(403).json({
+        code: 403,
+        message: "Please verify your email before signing in",
+        error: "EMAIL_NOT_VERIFIED"
+      });
+    }
+    if (user.mfa_totp_enabled) {
+      const mfaToken = generateMfaChallengeToken({
+        userId: user.id,
+        username: user.username,
+        role: user.role
+      });
+      return res.json({
+        code: 200,
+        message: "MFA required",
+        data: {
+          mfaRequired: true,
+          mfaToken,
+          expiresIn: getMfaChallengeExpiresIn()
+        }
+      });
+    }
     const tokens = generateTokenPair({
       userId: user.id,
-      username: user.username
+      username: user.username,
+      role: user.role
     });
+    const tokenHash = import_crypto8.default.createHash("sha256").update(tokens.accessToken).digest("hex");
+    const refreshHash = import_crypto8.default.createHash("sha256").update(tokens.refreshToken).digest("hex");
+    const expiresAt = new Date(Date.now() + getRefreshTokenExpiresInSeconds() * 1e3);
+    try {
+      const supabase2 = (0, import_mxmdata14.getSupabaseClient)();
+      const { error } = await supabase2.from("user_sessions").insert({
+        user_id: user.id,
+        token_hash: tokenHash,
+        refresh_token_hash: refreshHash,
+        expires_at: expiresAt.toISOString()
+      });
+      if (error) console.warn("[account/login] user_sessions insert failed:", error.message);
+    } catch (e) {
+      console.warn("[account/login] user_sessions insert error:", e instanceof Error ? e.message : e);
+    }
     const { password_hash: _, ...userWithoutPassword } = user;
     res.json({
       code: 200,
@@ -32430,6 +33491,10 @@ router2.post("/login", captchaMiddleware, async (req, res, next) => {
   }
 });
 router2.post("/logout", authMiddleware, async (req, res) => {
+  if (req.user?.userId && req.token) {
+    const tokenHash = import_crypto8.default.createHash("sha256").update(req.token).digest("hex");
+    await (0, import_mxmdata14.getSupabaseClient)().from("user_sessions").delete().eq("user_id", req.user.userId).eq("token_hash", tokenHash);
+  }
   res.json({
     code: 200,
     message: "Logout successful"
@@ -32454,7 +33519,7 @@ router2.post("/refresh-token", async (req, res, next) => {
         error: "UNAUTHORIZED"
       });
     }
-    const user = await userRepo2.findById(payload.userId);
+    const user = await userRepo5.findById(payload.userId);
     if (!user || user.status !== "active") {
       return res.status(401).json({
         code: 401,
@@ -32464,7 +33529,20 @@ router2.post("/refresh-token", async (req, res, next) => {
     }
     const tokens = generateTokenPair({
       userId: user.id,
-      username: user.username
+      username: user.username,
+      role: user.role
+    });
+    const supabaseRefresh = (0, import_mxmdata14.getSupabaseClient)();
+    const oldRefreshHash = import_crypto8.default.createHash("sha256").update(refresh_token).digest("hex");
+    await supabaseRefresh.from("user_sessions").delete().eq("user_id", user.id).eq("refresh_token_hash", oldRefreshHash);
+    const tokenHash = import_crypto8.default.createHash("sha256").update(tokens.accessToken).digest("hex");
+    const refreshHash = import_crypto8.default.createHash("sha256").update(tokens.refreshToken).digest("hex");
+    const expiresAt = new Date(Date.now() + getRefreshTokenExpiresInSeconds() * 1e3);
+    await supabaseRefresh.from("user_sessions").insert({
+      user_id: user.id,
+      token_hash: tokenHash,
+      refresh_token_hash: refreshHash,
+      expires_at: expiresAt.toISOString()
     });
     res.json({
       code: 200,
@@ -32472,13 +33550,20 @@ router2.post("/refresh-token", async (req, res, next) => {
       data: tokens
     });
   } catch (error) {
+    if (error instanceof Error && (error.message === "Invalid token" || error.message === "Token expired")) {
+      return res.status(401).json({
+        code: 401,
+        message: error.message,
+        error: "UNAUTHORIZED"
+      });
+    }
     next(error);
   }
 });
 router2.get("/profile", authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    const user = await userRepo2.findById(userId);
+    const user = await userRepo5.findById(userId);
     if (!user) {
       return res.status(404).json({
         code: 404,
@@ -32516,12 +33601,68 @@ router2.put("/profile", authMiddleware, async (req, res, next) => {
       });
     }
     const updateData = { avatar_url };
-    const user = await userRepo2.update(userId, updateData);
+    const user = await userRepo5.update(userId, updateData);
     const { password_hash: _, ...userWithoutPassword } = user;
     res.json({
       code: 200,
       message: "Profile updated successfully",
       data: userWithoutPassword
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+router2.put("/password", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({
+        code: 400,
+        message: "current_password and new_password are required",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    if (String(new_password).length < 8) {
+      return res.status(400).json({
+        code: 400,
+        message: "new_password must be at least 8 characters",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const user = await userRepo5.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        code: 404,
+        message: "User not found",
+        error: "NOT_FOUND"
+      });
+    }
+    if (!user.password_hash) {
+      return res.status(400).json({
+        code: 400,
+        message: "\u6B64\u8D26\u53F7\u4F7F\u7528\u7B2C\u4E09\u65B9\u767B\u5F55\uFF0C\u8BF7\u901A\u8FC7\u91CD\u7F6E\u5BC6\u7801\u8BBE\u7F6E\u672C\u5730\u5BC6\u7801",
+        error: "OAUTH_ONLY"
+      });
+    }
+    const isValid = await verifyPassword(current_password, user.password_hash);
+    if (!isValid) {
+      return res.status(400).json({
+        code: 400,
+        message: "\u5F53\u524D\u5BC6\u7801\u4E0D\u6B63\u786E",
+        error: "INVALID_CURRENT_PASSWORD"
+      });
+    }
+    const password_hash = await hashPassword(new_password);
+    await userRepo5.update(userId, { password_hash });
+    try {
+      await (0, import_mxmdata14.getSupabaseClient)().from("user_sessions").delete().eq("user_id", userId);
+    } catch (e) {
+      console.warn("[account/password] failed to clear user_sessions:", e instanceof Error ? e.message : e);
+    }
+    res.json({
+      code: 200,
+      message: "Password updated successfully"
     });
   } catch (error) {
     next(error);
@@ -32637,9 +33778,9 @@ router2.get("/agents", authMiddleware, async (req, res, next) => {
 router2.get("/settings", authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    let settings = await userRepo2.getSettings(userId);
+    let settings = await userRepo5.getSettings(userId);
     if (!settings) {
-      settings = await userRepo2.updateSettings(userId, {});
+      settings = await userRepo5.updateSettings(userId, {});
     }
     res.json({
       code: 200,
@@ -32655,9 +33796,17 @@ router2.put("/settings", authMiddleware, async (req, res, next) => {
     const { theme, language, notifications_enabled } = req.body;
     const updateData = {};
     if (theme !== void 0) updateData.theme = theme;
-    if (language !== void 0) updateData.language = language;
+    if (language !== void 0) {
+      if (!(0, import_mxmdata12.isAppLocale)(language)) {
+        return res.status(400).json({
+          code: 400,
+          message: "Invalid language; expected zh | zh-TW | en | ja"
+        });
+      }
+      updateData.language = language;
+    }
     if (notifications_enabled !== void 0) updateData.notifications_enabled = notifications_enabled;
-    const settings = await userRepo2.updateSettings(userId, updateData);
+    const settings = await userRepo5.updateSettings(userId, updateData);
     res.json({
       code: 200,
       message: "Settings updated successfully",
@@ -32670,7 +33819,7 @@ router2.put("/settings", authMiddleware, async (req, res, next) => {
 router2.get("/membership", authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    const user = await userRepo2.findById(userId);
+    const user = await userRepo5.findById(userId);
     if (!user) {
       return res.status(404).json({
         code: 404,
@@ -32686,6 +33835,125 @@ router2.get("/membership", authMiddleware, async (req, res, next) => {
         level: user.level
       }
     });
+  } catch (error) {
+    next(error);
+  }
+});
+var MAX_PERSONAL_API_KEYS = 10;
+var MAX_INTEGRATION_API_KEYS = 10;
+var API_KEY_PREFIX = "mxm_";
+var API_KEY_RANDOM_LENGTH = 32;
+function parseKeyType(raw) {
+  const v = String(raw ?? "").trim();
+  if (v === "personal" || v === "integration") return v;
+  return null;
+}
+var ALLOWED_API_KEY_EXPIRY_DAYS = [7, 30, 90, 180, 365];
+function parseExpiresInDays(raw) {
+  if (raw === null || raw === void 0 || raw === "" || raw === "never" || raw === false) {
+    return null;
+  }
+  const n = Number(raw);
+  if (!Number.isInteger(n)) return void 0;
+  if (n === 0) return null;
+  if (!ALLOWED_API_KEY_EXPIRY_DAYS.includes(n)) return void 0;
+  return n;
+}
+function computeExpiresAt(expiresInDays) {
+  if (expiresInDays == null) return null;
+  return new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1e3);
+}
+router2.post("/api-keys", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { name, keyType: rawKeyType, expiresInDays: rawExpiresInDays } = req.body || {};
+    const keyType = parseKeyType(rawKeyType);
+    if (!keyType) {
+      return res.status(400).json({
+        code: 400,
+        message: "keyType \u5FC5\u586B\uFF0C\u987B\u4E3A personal\uFF08\u4E2A\u4EBA\u81EA\u52A8\u5316\uFF09\u6216 integration\uFF08\u5F00\u653E API \u5BA2\u6237\u7AEF\uFF09",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    let expiresInDays = null;
+    if (rawExpiresInDays !== void 0) {
+      const parsed = parseExpiresInDays(rawExpiresInDays);
+      if (parsed === void 0) {
+        return res.status(400).json({
+          code: 400,
+          message: `expiresInDays \u65E0\u6548\uFF0C\u53EF\u9009\uFF1A${ALLOWED_API_KEY_EXPIRY_DAYS.join("\u3001")} \u6216 0\uFF08\u6C38\u4E0D\u8FC7\u671F\uFF09`,
+          error: "VALIDATION_ERROR"
+        });
+      }
+      expiresInDays = parsed;
+    }
+    const expiresAt = computeExpiresAt(expiresInDays);
+    const counts = await userApiKeyRepo.countByUserIdAndType(userId);
+    const max = keyType === "integration" ? MAX_INTEGRATION_API_KEYS : MAX_PERSONAL_API_KEYS;
+    const current = keyType === "integration" ? counts.integration : counts.personal;
+    if (current >= max) {
+      return res.status(400).json({
+        code: 400,
+        message: `\u8BE5\u7C7B\u578B\u5BC6\u94A5\u6700\u591A ${max} \u4E2A\uFF08\u5F53\u524D ${current}\uFF09`,
+        error: "LIMIT_EXCEEDED"
+      });
+    }
+    const rawKey = API_KEY_PREFIX + import_crypto8.default.randomBytes(24).toString("base64url").slice(0, API_KEY_RANDOM_LENGTH);
+    const keyHash = import_crypto8.default.createHash("sha256").update(rawKey).digest("hex");
+    const keyPrefix = rawKey.slice(0, API_KEY_PREFIX.length + 8);
+    const record = await userApiKeyRepo.create({
+      userId,
+      keyHash,
+      keyPrefix,
+      keyType,
+      name: name != null ? String(name).trim() || null : null,
+      expiresAt
+    });
+    const typeHint = keyType === "integration" ? "\u4EC5\u53EF\u8C03\u7528 /api/v1/open/{slug} \u5DF2\u53D1\u5E03\u63A5\u53E3" : "\u53EF\u7528\u4E8E Cursor\u3001OpenClaw \u7B49\u5E73\u53F0\u80FD\u529B\u4E0E\u5F00\u653E API";
+    res.status(201).json({
+      code: 201,
+      message: `API \u5BC6\u94A5\u5DF2\u521B\u5EFA\uFF08${keyType === "integration" ? "\u5F00\u653E API \u5BA2\u6237\u7AEF" : "\u4E2A\u4EBA\u8BBF\u95EE\u51ED\u8BC1"}\uFF09\uFF0C\u8BF7\u59A5\u5584\u4FDD\u5B58\uFF0C\u5173\u95ED\u540E\u65E0\u6CD5\u518D\u6B21\u67E5\u770B`,
+      data: {
+        id: record.id,
+        name: record.name,
+        key_type: record.key_type,
+        key_prefix: record.key_prefix,
+        created_at: record.created_at,
+        expires_at: record.expires_at,
+        key: rawKey,
+        usage_hint: typeHint
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+router2.get("/api-keys", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const list = await userApiKeyRepo.listByUserId(userId);
+    res.json({
+      code: 200,
+      data: list
+    });
+  } catch (error) {
+    console.warn("[account/api-keys] listByUserId failed, returning []:", error instanceof Error ? error.message : error);
+    res.json({ code: 200, data: [] });
+  }
+});
+router2.delete("/api-keys/:id", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { id } = req.params;
+    const deleted = await userApiKeyRepo.delete(id, userId);
+    if (!deleted) {
+      return res.status(404).json({
+        code: 404,
+        message: "API \u5BC6\u94A5\u4E0D\u5B58\u5728\u6216\u5DF2\u64A4\u9500",
+        error: "NOT_FOUND"
+      });
+    }
+    res.status(204).send();
   } catch (error) {
     next(error);
   }
@@ -32730,13 +33998,92 @@ router2.put("/admin/user_profile", adminMiddleware, async (req, res, next) => {
         error: "VALIDATION_ERROR"
       });
     }
-    const user = await userRepo2.update(userId, updateData);
+    const user = await userRepo5.update(userId, updateData);
     const { password_hash: _, ...userWithoutPassword } = user;
     res.json({
       code: 200,
       message: "User profile updated successfully",
       data: userWithoutPassword
     });
+  } catch (error) {
+    next(error);
+  }
+});
+router2.post("/admin/users", adminMiddleware, async (req, res, next) => {
+  try {
+    const { username, email, phone, password, role, membership_type } = req.body;
+    if (!username?.trim() || !password) {
+      return res.status(400).json({
+        code: 400,
+        message: "Username and password are required",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    if (!email?.trim() && !phone?.trim()) {
+      return res.status(400).json({
+        code: 400,
+        message: "Email or phone is required",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    if (role != null && role !== "user" && role !== "admin") {
+      return res.status(400).json({
+        code: 400,
+        message: "role must be user or admin",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    if (membership_type != null && !["free", "pro", "premium"].includes(membership_type)) {
+      return res.status(400).json({
+        code: 400,
+        message: "membership_type must be free, pro, or premium",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    if (String(password).length < 6) {
+      return res.status(400).json({
+        code: 400,
+        message: "Password must be at least 6 characters",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const password_hash = await hashPassword(password);
+    try {
+      const trimmedEmail = email?.trim().toLowerCase() || void 0;
+      const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+      const user = await userRepo5.create({
+        username: username.trim(),
+        email: trimmedEmail,
+        phone: phone?.trim() || void 0,
+        password_hash,
+        role: role ?? "user",
+        membership_type: membership_type ?? "free",
+        status: "active",
+        // 后台创建账号一律视为已验证邮箱，避免迭代期无法登录
+        // 无论是否提供 email（admin 主动创建的用户不应卡 EMAIL_NOT_VERIFIED）
+        email_verified_at: nowIso
+      });
+      const folderInfo = await folderService2.createDefaultFolders(user.id);
+      if (folderInfo) {
+        console.log(`[Admin] \u7528\u6237 ${user.id} \u9ED8\u8BA4\u6587\u4EF6\u5939\u521B\u5EFA\u6210\u529F`);
+      }
+      const { password_hash: _, ...userWithoutPassword } = user;
+      res.status(201).json({
+        code: 201,
+        message: "User created successfully",
+        data: userWithoutPassword
+      });
+    } catch (error) {
+      const err = error;
+      if (error instanceof import_mxmdata13.DuplicateError || err?.code === "DUPLICATE") {
+        return res.status(409).json({
+          code: 409,
+          message: err?.message || "User already exists",
+          error: "DUPLICATE"
+        });
+      }
+      throw error;
+    }
   } catch (error) {
     next(error);
   }
@@ -32748,7 +34095,7 @@ router2.get("/admin/users", adminMiddleware, async (req, res, next) => {
     const status = req.query.status;
     const role = req.query.role;
     const search = req.query.search;
-    const result = await userRepo2.findAll({
+    const result = await userRepo5.findAll({
       page,
       limit,
       filters: {
@@ -32757,7 +34104,7 @@ router2.get("/admin/users", adminMiddleware, async (req, res, next) => {
         search
       }
     });
-    const supabase2 = (0, import_mxmdata7.getSupabaseClient)();
+    const supabase2 = (0, import_mxmdata14.getSupabaseClient)();
     const userIds = result.users.map((u) => u.id);
     const { data: activeSessions } = await supabase2.from("user_sessions").select("user_id").in("user_id", userIds).gt("expires_at", (/* @__PURE__ */ new Date()).toISOString());
     const loggedInUserIds = new Set(
@@ -32790,6 +34137,7 @@ router2.put("/admin/users/:id/status", adminMiddleware, async (req, res, next) =
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const actorId = req.user?.userId;
     if (!status || !["active", "suspended", "banned"].includes(status)) {
       return res.status(400).json({
         code: 400,
@@ -32797,7 +34145,33 @@ router2.put("/admin/users/:id/status", adminMiddleware, async (req, res, next) =
         error: "VALIDATION_ERROR"
       });
     }
-    const user = await userRepo2.update(id, { status });
+    if (actorId && actorId === id && status !== "active") {
+      return res.status(400).json({
+        code: 400,
+        message: "Cannot disable your own account",
+        error: "VALIDATION_ERROR"
+      });
+    }
+    const existing = await userRepo5.findById(id);
+    if (!existing) {
+      return res.status(404).json({
+        code: 404,
+        message: "User not found",
+        error: "NOT_FOUND"
+      });
+    }
+    if (existing.role === "admin" && status !== "active") {
+      return res.status(403).json({
+        code: 403,
+        message: "Cannot disable admin accounts",
+        error: "FORBIDDEN"
+      });
+    }
+    const user = await userRepo5.update(id, { status });
+    if (status === "suspended" || status === "banned") {
+      const supabase2 = (0, import_mxmdata14.getSupabaseClient)();
+      await supabase2.from("user_sessions").delete().eq("user_id", id);
+    }
     const { password_hash: _, ...userWithoutPassword } = user;
     res.json({
       code: 200,
@@ -32811,7 +34185,7 @@ router2.put("/admin/users/:id/status", adminMiddleware, async (req, res, next) =
 router2.post("/admin/users/:id/force-logout", adminMiddleware, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const supabase2 = (0, import_mxmdata7.getSupabaseClient)();
+    const supabase2 = (0, import_mxmdata14.getSupabaseClient)();
     const { error } = await supabase2.from("user_sessions").delete().eq("user_id", id);
     if (error) {
       return res.status(500).json({
@@ -32833,94 +34207,310 @@ var account_default = router2;
 // src/routes/assets.ts
 var import_loadEnv2 = __toESM(require_loadEnv());
 var import_express3 = __toESM(require_express2());
-var import_mxmdata8 = require("@mxmai/mxmdata");
-var import_mxmdata9 = require("@mxmai/mxmdata");
+var import_mxmdata15 = require("@mxmai/mxmdata");
+var import_mxmdata16 = require("@mxmai/mxmdata");
+
+// src/utils/filename-encoding.ts
+function decodePossiblyMojibakeFilename(name) {
+  const raw = String(name ?? "").trim();
+  if (!raw) return "";
+  const hasCjk = (s) => /[\u4e00-\u9fff]/.test(s);
+  if (hasCjk(raw) && !/Ã.|Â.|æ.|å.|è./.test(raw)) return raw;
+  try {
+    const decoded = Buffer.from(raw, "latin1").toString("utf8");
+    if (!decoded.includes("\uFFFD") && (hasCjk(decoded) || /\.(txt|md|markdown|pdf|docx?|csv|json)$/i.test(decoded))) {
+      return decoded;
+    }
+  } catch {
+  }
+  return raw;
+}
+
+// src/routes/assets.ts
 var router3 = (0, import_express3.Router)();
-var folderRepo = import_mxmdata8.RepositoryFactory.createFolderRepository();
-var supabase = (0, import_mxmdata8.getSupabaseClient)();
+var folderRepo = import_mxmdata15.RepositoryFactory.createFolderRepository();
+var supabase = (0, import_mxmdata15.getSupabaseClient)();
 function cleanAndValidateUUID(id) {
   if (!id) return null;
-  let cleaned = id.trim().replace(/^["']+|["']+$/g, "");
+  const cleaned = id.trim().replace(/^["']+|["']+$/g, "");
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(cleaned)) {
-    return null;
+  return uuidRegex.test(cleaned) ? cleaned : null;
+}
+function parseFolderKind(raw) {
+  return raw === "virtual" ? "virtual" : "upload";
+}
+async function assertFolderAccess(userId, folderId) {
+  const folder = await folderRepo.getFolderById(folderId);
+  if (!folder) {
+    throw new import_mxmdata16.NotFoundError("Folder", folderId);
   }
-  return cleaned;
+  if (folder.user_id !== userId) {
+    throw new import_mxmdata16.DataAccessError("Folder does not belong to user", "PERMISSION_ERROR");
+  }
+  return folder;
+}
+function indexEntryStatusFor(entries, refType, refId) {
+  const hit = entries.find((e) => e.ref_type === refType && e.ref_id === refId);
+  return hit?.status ?? "pending";
+}
+function featureTagsFor(entries, refType, refId) {
+  const hit = entries.find((e) => e.ref_type === refType && e.ref_id === refId);
+  const analysis = hit?.analysis;
+  if (!analysis || typeof analysis !== "object" || Array.isArray(analysis)) return [];
+  const tags = analysis.feature_tags;
+  if (!Array.isArray(tags)) return [];
+  return tags.filter((t) => typeof t === "string" && !!t.trim()).map((t) => t.trim()).slice(0, 3);
+}
+var TASK_TYPE_BUSINESS_LABELS = {
+  audio: "\u97F3\u9891",
+  music: "\u97F3\u4E50",
+  video: "\u89C6\u9891",
+  graph: "\u56FE\u7247",
+  image: "\u56FE\u7247",
+  writing: "\u5199\u4F5C",
+  text: "\u6587\u672C"
+};
+function businessLabelByTaskType(taskType) {
+  return TASK_TYPE_BUSINESS_LABELS[taskType ?? ""] ?? "\u4EFB\u52A1";
+}
+function shortId(id, head = 8) {
+  return id.length >= head ? id.slice(0, head) : id;
+}
+function readBusinessLabels(row) {
+  if (!row) return { taskLabel: null, subtypeLabel: null };
+  const extra = row.extra && typeof row.extra === "object" ? row.extra : null;
+  const display = extra && typeof extra.display === "object" ? extra.display : null;
+  if (!display) return { taskLabel: null, subtypeLabel: null };
+  return {
+    taskLabel: typeof display.taskLabel === "string" && display.taskLabel.trim() ? display.taskLabel.trim() : null,
+    subtypeLabel: typeof display.subtypeLabel === "string" && display.subtypeLabel.trim() ? display.subtypeLabel.trim() : null
+  };
+}
+function readTaskV2(meta) {
+  const tv = meta.taskV2;
+  if (!tv || typeof tv !== "object") return null;
+  const o = tv;
+  const scope = typeof o.scope === "string" ? o.scope.trim() : "";
+  const taskKey = typeof o.taskKey === "string" ? o.taskKey.trim() : "";
+  if (!scope || !taskKey) return null;
+  const subtype = typeof o.subtype === "string" && o.subtype.trim() ? o.subtype.trim() : null;
+  return { scope, taskKey, subtype };
+}
+function extractMarkdownHeadline(text, maxLen = 56) {
+  const raw = text.replace(/\s+$/g, "").trim();
+  if (!raw) return "";
+  const lines = raw.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    const heading = line.match(/^#{1,3}\s+(.+)$/);
+    if (heading?.[1]) {
+      const h = heading[1].replace(/\s+/g, " ").trim();
+      if (!h) continue;
+      return h.length <= maxLen ? h : `${h.slice(0, maxLen)}\u2026`;
+    }
+  }
+  const first = (lines[0] ?? raw).replace(/^#+\s*/, "").replace(/\s+/g, " ").trim();
+  if (!first) return "";
+  return first.length <= maxLen ? first : `${first.slice(0, maxLen)}\u2026`;
+}
+function contentPreviewFromCgiTask(task) {
+  const meta = task.metadata && typeof task.metadata === "object" ? task.metadata : {};
+  const fromList = typeof meta.listContentPreview === "string" ? meta.listContentPreview.trim() : "";
+  const output = task.output_data && typeof task.output_data === "object" ? task.output_data : null;
+  const outMeta = output?.metadata && typeof output.metadata === "object" ? output.metadata : null;
+  const fromOutMeta = typeof outMeta?.text === "string" ? outMeta.text.trim() : "";
+  const fromOutText = typeof output?.text === "string" ? output.text.trim() : "";
+  return [fromList, fromOutMeta, fromOutText].find((s) => s && s.length > 0) ?? "";
+}
+async function batchResolveBusinessLabels(identities) {
+  const map = /* @__PURE__ */ new Map();
+  if (identities.length === 0) return map;
+  const repo = import_mxmdata15.RepositoryFactory.createPromptEngineeringConfigRepository();
+  const uniq = /* @__PURE__ */ new Map();
+  for (const id of identities) {
+    uniq.set(`${id.scope}|${id.taskKey}|${id.subtype ?? ""}`, id);
+  }
+  await Promise.all(
+    [...uniq.values()].map(async (id) => {
+      const key2 = `${id.scope}|${id.taskKey}|${id.subtype ?? ""}`;
+      let full = null;
+      try {
+        full = await repo.findByKey(id.scope, id.taskKey, id.subtype);
+      } catch {
+        full = null;
+      }
+      const labels = readBusinessLabels(full);
+      map.set(key2, { ...labels, fullConfig: full });
+    })
+  );
+  return map;
+}
+function deriveLinkNameForTask(task, labelMap) {
+  const taskId = String(task.id);
+  const meta = task.metadata && typeof task.metadata === "object" ? task.metadata : {};
+  const id = readTaskV2(meta);
+  const userTitle = typeof meta.label === "string" && meta.label.trim() ? meta.label.trim() : "";
+  const promptRaw = typeof task.prompt === "string" ? task.prompt : "";
+  const contentPreview = contentPreviewFromCgiTask(task);
+  const contentHeadline = extractMarkdownHeadline(contentPreview, 56);
+  const taskType = String(task.task_type ?? "");
+  const isWritingLike = taskType === "writing" || taskType === "text";
+  const labels = id ? labelMap.get(`${id.scope}|${id.taskKey}|${id.subtype ?? ""}`) : void 0;
+  const taskLabel = labels?.taskLabel ?? null;
+  const subtypeLabel = labels?.subtypeLabel ?? null;
+  if (userTitle) {
+    return {
+      name: userTitle,
+      taskV2: id,
+      promptForAudit: promptRaw,
+      taskLabel,
+      subtypeLabel,
+      userTitle,
+      contentPreview
+    };
+  }
+  if (isWritingLike && contentHeadline) {
+    return {
+      name: contentHeadline,
+      taskV2: id,
+      promptForAudit: promptRaw,
+      taskLabel,
+      subtypeLabel,
+      userTitle: "",
+      contentPreview
+    };
+  }
+  if (subtypeLabel) {
+    return {
+      name: subtypeLabel,
+      taskV2: id,
+      promptForAudit: promptRaw,
+      taskLabel,
+      subtypeLabel,
+      userTitle: "",
+      contentPreview
+    };
+  }
+  if (taskLabel && subtypeLabel) {
+    return {
+      name: `${taskLabel} \xB7 ${subtypeLabel}`,
+      taskV2: id,
+      promptForAudit: promptRaw,
+      taskLabel,
+      subtypeLabel,
+      userTitle: "",
+      contentPreview
+    };
+  }
+  if (id) {
+    const tech = id.subtype && id.subtype !== id.taskKey ? `${id.taskKey}/${id.subtype}` : id.taskKey;
+    return {
+      name: `${tech} #${shortId(taskId)}`,
+      taskV2: id,
+      promptForAudit: promptRaw,
+      taskLabel,
+      subtypeLabel,
+      userTitle: "",
+      contentPreview
+    };
+  }
+  return {
+    name: `${businessLabelByTaskType(taskType)} #${shortId(taskId)}`,
+    taskV2: null,
+    promptForAudit: promptRaw,
+    taskLabel: null,
+    subtypeLabel: null,
+    userTitle: "",
+    contentPreview
+  };
 }
 router3.get("/folders", authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const parentId = req.query.parent_id;
+    const folderKind = parseFolderKind(req.query.folder_kind);
+    const cardTagRaw = req.query.card_tag;
+    const cardTag = cardTagRaw === "style" || cardTagRaw === "character" || cardTagRaw === "knowledge" ? cardTagRaw : cardTagRaw === "null" ? null : void 0;
+    const includeSystem = req.query.include_system === "true" || req.query.include_system === "1";
     const folders = await folderRepo.getFolders(userId, {
-      parent_id: parentId === "" ? null : parentId
+      parent_id: parentId === "" || parentId === void 0 ? void 0 : parentId === "null" ? null : parentId,
+      folder_kind: folderKind,
+      card_tag: cardTag
     });
-    const folderList = Array.isArray(folders) ? folders : [];
+    let folderList = Array.isArray(folders) ? folders : [];
+    if (includeSystem && folderKind === "virtual") {
+      const systemFolders = await folderRepo.getSystemFolders({
+        card_tag: cardTag === void 0 ? void 0 : cardTag
+      });
+      const seen = new Set(folderList.map((f) => f.id));
+      for (const sf of systemFolders) {
+        if (!seen.has(sf.id)) folderList.push(sf);
+      }
+    }
     res.json({
       code: 200,
       message: "\u83B7\u53D6\u6587\u4EF6\u5939\u5217\u8868\u6210\u529F",
-      data: {
-        folders: folderList,
-        total: folderList.length
-      }
+      data: { folders: folderList, total: folderList.length }
     });
   } catch (error) {
-    if (error instanceof import_mxmdata9.DataAccessError && (error.message?.includes("Could not find the table") || error.message?.includes("does not exist") || error.originalError?.message?.includes("Could not find the table"))) {
-      return res.json({
-        code: 200,
-        message: "\u83B7\u53D6\u6587\u4EF6\u5939\u5217\u8868\u6210\u529F",
-        data: {
-          folders: [],
-          total: 0
-        }
-      });
+    if (error instanceof import_mxmdata16.DataAccessError && error.message?.includes("Could not find the table")) {
+      return res.json({ code: 200, message: "\u83B7\u53D6\u6587\u4EF6\u5939\u5217\u8868\u6210\u529F", data: { folders: [], total: 0 } });
     }
+    next(error);
+  }
+});
+router3.get("/folders/system", authMiddleware, async (req, res, next) => {
+  try {
+    const cardTagRaw = req.query.card_tag;
+    const cardTag = cardTagRaw === "style" || cardTagRaw === "character" || cardTagRaw === "knowledge" ? cardTagRaw : void 0;
+    const folders = await folderRepo.getSystemFolders({ card_tag: cardTag });
+    res.json({
+      code: 200,
+      message: "ok",
+      data: { folders, total: folders.length }
+    });
+  } catch (error) {
     next(error);
   }
 });
 router3.post("/folders", authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    const { name, parent_id } = req.body;
+    const { name, parent_id, folder_kind, card_tag, is_system } = req.body;
+    const folderKind = parseFolderKind(folder_kind);
     if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return res.status(400).json({
-        code: 400,
-        message: "\u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A",
-        error: "VALIDATION_ERROR"
-      });
+      return res.status(400).json({ code: 400, message: "\u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A", error: "VALIDATION_ERROR" });
     }
-    if (parent_id) {
-      const parentFolder = await folderRepo.getFolderById(parent_id);
+    const cardTag = card_tag === "style" || card_tag === "character" || card_tag === "knowledge" ? card_tag : card_tag === null ? null : void 0;
+    const isAdmin = (process.env.ADMIN_USER_IDS || "").split(",").map((s) => s.trim()).filter(Boolean).includes(userId);
+    const wantSystem = is_system === true && isAdmin;
+    const effectiveParentId = folderKind === "virtual" ? null : parent_id || null;
+    if (effectiveParentId) {
+      const parentFolder = await folderRepo.getFolderById(effectiveParentId);
       if (!parentFolder) {
-        return res.status(404).json({
-          code: 404,
-          message: "\u7236\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
-          error: "NOT_FOUND"
-        });
+        return res.status(404).json({ code: 404, message: "\u7236\u6587\u4EF6\u5939\u4E0D\u5B58\u5728", error: "NOT_FOUND" });
       }
       if (parentFolder.user_id !== userId) {
-        return res.status(403).json({
-          code: 403,
-          message: "\u65E0\u6743\u9650\u8BBF\u95EE\u7236\u6587\u4EF6\u5939",
-          error: "PERMISSION_DENIED"
+        return res.status(403).json({ code: 403, message: "\u65E0\u6743\u9650\u8BBF\u95EE\u7236\u6587\u4EF6\u5939", error: "PERMISSION_DENIED" });
+      }
+      if (parentFolder.folder_kind !== folderKind) {
+        return res.status(400).json({
+          code: 400,
+          message: "\u7236\u6587\u4EF6\u5939\u7C7B\u578B\u4E0E\u5F53\u524D folder_kind \u4E0D\u4E00\u81F4",
+          error: "VALIDATION_ERROR"
         });
       }
     }
     const folder = await folderRepo.createFolder(userId, {
       name: name.trim(),
-      parent_id: parent_id || null
+      parent_id: effectiveParentId,
+      folder_kind: folderKind,
+      card_tag: cardTag ?? null,
+      is_system: wantSystem
     });
-    res.status(201).json({
-      code: 201,
-      message: "\u521B\u5EFA\u6587\u4EF6\u5939\u6210\u529F",
-      data: folder
-    });
+    res.status(201).json({ code: 201, message: "\u521B\u5EFA\u6587\u4EF6\u5939\u6210\u529F", data: folder });
   } catch (error) {
-    if (error instanceof import_mxmdata9.DuplicateError) {
-      return res.status(409).json({
-        code: 409,
-        message: "\u6587\u4EF6\u5939\u540D\u79F0\u5DF2\u5B58\u5728",
-        error: "DUPLICATE_ERROR"
-      });
+    if (error instanceof import_mxmdata16.DuplicateError) {
+      return res.status(409).json({ code: 409, message: "\u6587\u4EF6\u5939\u540D\u79F0\u5DF2\u5B58\u5728", error: "DUPLICATE_ERROR" });
     }
     next(error);
   }
@@ -32930,49 +34520,50 @@ router3.put("/folders/:id", authMiddleware, async (req, res, next) => {
     const userId = req.user.userId;
     const folderId = cleanAndValidateUUID(req.params.id);
     if (!folderId) {
-      return res.status(400).json({
-        code: 400,
-        message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID \u683C\u5F0F: ${req.params.id}`,
-        error: "VALIDATION_ERROR"
-      });
+      return res.status(400).json({ code: 400, message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID: ${req.params.id}`, error: "VALIDATION_ERROR" });
     }
-    const { name } = req.body;
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return res.status(400).json({
-        code: 400,
-        message: "\u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A",
-        error: "VALIDATION_ERROR"
-      });
+    const { name, card_tag } = req.body;
+    const patch = {};
+    if (name !== void 0) {
+      if (typeof name !== "string" || name.trim().length === 0) {
+        return res.status(400).json({ code: 400, message: "\u6587\u4EF6\u5939\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A", error: "VALIDATION_ERROR" });
+      }
+      patch.name = name.trim();
     }
-    const folder = await folderRepo.updateFolder(userId, folderId, {
-      name: name.trim()
-    });
-    res.json({
-      code: 200,
-      message: "\u66F4\u65B0\u6587\u4EF6\u5939\u6210\u529F",
-      data: folder
-    });
+    if (card_tag !== void 0) {
+      if (card_tag !== null && card_tag !== "style" && card_tag !== "character" && card_tag !== "knowledge") {
+        return res.status(400).json({ code: 400, message: "\u65E0\u6548 card_tag", error: "VALIDATION_ERROR" });
+      }
+      patch.card_tag = card_tag;
+    }
+    if (Object.keys(patch).length === 0) {
+      return res.status(400).json({ code: 400, message: "\u65E0\u66F4\u65B0\u5B57\u6BB5", error: "VALIDATION_ERROR" });
+    }
+    const folder = await folderRepo.updateFolder(userId, folderId, patch);
+    if (patch.card_tag && folder.folder_kind === "virtual") {
+      try {
+        const mxmcgi = process.env.MXMCGI_URL || process.env.MXMCGI_API_URL || "http://127.0.0.1:4003";
+        void fetch(`${mxmcgi}/api/v1/virtual-folder-index/${folderId}/parse`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": userId
+          },
+          body: JSON.stringify({ force: false })
+        }).catch(() => void 0);
+      } catch {
+      }
+    }
+    res.json({ code: 200, message: "\u66F4\u65B0\u6587\u4EF6\u5939\u6210\u529F", data: folder });
   } catch (error) {
-    if (error instanceof import_mxmdata9.NotFoundError) {
-      return res.status(404).json({
-        code: 404,
-        message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
-        error: "NOT_FOUND"
-      });
+    if (error instanceof import_mxmdata16.NotFoundError) {
+      return res.status(404).json({ code: 404, message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728", error: "NOT_FOUND" });
     }
-    if (error instanceof import_mxmdata9.DuplicateError) {
-      return res.status(409).json({
-        code: 409,
-        message: "\u6587\u4EF6\u5939\u540D\u79F0\u5DF2\u5B58\u5728",
-        error: "DUPLICATE_ERROR"
-      });
+    if (error instanceof import_mxmdata16.DuplicateError) {
+      return res.status(409).json({ code: 409, message: "\u6587\u4EF6\u5939\u540D\u79F0\u5DF2\u5B58\u5728", error: "DUPLICATE_ERROR" });
     }
-    if (error instanceof import_mxmdata9.DataAccessError && error.type === "PERMISSION_ERROR") {
-      return res.status(403).json({
-        code: 403,
-        message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939",
-        error: "PERMISSION_DENIED"
-      });
+    if (error instanceof import_mxmdata16.DataAccessError && error.type === "PERMISSION_ERROR") {
+      return res.status(403).json({ code: 403, message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939", error: "PERMISSION_DENIED" });
     }
     next(error);
   }
@@ -32982,41 +34573,78 @@ router3.delete("/folders/:id", authMiddleware, async (req, res, next) => {
     const userId = req.user.userId;
     const folderId = cleanAndValidateUUID(req.params.id);
     if (!folderId) {
-      return res.status(400).json({
-        code: 400,
-        message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID \u683C\u5F0F: ${req.params.id}`,
-        error: "VALIDATION_ERROR"
-      });
+      return res.status(400).json({ code: 400, message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID: ${req.params.id}`, error: "VALIDATION_ERROR" });
     }
     await folderRepo.deleteFolder(userId, folderId);
-    res.json({
-      code: 200,
-      message: "\u5220\u9664\u6587\u4EF6\u5939\u6210\u529F"
-    });
+    res.json({ code: 200, message: "\u5220\u9664\u6587\u4EF6\u5939\u6210\u529F" });
   } catch (error) {
-    if (error instanceof import_mxmdata9.NotFoundError) {
-      return res.status(404).json({
-        code: 404,
-        message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
-        error: "NOT_FOUND"
-      });
+    if (error instanceof import_mxmdata16.NotFoundError) {
+      return res.status(404).json({ code: 404, message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728", error: "NOT_FOUND" });
     }
-    if (error instanceof import_mxmdata9.DataAccessError) {
+    if (error instanceof import_mxmdata16.DataAccessError) {
       if (error.type === "PERMISSION_ERROR") {
-        return res.status(403).json({
-          code: 403,
-          message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939",
-          error: "PERMISSION_DENIED"
-        });
+        return res.status(403).json({ code: 403, message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939", error: "PERMISSION_DENIED" });
       }
       if (error.type === "VALIDATION_ERROR") {
         return res.status(400).json({
           code: 400,
-          message: error.message || "\u65E0\u6CD5\u5220\u9664\u5305\u542B\u5B50\u6587\u4EF6\u5939\u7684\u6587\u4EF6\u5939",
+          message: error.message || "\u65E0\u6CD5\u5220\u9664\u6587\u4EF6\u5939",
           error: "VALIDATION_ERROR"
         });
       }
     }
+    next(error);
+  }
+});
+router3.get("/folders/:id/path", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const folderId = cleanAndValidateUUID(req.params.id);
+    if (!folderId) {
+      return res.status(400).json({ code: 400, message: "\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID", error: "VALIDATION_ERROR" });
+    }
+    await assertFolderAccess(userId, folderId);
+    const path = await folderRepo.getFolderPath(folderId);
+    res.json({ code: 200, message: "\u83B7\u53D6\u6587\u4EF6\u5939\u8DEF\u5F84\u6210\u529F", data: { path } });
+  } catch (error) {
+    if (error instanceof import_mxmdata16.NotFoundError) {
+      return res.status(404).json({ code: 404, message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728", error: "NOT_FOUND" });
+    }
+    if (error instanceof import_mxmdata16.DataAccessError && error.type === "PERMISSION_ERROR") {
+      return res.status(403).json({ code: 403, message: "\u65E0\u6743\u9650\u8BBF\u95EE\u6B64\u6587\u4EF6\u5939", error: "PERMISSION_DENIED" });
+    }
+    next(error);
+  }
+});
+router3.get("/items/:taskId/folders", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { taskId } = req.params;
+    const folderKind = req.query.folder_kind ? parseFolderKind(req.query.folder_kind) : void 0;
+    const { data: task } = await supabase.from("cgi_tasks").select("user_id").eq("id", taskId).single();
+    if (!task || task.user_id !== userId) {
+      return res.status(404).json({ code: 404, message: "\u4EFB\u52A1\u4E0D\u5B58\u5728", error: "NOT_FOUND" });
+    }
+    const folders = await folderRepo.getItemFolders(taskId, folderKind);
+    res.json({ code: 200, message: "\u83B7\u53D6\u4EFB\u52A1\u6240\u5C5E\u6587\u4EF6\u5939\u6210\u529F", data: { folders } });
+  } catch (error) {
+    next(error);
+  }
+});
+router3.get("/storage-objects/:objectId/virtual-folders", authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const objectId = cleanAndValidateUUID(req.params.objectId);
+    if (!objectId) {
+      return res.status(400).json({ code: 400, message: "\u65E0\u6548\u7684\u5BF9\u8C61 ID", error: "VALIDATION_ERROR" });
+    }
+    const { data: obj } = await supabase.from("storage_objects").select("user_id").eq("id", objectId).is("deleted_at", null).single();
+    if (!obj || obj.user_id !== userId) {
+      return res.status(404).json({ code: 404, message: "\u5B58\u50A8\u5BF9\u8C61\u4E0D\u5B58\u5728", error: "NOT_FOUND" });
+    }
+    const folders = await folderRepo.getStorageObjectVirtualFolders(objectId);
+    res.json({ code: 200, message: "\u83B7\u53D6\u865A\u62DF\u6587\u4EF6\u5939\u5F15\u7528\u6210\u529F", data: { folders } });
+  } catch (error) {
     next(error);
   }
 });
@@ -33025,111 +34653,186 @@ router3.get("/folders/:id/items", authMiddleware, async (req, res, next) => {
     const userId = req.user.userId;
     const folderId = cleanAndValidateUUID(req.params.id);
     if (!folderId) {
-      return res.status(400).json({
-        code: 400,
-        message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID \u683C\u5F0F: ${req.params.id}`,
-        error: "VALIDATION_ERROR"
-      });
+      return res.status(400).json({ code: 400, message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID: ${req.params.id}`, error: "VALIDATION_ERROR" });
     }
-    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 100;
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 200;
     const offset = req.query.offset ? parseInt(req.query.offset, 10) : 0;
-    const folder = await folderRepo.getFolderById(folderId);
-    if (!folder) {
-      return res.status(404).json({
-        code: 404,
-        message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
-        error: "NOT_FOUND"
-      });
-    }
-    if (folder.user_id !== userId) {
-      return res.status(403).json({
-        code: 403,
-        message: "\u65E0\u6743\u9650\u8BBF\u95EE\u6B64\u6587\u4EF6\u5939",
-        error: "PERMISSION_DENIED"
-      });
-    }
-    let subFolders = [];
-    try {
-      const folders = await folderRepo.getFolders(userId, {
-        parent_id: folderId
-      });
-      subFolders = (folders || []).map((f) => ({
-        id: f.id,
-        name: f.name,
-        parent_id: f.parent_id,
-        type: "dir",
-        // 文件夹类型
-        created_at: f.created_at,
-        updated_at: f.updated_at
-      }));
-    } catch (error) {
-      console.warn("[\u6587\u4EF6\u5939] \u83B7\u53D6\u5B50\u6587\u4EF6\u5939\u5931\u8D25:", error);
-    }
-    let taskIds = [];
-    try {
-      taskIds = await folderRepo.getFolderItemIds(folderId, {
-        limit,
-        offset
-      });
-    } catch (error) {
-      console.warn("[\u6587\u4EF6\u5939] \u83B7\u53D6\u4EFB\u52A1\u5217\u8868\u5931\u8D25:", error);
-    }
-    let fileItems = [];
-    if (taskIds && taskIds.length > 0) {
-      const { data: tasks, error: tasksError } = await supabase.from("cgi_tasks").select("id, user_id, task_type, status, prompt, created_at, metadata").in("id", taskIds).eq("user_id", userId);
-      if (!tasksError && tasks) {
-        fileItems = tasks.map((task) => {
-          const title = task.metadata?.title || task.prompt?.substring(0, 50) || `\u4EFB\u52A1 ${task.id.substring(0, 8)}`;
-          return {
-            id: task.id,
-            task_id: task.id,
-            // 任务 ID
-            user_id: task.user_id,
-            name: title,
-            type: "file",
-            // 文件类型
-            task_type: task.task_type,
-            // 'text' | 'image' | 'video' | 'audio'
-            status: task.status,
-            created_at: task.created_at
-          };
+    const folder = await assertFolderAccess(userId, folderId);
+    const isVirtual = folder.folder_kind === "virtual";
+    const indexEntries = isVirtual ? await folderRepo.getFolderIndexEntries(folderId) : [];
+    const subFolderRows = isVirtual ? [] : await folderRepo.getFolders(userId, {
+      parent_id: folderId,
+      folder_kind: folder.folder_kind
+    });
+    const subFolders = subFolderRows.map((f) => ({
+      type: "dir",
+      id: f.id,
+      name: f.name,
+      parent_id: f.parent_id,
+      folder_kind: f.folder_kind,
+      index_status: f.index_status ?? "none",
+      indexed_at: f.indexed_at,
+      knowledge_base_id: f.knowledge_base_id,
+      created_at: f.created_at,
+      updated_at: f.updated_at
+    }));
+    const folderItems = await folderRepo.getFolderItems(folderId, { limit, offset });
+    const linkItems = [];
+    const taskIds = folderItems.map((i) => i.task_id).filter((id) => !!id);
+    if (taskIds.length > 0) {
+      const { data: tasks } = await supabase.from("cgi_tasks").select("id, user_id, task_type, status, prompt, created_at, metadata, output_data").in("id", taskIds).eq("user_id", userId).is("deleted_at", null);
+      const taskMap = new Map((tasks || []).map((t) => [String(t.id), t]));
+      const identities = [];
+      for (const task of tasks || []) {
+        const meta = task.metadata || {};
+        const id = readTaskV2(meta);
+        if (id) identities.push(id);
+      }
+      const labelMap = await batchResolveBusinessLabels(identities);
+      for (const item of folderItems.filter((i) => i.task_id)) {
+        const taskId = item.task_id;
+        const task = taskMap.get(taskId);
+        if (!task) {
+          linkItems.push({
+            type: "link",
+            ref_type: "task",
+            id: taskId,
+            task_id: taskId,
+            folder_item_id: item.id,
+            name: `${businessLabelByTaskType(void 0)} #${shortId(taskId)}`,
+            broken: true,
+            index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, "task", taskId) : void 0,
+            feature_tags: isVirtual ? featureTagsFor(indexEntries, "task", taskId) : void 0,
+            link_created_at: item.created_at,
+            created_at: item.created_at
+          });
+          continue;
+        }
+        const { name, taskV2, promptForAudit, taskLabel, subtypeLabel, userTitle, contentPreview } = deriveLinkNameForTask(task, labelMap);
+        const metaOut = {};
+        if (taskV2) metaOut.taskV2 = taskV2;
+        if (promptForAudit && taskV2) {
+          metaOut.prompt = promptForAudit;
+        }
+        if (userTitle) metaOut.label = userTitle;
+        if (taskLabel) metaOut.taskLabel = taskLabel;
+        if (subtypeLabel) metaOut.subtypeLabel = subtypeLabel;
+        if (contentPreview) metaOut.contentPreview = contentPreview.slice(0, 480);
+        linkItems.push({
+          type: "link",
+          ref_type: "task",
+          id: taskId,
+          task_id: taskId,
+          folder_item_id: item.id,
+          name,
+          task_type: task.task_type,
+          status: task.status,
+          metadata: Object.keys(metaOut).length ? metaOut : void 0,
+          broken: false,
+          index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, "task", taskId) : void 0,
+          feature_tags: isVirtual ? featureTagsFor(indexEntries, "task", taskId) : void 0,
+          link_created_at: item.created_at,
+          created_at: task.created_at
         });
       }
     }
-    const allItems = [...subFolders, ...fileItems].sort((a, b) => {
-      const timeA = new Date(a.created_at || 0).getTime();
-      const timeB = new Date(b.created_at || 0).getTime();
+    const objectIds = folderItems.map((i) => i.storage_object_id).filter((id) => !!id);
+    if (objectIds.length > 0) {
+      const { data: objects } = await supabase.from("storage_objects").select("id, user_id, original_name, content_type, object_key, metadata, created_at").in("id", objectIds).eq("user_id", userId).is("deleted_at", null);
+      const objMap = new Map((objects || []).map((o) => [String(o.id), o]));
+      for (const item of folderItems.filter((i) => i.storage_object_id)) {
+        const objectId = item.storage_object_id;
+        const obj = objMap.get(objectId);
+        if (obj) {
+          const objMeta = obj.metadata || {};
+          const isVoiceAsset = objMeta.asset_type === "minimax_voice";
+          const isWritingManuscript = objMeta.asset_type === "writing_manuscript" || String(obj.content_type ?? "").toLowerCase().includes("markdown") || String(obj.content_type ?? "").toLowerCase().startsWith("text/plain") || /\.(md|markdown|txt)$/i.test(String(obj.original_name ?? ""));
+          const displayName = isVoiceAsset ? String(objMeta.label || objMeta.voice_id || obj.original_name || `\u97F3\u8272 ${objectId.substring(0, 8)}`) : isWritingManuscript && typeof objMeta.label === "string" && objMeta.label.trim() ? objMeta.label.trim() : decodePossiblyMojibakeFilename(obj.original_name) || `\u6587\u4EF6 ${objectId.substring(0, 8)}`;
+          linkItems.push({
+            type: "link",
+            ref_type: "storage_object",
+            id: objectId,
+            object_id: objectId,
+            folder_item_id: item.id,
+            name: displayName,
+            content_type: obj.content_type,
+            metadata: isVoiceAsset ? {
+              asset_type: "minimax_voice",
+              voice_id: objMeta.voice_id,
+              label: objMeta.label,
+              mode: objMeta.mode,
+              model: objMeta.model,
+              demo_audio: objMeta.demo_audio
+            } : isWritingManuscript ? {
+              asset_type: "writing_manuscript",
+              label: objMeta.label ?? displayName,
+              contentPreview: objMeta.contentPreview,
+              text: objMeta.text,
+              taskLabel: objMeta.taskLabel,
+              subtypeLabel: objMeta.subtypeLabel,
+              source_task_id: objMeta.source_task_id,
+              piece_id: objMeta.piece_id
+            } : void 0,
+            broken: false,
+            index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, "storage_object", objectId) : void 0,
+            feature_tags: isVirtual ? featureTagsFor(indexEntries, "storage_object", objectId) : void 0,
+            link_created_at: item.created_at,
+            created_at: obj.created_at
+          });
+        } else {
+          linkItems.push({
+            type: "link",
+            ref_type: "storage_object",
+            id: objectId,
+            object_id: objectId,
+            folder_item_id: item.id,
+            name: `\u6587\u4EF6 ${objectId.substring(0, 8)}`,
+            broken: true,
+            index_entry_status: isVirtual ? indexEntryStatusFor(indexEntries, "storage_object", objectId) : void 0,
+            feature_tags: isVirtual ? featureTagsFor(indexEntries, "storage_object", objectId) : void 0,
+            link_created_at: item.created_at,
+            created_at: item.created_at
+          });
+        }
+      }
+    }
+    const allItems = [...subFolders, ...linkItems].sort((a, b) => {
+      const timeA = new Date(String(a.created_at || 0)).getTime();
+      const timeB = new Date(String(b.created_at || 0)).getTime();
       return timeB - timeA;
     });
-    let totalFiles = 0;
-    try {
-      totalFiles = await folderRepo.getFolderItemCount(folderId);
-    } catch (error) {
-      totalFiles = fileItems.length;
-    }
-    const total = subFolders.length + totalFiles;
+    const totalFiles = await folderRepo.getFolderItemCount(folderId);
     res.json({
       code: 200,
       message: "\u83B7\u53D6\u6587\u4EF6\u5939\u5185\u5BB9\u6210\u529F",
       data: {
+        folder: {
+          id: folder.id,
+          name: folder.name,
+          parent_id: folder.parent_id,
+          folder_kind: folder.folder_kind,
+          index_status: folder.index_status ?? "none",
+          indexed_at: folder.indexed_at,
+          knowledge_base_id: folder.knowledge_base_id,
+          card_tag: folder.card_tag ?? null,
+          card_status: folder.card_status ?? "idle",
+          card_summary: folder.card_summary ?? {},
+          is_system: folder.is_system === true,
+          created_at: folder.created_at,
+          updated_at: folder.updated_at
+        },
         items: allItems,
-        total,
+        total: subFolders.length + totalFiles,
         folders_count: subFolders.length,
-        files_count: fileItems.length
+        links_count: totalFiles
       }
     });
   } catch (error) {
-    if (error instanceof import_mxmdata9.DataAccessError && (error.message?.includes("Could not find the table") || error.message?.includes("does not exist") || error.originalError?.message?.includes("Could not find the table"))) {
-      return res.json({
-        code: 200,
-        message: "\u83B7\u53D6\u6587\u4EF6\u5939\u5185\u5BB9\u6210\u529F",
-        data: {
-          items: [],
-          total: 0,
-          folders_count: 0,
-          files_count: 0
-        }
-      });
+    if (error instanceof import_mxmdata16.NotFoundError) {
+      return res.status(404).json({ code: 404, message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728", error: "NOT_FOUND" });
+    }
+    if (error instanceof import_mxmdata16.DataAccessError && error.type === "PERMISSION_ERROR") {
+      return res.status(403).json({ code: 403, message: "\u65E0\u6743\u9650\u8BBF\u95EE\u6B64\u6587\u4EF6\u5939", error: "PERMISSION_DENIED" });
     }
     next(error);
   }
@@ -33139,103 +34842,1243 @@ router3.post("/folders/:id/items", authMiddleware, async (req, res, next) => {
     const userId = req.user.userId;
     const folderId = cleanAndValidateUUID(req.params.id);
     if (!folderId) {
-      return res.status(400).json({
-        code: 400,
-        message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID \u683C\u5F0F: ${req.params.id}`,
-        error: "VALIDATION_ERROR"
-      });
+      return res.status(400).json({ code: 400, message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID: ${req.params.id}`, error: "VALIDATION_ERROR" });
     }
     if (!req.body || typeof req.body !== "object") {
+      return res.status(400).json({ code: 400, message: "\u8BF7\u6C42\u4F53\u4E0D\u80FD\u4E3A\u7A7A", error: "VALIDATION_ERROR" });
+    }
+    const { task_id, storage_object_id } = req.body;
+    const folder = await assertFolderAccess(userId, folderId);
+    if (folder.folder_kind !== "virtual") {
       return res.status(400).json({
         code: 400,
-        message: "\u8BF7\u6C42\u4F53\u4E0D\u80FD\u4E3A\u7A7A\uFF0C\u8BF7\u786E\u4FDD Content-Type \u4E3A application/json",
+        message: "\u4EC5\u865A\u62DF\u6587\u4EF6\u5939\u652F\u6301\u8F6F\u94FE\u6DFB\u52A0\uFF0C\u4E0A\u4F20\u7BA1\u7406\u5668\u8BF7\u4F7F\u7528 storage move API",
         error: "VALIDATION_ERROR"
       });
     }
-    const { task_id } = req.body;
-    if (!task_id || typeof task_id !== "string") {
+    if (task_id && storage_object_id) {
       return res.status(400).json({
         code: 400,
-        message: "\u4EFB\u52A1 ID (task_id) \u4E0D\u80FD\u4E3A\u7A7A",
+        message: "task_id \u4E0E storage_object_id \u4E0D\u80FD\u540C\u65F6\u63D0\u4F9B",
         error: "VALIDATION_ERROR"
       });
     }
-    const folder = await folderRepo.getFolderById(folderId);
-    if (!folder) {
-      return res.status(404).json({
-        code: 404,
-        message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
-        error: "NOT_FOUND"
-      });
+    if (task_id && typeof task_id === "string") {
+      const { data: task, error: taskError } = await supabase.from("cgi_tasks").select("id, user_id").eq("id", task_id).eq("user_id", userId).is("deleted_at", null).single();
+      if (taskError || !task) {
+        return res.status(404).json({
+          code: 404,
+          message: `\u672A\u627E\u5230\u4EFB\u52A1 "${task_id}"`,
+          error: "NOT_FOUND"
+        });
+      }
+      await folderRepo.addItemToFolder(folderId, task_id);
+      return res.status(201).json({ code: 201, message: "\u6DFB\u52A0\u4EFB\u52A1\u8F6F\u94FE\u6210\u529F" });
     }
-    if (folder.user_id !== userId) {
-      return res.status(403).json({
-        code: 403,
-        message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939",
-        error: "PERMISSION_DENIED"
-      });
+    if (storage_object_id && typeof storage_object_id === "string") {
+      const objectId = cleanAndValidateUUID(storage_object_id);
+      if (!objectId) {
+        return res.status(400).json({ code: 400, message: "\u65E0\u6548\u7684 storage_object_id", error: "VALIDATION_ERROR" });
+      }
+      const { data: obj, error: objError } = await supabase.from("storage_objects").select("id, user_id").eq("id", objectId).eq("user_id", userId).is("deleted_at", null).single();
+      if (objError || !obj) {
+        return res.status(404).json({ code: 404, message: "\u5B58\u50A8\u5BF9\u8C61\u4E0D\u5B58\u5728", error: "NOT_FOUND" });
+      }
+      await folderRepo.addStorageObjectToFolder(folderId, objectId);
+      return res.status(201).json({ code: 201, message: "\u6DFB\u52A0\u4E0A\u4F20\u8D44\u4EA7\u8F6F\u94FE\u6210\u529F" });
     }
-    const { data: task, error: taskError } = await supabase.from("cgi_tasks").select("id, user_id").eq("id", task_id).eq("user_id", userId).single();
-    if (taskError || !task) {
-      return res.status(404).json({
-        code: 404,
-        message: `\u672A\u627E\u5230\u4EFB\u52A1 ID "${task_id}" \u6216\u8BE5\u4EFB\u52A1\u4E0D\u5C5E\u4E8E\u5F53\u524D\u7528\u6237`,
-        error: "NOT_FOUND"
-      });
-    }
-    await folderRepo.addItemToFolder(folderId, task_id);
-    res.status(201).json({
-      code: 201,
-      message: "\u6DFB\u52A0\u4EFB\u52A1\u5230\u6587\u4EF6\u5939\u6210\u529F"
+    return res.status(400).json({
+      code: 400,
+      message: "\u8BF7\u63D0\u4F9B task_id \u6216 storage_object_id",
+      error: "VALIDATION_ERROR"
     });
   } catch (error) {
     next(error);
   }
 });
-router3.delete("/folders/:id/items/:taskId", authMiddleware, async (req, res, next) => {
+router3.delete("/folders/:id/items/:refId", authMiddleware, async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const folderId = cleanAndValidateUUID(req.params.id);
     if (!folderId) {
-      return res.status(400).json({
-        code: 400,
-        message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID \u683C\u5F0F: ${req.params.id}`,
-        error: "VALIDATION_ERROR"
-      });
+      return res.status(400).json({ code: 400, message: `\u65E0\u6548\u7684\u6587\u4EF6\u5939 ID: ${req.params.id}`, error: "VALIDATION_ERROR" });
     }
-    const taskId = req.params.taskId;
-    if (!taskId) {
-      return res.status(400).json({
-        code: 400,
-        message: "\u4EFB\u52A1 ID \u4E0D\u80FD\u4E3A\u7A7A",
-        error: "VALIDATION_ERROR"
-      });
+    const refId = req.params.refId;
+    const refType = req.query.ref_type === "storage_object" ? "storage_object" : "task";
+    await assertFolderAccess(userId, folderId);
+    if (refType === "storage_object") {
+      const objectId = cleanAndValidateUUID(refId);
+      if (!objectId) {
+        return res.status(400).json({ code: 400, message: "\u65E0\u6548\u7684\u5BF9\u8C61 ID", error: "VALIDATION_ERROR" });
+      }
+      await folderRepo.removeStorageObjectFromFolder(folderId, objectId);
+    } else {
+      await folderRepo.removeItemFromFolder(folderId, refId);
     }
-    const folder = await folderRepo.getFolderById(folderId);
-    if (!folder) {
-      return res.status(404).json({
-        code: 404,
-        message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728",
-        error: "NOT_FOUND"
-      });
-    }
-    if (folder.user_id !== userId) {
-      return res.status(403).json({
-        code: 403,
-        message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939",
-        error: "PERMISSION_DENIED"
-      });
-    }
-    await folderRepo.removeItemFromFolder(folderId, taskId);
-    res.json({
-      code: 200,
-      message: "\u4ECE\u6587\u4EF6\u5939\u79FB\u9664\u6587\u4EF6\u6210\u529F"
-    });
+    res.json({ code: 200, message: "\u79FB\u9664\u8F6F\u94FE\u6210\u529F" });
   } catch (error) {
+    if (error instanceof import_mxmdata16.NotFoundError) {
+      return res.status(404).json({ code: 404, message: "\u6587\u4EF6\u5939\u4E0D\u5B58\u5728", error: "NOT_FOUND" });
+    }
+    if (error instanceof import_mxmdata16.DataAccessError && error.type === "PERMISSION_ERROR") {
+      return res.status(403).json({ code: 403, message: "\u65E0\u6743\u9650\u64CD\u4F5C\u6B64\u6587\u4EF6\u5939", error: "PERMISSION_DENIED" });
+    }
     next(error);
   }
 });
 var assets_default = router3;
+
+// src/routes/partner.ts
+var import_express5 = __toESM(require_express2());
+init_phone();
+
+// src/partner/access-control.ts
+var import_crypto9 = require("crypto");
+var import_mxmdata17 = require("@mxmai/mxmdata");
+init_phone();
+var partnerRepo = () => import_mxmdata17.RepositoryFactory.createPartnerRepository();
+var PartnerAccessDeniedError = class extends Error {
+  constructor(message, code = "NOT_ALLOWLISTED") {
+    super(message);
+    this.code = code;
+    this.name = "PartnerAccessDeniedError";
+  }
+};
+function hashInviteToken(token) {
+  return (0, import_crypto9.createHash)("sha256").update(token).digest("hex");
+}
+function generateInviteToken() {
+  const plain = (0, import_crypto9.randomBytes)(32).toString("base64url");
+  return { plain, hash: hashInviteToken(plain) };
+}
+async function resolvePendingInvite(partnerAppId, inviteToken) {
+  if (!inviteToken?.trim()) return null;
+  const hash = hashInviteToken(inviteToken.trim());
+  return partnerRepo().findPendingInviteByTokenHash(partnerAppId, hash);
+}
+function maskIdentitySubject(provider, subject) {
+  if (provider === "sms") {
+    return subject.length === 11 ? maskPhone(subject) : subject;
+  }
+  if (subject.length <= 6) return subject;
+  return `${subject.slice(0, 3)}***${subject.slice(-3)}`;
+}
+function buildH5LoginUrl(app2, defaultH5Origin) {
+  const base = (app2.h5_login_base_url || defaultH5Origin || "").replace(/\/$/, "");
+  return base ? `${base}/login` : "/login";
+}
+function buildInviteUrl(app2, tokenPlain, defaultH5Origin) {
+  const base = buildH5LoginUrl(app2, defaultH5Origin).replace(/\/login$/, "");
+  if (!base || base === "") {
+    return `/login?invite=${encodeURIComponent(tokenPlain)}`;
+  }
+  return `${base}/login?invite=${encodeURIComponent(tokenPlain)}`;
+}
+function buildOpenModeShareCopy(app2, defaultH5Origin) {
+  const url = buildH5LoginUrl(app2, defaultH5Origin);
+  return `\u8BF7\u4F7F\u7528\u624B\u673A\u9A8C\u8BC1\u7801\u767B\u5F55\uFF1A${url}`;
+}
+async function assertSmsLoginAllowed(app2, phone, inviteToken) {
+  const normalized = normalizeCnPhone(phone);
+  if (!normalized) throw new PartnerAccessDeniedError("\u65E0\u6548\u7684\u624B\u673A\u53F7");
+  const existing = await partnerRepo().findEndUserBySmsPhone(app2.id, normalized);
+  if (existing?.status === "blocked") {
+    throw new PartnerAccessDeniedError("\u7EC8\u7AEF\u7528\u6237\u5DF2\u5C01\u7981", "END_USER_BLOCKED");
+  }
+  if (app2.end_user_access_mode !== "whitelist") return;
+  const inAllowlist = await partnerRepo().isInAllowlist(app2.id, "sms", normalized);
+  if (inAllowlist) return;
+  const invite = await resolvePendingInvite(app2.id, inviteToken);
+  if (invite) return;
+  if (inviteToken?.trim()) {
+    throw new PartnerAccessDeniedError("\u9080\u8BF7\u7801\u65E0\u6548\u6216\u5DF2\u88AB\u4F7F\u7528", "INVITE_INVALID");
+  }
+  throw new PartnerAccessDeniedError("\u8BE5\u624B\u673A\u53F7\u4E0D\u5728\u767D\u540D\u5355\u4E2D\uFF0C\u8BF7\u4F7F\u7528\u9080\u8BF7\u94FE\u63A5\u6216\u8054\u7CFB\u7BA1\u7406\u5458");
+}
+async function onSmsVerifySuccess(app2, phone, inviteToken, endUserId) {
+  const normalized = normalizeCnPhone(phone);
+  if (!normalized) return;
+  if (app2.end_user_access_mode !== "whitelist") return;
+  const inAllowlist = await partnerRepo().isInAllowlist(app2.id, "sms", normalized);
+  if (inAllowlist) return;
+  const invite = await resolvePendingInvite(app2.id, inviteToken);
+  if (!invite) {
+    if (inviteToken?.trim()) {
+      throw new PartnerAccessDeniedError("\u9080\u8BF7\u7801\u65E0\u6548\u6216\u5DF2\u88AB\u4F7F\u7528", "INVITE_ALREADY_USED");
+    }
+    return;
+  }
+  if (!endUserId) {
+    throw new PartnerAccessDeniedError("\u9080\u8BF7\u7801\u6838\u9500\u5931\u8D25", "INVITE_INVALID");
+  }
+  const consumed = await partnerRepo().consumeAppInvite(
+    app2.id,
+    invite.id,
+    normalized,
+    endUserId
+  );
+  if (!consumed) {
+    throw new PartnerAccessDeniedError("\u9080\u8BF7\u7801\u5DF2\u88AB\u4F7F\u7528", "INVITE_ALREADY_USED");
+  }
+  await partnerRepo().upsertAllowlist({
+    partnerAppId: app2.id,
+    provider: "sms",
+    subject: normalized,
+    source: "invite"
+  });
+}
+function effectiveAllowedSlugs(app2) {
+  if (app2.slug_access_mode === "restricted") return app2.allowed_slugs;
+  return [];
+}
+
+// src/routes/partner.ts
+var import_mxmdata20 = require("@mxmai/mxmdata");
+init_crypto();
+
+// src/partner/integration-key.ts
+var import_crypto11 = __toESM(require("crypto"));
+var import_mxmdata18 = require("@mxmai/mxmdata");
+function extractKeyFromRequest(headers) {
+  const fromHeader = headers["x-partner-key"];
+  if (typeof fromHeader === "string" && fromHeader.trim()) return fromHeader.trim();
+  const auth = headers.authorization;
+  if (auth?.startsWith("Bearer ")) {
+    const token = auth.slice(7).trim();
+    if (token.startsWith("mxm_")) return token;
+  }
+  return null;
+}
+async function resolveIntegrationKeyFromRequest(headers) {
+  const rawKey = extractKeyFromRequest(headers);
+  if (!rawKey) return null;
+  const keyHash = import_crypto11.default.createHash("sha256").update(rawKey).digest("hex");
+  const userApiKeyRepo2 = import_mxmdata18.RepositoryFactory.createUserApiKeyRepository();
+  const keyRecord = await userApiKeyRepo2.findByKeyHash(keyHash);
+  if (!keyRecord || keyRecord.key_type !== "integration") return null;
+  const expiresAt = keyRecord.expires_at ? new Date(keyRecord.expires_at).getTime() : null;
+  if (expiresAt != null && Date.now() > expiresAt) return null;
+  const userRepo6 = import_mxmdata18.RepositoryFactory.createUserRepository();
+  const user = await userRepo6.findById(keyRecord.user_id);
+  if (!user) return null;
+  const partnerRepo4 = import_mxmdata18.RepositoryFactory.createPartnerRepository();
+  const partnerApp = await partnerRepo4.findAppByApiKeyId(keyRecord.id);
+  await userApiKeyRepo2.updateLastUsedAt(keyRecord.id).catch(() => {
+  });
+  return {
+    keyId: keyRecord.id,
+    userId: user.id,
+    username: user.username ?? user.id,
+    partnerApp
+  };
+}
+
+// src/routes/partner.ts
+init_session_jwt();
+
+// src/partner/auth-sms.routes.ts
+var import_express4 = __toESM(require_express2());
+var import_mxmdata19 = require("@mxmai/mxmdata");
+init_session_jwt();
+
+// src/partner/sms.service.ts
+var import_ioredis3 = __toESM(require("ioredis"));
+var import_crypto13 = __toESM(require("crypto"));
+
+// src/partner/aliyun-pnvs.client.ts
+var import_dypnsapi20170525 = __toESM(require("@alicloud/dypnsapi20170525"));
+var OpenApi = __toESM(require("@alicloud/openapi-client"));
+var clientSingleton = null;
+function getClient() {
+  if (clientSingleton) return clientSingleton;
+  const accessKeyId = process.env.ALIYUN_PNVS_ACCESS_KEY_ID?.trim() || process.env.ALIYUN_ACCESS_KEY_ID?.trim();
+  const accessKeySecret = process.env.ALIYUN_PNVS_ACCESS_KEY_SECRET?.trim() || process.env.ALIYUN_ACCESS_KEY_SECRET?.trim();
+  if (!accessKeyId || !accessKeySecret) {
+    throw new Error("\u672A\u914D\u7F6E ALIYUN_PNVS_ACCESS_KEY_ID / ALIYUN_PNVS_ACCESS_KEY_SECRET");
+  }
+  const config = new OpenApi.Config({
+    accessKeyId,
+    accessKeySecret,
+    endpoint: process.env.ALIYUN_PNVS_ENDPOINT?.trim() || "dypnsapi.aliyuncs.com"
+  });
+  clientSingleton = new import_dypnsapi20170525.default(config);
+  return clientSingleton;
+}
+async function sendAliyunPnvsVerifySms(params) {
+  const signName = process.env.ALIYUN_PNVS_SIGN_NAME?.trim();
+  const templateCode = process.env.ALIYUN_PNVS_TEMPLATE_CODE?.trim();
+  if (!signName || !templateCode) {
+    throw new Error("\u672A\u914D\u7F6E ALIYUN_PNVS_SIGN_NAME / ALIYUN_PNVS_TEMPLATE_CODE");
+  }
+  const min = String(
+    process.env.ALIYUN_PNVS_TEMPLATE_MIN?.trim() || Math.max(1, Math.ceil((params.validTimeSec ?? 300) / 60))
+  );
+  const req = new import_dypnsapi20170525.SendSmsVerifyCodeRequest({
+    phoneNumber: params.phone,
+    countryCode: "86",
+    signName,
+    templateCode,
+    templateParam: JSON.stringify({ code: params.code, min }),
+    validTime: params.validTimeSec ?? Number(process.env.PARTNER_SMS_OTP_TTL_SEC || 300),
+    duplicatePolicy: 1,
+    autoRetry: 1
+  });
+  const client = getClient();
+  const res = await client.sendSmsVerifyCode(req);
+  const body = res.body;
+  if (!body?.success && body?.code !== "OK") {
+    const msg = body?.message || body?.code || "\u77ED\u4FE1\u53D1\u9001\u5931\u8D25";
+    throw new Error(msg);
+  }
+}
+
+// src/partner/sms.service.ts
+init_phone();
+function createRedis() {
+  return new import_ioredis3.default({
+    host: process.env.REDIS_HOST || "localhost",
+    port: Number(process.env.REDIS_PORT || 6379),
+    password: process.env.REDIS_PASSWORD,
+    maxRetriesPerRequest: 3,
+    retryStrategy: (times) => times > 3 ? null : Math.min(times * 200, 2e3)
+  });
+}
+var redisSingleton2 = null;
+function getRedis2() {
+  if (!redisSingleton2) redisSingleton2 = createRedis();
+  return redisSingleton2;
+}
+function otpKey(appId, phone) {
+  return `partner:sms:otp:${appId}:${phone}`;
+}
+function sendCooldownKey(appId, phone) {
+  return `partner:sms:cooldown:${appId}:${phone}`;
+}
+function dailySendKey(appId, phone) {
+  const day = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  return `partner:sms:daily:${appId}:${phone}:${day}`;
+}
+function generateOtp() {
+  if (process.env.PARTNER_SMS_MOCK === "true") return "123456";
+  return String(import_crypto13.default.randomInt(1e5, 999999));
+}
+var PartnerSmsService = class {
+  otpTtlSec = Number(process.env.PARTNER_SMS_OTP_TTL_SEC || 300);
+  cooldownSec = Number(process.env.PARTNER_SMS_COOLDOWN_SEC || 60);
+  dailyMax = Number(process.env.PARTNER_SMS_DAILY_MAX || 10);
+  async sendOtp(partnerAppId, rawPhone) {
+    const phone = normalizeCnPhone(rawPhone);
+    if (!phone) throw new Error("\u624B\u673A\u53F7\u683C\u5F0F\u65E0\u6548");
+    const redis = getRedis2();
+    const cooldown = await redis.get(sendCooldownKey(partnerAppId, phone));
+    if (cooldown) {
+      throw new Error("\u53D1\u9001\u8FC7\u4E8E\u9891\u7E41\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5");
+    }
+    const dailyKey = dailySendKey(partnerAppId, phone);
+    const dailyCount = Number(await redis.get(dailyKey) ?? 0);
+    if (dailyCount >= this.dailyMax) {
+      throw new Error("\u4ECA\u65E5\u9A8C\u8BC1\u7801\u53D1\u9001\u6B21\u6570\u5DF2\u8FBE\u4E0A\u9650");
+    }
+    const code = generateOtp();
+    try {
+      await this.dispatchSms(phone, code);
+    } catch (e) {
+      throw new Error(e instanceof Error ? e.message : "\u77ED\u4FE1\u53D1\u9001\u5931\u8D25");
+    }
+    await redis.setex(otpKey(partnerAppId, phone), this.otpTtlSec, code);
+    await redis.setex(sendCooldownKey(partnerAppId, phone), this.cooldownSec, "1");
+    await redis.incr(dailyKey);
+    await redis.expire(dailyKey, 86400);
+    return {
+      sent: true,
+      phoneMasked: maskPhone(phone),
+      expiresInSec: this.otpTtlSec,
+      ...process.env.PARTNER_SMS_MOCK === "true" ? { debugCode: code } : {}
+    };
+  }
+  async verifyOtp(partnerAppId, rawPhone, code) {
+    const phone = normalizeCnPhone(rawPhone);
+    if (!phone || !code?.trim()) return false;
+    const redis = getRedis2();
+    const stored = await redis.get(otpKey(partnerAppId, phone));
+    if (!stored) return false;
+    const ok = stored === code.trim();
+    if (ok) await redis.del(otpKey(partnerAppId, phone));
+    return ok;
+  }
+  /** 对接真实短信网关；mock 模式仅打日志 */
+  async dispatchSms(phone, code) {
+    if (process.env.PARTNER_SMS_MOCK === "true") {
+      console.log(`[PartnerSms][mock] \u2192 ${maskPhone(phone)} code=${code}`);
+      return;
+    }
+    const provider = process.env.PARTNER_SMS_PROVIDER?.trim();
+    if (!provider) {
+      throw new Error("\u672A\u914D\u7F6E PARTNER_SMS_PROVIDER");
+    }
+    if (provider === "aliyun_pnvs" || provider === "aliyun") {
+      await sendAliyunPnvsVerifySms({ phone, code, validTimeSec: this.otpTtlSec });
+      console.log(`[PartnerSms][aliyun_pnvs] sent \u2192 ${maskPhone(phone)}`);
+      return;
+    }
+    throw new Error(`\u4E0D\u652F\u6301\u7684\u77ED\u4FE1\u670D\u52A1\u5546: ${provider}`);
+  }
+};
+var partnerSmsService = new PartnerSmsService();
+
+// src/partner/auth-sms.routes.ts
+init_phone();
+var router4 = (0, import_express4.Router)();
+var partnerRepo2 = import_mxmdata19.RepositoryFactory.createPartnerRepository();
+function jsonOk(res, data, message = "ok") {
+  return res.json({ code: 200, message, data });
+}
+function jsonErr(res, status, message, error = "ERROR") {
+  return res.status(status).json({ code: status, message, error });
+}
+async function requireIntegrationKey(req, res, next) {
+  try {
+    const resolved = await resolveIntegrationKeyFromRequest(req.headers);
+    if (!resolved) {
+      return jsonErr(res, 401, "\u9700\u8981\u6709\u6548\u7684 integration API Key \u6216 X-Partner-Key", "UNAUTHORIZED");
+    }
+    req.integrationKey = resolved;
+    next();
+  } catch (e) {
+    next(e);
+  }
+}
+async function ensurePartnerApp(resolved) {
+  if (!resolved) return null;
+  if (resolved.partnerApp) return resolved.partnerApp;
+  const { generatePartnerSecret: generatePartnerSecret2 } = await Promise.resolve().then(() => (init_crypto(), crypto_exports));
+  const secret = generatePartnerSecret2();
+  return partnerRepo2.createApp({
+    ownerUserId: resolved.userId,
+    apiKeyId: resolved.keyId,
+    name: "\u9ED8\u8BA4 Partner \u5E94\u7528",
+    secretHash: secret.hash,
+    secretPrefix: secret.prefix,
+    allowedSlugs: []
+  });
+}
+async function issueSessionForEndUser(res, app2, callerUserId, endUserId, extra) {
+  const endUser = await partnerRepo2.findEndUserById(endUserId);
+  if (!endUser || endUser.status === "blocked") {
+    return jsonErr(res, 403, "\u7EC8\u7AEF\u7528\u6237\u5DF2\u5C01\u7981", "END_USER_BLOCKED");
+  }
+  const fullApp = await partnerRepo2.findAppById(app2.id);
+  const allowedSlugs = fullApp ? effectiveAllowedSlugs(fullApp) : app2.allowed_slugs;
+  const { token, expiresAt, tokenHash } = signPartnerSessionToken({
+    partnerAppId: app2.id,
+    endUserId,
+    callerUserId,
+    allowedSlugs,
+    sessionId: ""
+  });
+  await partnerRepo2.createSession(endUserId, tokenHash, expiresAt);
+  return jsonOk(res, {
+    sessionToken: token,
+    expiresAt,
+    endUserId,
+    ...extra
+  });
+}
+router4.post("/send", requireIntegrationKey, async (req, res, next) => {
+  try {
+    const resolved = req.integrationKey;
+    const app2 = await ensurePartnerApp(resolved);
+    if (!app2 || app2.status !== "active") {
+      return jsonErr(res, 403, "Partner \u5E94\u7528\u4E0D\u53EF\u7528", "FORBIDDEN");
+    }
+    const { phone, inviteToken } = req.body ?? {};
+    if (!phone) return jsonErr(res, 400, "phone \u5FC5\u586B", "VALIDATION_ERROR");
+    try {
+      await assertSmsLoginAllowed(app2, String(phone), inviteToken ? String(inviteToken) : void 0);
+    } catch (e) {
+      if (e instanceof PartnerAccessDeniedError) {
+        return jsonErr(res, 403, e.message, e.code);
+      }
+      throw e;
+    }
+    const result = await partnerSmsService.sendOtp(app2.id, String(phone));
+    await partnerRepo2.appendAuditLog({
+      partnerAppId: app2.id,
+      action: "auth.sms.send",
+      detail: { phoneMasked: result.phoneMasked }
+    });
+    return jsonOk(res, result, "\u9A8C\u8BC1\u7801\u5DF2\u53D1\u9001");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("\u9891\u7E41") || msg.includes("\u4E0A\u9650") || msg.includes("\u65E0\u6548")) {
+      return jsonErr(res, 429, msg, "SMS_RATE_LIMIT");
+    }
+    if (e instanceof PartnerAccessDeniedError) {
+      return jsonErr(res, 403, e.message, e.code);
+    }
+    next(e);
+  }
+});
+router4.post("/verify", requireIntegrationKey, async (req, res, next) => {
+  try {
+    const resolved = req.integrationKey;
+    const app2 = await ensurePartnerApp(resolved);
+    if (!app2 || app2.status !== "active") {
+      return jsonErr(res, 403, "Partner \u5E94\u7528\u4E0D\u53EF\u7528", "FORBIDDEN");
+    }
+    const { phone, code, deviceId, inviteToken } = req.body ?? {};
+    const normalized = normalizeCnPhone(String(phone ?? ""));
+    if (!normalized || !code) {
+      return jsonErr(res, 400, "phone \u4E0E code \u5FC5\u586B", "VALIDATION_ERROR");
+    }
+    try {
+      await assertSmsLoginAllowed(app2, normalized, inviteToken ? String(inviteToken) : void 0);
+    } catch (e) {
+      if (e instanceof PartnerAccessDeniedError) {
+        return jsonErr(res, 403, e.message, e.code);
+      }
+      throw e;
+    }
+    const ok = await partnerSmsService.verifyOtp(app2.id, normalized, String(code));
+    if (!ok) return jsonErr(res, 401, "\u9A8C\u8BC1\u7801\u9519\u8BEF\u6216\u5DF2\u8FC7\u671F", "INVALID_OTP");
+    const externalId = phoneExternalId(normalized);
+    const endUser = await partnerRepo2.upsertExternalUser(
+      app2.id,
+      externalId,
+      maskPhone(normalized)
+    );
+    await partnerRepo2.bindIdentity(app2.id, "sms", normalized, endUser.id);
+    await onSmsVerifySuccess(
+      app2,
+      normalized,
+      inviteToken ? String(inviteToken) : void 0,
+      endUser.id
+    );
+    const device = String(deviceId ?? req.headers["x-device-id"] ?? "").trim() || void 0;
+    if (device && device.length >= 8) {
+      const anonymous = await partnerRepo2.findAnonymousUserByDevice(app2.id, device);
+      if (anonymous && anonymous.id !== endUser.id) {
+        await partnerRepo2.mergeEndUsers(app2.id, anonymous.id, endUser.id);
+        await partnerRepo2.appendAuditLog({
+          partnerAppId: app2.id,
+          action: "end_user.merge",
+          endUserId: endUser.id,
+          detail: { from: anonymous.id, reason: "sms_login" }
+        });
+      }
+    }
+    await partnerRepo2.appendAuditLog({
+      partnerAppId: app2.id,
+      action: "auth.sms.verify",
+      endUserId: endUser.id,
+      detail: { phoneMasked: maskPhone(normalized) }
+    });
+    return issueSessionForEndUser(res, app2, resolved.userId, endUser.id, {
+      phoneMasked: maskPhone(normalized),
+      loginMethod: "sms"
+    });
+  } catch (e) {
+    if (e instanceof PartnerAccessDeniedError) {
+      return jsonErr(res, 403, e.message, e.code);
+    }
+    next(e);
+  }
+});
+var auth_sms_routes_default = router4;
+
+// src/routes/partner.ts
+var router5 = (0, import_express5.Router)();
+var partnerRepo3 = import_mxmdata20.RepositoryFactory.createPartnerRepository();
+function jsonOk2(res, data, message = "ok") {
+  return res.json({ code: 200, message, data });
+}
+function jsonErr2(res, status, message, error = "ERROR") {
+  return res.status(status).json({ code: status, message, error });
+}
+async function requireIntegrationKey2(req, res, next) {
+  try {
+    const resolved = await resolveIntegrationKeyFromRequest(req.headers);
+    if (!resolved) {
+      return jsonErr2(res, 401, "\u9700\u8981\u6709\u6548\u7684 integration API Key", "UNAUTHORIZED");
+    }
+    req.integrationKey = resolved;
+    next();
+  } catch (e) {
+    next(e);
+  }
+}
+async function ensurePartnerAppForKey(resolved) {
+  if (!resolved) return null;
+  if (resolved.partnerApp) return resolved.partnerApp;
+  const secret = generatePartnerSecret();
+  const app2 = await partnerRepo3.createApp({
+    ownerUserId: resolved.userId,
+    apiKeyId: resolved.keyId,
+    name: "\u9ED8\u8BA4 Partner \u5E94\u7528",
+    secretHash: secret.hash,
+    secretPrefix: secret.prefix,
+    allowedSlugs: []
+  });
+  return app2;
+}
+function serializeApp(a) {
+  return {
+    id: a.id,
+    name: a.name,
+    apiKeyId: a.api_key_id,
+    allowedSlugs: a.allowed_slugs,
+    status: a.status,
+    secretPrefix: a.secret_prefix,
+    endUserAccessMode: a.end_user_access_mode,
+    slugAccessMode: a.slug_access_mode,
+    h5LoginBaseUrl: a.h5_login_base_url,
+    hasInviteToken: !!a.invite_token_hash,
+    dailyEndUserQuota: a.daily_end_user_quota,
+    qpsLimit: a.qps_limit,
+    createdAt: a.created_at
+  };
+}
+async function requireOwnedApp(appId, ownerUserId) {
+  const app2 = await partnerRepo3.findAppById(appId);
+  if (!app2 || app2.owner_user_id !== ownerUserId) return null;
+  return app2;
+}
+var DEFAULT_H5_ORIGIN = process.env.PARTNER_H5_PUBLIC_ORIGIN ?? "";
+router5.post("/apps", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { apiKeyId, name, allowedSlugs } = req.body ?? {};
+    if (!apiKeyId || !name) {
+      return jsonErr2(res, 400, "apiKeyId \u4E0E name \u5FC5\u586B", "VALIDATION_ERROR");
+    }
+    const userApiKeyRepo2 = import_mxmdata20.RepositoryFactory.createUserApiKeyRepository();
+    const keys = await userApiKeyRepo2.listByUserId(userId);
+    const keyMeta = keys.find((k) => k.id === String(apiKeyId));
+    if (!keyMeta || keyMeta.key_type !== "integration") {
+      return jsonErr2(res, 400, "\u65E0\u6548\u7684 integration Key", "VALIDATION_ERROR");
+    }
+    const existing = await partnerRepo3.findAppByApiKeyId(String(apiKeyId));
+    if (existing) {
+      return jsonErr2(res, 409, "\u8BE5 Key \u5DF2\u7ED1\u5B9A Partner \u5E94\u7528", "DUPLICATE");
+    }
+    const secret = generatePartnerSecret();
+    const app2 = await partnerRepo3.createApp({
+      ownerUserId: userId,
+      apiKeyId: String(apiKeyId),
+      name: String(name).trim(),
+      secretHash: secret.hash,
+      secretPrefix: secret.prefix,
+      allowedSlugs: Array.isArray(allowedSlugs) ? allowedSlugs.map(String) : []
+    });
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: app2.id,
+      action: "app.create",
+      actorUserId: userId
+    });
+    return jsonOk2(res, {
+      app: {
+        id: app2.id,
+        name: app2.name,
+        apiKeyId: app2.api_key_id,
+        allowedSlugs: app2.allowed_slugs,
+        status: app2.status,
+        secretPrefix: app2.secret_prefix
+      },
+      partnerSecret: secret.plain,
+      hint: "partnerSecret \u4EC5\u5C55\u793A\u4E00\u6B21\uFF0C\u7528\u4E8E HMAC delegate \u7B7E\u540D"
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.get("/apps", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const apps = await partnerRepo3.listAppsByOwner(req.user.userId);
+    return jsonOk2(
+      res,
+      apps.map((a) => serializeApp(a))
+    );
+  } catch (e) {
+    next(e);
+  }
+});
+router5.get("/apps/by-key/:apiKeyId", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const userApiKeyRepo2 = import_mxmdata20.RepositoryFactory.createUserApiKeyRepository();
+    const keys = await userApiKeyRepo2.listByUserId(userId);
+    const keyMeta = keys.find((k) => k.id === req.params.apiKeyId);
+    if (!keyMeta || keyMeta.key_type !== "integration") {
+      return jsonErr2(res, 400, "\u65E0\u6548\u7684 integration Key", "VALIDATION_ERROR");
+    }
+    let app2 = await partnerRepo3.findAppByApiKeyId(req.params.apiKeyId);
+    if (!app2) {
+      const secret = generatePartnerSecret();
+      app2 = await partnerRepo3.createApp({
+        ownerUserId: userId,
+        apiKeyId: req.params.apiKeyId,
+        name: keyMeta.name || "Partner \u5E94\u7528",
+        secretHash: secret.hash,
+        secretPrefix: secret.prefix,
+        allowedSlugs: []
+      });
+    }
+    return jsonOk2(res, serializeApp(app2));
+  } catch (e) {
+    next(e);
+  }
+});
+router5.put("/apps/:id/settings", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const { endUserAccessMode, slugAccessMode, allowedSlugs, h5LoginBaseUrl } = req.body ?? {};
+    if (endUserAccessMode != null && endUserAccessMode !== "open" && endUserAccessMode !== "whitelist") {
+      return jsonErr2(res, 400, "endUserAccessMode \u987B\u4E3A open \u6216 whitelist", "VALIDATION_ERROR");
+    }
+    if (slugAccessMode != null && slugAccessMode !== "all_owner" && slugAccessMode !== "restricted") {
+      return jsonErr2(res, 400, "slugAccessMode \u987B\u4E3A all_owner \u6216 restricted", "VALIDATION_ERROR");
+    }
+    if (allowedSlugs != null && !Array.isArray(allowedSlugs)) {
+      return jsonErr2(res, 400, "allowedSlugs \u987B\u4E3A\u5B57\u7B26\u4E32\u6570\u7EC4", "VALIDATION_ERROR");
+    }
+    if (slugAccessMode === "restricted" && Array.isArray(allowedSlugs) && allowedSlugs.length === 0) {
+      return jsonErr2(res, 400, "restricted \u6A21\u5F0F\u4E0B allowedSlugs \u4E0D\u80FD\u4E3A\u7A7A", "VALIDATION_ERROR");
+    }
+    const updated = await partnerRepo3.updateAppAccessSettings(req.params.id, req.user.userId, {
+      endUserAccessMode: endUserAccessMode ?? void 0,
+      slugAccessMode: slugAccessMode ?? void 0,
+      allowedSlugs: Array.isArray(allowedSlugs) ? allowedSlugs.map(String) : void 0,
+      h5LoginBaseUrl: h5LoginBaseUrl !== void 0 ? h5LoginBaseUrl ? String(h5LoginBaseUrl) : null : void 0
+    });
+    if (!updated) return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: updated.id,
+      action: "app.update_settings",
+      actorUserId: req.user.userId,
+      detail: { endUserAccessMode, slugAccessMode, allowedSlugs, h5LoginBaseUrl }
+    });
+    return jsonOk2(res, serializeApp(updated));
+  } catch (e) {
+    next(e);
+  }
+});
+router5.get("/apps/:id/allowlist", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await requireOwnedApp(req.params.id, req.user.userId);
+    if (!app2) return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    const limit = Math.min(Math.max(Number(req.query.limit ?? 100), 1), 200);
+    const offset = Math.max(Number(req.query.offset ?? 0), 0);
+    const rows = await partnerRepo3.listAllowlist(app2.id, limit, offset);
+    return jsonOk2(
+      res,
+      rows.map((r) => ({
+        id: r.id,
+        provider: r.provider,
+        subject: r.subject,
+        subjectMasked: maskIdentitySubject(r.provider, r.subject),
+        source: r.source,
+        note: r.note,
+        createdAt: r.created_at
+      }))
+    );
+  } catch (e) {
+    next(e);
+  }
+});
+router5.post("/apps/:id/allowlist", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await requireOwnedApp(req.params.id, req.user.userId);
+    if (!app2) return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    const { provider, subject, note } = req.body ?? {};
+    if (!provider || !subject) {
+      return jsonErr2(res, 400, "provider \u4E0E subject \u5FC5\u586B", "VALIDATION_ERROR");
+    }
+    const p = String(provider);
+    if (p !== "sms" && p !== "wechat" && p !== "external") {
+      return jsonErr2(res, 400, "provider \u65E0\u6548", "VALIDATION_ERROR");
+    }
+    let normalizedSubject = String(subject).trim();
+    if (p === "sms") {
+      const { normalizeCnPhone: normalizeCnPhone2 } = await Promise.resolve().then(() => (init_phone(), phone_exports));
+      const phone = normalizeCnPhone2(normalizedSubject);
+      if (!phone) return jsonErr2(res, 400, "\u65E0\u6548\u7684\u624B\u673A\u53F7", "VALIDATION_ERROR");
+      normalizedSubject = phone;
+    }
+    const row = await partnerRepo3.upsertAllowlist({
+      partnerAppId: app2.id,
+      provider: p,
+      subject: normalizedSubject,
+      source: "manual",
+      note: note ? String(note) : void 0,
+      createdBy: req.user.userId
+    });
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: app2.id,
+      action: "allowlist.add",
+      actorUserId: req.user.userId,
+      detail: { provider: p, subject: normalizedSubject }
+    });
+    return jsonOk2(res, {
+      id: row.id,
+      provider: row.provider,
+      subject: row.subject,
+      subjectMasked: maskIdentitySubject(row.provider, row.subject),
+      source: row.source
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.delete("/apps/:id/allowlist/:entryId", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await requireOwnedApp(req.params.id, req.user.userId);
+    if (!app2) return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    const ok = await partnerRepo3.removeAllowlist(app2.id, req.params.entryId);
+    if (!ok) return jsonErr2(res, 404, "\u767D\u540D\u5355\u6761\u76EE\u4E0D\u5B58\u5728", "NOT_FOUND");
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: app2.id,
+      action: "allowlist.remove",
+      actorUserId: req.user.userId,
+      detail: { entryId: req.params.entryId }
+    });
+    return jsonOk2(res, { removed: true });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.get("/apps/:id/share-link", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await requireOwnedApp(req.params.id, req.user.userId);
+    if (!app2) return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    const url = buildH5LoginUrl(app2, DEFAULT_H5_ORIGIN);
+    const copyText = buildOpenModeShareCopy(app2, DEFAULT_H5_ORIGIN);
+    return jsonOk2(res, {
+      url,
+      copyText,
+      mode: app2.end_user_access_mode,
+      hint: "\u5F00\u653E\u6CE8\u518C\u6A21\u5F0F\u4E0B\u65E0\u9700\u9080\u8BF7\u7801\uFF0C\u76F4\u63A5\u5206\u4EAB\u767B\u5F55\u9875\u94FE\u63A5"
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.post("/apps/:id/invites", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await requireOwnedApp(req.params.id, req.user.userId);
+    if (!app2) return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    if (app2.end_user_access_mode !== "whitelist") {
+      return jsonErr2(res, 400, "\u4EC5\u767D\u540D\u5355\u6A21\u5F0F\u53EF\u751F\u6210\u9080\u8BF7\u7801", "VALIDATION_ERROR");
+    }
+    const token = generateInviteToken();
+    const invite = await partnerRepo3.createAppInvite(app2.id, token.hash, req.user.userId);
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: app2.id,
+      action: "invite.create",
+      actorUserId: req.user.userId,
+      detail: { inviteId: invite.id }
+    });
+    return jsonOk2(res, {
+      inviteId: invite.id,
+      url: buildInviteUrl(app2, token.plain, DEFAULT_H5_ORIGIN),
+      tokenPlain: token.plain,
+      hint: "\u9080\u8BF7\u7801\u4EC5\u53EF\u4F7F\u7528\u4E00\u6B21\uFF0C\u9A8C\u7801\u6210\u529F\u540E\u81EA\u52A8\u5931\u6548"
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.get("/apps/:id/invites", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await requireOwnedApp(req.params.id, req.user.userId);
+    if (!app2) return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    const limit = Math.min(Math.max(Number(req.query.limit ?? 50), 1), 100);
+    const offset = Math.max(Number(req.query.offset ?? 0), 0);
+    const rows = await partnerRepo3.listAppInvites(app2.id, limit, offset);
+    return jsonOk2(
+      res,
+      rows.map((r) => ({
+        id: r.id,
+        status: r.status,
+        usedSubject: r.used_subject ? maskIdentitySubject("sms", r.used_subject) : null,
+        usedEndUserId: r.used_end_user_id,
+        createdAt: r.created_at,
+        usedAt: r.used_at
+      }))
+    );
+  } catch (e) {
+    next(e);
+  }
+});
+router5.delete("/apps/:id/invites/:inviteId", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await requireOwnedApp(req.params.id, req.user.userId);
+    if (!app2) return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    const ok = await partnerRepo3.revokeAppInvite(app2.id, req.params.inviteId);
+    if (!ok) return jsonErr2(res, 404, "\u9080\u8BF7\u7801\u4E0D\u5B58\u5728\u6216\u5DF2\u4F7F\u7528", "NOT_FOUND");
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: app2.id,
+      action: "invite.revoke",
+      actorUserId: req.user.userId,
+      detail: { inviteId: req.params.inviteId }
+    });
+    return jsonOk2(res, { revoked: true });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.get("/apps/:id/invite-link", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await requireOwnedApp(req.params.id, req.user.userId);
+    if (!app2) return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    if (app2.end_user_access_mode !== "whitelist") {
+      return jsonErr2(res, 400, "\u767D\u540D\u5355\u6A21\u5F0F\u8BF7\u4F7F\u7528 POST /invites\uFF1B\u5F00\u653E\u6A21\u5F0F\u8BF7\u4F7F\u7528 GET /share-link", "VALIDATION_ERROR");
+    }
+    return jsonErr2(res, 410, "\u8BF7\u4F7F\u7528 POST /apps/:id/invites \u751F\u6210\u4E00\u6B21\u6027\u9080\u8BF7\u7801", "DEPRECATED");
+  } catch (e) {
+    next(e);
+  }
+});
+router5.post("/apps/:id/invite-link/rotate", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    return jsonErr2(res, 410, "\u8BF7\u4F7F\u7528 POST /apps/:id/invites \u751F\u6210\u65B0\u9080\u8BF7\u7801", "DEPRECATED");
+  } catch (e) {
+    next(e);
+  }
+});
+router5.put("/apps/:id/slugs", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const { allowedSlugs } = req.body ?? {};
+    if (!Array.isArray(allowedSlugs)) {
+      return jsonErr2(res, 400, "allowedSlugs \u987B\u4E3A\u5B57\u7B26\u4E32\u6570\u7EC4", "VALIDATION_ERROR");
+    }
+    const updated = await partnerRepo3.updateAppSlugs(
+      req.params.id,
+      req.user.userId,
+      allowedSlugs.map(String)
+    );
+    if (!updated) return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: updated.id,
+      action: "app.update_slugs",
+      actorUserId: req.user.userId,
+      detail: { allowedSlugs }
+    });
+    return jsonOk2(res, { id: updated.id, allowedSlugs: updated.allowed_slugs });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.post("/apps/:id/rotate-secret", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const secret = generatePartnerSecret();
+    const updated = await partnerRepo3.rotateAppSecret(
+      req.params.id,
+      req.user.userId,
+      secret.hash,
+      secret.prefix
+    );
+    if (!updated) return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: updated.id,
+      action: "app.rotate_secret",
+      actorUserId: req.user.userId
+    });
+    return jsonOk2(res, {
+      secretPrefix: updated.secret_prefix,
+      partnerSecret: secret.plain,
+      hint: "partnerSecret \u4EC5\u5C55\u793A\u4E00\u6B21"
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.get("/apps/:id/stats", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await partnerRepo3.findAppById(req.params.id);
+    if (!app2 || app2.owner_user_id !== req.user.userId) {
+      return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    }
+    const days = Math.min(Math.max(Number(req.query.days ?? 30), 1), 90);
+    const since = /* @__PURE__ */ new Date();
+    since.setUTCDate(since.getUTCDate() - days);
+    const { getSupabaseClient: getSupabaseClient8 } = await import("@mxmai/mxmdata");
+    const client = getSupabaseClient8();
+    const { data: rows, error } = await client.from("published_api_usage_events").select("end_user_id, status, tokens_charged, created_at").eq("partner_app_id", app2.id).gte("created_at", since.toISOString());
+    if (error) throw error;
+    const byEndUser = /* @__PURE__ */ new Map();
+    let totalCalls = 0;
+    let totalTokens = 0;
+    for (const r of rows ?? []) {
+      const eid = r.end_user_id ? String(r.end_user_id) : "__none__";
+      totalCalls += 1;
+      totalTokens += Number(r.tokens_charged ?? 0);
+      const cur = byEndUser.get(eid) ?? { call_count: 0, tokens_charged: 0, last_called_at: null };
+      cur.call_count += 1;
+      cur.tokens_charged += Number(r.tokens_charged ?? 0);
+      const ts = String(r.created_at);
+      if (!cur.last_called_at || ts > cur.last_called_at) cur.last_called_at = ts;
+      byEndUser.set(eid, cur);
+    }
+    const groupBy = String(req.query.groupBy ?? "");
+    const endUserIds = [...byEndUser.keys()].filter((k) => k !== "__none__");
+    const phoneMap = endUserIds.length ? await partnerRepo3.listSmsPhonesByEndUserIds(app2.id, endUserIds) : /* @__PURE__ */ new Map();
+    const endUserRecords = endUserIds.length > 0 ? await partnerRepo3.findEndUsersByIds(endUserIds) : [];
+    const displayById = new Map(endUserRecords.map((u) => [u.id, u.display_name]));
+    const kindById = new Map(endUserRecords.map((u) => [u.id, u.kind]));
+    return jsonOk2(res, {
+      days,
+      totalCalls,
+      totalTokensCharged: totalTokens,
+      byEndUser: groupBy === "end_user" ? [...byEndUser.entries()].map(([end_user_id, v]) => {
+        const id = end_user_id === "__none__" ? null : end_user_id;
+        const phone = id ? phoneMap.get(id) ?? null : null;
+        return {
+          end_user_id: id,
+          ...v,
+          phone,
+          phone_masked: phone ? maskPhone(phone) : null,
+          display_name: id ? displayById.get(id) ?? null : null,
+          user_kind: id ? kindById.get(id) ?? null : null
+        };
+      }) : void 0
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.get("/apps/:id/end-users", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await partnerRepo3.findAppById(req.params.id);
+    if (!app2 || app2.owner_user_id !== req.user.userId) {
+      return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    }
+    const limit = Math.min(Math.max(Number(req.query.limit ?? 50), 1), 100);
+    const offset = Math.max(Number(req.query.offset ?? 0), 0);
+    const days = Math.min(Math.max(Number(req.query.days ?? 30), 1), 90);
+    const users = await partnerRepo3.listEndUsers(app2.id, limit, offset);
+    const endUserIds = users.map((u) => u.id);
+    const since = /* @__PURE__ */ new Date();
+    since.setUTCDate(since.getUTCDate() - days);
+    const { getSupabaseClient: getSupabaseClient8 } = await import("@mxmai/mxmdata");
+    const client = getSupabaseClient8();
+    const usageByUser = /* @__PURE__ */ new Map();
+    if (endUserIds.length > 0) {
+      const { data: usageRows } = await client.from("published_api_usage_events").select("end_user_id, tokens_charged, created_at").eq("partner_app_id", app2.id).gte("created_at", since.toISOString()).in("end_user_id", endUserIds);
+      for (const r of usageRows ?? []) {
+        if (!r.end_user_id) continue;
+        const id = String(r.end_user_id);
+        const cur = usageByUser.get(id) ?? { call_count: 0, tokens_charged: 0, last_called_at: null };
+        cur.call_count += 1;
+        cur.tokens_charged += Number(r.tokens_charged ?? 0);
+        const ts = String(r.created_at);
+        if (!cur.last_called_at || ts > cur.last_called_at) cur.last_called_at = ts;
+        usageByUser.set(id, cur);
+      }
+    }
+    const phoneMap = await partnerRepo3.listSmsPhonesByEndUserIds(app2.id, endUserIds);
+    const identityRows = await partnerRepo3.listIdentitiesByEndUserIds(app2.id, endUserIds);
+    const identitiesByUser = /* @__PURE__ */ new Map();
+    for (const row of identityRows) {
+      const list = identitiesByUser.get(row.end_user_id) ?? [];
+      list.push({
+        provider: row.provider,
+        subject: row.subject,
+        subject_masked: maskIdentitySubject(row.provider, row.subject)
+      });
+      identitiesByUser.set(row.end_user_id, list);
+    }
+    const enriched = users.map((u) => {
+      const phone = phoneMap.get(u.id) ?? null;
+      const usage = usageByUser.get(u.id);
+      const identities = identitiesByUser.get(u.id) ?? [];
+      if (u.external_id && !identities.some((i) => i.provider === "external")) {
+        identities.push({
+          provider: "external",
+          subject: u.external_id,
+          subject_masked: maskIdentitySubject("external", u.external_id)
+        });
+      }
+      return {
+        ...u,
+        phone,
+        phone_masked: phone ? maskPhone(phone) : null,
+        identities,
+        call_count: usage?.call_count ?? 0,
+        tokens_charged: usage?.tokens_charged ?? 0,
+        last_called_at: usage?.last_called_at ?? null
+      };
+    });
+    return jsonOk2(res, enriched);
+  } catch (e) {
+    next(e);
+  }
+});
+router5.post("/apps/:id/end-users/:endUserId/block", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await partnerRepo3.findAppById(req.params.id);
+    if (!app2 || app2.owner_user_id !== req.user.userId) {
+      return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    }
+    const ok = await partnerRepo3.blockEndUser(app2.id, req.params.endUserId);
+    if (!ok) return jsonErr2(res, 404, "\u7EC8\u7AEF\u7528\u6237\u4E0D\u5B58\u5728", "NOT_FOUND");
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: app2.id,
+      action: "end_user.block",
+      actorUserId: req.user.userId,
+      endUserId: req.params.endUserId
+    });
+    return jsonOk2(res, { blocked: true });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.post("/apps/:id/end-users/:endUserId/unblock", gatewayOrJwtAuth, async (req, res, next) => {
+  try {
+    const app2 = await partnerRepo3.findAppById(req.params.id);
+    if (!app2 || app2.owner_user_id !== req.user.userId) {
+      return jsonErr2(res, 404, "\u5E94\u7528\u4E0D\u5B58\u5728", "NOT_FOUND");
+    }
+    const ok = await partnerRepo3.unblockEndUser(app2.id, req.params.endUserId);
+    if (!ok) return jsonErr2(res, 404, "\u7EC8\u7AEF\u7528\u6237\u4E0D\u5B58\u5728", "NOT_FOUND");
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: app2.id,
+      action: "end_user.unblock",
+      actorUserId: req.user.userId,
+      endUserId: req.params.endUserId
+    });
+    return jsonOk2(res, { unblocked: true });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.post("/sessions/anonymous", requireIntegrationKey2, async (_req, res) => {
+  return jsonErr2(res, 403, "\u533F\u540D\u4F1A\u8BDD\u5DF2\u7981\u7528\uFF0C\u8BF7\u4F7F\u7528\u77ED\u4FE1\u767B\u5F55", "ANONYMOUS_DISABLED");
+});
+router5.post("/end-users/upsert", requireIntegrationKey2, async (req, res, next) => {
+  try {
+    const resolved = req.integrationKey;
+    const { externalId, displayName } = req.body ?? {};
+    if (!externalId) return jsonErr2(res, 400, "externalId \u5FC5\u586B", "VALIDATION_ERROR");
+    const app2 = await ensurePartnerAppForKey(resolved);
+    if (!app2) return jsonErr2(res, 403, "Partner \u5E94\u7528\u4E0D\u53EF\u7528", "FORBIDDEN");
+    const endUser = await partnerRepo3.upsertExternalUser(app2.id, String(externalId), displayName);
+    return jsonOk2(res, { endUserId: endUser.id, externalId: endUser.external_id, kind: endUser.kind });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.post("/sessions/delegate", requireIntegrationKey2, async (req, res, next) => {
+  try {
+    const resolved = req.integrationKey;
+    const app2 = resolved?.partnerApp ?? await ensurePartnerAppForKey(resolved);
+    if (!app2 || app2.status !== "active") {
+      return jsonErr2(res, 403, "Partner \u5E94\u7528\u4E0D\u53EF\u7528", "FORBIDDEN");
+    }
+    const timestamp = String(req.headers["x-partner-timestamp"] ?? "");
+    const signature = String(req.headers["x-partner-signature"] ?? "");
+    const bodyStr = JSON.stringify(req.body ?? {});
+    const partnerSecretHeader = String(req.headers["x-partner-secret"] ?? "").trim();
+    if (!partnerSecretHeader) {
+      return jsonErr2(res, 401, "\u7F3A\u5C11 X-Partner-Secret\uFF08HMAC \u7B7E\u540D\u5BC6\u94A5\uFF09", "UNAUTHORIZED");
+    }
+    if (!isTimestampFresh(timestamp)) {
+      return jsonErr2(res, 401, "\u65F6\u95F4\u6233\u65E0\u6548\u6216\u5DF2\u8FC7\u671F", "TIMESTAMP_INVALID");
+    }
+    if (!verifyPartnerHmac(partnerSecretHeader, timestamp, bodyStr, signature)) {
+      return jsonErr2(res, 401, "HMAC \u7B7E\u540D\u65E0\u6548", "INVALID_SIGNATURE");
+    }
+    const secretHash = hashPartnerSecret(partnerSecretHeader);
+    if (secretHash !== app2.secret_hash) {
+      return jsonErr2(res, 401, "Partner secret \u4E0D\u5339\u914D", "INVALID_SECRET");
+    }
+    const { externalId, displayName } = req.body ?? {};
+    if (!externalId) return jsonErr2(res, 400, "externalId \u5FC5\u586B", "VALIDATION_ERROR");
+    const endUser = await partnerRepo3.upsertExternalUser(app2.id, String(externalId), displayName);
+    if (endUser.status === "blocked") {
+      return jsonErr2(res, 403, "\u7EC8\u7AEF\u7528\u6237\u5DF2\u5C01\u7981", "END_USER_BLOCKED");
+    }
+    const { token, expiresAt, tokenHash } = signPartnerSessionToken({
+      partnerAppId: app2.id,
+      endUserId: endUser.id,
+      callerUserId: resolved.userId,
+      allowedSlugs: effectiveAllowedSlugs(app2),
+      sessionId: ""
+    });
+    const session = await partnerRepo3.createSession(endUser.id, tokenHash, expiresAt);
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: app2.id,
+      action: "session.delegate",
+      endUserId: endUser.id,
+      detail: { sessionId: session.id, externalId }
+    });
+    return jsonOk2(res, {
+      sessionToken: token,
+      expiresAt,
+      endUserId: endUser.id,
+      partnerAppId: app2.id
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.post("/token/exchange", requireIntegrationKey2, async (req, res, next) => {
+  try {
+    const resolved = req.integrationKey;
+    const app2 = await ensurePartnerAppForKey(resolved);
+    if (!app2 || app2.status !== "active") {
+      return jsonErr2(res, 403, "Partner \u5E94\u7528\u4E0D\u53EF\u7528", "FORBIDDEN");
+    }
+    const scopeSlugs = Array.isArray(req.body?.scopeSlugs) ? req.body.scopeSlugs.map(String) : effectiveAllowedSlugs(app2);
+    const externalId = String(req.body?.externalId ?? `exchange-${Date.now()}`);
+    const endUser = await partnerRepo3.upsertExternalUser(app2.id, externalId, req.body?.displayName);
+    const shortSec = Math.min(Math.max(Number(req.body?.expiresIn ?? 3600), 300), 86400);
+    const prev = process.env.PARTNER_SESSION_EXPIRES_IN_SECONDS;
+    process.env.PARTNER_SESSION_EXPIRES_IN_SECONDS = String(shortSec);
+    const allowedForSession = app2.slug_access_mode === "restricted" ? scopeSlugs.filter((s) => app2.allowed_slugs.includes(s)) : scopeSlugs;
+    const { token, expiresAt, tokenHash } = signPartnerSessionToken({
+      partnerAppId: app2.id,
+      endUserId: endUser.id,
+      callerUserId: resolved.userId,
+      allowedSlugs: allowedForSession,
+      sessionId: ""
+    });
+    if (prev != null) process.env.PARTNER_SESSION_EXPIRES_IN_SECONDS = prev;
+    else delete process.env.PARTNER_SESSION_EXPIRES_IN_SECONDS;
+    await partnerRepo3.createSession(endUser.id, tokenHash, expiresAt);
+    await partnerRepo3.appendAuditLog({
+      partnerAppId: app2.id,
+      action: "token.exchange",
+      actorUserId: resolved.userId,
+      endUserId: endUser.id
+    });
+    return jsonOk2(res, {
+      sessionToken: token,
+      expiresAt,
+      tokenType: "partner_session",
+      scopeSlugs
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.post("/sessions/revoke", async (req, res, next) => {
+  try {
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith("Bearer ")) {
+      return jsonErr2(res, 401, "\u9700\u8981 session token", "UNAUTHORIZED");
+    }
+    const token = auth.slice(7).trim();
+    const { verifyPartnerSessionToken: verifyPartnerSessionToken2 } = await Promise.resolve().then(() => (init_session_jwt(), session_jwt_exports));
+    const { hashSessionToken: hashSessionToken2 } = await Promise.resolve().then(() => (init_crypto(), crypto_exports));
+    verifyPartnerSessionToken2(token);
+    const session = await partnerRepo3.findSessionByTokenHash(hashSessionToken2(token));
+    if (session) await partnerRepo3.revokeSession(session.id);
+    return jsonOk2(res, { revoked: true });
+  } catch (e) {
+    next(e);
+  }
+});
+router5.use("/auth/sms", auth_sms_routes_default);
+var partner_default = router5;
 
 // src/middleware/response.ts
 function successResponse(data, message) {
@@ -33260,25 +36103,32 @@ function responseMiddleware(_req, res, next) {
 }
 
 // src/middleware/errorHandler.ts
-var import_mxmdata10 = require("@mxmai/mxmdata");
+var import_mxmdata21 = require("@mxmai/mxmdata");
 function errorHandler(error, _req, res, _next) {
   let statusCode = 500;
   let errorResponse;
-  if (error instanceof import_mxmdata10.NotFoundError) {
+  if (error instanceof import_mxmdata21.UnauthorizedError) {
+    statusCode = 401;
+    errorResponse = {
+      code: 401,
+      message: error.message,
+      error: "UNAUTHORIZED"
+    };
+  } else if (error instanceof import_mxmdata21.NotFoundError) {
     statusCode = 404;
     errorResponse = {
       code: 404,
       message: error.message,
       error: "NOT_FOUND"
     };
-  } else if (error instanceof import_mxmdata10.DuplicateError) {
+  } else if (error instanceof import_mxmdata21.DuplicateError) {
     statusCode = 409;
     errorResponse = {
       code: 409,
       message: error.message,
       error: "DUPLICATE"
     };
-  } else if (error instanceof import_mxmdata10.ValidationError) {
+  } else if (error instanceof import_mxmdata21.ValidationError) {
     statusCode = 400;
     errorResponse = {
       code: 400,
@@ -33286,7 +36136,7 @@ function errorHandler(error, _req, res, _next) {
       error: "VALIDATION_ERROR",
       details: error.field ? { field: error.field } : void 0
     };
-  } else if (error instanceof import_mxmdata10.ConnectionError) {
+  } else if (error instanceof import_mxmdata21.ConnectionError) {
     statusCode = 503;
     errorResponse = {
       code: 503,
@@ -33294,7 +36144,7 @@ function errorHandler(error, _req, res, _next) {
       error: "CONNECTION_ERROR",
       details: true ? error.message : void 0
     };
-  } else if (error instanceof import_mxmdata10.TransactionError) {
+  } else if (error instanceof import_mxmdata21.TransactionError) {
     statusCode = 500;
     errorResponse = {
       code: 500,
@@ -33302,7 +36152,7 @@ function errorHandler(error, _req, res, _next) {
       error: "TRANSACTION_ERROR",
       details: true ? error.message : void 0
     };
-  } else if (error instanceof import_mxmdata10.DataAccessError) {
+  } else if (error instanceof import_mxmdata21.DataAccessError) {
     statusCode = 500;
     errorResponse = {
       code: 500,
@@ -33336,34 +36186,35 @@ function notFoundHandler(_req, res) {
 }
 
 // src/index.ts
-var import_mxmdata11 = require("@mxmai/mxmdata");
+var import_mxmdata22 = require("@mxmai/mxmdata");
 try {
-  const config = (0, import_mxmdata11.loadDataConfig)();
-  import_mxmdata11.RepositoryFactory.init(config);
+  const config = (0, import_mxmdata22.loadDataConfig)();
+  import_mxmdata22.RepositoryFactory.init(config);
   console.log("\u2705 mxmdata \u521D\u59CB\u5316\u6210\u529F");
 } catch (error) {
   console.error("\u274C mxmdata \u521D\u59CB\u5316\u5931\u8D25:", error instanceof Error ? error.message : error);
   process.exit(1);
 }
-var app = (0, import_express4.default)();
-var port = process.env.PORT ? Number(process.env.PORT) : 4001;
-var corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
+var app = (0, import_express6.default)();
+var port = Number(process.env.MXMAUTH_PORT || process.env.PORT || 4001);
+var corsOrigin = process.env.CORS_ORIGIN || "http://localhost:3000,http://localhost:5173";
 app.use(
   (0, import_cors.default)({
-    origin: corsOrigin.split(","),
+    origin: corsOrigin.split(",").map((s) => s.trim()).filter(Boolean),
     credentials: true
   })
 );
-app.use(import_express4.default.json());
-app.use(import_express4.default.urlencoded({ extended: true }));
+app.use(import_express6.default.json());
+app.use(import_express6.default.urlencoded({ extended: true }));
 app.use(responseMiddleware);
 app.use("/", health_default);
 app.use("/api/v1/account", account_default);
 app.use("/api/v1/assets", assets_default);
+app.use("/api/v1/partner", partner_default);
 app.use(notFoundHandler);
 app.use(errorHandler);
 app.listen(port, () => {
-  console.log(`mxmauth service listening on port ${port}`);
+  console.log(`[mxmauth] \u{1F680} Listening on port ${port}`);
 });
 /*! Bundled license information:
 

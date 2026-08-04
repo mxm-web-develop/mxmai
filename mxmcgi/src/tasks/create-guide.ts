@@ -15,13 +15,43 @@ export type CreateGuideInteractiveCardField = {
   [k: string]: unknown;
 };
 
+export type CreateGuideInteractiveCard = {
+  label?: string;
+  hint?: string;
+  postPreHint?: string;
+  fields: CreateGuideInteractiveCardField[];
+};
+
+export type CreateGuideNestedTextPreview = {
+  /** 如 text/expert/dialogue-content-scan */
+  nestedTextTaskKey: string;
+  /** 默认 true：C 端不建任务先跑 text 预览，再展示 followUp 卡 */
+  clientPreview?: boolean;
+  /** loading 文案（通常取第一张卡 postPreHint） */
+  loadingHint?: string;
+};
+
+/** 答完结构后预生成可编辑大纲（话题写作） */
+export type CreateGuideOutlinePreview = {
+  clientPreview?: boolean;
+  /** 答完该字段后触发，默认 structure_id */
+  midPreAfterField?: string;
+  /** 回写字段名，默认 outline */
+  outlineField?: string;
+  /** text/expert/topic-article-outline */
+  textKey?: string;
+  loadingHint?: string;
+};
+
 export type CreateGuide = {
-  interactiveCard: {
-    label?: string;
-    hint?: string;
-    postPreHint?: string;
-    fields: CreateGuideInteractiveCardField[];
-  } | null;
+  interactiveCard: CreateGuideInteractiveCard | null;
+  /**
+   * pre 内「交互卡 → nestedText → 交互卡」的第二张卡。
+   * C 端在 nestedTextPreview 完成后继续采集这些字段，再创建任务。
+   */
+  followUpInteractiveCard?: CreateGuideInteractiveCard | null;
+  /** 两张交互卡之间的 nestedText，C 端预跑 */
+  nestedTextPreview?: CreateGuideNestedTextPreview | null;
   webSearch: {
     /** 显式：pre 后在 C 端跑话题预览；未写时由前端按 topicCount / topicExtractTextKey 推断 */
     clientPreview?: boolean;
@@ -29,7 +59,12 @@ export type CreateGuide = {
     depth?: string;
     topicExtractTextKey?: string;
     topicCount?: number;
+    /** 中途触发：答完该字段后检索推荐话题（如 voice_id → topic） */
+    midPreAfterField?: string;
+    /** 推荐写入的字段名，默认 topic */
+    topicField?: string;
   } | null;
+  outlinePreview?: CreateGuideOutlinePreview | null;
 };
 
 function asField(raw: unknown): CreateGuideInteractiveCardField | null {
@@ -54,6 +89,20 @@ function asField(raw: unknown): CreateGuideInteractiveCardField | null {
   return field;
 }
 
+function cardFromStep(step: PipelineStep | null | undefined): CreateGuideInteractiveCard | null {
+  if (!step || String(step.step || '') !== 'interactiveCard') return null;
+  const p = (step.params ?? {}) as Record<string, unknown>;
+  const rawFields = Array.isArray(p.fields) ? p.fields : [];
+  const fields = rawFields.map(asField).filter((f): f is CreateGuideInteractiveCardField => !!f);
+  if (fields.length === 0) return null;
+  return {
+    label: typeof p.label === 'string' ? p.label : undefined,
+    hint: typeof p.hint === 'string' ? p.hint : undefined,
+    postPreHint: typeof p.postPreHint === 'string' ? p.postPreHint : undefined,
+    fields,
+  };
+}
+
 function findPreWebSearch(steps: PipelineStep[]): PipelineStep | null {
   for (const step of steps) {
     if (String(step?.step || '') !== 'webSearch') continue;
@@ -63,11 +112,42 @@ function findPreWebSearch(steps: PipelineStep[]): PipelineStep | null {
   return null;
 }
 
-function findInteractiveCard(steps: PipelineStep[]): PipelineStep | null {
-  for (const step of steps) {
-    if (String(step?.step || '') === 'interactiveCard') return step;
+/**
+ * 识别 pre：interactiveCard → nestedText → interactiveCard
+ * （多人语音等：先收文稿 → text 扫描 → 再收形式/人数/音色）
+ */
+function extractDualCardNestedTextPreview(pre: PipelineStep[]): {
+  first: CreateGuideInteractiveCard | null;
+  nestedTextPreview: CreateGuideNestedTextPreview | null;
+  followUp: CreateGuideInteractiveCard | null;
+} {
+  for (let i = 0; i < pre.length - 2; i++) {
+    const a = pre[i];
+    const b = pre[i + 1];
+    const c = pre[i + 2];
+    if (String(a?.step || '') !== 'interactiveCard') continue;
+    if (String(b?.step || '') !== 'nestedText') continue;
+    if (String(c?.step || '') !== 'interactiveCard') continue;
+    const nestedKey = String(
+      (b as { nestedTextTaskKey?: string }).nestedTextTaskKey ??
+        (b?.params as { nestedTextTaskKey?: string } | undefined)?.nestedTextTaskKey ??
+        ''
+    ).trim();
+    if (!nestedKey.startsWith('text/')) continue;
+    const first = cardFromStep(a);
+    const followUp = cardFromStep(c);
+    if (!first || !followUp) continue;
+    return {
+      first,
+      followUp,
+      nestedTextPreview: {
+        nestedTextTaskKey: nestedKey,
+        clientPreview: true,
+        loadingHint: first.postPreHint,
+      },
+    };
   }
-  return null;
+  return { first: null, nestedTextPreview: null, followUp: null };
 }
 
 /** 从 TaskTemplate.pipeline 抽取 createGuide；无 pre 闸门时返回空结构 */
@@ -75,21 +155,13 @@ export function extractCreateGuide(
   pipeline: BusinessPipelineConfig | undefined | null
 ): CreateGuide {
   const pre = Array.isArray(pipeline?.pre) ? pipeline!.pre! : [];
-  const cardStep = findInteractiveCard(pre);
+  const dual = extractDualCardNestedTextPreview(pre);
+  const cardStep = pre.find((s) => String(s?.step || '') === 'interactiveCard');
   const searchStep = findPreWebSearch(pre);
 
-  let interactiveCard: CreateGuide['interactiveCard'] = null;
-  if (cardStep) {
-    const p = (cardStep.params ?? {}) as Record<string, unknown>;
-    const rawFields = Array.isArray(p.fields) ? p.fields : [];
-    const fields = rawFields.map(asField).filter((f): f is CreateGuideInteractiveCardField => !!f);
-    interactiveCard = {
-      label: typeof p.label === 'string' ? p.label : undefined,
-      hint: typeof p.hint === 'string' ? p.hint : undefined,
-      postPreHint: typeof p.postPreHint === 'string' ? p.postPreHint : undefined,
-      fields,
-    };
-  }
+  let interactiveCard: CreateGuide['interactiveCard'] = dual.first ?? cardFromStep(cardStep);
+  let followUpInteractiveCard: CreateGuide['followUpInteractiveCard'] = dual.followUp;
+  let nestedTextPreview: CreateGuide['nestedTextPreview'] = dual.nestedTextPreview;
 
   let webSearch: CreateGuide['webSearch'] = null;
   if (searchStep) {
@@ -133,7 +205,29 @@ export function extractCreateGuide(
     };
   }
 
-  return { interactiveCard, webSearch };
+  return {
+    interactiveCard,
+    followUpInteractiveCard,
+    nestedTextPreview,
+    webSearch,
+    outlinePreview: null,
+  };
+}
+
+function mergeCard(
+  pipelineCard: CreateGuideInteractiveCard | null | undefined,
+  templateCard: CreateGuideInteractiveCard | null | undefined
+): CreateGuideInteractiveCard | null {
+  if (!pipelineCard && !templateCard) return null;
+  const tFields = Array.isArray(templateCard?.fields)
+    ? templateCard!.fields.map(asField).filter((f): f is CreateGuideInteractiveCardField => !!f)
+    : [];
+  return {
+    label: pipelineCard?.label || templateCard?.label,
+    hint: pipelineCard?.hint || templateCard?.hint,
+    postPreHint: pipelineCard?.postPreHint || templateCard?.postPreHint,
+    fields: pipelineCard?.fields?.length ? pipelineCard.fields : tFields,
+  };
 }
 
 /**
@@ -148,34 +242,42 @@ export function mergeCreateGuide(
     return fromPipeline;
   }
   const t = fromTemplate as {
-    interactiveCard?: {
-      label?: string;
-      hint?: string;
-      postPreHint?: string;
-      fields?: unknown[];
-    } | null;
+    interactiveCard?: CreateGuideInteractiveCard | null;
+    followUpInteractiveCard?: CreateGuideInteractiveCard | null;
+    nestedTextPreview?: CreateGuideNestedTextPreview | null;
     webSearch?: {
       clientPreview?: boolean;
       maxResults?: number;
       depth?: string;
       topicExtractTextKey?: string;
       topicCount?: number;
+      midPreAfterField?: string;
+      topicField?: string;
     } | null;
+    outlinePreview?: CreateGuideOutlinePreview | null;
   };
 
-  const tCard = t.interactiveCard;
-  const pCard = fromPipeline.interactiveCard;
-  let interactiveCard: CreateGuide['interactiveCard'] = null;
-  if (pCard || tCard) {
-    const tFields = Array.isArray(tCard?.fields)
-      ? tCard!.fields.map(asField).filter((f): f is CreateGuideInteractiveCardField => !!f)
-      : [];
-    interactiveCard = {
-      label: pCard?.label || tCard?.label,
-      hint: pCard?.hint || tCard?.hint,
-      postPreHint: pCard?.postPreHint || tCard?.postPreHint,
-      fields: pCard?.fields?.length ? pCard.fields : tFields,
+  const interactiveCard = mergeCard(fromPipeline.interactiveCard, t.interactiveCard);
+  const followUpInteractiveCard =
+    mergeCard(fromPipeline.followUpInteractiveCard, t.followUpInteractiveCard) ??
+    fromPipeline.followUpInteractiveCard ??
+    t.followUpInteractiveCard ??
+    null;
+
+  let nestedTextPreview: CreateGuide['nestedTextPreview'] =
+    fromPipeline.nestedTextPreview ?? t.nestedTextPreview ?? null;
+  if (fromPipeline.nestedTextPreview || t.nestedTextPreview) {
+    nestedTextPreview = {
+      nestedTextTaskKey:
+        fromPipeline.nestedTextPreview?.nestedTextTaskKey ||
+        t.nestedTextPreview?.nestedTextTaskKey ||
+        '',
+      clientPreview:
+        fromPipeline.nestedTextPreview?.clientPreview ?? t.nestedTextPreview?.clientPreview,
+      loadingHint:
+        fromPipeline.nestedTextPreview?.loadingHint || t.nestedTextPreview?.loadingHint,
     };
+    if (!nestedTextPreview.nestedTextTaskKey) nestedTextPreview = null;
   }
 
   const tWs = t.webSearch;
@@ -188,8 +290,29 @@ export function mergeCreateGuide(
       depth: pWs?.depth ?? tWs?.depth,
       topicExtractTextKey: pWs?.topicExtractTextKey ?? tWs?.topicExtractTextKey,
       topicCount: pWs?.topicCount ?? tWs?.topicCount,
+      midPreAfterField: pWs?.midPreAfterField ?? tWs?.midPreAfterField,
+      topicField: pWs?.topicField ?? tWs?.topicField,
     };
   }
 
-  return { interactiveCard, webSearch };
+  const tOp = t.outlinePreview;
+  const pOp = fromPipeline.outlinePreview;
+  let outlinePreview: CreateGuide['outlinePreview'] = null;
+  if (pOp || tOp) {
+    outlinePreview = {
+      clientPreview: pOp?.clientPreview ?? tOp?.clientPreview,
+      midPreAfterField: pOp?.midPreAfterField ?? tOp?.midPreAfterField,
+      outlineField: pOp?.outlineField ?? tOp?.outlineField,
+      textKey: pOp?.textKey ?? tOp?.textKey,
+      loadingHint: pOp?.loadingHint ?? tOp?.loadingHint,
+    };
+  }
+
+  return {
+    interactiveCard,
+    followUpInteractiveCard,
+    nestedTextPreview,
+    webSearch,
+    outlinePreview,
+  };
 }

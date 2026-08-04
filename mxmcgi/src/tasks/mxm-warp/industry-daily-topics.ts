@@ -20,7 +20,13 @@ import {
 } from './industry-search-region';
 import { resolveSearchTrackForParams } from './industry-search-track-classify';
 import { isLikelyHotTopicTitle } from './topic-chips-from-websource';
-import { sanitizeWebsourceForLlm, clampSearchMaxResults, clampTopicMaxResults } from '../websearch-topic-extract';
+import {
+  sanitizeWebsourceForLlm,
+  clampSearchMaxResults,
+  clampTopicMaxResults,
+  TOPIC_POOL_DEFAULT,
+  TOPIC_PAGE_SIZE,
+} from '../websearch-topic-extract';
 
 export { formatYmdChinese, industryDailySearchBounds, reportDateSearchWindow, shiftYmd } from './industry-daily-date';
 
@@ -33,7 +39,7 @@ export type IndustryDailyTopicPreviewInput = {
   searchRegion?: string;
   /** 检索召回条数（可达 200） */
   maxResults?: number;
-  /** 热点提炼返回条数；与 maxResults 解耦，默认 8 */
+  /** 发现池提炼条数覆盖（可选；默认 TOPIC_POOL_DEFAULT，不再由用户 UI 填写） */
   topicCount?: number;
   /** 已分类的检索赛道；缺省则 preview 内解析 */
   searchTrack?: string;
@@ -53,6 +59,11 @@ export type IndustryDailyTopicPreviewResult = {
   text: string;
   items: Array<{ title: string; url: string; snippet: string; domain: string }>;
   topicChips: string[];
+  /**
+   * 发现池话题（可远大于 topicChips）：供 C 端「换一批」本地翻窗。
+   * 通常含 LLM 提炼 chips + 启发式从 items 扩出的候选。
+   */
+  topicPool: string[];
   /** 供 C 端回写 params.search_track */
   search_track: string;
   track_source?: string;
@@ -296,7 +307,10 @@ export async function previewIndustryDailyTopics(
   params.search_track = trackResolved.track;
   const built = buildIndustryDailyTopicQueries(params);
   const max = clampSearchMaxResults(input.maxResults ?? 8);
-  const topicCount = clampTopicMaxResults(input.topicCount ?? Math.min(8, max));
+  // 发现池整池提炼（不再由用户填条数）；topicCount 仅作可选覆盖（Admin/测试）
+  const poolTarget = clampTopicMaxResults(
+    input.topicCount != null ? input.topicCount : TOPIC_POOL_DEFAULT
+  );
   const highRecall = max >= 40;
   const seenUrl = new Set<string>();
   const merged: SearchResultItem[] = [];
@@ -384,18 +398,22 @@ export async function previewIndustryDailyTopics(
   if (!opts?.extractTopics) {
     throw new Error('previewIndustryDailyTopics 必须提供 extractTopics（走 text 业务，禁止规则回退）');
   }
-  const topicChips = await opts.extractTopics({
+  const language = String(input.language ?? 'zh').trim() || 'zh';
+  // 整池走 LLM：提炼事件短句并译成用户语言（禁止用原文标题拼 topicPool）
+  const topicPoolRaw = await opts.extractTopics({
     items,
     industry: sector,
     ymd: built.ymd,
     dateLabel: built.dateLabel,
     query: queryList.join(' | '),
-    maxTopics: topicCount,
-    language: String(input.language ?? 'zh').trim() || 'zh',
+    maxTopics: poolTarget,
+    language,
   });
-  if (!Array.isArray(topicChips) || topicChips.length === 0) {
+  if (!Array.isArray(topicPoolRaw) || topicPoolRaw.length === 0) {
     throw new Error('话题提炼结果为空');
   }
+  const topicPool = [...new Set(topicPoolRaw.map((t) => String(t ?? '').trim()).filter(Boolean))];
+  const topicChips = topicPool.slice(0, TOPIC_PAGE_SIZE);
 
   const text =
     `【联网检索 · 行业日报热点】\n查询: ${queryList[0]}\n日期: ${built.ymd}（${built.dateLabel}）\n\n${String(sanitized.text ?? '')
@@ -414,6 +432,7 @@ export async function previewIndustryDailyTopics(
     text,
     items,
     topicChips,
+    topicPool,
     search_track: trackResolved.track,
     track_source: trackResolved.source,
   };

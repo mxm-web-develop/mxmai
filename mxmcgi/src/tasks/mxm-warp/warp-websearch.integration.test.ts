@@ -70,7 +70,7 @@ describe('mxm-warp + webSearch integration', () => {
 
     const ctx: TaskContext = {
       scope: 'writing',
-      taskKey: 'editorial',
+      taskKey: 'generator',
       subtype: 'warp-demo-daily',
       userId: 'u1',
       taskId: 't-int-1',
@@ -96,12 +96,18 @@ describe('mxm-warp + webSearch integration', () => {
     });
 
     const contract = out.state.contract as {
-      sources: { websource: { query: string; text: string } };
-      enrich_search: { query: string; result: { query: string; text: string } };
+      sources: { websource: { query: string; digest?: string; evidenceKey?: string } };
+      enrich_search: { query: string; result: { query: string; evidenceKey?: string } };
     };
     expect(contract.sources.websource.query).toBe('mxm-warp 改版');
-    expect(contract.sources.websource.text).toContain('联网检索');
+    expect(contract.sources.websource.evidenceKey).toBe('websource');
     expect(contract.enrich_search.result.query).toBe('mxm-warp enrich deep');
+    const ev = out.state.evidence as {
+      websource: { digestText: string };
+      enrich_result: { digestText: string };
+    };
+    expect(ev.websource.digestText).toContain('联网检索');
+    expect(ev.enrich_result.digestText.length).toBeGreaterThan(0);
     expect((out.state.coreArtifact as { text: string }).text).toContain('集成测试通过');
   });
 });

@@ -147,3 +147,39 @@ export function ensureTaskUidFromSchema(
   if (cur !== undefined && cur !== null && String(cur).trim()) return;
   params.uid = `task_${Date.now()}`;
 }
+
+/**
+ * Admin / 表单控件常把 integer enum 存成 ["5","8"]，与 type:integer 互斥导致永远校验失败。
+ * 加载定义时把可解析的数字字符串 enum 收回 number。
+ */
+export function sanitizeNumericEnumsInJsonSchema(schema: JsonSchemaV2 | undefined): void {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return;
+  const props = schema.properties;
+  if (!props || typeof props !== 'object' || Array.isArray(props)) return;
+
+  for (const defRaw of Object.values(props as Record<string, unknown>)) {
+    if (!defRaw || typeof defRaw !== 'object' || Array.isArray(defRaw)) continue;
+    const def = defRaw as { type?: string | string[]; enum?: unknown[]; default?: unknown };
+    const types = Array.isArray(def.type) ? def.type : def.type ? [def.type] : [];
+    const numeric = types.includes('integer') || types.includes('number');
+    if (!numeric || !Array.isArray(def.enum) || def.enum.length === 0) continue;
+
+    const asInt = types.includes('integer');
+    let changed = false;
+    const nextEnum = def.enum.map((x) => {
+      if (typeof x === 'number' && Number.isFinite(x)) return asInt ? Math.trunc(x) : x;
+      if (typeof x === 'string' && x.trim() !== '' && Number.isFinite(Number(x))) {
+        changed = true;
+        const n = Number(x);
+        return asInt ? Math.trunc(n) : n;
+      }
+      return x;
+    });
+    if (changed) def.enum = nextEnum;
+
+    if (typeof def.default === 'string' && def.default.trim() !== '' && Number.isFinite(Number(def.default))) {
+      const n = Number(def.default);
+      def.default = asInt ? Math.trunc(n) : n;
+    }
+  }
+}

@@ -1,0 +1,492 @@
+{
+  "schemaVersion": 1,
+  "kind": "writing-voice-pack",
+  "voice_category": "fanqie_web",
+  "notes": [
+    "短篇网文：各语言环境平台热门笔法叶子；UI 可含平台助记，模型无姓名。长篇连载另见 series。"
+  ],
+  "voices": [
+    {
+      "id": "fq_zs_huigui",
+      "craft": {
+        "sentence": "短句推进；对话承载打脸；少风景描写",
+        "stance": "爽点优先，正义报复清晰，不阴湿虐主",
+        "opening": "开场即羞辱场景或身份错位",
+        "avoid": "文艺独白、无节制修罗场、主角无脑圣母",
+        "lexicon": "目光一凝、众人哗然、你算什么、下一章见"
+      },
+      "referenceParagraph": {
+        "zh": "门口保安拦住他时，大厅里刚好有人起哄。他没解释，只把旧证件往桌上一拍——反响比骂声来得更快。",
+        "zh-TW": "门口保安拦住他时，大厅里刚好有人起哄。他没解释，只把旧证件往桌上一拍——反响比骂声来得更快。",
+        "en": "Security stopped him as the lobby jeered. He slapped an old ID on the desk—the room turned faster than the insults.",
+        "ja": "Security stopped him as the lobby jeered. He slapped an old ID on the desk—the room turned faster than the insults."
+      },
+      "fictionPack": {
+        "platform": "fanqie",
+        "pace": "fast_hook",
+        "must_have": [
+          "身份差",
+          "当众打脸",
+          "章末悬念"
+        ],
+        "chapter_end": "未兑现的更大身份或敌人现身"
+      }
+    },
+    {
+      "id": "fq_shenhao",
+      "craft": {
+        "sentence": "数字与清单清楚；对话刺对方势利",
+        "stance": "金钱改变态度，主角冷静不巨婴",
+        "opening": "先给一个被低估的价格或机会",
+        "avoid": "无逻辑暴富、灌水重复买买买、歧视弱势群体取乐",
+        "lexicon": "账户、估值、看走眼、翻倍、闭嘴"
+      },
+      "referenceParagraph": {
+        "zh": "他把报价单折好，推回去：「这个价，留给还在看笑话的人。」旁桌笑声停了一拍。",
+        "zh-TW": "他把报价单折好，推回去：「这个价，留给还在看笑话的人。」旁桌笑声停了一拍。",
+        "en": "He folded the quote back: “Leave that price for the people still laughing.” The next table went quiet.",
+        "ja": "He folded the quote back: “Leave that price for the people still laughing.” The next table went quiet."
+      },
+      "fictionPack": {
+        "platform": "fanqie",
+        "pace": "money_ladder",
+        "must_have": [
+          "可见收益",
+          "势利反转",
+          "信息差"
+        ],
+        "chapter_end": "下一笔更大标的曝光"
+      }
+    },
+    {
+      "id": "fq_tianchong",
+      "craft": {
+        "sentence": "对话占比高；动作轻；心理点到为止",
+        "stance": "宠不是无脑，冲突可解且不撕破",
+        "opening": "生活化尴尬开场",
+        "avoid": "强行虐、第三者拉扯过长、油腻霸总台词",
+        "lexicon": "你怎么在这、别误会、我帮你、正好"
+      },
+      "referenceParagraph": {
+        "zh": "电梯门开时两人都停了一秒。他先把伞递过去：「下雨了。合同的事，出来再说。」",
+        "zh-TW": "电梯门开时两人都停了一秒。他先把伞递过去：「下雨了。合同的事，出来再说。」",
+        "en": "The elevator opened; both froze. He offered the umbrella first: “It’s raining. We’ll talk about the contract outside.”",
+        "ja": "The elevator opened; both froze. He offered the umbrella first: “It’s raining. We’ll talk about the contract outside.”"
+      },
+      "fictionPack": {
+        "platform": "fanqie",
+        "pace": "soft_daily",
+        "must_have": [
+          "高密度互动",
+          "可解开的误会",
+          "稳定升温"
+        ],
+        "chapter_end": "一个未说完的关心"
+      }
+    },
+    {
+      "id": "fq_nuelian",
+      "craft": {
+        "sentence": "短句冷；长句只用于崩溃瞬间",
+        "stance": "刀要准，不无意义折磨；给后悔留钩",
+        "opening": "已发生的伤害结果，再回放原因",
+        "avoid": "纯虐无解、贬低女性成工具、血腥暴力炫技",
+        "lexicon": "算了、你自由、当时、来不及"
+      },
+      "referenceParagraph": {
+        "zh": "请柬还在抽屉最上层。他没有拆，只是把灯关掉——好像暗处能把那个名字藏短一点。",
+        "zh-TW": "请柬还在抽屉最上层。他没有拆，只是把灯关掉——好像暗处能把那个名字藏短一点。",
+        "en": "The invitation sat on the top of the drawer. He didn’t open it—only killed the light, as if dark could shorten the name.",
+        "ja": "The invitation sat on the top of the drawer. He didn’t open it—only killed the light, as if dark could shorten the name."
+      },
+      "fictionPack": {
+        "platform": "fanqie",
+        "pace": "angst_delay",
+        "must_have": [
+          "信息差伤害",
+          "情绪压抑",
+          "可预期的反转钩"
+        ],
+        "chapter_end": "一句让读者误判真相的话"
+      }
+    },
+    {
+      "id": "fq_xuanhuan_lv",
+      "craft": {
+        "sentence": "战力信息前置；技能名短；战后结算清楚",
+        "stance": "成长可见，不靠含糊「顿悟」灌水",
+        "opening": "压迫性战力差或考核",
+        "avoid": "无规则开挂、流水账赶路、后宫打断主线",
+        "lexicon": "境界、灵力、裂开、晋级、这一击"
+      },
+      "referenceParagraph": {
+        "zh": "考核官报出他的灵力值时，场下安静了一秒。他抬手，第二道纹路才亮——比嘲讽更快。",
+        "zh-TW": "考核官报出他的灵力值时，场下安静了一秒。他抬手，第二道纹路才亮——比嘲讽更快。",
+        "en": "When the examiner read his spirit value, the yard went still. He raised a hand; the second rune lit faster than the mockery.",
+        "ja": "When the examiner read his spirit value, the yard went still. He raised a hand; the second rune lit faster than the mockery."
+      },
+      "fictionPack": {
+        "platform": "fanqie",
+        "pace": "power_ladder",
+        "must_have": [
+          "战力标尺",
+          "战斗反馈",
+          "晋级收益"
+        ],
+        "chapter_end": "更强敌或新地图入口"
+      }
+    },
+    {
+      "id": "fq_dushi_zhi",
+      "craft": {
+        "sentence": "交锋靠对白；动作少而准",
+        "stance": "理性算计，主角有原则底线",
+        "opening": "利益冲突场景，不先讲身世",
+        "avoid": "靠打脸解决一切商业问题、违法教唆细节",
+        "lexicon": "筹码、条件、录音、对赌、你想要什么"
+      },
+      "referenceParagraph": {
+        "zh": "他把文件夹推到桌心：「附件三不是原件。你们要的不是签字，是时间。」",
+        "zh-TW": "他把文件夹推到桌心：「附件三不是原件。你们要的不是签字，是时间。」",
+        "en": "He slid the folder to the center: “Annex three isn’t original. You don’t want a signature—you want time.”",
+        "ja": "He slid the folder to the center: “Annex three isn’t original. You don’t want a signature—you want time.”"
+      },
+      "fictionPack": {
+        "platform": "fanqie",
+        "pace": "mind_game",
+        "must_have": [
+          "可见筹码",
+          "反转信息",
+          "对白交锋"
+        ],
+        "chapter_end": "新条件或背叛迹象"
+      }
+    },
+    {
+      "id": "fq_xuanyi_naodong",
+      "craft": {
+        "sentence": "细节具体；疑问句收段；少全知剧透",
+        "stance": "读者可参与推理，不靠超能力开图",
+        "opening": "异常细节先于尸体解释",
+        "avoid": "无限逆转无规则、歧视受害者、血腥炫技",
+        "lexicon": "不对、时间点、谁还知道、第二次"
+      },
+      "referenceParagraph": {
+        "zh": "闹钟定在案发后十分钟。他盯着屏幕：死人不会定未来的时间——除非有人用过这只手机。",
+        "zh-TW": "闹钟定在案发后十分钟。他盯着屏幕：死人不会定未来的时间——除非有人用过这只手机。",
+        "en": "The alarm was set for ten minutes after the crime. A dead man doesn’t schedule the future—unless someone else used the phone.",
+        "ja": "The alarm was set for ten minutes after the crime. A dead man doesn’t schedule the future—unless someone else used the phone."
+      },
+      "fictionPack": {
+        "platform": "fanqie",
+        "pace": "clue_drop",
+        "must_have": [
+          "可回收线索",
+          "不可靠叙述者或信息差",
+          "章末疑问"
+        ],
+        "chapter_end": "推翻上一章假设的新细节"
+      }
+    },
+    {
+      "id": "fq_tw_chuanyue",
+      "craft": {
+        "sentence": "短句推進；資訊差用行動兌現",
+        "stance": "爽點清楚，不陰濕虐主",
+        "opening": "身份錯位或死亡回歸的第一場",
+        "avoid": "無邏輯開掛、灌水日常",
+        "lexicon": "這次、我記得、來不及、下一章"
+      },
+      "referenceParagraph": {
+        "zh": "電梯門開的瞬間他認出那張臉——上次輪迴裡，這人三天後會毀約。",
+        "zh-TW": "電梯門開的瞬間他認出那張臉——上次輪迴裡，這人三天後會毀約。",
+        "en": "The elevator opened on a face he knew—last loop, this person voided the deal in three days.",
+        "ja": "エレベーターが開いた顔を知っていた。前回、三日後に契約を破棄する人だ。"
+      },
+      "fictionPack": {
+        "platform": "web_tw",
+        "pace": "info_gap",
+        "must_have": [
+          "先知優勢",
+          "章末鉤"
+        ],
+        "chapter_end": "更大未兌現信息"
+      }
+    },
+    {
+      "id": "fq_tw_office_cool",
+      "craft": {
+        "sentence": "對話交鋒；數字清楚",
+        "stance": "理性報復，有底線",
+        "opening": "被低估的場景",
+        "avoid": "違法教唆、歧視取樂",
+        "lexicon": "數據、合同、你看、結束了"
+      },
+      "referenceParagraph": {
+        "zh": "他把備份投影打開：「被換掉的那頁，客戶章還在。」會議室安靜了一秒。",
+        "zh-TW": "他把備份投影打開：「被換掉的那頁，客戶章還在。」",
+        "en": "He opened the backup deck: “The page you swapped still has the client stamp.” The room stilled.",
+        "ja": "バックアップを映した。「差し替えた頁に、客の印がある。」"
+      },
+      "fictionPack": {
+        "platform": "web_tw",
+        "pace": "office_slap",
+        "must_have": [
+          "可見業績",
+          "當眾翻盤"
+        ],
+        "chapter_end": "更大對手"
+      }
+    },
+    {
+      "id": "fq_tw_romance_pull",
+      "craft": {
+        "sentence": "短句冷；崩潰才放長句",
+        "stance": "刀要準，不無意義折磨",
+        "opening": "傷害結果先行",
+        "avoid": "純虐無解、貶低工具人",
+        "lexicon": "算了、你自由、來不及"
+      },
+      "referenceParagraph": {
+        "zh": "請柬還在抽屜最上層。他沒拆，只把燈關掉。",
+        "zh-TW": "請柬還在抽屜最上層。他沒拆，只把燈關掉。",
+        "en": "The invitation sat unopened; he only killed the light.",
+        "ja": "招待状は引き出しの上。開けず、灯だけ消した。"
+      },
+      "fictionPack": {
+        "platform": "web_tw",
+        "pace": "angst_delay",
+        "must_have": [
+          "信息差傷害",
+          "反轉鉤"
+        ],
+        "chapter_end": "誤判真相的一句"
+      }
+    },
+    {
+      "id": "fq_tw_suspense",
+      "craft": {
+        "sentence": "細節具體；疑問句收段",
+        "stance": "讀者可推理，不靠超能力",
+        "opening": "異常細節先於解釋",
+        "avoid": "無限逆轉無規則",
+        "lexicon": "不對、時間點、誰還知道"
+      },
+      "referenceParagraph": {
+        "zh": "鬧鐘定在案後十分鐘。死人不會定未來——除非有人用過這支手機。",
+        "zh-TW": "鬧鐘定在案後十分鐘。死人不會定未來。",
+        "en": "Alarm set for ten minutes after the crime. The dead don’t schedule the future.",
+        "ja": "事件後十分のアラーム。死人は未来を予約しない。"
+      },
+      "fictionPack": {
+        "platform": "web_tw",
+        "pace": "clue_drop",
+        "must_have": [
+          "可回收線索",
+          "章末疑問"
+        ],
+        "chapter_end": "推翻假設的新細節"
+      }
+    },
+    {
+      "id": "fq_en_litrpg",
+      "craft": {
+        "sentence": "Short beats; stats serve drama, not spreadsheets",
+        "stance": "Growth visible; no vague epiphanies",
+        "opening": "Power gap or exam under pressure",
+        "avoid": "Rule-breaking cheats, endless travel logs",
+        "lexicon": "level, cooldown, party, rank, this hit"
+      },
+      "referenceParagraph": {
+        "zh": "考核读数报出时场下静了。他抬手，第二道纹路比嘲讽亮得更快。",
+        "zh-TW": "考核讀數報出時場下靜了。",
+        "en": "When the exam read his value, the yard went still. The second rune lit faster than the mockery.",
+        "ja": "測定値が読まれ、場が止まった。二本目の紋が嘲笑より速い。"
+      },
+      "fictionPack": {
+        "platform": "royal_road",
+        "pace": "power_ladder",
+        "must_have": [
+          "rule clarity",
+          "fight feedback"
+        ],
+        "chapter_end": "stronger foe or new map"
+      }
+    },
+    {
+      "id": "fq_en_enemies_romance",
+      "craft": {
+        "sentence": "Dialogue-heavy; body language light; interior brief",
+        "stance": "Heat without cruelty cosplay",
+        "opening": "Competing interests in one room",
+        "avoid": "Endless third-party melodrama, oily boss lines",
+        "lexicon": "you again, temporary, don’t read into it, fine"
+      },
+      "referenceParagraph": {
+        "zh": "电梯门开两人都停了一秒。他把伞递过去：「合同的事，出去说。」",
+        "zh-TW": "電梯門開兩人都停了一秒。",
+        "en": "The elevator opened; both froze. He offered the umbrella: “We’ll talk contract outside.”",
+        "ja": "エレベーターが開き、二人とも止まった。傘を先に出した。"
+      },
+      "fictionPack": {
+        "platform": "kindle_wattpad",
+        "pace": "slow_burn",
+        "must_have": [
+          "friction",
+          "solvable misread"
+        ],
+        "chapter_end": "unfinished care"
+      }
+    },
+    {
+      "id": "fq_en_portal",
+      "craft": {
+        "sentence": "Concrete sensory; stakes per chapter",
+        "stance": "Curious survival, not tourist montage",
+        "opening": "Wrong-world consequence in scene one",
+        "avoid": "Encyclopedia dumps, harem derails",
+        "lexicon": "rule, ration, gate, cost, not home"
+      },
+      "referenceParagraph": {
+        "zh": "门在身后合上时，手机还显示着未接来电——那边的世界仍在催债。",
+        "zh-TW": "門在身後合上時，手機還顯示未接來電。",
+        "en": "The door sealed behind him with a missed-call banner still lit—the other world was still collecting.",
+        "ja": "扉が閉じて、不在着信がまだ光っていた。あちらの借金取りは止まらない。"
+      },
+      "fictionPack": {
+        "platform": "royal_road",
+        "pace": "survival_hook",
+        "must_have": [
+          "rule discover",
+          "chapter crisis"
+        ],
+        "chapter_end": "worse scarcity"
+      }
+    },
+    {
+      "id": "fq_en_thriller_serial",
+      "craft": {
+        "sentence": "Specific detail; end on a question",
+        "stance": "Reader can play detective",
+        "opening": "Anomaly before explanation",
+        "avoid": "Rule-free infinite twists",
+        "lexicon": "off, timestamp, who else, again"
+      },
+      "referenceParagraph": {
+        "zh": "闹钟定在案后十分钟。死人不会定未来。",
+        "zh-TW": "鬧鐘定在案後十分鐘。",
+        "en": "The alarm was set for ten minutes after the crime. The dead don’t schedule the future.",
+        "ja": "事件後十分のアラーム。死人は未来を予約しない。"
+      },
+      "fictionPack": {
+        "platform": "en_serial",
+        "pace": "clue_drop",
+        "must_have": [
+          "reclaimable clue",
+          "end question"
+        ],
+        "chapter_end": "detail that kills last theory"
+      }
+    },
+    {
+      "id": "fq_ja_tensei",
+      "craft": {
+        "sentence": "戦力情報を先に。技能名は短く",
+        "stance": "成長が見える。曖昧な悟り禁止",
+        "opening": "実力差か試験から",
+        "avoid": "無規則チート、後宮で本線切断",
+        "lexicon": "レベル、スキル、報酬、この一撃"
+      },
+      "referenceParagraph": {
+        "zh": "测定值报出时场地静了。第二道纹路比嘲笑亮得更快。",
+        "zh-TW": "測定値で場が止まった。",
+        "en": "The reading silenced the yard. The second rune beat the mockery.",
+        "ja": "測定値が読まれ、場が止まった。二本目の紋が嘲笑より速い。"
+      },
+      "fictionPack": {
+        "platform": "narou",
+        "pace": "power_ladder",
+        "must_have": [
+          "成長可視化",
+          "任務回報"
+        ],
+        "chapter_end": "より強い敵"
+      }
+    },
+    {
+      "id": "fq_ja_akuyaku",
+      "craft": {
+        "sentence": "会話で札を切る。独白は短く",
+        "stance": "賢く生き残る。無意味な虐げ禁止",
+        "opening": "旗が見えた瞬間",
+        "avoid": "無限ざまぁだけで構造なし",
+        "lexicon": "フラグ、破棄、立場、次の手"
+      },
+      "referenceParagraph": {
+        "zh": "她把婚约文件推回去：「毁掉我的剧本，从这一页撕开。」",
+        "zh-TW": "她把婚約文件推回去。",
+        "en": "She pushed the engagement papers back: “Your ruin-script starts when this page tears.”",
+        "ja": "婚約の書類を戻した。「破滅の台本は、この頁から裂く。」"
+      },
+      "fictionPack": {
+        "platform": "narou_kakuyomu",
+        "pace": "flag_cut",
+        "must_have": [
+          "メタ情報",
+          "社交勝負"
+        ],
+        "chapter_end": "新しい旗"
+      }
+    },
+    {
+      "id": "fq_ja_slowlife",
+      "craft": {
+        "sentence": "対話多め。動作は軽い",
+        "stance": "癒し優先。長引き虐げ禁止",
+        "opening": "生活の小さな詰まり",
+        "avoid": "強行な闇落ち、テンプレ霸總",
+        "lexicon": "今日は、手伝お、ちょうど"
+      },
+      "referenceParagraph": {
+        "zh": "电梯门开两人都停了一秒。他把伞递过去。",
+        "zh-TW": "電梯門開兩人都停了一秒。",
+        "en": "The elevator opened; both froze. He offered the umbrella first.",
+        "ja": "エレベーターが開き、二人とも止まった。傘を先に出した。"
+      },
+      "fictionPack": {
+        "platform": "narou",
+        "pace": "soft_daily",
+        "must_have": [
+          "日常密度",
+          "可解误会"
+        ],
+        "chapter_end": "言い切れない優しさ"
+      }
+    },
+    {
+      "id": "fq_ja_workplace",
+      "craft": {
+        "sentence": "対話で殴る。動作は少ない",
+        "stance": "計算と原則の両立",
+        "opening": "利害衝突の現場から",
+        "avoid": "暴力で商事を解決",
+        "lexicon": "条件、録音、賭け、何が欲しい"
+      },
+      "referenceParagraph": {
+        "zh": "他把文件夹推到桌心：「附件三不是原件。你们要的是时间。」",
+        "zh-TW": "他把文件夾推到桌心。",
+        "en": "He slid the folder over: “Annex three isn’t original. You want time.”",
+        "ja": "フォルダを中央へ。「別紙三は原本じゃない。欲しいのは時間だ。」"
+      },
+      "fictionPack": {
+        "platform": "kakuyomu",
+        "pace": "mind_game",
+        "must_have": [
+          "可見籌碼",
+          "對白交鋒"
+        ],
+        "chapter_end": "裏切りの兆し"
+      }
+    }
+  ]
+}

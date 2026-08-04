@@ -1,0 +1,516 @@
+{
+  "schemaVersion": 1,
+  "kind": "topic-article-purpose",
+  "notes": [
+    "统一合同 key：purpose / article_length / structure_id（与 basic.* 对齐）",
+    "UI 标签可只写短篇/中篇/长篇；model_guide 注入主笔，约束档位体量下限（不钉死绝对字数）",
+    "fiction_short / drama_beat：长篇仍是单次一次读完，≠ series 连载"
+  ],
+  "purposes": [
+    {
+      "id": "publish_article",
+      "label": {
+        "zh": "发文稿·自媒体",
+        "zh-TW": "發文稿·自媒體",
+        "en": "Publish article",
+        "ja": "発信原稿"
+      },
+      "lengths": [
+        {
+          "id": "brief",
+          "label": {
+            "zh": "短刷·约800字",
+            "en": "Short · ~800 chars"
+          },
+          "min_chars": 600
+        },
+        {
+          "id": "standard",
+          "label": {
+            "zh": "标准专栏·约1500字",
+            "en": "Column · ~1500 chars"
+          },
+          "min_chars": 1200
+        },
+        {
+          "id": "long",
+          "label": {
+            "zh": "长特稿·约3000字",
+            "en": "Longform · ~3000 chars"
+          },
+          "min_chars": 2400
+        }
+      ],
+      "structures": [
+        {
+          "id": "hook_point_case",
+          "title": {
+            "zh": "钩子→论点→案例→收束"
+          },
+          "beats": [
+            "开场钩子",
+            "核心论点",
+            "案例/材料",
+            "收束判断"
+          ]
+        },
+        {
+          "id": "scene_mechanism",
+          "title": {
+            "zh": "场景→机制→影响分层"
+          },
+          "beats": [
+            "具体场景",
+            "机制拆解",
+            "谁受益谁承压",
+            "未决问题"
+          ]
+        },
+        {
+          "id": "list_contrast",
+          "title": {
+            "zh": "清单对照"
+          },
+          "beats": [
+            "问题定义",
+            "要点并列",
+            "对照表",
+            "行动建议"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fiction_short",
+      "label": {
+        "zh": "短篇网文·完整故事",
+        "zh-TW": "短篇網文·完整故事",
+        "en": "Short fiction (complete)",
+        "ja": "短編小説（完結）"
+      },
+      "lengths": [
+        {
+          "id": "brief",
+          "label": {
+            "zh": "短篇",
+            "zh-TW": "短篇",
+            "en": "Short",
+            "ja": "短編"
+          },
+          "min_chars": 2000,
+          "model_guide": {
+            "zh": "短篇：目标约2000–3500汉字。一场戏打完欲望→冲突→反转→落点；场面优先，禁止写成几百字意境小品。",
+            "en": "Short: ~2000–3500 Chinese chars; one complete scene-arc with visible action."
+          }
+        },
+        {
+          "id": "standard",
+          "label": {
+            "zh": "中篇",
+            "zh-TW": "中篇",
+            "en": "Medium",
+            "ja": "中編"
+          },
+          "min_chars": 3500,
+          "model_guide": {
+            "zh": "中篇：目标约3500–5500汉字（不得明显短于3500）。现状与回放都要有可感场面与对话，禁止只靠旁白跳切。",
+            "en": "Medium: ~3500–5500 Chinese chars; present + flashback need staged scenes."
+          }
+        },
+        {
+          "id": "long",
+          "label": {
+            "zh": "长篇（一次读完）",
+            "zh-TW": "長篇（一次讀完）",
+            "en": "Long (one sitting)",
+            "ja": "長編（一回読了）"
+          },
+          "min_chars": 5500,
+          "model_guide": {
+            "zh": "长篇：目标约5500–8000汉字（仍一次读完，非连载）。加厚人物关系与关键场面，禁止「未完」。",
+            "en": "Long one-sitting: ~5500–8000 chars; thicken scenes; no serialization."
+          }
+        }
+      ],
+      "structures": [
+        {
+          "id": "desire_conflict_turn",
+          "title": {
+            "zh": "欲望→冲突→反转→收束"
+          },
+          "beats": [
+            "人物欲望与压力",
+            "冲突爆发",
+            "可感反转",
+            "情绪或利益落点"
+          ]
+        },
+        {
+          "id": "scene_stakes_payoff",
+          "title": {
+            "zh": "开场压力→加码→兑现"
+          },
+          "beats": [
+            "开场压迫场面",
+            "筹码升级",
+            "关键抉择",
+            "一次打完的兑现"
+          ]
+        },
+        {
+          "id": "reveal_close",
+          "title": {
+            "zh": "隐瞒→揭破→落点"
+          },
+          "beats": [
+            "隐瞒与误判",
+            "证据或身份揭破",
+            "对峙高潮",
+            "关系或利益落点"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drama_beat",
+      "label": {
+        "zh": "短剧节拍·单集打完",
+        "zh-TW": "短劇節拍·單集打完",
+        "en": "Short-drama beat (closed)",
+        "ja": "短尺ドラマ（一話完結）"
+      },
+      "lengths": [
+        {
+          "id": "brief",
+          "label": {
+            "zh": "短篇",
+            "zh-TW": "短篇",
+            "en": "Short",
+            "ja": "短編"
+          },
+          "min_chars": 1200,
+          "model_guide": {
+            "zh": "短篇：目标约1200–2200汉字。一场短戏冷开场→爆发→反转→落点。",
+            "en": "Short episode: ~1200–2200 chars."
+          }
+        },
+        {
+          "id": "standard",
+          "label": {
+            "zh": "中篇",
+            "zh-TW": "中篇",
+            "en": "Medium",
+            "ja": "中編"
+          },
+          "min_chars": 2200,
+          "model_guide": {
+            "zh": "中篇：目标约2200–4000汉字（不得明显短于2200）。单集冲突要有当面戏。",
+            "en": "Medium episode: ~2200–4000 chars with on-camera beats."
+          }
+        },
+        {
+          "id": "long",
+          "label": {
+            "zh": "长篇（一次看完）",
+            "zh-TW": "長篇（一次看完）",
+            "en": "Long (one sitting)",
+            "ja": "長編（一回視聴）"
+          },
+          "min_chars": 4000,
+          "model_guide": {
+            "zh": "长篇：目标约4000–6000汉字（仍一次看完，非连载）。",
+            "en": "Long one-sitting episode: ~4000–6000 chars."
+          }
+        }
+      ],
+      "structures": [
+        {
+          "id": "cold_open_twist",
+          "title": {
+            "zh": "冷开场→爆发→反转→收束"
+          },
+          "beats": [
+            "冷开场钩子",
+            "冲突爆发",
+            "身份或证据反转",
+            "单集情绪落点"
+          ]
+        },
+        {
+          "id": "countdown_payoff",
+          "title": {
+            "zh": "倒计时→抉择→兑现"
+          },
+          "beats": [
+            "倒计时压力",
+            "两难抉择",
+            "当众对决",
+            "一集打完"
+          ]
+        },
+        {
+          "id": "face_slap_close",
+          "title": {
+            "zh": "被压→翻盘→落点"
+          },
+          "beats": [
+            "当众被压",
+            "暗线翻盘",
+            "打脸高潮",
+            "关系落点"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "talk_show_brief",
+      "label": {
+        "zh": "对话节目资料稿",
+        "zh-TW": "對話節目資料稿",
+        "en": "Talk-show dossier",
+        "ja": "対談資料"
+      },
+      "lengths": [
+        {
+          "id": "brief",
+          "label": {
+            "zh": "提纲·约600字",
+            "en": "~600 chars brief"
+          },
+          "min_chars": 400
+        },
+        {
+          "id": "standard",
+          "label": {
+            "zh": "完整提词·约1200字",
+            "en": "~1200 chars"
+          },
+          "min_chars": 900
+        },
+        {
+          "id": "long",
+          "label": {
+            "zh": "加长备稿·约2000字",
+            "en": "~2000 chars"
+          },
+          "min_chars": 1500
+        }
+      ],
+      "structures": [
+        {
+          "id": "talk_dossier",
+          "title": {
+            "zh": "刺点·立场·追问"
+          },
+          "beats": [
+            "开场刺点",
+            "多方立场",
+            "可抬杠材料",
+            "深挖题",
+            "开放收束"
+          ]
+        },
+        {
+          "id": "talk_timeline",
+          "title": {
+            "zh": "时间线·情绪节拍"
+          },
+          "beats": [
+            "时间线",
+            "情绪高点",
+            "敏感边界",
+            "安全收尾题"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "voiceover_brief",
+      "label": {
+        "zh": "口播节目资料稿",
+        "zh-TW": "口播節目資料稿",
+        "en": "Voiceover brief",
+        "ja": "音声用資料"
+      },
+      "lengths": [
+        {
+          "id": "brief",
+          "label": {
+            "zh": "约1分钟",
+            "en": "~1 min"
+          },
+          "min_chars": 220
+        },
+        {
+          "id": "standard",
+          "label": {
+            "zh": "约3分钟",
+            "en": "~3 min"
+          },
+          "min_chars": 650
+        },
+        {
+          "id": "long",
+          "label": {
+            "zh": "约5分钟",
+            "en": "~5 min"
+          },
+          "min_chars": 1100
+        }
+      ],
+      "structures": [
+        {
+          "id": "vo_hook_body",
+          "title": {
+            "zh": "钩子→展开→金句"
+          },
+          "beats": [
+            "开口钩子",
+            "2～3段展开",
+            "可停顿金句",
+            "收束"
+          ]
+        },
+        {
+          "id": "vo_explain",
+          "title": {
+            "zh": "误区→解释→记住一句"
+          },
+          "beats": [
+            "常见误区",
+            "好懂解释",
+            "生活类比",
+            "记住一句"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "investigative",
+      "label": {
+        "zh": "深度调查稿",
+        "zh-TW": "深度調查稿",
+        "en": "Investigative",
+        "ja": "調査稿"
+      },
+      "lengths": [
+        {
+          "id": "standard",
+          "label": {
+            "zh": "标准调查",
+            "en": "Standard"
+          },
+          "min_chars": 1800
+        },
+        {
+          "id": "long",
+          "label": {
+            "zh": "深度长稿",
+            "en": "Longform"
+          },
+          "min_chars": 3500
+        }
+      ],
+      "structures": [
+        {
+          "id": "inv_timeline",
+          "title": {
+            "zh": "问题→时间线→多方→边界"
+          },
+          "beats": [
+            "问题提出",
+            "时间线",
+            "多方说法",
+            "未证实边界"
+          ]
+        },
+        {
+          "id": "inv_doc",
+          "title": {
+            "zh": "材料对照→责任层"
+          },
+          "beats": [
+            "矛盾材料",
+            "责任层级",
+            "仍缺证据",
+            "审慎结论"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "course_tutorial",
+      "label": {
+        "zh": "网课教程",
+        "zh-TW": "網課教程",
+        "en": "Course lesson",
+        "ja": "オンライン講座"
+      },
+      "lengths": [
+        {
+          "id": "brief",
+          "label": {
+            "zh": "单点精讲·约800字",
+            "en": "~800 chars micro-lesson"
+          },
+          "min_chars": 500
+        },
+        {
+          "id": "standard",
+          "label": {
+            "zh": "一课完整·约1500字",
+            "en": "~1500 chars full lesson"
+          },
+          "min_chars": 1000
+        },
+        {
+          "id": "long",
+          "label": {
+            "zh": "模块长课·约3000字",
+            "en": "~3000 chars module"
+          },
+          "min_chars": 2200
+        }
+      ],
+      "structures": [
+        {
+          "id": "course_hook_steps",
+          "title": {
+            "zh": "目标→步骤→练习→小结"
+          },
+          "beats": [
+            "学习目标",
+            "分步讲解",
+            "跟练练习",
+            "易错点",
+            "一句话小结"
+          ]
+        },
+        {
+          "id": "course_misconception",
+          "title": {
+            "zh": "误区→正解→迁移"
+          },
+          "beats": [
+            "常见误区",
+            "正确做法",
+            "生活/工作类比",
+            "迁移练习"
+          ]
+        },
+        {
+          "id": "course_project",
+          "title": {
+            "zh": "项目驱动·交付验收"
+          },
+          "beats": [
+            "最终交付物",
+            "拆解里程碑",
+            "关键示范",
+            "验收清单"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -92,6 +92,8 @@ export interface ResolvedSource {
   sourceRef: QualityEvalSourceRef | null;
   pipelineBundle?: string;
   taskId?: string;
+  /** 用户表单选项等，用于动态评分标准 */
+  evalRunContext?: import('./eval-run-context').EvalRunContext;
 }
 
 export interface QualityEvalRun {

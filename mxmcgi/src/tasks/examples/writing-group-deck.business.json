@@ -1,0 +1,718 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-08-03T13:40:10.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "deck-plan-recommend",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "PPT·方案推荐",
+          "description": "PPT·方案推荐",
+          "taskLabelI18n": {
+            "zh": "专家填合同",
+            "en": "Expert",
+            "zh-TW": "專家填合同",
+            "ja": "Expert"
+          },
+          "subtypeLabelI18n": {
+            "zh": "PPT·方案推荐",
+            "en": "PPT·方案推荐",
+            "zh-TW": "PPT·方案推荐",
+            "ja": "PPT·方案推荐"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "你是演示文稿方案导演。根据用户资料推荐恰好 3 套可执行的 PPT 方案。\n\n读取 basic：usage_direction、usage_direction_custom、source_material、brief、language。brief 可为空：为空时必须从 source_material 归纳要讲什么、重点与页数偏好；brief 有内容时以 brief 为补充约束、以 source_material 为事实来源。标题由你从材料归纳，用户不会提供演示标题。版式气质由 usage_direction 与材料推断，不要再问设计风格。\n\n只输出一个 JSON 对象（键 ⊆ field_specs）：plans。\n\nplans 必须恰好 3 项，每项：\n- id: \"p1\"|\"p2\"|\"p3\"\n- label: 人话方案名（≤16 字），含页数感，如「产品手册·12页」\n- page_count: 整数，8～16（硬上限 16）\n- density: sparse|balanced|dense\n- narrative_arc: 一句话叙事弧线\n- slide_roles: 长度=page_count 的角色数组，取值 cover|agenda|section|content|chart|quote|closing；首项必须 cover，末项必须 closing；agenda 建议第 2 页\n- why: 为何适合该使用方向与材料（≤40 字）\n\n三套方案须在页数或密度上可区分（例如 8/12/16 或 sparse/balanced/dense）。\n禁止 markdown 围栏；只输出 JSON。\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "maxTokens": 6000
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-deck-plan-recommend",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "deck-visual-plan",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "PPT·视觉目录",
+          "description": "PPT·视觉目录",
+          "taskLabelI18n": {
+            "zh": "专家填合同",
+            "en": "Expert",
+            "zh-TW": "專家填合同",
+            "ja": "Expert"
+          },
+          "subtypeLabelI18n": {
+            "zh": "PPT·视觉目录",
+            "en": "PPT·视觉目录",
+            "zh-TW": "PPT·视觉目录",
+            "ja": "PPT·视觉目录"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "你是演示文稿视觉与目录导演。一次产出整本视觉系统，并为每页写入标题与布局草案。\n\n读取 basic（含 plan_id、page_count、density、usage_direction、usage_direction_custom、brief、source_material）与 business.slides（已有 id/order/role 骨架）。封面 title 由材料归纳，勿要求用户自拟总标题。\n\n只输出 JSON（键 ⊆ field_specs）：\n- visual_system: { palette:{background,foreground,accent,muted 十六进制}, typography:{title_font,body_font,title_size_pt,body_size_pt}, layout_rules:[], motif, ratio:\"16:9\" }\n- slides: 与输入同长度的数组，每项至少含 id、order、role、title、layout_hint；可选 subtitle。\n  layout_hint ∈ title_center|title_left|agenda_list|section_divider|bullets|two_column|split_media_left|split_media_right|big_number|three_cards|quote_center|closing\n- 气质按 usage_direction：designer_guide 偏规范/栅格；product_brochure 偏卖点清晰；pitch 偏叙事说服；course 偏教学节奏；brand_book 偏品牌识别；custom 读 usage_direction_custom。\n- 禁止编造用户未提供的专有承诺；title 用人话，禁止英文字段名。\n- 只输出 JSON。\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "maxTokens": 12000
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-deck-visual-plan",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "deck-slide-fill",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "PPT·单页填空",
+          "description": "PPT·单页填空",
+          "taskLabelI18n": {
+            "zh": "专家填合同",
+            "en": "Expert",
+            "zh-TW": "專家填合同",
+            "ja": "Expert"
+          },
+          "subtypeLabelI18n": {
+            "zh": "PPT·单页填空",
+            "en": "PPT·单页填空",
+            "zh-TW": "PPT·单页填空",
+            "ja": "PPT·单页填空"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "你是单页幻灯片内容写手。只填写**当前这一页**，写入 JSON 字段。\n\n读取本页 role/title/layout_hint 与 basic.visual_system、basic.brief、basic.source_material、basic.usage_direction。\n\n输出键 ⊆ field_specs：\n- title（可微调，≤28 字）\n- subtitle（可选）\n- bullets（0～6 条短句）\n- body（可选短段）\n- notes（讲稿，可选，口语）\n- layout_hint（可在合理范围内微调）\n- elements（可选 [{kind,text}]）\n\n硬规则：禁止输出 SVG；禁止英文字段名入读者可见文本；只写本页；只输出 JSON。\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "maxTokens": 4000
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-deck-slide-fill",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "writing",
+      "type": "group",
+      "subtype": "deck",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "PPTX",
+        "en": "PPTX"
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "方案",
+          "subtypeLabel": "演示文稿",
+          "description": "选使用方向并上传资料；内容说明可选（有材料时可从文档自动归纳）。系统推荐方案后生成多页幻灯片并导出 PPTX。",
+          "taskLabelI18n": {
+            "zh": "方案",
+            "en": "Proposal",
+            "zh-TW": "方案",
+            "ja": "提案"
+          },
+          "subtypeLabelI18n": {
+            "zh": "演示文稿",
+            "en": "Presentation deck",
+            "zh-TW": "簡報",
+            "ja": "プレゼン"
+          },
+          "resultKind": "presentation-deck"
+        },
+        "executionMode": "mxm-warp",
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "usage_direction",
+              "source_material"
+            ],
+            "x-createUx": "warp-gates",
+            "properties": {
+              "usage_direction": {
+                "type": "string",
+                "title": "使用方向",
+                "description": "这份演示主要给谁用、做成什么样的交付物",
+                "enum": [
+                  "designer_guide",
+                  "product_brochure",
+                  "pitch",
+                  "course",
+                  "brand_book",
+                  "custom"
+                ],
+                "default": "product_brochure",
+                "x-enum-labels": [
+                  "设计师规范",
+                  "产品宣传手册",
+                  "融资提案",
+                  "课程讲义",
+                  "品牌手册",
+                  "自定义…"
+                ],
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-ui-type": "chips"
+              },
+              "usage_direction_custom": {
+                "type": "string",
+                "title": "自定义使用方向",
+                "maxLength": 80,
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-guided-inline": true,
+                "x-show-when": {
+                  "field": "usage_direction",
+                  "equals": "custom"
+                }
+              },
+              "source_material": {
+                "type": "string",
+                "title": "相关内容",
+                "description": "上传文档或粘贴正文（品牌手册、产品说明、大纲、素材要点等），材料越全成稿越准。",
+                "x-ui-type": "textFileOrPaste",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-max-chars": 120000,
+                "minLength": 1,
+                "default": ""
+              },
+              "brief": {
+                "type": "string",
+                "title": "内容说明",
+                "description": "可选。已上传/粘贴材料时可不填，系统会从材料归纳要讲什么；若有重点、禁忌、必须出现的信息或页数偏好，可在此补充。标题由系统根据材料拟定，无需自拟。",
+                "maxLength": 8000,
+                "default": "",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "language": {
+                "type": "string",
+                "title": "语言",
+                "enum": [
+                  "zh",
+                  "zh-TW",
+                  "en",
+                  "ja"
+                ],
+                "default": "zh",
+                "x-enum-labels": [
+                  "简体中文",
+                  "繁體中文",
+                  "English",
+                  "日本語"
+                ],
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-hidden": true
+              },
+              "plan_id": {
+                "type": "string",
+                "title": "选用方案",
+                "description": "点选推荐方案，无需手填",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-ui-type": "chips"
+              }
+            }
+          },
+          "uiSchema": {
+            "brief": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 6
+              }
+            },
+            "usage_direction_custom": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 2
+              }
+            }
+          },
+          "contractSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "usage_direction": {
+                "type": "string",
+                "title": "使用方向",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "usage_direction_custom": {
+                "type": "string",
+                "title": "自定义使用方向",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "source_material": {
+                "type": "string",
+                "title": "相关内容",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "brief": {
+                "type": "string",
+                "title": "内容说明",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "language": {
+                "type": "string",
+                "title": "语言",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "plan_id": {
+                "type": "string",
+                "title": "选用方案",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "page_count": {
+                "type": "integer",
+                "title": "页数",
+                "x-zone": "basic"
+              },
+              "density": {
+                "type": "string",
+                "title": "信息密度",
+                "x-zone": "basic"
+              },
+              "selected_plan": {
+                "type": "object",
+                "title": "已选方案",
+                "x-zone": "basic",
+                "additionalProperties": true
+              },
+              "plans": {
+                "type": "array",
+                "title": "推荐方案",
+                "x-zone": "business",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "visual_system": {
+                "type": "object",
+                "title": "视觉系统",
+                "x-zone": "business",
+                "additionalProperties": true
+              },
+              "slides": {
+                "type": "array",
+                "title": "幻灯片",
+                "x-zone": "business",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是演示文稿单页写手。只为本页产出可读摘要 Markdown：首行 `## 标题`，下列要点。禁止 SVG、禁止多页合集。语言跟随 basic.language。"
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "interactiveCard",
+                "params": {
+                  "id": "deck-setup-card",
+                  "label": "确认使用方向与资料",
+                  "hint": "先选使用方向，再上传/粘贴相关内容；内容说明可选（有材料时可跳过，由系统从文档归纳）。随后会推荐 3 套页数与信息密度方案供你点选。",
+                  "postPreHint": "正在根据资料推荐演示方案…",
+                  "kind": "interactive-card",
+                  "fields": [
+                    {
+                      "name": "usage_direction",
+                      "type": "string",
+                      "title": "使用方向",
+                      "required": true
+                    },
+                    {
+                      "name": "source_material",
+                      "type": "string",
+                      "title": "相关内容",
+                      "required": true,
+                      "x-ui-type": "textFileOrPaste"
+                    },
+                    {
+                      "name": "brief",
+                      "type": "string",
+                      "title": "内容说明",
+                      "required": false
+                    }
+                  ],
+                  "editable": true
+                }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/expert/deck-plan-recommend",
+                "params": {
+                  "field_specs": [
+                    {
+                      "name": "plans",
+                      "type": "array",
+                      "description": "恰好 3 套方案"
+                    }
+                  ],
+                  "commitPaths": [
+                    "plans"
+                  ],
+                  "outputTarget": "business",
+                  "seedParamsIfEmpty": {
+                    "plans": "plans"
+                  }
+                },
+                "when": {
+                  "all": [
+                    {
+                      "field": "params.plans",
+                      "op": "empty"
+                    }
+                  ]
+                }
+              },
+              {
+                "step": "interactiveCard",
+                "params": {
+                  "id": "deck-plan-pick-card",
+                  "label": "选择演示方案",
+                  "hint": "点选一套页数与信息密度合适的方案，无需手填。",
+                  "kind": "interactive-card",
+                  "fields": [
+                    {
+                      "name": "plan_id",
+                      "type": "string",
+                      "title": "选用方案",
+                      "required": true,
+                      "x-ui-type": "chips"
+                    }
+                  ],
+                  "editable": true
+                }
+              }
+            ],
+            "enrich": [
+              {
+                "step": "expandDeckSlides",
+                "params": {
+                  "maxPages": 16,
+                  "plansFrom": "contract.business.plans"
+                }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/expert/deck-visual-plan",
+                "params": {
+                  "field_specs": [
+                    {
+                      "name": "visual_system",
+                      "type": "object",
+                      "description": "整本视觉系统"
+                    },
+                    {
+                      "name": "slides",
+                      "type": "array",
+                      "description": "带 title/layout_hint 的 slides"
+                    }
+                  ],
+                  "commitPaths": [
+                    "visual_system",
+                    "slides"
+                  ]
+                }
+              },
+              {
+                "step": "groupItemBatch",
+                "params": {
+                  "itemsFrom": "contract.business.slides",
+                  "concurrency": 4,
+                  "maxItems": 16,
+                  "itemBasicMapping": {
+                    "usage_direction": "${contract.basic.usage_direction}",
+                    "brief": "${contract.basic.brief}",
+                    "source_material": "${contract.basic.source_material}",
+                    "language": "${contract.basic.language}",
+                    "visual_system": "${contract.business.visual_system}",
+                    "slide_id": "${item.id}",
+                    "slide_role": "${item.role}",
+                    "slide_title": "${item.title}",
+                    "layout_hint": "${item.layout_hint}"
+                  },
+                  "itemNestedText": {
+                    "nestedTextTaskKey": "text/expert/deck-slide-fill",
+                    "field_specs": [
+                      {
+                        "name": "title",
+                        "type": "string"
+                      },
+                      {
+                        "name": "subtitle",
+                        "type": "string"
+                      },
+                      {
+                        "name": "bullets",
+                        "type": "array"
+                      },
+                      {
+                        "name": "body",
+                        "type": "string"
+                      },
+                      {
+                        "name": "notes",
+                        "type": "string"
+                      },
+                      {
+                        "name": "layout_hint",
+                        "type": "string"
+                      },
+                      {
+                        "name": "elements",
+                        "type": "array"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "post": [
+              {
+                "step": "renderPptx",
+                "params": {
+                  "slidesFrom": "contract.business.slides",
+                  "visualSystemFrom": "contract.business.visual_system",
+                  "titleFrom": "contract.business.slides.0.title",
+                  "maxPages": 16,
+                  "failSoft": true
+                }
+              }
+            ]
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "maxTokens": 8000
+            },
+            "storage": {
+              "format": "markdown",
+              "extension": "md",
+              "mimeType": "text/markdown; charset=utf-8",
+              "folder": "writing"
+            },
+            "groupOutput": {
+              "itemsFrom": "contract.business.slides",
+              "concurrency": 4,
+              "maxItems": 16,
+              "itemBasicMapping": {
+                "usage_direction": "${contract.basic.usage_direction}",
+                "language": "${contract.basic.language}",
+                "visual_system": "${contract.business.visual_system}",
+                "slide_title": "${item.title}",
+                "slide_role": "${item.role}",
+                "bullets": "${item.bullets}",
+                "body": "${item.body}"
+              },
+              "itemManuscript": {
+                "field": "manuscript",
+                "systemPrompt": "你是演示文稿单页摘要写手。只根据本页 title/bullets/body 写一段 Markdown：首行 `## 标题`，下列要点。禁止 SVG。语言跟随 language。"
+              },
+              "assemble": {
+                "itemsFrom": "contract.business.slides",
+                "textField": "manuscript",
+                "titleFrom": "contract.business.slides.0.title",
+                "collectionTitleFallback": "演示文稿",
+                "headingTemplate": "## ${item.title}"
+              }
+            },
+            "skillMode": "core-skill",
+            "skillPack": {
+              "version": 1,
+              "files": [
+                {
+                  "path": "SKILL.md",
+                  "content": "---\nname: writing-group-deck\ndescription: 演示文稿单页摘要\n---\n\n只为本页写 `## 标题` + 要点列表。禁止 SVG 与多页合集。\n",
+                  "readonly": false
+                },
+                {
+                  "path": "scripts/invoke-group.mjs",
+                  "content": "export const invokeMode = 'group';\nexport const steps = ['groupItemBatch', 'assembleGroupText'];\nexport default { invokeMode, steps };\n",
+                  "readonly": true
+                }
+              ]
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "writing-group-deck",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "writing-group-deck",
+          "charge_metric": "per_request",
+          "price_in_tokens": 200,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "deck"
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

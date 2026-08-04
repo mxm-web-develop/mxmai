@@ -21,17 +21,28 @@ import type { BusinessPricingRow, ProviderPricingRow } from '../api/client';
 
 export const RECOMMENDED_GENERATE_PARAMS = {
   temperature: 0.5,
-  maxTokens: 1600,
+  /** 新业务默认（全业务下限 20k）；超长成稿可再调到 32k～65k，勿无脑顶满 128k */
+  maxTokens: 20_000,
   topP: 0.95,
+  /** 成稿推荐关思考；须写入 generateParams.parameters.thinking（显性，禁止运行时偷加） */
+  enableThinking: false,
+} as const;
+
+/** 主力文本模型输出上限（业务 maxTokens 不应超过绑定模型） */
+export const MODEL_MAX_OUTPUT_HINT = {
+  'MiniMax-M3': 131_072,
+  'gpt-5.6': 128_000,
 } as const;
 
 export const GENERATE_PARAM_TOOLTIPS: Record<string, string> = {
   temperature:
     '控制输出的随机性/发散程度。数值越高，表达越多样、越有创意，但也更容易偏离指令；越低越稳定、越「照章办事」。规划、结构化 JSON 等任务通常用中低温度。',
   maxTokens:
-    '单次生成允许模型输出的最大 token 数（约等于可生成内容长度上限）。过小容易截断；过大则延迟与计费更高。仅约束「输出侧」，不含输入 prompt 长度。',
+    '单次生成允许的最大「输出」token（不含输入）。与模型上下文窗口是两回事。MiniMax-M3：上下文约 1M，max 输出 131072。GPT-5.6（Sol/Terra/Luna）：上下文约 1.05M，max 输出 128000。平台下限 20000（勿再配 8k）。建议：常规业务 20k；结构/enrich 20k～32k；长文 body/成稿 32k～65k；确需再接近模型上限（贵且慢）。过小会截断。',
   topP:
     '核采样（nucleus sampling）：只在累计概率达到 topP 的候选词集合里采样。越接近 1 保留的候选越多、输出略更多样；越小越保守。常与 temperature 一起调节风格。',
+  enableThinking:
+    'MiniMax-M3 等推理模型的「思考」过程。关闭后 token 预算只用于正文，成稿更稳；开启后可能把预算花在 thinking 上导致截断。此开关写入业务 generateParams.parameters.thinking，运行时不会偷偷默认。',
 };
 
 // ---------------------------------------------------------------------------
@@ -185,6 +196,16 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
+function thinkingTypeFromParameters(parameters: unknown): 'disabled' | 'adaptive' | undefined {
+  if (!isRecord(parameters)) return undefined;
+  const t = parameters.thinking;
+  if (!isRecord(t)) return undefined;
+  const typ = String(t.type ?? '').toLowerCase();
+  if (typ === 'disabled') return 'disabled';
+  if (typ === 'adaptive' || typ === 'enabled' || typ === 'on') return 'adaptive';
+  return undefined;
+}
+
 export function readGenerateParams(extra: unknown): GenerateParamsConfig | null {
   if (!isRecord(extra)) return null;
   const gp = extra.generateParams;
@@ -192,26 +213,72 @@ export function readGenerateParams(extra: unknown): GenerateParamsConfig | null 
   const temperature = toNum(gp.temperature);
   const maxTokens = toNum(gp.maxTokens);
   const topP = toNum(gp.topP);
-  if (temperature == null && maxTokens == null && topP == null) return null;
-  return { temperature, maxTokens, topP };
+  const parameters = isRecord(gp.parameters) ? (gp.parameters as Record<string, unknown>) : undefined;
+  const thinkingType = thinkingTypeFromParameters(parameters);
+  const enableThinking =
+    thinkingType === 'adaptive' ? true : thinkingType === 'disabled' ? false : undefined;
+  if (
+    temperature == null &&
+    maxTokens == null &&
+    topP == null &&
+    enableThinking === undefined &&
+    !parameters
+  ) {
+    return null;
+  }
+  return { temperature, maxTokens, topP, enableThinking, parameters };
 }
 
+/**
+ * 合并生成参数：保留既有 parameters；enableThinking 显式写 parameters.thinking。
+ * 勿把 enableThinking 落成顶层字段。
+ */
 export function mergeGenerateParams(
   prev: Record<string, unknown> | undefined,
-  next: Partial<typeof RECOMMENDED_GENERATE_PARAMS>
+  next: Partial<typeof RECOMMENDED_GENERATE_PARAMS> & { enableThinking?: boolean }
 ) {
   const prevGp = (prev?.generateParams && typeof prev.generateParams === 'object'
-    ? (prev.generateParams as Record<string, unknown>)
+    ? { ...(prev.generateParams as Record<string, unknown>) }
     : {}) as Record<string, unknown>;
+  const prevParams =
+    prevGp.parameters && typeof prevGp.parameters === 'object' && !Array.isArray(prevGp.parameters)
+      ? { ...(prevGp.parameters as Record<string, unknown>) }
+      : {};
+
+  const { enableThinking, ...rest } = next;
+  const generateParams: Record<string, unknown> = {
+    ...prevGp,
+    ...Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined)),
+  };
+  delete generateParams.enableThinking;
+
+  if (enableThinking !== undefined) {
+    generateParams.parameters = {
+      ...prevParams,
+      thinking: { type: enableThinking ? 'adaptive' : 'disabled' },
+      reasoning_split: true,
+    };
+  } else if (Object.keys(prevParams).length > 0) {
+    generateParams.parameters = prevParams;
+  }
+
   return {
     ...prev,
-    generateParams: {
-      ...prevGp,
-      ...Object.fromEntries(
-        Object.entries(next).filter(([, v]) => v !== undefined)
-      ),
-    },
+    generateParams,
   } as Record<string, unknown>;
+}
+
+/** 在既有 extra.generateParams 上打补丁（保留 parameters） */
+export function patchGenerateParamsExtra(
+  prevExtra: Record<string, unknown>,
+  patch: Partial<GenerateParamsConfig>
+): Record<string, unknown> {
+  return mergeGenerateParams(prevExtra, {
+    temperature: patch.temperature,
+    maxTokens: patch.maxTokens,
+    topP: patch.topP,
+    enableThinking: patch.enableThinking,
+  });
 }
 
 export function getMetaNumber(meta: Record<string, unknown> | null | undefined, key: string): number | undefined {

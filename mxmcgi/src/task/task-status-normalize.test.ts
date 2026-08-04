@@ -66,6 +66,54 @@ describe('effectiveTaskStatus', () => {
       )
     ).toBe('awaiting_review');
   });
+
+  it('returns awaiting_user_input when gate is interactive-card and no output', () => {
+    expect(
+      effectiveTaskStatus(
+        base({
+          status: 'awaiting_review',
+          metadata: {
+            model: 'm',
+            provider: 'p',
+            userId: 'u',
+            manualReviewGate: { gateId: 'g1', kind: 'interactive-card' },
+          },
+        })
+      )
+    ).toBe('awaiting_user_input');
+  });
+
+  it('returns awaiting_user_input when gate is basic-form and no output', () => {
+    expect(
+      effectiveTaskStatus(
+        base({
+          status: 'awaiting_user_input',
+          metadata: {
+            model: 'm',
+            provider: 'p',
+            userId: 'u',
+            manualReviewGate: { gateId: 'g1', kind: 'basic-form' },
+          },
+        })
+      )
+    ).toBe('awaiting_user_input');
+  });
+
+  it('still returns completed when interactive-card gate exists but media already produced', () => {
+    expect(
+      effectiveTaskStatus(
+        base({
+          result: { mediaUrls: ['https://x/a.mp3'] },
+          metadata: {
+            model: 'm',
+            provider: 'p',
+            userId: 'u',
+            manualReviewGate: { gateId: 'g1', kind: 'interactive-card' },
+          },
+        })
+      )
+    ).toBe('completed');
+  });
 });
 
 describe('normalizeStaleTaskStatus', () => {

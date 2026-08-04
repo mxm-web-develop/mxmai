@@ -3,6 +3,7 @@ import {
   coerceOtherEnumCustomParams,
   coerceSchemaTypedParams,
   normalizeParamsBeforeSchemaValidate,
+  sanitizeNumericEnumsInJsonSchema,
 } from './form-param-normalize';
 
 describe('coerceSchemaTypedParams', () => {
@@ -64,5 +65,23 @@ describe('coerceOtherEnumCustomParams', () => {
     expect(out.industry_custom).toBe('短剧');
     expect(out.style).toBe('其他');
     expect(out.style_custom).toBe('偏口语短句');
+  });
+});
+
+describe('sanitizeNumericEnumsInJsonSchema', () => {
+  it('coerces string integer enums back to numbers', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        topic_count: {
+          type: 'integer',
+          enum: ['5', '8', '10'],
+          default: '8',
+        },
+      },
+    };
+    sanitizeNumericEnumsInJsonSchema(schema);
+    expect(schema.properties.topic_count.enum).toEqual([5, 8, 10]);
+    expect(schema.properties.topic_count.default).toBe(8);
   });
 });

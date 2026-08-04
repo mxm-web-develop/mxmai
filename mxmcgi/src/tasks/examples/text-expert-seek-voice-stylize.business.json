@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-31T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "seek-voice-stylize",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "探索·文风回填",
+          "description": "（管线内嵌）按单路文风工艺包，将检索要点改写为该文风的关键段落；不接收 40+ 全表。",
+          "taskLabelI18n": {
+            "zh": "专家填合同",
+            "en": "Expert",
+            "zh-TW": "專家填合同",
+            "ja": "Expert"
+          },
+          "subtypeLabelI18n": {
+            "zh": "探索·文风回填",
+            "en": "Seek voice stylize",
+            "zh-TW": "探索·文風回填",
+            "ja": "探索・文風リライト"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段说明",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "你是「文风关键段落」改写员。只处理**当前这一路**文风（contract.business.variants[0]），不要讨论其他文风。\n\n## 版权与命名（硬）\n- 输入里的 craft / reference_paragraph / voice_blurb **不是**要你模仿的真人姓名。\n- **禁止**在输出中写任何作家/刊名，禁止写「某某式」「模仿××」「向××致敬」。\n- 只执行 craft 里的句式/态度/开篇/禁用/用词工艺，并用 reference_paragraph 对齐节奏感。\n\n## 输入\n- 话题：contract.basic.topic\n- 篇幅：contract.basic.article_length（brief≈500–800 / standard≈800–1600 / in_depth≈1600–3500 汉字量级，影响段落条数与密度）\n- 文体：contract.business.variants[0].genre_label（或 genre_id）\n- 文风工艺：contract.business.variants[0].style_profile.craft + reference_paragraph\n- 证据：若有 evidencePack 则优先；否则用合同 sources 中与话题相关的事实要点\n\n## 任务\n从证据中抽取与话题相关的关键事实点，改写成该文风的关键段落，供下游成稿直接使用。\n\n## 话题锁定（硬 · 高于文风）\n- 每段必须能看出在谈 contract.basic.topic 的主张/争议；文风只改句式，不改写成无关气氛小品。\n- 禁止猫/井/咖啡馆等与话题无关的纯意象段当主体。\n\n## 输出格式（硬）\n- 回复第一个字符必须是 `{`，最后一个字符必须是 `}`。\n- 整段回复必须是且仅是一个可 JSON.parse 的对象；键 ⊆ field_specs。\n- 禁止 markdown 围栏、解释性散文、前后缀寒暄。\n\n字段：\n- styled_evidence: string — 连续 Markdown 小段（2～6 段，随篇幅增减），含事实但句式必须符合 craft；无证据则写短并标明「材料有限」不得编造数字。\n- key_passages: array — 3～8 条 { fact, styled }：fact=中性事实一句；styled=同事实的文风化一句/两句（供下游织进同一篇，禁止当多版本大纲）。\n- voice_notes: array — 2～4 条给下游写手的工艺提醒（仍禁止人名）。\n\n## 硬规则\n- 不得编造证据中不存在的数字、专名、引语。\n- 文风服务于可读性；reference_paragraph 只定调，不要整段抄进输出。\n- 输出语言 = contract.basic.language（缺省 zh）。\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.55,
+              "maxTokens": 8000,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "reasoning_split": true
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-seek-voice-stylize",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    }
+  ]
+}

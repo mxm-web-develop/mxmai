@@ -233,19 +233,41 @@ export class TaskExecutor {
           console.log(`[TaskExecutor] graph 参考图已预加载, taskId=${taskId}`);
         }
 
-        const { applyDeferredMediaPrePipeline } = await import('../tasks/deferred-media-pipeline');
-        execParams = await applyDeferredMediaPrePipeline({
-          taskId,
-          taskType: taskType as import('../tasks/deferred-media-pipeline').DeferredPrePipelineTaskType,
-          params,
-          userId,
-          onProgress: async (update) => {
-            await this.taskManager.updateTaskProgress(taskId, {
-              progress: update.progress,
-              logs: [update.message],
-            });
-          },
-        });
+        let audioWarpApplied = false;
+        if (taskType === 'audio') {
+          const { applyAudioMxmWarpPipeline } = await import('../tasks/audio-warp-pipeline');
+          const warpResult = await applyAudioMxmWarpPipeline({
+            taskId,
+            params,
+            userId,
+            onProgress: async (update) => {
+              await this.taskManager.updateTaskProgress(taskId, {
+                progress: update.progress,
+                logs: [update.message],
+              });
+            },
+          });
+          if (warpResult) {
+            execParams = warpResult;
+            audioWarpApplied = true;
+          }
+        }
+
+        if (!audioWarpApplied) {
+          const { applyDeferredMediaPrePipeline } = await import('../tasks/deferred-media-pipeline');
+          execParams = await applyDeferredMediaPrePipeline({
+            taskId,
+            taskType: taskType as import('../tasks/deferred-media-pipeline').DeferredPrePipelineTaskType,
+            params,
+            userId,
+            onProgress: async (update) => {
+              await this.taskManager.updateTaskProgress(taskId, {
+                progress: update.progress,
+                logs: [update.message],
+              });
+            },
+          });
+        }
 
         if ((execParams as Record<string, unknown>).__pauseForManualReview === true) {
           const {
@@ -281,10 +303,21 @@ export class TaskExecutor {
             console.warn('[TaskExecutor] awaiting_review metadata 回写失败:', metaErr);
           }
 
-          const gateLabel = gate?.label ?? '人工审核';
-          await this.taskManager.updateTaskStatus(taskId, 'awaiting_review', {
-            progress: gate?.phase === 'post' ? 85 : 35,
-            logs: [`${gateLabel}，等待人工审核`],
+          // 闸门语义区分：interactive-card / basic-form = pre 阶段引导闸门 = awaiting_user_input；
+          // 其它 = 真人工审核 = awaiting_review。
+          const isInputGate =
+            gate?.kind === 'interactive-card' || gate?.kind === 'basic-form';
+          const pauseStatus: 'awaiting_user_input' | 'awaiting_review' = isInputGate
+            ? 'awaiting_user_input'
+            : 'awaiting_review';
+          const gateLabel = gate?.label ?? (isInputGate ? '请补全信息' : '人工审核');
+          await this.taskManager.updateTaskStatus(taskId, pauseStatus, {
+            progress: isInputGate ? 20 : gate?.phase === 'post' ? 85 : 35,
+            logs: [
+              isInputGate
+                ? `${gateLabel}，等待用户补全`
+                : `${gateLabel}，等待人工审核`,
+            ],
           });
           return;
         }
@@ -307,7 +340,7 @@ export class TaskExecutor {
           }
         }
 
-        if (taskType === 'outline' || taskType === 'writing' || taskType === 'video') {
+        if (taskType === 'outline' || taskType === 'writing' || taskType === 'video' || taskType === 'audio') {
           await this.taskManager.updateTaskRequestParams(taskId, execParams as Record<string, any>);
         }
       }
@@ -351,6 +384,28 @@ export class TaskExecutor {
       } catch {
         // ignore
       }
+
+      // audio group 多人语音：warp 内已逐句 TTS + 混音成片，跳过单次 speech 模型调用
+      if (
+        taskType === 'audio' &&
+        (execParams as Record<string, unknown>).__preRenderedAudio === true &&
+        Array.isArray((execParams as Record<string, unknown>).mediaUrls) &&
+        ((execParams as Record<string, unknown>).mediaUrls as unknown[]).some(
+          (u) => typeof u === 'string' && String(u).trim()
+        )
+      ) {
+        await this.completePreRenderedAudioTask({
+          taskId,
+          params: execParams,
+          userId,
+          modelName,
+          provider,
+          storeToMinio,
+          storageConfig,
+        });
+        return;
+      }
+
       await this.executeMediaModelTask({
         taskId,
         modelName,
@@ -865,11 +920,29 @@ export class TaskExecutor {
       };
 
       // 若生成结果包含纯文本（如 writing / outlines 的 JSON 文本），也一并挂到 metadata.text，方便前端回显/解析
+      // 口播：把合成文稿写入 metadata，供 speech-2.8 无上游字幕时估算句级字幕
+      const reqParams = (taskResponse?.task?.requestParams ?? {}) as Record<string, unknown>;
+      const innerReq = ((reqParams.params ?? reqParams) as Record<string, unknown>) || {};
+      const ttsScriptForMeta =
+        taskType === 'audio' || taskType === 'music'
+          ? String(
+              reqParams.prompt ??
+                innerReq.prompt ??
+                (reqParams.parameters as { text?: unknown } | undefined)?.text ??
+                (innerReq.parameters as { text?: unknown } | undefined)?.text ??
+                ''
+            ).trim()
+          : '';
+      const textFromResult =
+        typeof (processedResult as { text?: unknown }).text === 'string' &&
+        (processedResult as { text: string }).text.trim()
+          ? (processedResult as { text: string }).text.trim()
+          : '';
       const finalMetadata =
-        typeof (processedResult as any)?.text === 'string' && (processedResult as any).text.trim()
+        textFromResult || ttsScriptForMeta
           ? {
               ...finalMetadataBase,
-              text: (processedResult as any).text as string,
+              text: textFromResult || ttsScriptForMeta,
             }
           : finalMetadataBase;
       
@@ -965,6 +1038,140 @@ export class TaskExecutor {
         `处理结果失败: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+  }
+
+  /**
+ * audio group 多人语音：warp 内已混音上传，跳过 speech 模型，直接落库成片
+ */
+  async completePreRenderedAudioTask(options: {
+    taskId: string;
+    params: Record<string, any>;
+    userId?: string;
+    modelName: string;
+    provider?: string;
+    storeToMinio?: boolean;
+    storageConfig?: StorageConfig;
+  }): Promise<void> {
+    const { taskId, params, userId, modelName, provider } = options;
+    const mediaUrls = (Array.isArray(params.mediaUrls) ? params.mediaUrls : [])
+      .map((u: unknown) => String(u ?? '').trim())
+      .filter(Boolean);
+    if (mediaUrls.length === 0) {
+      throw new Error('completePreRenderedAudioTask：缺少 mediaUrls');
+    }
+
+    const inner = (params.params ?? {}) as Record<string, unknown>;
+    const metaIn = (params.metadata ?? {}) as Record<string, unknown>;
+    const bps = (params.businessPipelineState ?? {}) as Record<string, unknown>;
+    const dialogueMix = (bps.dialogueMix ?? metaIn.dialogueMix) as
+      | { audioUrl?: string; bucket?: string; key?: string; totalDurationMs?: number }
+      | undefined;
+
+    const durationRaw =
+      metaIn.duration ??
+      metaIn.audio_seconds ??
+      inner.audio_duration_seconds ??
+      inner.total_duration_seconds ??
+      (dialogueMix?.totalDurationMs != null ? dialogueMix.totalDurationMs / 1000 : undefined);
+    const duration =
+      typeof durationRaw === 'number' && Number.isFinite(durationRaw)
+        ? durationRaw
+        : Number(durationRaw) || 0;
+
+    const { parseReferenceImageLocator } = await import('../task/reference-image');
+    let bucket = String(dialogueMix?.bucket ?? metaIn.storage_bucket ?? '').trim();
+    let key = String(dialogueMix?.key ?? metaIn.storage_key ?? '').trim();
+    if (!bucket || !key) {
+      for (const url of mediaUrls) {
+        const loc = parseReferenceImageLocator(url);
+        if (loc?.kind === 'media-asset' && loc.bucket && loc.key) {
+          bucket = loc.bucket;
+          key = loc.key;
+          break;
+        }
+      }
+    }
+
+    const proxyBasePath = `/api/v1/media/audio/${taskId}`;
+    const storageInfo = {
+      keys: key ? [key] : ([] as string[]),
+      bucket: bucket || '',
+      urls: mediaUrls,
+      proxyUrls: mediaUrls.map((_, i) =>
+        mediaUrls.length > 1 ? `${proxyBasePath}?index=${i}` : proxyBasePath
+      ),
+    };
+
+    // 句级字幕：优先 metadata，其次时间轴 merge 结果
+    let subtitleData = metaIn.subtitle_data;
+    if (subtitleData == null) {
+      const timeline = bps.dialogueTimeline as { subtitles?: unknown } | undefined;
+      const contract = bps.contract as Record<string, unknown> | undefined;
+      const business = contract?.business as Record<string, unknown> | undefined;
+      const timelineJson = business?.timeline_json as { subtitles?: unknown } | undefined;
+      const rawSubs = timeline?.subtitles ?? timelineJson?.subtitles;
+      if (Array.isArray(rawSubs) && rawSubs.length > 0) {
+        const { dialogueSubtitlesToPlayerPayload } = await import(
+          '../core/audio/dialogue-subtitle-payload'
+        );
+        subtitleData = dialogueSubtitlesToPlayerPayload(rawSubs);
+      }
+    }
+
+    const finalMetadata: Record<string, unknown> = {
+      userId,
+      model: modelName || 'speech-2.8-hd',
+      provider: provider || 'maxplan',
+      dialogueMix: true,
+      duration,
+      audio_seconds: duration,
+      ...metaIn,
+      ...(bucket ? { storage_bucket: bucket } : {}),
+      ...(key ? { storage_key: key } : {}),
+      ...(subtitleData != null
+        ? {
+            subtitle_data: subtitleData,
+            subtitle_enabled: true,
+            subtitle_persisted_at: new Date().toISOString(),
+          }
+        : {}),
+    };
+
+    await this.taskManager.updateTaskProgress(taskId, {
+      progress: 98,
+      logs: ['多人语音成片已生成，正在落库…'],
+    });
+
+    await this.taskManager.setTaskResult(taskId, {
+      mediaUrls,
+      storageInfo,
+      metadata: finalMetadata,
+    });
+
+    try {
+      if (userId && duration > 0) {
+        await BillingService.consumeForTask({
+          taskId,
+          userId,
+          provider: String(finalMetadata.provider || 'maxplan'),
+          modelKey: String(finalMetadata.model || modelName || 'speech-2.8-hd'),
+          scope: 'audio',
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          imageCount: 0,
+          audioSeconds: duration,
+          videoSeconds: 0,
+        });
+      }
+    } catch (billErr) {
+      console.warn('[TaskExecutor] preRendered audio 计费失败（成片已落库）:', billErr);
+    }
+
+    await this.taskManager.updateTaskProgress(taskId, {
+      progress: 100,
+      logs: ['多人语音成片完成'],
+    });
   }
 
   /**

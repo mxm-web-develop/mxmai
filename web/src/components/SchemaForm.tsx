@@ -10,6 +10,7 @@ import { KbRecallField } from './schema-fields/KbRecallField';
 import { MxmKbInputField } from './schema-fields/MxmKbInputField';
 import { TextFileOrPasteField } from './schema-fields/TextFileOrPasteField';
 import { MinimaxVoiceField } from './schema-fields/MinimaxVoiceField';
+import { DialogueCastField } from './schema-fields/DialogueCastField';
 import { MediaUploadField, type MediaUploadMode } from './schema-fields/MediaUploadField';
 import { ColorPickerField } from './schema-fields/ColorPickerField';
 import { WebSearchField } from './schema-fields/WebSearchField';
@@ -391,6 +392,7 @@ export function SchemaForm(props: SchemaFormProps) {
           {help}
           <FolderCardAtField
             cardTag={cardTag}
+            mode="pick"
             value={typeof v === 'string' && v.trim() ? v : null}
             onChange={(id) => setField(id ?? '')}
           />
@@ -691,6 +693,35 @@ export function SchemaForm(props: SchemaFormProps) {
             voiceModel={voiceModel}
             cloneFolderId={cloneFolderId}
             onChange={(next) => setField(next)}
+            onPersonaSuggest={(persona, meta) => {
+              if (!Object.prototype.hasOwnProperty.call(properties, 'host_persona')) return;
+              if (meta?.status === 'loading') return;
+              const patched = { ...valueRef.current, host_persona: persona };
+              valueRef.current = patched;
+              onChange(patched);
+            }}
+          />
+        </div>
+      );
+    }
+
+    if (uiType === 'dialogueCast') {
+      const speakerCount = Number(value.speaker_count ?? valueRef.current.speaker_count ?? 2) || 2;
+      return (
+        <div key={name} className="schema-form__field">
+          {label}
+          {help}
+          <DialogueCastField
+            value={Array.isArray(v) ? (v as any) : undefined}
+            speakerCount={speakerCount}
+            onChange={(next) => {
+              setField(next);
+              if (Object.prototype.hasOwnProperty.call(properties, 'speaker_count')) {
+                const patched = { ...valueRef.current, cast: next, speaker_count: next.length };
+                valueRef.current = patched;
+                onChange(patched);
+              }
+            }}
           />
         </div>
       );

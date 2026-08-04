@@ -35,6 +35,7 @@ import {
 import { normalizeClientAccessibleMediaUrl } from '../core/audio/voiceover-audio-source';
 import { isVideoTimelineRenderPipelineStep } from './nested-video-render';
 import { setManualReviewDraft } from './manual-review-store';
+import { syncDialogueLinesFromScript } from './sync-dialogue-lines-from-script';
 import {
   extractTopicChipsFromContractState,
   fieldsWantTopicChips,
@@ -62,6 +63,124 @@ function isDeferredNestedTextStep(step: PipelineStep): boolean {
     step.step === 'nestedText' &&
     (step.params?.graphPreFormat === true || step.params?.afterPromptRender === true)
   );
+}
+
+const DIALOGUE_FORMAT_LABELS: Record<string, string> = {
+  alternate_read: '交替朗读',
+  topic_discuss: '话题讨论',
+  host_sidekick: '主讲陪聊',
+  audio_drama: '演绎有声剧',
+};
+
+function isInteractiveFieldValueEmpty(v: unknown): boolean {
+  if (v == null) return true;
+  if (typeof v === 'string') return !v.trim();
+  if (typeof v === 'number') return !Number.isFinite(v);
+  if (Array.isArray(v)) return v.length === 0;
+  return false;
+}
+
+/** 用 params / 合同 / content_scan / plans 预填交互卡字段 default，供第二张卡展示推荐 */
+function enrichInteractiveCardFieldsWithDefaults(
+  fields: unknown,
+  taskParams: Record<string, unknown>,
+  contract:
+    | { basic?: Record<string, unknown>; business?: Record<string, unknown> }
+    | undefined,
+  scan: Record<string, unknown> | null
+): unknown {
+  if (!Array.isArray(fields)) return fields;
+  const basic = contract?.basic ?? {};
+  const business = contract?.business ?? {};
+  const plansRaw = Array.isArray(business.plans)
+    ? business.plans
+    : Array.isArray(taskParams.plans)
+      ? taskParams.plans
+      : [];
+  const planRows = plansRaw
+    .filter((p): p is Record<string, unknown> => !!p && typeof p === 'object' && !Array.isArray(p))
+    .map((p) => {
+      const id = String(p.id ?? '').trim();
+      if (!id) return null;
+      const label = String(p.label ?? '').trim() || id;
+      const pages = Number(p.page_count);
+      const dens = String(p.density ?? '').trim();
+      const densZh = dens === 'sparse' ? '疏' : dens === 'dense' ? '密' : dens === 'balanced' ? '中' : '';
+      const chip =
+        /\d+\s*页/.test(label) || !Number.isFinite(pages)
+          ? label
+          : `${label}·${Math.round(pages)}页${densZh ? `·${densZh}` : ''}`;
+      return { id, chip };
+    })
+    .filter((x): x is { id: string; chip: string } => !!x);
+
+  return fields.map((raw) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+    const f = { ...(raw as Record<string, unknown>) };
+    const name = String(f.name ?? '').trim();
+    if (!name) return f;
+    let value = taskParams[name];
+    if (isInteractiveFieldValueEmpty(value)) value = basic[name];
+    if (isInteractiveFieldValueEmpty(value)) value = business[name];
+    if (isInteractiveFieldValueEmpty(value) && scan) {
+      if (name === 'dialogue_format') value = scan.suggested_format ?? scan.dialogue_format;
+      if (name === 'speaker_count') value = scan.suggested_speakers ?? scan.speaker_count;
+      if (name === 'broadcast_style') {
+        value = scan.suggested_broadcast_style ?? scan.broadcast_style;
+      }
+    }
+    if (name === 'plan_id' && planRows.length > 0) {
+      f.enum = planRows.map((p) => p.id);
+      f['x-enum-labels'] = planRows.map((p) => p.chip);
+      f['x-ui-type'] = 'chips';
+      f.required = true;
+      if (isInteractiveFieldValueEmpty(value)) value = planRows[0]!.id;
+    }
+    if (!isInteractiveFieldValueEmpty(value) && f.default == null && f.defaultObject == null) {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        f.defaultObject = value as Record<string, unknown>;
+      } else {
+        f.default = value as string | number | boolean;
+      }
+    }
+    return f;
+  });
+}
+
+function pickInteractiveCardInitialValues(
+  fields: unknown,
+  taskParams: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (!Array.isArray(fields)) return out;
+  for (const raw of fields) {
+    if (!raw || typeof raw !== 'object') continue;
+    const f = raw as Record<string, unknown>;
+    const name = String(f.name ?? '').trim();
+    if (!name) continue;
+    if (f.default != null) out[name] = f.default;
+    else if (f.defaultObject != null) out[name] = f.defaultObject;
+    else if (!isInteractiveFieldValueEmpty(taskParams[name])) out[name] = taskParams[name];
+  }
+  return out;
+}
+
+function appendContentScanHint(
+  baseHint: string | undefined,
+  scan: Record<string, unknown> | null
+): string | undefined {
+  if (!scan) return baseHint;
+  const format = String(scan.suggested_format ?? scan.dialogue_format ?? '').trim();
+  const speakers = scan.suggested_speakers ?? scan.speaker_count;
+  const reason = String(scan.reason ?? '').trim();
+  const formatLabel = DIALOGUE_FORMAT_LABELS[format] ?? format;
+  const parts: string[] = [];
+  if (formatLabel && speakers != null && String(speakers).trim()) {
+    parts.push(`根据文稿，建议「${formatLabel} / ${speakers} 人」。`);
+  }
+  if (reason) parts.push(reason);
+  if (baseHint?.trim()) parts.push(baseHint.trim());
+  return parts.length ? parts.join(' ') : baseHint;
 }
 
 function defaultEditable(kind: ManualReviewKind): boolean {
@@ -390,16 +509,35 @@ export async function extractReviewDraftFromContext(
     const topicChips = wantChips
       ? extractTopicChipsFromContractState(ctx.state.contract as Record<string, unknown> | undefined)
       : undefined;
+    const taskParams = (ctx.params ?? {}) as Record<string, unknown>;
+    const contract = ctx.state.contract as
+      | { basic?: Record<string, unknown>; business?: Record<string, unknown> }
+      | undefined;
+    const scan =
+      contract?.business?.content_scan && typeof contract.business.content_scan === 'object'
+        ? (contract.business.content_scan as Record<string, unknown>)
+        : taskParams.content_scan && typeof taskParams.content_scan === 'object'
+          ? (taskParams.content_scan as Record<string, unknown>)
+          : null;
+    const enrichedFields = enrichInteractiveCardFieldsWithDefaults(
+      fields,
+      taskParams,
+      contract,
+      scan
+    );
+    const hintWithScan = appendContentScanHint(params.hint, scan);
     return {
       ...base,
-      json: source && typeof source === 'object' ? source : {},
+      hint: hintWithScan ?? base.hint,
+      json: source && typeof source === 'object' ? source : { ...taskParams },
       metadata: {
         ...(base.metadata ?? {}),
         ui: kind,
-        fields: fields ?? null,
+        fields: enrichedFields ?? null,
         topicChips: topicChips ?? [],
         skippable: (step.params as Record<string, unknown> | undefined)?.skippable === true,
         optionsFrom: wantChips ? 'sources.websource' : undefined,
+        initialValues: pickInteractiveCardInitialValues(enrichedFields, taskParams),
       },
     };
   }
@@ -443,7 +581,42 @@ export async function extractReviewDraftFromContext(
     const urls = normalizeMediaUrls(source, ctx);
     return { ...base, mediaUrls: urls, editable: false };
   }
-  const text = typeof source === 'string' ? source : JSON.stringify(source ?? '');
+  let text = typeof source === 'string' ? source : source != null ? JSON.stringify(source) : '';
+  // 多人语音：script_draft 空时从 lines 拼【角色】可读稿；并附带指导时间轴数据
+  if (params.syncDialogueLines === true) {
+    const contract = ctx.state.contract as Record<string, unknown> | undefined;
+    const business = (contract?.business as Record<string, unknown> | undefined) ?? {};
+    const basic = (contract?.basic as Record<string, unknown> | undefined) ?? {};
+    const lines = Array.isArray(business.lines)
+      ? (business.lines as Array<Record<string, unknown>>)
+      : [];
+    const cast = Array.isArray(business.cast)
+      ? (business.cast as Array<Record<string, unknown>>)
+      : [];
+    if (!String(text).trim() && lines.length > 0) {
+      const { formatDialogueScriptFromLines } = await import('./sync-dialogue-lines-from-script');
+      text = formatDialogueScriptFromLines(lines, cast);
+    }
+    if (lines.length > 0) {
+      return {
+        ...base,
+        text: text.trim(),
+        metadata: {
+          ...(base.metadata ?? {}),
+          ui: 'dialogue-guidance-timeline',
+          dialogueReview: {
+            lines,
+            cast,
+            broadcast_style:
+              String(basic.broadcast_style ?? ctx.params.broadcast_style ?? '').trim() ||
+              undefined,
+            guidanceNote:
+              '本时间轴为剪辑指导（预估语速 + 相对 cue），与最终 TTS 成片时长会有偏差。',
+          },
+        },
+      };
+    }
+  }
   return { ...base, text: text.trim() };
 }
 
@@ -1014,10 +1187,24 @@ function applyMappingToCtx(
     if (target === 'prompt' || target.startsWith('params.')) {
       const key = target.startsWith('params.') ? target.slice('params.'.length) : 'prompt';
       next = { ...next, params: { ...next.params, [key]: value } };
-      if (key === 'prompt') {
+      if (key === 'prompt' && typeof value === 'string') {
+        const prevCore = next.state.coreArtifact as
+          | { kind?: string; text?: string; metadata?: Record<string, unknown> }
+          | undefined;
         next = {
           ...next,
-          state: { ...next.state, finalPrompt: value, promptForModel: value, prePipelineReviewText: value },
+          state: {
+            ...next.state,
+            finalPrompt: value,
+            promptForModel: value,
+            prePipelineReviewText: value,
+            // enrich 末审改稿后，skipOutputLlm / TTS 读 coreArtifact
+            coreArtifact: {
+              kind: 'text',
+              text: value,
+              metadata: { ...(prevCore?.metadata ?? {}), manualReviewEdited: true },
+            },
+          },
         };
       }
     } else if (target.startsWith('state.')) {
@@ -1074,6 +1261,39 @@ export function applyApprovedManualReview(
     state: { ...bps, prePipelineReviewText: reviewText || undefined },
   };
   ctx = applyMappingToCtx(ctx, stepParams?.applyMapping, review);
+
+  // 多人语音：审核改【角色】台词本后回写 contract.business.lines（保留 cue）
+  if (stepParams?.syncDialogueLines === true && reviewText) {
+    const contract = (ctx.state.contract ?? {}) as Record<string, unknown>;
+    const business = {
+      ...((contract.business as Record<string, unknown> | undefined) ?? {}),
+    };
+    const prevLines = Array.isArray(business.lines)
+      ? (business.lines as Array<Record<string, unknown>>)
+      : [];
+    const cast = Array.isArray(business.cast)
+      ? (business.cast as Array<Record<string, unknown>>)
+      : [];
+    business.lines = syncDialogueLinesFromScript({
+      script: reviewText,
+      lines: prevLines,
+      cast,
+    });
+    business.script_draft = reviewText;
+    ctx = {
+      ...ctx,
+      params: { ...ctx.params, script_draft: reviewText },
+      state: {
+        ...ctx.state,
+        contract: { ...contract, business },
+        coreArtifact: {
+          kind: 'text',
+          text: reviewText,
+          metadata: { mxmWarp: true, dialogueScript: true },
+        },
+      },
+    };
+  }
 
   // 交互卡 / 分步 basic：将 review.json 平面合并进 params（显式 mapping 优先）
   if (

@@ -38,7 +38,7 @@
             "generateParams": {
               "temperature": 0.25,
               "topP": 0.9,
-              "maxTokens": 8192
+              "maxTokens": 20000
             }
           },
           "prompt": {
@@ -61,7 +61,10 @@
               "user_language": {
                 "type": "string",
                 "title": "用户语言",
-                "enum": ["zh", "en"],
+                "enum": [
+                  "zh",
+                  "en"
+                ],
                 "default": "zh",
                 "description": "用户 UI 语言，决定 prompt 中自由文本字段的输出语言。由后端 vf runner 注入。"
               },
@@ -133,7 +136,7 @@
             "generateParams": {
               "temperature": 0.25,
               "topP": 0.9,
-              "maxTokens": 8192
+              "maxTokens": 20000
             }
           },
           "prompt": {
@@ -158,7 +161,10 @@
               "user_language": {
                 "type": "string",
                 "title": "用户语言",
-                "enum": ["zh", "en"],
+                "enum": [
+                  "zh",
+                  "en"
+                ],
                 "default": "zh"
               },
               "prompt": {

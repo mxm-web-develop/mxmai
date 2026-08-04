@@ -12,7 +12,8 @@ import {
 import { getFirstProviderKey } from '../../core/providers/provider-keys';
 import { getByProviderAndModelKey, isModelEnabled } from '../provider-model-catalog';
 import { requireUpstreamPhysicalId } from '../physical-model-id';
-import { formatNodeFetchError } from '../../core/utils/format-node-fetch-error';
+import { throwMappedFetchError } from '../../core/utils/format-node-fetch-error';
+import { mapUpstreamError } from '../../errors';
 import {
   isSeedance20Upstream,
   resolveSeedanceVideoMode,
@@ -265,7 +266,7 @@ export class AtlasCloudProvider implements ModelProvider {
         },
       });
     } catch (e) {
-      throw new Error(`AtlasCloud 网络异常: ${formatNodeFetchError(url, e)}`);
+      throwMappedFetchError(url, e);
     }
     const text = await res.text();
     let json: any;
@@ -282,7 +283,9 @@ export class AtlasCloudProvider implements ModelProvider {
       const msg =
         (json && (json.message || json.error || json.raw)) ||
         `HTTP ${res.status}`;
-      throw new Error(`AtlasCloud API 请求失败: ${path} (${res.status}) ${msg} · ${detail}`);
+      throw mapUpstreamError(
+        new Error(`AtlasCloud API 请求失败: ${path} (${res.status}) ${msg} · ${detail}`)
+      );
     }
     return json as T;
   }

@@ -26,7 +26,7 @@
         "taskTemplate": {
           "extra": {
             "generateParams": {
-              "maxTokens": 2048,
+              "maxTokens": 20000,
               "temperature": 0.3
             }
           },

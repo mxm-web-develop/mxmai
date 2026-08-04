@@ -15,6 +15,7 @@ import {
   type FolderItem,
 } from '../../api/client';
 import { buildFolderTree, type FolderTreeNode } from '../../lib/folderTree';
+import { toUserFacingErrorMessage } from '../../lib/platformErrors';
 
 function folderTagSuffix(f: FolderItem): string {
   if (!f.card_tag) return '';
@@ -153,7 +154,7 @@ export function MoveTasksToKnowledgeFolderModal({
     try {
       const res = await createKnowledgeFolder(name, parentFolderId);
       if (res.error) {
-        message.error(res.error);
+        message.error(toUserFacingErrorMessage(res.error));
         return;
       }
       const created = res.data?.data;
@@ -186,7 +187,7 @@ export function MoveTasksToKnowledgeFolderModal({
             linkStorageIds = [...linkStorageIds, ...prepared.storageObjectIds];
           }
         } catch (err) {
-          message.error(err instanceof Error ? err.message : t('common.task.moveToFolder.failed'));
+          message.error(toUserFacingErrorMessage(err instanceof Error ? err.message : err, { fallback: t('common.task.moveToFolder.failed') }));
           return;
         }
       }

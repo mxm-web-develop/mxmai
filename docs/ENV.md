@@ -47,6 +47,8 @@ MXMCGI_PORT=4003
 WORKER_PORT=4004
 SCHEDULER_PORT=4006
 MXMNOTIFY_PORT=4005
+PPTX_COMPILER_PORT=4010
+PPTX_COMPILER_URL=http://127.0.0.1:4010
 ```
 
 ### mxmcgi 调度（api / worker / scheduler）
@@ -58,6 +60,23 @@ MXMNOTIFY_PORT=4005
 | `WORKER_IDLE_POLL_MS` | `30000` | 兜底 poll |
 | `TASK_QUEUE_REDIS_KEY` | `cgi:task:queue` | 建任务唤醒 worker |
 | `MXMCGI_INTERNAL_TOKEN` | — | worker internal execute 鉴权 |
+
+### PPTX 编译微服务（writing/group/deck）
+
+独立 FastAPI 服务，默认端口 **4010**。`renderPptx` 通过 HTTP 异步提交 job 并轮询下载；未配置 URL 时回退本地 `spawn` CLI。
+
+| 变量 | 默认 | 说明 |
+|------|------|------|
+| `PPTX_COMPILER_URL` | `http://127.0.0.1:4010` | 同机默认；设为空字符串则强制本地 spawn |
+| `PPTX_COMPILER_API_TOKEN` | — | 可选 Bearer，与服务端同值 |
+| `PPTX_COMPILER_POLL_MS` | `500` | 轮询间隔 |
+| `PPTX_COMPILER_TIMEOUT_MS` | `180000` | 单次编译超时 |
+| `PPTX_COMPILER_PORT` | `4010` | 服务端监听端口 |
+| `PPTX_COMPILER_WORKERS` | `4` | 服务端线程池并发数 |
+| `PPTX_COMPILER_JOB_TTL_SEC` | `3600` | 内存 job 保留时长 |
+| `PPTX_PYTHON_BIN` | `python3` | 仅 spawn 兜底用 |
+
+启动：`pnpm dev:pptx-compiler`（见根 `package.json`）。详见 `mxmcgi/tools/pptx-compiler/NOTICE.md`。
 
 Supabase RPC：`supabase/migrations/20260616033531_claim_pending_cgi_tasks.sql`（Cloud 已应用）。详见 [mxmcgi/docs/API_WORKER_SPLIT.md](../mxmcgi/docs/API_WORKER_SPLIT.md)。
 

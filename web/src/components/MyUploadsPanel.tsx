@@ -30,6 +30,7 @@ import {
   StorageMediaCard,
 } from './asset-center';
 import { PageHint } from './PageHint';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 function flattenFolderOptions(folders: FolderItem[], rootLabel: string): { id: string | null; label: string }[] {
   const options: { id: string | null; label: string }[] = [{ id: null, label: rootLabel }];
@@ -237,7 +238,7 @@ export function MyUploadsPanel() {
     }
     const res = await createFolder(name, selectedFolderId ?? undefined);
     if (res.error) {
-      message.error(res.error);
+      message.error(toUserFacingErrorMessage(res.error));
       return;
     }
     message.success(t('assets.upload.folderCreated'));
@@ -271,7 +272,7 @@ export function MyUploadsPanel() {
     try {
       const res = await moveStorageObjectsToFolder(moveObjectIds, moveTargetFolderId);
       if (res.error) {
-        message.error(res.error);
+        message.error(toUserFacingErrorMessage(res.error));
         return;
       }
       message.success(t('assets.upload.movedCount', { count: res.moved ?? moveObjectIds.length }));
@@ -296,7 +297,7 @@ export function MyUploadsPanel() {
       onOk: async () => {
         const res = await deleteFolder(folderId);
         if (res.error) {
-          message.error(res.error);
+          message.error(toUserFacingErrorMessage(res.error));
           return;
         }
         if (selectedFolderId === folderId) setSelectedFolderId(null);
@@ -317,7 +318,7 @@ export function MyUploadsPanel() {
       onOk: async () => {
         const res = await deleteStorageObject(item.id);
         if (res.error) {
-          message.error(res.error);
+          message.error(toUserFacingErrorMessage(res.error));
           return;
         }
         message.success(t('assets.upload.fileDeleted'));

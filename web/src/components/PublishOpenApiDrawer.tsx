@@ -10,6 +10,7 @@ import {
   parseOpenApiManifestResponse,
 } from './OpenApiIntegrationContent';
 import { PageHint } from './PageHint';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 export type PublishOpenApiPreset =
   | { kind: 'task_v2'; taskV2Scope: string; taskV2TaskKey: string; taskV2Subtype?: string; titleHint?: string }
@@ -71,7 +72,7 @@ export function PublishOpenApiDrawer({ open, onClose, preset, onPublished }: Pro
             };
       const res = await createPublishedApi(body);
       if (res.error) {
-        message.error(res.error);
+        message.error(toUserFacingErrorMessage(res.error));
         return;
       }
       message.success('已发布');

@@ -25,12 +25,15 @@ export function isInternalListTask(task: {
 
   const meta = readRecord(task.metadata) ?? {};
   if (meta.pipelineInternal === true || meta.hideFromUserList === true) return true;
+  /** Admin 操作监控室调试跑次：不对用户任务列表展示 */
+  if (meta.adminPipelineDebug === true) return true;
   if (meta.parentPipelineTaskId) return true;
   if (meta.pipelineNode === PIPELINE_NODE_VIDEO_TIMELINE_RENDER) return true;
   if (meta.videoSubtype === 'render' && meta.model === 'video-edit-dispatcher') return true;
 
   const rp = readRecord(task.requestParams) ?? {};
   if (rp.pipelineInternal === true) return true;
+  if (rp.__adminPipelineDebug === true || rp.adminPipelineDebug === true) return true;
   if (rp.parentPipelineTaskId) return true;
   if (rp.pipelineNode === PIPELINE_NODE_VIDEO_TIMELINE_RENDER) return true;
   if (rp.videoSubtype === 'render' && rp.model === 'video-edit-dispatcher') return true;
@@ -39,6 +42,8 @@ export function isInternalListTask(task: {
   const innerMeta = readRecord(inner?.metadata);
   if (innerMeta?.parentPipelineTaskId) return true;
   if (innerMeta?.pipelineInternal === true) return true;
+  if (innerMeta?.adminPipelineDebug === true || innerMeta?.hideFromUserList === true) return true;
+  if (inner?.__adminPipelineDebug === true) return true;
 
   return false;
 }

@@ -10,7 +10,8 @@ description: SuperMXMai 全 scope 业务命名规范：taskKey/subtype 结构、
 > **text** 仍为 `plan` | `transform` | `expert` | `validation`（见 §3.6）。  
 > 具体业务名只放 **subtype** / **subtypeLabel**。  
 > **中文显示名只给人看**；**英文显示可用旧分类名**（Editorial / Gallery / Autocut…），**内部 value 一律三态**。  
-> **新生产业务必须遵循本文件**；仓库历史 bundle 可暂留旧 type，不得再新建旧 key。
+> **新生产业务必须遵循本文件**。非 text 的 `type` **只允许** `generator`|`group`|`series`；**禁止**再写、再 seed、再导入任何旧 type（含 `editorial`）。  
+> **text / writing 默认模型**：`maxplan` + `MiniMax-M3`。**禁止** bundle 再写 `deer` / `deepseek-*`。
 
 ## 1. 三层结构
 
@@ -75,7 +76,7 @@ description: SuperMXMai 全 scope 业务命名规范：taskKey/subtype 结构、
 ## 3. 各 scope 分类 taskKey（钉死 · 2026-07-23 起新上架）
 
 > **不得**在下列表之外再发明新 type（除非先改本 skill）。  
-> 历史 `editorial` / `proposal` / `generated` / `gallery` / `voiceover` / `dialogue` / `synthesis` / `autocut` / `fragment` 等：**可暂留，禁止新建**；解析层见 `mxmcgi/src/tasks/mxm-warp/unit-series.ts` 别名表。
+> `editorial` / `proposal` / `generated` / `gallery` / `voiceover` / `dialogue` / `speak` / `synthesis` / `autocut`（作 type）/ `fragment` 等：**一律禁止**作为 taskKey。解析层别名仅兼容历史任务，**不得**据此上架。清理：`pnpm run deactivate:legacy-writing-editorial` / `deactivate:legacy-audio-speak` 等。
 
 ### 总则：三态语义（跨 scope 一致）
 
@@ -86,6 +87,8 @@ description: SuperMXMai 全 scope 业务命名规范：taskKey/subtype 结构、
 | **`series`** | **对象 + 历史上下文**（将演进） | 联合历史数据生成新内容 | 连续剧下一集、同一张图连续调整、连载章节 |
 
 运行时：`resolveWarpShape(scope, taskKey)` → `generator` \| `group` \| `series`（**只查表，不写入合同 meta**）。
+
+**硬约束（跨 scope）**：**从合同取参并调用本业务主生成接口** 的步骤默认落在 **output**（`generator` 一次 / `group` 遍历数组 / `series` 带历史），**禁止**因 `skipOutputLlm` 把主合成挪到 `pipeline.post`。详见 [`.cursor/skills/mxmai_business_pipeline/SKILL.md`](../mxmai_business_pipeline/SKILL.md) §2.1。
 
 ---
 
@@ -99,7 +102,7 @@ description: SuperMXMai 全 scope 业务命名规范：taskKey/subtype 结构、
 
 具体题材全部是 **subtype**。
 
-**已废弃作 type（不得新建）**：`editorial` `proposal` `longwrite` `articles` `outlines` `voice-scripts` `storyboard-scripts` `lyrics` `suno-lyrics` `media-post` `reviews` `resumes` `business` 等。
+**禁止作 type**：`editorial` `proposal` `longwrite` `articles` `outlines` `voice-scripts` `storyboard-scripts` `lyrics` `suno-lyrics` `media-post` `reviews` `resumes` `business` 等。行业日报 = `writing/generator/industry-daily`（**不是** `editorial`）。
 
 ---
 
@@ -111,8 +114,8 @@ description: SuperMXMai 全 scope 业务命名规范：taskKey/subtype 结构、
 | `group` | 图集 | Gallery | 多图成组 / 批次图集产出 |
 | `series` | 系列 | Series | 同一视觉主体连续调整 / 多轮迭代生图（带历史帧或历史合同） |
 
-**已废弃作 type**：`generated` `gallery` `tool` `photograph` `design` `painting` `eshop` `tools`。  
-图像工具类（扩图、去背景等）新上架优先归 **`generator` 下 subtype**，或标 `internal`。
+**禁止作 type**：`generated` `gallery` `tool` `photograph` `design` `painting` `eshop` `tools`。  
+图像工具类（扩图、去背景等）新上架优先归 **`generator` 下 subtype**。
 
 > 表单里隐藏的 `params.type`（如 `poster`）是 **runtime 技术管线分支**，与业务 taskKey **无关**，仍勿对用户展示。
 
@@ -126,7 +129,7 @@ description: SuperMXMai 全 scope 业务命名规范：taskKey/subtype 结构、
 | `group` | 对话 | Dialogue | 多角色 / 多音色对话或多轨语音（并发或成组轨） |
 | `series` | 系列 | Series | 带历史上下文的连续配音 / 多集口播续作 |
 
-**已废弃作 type**：`voiceover` `dialogue` `multiple` `speak`（仅作 type 时）。旧 `speak/*` 示例可暂留。
+**已废弃作 type**：`voiceover` `dialogue` `multiple` `speak`（仅作 type 时）。旧 `speak/*` 示例与路由须清理：`pnpm run deactivate:legacy-audio-speak`（仓库内不再保留 speak bundle）。
 
 ---
 
@@ -192,7 +195,7 @@ text 多为其它 scope 的 nestedText 挂载，**不是** C 端主入口分类�
 | generator | default | 创作 | Synthesis | 通用短视频 | |
 | generator | eshop-i2v | 创作 | Synthesis | 上架图动效 | |
 
-历史仍可能是 `synthesis/*`、`autocut/*`；**新上架 / 迁移目标**用上表。
+**禁止**再上架 `synthesis/*`、`autocut/*` 作 type；一律用上表。
 
 **管线内置节点（非业务）**：`videoTimelineRender` — 由 `renderOptions` 区分阶段：
 
@@ -213,7 +216,8 @@ text 多为其它 scope 的 nestedText 挂载，**不是** C 端主入口分类�
 | graph | group | content-album | 图集 | Gallery | 内容配图 |
 | graph | series | poster-iterate | 系列 | Series | 海报连调 |
 | audio | generator | podcast-host | 单口 | Voiceover | 播客主持 |
-| audio | group | dual-host | 对话 | Dialogue | 双人主持 |
+| audio | group | multi-voice | 对话 | Dialogue | 多人语音 |
+| audio | group | dual-host | 对话 | Dialogue | 双人主持（历史例名；新业务优先 multi-voice） |
 | video | generator | teaser-15s | 创作 | Synthesis | 十五秒预告 |
 | video | group | autocut | 编组 | Autocut | 自动剪辑 |
 | music | generator | full-track | 生成 | Generated | 完整曲目 |
@@ -229,6 +233,7 @@ text 多为其它 scope 的 nestedText 挂载，**不是** C 端主入口分类�
 - `graph-generator-product-poster`
 - `graph-group-content-album`
 - `audio-generator-podcast-host`
+- `audio-group-multi-voice`
 - `audio-group-dual-host`
 - `video-generator-fragment`
 - `video-group-voiceover-science-pop`
@@ -243,7 +248,7 @@ text 多为其它 scope 的 nestedText 挂载，**不是** C 端主入口分类�
 - [ ] **是否需要 `parallel_count`？** 不需要则不要加（§4）
 - [ ] 单件直出用 `generator`；并发表组用 `group`；历史连续用 `series`（未就绪前勿硬上 series 运行时能力）
 - [ ] 不与已有 `(scope,type,subtype)` 重复
-- [ ] 替换旧 type 时：导入后 deactivate 被替代的旧 key
+- [ ] 若库里仍有活跃旧 type：先 `deactivate:legacy-*`，再 seed 三态业务
 
 ## 9. 相关 skill
 
@@ -285,21 +290,3 @@ text 多为其它 scope 的 nestedText 挂载，**不是** C 端主入口分类�
 - `topic-chips`（话题多选，仅写作向导）
 
 任何超出该清单的字段（如无 enum 的 `string`、无 `_custom` 的「其他」、裸 `text`）**禁止**直接暴露给 C 端；要么加上选择器 / 上下文，要么改 x-user-visible=false（仅 Admin）。
-
-## 11. 旧 → 新对照（迁移备忘）
-
-| scope | 旧 type | 新 type | 英文显示保留 |
-|-------|---------|---------|--------------|
-| writing | `editorial` | `generator` | Editorial |
-| writing | `proposal` | `group` | Proposal |
-| graph | `generated` | `generator` | Generated |
-| graph | `gallery` | `group` | Gallery |
-| audio | `voiceover` / `speak` | `generator` | Voiceover |
-| audio | `dialogue` / `multiple` | `group` | Dialogue |
-| video | `synthesis` | `generator` | Synthesis |
-| video | `autocut`（作 type） | `group`（subtype 可仍叫 `autocut`） | Autocut |
-| music | `generator` | `generator` | Generated |
-| music | `fragment` | `group` | Fragment |
-| （全 scope） | — | `series` | Series（新建） |
-
-> 更早一层历史：`writing/generator`、`graph/group` 等曾被迁到 editorial/gallery；**现统一回到三态**，以本表为准。

@@ -10,6 +10,23 @@ function hasTaskMedia(task: Task): boolean {
   return summary?.hasMedia === true || (summary?.mediaCount ?? 0) > 0;
 }
 
+export type GateKind =
+  | 'text'
+  | 'json'
+  | 'image'
+  | 'media'
+  | 'composite'
+  | 'video-timeline'
+  | 'interactive-card'
+  | 'basic-form'
+  | 'writing-chat';
+
+function readGateKind(task: Task): GateKind | undefined {
+  const gate = task.metadata?.manualReviewGate as { kind?: string } | undefined;
+  if (!gate?.kind) return undefined;
+  return gate.kind as GateKind;
+}
+
 /** 仍挂人工审核闸门、且尚无最终媒体产出 */
 export function hasPendingManualReviewGate(task: Task): boolean {
   const gate = task.metadata?.manualReviewGate as { gateId?: string } | undefined;
@@ -17,15 +34,28 @@ export function hasPendingManualReviewGate(task: Task): boolean {
   return !hasTaskMedia(task);
 }
 
+/** 闸门是「引导用户补字段」（pre interactive-card / basic-form），不是真审核 */
+export function hasPendingUserInputGate(task: Task): boolean {
+  const gate = task.metadata?.manualReviewGate as { gateId?: string } | undefined;
+  if (!gate?.gateId) return false;
+  if (hasTaskMedia(task)) return false;
+  const kind = readGateKind(task);
+  return kind === 'interactive-card' || kind === 'basic-form';
+}
+
 /** 列表/详情展示用有效状态 */
 export function effectiveTaskStatus(task: Task): TaskStatus {
   const raw = task.status;
+
+  if (hasPendingUserInputGate(task)) {
+    return 'awaiting_user_input';
+  }
 
   if (hasPendingManualReviewGate(task)) {
     return 'awaiting_review';
   }
 
-  if (raw !== 'awaiting_review') return raw;
+  if (raw !== 'awaiting_review' && raw !== 'awaiting_user_input') return raw;
 
   const hasMedia = hasTaskMedia(task);
   if (hasMedia) {
@@ -59,7 +89,9 @@ export function normalizeStaleTaskStatus(task: Task): { task: Task; repaired: bo
         ...(nextStatus === 'completed' && !task.progress?.completedAt
           ? { completedAt: new Date() }
           : {}),
-        ...(nextStatus === 'awaiting_review' ? { completedAt: null } : {}),
+        ...(nextStatus === 'awaiting_review' || nextStatus === 'awaiting_user_input'
+          ? { completedAt: null }
+          : {}),
       },
     },
     repaired: true,

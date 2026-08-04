@@ -151,9 +151,17 @@ export function flattenMinimaxVoiceForSubmit(
     if (def['x-ui-type'] !== 'minimaxVoice') continue;
     const v = next.voice;
     if (v && typeof v === 'object' && !Array.isArray(v)) {
-      const vid = (v as { voice_id?: string }).voice_id;
+      const voiceObj = v as {
+        voice_id?: string;
+        character_folder_id?: string;
+      };
+      const vid = voiceObj.voice_id;
       if (typeof vid === 'string' && vid.trim()) {
         next.voice_id = vid.trim();
+      }
+      const charFolder = voiceObj.character_folder_id;
+      if (typeof charFolder === 'string' && charFolder.trim()) {
+        next.character_folder_id = charFolder.trim();
       }
     }
   }
@@ -222,6 +230,14 @@ export function prepareTaskV2SubmitParams(
   }
   if (opts?.scope === 'graph' || schemaRefSlotsForPrepare(schema).length > 0) {
     params = prepareGraphReferenceSubmitParams(params, schema);
+  }
+  // seek：份数跟所选文风走，写入 seek_count 供列表卡片展示
+  {
+    const voices = params.voice_ids ?? params.voices ?? params.style_ids;
+    if (Array.isArray(voices)) {
+      const n = voices.map(String).filter((s) => s.trim()).length;
+      if (n >= 1) params = { ...params, seek_count: n };
+    }
   }
   return stripFormSchemaLabelField(params);
 }

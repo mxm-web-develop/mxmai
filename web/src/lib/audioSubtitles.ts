@@ -27,6 +27,8 @@ function cueFromRow(row: Record<string, unknown>): SubtitleCue | null {
     [row.time_begin, row.time_end],
     [row.begin_time, row.end_time],
     [row.start_time, row.end_time],
+    [row.startSeconds, row.endSeconds],
+    [row.start_ms, row.end_ms],
     [row.start, row.end],
     [row.begin, row.end],
     [row.time_start, row.time_end],
@@ -42,7 +44,7 @@ function rowsFromPayload(raw: unknown): unknown[] {
   if (Array.isArray(raw)) return raw;
   if (!raw || typeof raw !== 'object') return [];
   const o = raw as Record<string, unknown>;
-  for (const key of ['sentences', 'subtitle', 'subtitles', 'data', 'items', 'list']) {
+  for (const key of ['sentences', 'subtitle', 'subtitles', 'segments', 'data', 'items', 'list']) {
     const v = o[key];
     if (Array.isArray(v)) return v;
   }

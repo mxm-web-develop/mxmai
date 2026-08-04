@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   resolveWebSearchQuery,
   resolveWebSearchTarget,
+  resolveQueriesFromList,
   runWebSearchStep,
 } from './web-search-step';
 import type { TaskContext, PipelineStep } from '../types';
@@ -11,7 +12,7 @@ import { emptyContract, MXM_WARP_CONTRACT_VERSION } from './contract-types';
 function baseCtx(overrides?: Partial<TaskContext>): TaskContext {
   return {
     scope: 'writing',
-    taskKey: 'editorial',
+    taskKey: 'generator',
     subtype: 'warp-demo-daily',
     taskId: 't1',
     params: { topic: '知识库改名' },
@@ -44,7 +45,7 @@ describe('mxm-warp webSearch step', () => {
       emptyContract({
         version: MXM_WARP_CONTRACT_VERSION,
         scope: 'writing',
-        taskKey: 'editorial',
+        taskKey: 'generator',
         subtype: null,
         taskId: 't1',
       })
@@ -70,7 +71,28 @@ describe('mxm-warp webSearch step', () => {
     ).toBe('enrich_search.result');
   });
 
-  it('writes sources.websource with truncated text', async () => {
+  it('scaleFrom maps article_length to depth and maxResults', async () => {
+    const { resolveWebSearchRequest, resolveScaledSearchKnobs } = await import('./web-search-step');
+    const step = {
+      step: 'webSearch' as const,
+      params: {
+        query: 'test',
+        depth: 'standard',
+        maxResults: 100,
+        scaleFrom: 'article_length',
+        depthByScale: { brief: 'quick', standard: 'standard', in_depth: 'deep' },
+        maxResultsByScale: { brief: 48, standard: 100, in_depth: 200 },
+      },
+    };
+    const brief = baseCtx({ params: { article_length: 'brief' } });
+    expect(resolveScaledSearchKnobs(brief, step.params)).toEqual({ depth: 'quick', maxResults: 48 });
+    const deep = baseCtx({ params: { article_length: 'in_depth' } });
+    const req = resolveWebSearchRequest(deep, step, 'test');
+    expect(req.depth).toBe('deep');
+    expect(req.numResults).toBe(200);
+  });
+
+  it('writes sources.websource pointer + evidence payload', async () => {
     const step: PipelineStep = {
       step: 'webSearch',
       params: {
@@ -89,15 +111,22 @@ describe('mxm-warp webSearch step', () => {
       }),
     });
     const contract = out.state.contract as {
-      sources: { websource: { query: string; text: string; hitCount: number; providers: string[] } };
+      sources: {
+        websource: { query: string; digest?: string; hitCount: number; providers: string[]; evidenceKey: string };
+      };
     };
     expect(contract.sources.websource.query).toBe('知识库改名');
     expect(contract.sources.websource.providers).toEqual(['tavily']);
     expect(contract.sources.websource.hitCount).toBeGreaterThan(0);
-    expect(contract.sources.websource.text).toContain('联网检索');
+    expect(contract.sources.websource.evidenceKey).toBe('websource');
+    expect((contract.sources.websource as { text?: string }).text).toBeUndefined();
+    const ev = (out.state.evidence as { websource: { digestText: string; payload?: { text?: string } } })
+      .websource;
+    expect(ev.digestText).toContain('联网检索');
+    expect(ev.payload?.text).toContain('联网检索');
   });
 
-  it('writes enrich_search.result', async () => {
+  it('writes enrich_search.result pointer + evidence', async () => {
     const step: PipelineStep = {
       step: 'webSearch',
       params: {
@@ -112,10 +141,12 @@ describe('mxm-warp webSearch step', () => {
       }),
     });
     const contract = out.state.contract as {
-      enrich_search: { result: { query: string; text: string } };
+      enrich_search: { result: { query: string; digest?: string; evidenceKey: string } };
     };
     expect(contract.enrich_search.result.query).toBe('enrich-q');
-    expect(contract.enrich_search.result.text).toContain('enrich-q');
+    expect(contract.enrich_search.result.evidenceKey).toBe('enrich_result');
+    const ev = (out.state.evidence as { enrich_result: { digestText: string } }).enrich_result;
+    expect(ev.digestText).toContain('enrich-q');
   });
 
   it('writes enrich_search.result_supplement without touching result', async () => {
@@ -131,7 +162,7 @@ describe('mxm-warp webSearch step', () => {
       emptyContract({
         version: MXM_WARP_CONTRACT_VERSION,
         scope: 'writing',
-        taskKey: 'editorial',
+        taskKey: 'generator',
         subtype: null,
         taskId: 't1',
       })
@@ -154,12 +185,14 @@ describe('mxm-warp webSearch step', () => {
     const contract = out.state.contract as {
       enrich_search: {
         result: { query: string };
-        result_supplement: { query: string; text: string };
+        result_supplement: { query: string; evidenceKey: string };
       };
     };
     expect(contract.enrich_search.result.query).toBe('main-q');
     expect(contract.enrich_search.result_supplement.query).toBe('supplement-q');
-    expect(contract.enrich_search.result_supplement.text).toContain('supplement-q');
+    expect(contract.enrich_search.result_supplement.evidenceKey).toBe('enrich_supplement');
+    const ev = (out.state.evidence as { enrich_supplement: { digestText: string } }).enrich_supplement;
+    expect(ev.digestText).toContain('supplement-q');
   });
 
   it('skips search when sources.websource already present', async () => {
@@ -169,7 +202,7 @@ describe('mxm-warp webSearch step', () => {
       emptyContract({
         version: MXM_WARP_CONTRACT_VERSION,
         scope: 'writing',
-        taskKey: 'editorial',
+        taskKey: 'generator',
         subtype: 'warp-demo-daily',
         taskId: 't1',
       })
@@ -274,6 +307,27 @@ describe('mxm-warp webSearch step', () => {
     expect(req.timeRange).toBe('month');
   });
 
+  it('industryTrend omitTopic ignores core_topic for period overview', () => {
+    const ctx = baseCtx({
+      params: {
+        industry: '股票',
+        date_mode: 'this_week',
+        core_topic: '长鑫科技将被纳入MSCI；A股周线收红',
+      },
+    });
+    const withTopic = resolveWebSearchQuery(ctx, {
+      step: 'webSearch',
+      params: { queryBuilder: 'industryTrend' },
+    });
+    expect(withTopic).toContain('长鑫');
+    const omit = resolveWebSearchQuery(ctx, {
+      step: 'webSearch',
+      params: { queryBuilder: 'industryTrend', omitTopic: true },
+    });
+    expect(omit).not.toContain('长鑫');
+    expect(omit).toMatch(/stock|equit|this week/i);
+  });
+
   it('generic path passes timeRange and dimensions from node params', async () => {
     const { resolveWebSearchRequest, buildGenericWebSearchRequest } = await import('./web-search-step');
     const ctx = baseCtx({ params: { topic: 'AI chips' } });
@@ -335,14 +389,18 @@ describe('mxm-warp webSearch step', () => {
     );
     expect(seenQueries.length).toBeGreaterThan(1);
     expect(seenQueries[0]).toBe('AI 创始人');
-    const web = (out.state.contract as { sources: { websource: { queries?: string[]; providers: string[]; items: unknown[] } } }).sources
-      .websource;
-    expect(web.queries).toBeDefined();
-    expect(web.queries!.length).toBe(seenQueries.length);
-    expect(web.providers.length).toBeGreaterThanOrEqual(1);
+    const pointer = (out.state.contract as { sources: { websource: { hitCount: number; evidenceKey: string } } })
+      .sources.websource;
+    expect(pointer.evidenceKey).toBe('websource');
+    expect(pointer.hitCount).toBeGreaterThan(0);
+    const payload = (out.state.evidence as { websource: { payload?: { queries?: string[]; providers: string[] } } })
+      .websource.payload;
+    expect(payload?.queries).toBeDefined();
+    expect(payload!.queries!.length).toBe(seenQueries.length);
+    expect(payload!.providers.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('default extractContent true threads extracted[] into payload', async () => {
+  it('default extractContent true threads extracted[] into evidence payload', async () => {
     const { runWebSearchStep } = await import('./web-search-step');
     const out = await runWebSearchStep(
       baseCtx(),
@@ -372,10 +430,68 @@ describe('mxm-warp webSearch step', () => {
         }),
       }
     );
-    const web = (out.state.contract as { sources: { websource: { extracted?: unknown[] } } }).sources
-      .websource;
-    expect(Array.isArray(web.extracted)).toBe(true);
-    expect(web.extracted!.length).toBe(1);
-    expect((web.extracted![0] as { summary: string }).summary).toBe('summary-A');
+    const payload = (out.state.evidence as { websource: { payload?: { extracted?: unknown[] } } }).websource
+      .payload;
+    expect(Array.isArray(payload?.extracted)).toBe(true);
+    expect(payload!.extracted!.length).toBe(1);
+    expect((payload!.extracted![0] as { summary: string }).summary).toBe('summary-A');
+  });
+
+  it('resolveQueriesFromList excludes main topic and applies suffix', () => {
+    const ctx = withContract(baseCtx(), {
+      ...emptyContract({
+        version: MXM_WARP_CONTRACT_VERSION,
+        scope: 'writing',
+        taskKey: 'generator',
+        subtype: 'industry-daily',
+        taskId: 't1',
+      }),
+      basic: { main_topic: '主线A' },
+      selection: { topics: ['主线A', '副线B', '副线C'] },
+    });
+    const qs = resolveQueriesFromList(ctx, {
+      step: 'webSearch',
+      params: {
+        queriesFrom: 'contract.selection.topics',
+        excludeQueryFrom: 'contract.basic.main_topic',
+        querySuffix: '简讯',
+        maxQueries: 3,
+      },
+    });
+    expect(qs).toEqual(['副线B 简讯', '副线C 简讯']);
+  });
+
+  it('queriesFrom with only main topic no-ops without search', async () => {
+    const ctx = withContract(baseCtx(), {
+      ...emptyContract({
+        version: MXM_WARP_CONTRACT_VERSION,
+        scope: 'writing',
+        taskKey: 'generator',
+        subtype: 'industry-daily',
+        taskId: 't1',
+      }),
+      basic: { main_topic: '仅主线' },
+      selection: { topics: ['仅主线'] },
+    });
+    let called = 0;
+    const out = await runWebSearchStep(
+      ctx,
+      {
+        step: 'webSearch',
+        params: {
+          queriesFrom: 'contract.selection.topics',
+          excludeQueryFrom: 'contract.basic.main_topic',
+          target: 'enrich_search.result_side',
+        },
+      },
+      {
+        search: async () => {
+          called += 1;
+          return { providers: [], items: [] };
+        },
+      }
+    );
+    expect(called).toBe(0);
+    expect((out.state.evidence as Record<string, unknown> | undefined)?.enrich_result_side).toBeUndefined();
   });
 });

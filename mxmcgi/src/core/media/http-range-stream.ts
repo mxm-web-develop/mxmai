@@ -55,6 +55,7 @@ export function inferMediaContentType(key: string, fallbackContentType?: string)
   if (lower.endsWith('.webm')) return 'video/webm';
   if (lower.endsWith('.mov')) return 'video/quicktime';
   if (lower.endsWith('.avi')) return 'video/x-msvideo';
+  if (lower.endsWith('.pdf')) return 'application/pdf';
   return fallbackContentType || 'application/octet-stream';
 }
 
@@ -109,6 +110,10 @@ export async function streamStorageObjectToResponse(
     res.status(200);
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', String(total));
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
     const stream = await storageRepo.openReadStream(bucket, key);
     await pipeStreamToResponse(res, stream);
     return;
@@ -120,6 +125,10 @@ export async function streamStorageObjectToResponse(
   res.setHeader('Content-Type', contentType);
   res.setHeader('Content-Length', String(chunkSize));
   res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
+  if (req.method === 'HEAD') {
+    res.end();
+    return;
+  }
   const stream = await storageRepo.openReadStream(bucket, key, { start, end });
   await pipeStreamToResponse(res, stream);
 }

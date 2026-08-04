@@ -270,7 +270,6 @@ html.dark .voiceover-audio__vf-item {
   font-size: 0.55rem;
 }
 
-.voiceover-audio__vf-layout--compact .audio-visual__wave,
 .voiceover-audio__vf-layout--compact .audio-visual__glow,
 .voiceover-audio__vf-layout--compact .audio-visual__caption,
 .voiceover-audio__vf-layout--compact .music-visual__ambient,
@@ -279,11 +278,26 @@ html.dark .voiceover-audio__vf-item {
   display: none;
 }
 
+.voiceover-audio__vf-layout--compact .audio-visual__ring-wrap,
 .voiceover-audio__vf-layout--compact .audio-visual__icon-wrap,
 .voiceover-audio__vf-layout--compact .music-visual__disc-wrap {
   width: 100%;
   height: 100%;
+  margin: 0;
   transform: none;
+}
+
+.voiceover-audio__vf-layout--compact .audio-visual__wave-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.voiceover-audio__vf-layout--compact .audio-visual__pct {
+  font-size: 0.55rem;
+}
+
+.voiceover-audio__vf-layout--compact .audio-visual__pct small {
+  font-size: 0.4rem;
 }
 
 .voiceover-audio__vf-layout--compact .audio-visual__play {

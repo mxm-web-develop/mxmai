@@ -19,6 +19,11 @@ export type WebSearchResultCleanOptions = {
   dedupeByUrlTitle?: boolean;
   /** 清洗后 snippet 过短则丢弃（默认 24） */
   minSnippetChars?: number;
+  /**
+   * 优先保留「文章级」URL（path 深度≥2 / 带 html）；
+   * 频道首页、tag 集合页降权到末尾，过稀时仍保留
+   */
+  preferArticleLikeUrls?: boolean;
 };
 
 export const DEFAULT_WEB_SEARCH_CLEAN: Required<WebSearchResultCleanOptions> = {
@@ -26,11 +31,30 @@ export const DEFAULT_WEB_SEARCH_CLEAN: Required<WebSearchResultCleanOptions> = {
   stripBoilerplate: true,
   dedupeByUrlTitle: true,
   minSnippetChars: 24,
+  preferArticleLikeUrls: true,
 };
 
 /** 行业日报 / 资讯类检索默认视为低质量来源 */
 const LOW_QUALITY_HOST_RE =
-  /(^|\.)(reddit\.com|old\.reddit\.com|redd\.it|x\.com|twitter\.com|t\.co|tiktok\.com|instagram\.com|facebook\.com|fb\.com|threads\.net|quora\.com|zhihu\.com\/question)(\/|$)/i;
+  /(^|\.)(reddit\.com|old\.reddit\.com|redd\.it|x\.com|twitter\.com|t\.co|tiktok\.com|instagram\.com|facebook\.com|fb\.com|threads\.net|quora\.com|zhihu\.com\/question|baike\.baidu\.com|wikipedia\.org|bendibao\.com)(\/|$)/i;
+
+const CHANNEL_PATH_RE =
+  /\/(channel|list|index|category|tag|topic|tags|topics|sports|home)(\/|$)/i;
+
+export function isArticleLikeSearchUrl(url?: string): boolean {
+  const raw = String(url || '').trim();
+  if (!raw || !/^https?:\/\//i.test(raw)) return false;
+  try {
+    const u = new URL(raw);
+    if (CHANNEL_PATH_RE.test(u.pathname)) return false;
+    const parts = u.pathname.replace(/\/+$/, '').split('/').filter(Boolean);
+    if (parts.length >= 2) return true;
+    if (parts.length === 1 && /\.(html?|shtml|htm)$/i.test(parts[0]!)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 const BOILERPLATE_RE =
   /\*?\s*Plus Icon[^*.\n]{0,80}|\bClick to (expand|Expand)[^.!\n]{0,60}|\bMega Menu\b|\bWhat To (Watch|Hear)\b|\bExpand Search Input\b|\bCookie (Policy|Settings|Preferences)\b|\bAccept (all )?cookies\b|\bTerms of (Service|Use)\b|\bPrivacy Policy\b|\bSign (in|up)\b|\bSubscribe now\b|\bNewsletter\b/gi;
@@ -117,6 +141,10 @@ export function resolveWebSearchCleanOptions(
         typeof o.minSnippetChars === 'number' && Number.isFinite(o.minSnippetChars)
           ? Math.max(0, Math.floor(o.minSnippetChars))
           : DEFAULT_WEB_SEARCH_CLEAN.minSnippetChars,
+      preferArticleLikeUrls:
+        o.preferArticleLikeUrls === undefined
+          ? DEFAULT_WEB_SEARCH_CLEAN.preferArticleLikeUrls
+          : Boolean(o.preferArticleLikeUrls),
     };
   }
   if (preferDefault) return { ...DEFAULT_WEB_SEARCH_CLEAN };
@@ -180,6 +208,12 @@ export function cleanWebSearchItems(
     }
 
     kept.push(next);
+  }
+
+  if (opts.preferArticleLikeUrls && kept.length > 3) {
+    kept.sort(
+      (a, b) => Number(isArticleLikeSearchUrl(b.url)) - Number(isArticleLikeSearchUrl(a.url))
+    );
   }
 
   return { items: kept, filteredOut };

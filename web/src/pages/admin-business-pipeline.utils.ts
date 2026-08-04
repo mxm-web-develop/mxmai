@@ -28,7 +28,12 @@ export type PipelineDisplayItem =
       manualIndex?: number;
     };
 
-export type PipelinePlatformStepKind = 'webSearch' | 'kbRecall' | 'sensitiveCheck' | 'pickMainTopic';
+export type PipelinePlatformStepKind =
+  | 'webSearch'
+  | 'kbRecall'
+  | 'sensitiveCheck'
+  | 'pickMainTopic'
+  | 'pruneToSelection';
 
 /** 业务管线可手动添加的平台步骤（knowledgeRetrieve 保留给 Smartflow） */
 export const PIPELINE_PLATFORM_STEPS: {
@@ -53,6 +58,12 @@ export const PIPELINE_PLATFORM_STEPS: {
     description: '按 topicChips 热度从多选源字段回填主话题；字段名可配',
   },
   {
+    kind: 'pruneToSelection',
+    label: '选题后剪枝',
+    description:
+      '用户选定话题后，抛弃发现池中未选题材料；仅保留相关检索条目供后续深挖/成稿（确定性，无 LLM）',
+  },
+  {
     kind: 'kbRecall',
     label: '知识库召回（Schema 字段）',
     description:
@@ -67,6 +78,17 @@ export function buildPickMainTopicStep(): PipelineStepDraft {
       sourceField: 'core_topic',
       targetField: 'main_topic',
       chipsPath: 'sources.websource.topicChips',
+    },
+  };
+}
+
+export function buildPruneToSelectionStep(): PipelineStepDraft {
+  return {
+    step: 'pruneToSelection',
+    params: {
+      sourceFields: ['core_topic', 'main_topic'],
+      evidenceKey: 'websource',
+      archiveDiscovery: false,
     },
   };
 }
@@ -358,10 +380,19 @@ export const NESTED_TEXT_OUTPUT_TARGET_OPTIONS = [
   { value: 'lyrics', label: '写入 lyrics 字段（音乐歌词，不覆盖 prompt）' },
 ] as const;
 
+export type PipelineWhenMode = 'all' | 'any';
+
+export function readPipelineWhenMode(step: PipelineStepDraft): PipelineWhenMode {
+  const any = step.when?.any;
+  if (Array.isArray(any) && any.length > 0) return 'any';
+  return 'all';
+}
+
 export function readPipelineWhenClauses(step: PipelineStepDraft): PipelineWhenClause[] {
-  const all = step.when?.all;
-  if (!Array.isArray(all)) return [];
-  return all
+  const mode = readPipelineWhenMode(step);
+  const raw = mode === 'any' ? step.when?.any : step.when?.all;
+  if (!Array.isArray(raw)) return [];
+  return raw
     .filter((c): c is PipelineWhenClause => !!c && typeof c === 'object' && typeof (c as PipelineWhenClause).field === 'string')
     .map((c) => ({
       field: String(c.field),
@@ -372,7 +403,8 @@ export function readPipelineWhenClauses(step: PipelineStepDraft): PipelineWhenCl
 
 export function writePipelineWhenClauses(
   step: PipelineStepDraft,
-  clauses: PipelineWhenClause[]
+  clauses: PipelineWhenClause[],
+  mode: PipelineWhenMode = readPipelineWhenMode(step)
 ): PipelineStepDraft {
   const normalized = clauses
     .map((c) => ({
@@ -386,7 +418,81 @@ export function writePipelineWhenClauses(
     delete next.when;
     return next;
   }
-  return { ...step, when: { all: normalized } };
+  return { ...step, when: mode === 'any' ? { any: normalized } : { all: normalized } };
+}
+
+/** 系统默认 claim / evidence 键（与 mxmcgi claim-commit 对齐） */
+export const SYSTEM_CLAIM_PATH_OPTIONS: { value: string; label: string }[] = [
+  { value: 'basic', label: '整区 basic' },
+  { value: 'business', label: '整区 business' },
+  { value: 'selection', label: 'selection（选题剪枝）' },
+  { value: 'selection.topics', label: 'selection.topics' },
+  { value: 'assets', label: '整区 assets' },
+  { value: 'assets.cards', label: 'assets.cards' },
+  { value: 'assets.media', label: 'assets.media' },
+  { value: 'sources.websource', label: 'sources.websource（指针）' },
+  { value: 'enrich_search.query', label: 'enrich_search.query' },
+];
+
+export const SYSTEM_EVIDENCE_KEY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'websource', label: 'websource' },
+  { value: 'enrich_result', label: 'enrich_result' },
+  { value: 'enrich_supplement', label: 'enrich_supplement' },
+  { value: 'enrich_result_side', label: 'enrich_result_side（副线）' },
+];
+
+/**
+ * 从合同 schema 收集可 claim 路径（basic.* / business.* + 系统键）。
+ * 供 Admin nestedText 显性联想多选。
+ */
+export function collectContractClaimPathOptions(
+  contractSchema?: JsonSchema
+): { value: string; label: string }[] {
+  const props = (contractSchema?.properties ?? {}) as Record<string, Record<string, unknown>>;
+  const fromSchema: { value: string; label: string }[] = [];
+  for (const [key, def] of Object.entries(props)) {
+    if (!def || typeof def !== 'object') continue;
+    const zone = def['x-zone'] === 'basic' ? 'basic' : 'business';
+    const title = String(def.title ?? key);
+    fromSchema.push({
+      value: `${zone}.${key}`,
+      label: `${title}（${zone}.${key}）`,
+    });
+  }
+  const seen = new Set(fromSchema.map((o) => o.value));
+  const system = SYSTEM_CLAIM_PATH_OPTIONS.filter((o) => !seen.has(o.value));
+  return [...fromSchema, ...system];
+}
+
+/** 可写回 business 的字段：schema business 区 + 可选 field_specs 名 */
+export function collectContractCommitPathOptions(
+  contractSchema?: JsonSchema,
+  fieldSpecs?: unknown
+): { value: string; label: string }[] {
+  const props = (contractSchema?.properties ?? {}) as Record<string, Record<string, unknown>>;
+  const out: { value: string; label: string }[] = [];
+  const seen = new Set<string>();
+  for (const [key, def] of Object.entries(props)) {
+    if (!def || typeof def !== 'object') continue;
+    if (def['x-zone'] === 'basic') continue;
+    const title = String(def.title ?? key);
+    out.push({ value: key, label: `${title}（business.${key}）` });
+    seen.add(key);
+  }
+  if (Array.isArray(fieldSpecs)) {
+    for (const it of fieldSpecs) {
+      if (!it || typeof it !== 'object') continue;
+      const name = String((it as { name?: unknown }).name ?? '').trim();
+      if (!name || seen.has(name)) continue;
+      const desc = String((it as { description?: unknown }).description ?? '').trim();
+      out.push({
+        value: name,
+        label: desc ? `${name} · ${desc.slice(0, 40)}` : name,
+      });
+      seen.add(name);
+    }
+  }
+  return out;
 }
 
 export function collectFormParamFieldOptions(formSchema?: JsonSchema): { value: string; label: string }[] {
@@ -400,6 +506,7 @@ export function collectFormParamFieldOptions(formSchema?: JsonSchema): { value: 
 export function formatPipelineWhenSummary(step: PipelineStepDraft, formSchema?: JsonSchema): string | null {
   const clauses = readPipelineWhenClauses(step);
   if (clauses.length === 0) return null;
+  const mode = readPipelineWhenMode(step);
   const fieldOptions = collectFormParamFieldOptions(formSchema);
   const parts = clauses.slice(0, 2).map((c) => {
     const label = fieldOptions.find((o) => o.value === c.field)?.label ?? c.field;
@@ -410,15 +517,22 @@ export function formatPipelineWhenSummary(step: PipelineStepDraft, formSchema?: 
     return `${label} · ${opLabel}`;
   });
   const suffix = clauses.length > 2 ? ` 等 ${clauses.length} 条` : '';
-  return `条件执行 · ${parts.join('；')}${suffix}`;
+  const modeHint = mode === 'any' ? '任一满足' : '全部满足';
+  return `条件执行（${modeHint}）· ${parts.join(mode === 'any' ? ' 或 ' : '；')}${suffix}`;
 }
 
 export function formatNestedTextOutputTargetSummary(step: PipelineStepDraft): string | null {
   if (step.step !== 'nestedText') return null;
+  const parts: string[] = [];
+  const claim = Array.isArray(step.params?.claimPaths) ? step.params.claimPaths.length : 0;
+  if (claim > 0) parts.push(`领取 ${claim} 字段`);
+  const ev = Array.isArray(step.params?.evidenceKeys) ? step.params.evidenceKeys.length : 0;
+  if (ev > 0) parts.push(`证据 ${ev}`);
   const target = step.params?.outputTarget;
-  if (target === 'lyrics') return '输出 → lyrics';
-  if (isAfterPromptRenderNestedText(step)) return '模板渲染后 · 覆盖 finalPrompt';
-  return null;
+  if (target === 'lyrics') parts.push('输出 → lyrics');
+  if (isAfterPromptRenderNestedText(step)) parts.push('模板渲染后 · 覆盖 finalPrompt');
+  if (parts.length === 0) return null;
+  return parts.join(' · ');
 }
 
 export function pipelineStepIdentity(step: PipelineStepDraft): string {
@@ -456,9 +570,9 @@ export function pipelineStepIdentity(step: PipelineStepDraft): string {
     const kind = (step.params?.kind as string | undefined) ?? 'interactive-card';
     return `interactiveCard:${id}:${kind}`;
   }
-  if (step.step === 'renderDocumentPdf') {
-    const layoutKey = step.layoutTaskKey ?? (step.params?.layoutTaskKey as string | undefined) ?? '';
-    return `renderDocumentPdf:${layoutKey}`;
+  if (step.step === 'markdownToPdf' || step.step === 'renderDocumentPdf') {
+    const mode = (step.params?.storageMode as string | undefined) ?? 'sidecar';
+    return `markdownToPdf:${mode}`;
   }
   if (step.step === 'transcribeVoiceoverAudio') {
     const audioFrom = (step.params?.audioUrlFrom as string | undefined) ?? '';
@@ -673,24 +787,27 @@ export function buildVideoTimelineManualReviewStep(): PipelineStepDraft {
   };
 }
 
-export function buildRenderDocumentPdfStep(): PipelineStepDraft {
+export function buildMarkdownToPdfStep(): PipelineStepDraft {
   return {
-    step: 'renderDocumentPdf',
-    layoutTaskKey: 'text/layout/document-render-spec',
+    step: 'markdownToPdf',
     params: {
-      layoutTaskKey: 'text/layout/document-render-spec',
+      storageMode: 'sidecar',
+      includeCover: true,
+      includeToc: true,
+      useLayoutLlm: false,
       fallbackRenderer: 'markdown',
       maxRetries: 2,
-      validateSchema: 'documentRenderSpec.v1',
     },
     inputMapping: {
       markdown: '${state.coreArtifact.text}',
-      structured: '${state.pipeline.resumeProfile}',
-      renderer: '${params.pdf_renderer}',
-      design_style: '${params.design_style}',
-      profile_photo: '${params.profile_photo}',
+      title: '${params.title}',
     },
   };
+}
+
+/** @deprecated 使用 buildMarkdownToPdfStep */
+export function buildRenderDocumentPdfStep(): PipelineStepDraft {
+  return buildMarkdownToPdfStep();
 }
 
 export function buildManualReviewStep(phase: PipelineAdminPhase): PipelineStepDraft {
@@ -754,7 +871,7 @@ export function buildExtractHotTopicsStep(): PipelineStepDraft {
     step: 'extractHotTopics',
     params: {
       textKey: 'text/expert/industry-hot-topics',
-      maxTopics: 8,
+      maxTopics: 40,
       maxInputItems: 80,
     },
   };
@@ -782,6 +899,8 @@ export function buildPlatformPipelineStep(
       return buildWarpWebSearchStep(phase);
     case 'pickMainTopic':
       return buildPickMainTopicStep();
+    case 'pruneToSelection':
+      return buildPruneToSelectionStep();
     case 'kbRecall':
       return {
         step: 'resolveContextFields',
@@ -808,6 +927,8 @@ export function formatPipelineStepLabel(
       return '热点提取';
     case 'pickMainTopic':
       return '选主话题';
+    case 'pruneToSelection':
+      return '选题后剪枝';
     case 'resolveContextFields': {
       if (field) {
         return field.kind === 'webSearch' ? '联网检索' : '知识库召回';
@@ -832,8 +953,9 @@ export function formatPipelineStepLabel(
       if (label) return label;
       return step.params?.kind === 'basic-form' ? '分步 basic' : '交互卡';
     }
+    case 'markdownToPdf':
     case 'renderDocumentPdf':
-      return 'PDF 渲染';
+      return 'Markdown → PDF';
     case 'transcribeVoiceoverAudio':
       return 'ASR 语音识别';
     case 'resolveVoiceoverAudio':
@@ -867,6 +989,12 @@ export function formatPipelineStepLabel(
     }
     case 'assembleGroupText':
       return '汇编组成稿';
+    case 'dialogueLineTts':
+      return '逐句多音色 TTS';
+    case 'resolveDialogueTimeline':
+      return '展开对话时间轴';
+    case 'renderAudioTimeline':
+      return '对话时间轴混音';
     default:
       return step.step;
   }
@@ -911,13 +1039,19 @@ export function formatPipelineStepSummary(
       (step.params?.textKey as string | undefined)?.trim() ||
       step.nestedTextTaskKey ||
       'text/expert/industry-hot-topics';
-    const maxTopics = step.params?.maxTopics ?? 'topic_count';
-    return `${textKey} · 返回 ${maxTopics} 条热点（不把检索原文当选项）`;
+    const maxTopics = step.params?.maxTopics ?? 40;
+    return `${textKey} · 发现池约 ${maxTopics} 条（换一批翻页，不把检索原文当选项）`;
   }
   if (step.step === 'pickMainTopic') {
     const source = (step.params?.sourceField as string | undefined)?.trim() || 'core_topic';
     const target = (step.params?.targetField as string | undefined)?.trim() || 'main_topic';
     return `${source} → ${target}（按 chips 热度）`;
+  }
+  if (step.step === 'pruneToSelection') {
+    const fields = Array.isArray(step.params?.sourceFields)
+      ? (step.params!.sourceFields as unknown[]).map(String).join('+')
+      : 'core_topic+main_topic';
+    return `按 ${fields} 抛弃未选题检索；归档发现池`;
   }
   if (step.step === 'manualReview') {
     const kind = (step.params?.kind as string | undefined) ?? 'text';
@@ -1160,13 +1294,12 @@ export function formatPipelineStepDetail(
     const phase = step.params?.phase === 'post' ? '后置' : '前置';
     return `${phase}暂停等待人工确认（${kind}）；草稿来源 ${draftFrom}`;
   }
-  if (step.step === 'renderDocumentPdf') {
-    const layoutKey =
-      step.layoutTaskKey ??
-      (step.params?.layoutTaskKey as string | undefined) ??
-      'text/layout/document-render-spec';
-    const fallback = (step.params?.fallbackRenderer as string | undefined) ?? 'markdown';
-    return `LLM 编排 RenderSpec → PDF（layout: ${layoutKey}；失败回退 ${fallback}）`;
+  if (step.step === 'markdownToPdf' || step.step === 'renderDocumentPdf') {
+    const mode = (step.params?.storageMode as string | undefined) ?? 'sidecar';
+    const cover = step.params?.includeCover !== false ? '封面' : '无封面';
+    const toc = step.params?.includeToc !== false ? '目录' : '无目录';
+    const modeLabel = mode === 'overwrite' ? '覆盖主存' : '独立 sidecar';
+    return `Markdown→PDF（${modeLabel}；${cover}+${toc}）；失败不阻断任务`;
   }
   if (step.step === 'transcribeVoiceoverAudio') {
     const skipTts = step.params?.skipWhenTtsSubtitles !== false;

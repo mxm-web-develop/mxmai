@@ -53,6 +53,8 @@ export interface DimensionSearchResult {
   total: number;
   query: string;
   timestamp: string;
+  /** Provider 失败/超时/限流时的可读原因；有值且 items 空时聚合器应串链下一个 */
+  error?: string;
 }
 
 // ============= Search Requests =============

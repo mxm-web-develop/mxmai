@@ -5,6 +5,8 @@ import gsap from 'gsap';
 import type { AssetMediaKind } from './asset-loading/types';
 import { getKindMeta } from './asset-loading/kindMeta';
 import { useReducedMotion } from '../lib/motion/useReducedMotion';
+import { useAuth } from '../context/AuthContext';
+import { toUserFacingError } from '../lib/platformErrors';
 import {
   TASK_PROGRESS_RING_C,
   animateTaskProgressEnter,
@@ -37,6 +39,7 @@ export function TaskProgressStage({
   className = '',
 }: TaskProgressStageProps) {
   const { t } = useTranslation();
+  const { isAdmin } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<SVGCircleElement>(null);
   const counterRef = useRef({ value: 0 });
@@ -48,6 +51,10 @@ export function TaskProgressStage({
   const isFailed = status === 'failed' || status === 'cancelled' || Boolean(error);
   const hasProgress = typeof progress === 'number' && !Number.isNaN(progress);
   const target = hasProgress ? Math.min(100, Math.max(0, progress)) : null;
+
+  const safeError = error
+    ? toUserFacingError(error, { isAdmin }).message
+    : null;
 
   const progressHint = (s: string) => {
     const key = `common.task.progressHint.${s}` as const;
@@ -62,7 +69,7 @@ export function TaskProgressStage({
     : statusLabel ?? progressHint(status);
 
   const subline = isFailed
-    ? error ?? t('common.task.status.failed')
+    ? safeError ?? t('common.task.status.failed')
     : progressHint(status);
 
   useGSAP(

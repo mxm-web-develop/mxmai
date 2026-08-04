@@ -42,6 +42,7 @@ import { pageCardTitle } from '../components/PageHint';
 import { IntegrationKeyPermissionsDrawer } from '../components/IntegrationKeyPermissionsDrawer';
 import { downloadMxmAgentSkillZip } from '../lib/mxmAgentSkillBundle';
 import { getGatewayHttpOrigin } from '../utils/gateway-ws';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 const ASSET_CODE = 'MXM-TOKEN';
 
@@ -260,7 +261,7 @@ export default function Account() {
                   content: t('account.apiToken.revokeContent'),
                   onOk: async () => {
                     const res = await deleteAccountApiKey(r.id);
-                    if (res.error) message.error(res.error);
+                    if (res.error) message.error(toUserFacingErrorMessage(res.error));
                     else {
                       message.success(t('account.apiToken.revoked'));
                       fetchApiKeys();
@@ -504,7 +505,7 @@ export default function Account() {
               });
               setCreateKeySubmitting(false);
               if (res.error) {
-                message.error(res.error);
+                message.error(toUserFacingErrorMessage(res.error));
                 return;
               }
               const body = res.data as { data?: CreateAccountApiKeyResult };

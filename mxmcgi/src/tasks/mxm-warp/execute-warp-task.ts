@@ -8,6 +8,7 @@ import { getContract } from './input-stage';
 import { isMxmWarpExecution, runMxmWarp } from './warp-runner';
 import type { ManualReviewGateInfo, ReviewDraftPayload } from '../manual-review-types';
 import type { WarpProgressReporter } from './warp-progress';
+import { assertCleanWritingManuscript } from '../llm-output-hygiene';
 
 export function detectMxmWarp(
   template: TaskTemplate,
@@ -25,6 +26,8 @@ export async function executeMxmWarpTask(args: {
   runInputLlm?: boolean;
   resumeAt?: 'start' | 'output';
   onProgress?: WarpProgressReporter;
+  /** Admin 调试：每跑完一步回调，便于落库 pipelineTrace */
+  onPipelineCheckpoint?: (ctx: TaskContext) => void | Promise<void>;
 }): Promise<{
   ctx: TaskContext;
   text: string;
@@ -49,6 +52,7 @@ export async function executeMxmWarpTask(args: {
     outputLlm: llm,
     resumeAt: args.resumeAt,
     onProgress: args.onProgress,
+    onPipelineCheckpoint: args.onPipelineCheckpoint,
   });
 
   if (next.state.warpAwaitingUserGate && next.state.__pendingManualReviewDraft) {
@@ -69,9 +73,9 @@ export async function executeMxmWarpTask(args: {
     };
   }
 
-  // post 抛光写在 finalArtifact；未跑 post 时仅有 coreArtifact
-  // group 成稿：优先 groupAssembledText / 带 assembledFromGroup 的 coreArtifact，
-  // 避免 enrich.nestedText 把策划 JSON 留在 finalArtifact 导致落库 text 错误
+  // post 抛光写在 finalArtifact；未跑 post 时靠 output 同步写入的 finalArtifact / coreArtifact
+  // group 成稿：优先 groupAssembledText / 带 assembledFromGroup 的 coreArtifact
+  // 兜底：若 final 仍是 enrich expert JSON而 core 已是 Markdown 成稿，取 core（无 post 时也正确）
   const groupAssembled =
     typeof next.state.groupAssembledText === 'string' ? next.state.groupAssembledText.trim() : '';
   const coreArt = next.state.coreArtifact as
@@ -82,14 +86,28 @@ export async function executeMxmWarpTask(args: {
       ? coreArt.text.trim()
       : '';
   const finalArt = next.state.finalArtifact as { text?: string } | undefined;
-  const text =
+  const finalText = typeof finalArt?.text === 'string' ? finalArt.text.trim() : '';
+  const coreText = typeof coreArt?.text === 'string' ? coreArt.text.trim() : '';
+  const finalLooksLikeExpertJson =
+    finalText.startsWith('{') &&
+    (finalText.includes('"body_sections"') ||
+      finalText.includes('"evidence_refs"') ||
+      finalText.includes('"analysis_beats"'));
+  const coreLooksLikeArticle =
+    !!coreText &&
+    !coreText.startsWith('{') &&
+    (/^#\s/m.test(coreText) || coreText.includes('\n## '));
+  const textRaw =
     groupAssembled ||
     coreAssembled ||
-    (typeof finalArt?.text === 'string' && finalArt.text.trim() ? finalArt.text : '') ||
-    (typeof coreArt?.text === 'string' ? coreArt.text : '');
-  if (!text.trim()) {
+    (finalText && !(finalLooksLikeExpertJson && coreLooksLikeArticle) ? finalText : '') ||
+    coreText ||
+    '';
+  if (!textRaw.trim()) {
     throw new Error('mxm-warp output 未产出文本');
   }
+
+  const text = assertCleanWritingManuscript(textRaw, 'mxm-warp 成稿');
 
   return { ctx: next, text, usageBag };
 }

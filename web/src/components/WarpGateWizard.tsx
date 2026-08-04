@@ -26,12 +26,21 @@ export type WarpGateField = {
   description?: string;
   enum?: string[];
   required?: boolean;
-  default?: string;
+  default?: string | number | boolean;
+  /** 多选默认值（如 voice_ids） */
+  defaultArray?: string[];
+  /** 对象类默认值（如 minimaxVoice），不挤进 string default */
+  defaultObject?: Record<string, unknown>;
   'x-ui'?: string;
   /** schema `x-ui-type`：如 scale（整数滑杆，无自定义） */
   'x-ui-type'?: string;
+  /** 音色模型等扩展 */
+  'x-voice-model'?: string;
+  'x-max-chars'?: number;
   minimum?: number;
   maximum?: number;
+  minItems?: number;
+  maxItems?: number;
   /** 与枚举/刻度一一对应的可读文案 */
   'x-enum-labels'?: string[];
   placeholder?: string;
@@ -44,6 +53,12 @@ export type WarpGateWizardProps = {
   hint?: string;
   fields: WarpGateField[];
   topicChips?: string[];
+  /** 完整发现池（用于区分「其它批次已选」与手写） */
+  topicPool?: string[];
+  /** 发现池可翻页时展示「换一批」 */
+  onReshuffleTopics?: () => void;
+  reshuffleDisabled?: boolean;
+  reshuffleHint?: string;
   skippable?: boolean;
   submitting?: boolean;
   /** 非最后一步按钮文案，默认「下一步」 */
@@ -64,6 +79,10 @@ export function WarpGateWizard({
   hint,
   fields,
   topicChips = [],
+  topicPool = [],
+  onReshuffleTopics,
+  reshuffleDisabled = false,
+  reshuffleHint,
   skippable = false,
   submitting = false,
   nextLabel = '下一步',
@@ -81,6 +100,15 @@ export function WarpGateWizard({
     return init;
   });
   const [error, setError] = useState<string | null>(null);
+  /** 主观分析：点「自定义」后展开输入 */
+  const [analysisCustomOpen, setAnalysisCustomOpen] = useState(false);
+
+  const ANALYSIS_STANCE_PRESETS = [
+    '基于数据客观分析',
+    '基于数据批判性分析',
+    '基于数据幽默分析',
+    '基于数据乐观分析',
+  ] as const;
 
   const steps = useMemo(() => (fields.length > 0 ? fields : [{ name: '_empty', title: '继续' }]), [fields]);
   const current = steps[Math.min(step, steps.length - 1)]!;
@@ -131,10 +159,17 @@ export function WarpGateWizard({
         return false;
       }
     }
+    if (current.name === 'voice_id' && String(v) === 'kb_writing') {
+      const folder = String(values.writing_folder_id ?? '').trim();
+      if (!folder) {
+        setError('请点选一张就绪的语感文风卡');
+        return false;
+      }
+    }
     if (current.name === 'subjective_analysis' && (v === true || v === 'true')) {
       const stance = String(values.analysis_stance ?? '').trim();
       if (!stance) {
-        setError('请选择分析立场');
+        setError(analysisCustomOpen ? '请填写自定义分析口吻' : '请选择分析立场');
         return false;
       }
     }
@@ -213,98 +248,178 @@ export function WarpGateWizard({
                 setField('style_custom', '');
                 setField('writing_folder_id', '');
               }
+              if (current.name === 'voice_id' && v !== 'kb_writing') {
+                setField('writing_folder_id', '');
+              }
             }}
           />
         ) : current.name === 'subjective_analysis' ? (
           <Space orientation="vertical" style={{ width: '100%' }} size="middle">
-            <Space wrap>
-              <Button
-                type={values[current.name] === false ? 'primary' : 'default'}
-                onClick={() => {
-                  setField(current.name, false);
-                  setField('analysis_stance', '');
+            <div className="warp-gate-wizard__chips">
+              {[
+                { off: true as const, label: '无主观评论', value: '' },
+                { label: '客观分析', value: '基于数据客观分析' },
+                { label: '批判性分析', value: '基于数据批判性分析' },
+                { label: '幽默分析', value: '基于数据幽默分析' },
+                { label: '乐观分析', value: '基于数据乐观分析' },
+              ].map((opt) => {
+                const on = values[current.name] === true || values[current.name] === 'true';
+                const stance = String(values.analysis_stance ?? '').trim();
+                const checked = opt.off
+                  ? !on && !analysisCustomOpen
+                  : on && !analysisCustomOpen && stance === opt.value;
+                return (
+                  <Tag.CheckableTag
+                    key={opt.off ? 'off' : opt.value}
+                    checked={checked}
+                    onChange={() => {
+                      setAnalysisCustomOpen(false);
+                      if (opt.off) {
+                        setField(current.name, false);
+                        setField('analysis_stance', '');
+                        return;
+                      }
+                      setField(current.name, true);
+                      setField('analysis_stance', opt.value);
+                    }}
+                  >
+                    {opt.label}
+                  </Tag.CheckableTag>
+                );
+              })}
+              <Tag.CheckableTag
+                checked={analysisCustomOpen}
+                onChange={() => {
+                  setAnalysisCustomOpen(true);
+                  setField(current.name, true);
+                  const stance = String(values.analysis_stance ?? '').trim();
+                  if ((ANALYSIS_STANCE_PRESETS as readonly string[]).includes(stance)) {
+                    setField('analysis_stance', '');
+                  }
                 }}
               >
-                关闭（纯报道）
-              </Button>
-              <Button
-                type={values[current.name] === true ? 'primary' : 'default'}
-                onClick={() => setField(current.name, true)}
-              >
-                打开
-              </Button>
-            </Space>
-            {values[current.name] === true ? (
-              <Select
-                style={{ width: '100%' }}
-                size="large"
-                placeholder="选择分析立场"
-                value={(values.analysis_stance as string | undefined) ?? undefined}
-                options={[
-                  { value: '基于数据客观分析', label: '客观分析' },
-                  { value: '基于数据批判性分析', label: '批判性分析' },
-                  { value: '基于数据幽默分析', label: '幽默分析' },
-                  { value: '基于数据乐观分析', label: '乐观分析' },
-                ]}
-                onChange={(v) => setField('analysis_stance', v)}
+                自定义…
+              </Tag.CheckableTag>
+            </div>
+            {analysisCustomOpen ? (
+              <Input.TextArea
+                rows={2}
+                placeholder="例：略带讽刺但不人身攻击 / 偏投资人视角"
+                value={String(values.analysis_stance ?? '')}
+                onChange={(e) => {
+                  setField(current.name, true);
+                  setField('analysis_stance', e.target.value);
+                }}
               />
             ) : null}
           </Space>
         ) : isTopic ? (
           <Space orientation="vertical" style={{ width: '100%' }} size="middle">
-            {topicChips.length > 0 ? (
-              <div className="warp-gate-wizard__chips">
-                {topicChips.map((chip) => {
-                  const selected = String(values[current.name] ?? '')
-                    .split(/[；;\n]+/)
-                    .map((s) => s.trim())
-                    .filter(Boolean);
-                  const checked = selected.includes(chip);
-                  return (
-                    <Tag.CheckableTag
-                      key={chip}
-                      checked={checked}
-                      onChange={(next) => {
-                        const chipParts = selected.filter((x) => topicChips.includes(x));
-                        const customParts = selected.filter((x) => !topicChips.includes(x));
-                        const nextChips = next
-                          ? [...chipParts.filter((x) => x !== chip), chip]
-                          : chipParts.filter((x) => x !== chip);
-                        setField(current.name, [...nextChips, ...customParts].join('；'));
-                      }}
-                    >
-                      {chip}
-                    </Tag.CheckableTag>
-                  );
-                })}
-              </div>
-            ) : (
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                暂无热门话题推荐，可直接手写；可多选具体事件
-              </Typography.Text>
-            )}
-            <Input.TextArea
-              rows={3}
-              placeholder="手写补充话题（与上方多选合并，可留空）"
-              value={(() => {
-                const all = String(values[current.name] ?? '')
-                  .split(/[；;\n]+/)
-                  .map((s) => s.trim())
-                  .filter(Boolean);
-                return all.filter((x) => !topicChips.includes(x)).join('；');
-              })()}
-              onChange={(e) => {
-                const selectedChips = String(values[current.name] ?? '')
-                  .split(/[；;\n]+/)
-                  .map((s) => s.trim())
-                  .filter((x) => topicChips.includes(x));
-                const custom = e.target.value.trim();
-                setField(
-                  current.name,
-                  [...selectedChips, ...(custom ? [custom] : [])].join('；')
-                );
-              }}
-            />
+            {(() => {
+              const selected = String(values[current.name] ?? '')
+                .split(/[；;\n]+/)
+                .map((s) => s.trim())
+                .filter(Boolean);
+              const poolSet = new Set(
+                (topicPool.length > 0 ? topicPool : topicChips).map((t) => t.trim()).filter(Boolean)
+              );
+              const selectedFromOtherPages = selected.filter(
+                (x) => poolSet.has(x) && !topicChips.includes(x)
+              );
+              const handwritten = selected.filter((x) => !poolSet.has(x));
+              return (
+                <>
+                  {selectedFromOtherPages.length > 0 ? (
+                    <div>
+                      <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                        已选（其它批次）
+                      </Typography.Text>
+                      <div className="warp-gate-wizard__chips">
+                        {selectedFromOtherPages.map((chip) => (
+                          <Tag.CheckableTag
+                            key={`sel-${chip}`}
+                            checked
+                            onChange={(next) => {
+                              if (next) return;
+                              setField(
+                                current.name,
+                                selected.filter((x) => x !== chip).join('；')
+                              );
+                            }}
+                          >
+                            {chip}
+                          </Tag.CheckableTag>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {topicChips.length > 0 ? (
+                    <div className="warp-gate-wizard__chips">
+                      {topicChips.map((chip) => {
+                        const checked = selected.includes(chip);
+                        return (
+                          <Tag.CheckableTag
+                            key={chip}
+                            checked={checked}
+                            onChange={(n) => {
+                              const pageParts = selected.filter((x) => topicChips.includes(x));
+                              const otherParts = selected.filter((x) => !topicChips.includes(x));
+                              const nextPage = n
+                                ? [...pageParts.filter((x) => x !== chip), chip]
+                                : pageParts.filter((x) => x !== chip);
+                              setField(current.name, [...nextPage, ...otherParts].join('；'));
+                            }}
+                          >
+                            {chip}
+                          </Tag.CheckableTag>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      暂无热门话题推荐，可直接手写；可多选具体事件
+                    </Typography.Text>
+                  )}
+                  {onReshuffleTopics ? (
+                    <div>
+                      <Button
+                        type="link"
+                        size="small"
+                        disabled={reshuffleDisabled || submitting}
+                        onClick={() => onReshuffleTopics()}
+                        style={{ paddingInline: 0 }}
+                      >
+                        换一批
+                      </Button>
+                      {reshuffleHint ? (
+                        <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                          {reshuffleHint}
+                        </Typography.Text>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <Input.TextArea
+                    rows={3}
+                    placeholder="手写补充话题（与上方多选合并，可留空）"
+                    value={handwritten.join('；')}
+                    onChange={(e) => {
+                      const pageSelected = selected.filter((x) => topicChips.includes(x));
+                      const otherBatch = selected.filter(
+                        (x) => poolSet.has(x) && !topicChips.includes(x)
+                      );
+                      const customParts = e.target.value
+                        .split(/[；;\n]+/)
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+                      setField(
+                        current.name,
+                        [...pageSelected, ...otherBatch, ...customParts].join('；')
+                      );
+                    }}
+                  />
+                </>
+              );
+            })()}
           </Space>
         ) : (
           <Input
@@ -350,6 +465,21 @@ export function WarpGateWizard({
               onChange={(id) => setField('writing_folder_id', id ?? '')}
               textRecommendations={STYLE_TONE_RECS}
               textPlaceholder="写几句语气偏好，或输入 @ 选择语感文风"
+            />
+          </div>
+        ) : null}
+
+        {current.name === 'voice_id' && values.voice_id === 'kb_writing' ? (
+          <div style={{ marginTop: 12 }}>
+            <FolderCardAtField
+              cardTag="writing"
+              mode="pick"
+              value={
+                typeof values.writing_folder_id === 'string' && values.writing_folder_id.trim()
+                  ? values.writing_folder_id
+                  : null
+              }
+              onChange={(id) => setField('writing_folder_id', id ?? '')}
             />
           </div>
         ) : null}

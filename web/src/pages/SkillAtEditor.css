@@ -1,0 +1,212 @@
+.skill-at-editor {
+  position: relative;
+  width: 100%;
+  min-height: 420px;
+}
+
+.skill-at-editor.is-disabled {
+  opacity: 0.72;
+}
+
+.skill-at-editor__frame {
+  position: relative;
+  min-height: 420px;
+  border-radius: 10px;
+  border: 1px solid rgba(60, 60, 67, 0.12);
+  background: #fff;
+  overflow: hidden;
+}
+
+.skill-at-editor__frame:focus-within {
+  border-color: rgba(0, 122, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
+}
+
+.skill-at-editor__mirror,
+.skill-at-editor__textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 420px;
+  margin: 0;
+  padding: 12px 14px;
+  border: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  letter-spacing: normal;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  tab-size: 2;
+}
+
+.skill-at-editor__mirror {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  pointer-events: none;
+  color: rgba(0, 0, 0, 0.88);
+  background: transparent;
+  z-index: 0;
+}
+
+.skill-at-editor__textarea {
+  position: relative;
+  z-index: 1;
+  display: block;
+  resize: vertical;
+  color: transparent;
+  caret-color: #007aff;
+  background: transparent;
+  outline: none;
+  overflow: auto;
+}
+
+.skill-at-editor__textarea::placeholder {
+  color: rgba(60, 60, 67, 0.35);
+}
+
+.skill-at-editor__placeholder {
+  color: rgba(60, 60, 67, 0.35);
+}
+
+.skill-at-editor__chip {
+  color: #007aff;
+  background: rgba(0, 122, 255, 0.12);
+  border-radius: 4px;
+  padding: 0 1px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.skill-at-editor__popup {
+  position: fixed;
+  z-index: 1100;
+  width: min(320px, calc(100vw - 24px));
+  max-height: 260px;
+  overflow: auto;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid rgba(60, 60, 67, 0.12);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.14),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+  padding: 6px;
+}
+
+.skill-at-editor__popup-head {
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(60, 60, 67, 0.45);
+}
+
+.skill-at-editor__popup-empty {
+  padding: 12px 10px;
+  font-size: 13px;
+  color: rgba(60, 60, 67, 0.45);
+}
+
+.skill-at-editor__popup-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.skill-at-editor__popup-item.is-active,
+.skill-at-editor__popup-item:hover {
+  background: rgba(0, 122, 255, 0.1);
+}
+
+.skill-at-editor__popup-icon {
+  flex-shrink: 0;
+  display: flex;
+  color: rgba(60, 60, 67, 0.55);
+}
+
+.skill-at-editor__popup-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.skill-at-editor__popup-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.skill-at-editor__popup-path {
+  font-size: 11px;
+  color: rgba(60, 60, 67, 0.45);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-at-editor__popup-lock {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(60, 60, 67, 0.45);
+  background: rgba(120, 120, 128, 0.12);
+  border-radius: 999px;
+  padding: 2px 6px;
+}
+
+:is(html.dark, html.dark-mode, .dark) .skill-at-editor__frame {
+  border-color: rgba(235, 235, 245, 0.14);
+  background: rgba(28, 28, 30, 0.9);
+}
+
+:is(html.dark, html.dark-mode, .dark) .skill-at-editor__mirror {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:is(html.dark, html.dark-mode, .dark) .skill-at-editor__textarea {
+  caret-color: #0a84ff;
+}
+
+:is(html.dark, html.dark-mode, .dark) .skill-at-editor__chip {
+  color: #0a84ff;
+  background: rgba(10, 132, 255, 0.22);
+}
+
+:is(html.dark, html.dark-mode, .dark) .skill-at-editor__popup {
+  background: rgba(44, 44, 46, 0.96);
+  border-color: rgba(235, 235, 245, 0.14);
+}
+
+:is(html.dark, html.dark-mode, .dark) .skill-at-editor__popup-title {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+:is(html.dark, html.dark-mode, .dark) .skill-at-editor__popup-path,
+:is(html.dark, html.dark-mode, .dark) .skill-at-editor__popup-head,
+:is(html.dark, html.dark-mode, .dark) .skill-at-editor__popup-empty {
+  color: rgba(235, 235, 245, 0.45);
+}
+
+:is(html.dark, html.dark-mode, .dark) .skill-at-editor__popup-item.is-active,
+:is(html.dark, html.dark-mode, .dark) .skill-at-editor__popup-item:hover {
+  background: rgba(10, 132, 255, 0.2);
+}

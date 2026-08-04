@@ -30,6 +30,7 @@ import { resolveReviewScriptInitial } from './resolveReviewScriptInitial';
 import './video-timeline-review.css';
 import { MANUAL_REVIEW_FULLSCREEN_MODAL_STYLES } from '../manualReviewModalLayout';
 import { countFailedClipRenders, listBlockingClipRenders } from './clipRenderPreviewUtils';
+import { toUserFacingErrorMessage } from '../../lib/platformErrors';
 import {
   ReviewBillingBar,
   formatGenerateButtonLabel,
@@ -413,7 +414,7 @@ export function VideoTimelineReviewModal({
       })
       .catch((e) => {
         if (!cancelled) {
-          const errMsg = e instanceof Error ? e.message : String(e);
+          const errMsg = toUserFacingErrorMessage(e instanceof Error ? e.message : e);
           setDraftLoadError(errMsg);
           setDraftLoadState('error');
           setDraft(null);
@@ -571,7 +572,7 @@ export function VideoTimelineReviewModal({
       onApproved?.();
       onClose();
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('video.review.retryFailed'));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: t('video.review.retryFailed') }));
     } finally {
       setRetrying(false);
       setRetryingClipId(null);
@@ -651,7 +652,7 @@ export function VideoTimelineReviewModal({
       onApproved?.();
       onClose();
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('video.review.submitFailed'));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: t('video.review.submitFailed') }));
     } finally {
       setSubmitting(false);
     }

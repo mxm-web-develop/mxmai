@@ -117,6 +117,43 @@ function readTaskV2(meta: Record<string, unknown>): TaskV2Identity | null {
   return { scope, taskKey, subtype };
 }
 
+/** 与写作列表刊头一致：优先 # / ## 行 */
+function extractMarkdownHeadline(text: string, maxLen = 56): string {
+  const raw = text.replace(/\s+$/g, '').trim();
+  if (!raw) return '';
+  const lines = raw.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    const heading = line.match(/^#{1,3}\s+(.+)$/);
+    if (heading?.[1]) {
+      const h = heading[1].replace(/\s+/g, ' ').trim();
+      if (!h) continue;
+      return h.length <= maxLen ? h : `${h.slice(0, maxLen)}…`;
+    }
+  }
+  const first = (lines[0] ?? raw).replace(/^#+\s*/, '').replace(/\s+/g, ' ').trim();
+  if (!first) return '';
+  return first.length <= maxLen ? first : `${first.slice(0, maxLen)}…`;
+}
+
+function contentPreviewFromCgiTask(task: Record<string, unknown>): string {
+  const meta = (task.metadata && typeof task.metadata === 'object'
+    ? (task.metadata as Record<string, unknown>)
+    : {}) as Record<string, unknown>;
+  const fromList =
+    typeof meta.listContentPreview === 'string' ? meta.listContentPreview.trim() : '';
+  const output =
+    task.output_data && typeof task.output_data === 'object'
+      ? (task.output_data as Record<string, unknown>)
+      : null;
+  const outMeta =
+    output?.metadata && typeof output.metadata === 'object'
+      ? (output.metadata as Record<string, unknown>)
+      : null;
+  const fromOutMeta = typeof outMeta?.text === 'string' ? outMeta.text.trim() : '';
+  const fromOutText = typeof output?.text === 'string' ? output.text.trim() : '';
+  return [fromList, fromOutMeta, fromOutText].find((s) => s && s.length > 0) ?? '';
+}
+
 /**
  * 批量查 admin 业务配置表（PromptEngineeringConfig），把 link 的 taskV2 身份映射为对外可读 label。
  * 历史配置缺 extra.display 时返回 null，回退到 taskKey/业务标签。
@@ -148,11 +185,12 @@ async function batchResolveBusinessLabels(
 }
 
 /**
- * 派生 link.name（用户对外可见的标题）：
- *   1. metadata.title 显式用户标题（如有）
- *   2. admin 业务配置 taskLabel · subtypeLabel（与生成列表 taskLabel 对齐）
- *   3. taskKey（系统标识）· 业务标签
- *   4. 业务标签 + #短码（兜底，绝不返 prompt）
+ * 派生 link.name（用户对外可见的标题，与「我的创作」列表刊头对齐）：
+ *   1. metadata.label 用户任务名
+ *   2. 写作：正文 listContentPreview / output 刊头（与列表卡片 headline 一致）
+ *   3. admin subtypeLabel（具体子业务名）
+ *   4. taskLabel · subtypeLabel（仅当有具体子类）
+ *   5. 兜底：业务标签 + #短码（绝不返 prompt；也不单独用「写作」当标题）
  */
 function deriveLinkNameForTask(
   task: Record<string, unknown>,
@@ -164,16 +202,26 @@ function deriveLinkNameForTask(
   taskLabel: string | null;
   subtypeLabel: string | null;
   userTitle: string;
+  contentPreview: string;
 } {
   const taskId = String(task.id);
   const meta = (task.metadata && typeof task.metadata === 'object'
     ? (task.metadata as Record<string, unknown>)
     : {}) as Record<string, unknown>;
   const id = readTaskV2(meta);
-  // 任务「名字」存的是 metadata.label（与 mxmcgi extractRequestLabelFromParams / web getTaskTitle 一致）；
-  // metadata.title 不写入，写它会拿到空字符串，永远回退到 admin label。
+  // 任务「名字」存的是 metadata.label（与 mxmcgi extractRequestLabelFromParams / web getTaskTitle 一致）
   const userTitle = typeof meta.label === 'string' && meta.label.trim() ? meta.label.trim() : '';
   const promptRaw = typeof task.prompt === 'string' ? task.prompt : '';
+  const contentPreview = contentPreviewFromCgiTask(task);
+  const contentHeadline = extractMarkdownHeadline(contentPreview, 56);
+  const taskType = String(task.task_type ?? '');
+  const isWritingLike = taskType === 'writing' || taskType === 'text';
+
+  const labels = id
+    ? labelMap.get(`${id.scope}|${id.taskKey}|${id.subtype ?? ''}`)
+    : undefined;
+  const taskLabel = labels?.taskLabel ?? null;
+  const subtypeLabel = labels?.subtypeLabel ?? null;
 
   // 1) 用户标题最优先
   if (userTitle) {
@@ -181,37 +229,53 @@ function deriveLinkNameForTask(
       name: userTitle,
       taskV2: id,
       promptForAudit: promptRaw,
-      taskLabel: null,
-      subtypeLabel: null,
+      taskLabel,
+      subtypeLabel,
       userTitle,
+      contentPreview,
     };
   }
-  // 2) admin label
+
+  // 2) 写作：用正文刊头（与列表 WritingTaskCard headline 一致）；文集任务另有 storage 单篇路径
+  if (isWritingLike && contentHeadline) {
+    return {
+      name: contentHeadline,
+      taskV2: id,
+      promptForAudit: promptRaw,
+      taskLabel,
+      subtypeLabel,
+      userTitle: '',
+      contentPreview,
+    };
+  }
+
+  // 3) 具体子业务名
+  if (subtypeLabel) {
+    return {
+      name: subtypeLabel,
+      taskV2: id,
+      promptForAudit: promptRaw,
+      taskLabel,
+      subtypeLabel,
+      userTitle: '',
+      contentPreview,
+    };
+  }
+
+  // 4) 有子类时才拼「大类 · 子类」；单独「写作」不够当标题
+  if (taskLabel && subtypeLabel) {
+    return {
+      name: `${taskLabel} · ${subtypeLabel}`,
+      taskV2: id,
+      promptForAudit: promptRaw,
+      taskLabel,
+      subtypeLabel,
+      userTitle: '',
+      contentPreview,
+    };
+  }
+
   if (id) {
-    const labels = labelMap.get(`${id.scope}|${id.taskKey}|${id.subtype ?? ''}`);
-    const taskLabel = labels?.taskLabel ?? null;
-    const subtypeLabel = labels?.subtypeLabel ?? null;
-    if (taskLabel && subtypeLabel) {
-      return {
-        name: `${taskLabel} · ${subtypeLabel}`,
-        taskV2: id,
-        promptForAudit: promptRaw,
-        taskLabel,
-        subtypeLabel,
-        userTitle: '',
-      };
-    }
-    if (taskLabel) {
-      return {
-        name: taskLabel,
-        taskV2: id,
-        promptForAudit: promptRaw,
-        taskLabel,
-        subtypeLabel: null,
-        userTitle: '',
-      };
-    }
-    // 3) tech id + 业务兜底标签
     const tech =
       id.subtype && id.subtype !== id.taskKey
         ? `${id.taskKey}/${id.subtype}`
@@ -220,19 +284,21 @@ function deriveLinkNameForTask(
       name: `${tech} #${shortId(taskId)}`,
       taskV2: id,
       promptForAudit: promptRaw,
-      taskLabel: null,
-      subtypeLabel: null,
+      taskLabel,
+      subtypeLabel,
       userTitle: '',
+      contentPreview,
     };
   }
-  // 4) 纯兜底：业务标签 + 短码
+
   return {
-    name: `${businessLabelByTaskType(String(task.task_type ?? ''))} #${shortId(taskId)}`,
+    name: `${businessLabelByTaskType(taskType)} #${shortId(taskId)}`,
     taskV2: null,
     promptForAudit: promptRaw,
     taskLabel: null,
     subtypeLabel: null,
     userTitle: '',
+    contentPreview,
   };
 }
 
@@ -600,9 +666,9 @@ router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
           });
           continue;
         }
-        const { name, taskV2, promptForAudit, taskLabel, subtypeLabel, userTitle } = deriveLinkNameForTask(task, labelMap);
+        const { name, taskV2, promptForAudit, taskLabel, subtypeLabel, userTitle, contentPreview } =
+          deriveLinkNameForTask(task, labelMap);
         // 写作任务的 prompt（角色指令）不应出现在对外 link.name，已由 deriveLinkNameForTask 派生产物替代。
-        // 元数据中仍保留 prompt，前端可作为附注；前端默认不再用其作为展示标题。
         const metaOut: Record<string, unknown> = {};
         if (taskV2) metaOut.taskV2 = taskV2;
         if (promptForAudit && taskV2) {
@@ -613,6 +679,8 @@ router.get('/folders/:id/items', authMiddleware, async (req, res, next) => {
         // 把业务标签一起透传给前端，与「我的创作」列表保持一致字段，避免用户混淆。
         if (taskLabel) metaOut.taskLabel = taskLabel;
         if (subtypeLabel) metaOut.subtypeLabel = subtypeLabel;
+        // 写作刊头预览：供选取器/卡片与列表 headline 对齐
+        if (contentPreview) metaOut.contentPreview = contentPreview.slice(0, 480);
         linkItems.push({
           type: 'link',
           ref_type: 'task',

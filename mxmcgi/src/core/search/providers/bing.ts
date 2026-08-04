@@ -43,7 +43,7 @@ export class BingSearchProvider implements SearchProvider {
 
       if (!response.ok) {
         console.error(`[BingSearch] API error: ${response.status}`);
-        return this.createEmptyResult(query);
+        return this.createEmptyResult(query, `HTTP ${response.status}`);
       }
 
       const data = await response.json() as {
@@ -76,7 +76,8 @@ export class BingSearchProvider implements SearchProvider {
       };
     } catch (error) {
       console.error('[BingSearch] Search failed:', error);
-      return this.createEmptyResult(query);
+      const msg = error instanceof Error ? error.message : String(error);
+      return this.createEmptyResult(query, msg);
     }
   }
 
@@ -110,7 +111,7 @@ export class BingSearchProvider implements SearchProvider {
     }
   }
 
-  private createEmptyResult(query: string): DimensionSearchResult {
+  private createEmptyResult(query: string, error?: string): DimensionSearchResult {
     return {
       dimension: 'general',
       provider: this.name,
@@ -118,6 +119,7 @@ export class BingSearchProvider implements SearchProvider {
       total: 0,
       query,
       timestamp: new Date().toISOString(),
+      ...(error ? { error } : {}),
     };
   }
 }

@@ -5,9 +5,12 @@ import type { WritingTaskItem } from '../../api/client';
 import { TaskOpenApiBadge } from '../TaskOpenApiBadge';
 import { animateCardEnter } from '../../lib/motion/gsapPresets';
 import { prefersReducedMotion } from '../../lib/motion/useReducedMotion';
+import { useAuth } from '../../context/AuthContext';
+import { toUserFacingError } from '../../lib/platformErrors';
 import {
   extractMarkdownHeadline,
   formatTaskCreatedAt,
+  pickPresentationDeckMeta,
   pickTaskOutputPreviewRaw,
   pickWritingCollectionMeta,
   type WritingCollectionTeaser,
@@ -104,7 +107,16 @@ function pickSeekTopic(task: WritingTaskItem): string | undefined {
 function pickSeekCount(task: WritingTaskItem): number | undefined {
   const raw = readNestedParam(task, 'seek_count');
   const n = typeof raw === 'number' ? raw : Number(raw);
-  if (Number.isFinite(n) && n >= 2) return Math.min(10, Math.floor(n));
+  if (Number.isFinite(n) && n >= 1) return Math.min(10, Math.floor(n));
+
+  // 新 seek：份数 = 所选文风数（不再单独填 seek_count）
+  for (const key of ['voice_ids', 'voices', 'style_ids'] as const) {
+    const voices = readNestedParam(task, key);
+    if (Array.isArray(voices)) {
+      const len = voices.map(String).filter((s) => s.trim()).length;
+      if (len >= 1) return Math.min(10, len);
+    }
+  }
   return undefined;
 }
 
@@ -124,14 +136,16 @@ function buildAnthologyPieces(
   if (teasers.length > 0) {
     return teasers.slice(0, 5).map((t, i) => ({
       id: t.id || `p${i + 1}`,
-      label: shortenPieceLabel(t.name || t.title || `第 ${i + 1} 路`),
+      // 优先完整篇名片（标题 · 文风），name 多为文风短名
+      label: shortenPieceLabel(t.title || t.name || `探索稿 ${i + 1}`),
       angle: t.angle ? shortenPieceLabel(t.angle, 22) : undefined,
     }));
   }
-  const n = Math.min(5, Math.max(2, countHint || 3));
+  const n = Math.min(8, Math.max(0, countHint || 0));
+  if (n < 1) return [];
   return Array.from({ length: n }, (_, i) => ({
     id: `slot-${i + 1}`,
-    label: `第 ${i + 1} 路`,
+    label: `探索稿 ${i + 1}`,
   }));
 }
 
@@ -156,29 +170,53 @@ export function WritingTaskCard({
   deleteAction = 'more',
   extra,
 }: WritingTaskCardProps) {
+  const { isAdmin } = useAuth();
   const cardRef = useRef<HTMLLIElement>(null);
   const useDeleteButton = Boolean(showDelete && deleteAction === 'delete' && onDelete);
   const useMoreMenu = Boolean(showDelete && deleteAction === 'more' && onDelete);
   const isProcessing =
     status === 'processing' || status === 'pending' || status === 'queued';
   const isFailed = status === 'failed' || status === 'cancelled';
-  const isReview = status === 'awaiting_review';
-  const errorMessage = task.progress?.error?.trim();
+  const isReview = status === 'awaiting_review' || status === 'awaiting_user_input';
+  const rawError = task.progress?.error?.trim();
+  const errorDebug =
+    typeof (task.progress as { errorDebug?: string } | undefined)?.errorDebug === 'string'
+      ? (task.progress as { errorDebug?: string }).errorDebug!.trim()
+      : undefined;
+  const facedError = rawError
+    ? toUserFacingError(
+        {
+          error: rawError,
+          errorCode: (task.progress as { errorCode?: string } | undefined)?.errorCode,
+          errorDebug,
+        },
+        { isAdmin }
+      )
+    : null;
+  const errorMessage = facedError?.message;
   const outputPreview = pickTaskOutputPreviewRaw(task, 480);
+  const deckMeta = pickPresentationDeckMeta(task);
   const collectionMeta = pickWritingCollectionMeta(task);
+  const isPresentationDeck = deckMeta.isDeck;
   const showSummary =
-    status === 'completed' && Boolean(outputPreview.trim() || collectionMeta.isCollection);
+    status === 'completed' &&
+    Boolean(outputPreview.trim() || collectionMeta.isCollection || isPresentationDeck);
   const seekTopic = pickSeekTopic(task);
   const seekCount = pickSeekCount(task);
   const collectionReady = collectionMeta.readyCount ?? null;
   const collectionTotal =
     collectionMeta.itemCount ?? seekCount ?? collectionReady ?? null;
-  const isWritingCollection = collectionMeta.isCollection;
-  const pieceCount =
-    collectionTotal ?? collectionReady ?? collectionMeta.teasers.length ?? seekCount ?? 0;
-  const anthologyPieces = isWritingCollection
-    ? buildAnthologyPieces(collectionMeta.teasers, pieceCount || seekCount || 3)
-    : [];
+  const isWritingCollection = collectionMeta.isCollection && !isPresentationDeck;
+  const pieceCount = isPresentationDeck
+    ? deckMeta.slideCount ?? deckMeta.teasers.length ?? 0
+    : collectionTotal ?? collectionReady ?? collectionMeta.teasers.length ?? seekCount ?? 0;
+  const anthologyPieces =
+    isWritingCollection || isPresentationDeck
+      ? buildAnthologyPieces(
+          isPresentationDeck ? deckMeta.teasers : collectionMeta.teasers,
+          pieceCount || seekCount || 0
+        )
+      : [];
   const progressPct =
     typeof task.progress?.progress === 'number' ? Math.round(task.progress.progress) : null;
   const phaseIndex = isProcessing
@@ -187,28 +225,35 @@ export function WritingTaskCard({
         phaseIndex: task.progress?.phaseIndex,
         progress: progressPct,
         status,
-        collectionReady: isWritingCollection ? collectionReady : null,
-        collectionTotal: isWritingCollection ? collectionTotal : null,
+        collectionReady: isWritingCollection || isPresentationDeck ? collectionReady : null,
+        collectionTotal:
+          isWritingCollection || isPresentationDeck
+            ? isPresentationDeck
+              ? pieceCount || null
+              : collectionTotal
+            : null,
       })
     : -1;
-  const progressMessage = isWritingCollection
-    ? formatWritingCollectionProgressHint({
-        message: task.progress?.message,
-        statusLabel,
-        ready: collectionReady,
-        total: collectionTotal,
-        status,
-      })
-    : task.progress?.message?.trim() || null;
+  const progressMessage =
+    isWritingCollection || isPresentationDeck
+      ? formatWritingCollectionProgressHint({
+          message: task.progress?.message,
+          statusLabel,
+          ready: isPresentationDeck ? pieceCount || null : collectionReady,
+          total: isPresentationDeck ? pieceCount || null : collectionTotal,
+          status,
+        })
+      : task.progress?.message?.trim() || null;
 
-  const headlineSource = isWritingCollection
-    ? ''
-    : showSummary
-      ? outputPreview
-      : outputPreview || subtypeLabel || typeLabel || title;
+  const headlineSource =
+    isWritingCollection || isPresentationDeck
+      ? ''
+      : showSummary
+        ? outputPreview
+        : outputPreview || subtypeLabel || typeLabel || title;
   const headline = extractMarkdownHeadline(headlineSource, 56);
   const bodyExcerpt =
-    showSummary && !isWritingCollection
+    showSummary && !isWritingCollection && !isPresentationDeck
       ? outputPreview
           .replace(/^#{1,3}\s+[^\n]*\n?/, '')
           .replace(/\s+/g, ' ')
@@ -217,10 +262,13 @@ export function WritingTaskCard({
   const eyebrow = subtypeLabel || typeLabel || '文稿';
   /** 封面内唯一主题行：探索主题；不得用子篇标题顶替任务名 */
   const collectionTheme =
-    [collectionMeta.title, seekTopic]
+    [isPresentationDeck ? deckMeta.title : collectionMeta.title, seekTopic]
       .map((s) => (typeof s === 'string' ? s.trim() : ''))
       .find((s) => s && s !== title) || '';
   const displayPieceCount = pieceCount > 0 ? pieceCount : anthologyPieces.length;
+  const stackLabel = isPresentationDeck ? '演示文稿' : '文集';
+  const unitLabel = isPresentationDeck ? '页' : '篇';
+  const useStackVisual = isWritingCollection || isPresentationDeck;
 
   useGSAP(
     () => {
@@ -228,7 +276,7 @@ export function WritingTaskCard({
       animateCardEnter(cardRef.current);
       const shimmer = cardRef.current.querySelector('.writing-doc-card__shimmer');
       animateMastShimmer(shimmer, { faster: isProcessing || isReview });
-      if (isWritingCollection || !isProcessing) return;
+      if (useStackVisual || !isProcessing) return;
       const inks = cardRef.current.querySelectorAll('.writing-doc-card__ink');
       animateInkPulse(inks);
       const mastInks = cardRef.current.querySelectorAll('.writing-doc-card__mast-ink');
@@ -237,7 +285,7 @@ export function WritingTaskCard({
     },
     {
       scope: cardRef,
-      dependencies: [task.id, animateKey, status, isProcessing, isReview, isWritingCollection],
+      dependencies: [task.id, animateKey, status, isProcessing, isReview, useStackVisual],
       revertOnUpdate: true,
     }
   );
@@ -247,7 +295,11 @@ export function WritingTaskCard({
       ref={cardRef}
       className={[
         'writing-doc-card',
-        isWritingCollection ? 'writing-doc-card--anthology' : 'writing-doc-card--mast',
+        useStackVisual
+          ? isPresentationDeck
+            ? 'writing-doc-card--anthology writing-doc-card--deck'
+            : 'writing-doc-card--anthology'
+          : 'writing-doc-card--mast',
         `writing-doc-card--${status}`,
         'writing-task-item-clickable',
         isProcessing ? 'writing-doc-card--generating' : '',
@@ -268,81 +320,99 @@ export function WritingTaskCard({
         <TaskCardSelectCheckbox checked={selected} onToggle={onToggleSelect} />
       ) : null}
 
-      {isWritingCollection ? (
+      {useStackVisual ? (
         <div
-          className="writing-doc-card__visual writing-anthology"
-          aria-label={`文集，共 ${displayPieceCount} 篇`}
+          className="writing-anthology"
+          aria-label={`${stackLabel}，共 ${displayPieceCount} ${unitLabel}`}
         >
-          <div className="writing-doc-card__mast writing-anthology__mast">
-            <div className="writing-doc-card__shimmer" aria-hidden />
-            <div className="writing-anthology__mast-row">
-              <strong className="writing-doc-card__eyebrow">文集</strong>
-              {displayPieceCount > 0 ? (
-                <span className="writing-anthology__count">{displayPieceCount} 篇</span>
-              ) : null}
-            </div>
-            {isProcessing ? (
-              <div className="writing-doc-card__gen" aria-live="polite">
-                <span className="writing-doc-card__gen-hint">
-                  {progressMessage || statusLabel}
-                </span>
-                <div
-                  className="writing-doc-card__phases"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={progressPct ?? undefined}
-                  aria-valuetext={progressMessage || statusLabel}
-                >
-                  {WRITING_PIPELINE_PHASES.map((p, i) => {
-                    const state =
-                      i < phaseIndex ? 'done' : i === phaseIndex ? 'active' : 'todo';
-                    return (
-                      <span
-                        key={p.id}
-                        className={`writing-doc-card__phase writing-doc-card__phase--${state}`}
-                        title={p.label}
-                      >
-                        <i className="writing-doc-card__phase-bar" aria-hidden />
-                        <em className="writing-doc-card__phase-label">{p.label}</em>
-                      </span>
-                    );
-                  })}
+          {/* C 文件夹凸耳 + D 封面合集：品牌 sky→machine */}
+          <span className="writing-anthology__tab" aria-hidden />
+          <div className="writing-doc-card__visual writing-anthology__face">
+            <div className="writing-anthology__cover">
+              <div className="writing-doc-card__shimmer" aria-hidden />
+              <div className="writing-anthology__mast-row">
+                <strong className="writing-doc-card__eyebrow writing-anthology__eyebrow">
+                  {stackLabel}
+                </strong>
+                {displayPieceCount > 0 ? (
+                  <span className="writing-anthology__count">
+                    {displayPieceCount} {unitLabel}
+                  </span>
+                ) : null}
+              </div>
+              {isProcessing ? (
+                <div className="writing-doc-card__gen" aria-live="polite">
+                  <span className="writing-doc-card__gen-hint">
+                    {progressMessage || statusLabel}
+                  </span>
+                  <div
+                    className="writing-doc-card__phases"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progressPct ?? undefined}
+                    aria-valuetext={progressMessage || statusLabel}
+                  >
+                    {WRITING_PIPELINE_PHASES.map((p, i) => {
+                      const state =
+                        i < phaseIndex ? 'done' : i === phaseIndex ? 'active' : 'todo';
+                      return (
+                        <span
+                          key={p.id}
+                          className={`writing-doc-card__phase writing-doc-card__phase--${state}`}
+                          title={p.label}
+                        >
+                          <i className="writing-doc-card__phase-bar" aria-hidden />
+                          <em className="writing-doc-card__phase-label">{p.label}</em>
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ) : collectionTheme ? (
-              <span className="writing-doc-card__headline" title={collectionTheme}>
-                {collectionTheme}
-              </span>
-            ) : null}
-          </div>
+              ) : (
+                <div className="writing-anthology__hero">
+                  {displayPieceCount > 0 ? (
+                    <strong className="writing-anthology__hero-count">
+                      {displayPieceCount}
+                      <small>{unitLabel}</small>
+                    </strong>
+                  ) : null}
+                  {collectionTheme ? (
+                    <span className="writing-anthology__hero-theme" title={collectionTheme}>
+                      {collectionTheme}
+                    </span>
+                  ) : null}
+                </div>
+              )}
+            </div>
 
-          <div className="writing-doc-card__sheet writing-anthology__sheet-panel">
-            {isProcessing ? (
-              <div className="writing-doc-card__inking" aria-hidden>
-                <span className="writing-doc-card__ink writing-doc-card__ink--title" />
-                <span className="writing-doc-card__ink" />
-                <span className="writing-doc-card__ink writing-doc-card__ink--short" />
-                <span className="writing-doc-card__ink writing-doc-card__ink--mid" />
-              </div>
-            ) : anthologyPieces.length > 0 ? (
-              <ol className="writing-anthology__pieces">
-                {anthologyPieces.map((piece, i) => (
-                  <li key={piece.id} className="writing-anthology__piece">
-                    <span className="writing-anthology__piece-idx" aria-hidden>
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-                    <span className="writing-anthology__piece-label" title={piece.label}>
-                      {piece.label}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="writing-doc-card__excerpt writing-doc-card__excerpt--muted">
-                篇目准备中…
-              </p>
-            )}
+            <div className="writing-anthology__tracks">
+              {isProcessing ? (
+                <div className="writing-doc-card__inking" aria-hidden>
+                  <span className="writing-doc-card__ink writing-doc-card__ink--title" />
+                  <span className="writing-doc-card__ink" />
+                  <span className="writing-doc-card__ink writing-doc-card__ink--short" />
+                  <span className="writing-doc-card__ink writing-doc-card__ink--mid" />
+                </div>
+              ) : anthologyPieces.length > 0 ? (
+                <ol className="writing-anthology__pieces">
+                  {anthologyPieces.map((piece, i) => (
+                    <li key={piece.id} className="writing-anthology__piece">
+                      <span className="writing-anthology__piece-idx" aria-hidden>
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <span className="writing-anthology__piece-label" title={piece.label}>
+                        {piece.label}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="writing-doc-card__excerpt writing-doc-card__excerpt--muted">
+                  {isPresentationDeck ? '幻灯片准备中…' : '篇目准备中…'}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       ) : (

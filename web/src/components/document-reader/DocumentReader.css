@@ -689,3 +689,186 @@ html.dark .doc-reader-pdf-page__ghost {
     background: #334155;
   }
 }
+
+/* —— 演示文稿页舞台 —— */
+.pptx-deck-reader {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem 1rem;
+  background:
+    radial-gradient(80% 60% at 10% 0%, rgba(196, 62, 28, 0.12), transparent 55%),
+    var(--page-bg, #f8fafc);
+}
+
+.pptx-deck-reader__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.85rem;
+}
+
+.pptx-deck-reader__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  color: #9a3412;
+}
+
+.pptx-deck-reader__pager {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #64748b);
+  font-size: 0.9rem;
+}
+
+.pptx-deck-reader__nav {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.pptx-deck-reader__nav button,
+.pptx-deck-reader__dl {
+  border: 1px solid color-mix(in srgb, #c43e1c 30%, var(--card-border, #e2e8f0));
+  background: #fff;
+  color: #9a3412;
+  border-radius: 8px;
+  padding: 0.35rem 0.55rem;
+  cursor: pointer;
+}
+
+.pptx-deck-reader__dl {
+  margin-left: auto;
+  padding: 0.4rem 0.9rem;
+  background: #c43e1c;
+  border-color: #c43e1c;
+  color: #fff;
+  font-weight: 600;
+}
+
+.pptx-deck-reader__dl:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pptx-deck-reader__stage-wrap {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pptx-deck-reader__stage {
+  width: min(100%, 960px);
+  aspect-ratio: 16 / 9;
+  max-height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, #c43e1c 28%, #cbd5e1);
+  background: linear-gradient(145deg, #7c2d12 0%, #c43e1c 42%, #ea580c 100%);
+  color: #fff;
+  box-shadow: 0 16px 40px rgba(196, 62, 28, 0.22);
+}
+
+.pptx-deck-reader__stage-head {
+  padding: 1.1rem 1.35rem 0.65rem;
+}
+
+.pptx-deck-reader__stage-head strong {
+  display: block;
+  font-size: clamp(1.25rem, 2.4vw, 1.85rem);
+  line-height: 1.25;
+}
+
+.pptx-deck-reader__stage-head p {
+  margin: 0.35rem 0 0;
+  opacity: 0.88;
+  font-size: 0.95rem;
+}
+
+.pptx-deck-reader__stage-body {
+  min-height: 0;
+  overflow: auto;
+  margin: 0 0.85rem 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+}
+
+.pptx-deck-reader__stage-body .doc-reader-markdown {
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  box-shadow: none;
+  border: 0;
+  background: transparent;
+}
+
+.pptx-deck-reader__empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.pptx-deck-reader__thumbs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+}
+
+.pptx-deck-reader__thumbs button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem;
+  align-items: center;
+  min-width: 8.5rem;
+  max-width: 11rem;
+  text-align: left;
+  border: 1px solid rgba(196, 62, 28, 0.2);
+  background: #fff;
+  border-radius: 10px;
+  padding: 0.45rem 0.55rem;
+  cursor: pointer;
+}
+
+.pptx-deck-reader__thumbs button.is-active {
+  border-color: #c43e1c;
+  box-shadow: 0 0 0 2px rgba(196, 62, 28, 0.18);
+}
+
+.pptx-deck-reader__thumbs em {
+  font-style: normal;
+  font-weight: 700;
+  color: #c43e1c;
+  font-variant-numeric: tabular-nums;
+}
+
+.pptx-deck-reader__thumbs span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  color: #334155;
+}
+
+html.dark .pptx-deck-reader__nav button {
+  background: #1e293b;
+  color: #fdba74;
+}
+
+html.dark .pptx-deck-reader__thumbs button {
+  background: #0f172a;
+  border-color: rgba(234, 88, 12, 0.35);
+}
+
+html.dark .pptx-deck-reader__thumbs span {
+  color: #e2e8f0;
+}

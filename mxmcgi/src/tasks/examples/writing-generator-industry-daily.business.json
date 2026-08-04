@@ -1,0 +1,1394 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-27T10:30:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "industry-search-track",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "日报·检索赛道分类",
+          "description": "根据 industry / industry_custom 判断检索赛道 track（finance|tech|entertainment|sports|general）。",
+          "taskLabelI18n": {
+            "zh": "专家填合同",
+            "en": "Expert",
+            "zh-TW": "專家填合同",
+            "ja": "Expert"
+          },
+          "subtypeLabelI18n": {
+            "zh": "日报·检索赛道分类",
+            "en": "Industry search track",
+            "zh-TW": "日報·檢索賽道分類",
+            "ja": "Industry search track"
+          },
+          "userFacing": false
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "You classify an industry label into a search track for news retrieval.\n\nRead contract.basic.industry, industry_custom, sector_label.\n\nReturn ONE JSON object only (keys ⊆ field_specs): track, sector_label, reason.\n\ntrack MUST be exactly one of:\n- finance — banking, markets, securities, insurance, fintech\n- tech — software, AI, chips, internet, digital products\n- entertainment — film, TV, celebrities, pop culture\n- sports — athletics, F1/motorsport, football, basketball, Olympics, esports competitions\n- general — everything else / cross-industry\n\nRules:\n- Custom labels like「F1赛事」「一级方程式」「赛车」→ sports\n- Do not invent other track values\n- Output JSON only, no markdown fences\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.1,
+              "maxTokens": 20000,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "reasoning_split": true
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-industry-search-track",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "industry-daily-structure",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "日报·结构导演",
+          "taskLabelI18n": {
+            "en": "Expert",
+            "zh": "专家填合同",
+            "zh-TW": "专家填合同",
+            "ja": "Expert"
+          },
+          "subtypeLabelI18n": {
+            "en": "Industry daily structure",
+            "zh": "日报·结构导演",
+            "zh-TW": "日報·結構導演",
+            "ja": "Industry daily structure"
+          },
+          "userFacing": false
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "You are an editorial structure director for an industry daily brief.\n\nARTICLE LENGTH (basic.article_length, hard):\n- brief: target ~500–800 Chinese characters; shorter OK if evidence is thin; no padding.\n- standard (default): ~800–1600 characters.\n- in_depth: ~1600–3500 characters; shorter OK if evidence is thin; no fabrication.\nUnknown/missing → standard. Search depth follows the same scale via pipeline scaleFrom.\n\nRead the full contract JSON (basic, sources, enrich_search, existing business).\nUse the fixed industry-daily skeleton only.\nSUBJECTIVE ANALYSIS GATE: basic.subjective_analysis (boolean) decides whether the article adds analysis. When false/absent, REPORTING MODE only. When true, basic.analysis_stance picks the analysis voice. writing_summary is LANGUAGE tone only (never manuscript type / genre).\nLegacy compat: if subjective_analysis missing but basic.style is set — 新闻速报/空/旧文风 → reporting; 专业深挖 → on + 基于数据客观分析; 幽默解读 → on + 基于数据幽默分析.\nWrite ALL filled field values in the language of basic.language (zh | zh-TW | en | ja; default zh). Proper nouns may keep original script.\n\nMEDIUM (hard): This is a READABLE screen article for the writing module—not an audio voiceover or podcast host script. purpose / thesis / guide / opening_hook / tone_directives must assume a reader scanning Markdown (headings, lists, tables), never spoken transitions or camera cues (e.g. \"move your eyes left\", \"flip the calendar\", \"notice that phrase\", \"咱们先看一眼\").\n\nGENRE LOCK (hard): Output planning is ALWAYS for an industry daily brief (报道体 skeleton). Subjective analysis only adds an analysis layer after facts — never changes genre.\n\n\nPERIOD REPORT SKELETON (hard — above topic hierarchy; this is a day/week/month industry report, NOT a multi-story news collage):\n- body_sections[0] MUST be id=\"period_overview\": the reporting-period INDUSTRY TREND overview for basic.industry (+ industry_custom) within the date window (basic.date_mode / sources.websource 日期 line).\n- period_overview is a SYNTHESIS chapter (2–4 cross-cutting threads: e.g. market tone, regulation, capital flow, sentiment) grounded primarily in enrich_search.industry_overview / evidence key industry_overview. It is NOT a bullet dump of every hot chip, NOT 「今日要览/速览」 that restates later chapters.\n- Unselected discovery items MAY feed period_overview synthesis only; they MUST NOT become their own focal body_sections.\n- After period_overview: focal chapters only for user-selected topics (main_topic lead + other core_topic segments as secondary briefs), same lead/secondary hierarchy as before.\n- Length share (guide the writers): brief → period_overview ~20–30% of article; standard/in_depth → ~25–35%; remainder for focal chapters.\n- report_title: report date/period + the PERIOD industry main tone (aligned with period_overview), <=28 Chinese chars; NOT a list of focal headlines. dek ties period tone to why the selected focal topics matter.\n- opening_hook may preview the period tone; do not enumerate every focal topic as a digest.\n\n\nREPORTING vs SUBJECTIVE ANALYSIS (hard):\n- subjective_analysis=false (default): objective per-item news reporting. Section guides ask for facts only（谁+做了什么+数字+来源）; NO subjective analysis, inference, or editorial judgment sentences. NO analysis_beats.\n- subjective_analysis=true: every section (lead AND secondary) = facts FIRST, then emotional subjective inference paragraphs grounded in data. Stance = basic.analysis_stance:\n  * 基于数据客观分析: calm but emotionally vivid inference; balanced; 「这意味着/更可能是」; no sarcasm, no cheerleading.\n  * 基于数据批判性分析: skeptical/critical emotional prose; question motives, risks, power; still evidence-bound; no personal attacks.\n  * 基于数据幽默分析: witty emotional takes; open with a clear judgment; 1–2 precise metaphors per section; opinion is staple, wit is seasoning; no emoji/vulgarity. 「禁口播」ONLY bans camera/host cues, NOT metaphors.\n  * 基于数据乐观分析: hopeful/constructive emotional prose; upside & opportunity after facts; not blind hype — still mark uncertainty.\nEMOTION RULE (when analysis on): analysis sentences MUST carry human emotion/attitude (urgency, irony, hope, unease, resolve) — dry bullet analysis fails. Never invent numbers.\n\nTONE_DIRECTIVES RECIPE (hard — always emit these into tone_directives, then add stance flavor):\n- reporting (off): [\"客观陈述，不加主观判断\",\"每段≤3句\",\"关键事实带出处与日期\"]\n- 基于数据客观分析: [\"先事实后主观分析\",\"分析段用情绪化但克制的笔触做推论\",\"每章至少2句成因/影响/关联推理\",\"明示推断勿写成已发生事实\",\"每段≤3句\",\"关键事实带出处与日期\"]\n- 基于数据批判性分析: [\"先事实后批判性主观分析\",\"分析段带质疑与风险感的情绪笔触\",\"点出动机/代价/盲点，禁止人身攻击\",\"每段≤3句\",\"关键事实带出处与日期\"]\n- 基于数据幽默分析: [\"观点先行、诙谐贯穿，禁止通讯稿段末塞梗\",\"每章1～2处精准诙谐点评或比喻，宁缺毋滥\",\"开篇先给带态度的判断\",\"禁镜头口播指令但不禁幽默书面语\",\"事实仍带出处，同一来源同章只标一次\"]\n- 基于数据乐观分析: [\"先事实后乐观主观分析\",\"分析段用积极但克制的情绪笔触写机会与转机\",\"禁止空洞口号与无依据亢奋\",\"每段≤3句\",\"关键事实带出处与日期\"]\narticle_structure only tunes depth/pacing inside period_overview + lead + secondary focal chapters (NO forecast/outlook chapter).\nFORBIDDEN: treating analysis stance as permission to change manuscript type (voiceover, interview, essay, marketing listicle, etc.).\nIf contract has writing_summary / writing_folder_id voice pack text, fold it into tone_directives only.\n\n\nMULTI-TOPIC INDEPENDENCE (hard — above metaphors):\n- User-selected focal topics are INDEPENDENT news lines. NEVER invent a shared causal plot that \"ties them into one story\" (拧成麻花 / 三重奏 / 三股力 / 同框共振 / 一条主轴收束多线).\n- period_overview = industry climate synthesis for the reporting window (from industry_overview evidence). It may mention macro backdrop; it must NOT restate each selected focal as a numbered/bold news list, and must NOT claim the selected focals caused each other.\n- Focal body_sections after period_overview: one section per selected topic; each stands alone. Cross-reference another focal only if the SAME evidence item explicitly links them — otherwise zero forced coupling.\n- opening_hook / dek: one short sentence on period tone OR why the lead focal matters — NOT an inventory that braids all selected topics.\n\nPERIOD_OVERVIEW PROSE (hard):\n- Write period_overview as continuous natural-language paragraphs (2–4 short paras). FORBIDDEN: bold mini-headlines per news item, bullet/numbered news lists, 「一、二、三」事件清单 inside the overview.\n- Overview synthesizes climate (资金/监管/情绪/指数等线索); leave detailed events to later focal chapters — do not preview every focal as a list that will be repeated.\n\nLABEL LEAK BAN (hard):\n- Never put editorial chrome into reader-facing fields: 副标 / 开篇 | / 本周主线 | / dek: / opening_hook: / period_overview: / 导语： as visible prefixes.\n- report_title = plain headline only; dek = plain one sentence (no 「副标：」).\n\nTOPIC SCOPE (hard, above everything):\n- FIRST chapter is always period_overview (industry + reporting period), independent of topic count.\n- User-selected topics = basic.main_topic + the segments of basic.core_topic (split by ；). This list is the ONLY scope for FOCAL chapters after period_overview.\n- sources.websource / industry_overview may contain many hits. Unselected items: usable inside period_overview synthesis only — NEVER plan separate focal sections, opening enumerations, or 另悉 chapters for them.\n- Focal size scales with selected-topic count: 1 topic = period_overview + one deep dive; 2–3 topics = period_overview + lead + short briefs; 4+ = period_overview + lead + briefs with weak ones merged.\n\nDATE ANCHOR (hard):\n- Reporting period = the 日期 line in sources.websource (e.g. 2026-07-26（本周）). The article's spine must be developments WITHIN this period, taken from the search results.\n- Evidence clearly older than the reporting period (last year's season totals, previous-year retrospectives/opinions) is BACKGROUND ONLY: at most 1–2 comparison sentences inside a section, each with its year stated. NEVER plan a section, lead, or dek whose main content is an older period.\n- If in-period evidence is thin, plan a shorter article focused on the current period's state (进展/排片/预售/舆情), NOT historical summaries as filler.\n\nSINGLE-FOCAL MODE (hard — when core_topic has ≤1 segment / equals main_topic):\n- Still require period_overview as body_sections[0].\n- Then ONE deep-dive focal chapter about that topic: 3–5 lead sub-sections (rendered as ### inside that ## chapter), chosen from e.g. 事件进展 / 关键数据 / 各方反应 / 背景与前情 / 产业影响, based on available evidence.\n- NO secondary focal sections, no 另悉 chapters for unselected chips. If focal evidence is thin, write a shorter focal chapter — padding with unselected topics as extra ## chapters is a hard failure.\n\nHierarchy (mandatory):\n- body_sections[0] = period_overview (required).\n- Then basic.main_topic is the LEAD focal story. If missing, treat the first core_topic segment as lead temporarily.\n- Other segments in basic.core_topic (split by ；) are SECONDARY briefs only.\n- After period_overview, body_sections MUST be: exactly ONE lead section for main_topic (longer purpose/thesis/guide) + shorter secondary sections for the rest. NEVER give equal weight to 6 parallel focal points. NEVER omit period_overview.\nHEADLINE CONTRACT (hard — report_title is NOT a digest):\n- report_title: ONE short headline only — report date/period + industry period tone OR the lead focal; never a multi-topic braid title. Target <=28 Chinese characters (or <=12 English words). ONE clause; no sentence-ending 。！？ inside the title; no paragraph.\n- FORBIDDEN in report_title: listing multiple focal topics with 、/与/以及/; stacking several companies' earnings + oil + yields + AI into one line; \"N stories at a glance\" / 六条核心新闻线同步汇总; dumping data that belongs in dek or body.\n- dek: ONE separate sentence (<=60 Chinese chars / <=25 English words) explaining why this period matters for the industry and how selected focals fit. NOT a second title; NOT a topic inventory.\n- angle: internal editorial spine (one short phrase). Never paste angle into the published # title.\n- GOOD: 「A股科技承压周：被动资金与海外风险对峙（本周）」. BAD: a bold paragraph that enumerates three unrelated tickers.\n\nFORBIDDEN reader-facing forecast chapters: 「下周看点」「本周看点预告」「下期预告」「收束/展望」.\n\nFORBIDDEN emoji / emoticon decoration in any title, heading, dek, or section label (e.g. 🌍 📌 ✅); use plain text only.\n\nFORBIDDEN reader-facing digest chapters such as 「今日要览」「3 分钟看完版」「速览」「TL;DR」 that restate the article; key_takeaways stay contract-only and must not become a published section.\n\nREADER OUTPUT SHAPE (hard):\n- Plan body_sections as: period_overview FIRST, then only user-selected focal topics (main_topic lead + each other core_topic); zero extra focal sections for unselected websource news.\n- dek / opening_hook may state the period industry tone; do not dump an inventory of unselected chips.\n- period_overview guide: synthesize 2–4 in-period industry threads from industry_overview evidence — NOT a teaser list of later focals, NOT 「今日要览」.\n- Each FOCAL section guide must say: expand this topic with facts from sources (what happened, who, numbers)—NOT a teaser list. When subjective_analysis=true, every section guide (including period_overview) MUST also require an emotional subjective-analysis layer after facts per analysis_stance; when false, guides MUST forbid subjective judgment.\n- closing may stay in JSON for internal use, but MUST NOT instruct a published 「下周看点」「看点预告」「展望专章」. Prefer closing.purpose = \"omit from manuscript\" or leave outlook empty.\n- article_structure paces depth inside period_overview + lead + secondary focal chapters only (no forecast chapter).\n\nFill ONLY these business fields (keys ⊆ field_specs): report_title, dek, angle, audience_note, tone_directives, opening_hook, body_sections, closing.\n\nRules:\n- opening_hook and each body_sections item MUST include purpose, thesis, guide.\n- In guide, when useful, explicitly suggest Markdown affordances: table for standings/comparisons/schedules; bullets for secondary briefs; short blockquote for a key quote.\n- body_sections: [0]=period_overview required; then shape focal count/order to article_structure, always keep lead vs secondary hierarchy among focals.\n- SECONDARY sizing (hard): reporting mode → every secondary section as 短讯体 — guide caps the body at 2–4 sentences plus at most one short bullet cluster; analysis-on → 事实短讯 + 2–4 句情绪化主观分析; never plan a full lead-length arc for a secondary topic.\n- ANALYSIS RULE (hard): when subjective_analysis=true each section guide asks for stance-matched emotional inference (embedded in prose, no「为什么重要」label, no fact repetition, no forecast chapter); when false guides must NOT request subjective judgment — facts only.\n- tone_directives: use TONE_DIRECTIVES RECIPE above for the active mode (required). Also always add: 中文单句尽量不超过40字；动词优先，禁止三个以上抽象名词连成串；禁止自指元话语（「本期日报」「叙事主轴」「如前所述」）。Do NOT put 「先事实后解读」 into tone_directives when reporting (analysis off).\n- A compact market-data snapshot table right under the dek (rendered later from data_points) is ALLOWED and is NOT a digest chapter; do not plan it as a body_section or as a substitute for period_overview.\n- closing: keep minimal or mark omit-from-manuscript; FORBIDDEN instructing a reader-facing 「下周看点」「看点预告」「收束/展望」 chapter. Manuscript ends after period_overview + focal topic sections.\n- tone_directives must reflect reporting vs stance for READING prose (书面可读), not spoken broadcast.\n- Do NOT invent hard numbers; leave precise data for the body writer.\n- Output ONE JSON object only. No markdown fences.\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}\n\nEVIDENCE HARD GATES (above thin-article rules):\n- Plan ONLY sections that discovery/enrich evidence can support with concrete URLs or outlet+date.\n- If in-period evidence is thin: FEWER sections and shorter targets — never invent beats to fill the skeleton.\n- Do NOT schedule reader-facing hedges (待核实/通稿补充/以官方为准) as section content; put gaps in risks_or_unknowns only (editorial).\n"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "maxTokens": 20000,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "reasoning_split": true
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-industry-daily-structure",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "industry-daily-body",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "日报·论据编剧",
+          "taskLabelI18n": {
+            "en": "Expert",
+            "zh": "专家填合同",
+            "zh-TW": "专家填合同",
+            "ja": "Expert"
+          },
+          "subtypeLabelI18n": {
+            "en": "Industry daily body",
+            "zh": "日报·论据编剧",
+            "zh-TW": "日報·論據编剧",
+            "ja": "Industry daily body"
+          },
+          "userFacing": false
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "\nMULTI-TOPIC INDEPENDENCE (hard — above metaphors):\n- User-selected focal topics are INDEPENDENT news lines. NEVER invent a shared causal plot that \"ties them into one story\" (拧成麻花 / 三重奏 / 三股力 / 同框共振 / 一条主轴收束多线).\n- period_overview = industry climate synthesis for the reporting window (from industry_overview evidence). It may mention macro backdrop; it must NOT restate each selected focal as a numbered/bold news list, and must NOT claim the selected focals caused each other.\n- Focal body_sections after period_overview: one section per selected topic; each stands alone. Cross-reference another focal only if the SAME evidence item explicitly links them — otherwise zero forced coupling.\n- opening_hook / dek: one short sentence on period tone OR why the lead focal matters — NOT an inventory that braids all selected topics.\n\nPERIOD_OVERVIEW PROSE (hard):\n- Write period_overview as continuous natural-language paragraphs (2–4 short paras). FORBIDDEN: bold mini-headlines per news item, bullet/numbered news lists, 「一、二、三」事件清单 inside the overview.\n- Overview synthesizes climate (资金/监管/情绪/指数等线索); leave detailed events to later focal chapters — do not preview every focal as a list that will be repeated.\n\nLABEL LEAK BAN (hard):\n- Never put editorial chrome into reader-facing fields: 副标 / 开篇 | / 本周主线 | / dek: / opening_hook: / period_overview: / 导语： as visible prefixes.\n- report_title = plain headline only; dek = plain one sentence (no 「副标：」).\n\nYou are an evidence-focused body writer for an industry daily brief.\n\nARTICLE LENGTH (basic.article_length, hard):\n- brief: target ~500–800 Chinese characters; shorter OK if evidence is thin; no padding.\n- standard (default): ~800–1600 characters.\n- in_depth: ~1600–3500 characters; shorter OK if evidence is thin; no fabrication.\nUnknown/missing → standard. Search depth follows the same scale via pipeline scaleFrom.\n\nThe structure director already set titles, angle, section purpose/thesis/guide. Your job: ground every section with beats, evidence, entities, quotes, timeline, data_points, and source_map using enrich_search.result / enrich_search.result_supplement and sources.websource.\n\n\nPERIOD OVERVIEW SECTION (hard):\n- If the current section id is period_overview (or heading marks 时段/行业大势): ground beats primarily in enrich_search.industry_overview / evidence industry_overview and in-period industry-wide facts. Write a synthesis of 2–4 threads — NOT a collage of unrelated headlines and NOT a restatement of later focal chapters.\n- For focal sections (selected topics): prefer enrich_search.result / result_supplement / result_side + pruned websource; do not turn period_overview into another focal story.\n\nDATE ANCHOR (hard): prioritize evidence published WITHIN the reporting period (the 日期 line in sources.websource). Facts from earlier periods (last year's totals, old op-eds) go in at most 1–2 background beats per section, each tagged with its year — never as the section's main beats.\n\nTOPIC SCOPE (hard): only fill evidence for the planned body_sections (user-selected topics). websource items about other topics are OFF-LIMITS — do not add beats, entities, or data_points from them unless directly explaining the selected topic (e.g. 同档期对比), and then only inside an existing section.\n\nWrite ALL field values in basic.language (zh | zh-TW | en | ja; default zh). Translate foreign quotes into that language for storage when possible; keep attribution.\n\nFill keys ⊆ Additional rules (hard):\n- Do NOT invent or require transition_out between sections; omit transition_out entirely.\n- quotes[]: OPTIONAL — only real spoken quotes with attribution; never store media article headlines as quotes.\n- source_map / risks_or_unknowns / key_takeaways: EDITORIAL INTERNAL only — never phrase them for reader-facing manuscript.\n- If a secondary section lacks enough evidence for 「谁+做了什么+结果」, shrink beats to 1–2 bullets or mark the section for merge/omit rather than padding with meta (\"源中未给出\").\n- Prefer Chinese full-width punctuation in all Chinese field values.\n\nfield_specs: body_sections (enrich existing items; when basic.subjective_analysis=true each item MUST include analysis_beats[]), key_takeaways, entities, quotes, timeline, data_points, source_map, risks_or_unknowns.\n\nRules:\n- No emoji or decorative symbols in headings or prose; plain editorial text only.\n- Prefer not to change heading/purpose; only adjust thesis if facts contradict.\n- Lead section (main_topic) gets denser beats/evidence; secondary sections stay short.\n- data_points must be concrete; if unknown, put the gap in risks_or_unknowns instead of fabricating.\n- MARKET SNAPSHOT: when sources carry market-style numbers (index / stock / commodity / yield with a change figure), record them as comparable data_points rows ({label,value,unit?,as_of?,source_hint}, include 涨跌幅 when available) so the final writer can render one compact snapshot table; do not force this for non-market industries.\n- ATTRIBUTION: every beat stating a fact should carry its source + date hint (e.g. 「CNBC 7月23日」) inside the beat text or evidence_refs, so the final writer can attribute inline.\n- SECONDARY sizing: reporting (subjective_analysis=false) keep secondary-section beats to 2–4 total; analysis-on up to 6 beats including context. Never pad thin topics.\n- ANALYSIS-ON: when basic.subjective_analysis=true (legacy: style 专业深挖/幽默解读), for EVERY body_sections item also fill analysis_beats (string array, 2–4 items) AFTER factual beats. Beats MUST be emotional subjective inferences grounded in data (not dry bullet notes). Match basic.analysis_stance:\n  * 基于数据客观分析: vivid but balanced inference（成因/影响/关联）, emotionally colored yet fair.\n  * 基于数据批判性分析: skeptical/critical emotional takes on motives, costs, blind spots; no personal attacks.\n  * 基于数据幽默分析: 2–4 ready-to-use witty takes (比喻/反差/轻吐槽 + 判断); plain Chinese; metaphor consistent; no joke reuse across sections; no emoji/vulgarity.\n  * 基于数据乐观分析: hopeful/constructive emotional takes on opportunity & upside; not blind hype.\n- REPORTING (subjective_analysis=false / legacy 新闻速报): omit analysis_beats (empty or absent).\n- risks_or_unknowns: for EDITORIAL REVIEW / contract only — do NOT write reader-facing disclaimer chapters. Output ONE JSON object only. No markdown fences.\n\nAdditional rules (hard):\n- Do NOT invent or require transition_out between sections; omit transition_out entirely.\n- quotes[]: OPTIONAL — only real spoken quotes with attribution; never store media article headlines as quotes.\n- source_map / risks_or_unknowns / key_takeaways: EDITORIAL INTERNAL only — never phrase them for reader-facing manuscript.\n- If a secondary section lacks enough evidence for 「谁+做了什么+结果」, shrink beats to 1–2 bullets or mark the section for merge/omit rather than padding with meta (\"源中未给出\").\n- Prefer Chinese full-width punctuation in all Chinese field values.\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}\n\nCITATION / FABRICATION HARD GATES:\n- Every beat that states a fact MUST include evidence_refs with a real url from evidencePack.items/extracted (or domain+date that appears there).\n- NEVER invent outlet names, scores, lineup numbers. For source_map rows: fill real media/report names from evidence so the final writer MAY cite 据“某某”报道 when reading flow needs it (not every beat; no URL dump), or \"升班马\" style labels without evidencePack support.\n- If evidence is missing: omit the beat or put the gap in risks_or_unknowns — do NOT write 待核实/通稿补充 for readers.\n- Prefer evidencePack.extracted summaries/keyPoints/dataPoints over title-only snippets.\n\n\nNUMERIC CONFLICT GATE (hard):\n- Never invent exhibition edition numbers (第N届), venue area, revenue, headcount unless the EXACT numeral appears in evidencePack.extracted or evidencePack.items.snippet/title.\n- If sources conflict (e.g. 第二十届 vs 第二十三届), omit the number entirely or list both in risks_or_unknowns — do NOT pick one.\n- Prefer shorter truthful briefs over precise-looking wrong facts.\n"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.3,
+              "maxTokens": 20000,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "reasoning_split": true
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-industry-daily-body",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "md-polish-daily",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换",
+          "subtypeLabel": "日报·Markdown抛光",
+          "taskLabelI18n": {
+            "en": "Transform",
+            "zh": "转换",
+            "zh-TW": "轉換",
+            "ja": "Transform"
+          },
+          "subtypeLabelI18n": {
+            "en": "Daily MD polish",
+            "zh": "日报·Markdown抛光",
+            "zh-TW": "日報·Markdown抛光",
+            "ja": "Daily MD polish"
+          },
+          "userFacing": false
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "input",
+              "instruction"
+            ],
+            "properties": {
+              "input": {
+                "type": "string",
+                "title": "输入内容",
+                "minLength": 1
+              },
+              "instruction": {
+                "type": "string",
+                "title": "转换说明",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "You polish Markdown structure only. Do NOT change facts, claims, numbers, or names.\nStrip all emoji. Delete 下周看点/看点预告/收束展望/速览 chapters if present.\nEnsure blank lines around headings and between paragraphs.\n\nInstruction:\n${instruction}\n\nInput:\n${input}\n\nOutput: cleaned Markdown only. No fence wrapping the whole document.\n"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.1,
+              "maxTokens": 20000,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "reasoning_split": true
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-md-polish-daily",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "md-format",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换",
+          "subtypeLabel": "Markdown格式优化",
+          "taskLabelI18n": {
+            "en": "Transform",
+            "zh": "转换",
+            "zh-TW": "轉換",
+            "ja": "Transform"
+          },
+          "subtypeLabelI18n": {
+            "en": "Markdown format polish",
+            "zh": "Markdown格式优化",
+            "zh-TW": "Markdown格式優化",
+            "ja": "Markdown format polish"
+          },
+          "userFacing": false
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "input",
+              "instruction"
+            ],
+            "properties": {
+              "input": {
+                "type": "string",
+                "title": "输入内容",
+                "minLength": 1
+              },
+              "instruction": {
+                "type": "string",
+                "title": "转换说明",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "You are a Markdown formatting specialist for industry-daily articles meant to be READ on screen.\nImprove Markdown presentation AND readable spacing. Do NOT change facts, claims, numbers, names, meaning, OR the reporting vs subjective-analysis voice indicated in Instruction (analysis off = wire reporting; analysis on = preserve emotional inference by stance).\n\nGoals:\n- Strip ALL emoji / emoticon icons from headings and body (e.g. 🌍📌✅🔥🏆); plain text titles only. Remove decorative prefixes like \"头条：\" if paired with emoji junk; keep the real topic title.\n- Exactly one SHORT `#` document title (period industry tone <=28 Chinese chars; never dump multi-topic digest into H1); the FIRST `##` MUST be the period industry overview (时段大势 / period_overview); each focal topic follows as later `##`; optional `###` only inside a long lead/focal section. Do NOT rewrite period_overview into a 要览/速览 digest list.\n- Spacing (hard): blank line before/after every heading; blank line between paragraphs; do not glue paragraphs together; avoid single-newline-only walls of text.\n- Chinese punctuation (hard when input is Chinese): normalize half-width , : ; ? ! used between CJK characters into full-width ，：；？！. Fix patterns like \"IP,到\" → \"IP，到\", \"定档秋季:2026\" → \"定档秋季：2026\".\n- Delete reader-facing prose digest sections titled like 下周看点 / 本周看点预告 / 下期预告 / 收束 / 展望 / 今日要览 / 3分钟看完版 / 速览 / TL;DR (do not invent replacement content). EXCEPTION: keep a compact market-data snapshot table (e.g. 「市场速览」 with ≥2 rows of index/stock/commodity/yield data) — that is data, not a digest.\n- Deduplicate: if the lead paragraph nearly repeats the title+dek, keep one; if a section restates the same number/date three times across prose/table/blockquote, keep the clearest one.\n- Demote single-row tables (header + one data row) into a short bullet list or 1–2 sentences.\n- Strip meta discourse: \"源中未给出\", \"本文仅作存在性陈述\", \"未在源中详述\", etc., and self-referential phrases like 「本期日报」「叙事主轴」「如前所述」「构成…主轴」 — drop the clause or sentence, keep the facts around it.\n- Remove mechanical chapter transitions (\"艺人动态方面，本周最显著的信号来自…\").\n- Split overlong compound sentences (Chinese sentence stacking 3+ abstract nouns or 60+ chars of chained clauses) into short sentences; keep facts, numbers, and order unchanged.\n- If a secondary topic section repeats itself or pads with filler, delete the redundancy only (never add facts). Do NOT delete analysis/interpretation prose (分析/解读/推理句) — deep-dive and humor styles legitimately carry analysis after the facts.\n- Improve scannability: GFM tables only for ≥2-row comparisons/schedules; bullets for short secondary facts; short blockquotes ONLY for real spoken quotes (never media headlines).\n- Sparingly **bold** key figures/names (not whole sentences).\n- SUBJECTIVE ANALYSIS from Instruction (if provided): when analysis is ON (any stance), PRESERVE emotional analysis sentences, metaphors, contrasts, critical/optimistic asides — do NOT rewrite them into dry wire-service voice. Only strip true camera/host cues (视线往左挪/翻日历/咱们先看一眼). When analysis is OFF / reporting, remove oral/host transitions into clean editorial prose without changing facts.\n- Fix broken lists/tables; strip accidental HTML; remove whole-document fences.\n\nInstruction:\n${instruction}\n\nInput:\n${input}\n\nOutput: polished Markdown only. No preamble. No wrapping the whole document in a code fence.\n\n- Strip leaked chrome labels if present: leading 「副标：」「开篇 |」「本周主线 |」「导语：」; keep the following prose.\n- First ## must remain period overview as prose blocks, not a news bullet list.\n- Do not invent coupling sentences that braid unrelated focal chapters.\n\n"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.15,
+              "maxTokens": 20000,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "reasoning_split": true
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-transform-md-format",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "writing",
+      "type": "generator",
+      "subtype": "industry-daily",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "markdown",
+        "en": "markdown",
+        "zh-TW": "markdown",
+        "ja": "markdown"
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "文稿",
+          "subtypeLabel": "行业日报",
+          "description": "按行业方向检索热点，引导填写日期与话题，生成结构化行业日报 Markdown。",
+          "taskLabelI18n": {
+            "en": "Editorial",
+            "zh": "文稿",
+            "zh-TW": "文稿",
+            "ja": "Editorial"
+          },
+          "subtypeLabelI18n": {
+            "en": "Industry daily",
+            "zh": "行业日报",
+            "zh-TW": "行業日報",
+            "ja": "Industry daily"
+          },
+          "descriptionI18n": {
+            "zh": "按行业方向检索热点，引导填写日期与话题，生成结构化行业日报 Markdown。",
+            "zh-TW": "按行業方向檢索熱點，引導填寫日期與話題，生成結構化行業日報 Markdown。",
+            "en": "Trend search by industry, guided basics, then a structured Markdown industry daily.",
+            "ja": "業界別にトレンドを検索し、基本項目を案内したうえで、構造化された業界日報 Markdown を生成します。"
+          }
+        },
+        "executionMode": "mxm-warp",
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [],
+            "x-createUx": "warp-gates",
+            "properties": {
+              "industry": {
+                "type": "string",
+                "title": "行业",
+                "description": "细拆赛道（如足球/股票）；未列出时点「自定义」填写",
+                "enum": [
+                  "股票",
+                  "基金",
+                  "银行保险",
+                  "加密货币",
+                  "人工智能",
+                  "半导体",
+                  "消费电子",
+                  "互联网",
+                  "影视综",
+                  "音乐",
+                  "游戏",
+                  "足球",
+                  "篮球",
+                  "网球",
+                  "赛车",
+                  "其他"
+                ],
+                "x-zone": "basic"
+              },
+              "industry_custom": {
+                "type": "string",
+                "title": "自定义行业",
+                "description": "选「其他」行业时填写具体名称",
+                "x-zone": "basic"
+              },
+              "search_region": {
+                "type": "string",
+                "title": "新闻检索范围",
+                "description": "默认全球国际资讯；可收窄到中国大陆、台湾、日本、北美或欧洲。",
+                "enum": [
+                  "global",
+                  "cn",
+                  "tw",
+                  "jp",
+                  "na",
+                  "eu"
+                ],
+                "default": "global",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-enum-labels": [
+                  "全球",
+                  "中国大陆",
+                  "台湾",
+                  "日本",
+                  "北美",
+                  "欧洲"
+                ]
+              },
+              "date_mode": {
+                "type": "string",
+                "title": "日期模式",
+                "description": "今日 / 昨日 / 本周 / 本月 / 自定义日期；确认后再按对应时间窗检索热点",
+                "enum": [
+                  "today",
+                  "yesterday",
+                  "this_week",
+                  "this_month",
+                  "custom"
+                ],
+                "default": "today",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "report_date": {
+                "type": "string",
+                "title": "指定日期",
+                "description": "自定义报道日：可填自然语言（如 7月22日）或 YYYY-MM-DD；检索前由后端规范为标准日期",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "core_topic": {
+                "type": "string",
+                "title": "核心话题",
+                "description": "选填；可多选模型提炼的具体事件（一条检索可能对应多条），也可手写补充；有则成文主线",
+                "x-zone": "basic"
+              },
+              "subjective_analysis": {
+                "type": "boolean",
+                "title": "主观分析",
+                "description": "关闭时按报道体只写事实；打开后选择分析立场，成稿在事实后加入带情绪的主观推论。",
+                "default": false,
+                "x-zone": "basic",
+                "x-ui": "switch"
+              },
+              "analysis_stance": {
+                "type": "string",
+                "title": "分析立场",
+                "description": "打开主观分析后必选；分析段须基于数据，用情绪化文笔做主观推论。",
+                "enum": [
+                  "基于数据客观分析",
+                  "基于数据批判性分析",
+                  "基于数据幽默分析",
+                  "基于数据乐观分析"
+                ],
+                "default": "基于数据客观分析",
+                "x-zone": "basic",
+                "x-show-when": {
+                  "subjective_analysis": true
+                },
+                "x-enum-labels": [
+                  "客观分析",
+                  "批判性分析",
+                  "幽默分析",
+                  "乐观分析"
+                ]
+              },
+              "language": {
+                "type": "string",
+                "title": "成稿语言",
+                "description": "成稿语言；默认跟随用户当前界面语言，不单独引导填写",
+                "enum": [
+                  "zh",
+                  "zh-TW",
+                  "en",
+                  "ja"
+                ],
+                "default": "zh",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-hidden": true
+              },
+              "main_topic": {
+                "type": "string",
+                "title": "主话题",
+                "description": "成文主线；可空，空则管道按话题热度从已选 core_topic 回填",
+                "x-zone": "basic",
+                "x-ui": "main-topic"
+              },
+              "search_track": {
+                "type": "string",
+                "title": "检索赛道",
+                "description": "finance|tech|entertainment|sports|general；由模型/枚举写入，用户无需手填",
+                "x-zone": "basic",
+                "x-hidden": true
+              },
+              "writing_folder_id": {
+                "type": "string",
+                "title": "参考文风",
+                "description": "可选。用推荐或 @ 选择语感文风，只影响语气。",
+                "x-zone": "basic",
+                "x-ui-type": "folderCard",
+                "x-card-tag": "writing",
+                "x-asset-source": {
+                  "from": "folder_card",
+                  "need": "writing_summary",
+                  "folder_param": "writing_folder_id",
+                  "inject_as_param": "writing_summary"
+                },
+                "x-guided-hidden": true
+              },
+              "article_length": {
+                "type": "string",
+                "title": "文章长度",
+                "description": "控制成稿篇幅与检索深浅：简短约500–800字，适中约800–1600字，深度约1600–3500字。",
+                "enum": [
+                  "brief",
+                  "standard",
+                  "in_depth"
+                ],
+                "default": "standard",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-enum-labels": [
+                  "简短报道（约500–800字）",
+                  "适中报道（约800–1600字）",
+                  "深度报道（约1600–3500字）"
+                ]
+              }
+            }
+          },
+          "contractSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [],
+            "properties": {
+              "industry": {
+                "type": "string",
+                "title": "行业",
+                "description": "细拆赛道（如足球/股票）；未列出时点「自定义」填写",
+                "enum": [
+                  "股票",
+                  "基金",
+                  "银行保险",
+                  "加密货币",
+                  "人工智能",
+                  "半导体",
+                  "消费电子",
+                  "互联网",
+                  "影视综",
+                  "音乐",
+                  "游戏",
+                  "足球",
+                  "篮球",
+                  "网球",
+                  "赛车",
+                  "其他"
+                ],
+                "x-zone": "basic"
+              },
+              "industry_custom": {
+                "type": "string",
+                "title": "自定义行业",
+                "description": "选「其他」行业时填写具体名称",
+                "x-zone": "basic"
+              },
+              "search_region": {
+                "type": "string",
+                "title": "新闻检索范围",
+                "description": "默认全球国际资讯；可收窄到中国大陆、台湾、日本、北美或欧洲。",
+                "enum": [
+                  "global",
+                  "cn",
+                  "tw",
+                  "jp",
+                  "na",
+                  "eu"
+                ],
+                "default": "global",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-enum-labels": [
+                  "全球",
+                  "中国大陆",
+                  "台湾",
+                  "日本",
+                  "北美",
+                  "欧洲"
+                ]
+              },
+              "date_mode": {
+                "type": "string",
+                "title": "日期模式",
+                "description": "今日 / 昨日 / 本周 / 本月 / 自定义日期；确认后再按对应时间窗检索热点",
+                "enum": [
+                  "today",
+                  "yesterday",
+                  "this_week",
+                  "this_month",
+                  "custom"
+                ],
+                "default": "today",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "report_date": {
+                "type": "string",
+                "title": "指定日期",
+                "description": "自定义报道日：可填自然语言（如 7月22日）或 YYYY-MM-DD；检索前由后端规范为标准日期",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "core_topic": {
+                "type": "string",
+                "title": "核心话题",
+                "description": "选填；可多选模型提炼的具体事件（一条检索可能对应多条），也可手写补充；有则成文主线",
+                "x-zone": "basic"
+              },
+              "subjective_analysis": {
+                "type": "boolean",
+                "title": "主观分析",
+                "description": "关闭时按报道体只写事实；打开后选择分析立场，成稿在事实后加入带情绪的主观推论。",
+                "default": false,
+                "x-zone": "basic",
+                "x-ui": "switch"
+              },
+              "analysis_stance": {
+                "type": "string",
+                "title": "分析立场",
+                "description": "打开主观分析后必选；分析段须基于数据，用情绪化文笔做主观推论。",
+                "enum": [
+                  "基于数据客观分析",
+                  "基于数据批判性分析",
+                  "基于数据幽默分析",
+                  "基于数据乐观分析"
+                ],
+                "default": "基于数据客观分析",
+                "x-zone": "basic",
+                "x-show-when": {
+                  "subjective_analysis": true
+                },
+                "x-enum-labels": [
+                  "客观分析",
+                  "批判性分析",
+                  "幽默分析",
+                  "乐观分析"
+                ]
+              },
+              "report_title": {
+                "type": "string",
+                "title": "主标题",
+                "description": "成稿主标题",
+                "x-zone": "business"
+              },
+              "dek": {
+                "type": "string",
+                "title": "导读",
+                "description": "副题/一句话导读",
+                "x-zone": "business"
+              },
+              "angle": {
+                "type": "string",
+                "title": "主角度",
+                "description": "全篇叙事主线",
+                "x-zone": "business"
+              },
+              "audience_note": {
+                "type": "string",
+                "title": "读者口吻",
+                "description": "隐含读者",
+                "x-zone": "business"
+              },
+              "tone_directives": {
+                "type": "array",
+                "title": "文笔约束",
+                "description": "短句列表",
+                "x-zone": "business",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "opening_hook": {
+                "type": "object",
+                "properties": {
+                  "purpose": {
+                    "type": "string"
+                  },
+                  "thesis": {
+                    "type": "string"
+                  },
+                  "guide": {
+                    "type": "string"
+                  },
+                  "facts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "title": "开篇",
+                "description": "purpose/thesis/guide/facts",
+                "x-zone": "business"
+              },
+              "body_sections": {
+                "type": "array",
+                "title": "主体段落",
+                "description": "每段含作用、论点、引导与论据",
+                "x-zone": "business",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "heading": {
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "type": "string",
+                      "description": "本段作用"
+                    },
+                    "thesis": {
+                      "type": "string",
+                      "description": "本段核心论点"
+                    },
+                    "guide": {
+                      "type": "string",
+                      "description": "写法引导"
+                    },
+                    "beats": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "evidence_refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "transition_out": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "closing": {
+                "type": "object",
+                "title": "收束",
+                "description": "purpose/thesis/guide/outlook",
+                "x-zone": "business",
+                "properties": {
+                  "purpose": {
+                    "type": "string"
+                  },
+                  "thesis": {
+                    "type": "string"
+                  },
+                  "guide": {
+                    "type": "string"
+                  },
+                  "outlook": {
+                    "type": "string"
+                  }
+                }
+              },
+              "key_takeaways": {
+                "type": "array",
+                "title": "要点",
+                "description": "3-5条",
+                "x-zone": "business",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "entities": {
+                "type": "array",
+                "title": "实体",
+                "description": "人物/机构",
+                "x-zone": "business",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "quotes": {
+                "type": "array",
+                "title": "引语",
+                "description": "金句",
+                "x-zone": "business",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "timeline": {
+                "type": "array",
+                "title": "时间线",
+                "description": "事件序",
+                "x-zone": "business",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "data_points": {
+                "type": "array",
+                "title": "数据点",
+                "description": "精确数值槽",
+                "x-zone": "business",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "source_map": {
+                "type": "array",
+                "title": "来源映射",
+                "description": "主张↔来源",
+                "x-zone": "business",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "risks_or_unknowns": {
+                "type": "array",
+                "title": "不确定项",
+                "description": "证据不足",
+                "x-zone": "business",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "language": {
+                "type": "string",
+                "title": "成稿语言",
+                "description": "成稿语言；默认跟随用户当前界面语言，不单独引导填写",
+                "enum": [
+                  "zh",
+                  "zh-TW",
+                  "en",
+                  "ja"
+                ],
+                "default": "zh",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-hidden": true
+              },
+              "main_topic": {
+                "type": "string",
+                "title": "主话题",
+                "description": "成文主线；可空，空则管道按话题热度从已选 core_topic 回填",
+                "x-zone": "basic",
+                "x-ui": "main-topic"
+              },
+              "search_track": {
+                "type": "string",
+                "title": "检索赛道",
+                "description": "finance|tech|entertainment|sports|general；由模型/枚举写入，用户无需手填",
+                "x-zone": "basic",
+                "x-hidden": true
+              },
+              "writing_folder_id": {
+                "type": "string",
+                "title": "参考文风",
+                "description": "可选。用推荐或 @ 选择语感文风，只影响语气。",
+                "x-zone": "basic",
+                "x-ui-type": "folderCard",
+                "x-card-tag": "writing",
+                "x-asset-source": {
+                  "from": "folder_card",
+                  "need": "writing_summary",
+                  "folder_param": "writing_folder_id",
+                  "inject_as_param": "writing_summary"
+                },
+                "x-guided-hidden": true
+              },
+              "article_length": {
+                "type": "string",
+                "title": "文章长度",
+                "description": "控制成稿篇幅与检索深浅：简短约500–800字，适中约800–1600字，深度约1600–3500字。",
+                "enum": [
+                  "brief",
+                  "standard",
+                  "in_depth"
+                ],
+                "default": "standard",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-enum-labels": [
+                  "简短报道（约500–800字）",
+                  "适中报道（约800–1600字）",
+                  "深度报道（约1600–3500字）"
+                ]
+              }
+            }
+          },
+          "uiSchema": {
+            "industry_custom": {
+              "ui:widget": "text"
+            },
+            "core_topic": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 3
+              }
+            },
+            "writing_folder_id": {
+              "ui:widget": "folderCard"
+            },
+            "subjective_analysis": {
+              "ui:widget": "switch"
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "你是资深行业日报主笔。根据下方完整业务合同撰写一篇结构完整、数据准确、适合**屏幕阅读**的行业日报成稿。\n\n## 输出形态（硬，违反即失败）\n- 只输出读者可读的 Markdown 成稿：从 `#` 标题起笔。\n- **禁止**输出英文思考过程、写作计划、规则自检、Humor beats 点数、Let me / The user wants / ARTICLE LENGTH 等元话语。\n- **禁止**把合同字段名（article_length / analysis_stance / tone_directives 等）写进成稿。\n- 成稿语言必须与 basic.language 一致；language=zh 时正文用中文，专名可保留原文。\n\n## 固定文类（硬）\n- 文类锁定为「行业日报 / industry daily brief」＝**报道体**骨架，不是口播稿、访谈、随笔、营销清单、短视频脚本或其他体裁。\n- basic.subjective_analysis 决定要不要写主观分析；打开后 basic.analysis_stance 决定分析立场。writing_summary / tone_directives 只调语气。三者都不得改变文类、标题形态或媒介假设。\n- 兼容旧合同：若无 subjective_analysis 而有 basic.style——新闻速报/空/旧文风→关闭分析；专业深挖→打开+基于数据客观分析；幽默解读→打开+基于数据幽默分析。\n\n## 主观分析（basic.subjective_analysis + analysis_stance，硬 — 违反即失败）\n先读 contract.basic.subjective_analysis、analysis_stance（以及 business.tone_directives、各章 analysis_beats）。\n\n- **关闭（默认）**：按条客观报道——谁+做了什么+数字+来源；**禁止**主观分析、推理、编辑判断句。\n- **打开**：每章先事实，再写 **至少 2 句**带**情绪化文笔**的主观推论（紧迫/嘲讽/期待/不安等态度要写进句子里，禁止干巴巴的要点罗列）。优先使用该章 analysis_beats；推断只靠行文措辞明示，**禁止**每句挂「（基于X推断）」括号戳——出处括号只标事实句，且同一来源同章只标一次。不得把推断写成已发生事实。\n  * 基于数据客观分析：情绪克制但有温度的平衡推论（成因/影响/关联）；不阴阳、不打气筒。\n  * 基于数据批判性分析：质疑动机、代价与盲点，笔触带锋芒与忧虑；禁止人身攻击与阴谋论胡编。\n  * 基于数据幽默分析：不是「通讯稿 + 段末塞两句梗」。**观点先行、诙谐贯穿**：开篇先给带态度的判断，再补事实；每章 1～2 处精准诙谐点评/比喻；analysis_beats 织进正文，禁止段末彩蛋。禁 emoji、低俗、人身攻击；禁镜头口播指令但不禁书面幽默。\n  * 基于数据乐观分析：在事实后写机会、转机与建设性展望，情绪积极但克制；禁止无依据亢奋口号。\n- 语感文风包：仅调语气，不改报道骨架与是否分析。\n- 自检（分析打开时）：逐章检查——（a）事实后是否有情绪化主观推论；（b）是否贴合 analysis_stance；（c）幽默立场下比喻是否读得通且不重复。不过 → 删改后再输出。\n\n## 篇幅（basic.article_length，硬）\n- brief（简短报道）：全文字数目标约 500–800 汉字；证据不足可更短，禁止注水凑字。\n- standard（适中报道，默认）：约 800–1600 汉字。\n- in_depth（深度报道）：约 1600–3500 汉字；证据不足仍可短写，禁止编造。\n缺省或未知值按 standard。篇幅档同时决定检索深浅（由管线 scaleFrom 映射），成稿须与所选档一致。\n\n## 话题范围（硬，违反即失败）\n- **先写时段行业大势，再写焦点新闻**：第一个 `##` 必须对应 business.body_sections 中 id=`period_overview` 的时段行业大势综述（报道周期 + basic.industry），用 enrich_search.industry_overview 等行业证据归纳 2～4 条跨事件主线；**禁止**把大势写成「今日要览」或逐条热点清单，也禁止把每条未选 chip 各自拉成独立焦点章。\n- 焦点章只写用户选择的话题：basic.main_topic + basic.core_topic 各段（按 ；拆分）。未选新闻可用于大势综述，或作为某焦点章内一句背景/对比（须标出处），**禁止**再单独成焦点章。\n- **单焦点模式**：core_topic 只有一条时 = `#` + 导语 + `##` 时段大势 + `##` 该话题深挖（可用 3～5 个 `###`）。证据不足就写短，禁止拿无关新闻凑额外 `##`。\n- 焦点章节数随所选话题缩放，但**总字数必须落在 basic.article_length 档位内**；大势约占 brief 的 20–30%、standard/in_depth 的 25–35%。\n\n## 报道周期锚定（硬，违反即失败）\n- 本文写的是「报道周期内」的行业动态（周期见检索块『日期:』行，如 2026-07-26（本周））。主线、导语和各章主体必须是周期内的新进展。\n- 早于报道周期的数据（往年档期总结、去年舆论、历史票房年报）只能作背景对比：每处一两句、必须写明年份（如「作为对照，2025年暑期档…」），禁止当章节主体、导语主线或时间线主体。\n- 周期内素材少时：聚焦当下动态写短（进展/排片/预售/各方表态），禁止用历史总结撑篇幅。\n\n\n## 多话题独立（硬，违反即失败）\n- 用户选中的多条焦点话题是**并列新闻线**，不是同一情节的多幕。禁止编造「拧成麻花 / 三重奏 / 三股力同框 / 共振收束」等强行因果把它们捆成一篇故事。\n- 时段大势章只写该时间窗的行业气候综述；焦点章各写各的。除非同一证据明确把两件事连在一起，否则章与章之间不要互为「因为所以」。\n- 导语禁止把全部焦点列成清单再声称它们是一条主线。\n\n## 时段大势写法（硬）\n- 第一个 `##`（period_overview）必须是**连贯自然语言段落**（约 2～4 短段），综合行情/监管/资金/情绪等气候线索。\n- **禁止**在大势章用加粗小标题+条列把多条新闻做成清单；禁止「一、FOMC 二、油价 三、微软」式开篇。细节事件留给后面的焦点章，大势章不要预演一遍再在焦点章重复。\n\n## 排版标签黑名单（硬）\n- 禁止把内部字段名/排版字印进成稿：`副标：`、`开篇 |`、`本周主线 |`、`导语：`、`dek：`、`opening_hook` 等。\n- `#` 下一句短导语直接写正文，不要加「副标：」前缀；`##` 标题只用事件/气候名，不要「开篇 | …」装饰。\n\n## 成稿路径（硬 · 直出）\n- 本业务**不再依赖**前置 structure / mapSections / body 嵌套合同。忽略空的 business.body_sections / opening_hook / tone_directives（可有可无）。\n- 你直接根据 basic（industry、date_mode、main_topic、core_topic、subjective_analysis、analysis_stance、article_length）+ selection.topics + 证据（market_snapshot / industry_overview / websource / enrich_search.result / result_side）写成稿。\n- 禁止先输出 JSON 大纲；只输出读者 Markdown。\n\n## 标准骨架（报道体 · 日/周/月报锁死）\n1. `#` 总标题：报道日/周期 + 行业时段主调或主焦点一句（≤28 字）。禁止「副标」字样；禁止把多焦点捆成故事标题。\n2. 下一行可选 1 句短导语（普通段落，**禁止**前缀「副标：」）：只点出本时段气候或主焦点为何值得看；禁止把全部焦点列成清单。\n3. **`##` 时段行业大势（强制首章）**：连贯自然语言 2～4 短段，综合该时间窗行业气候（行情/监管/资金/情绪等）。证据优先 industry_overview / 发现池。**禁止**加粗逐条新闻清单；**禁止**预演后面每个焦点。\n4. **`##` 焦点章（各自独立）**：\n   - 主焦点 = basic.main_topic（或 selection.topics 第一条）：充分展开；\n   - 其余已选话题各一短章（2～4 句事实；分析打开时再加 2～4 句情绪化推论）；\n   - **禁止**把多焦点编成「拧成麻花 / 三重奏 / 同框共振」等假因果；无同一证据显式关联就各写各的。\n5. 不要收束/展望/下周看点专章；不要文末参考链接列表。\n\n\n## 媒介与排版（硬）\n- 读者在读屏幕文章：用标题层级、列表、表格、引用块；禁止口播主持腔与镜头指令。\n- 段落之间空一行；每个 `##` 前后保留空行；不要把多段粘成一大坨。\n- `##` 标题只用纯文字事件名/话题名，禁止「🏆头条：」等 emoji 或「头条：」装饰前缀（可用「主线」字样仅当确有必要）。\n- 禁止 emoji / 表情符号作任何标题或正文装饰。\n\n## 语感注入（可空）\n- 若下方「语感文风包」非空：仅吸收其语气、节奏、用词偏好；禁止按其改写为口播稿或打乱日报骨架。\n语感文风包：\n${writing_summary}\n\n## 硬性要求\n- 只依据合同（basic / business / sources / enrich_search）事实；不得编造 data_points 中不存在的数字。\n- 成稿语言必须与 basic.language 一致（zh / zh-TW / en / ja；缺省 zh）。专名可保留原文。\n- 成稿组织：按下方「标准骨架」自建章节（不依赖 business.body_sections）。**不要**把 closing / outlook 写成读者可见的「下周看点预告」章。\n- 以 period_overview 定时段基调；再以 basic.main_topic 为焦点主线充分展开；其余 core_topic（若有）为短讯章；禁止 N 条焦点新闻等权拼盘且缺少大势章。\n- 标题与开篇必须同指「报道日/周期 + 行业时段主调」；焦点细节放后续 `##`，禁止把全部 core_topic 拼进总标题。\n- 引语用意译为主；禁止大段外语原文整段粘贴。\n- 输出纯 Markdown；不要 JSON；不要总文档代码围栏。\n\n## 文笔（硬，高于分析开关）\n- 每段不超过 3 句；中文单句尽量 ≤40 字；一句只说一件事。\n- 比喻必须用日常中文读得通：喻体与本体逻辑成立，禁止「装物理」「时间窗口贴脸」式生造搭配；同一章内不换喻体；全篇同一个梗、同一个比喻只用一次。\n- 禁止中英夹杂造对仗（如「model是技术，彩礼是估值」）；专名可保留原文，但整句必须是完整中文句式。\n- 禁止每章套同一模板（加粗观点段＋事实＋段末梗）：观点句形式要有变化（直接判断/设问/对比交替）；整段加粗全篇最多出现 1 次。\n- 动词优先：禁止三个以上抽象名词连用成串（如「AI投入、通胀、利率三条主线在…链条上集中定价」式堆叠）；改写成短句因果（谁做了什么 → 引发了什么）。\n- 先事实后解读：任何模式都先给「谁+做了什么+数字」；主观分析（若打开）跟在事实之后，不与事实混写。\n- 关键事实按语感加文内出处（如「据“CNBC”7月23日报道」），非每句必加；同一来源同章最多一次；不要文末链接列表。\n- 分析句按主观分析开关执行：关闭则不写主观判断；打开则每章至少 2 句情绪化主观推论，并贴合 analysis_stance（幽默=观点先行+1～2 处精准诙谐；批判=锋芒质疑；乐观=克制积极；客观=克制平衡）。不加「为什么重要：」标签，不写预测专章。合同里的 analysis_beats / tone_directives 必须织进成稿，禁止只当段末装饰。\n- 禁止自指元话语：「本期日报」「本篇」「叙事主轴」「如前所述」「构成…主线/主轴」等描述文章自身的句子。\n\n## 可读性与去重（硬，高于文风）\n- **中文标点**：basic.language 为 zh / zh-TW 时，正文必须用中文全角标点（，。；：？！），禁止「IP,到」「定档秋季:2026」这类半角逗号/冒号夹中文。\n- **一事一说**：同一事实（定档日期、票房数字、合并案动作等）在全文只完整陈述一次；标题、导语、章节总起、表格、引用块禁止同义复读。**同一判断/结论也只说一次**——各小节各讲一个新层面，禁止把同一个结论换措辞重复；**同一比喻/同一个梗全篇只用一次**。\n- **合同字段是素材池，不是渲染清单**：business 里的 beats / data_points / quotes / timeline / transition_out / source_map / risks_or_unknowns / key_takeaways 供你取材；**禁止**把每个字段逐项写成读者可见段落。risks_or_unknowns、source_map、key_takeaways **仅编辑内参，禁止整表倾倒进成稿**；读者向出处只用文内「据…报道」式标注，**不要**文末参考来源链接列表。\n- **禁止元话语**：不得出现「源中未给出」「本文仅作存在性陈述」「未在源中详述」「源材料以…概述」等考据腔。信息不足就略写或不写，不要向读者解释证据缺口。\n- **引语**：blockquote 仅用于真人说过的话；媒体报道标题、推文标题、播客标题禁止当引语。无真引语则不写引用块。\n- **表格**：仅当有 ≥2 行可比数据（票房进度、片单、财务对比）时使用；单行「关键信息一览」改写成一两句正文或短列表。\n- **禁止机械转场**：不要写「艺人动态方面，本周最显著的信号来自…」「院线端的对照信号由…继续提供」这类章末钩子；章节之间直接开下一 `##`。\n- **弱话题处理**：某条 core_topic 若检索只能支撑一两句且无增量信息，合并进相邻章末尾一句「另悉…」或整条省略，禁止硬撑成独立空心章节。\n\n## 成稿黑名单（违反即失败）\n- 任何 emoji / 表情符号（含 🌍📌✅🏆🔥 等）。\n- 「下周看点」「本周看点预告」「下期预告」「收束/展望」专章，或空洞口号式收尾。\n- 因分析立场输出非日报文类（口播串场、播客主持、纯金句散文、营销号体等）。\n- 镜头/主持口播指令：「视线往左挪」「先把日历翻到…」「咱们先看一眼」等（幽默分析允许书面比喻与轻吐槽，但禁止这些镜头指令）。\n- 「今日要览 / 3分钟看完版 / 速览 / TL;DR」等与正文重复的散文摘要专章（「市场速览」数据表除外，它是行情快照不是摘要）。\n- 「已知不确定性提示」专章；粉丝站标题当直接引语；「六条新闻线同时收束」「构成本期日报的叙事主轴」等结构自指。\n- 无增量信息的重复粘贴清单；有对比价值的数据表应保留。\n- 缺少时段大势首章、或把用户未选择的检索新闻各自拉成焦点章凑篇幅。\n\n\n## 出处与鉴真（硬，违反即失败）\n- 用户消息里的 citationBrief 是**唯一**允许的读者向出处清单（含 url / domain / title / summary）。\n- **文内引用（按语感，非条条必加）**：不要求每条新闻、每个数字都挂「据…报道」。只在读起来需要出处时加——例如某章首次抛出关键市场数据、报告结论；用「据“某某”报道」自然插入。媒体/报告名必须来自 citationBrief，**禁止编造**。同一来源同章最多一次。\n- **禁止**文末「## 参考来源」链接列表；禁止「基于公开信息整理」类免责脚注（等于告诉读者不可核验）。\n- **禁止**写「待核实」「通稿补充」「以官方公告为准」；证据不足就删句/删节。\n- **高保真行情优先**：若 enrich_search.market_snapshot / evidence `enrich_market_snapshot` 存在（CoinGecko / cn-market / Finnhub 等专业数据源），时段大势与「市场速览」类数字**必须优先用该快照**中的指数/币价/涨跌幅；新闻检索仅作事件与监管叙事。禁止用自媒体二手转述覆盖专业源数字。\n- **数字鉴真**：精确数字（金额、增速、面积、参展数、届次）必须能在 citationBrief.summary/title、market_snapshot 或合同 evidence 原文中找到；找不到就删掉该数字或改成不含伪精确值的表述。禁止无比较基准的「创新高/再创新高」。\n- 证据薄时：一主线 + 短要点即可，禁止硬凑无关第二节灌水。\n- 禁空话：综上所述 / 值得注意的是 / 在此背景下 / 不难发现 / 总而言之。\n\n\nNUMERIC CONFLICT GATE (hard):\n- Never invent exhibition edition numbers (第N届), venue area, revenue, headcount unless the EXACT numeral appears in evidencePack.extracted or evidencePack.items.snippet/title.\n- If sources conflict (e.g. 第二十届 vs 第二十三届), omit the number entirely or list both in risks_or_unknowns — do NOT pick one.\n- Prefer shorter truthful briefs over precise-looking wrong facts.\n"
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "interactiveCard",
+                "params": {
+                  "id": "industry-daily-industry-card",
+                  "label": "确认行业、检索范围、日期与文章长度",
+                  "hint": "先确认行业、检索范围与日期，再选文章长度；随后联网检索并提炼热点（可换一批）。",
+                  "kind": "interactive-card",
+                  "fields": [
+                    {
+                      "name": "industry",
+                      "type": "string",
+                      "title": "行业方向",
+                      "enum": [
+                        "股票",
+                        "基金",
+                        "银行保险",
+                        "加密货币",
+                        "人工智能",
+                        "半导体",
+                        "消费电子",
+                        "互联网",
+                        "影视综",
+                        "音乐",
+                        "游戏",
+                        "足球",
+                        "篮球",
+                        "网球",
+                        "赛车",
+                        "其他"
+                      ],
+                      "required": true
+                    },
+                    {
+                      "name": "industry_custom",
+                      "type": "string",
+                      "title": "自定义行业",
+                      "description": "选「其他」时填写",
+                      "required": false
+                    },
+                    {
+                      "name": "search_region",
+                      "type": "string",
+                      "title": "新闻检索范围",
+                      "description": "默认全球；可指定中国大陆、台湾、日本、北美、欧洲",
+                      "enum": [
+                        "global",
+                        "cn",
+                        "tw",
+                        "jp",
+                        "na",
+                        "eu"
+                      ],
+                      "default": "global",
+                      "required": false
+                    },
+                    {
+                      "name": "date_mode",
+                      "type": "string",
+                      "title": "报道日期",
+                      "description": "确认后再按对应时间窗检索热点（本周/本月支持）",
+                      "enum": [
+                        "today",
+                        "yesterday",
+                        "this_week",
+                        "this_month",
+                        "custom"
+                      ],
+                      "required": true,
+                      "default": "today"
+                    },
+                    {
+                      "name": "report_date",
+                      "type": "string",
+                      "title": "指定日期（自然语言也可）",
+                      "description": "可填 7月22日 / 2026-07-22 等；后端会转成标准日期再检索",
+                      "required": false
+                    },
+                    {
+                      "name": "article_length",
+                      "type": "string",
+                      "title": "文章长度",
+                      "description": "控制成稿篇幅与检索深浅",
+                      "enum": [
+                        "brief",
+                        "standard",
+                        "in_depth"
+                      ],
+                      "default": "standard",
+                      "required": false,
+                      "x-enum-labels": [
+                        "简短报道（约500–800字）",
+                        "适中报道（约800–1600字）",
+                        "深度报道（约1600–3500字）"
+                      ]
+                    }
+                  ],
+                  "editable": true
+                }
+              },
+              {
+                "step": "webSearch",
+                "params": {
+                  "queryBuilder": "industryTrend",
+                  "target": "sources.websource",
+                  "depth": "standard",
+                  "maxResults": 100,
+                  "resultMaxChars": 10000,
+                  "resultClean": true,
+                  "scaleFrom": "article_length",
+                  "depthByScale": {
+                    "brief": "quick",
+                    "standard": "standard",
+                    "in_depth": "deep"
+                  },
+                  "maxResultsByScale": {
+                    "brief": 48,
+                    "standard": 100,
+                    "in_depth": 200
+                  },
+                  "extractContent": true,
+                  "maxExtractCount": 8
+                }
+              },
+              {
+                "step": "extractHotTopics",
+                "params": {
+                  "textKey": "text/expert/industry-hot-topics",
+                  "maxInputItems": 80,
+                  "resultClean": true
+                }
+              }
+            ],
+            "enrich": [
+              {
+                "step": "pruneToSelection",
+                "params": {
+                  "sourceFields": [
+                    "core_topic",
+                    "main_topic"
+                  ],
+                  "evidenceKey": "websource",
+                  "minKeptItems": 0,
+                  "softMinKept": true,
+                  "archiveDiscovery": true
+                }
+              },
+              {
+                "step": "pickMainTopic",
+                "params": {
+                  "targetZone": "basic",
+                  "targetField": "main_topic"
+                }
+              },
+              {
+                "step": "domainDataQuery",
+                "params": {
+                  "whenDomains": [
+                    "stock",
+                    "crypto",
+                    "finance"
+                  ],
+                  "industryFrom": "contract.basic.industry",
+                  "queryTemplate": "${contract.basic.industry} ${contract.basic.date_label} 大盘 行情 指数",
+                  "target": "enrich_search.market_snapshot",
+                  "skipIfEmpty": true
+                }
+              },
+              {
+                "step": "webSearch",
+                "params": {
+                  "queryFrom": "contract.enrich_search.query",
+                  "target": "enrich_search.result",
+                  "depth": "standard",
+                  "maxResults": 16,
+                  "resultMaxChars": 8000,
+                  "queryTemplate": "${contract.basic.main_topic} ${contract.basic.industry_custom}${contract.basic.industry} 最新进展 深度报道",
+                  "resultClean": true,
+                  "timeRange": "month",
+                  "scaleFrom": "article_length",
+                  "depthByScale": {
+                    "brief": "quick",
+                    "standard": "standard",
+                    "in_depth": "deep"
+                  },
+                  "maxResultsByScale": {
+                    "brief": 8,
+                    "standard": 16,
+                    "in_depth": 24
+                  },
+                  "extractContent": true,
+                  "maxExtractCount": 8
+                }
+              },
+              {
+                "step": "webSearch",
+                "params": {
+                  "queriesFrom": "contract.selection.topics",
+                  "excludeQueryFrom": "contract.basic.main_topic",
+                  "querySuffix": "最新动态",
+                  "maxQueries": 3,
+                  "target": "enrich_search.result_side",
+                  "depth": "quick",
+                  "maxResults": 6,
+                  "resultMaxChars": 8000,
+                  "resultClean": true,
+                  "timeRange": "month",
+                  "scaleFrom": "article_length",
+                  "depthByScale": {
+                    "brief": "quick",
+                    "standard": "quick",
+                    "in_depth": "standard"
+                  },
+                  "maxResultsByScale": {
+                    "brief": 3,
+                    "standard": 6,
+                    "in_depth": 8
+                  },
+                  "extractContent": true,
+                  "maxExtractCount": 8
+                }
+              }
+            ],
+            "post": [
+              {
+                "step": "markdownToPdf",
+                "params": {
+                  "storageMode": "sidecar",
+                  "includeCover": true,
+                  "includeToc": true,
+                  "useLayoutLlm": false,
+                  "fallbackRenderer": "markdown"
+                },
+                "inputMapping": {
+                  "markdown": "${state.coreArtifact.text}"
+                }
+              }
+            ]
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.4,
+              "maxTokens": 131072,
+              "parameters": {
+                "reasoning_split": true,
+                "thinking": {
+                  "type": "disabled"
+                }
+              }
+            },
+            "storage": {
+              "format": "markdown",
+              "extension": "md",
+              "mimeType": "text/markdown; charset=utf-8",
+              "folder": "writing"
+            }
+          },
+          "createGuide": {
+            "webSearch": {
+              "clientPreview": true,
+              "maxResults": 200
+            },
+            "interactiveCard": {
+              "label": "确认行业、检索范围、日期与文章长度",
+              "hint": "先确认行业、检索范围与日期，再选文章长度；随后联网检索并提炼热点（可换一批）。",
+              "fields": [
+                {
+                  "name": "industry",
+                  "type": "string",
+                  "title": "行业方向",
+                  "enum": [
+                    "股票",
+                    "基金",
+                    "银行保险",
+                    "加密货币",
+                    "人工智能",
+                    "半导体",
+                    "消费电子",
+                    "互联网",
+                    "影视综",
+                    "音乐",
+                    "游戏",
+                    "足球",
+                    "篮球",
+                    "网球",
+                    "赛车",
+                    "其他"
+                  ],
+                  "required": true
+                },
+                {
+                  "name": "industry_custom",
+                  "type": "string",
+                  "title": "自定义行业",
+                  "description": "选「其他」时填写",
+                  "required": false
+                },
+                {
+                  "name": "search_region",
+                  "type": "string",
+                  "title": "新闻检索范围",
+                  "description": "默认全球；可指定中国大陆、台湾、日本、北美、欧洲",
+                  "enum": [
+                    "global",
+                    "cn",
+                    "tw",
+                    "jp",
+                    "na",
+                    "eu"
+                  ],
+                  "default": "global",
+                  "required": false
+                },
+                {
+                  "name": "date_mode",
+                  "type": "string",
+                  "title": "报道日期",
+                  "description": "确认后再按对应时间窗检索热点（本周/本月支持）",
+                  "enum": [
+                    "today",
+                    "yesterday",
+                    "this_week",
+                    "this_month",
+                    "custom"
+                  ],
+                  "required": true,
+                  "default": "today"
+                },
+                {
+                  "name": "report_date",
+                  "type": "string",
+                  "title": "指定日期（自然语言也可）",
+                  "description": "可填 7月22日 / 2026-07-22 等；后端会转成标准日期再检索",
+                  "required": false
+                },
+                {
+                  "name": "article_length",
+                  "type": "string",
+                  "title": "文章长度",
+                  "description": "控制成稿篇幅与检索深浅",
+                  "enum": [
+                    "brief",
+                    "standard",
+                    "in_depth"
+                  ],
+                  "default": "standard",
+                  "required": false,
+                  "x-enum-labels": [
+                    "简短报道（约500–800字）",
+                    "适中报道（约800–1600字）",
+                    "深度报道（约1600–3500字）"
+                  ]
+                }
+              ]
+            },
+            "extractHotTopics": {
+              "textKey": "text/expert/industry-hot-topics"
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "writing-generator-industry-daily",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    }
+  ]
+}

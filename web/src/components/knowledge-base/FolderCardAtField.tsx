@@ -1,6 +1,8 @@
 /**
- * 知识卡引用：推荐 chips + 输入框内 @ 联想选卡。
- * 禁止独立「莫名其妙提示词 + 空白输入框」式挂卡。
+ * 知识卡引用：两种模式
+ * - pick：只选卡（推荐 chips + 搜索过滤），无自由文本、无 @
+ * - compose：语气手填 + @ 挂卡（行业日报「其他」等）
+ * 禁止独立「空白输入框手填 ID」式挂卡。
  */
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Tag } from 'antd';
@@ -10,19 +12,27 @@ import {
   type FolderCardTag,
   type FolderItem,
 } from '../../api/client';
+import { useKnowledgeBaseParse } from '../../context/KnowledgeBaseParseContext';
 import './folder-card-at-field.css';
+
+export type FolderCardMode = 'pick' | 'compose';
 
 export type FolderCardAtFieldProps = {
   cardTag: FolderCardTag;
   value?: string | null;
   onChange?: (folderId: string | null, folder?: FolderItem | null) => void;
-  /** 与文本同框时：当前文本（语气说明等） */
+  /** 与文本同框时：当前文本（语气说明等）；仅 compose */
   textValue?: string;
   onTextChange?: (text: string) => void;
-  /** true：文本 + @卡；false：仅选卡（仍用 @ / 推荐，不用裸 Select） */
+  /**
+   * true → compose（文本 + @卡）；false → pick（只选卡）
+   * 也可用 mode 显式指定；mode 优先。
+   */
   withText?: boolean;
+  /** 显式模式；优先于 withText */
+  mode?: FolderCardMode;
   textPlaceholder?: string;
-  /** 推荐短文案 chips（点击写入 text） */
+  /** 推荐短文案 chips（点击写入 text）；仅 compose */
   textRecommendations?: string[];
   disabled?: boolean;
   className?: string;
@@ -37,11 +47,18 @@ const CARD_LABEL: Record<FolderCardTag, string> = {
   knowledge: '知识',
 };
 
+const PICK_CHIP_LIMIT = 24;
+
 function statusMark(f: FolderItem): string {
   if (f.card_status === 'ready') return '就绪';
   if (f.card_status === 'parsing') return '解析中';
   if (f.card_status === 'failed') return '失败';
   return '未就绪';
+}
+
+function resolveMode(mode: FolderCardMode | undefined, withText: boolean): FolderCardMode {
+  if (mode === 'pick' || mode === 'compose') return mode;
+  return withText ? 'compose' : 'pick';
 }
 
 export function FolderCardAtField({
@@ -51,6 +68,7 @@ export function FolderCardAtField({
   textValue = '',
   onTextChange,
   withText = false,
+  mode: modeProp,
   textPlaceholder,
   textRecommendations = [],
   disabled,
@@ -58,11 +76,15 @@ export function FolderCardAtField({
   includeSystem = true,
   autoFocus,
 }: FolderCardAtFieldProps) {
+  const resolvedMode = resolveMode(modeProp, withText);
+  const isPick = resolvedMode === 'pick';
+  const { requestViewResult } = useKnowledgeBaseParse();
   const inputRef = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
   const [options, setOptions] = useState<FolderItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
+  const [pickQuery, setPickQuery] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -77,7 +99,6 @@ export function FolderCardAtField({
           const seen = new Set(filtered.map((f) => f.id));
           merged = [...filtered, ...sys.filter((s) => !seen.has(s.id))];
         }
-        // 就绪优先，系统卡靠前一点
         merged.sort((a, b) => {
           const ra = a.card_status === 'ready' ? 0 : 1;
           const rb = b.card_status === 'ready' ? 0 : 1;
@@ -100,6 +121,20 @@ export function FolderCardAtField({
     [options, value]
   );
 
+  const kindLabel = CARD_LABEL[cardTag];
+
+  const pickFiltered = useMemo(() => {
+    const q = pickQuery.trim().toLowerCase();
+    const pool = options.filter((f) => f.card_status !== 'failed');
+    if (!q) {
+      // 默认只展示就绪卡；搜索时可看到解析中
+      return pool.filter((f) => f.card_status === 'ready').slice(0, PICK_CHIP_LIMIT);
+    }
+    return pool
+      .filter((f) => (f.name || '').toLowerCase().includes(q))
+      .slice(0, PICK_CHIP_LIMIT);
+  }, [options, pickQuery]);
+
   const recommended = useMemo(
     () => options.filter((f) => f.card_status === 'ready').slice(0, 6),
     [options]
@@ -114,14 +149,17 @@ export function FolderCardAtField({
       .slice(0, 12);
   }, [options, mentionQuery]);
 
-  const kindLabel = CARD_LABEL[cardTag];
+  const readyCount = useMemo(
+    () => options.filter((f) => f.card_status === 'ready').length,
+    [options]
+  );
 
   const pickCard = (f: FolderItem) => {
+    if (f.card_status !== 'ready') return;
     onChange?.(f.id, f);
     setMentionOpen(false);
     setMentionQuery('');
-    if (withText && textValue.includes('@')) {
-      // 去掉尚未完成的 @查询片段
+    if (!isPick && textValue.includes('@')) {
       const cleaned = textValue.replace(/@([^\s@]*)$/, '').trimEnd();
       onTextChange?.(cleaned);
     }
@@ -129,7 +167,7 @@ export function FolderCardAtField({
 
   const clearCard = () => onChange?.(null, null);
 
-  const onInputChange = (raw: string) => {
+  const onComposeInputChange = (raw: string) => {
     onTextChange?.(raw);
     const at = raw.match(/(?:^|[\s\n])@([^\s@]*)$/);
     if (at) {
@@ -145,7 +183,7 @@ export function FolderCardAtField({
     setMentionOpen(true);
     setMentionQuery('');
     const el = inputRef.current;
-    if (withText && el && 'value' in el) {
+    if (!isPick && el && 'value' in el) {
       const next = `${textValue}${textValue && !/\s$/.test(textValue) ? ' ' : ''}@`;
       onTextChange?.(next);
       requestAnimationFrame(() => {
@@ -156,14 +194,120 @@ export function FolderCardAtField({
     }
   };
 
-  const placeholder =
-    textPlaceholder ||
-    (withText
-      ? `写几句语气偏好，或输入 @ 选择${kindLabel}卡`
-      : `输入 @ 搜索并选择${kindLabel}卡`);
+  const composePlaceholder =
+    textPlaceholder || `写几句语气偏好，或输入 @ 选择${kindLabel}卡`;
 
+  // ── pick：只选卡 ──────────────────────────────────────────
+  if (isPick) {
+    return (
+      <div className={`folder-card-at folder-card-at--pick${className ? ` ${className}` : ''}`}>
+        {loading ? (
+          <p className="folder-card-at__empty">正在加载{kindLabel}卡…</p>
+        ) : options.length === 0 ? (
+          <p className="folder-card-at__empty">
+            暂无{kindLabel}卡。请先在{' '}
+            <button
+              type="button"
+              className="folder-card-at__link"
+              disabled={disabled}
+              onClick={() => requestViewResult()}
+            >
+              知识库
+            </button>{' '}
+            创建并解析「{kindLabel}」素材。
+          </p>
+        ) : readyCount === 0 ? (
+          <p className="folder-card-at__empty">
+            有卡但尚未就绪。请到{' '}
+            <button
+              type="button"
+              className="folder-card-at__link"
+              disabled={disabled}
+              onClick={() => requestViewResult()}
+            >
+              知识库
+            </button>{' '}
+            等待解析完成后再选。
+          </p>
+        ) : (
+          <>
+            {options.length > 6 ? (
+              <div className="folder-card-at__search">
+                <input
+                  type="search"
+                  className="folder-card-at__search-input"
+                  disabled={disabled}
+                  autoFocus={autoFocus}
+                  placeholder={`搜索${kindLabel}卡…`}
+                  value={pickQuery}
+                  onChange={(e) => setPickQuery(e.target.value)}
+                  aria-label={`搜索${kindLabel}卡`}
+                />
+              </div>
+            ) : null}
+
+            <div className="folder-card-at__recs" aria-label={`可选${kindLabel}`}>
+              <span className="folder-card-at__recs-label">
+                {pickQuery.trim() ? '搜索结果' : `推荐${kindLabel}`}
+              </span>
+              {pickFiltered.length === 0 ? (
+                <p className="folder-card-at__empty">没有匹配的{kindLabel}卡</p>
+              ) : (
+                <div className="folder-card-at__recs-chips" role="listbox">
+                  {pickFiltered.map((f) => {
+                    const ready = f.card_status === 'ready';
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        role="option"
+                        aria-selected={value === f.id}
+                        className={
+                          value === f.id
+                            ? 'folder-card-at__chip folder-card-at__chip--active'
+                            : ready
+                              ? 'folder-card-at__chip'
+                              : 'folder-card-at__chip folder-card-at__chip--muted'
+                        }
+                        disabled={disabled || !ready}
+                        title={ready ? f.name : `${f.name}（${statusMark(f)}）`}
+                        onClick={() => pickCard(f)}
+                      >
+                        {f.is_system ? '★ ' : ''}
+                        {f.name}
+                        {!ready ? ` · ${statusMark(f)}` : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {selected ? (
+          <div className="folder-card-at__selected">
+            <Tag
+              closable={!disabled}
+              onClose={(e) => {
+                e.preventDefault();
+                clearCard();
+              }}
+              color="blue"
+            >
+              {selected.name}
+              {selected.is_system ? ' · 系统' : ''}
+            </Tag>
+            <span className="folder-card-at__status">{statusMark(selected)}</span>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  // ── compose：文本 + @ 挂卡 ────────────────────────────────
   return (
-    <div className={`folder-card-at${className ? ` ${className}` : ''}`}>
+    <div className={`folder-card-at folder-card-at--compose${className ? ` ${className}` : ''}`}>
       {textRecommendations.length > 0 ? (
         <div className="folder-card-at__recs" aria-label="推荐语气">
           <span className="folder-card-at__recs-label">推荐语气</span>
@@ -231,49 +375,19 @@ export function FolderCardAtField({
       ) : null}
 
       <div className="folder-card-at__composer">
-        {withText ? (
-          <textarea
-            ref={inputRef as RefObject<HTMLTextAreaElement>}
-            className="folder-card-at__input"
-            rows={2}
-            disabled={disabled}
-            autoFocus={autoFocus}
-            placeholder={placeholder}
-            value={textValue}
-            onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setMentionOpen(false);
-            }}
-          />
-        ) : (
-          <input
-            ref={inputRef as RefObject<HTMLInputElement>}
-            className="folder-card-at__input folder-card-at__input--single"
-            disabled={disabled}
-            autoFocus={autoFocus}
-            placeholder={placeholder}
-            value={mentionOpen ? `@${mentionQuery}` : ''}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v.includes('@')) {
-                setMentionOpen(true);
-                setMentionQuery(v.replace(/^[^@]*@/, ''));
-              } else if (v.trim()) {
-                setMentionOpen(true);
-                setMentionQuery(v.trim());
-              } else {
-                setMentionOpen(false);
-                setMentionQuery('');
-              }
-            }}
-            onFocus={() => {
-              if (options.length) setMentionOpen(true);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setMentionOpen(false);
-            }}
-          />
-        )}
+        <textarea
+          ref={inputRef as RefObject<HTMLTextAreaElement>}
+          className="folder-card-at__input"
+          rows={2}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          placeholder={composePlaceholder}
+          value={textValue}
+          onChange={(e) => onComposeInputChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setMentionOpen(false);
+          }}
+        />
         <button
           type="button"
           className="folder-card-at__at-btn"
@@ -295,7 +409,7 @@ export function FolderCardAtField({
                 <button
                   type="button"
                   className="folder-card-at__menu-item"
-                  disabled={disabled}
+                  disabled={disabled || f.card_status !== 'ready'}
                   onClick={() => pickCard(f)}
                 >
                   <span className="folder-card-at__menu-name">

@@ -530,6 +530,7 @@ export class TaskManager {
       status === 'processing' ||
       status === 'pending' ||
       status === 'awaiting_review' ||
+      status === 'awaiting_user_input' ||
       status === 'completed'
     ) {
       updates.progress = {
@@ -572,6 +573,7 @@ export class TaskManager {
       'queued',
       'processing',
       'awaiting_review',
+      'awaiting_user_input',
       'completed',
       'failed',
       'cancelled',
@@ -814,12 +816,21 @@ export class TaskManager {
 
     const completedAt = options?.completedAt ?? new Date();
 
+    let errorCode: string | undefined;
+    try {
+      const { mapUpstreamError } = await import('../errors');
+      errorCode = mapUpstreamError(new Error(error)).code;
+    } catch {
+      /* 映射失败不阻断落库 */
+    }
+
     await this.storage.update(taskId, {
       status: 'failed',
       progress: {
         ...task.progress,
         status: 'failed',
         error,
+        ...(errorCode ? { errorCode } : {}),
         completedAt,
       },
       updatedAt: new Date(),

@@ -1,5 +1,5 @@
 /**
- * 注册 jiekou（接口AI）常用模型到 provider_models，并修正 tech-intelligence 写作路由。
+ * 注册 jiekou（接口AI）常用模型到 provider_models。
  *
  * 模型 ID 来源：https://docs.jiekou.ai/docs/model/llm-recommended
  * 文本走 OpenAI 兼容 /openai/v1/chat/completions；图/视频走 /v3/{upstream_model}
@@ -59,7 +59,7 @@ type SeedRow = Parameters<
 const TEXT_DEFAULTS = {
   protocol: 'openai',
   modality: 'text' as const,
-  default_parameters: { temperature: 0.7, max_tokens: 8192 },
+  default_parameters: { temperature: 0.7, max_tokens: 20_000 },
   is_enabled: true,
 };
 
@@ -129,7 +129,7 @@ const JIEKOU_LLM_MODELS: SeedRow[] = [
       display_name: 'Gemini 2.5 Flash',
       description: '低延迟、高性价比；适合摘要与提取',
       ...TEXT_DEFAULTS,
-      default_parameters: { temperature: 0.5, max_tokens: 8192 },
+      default_parameters: { temperature: 0.5, max_tokens: 20_000 },
     },
     jiekouCap('gemini-2.5-flash', FALLBACK_TEXT),
   ),
@@ -468,20 +468,9 @@ async function seedJiekouPricing(): Promise<number> {
   return count;
 }
 
-/** 将 tech-intelligence 从失效的 atlascloud/gpt-oss 切到 jiekou */
-const TECH_INTEL_ROUTE = {
-  scope: 'writing' as const,
-  task_key: 'articles',
-  sub_type: 'tech-intelligence',
-  provider: 'jiekou',
-  model: 'deepseek-v3',
-  enabled: true,
-};
-
 async function main() {
   RepositoryFactory.init();
   const modelRepo = RepositoryFactory.createProviderModelRepository();
-  const writingRepo = RepositoryFactory.createWritingScopeConfigRepository();
 
   const all = [...JIEKOU_LLM_MODELS, ...JIEKOU_MEDIA_MODELS];
   let count = 0;
@@ -490,13 +479,6 @@ async function main() {
     count += 1;
     console.log(`✅ [${saved.scope}] ${saved.model_key} → ${saved.upstream_model}`);
   }
-
-  const route = await writingRepo.upsertConfig(TECH_INTEL_ROUTE);
-  console.log('');
-  console.log('✅ writing_scope_config tech-intelligence:', {
-    provider: route.provider,
-    model: route.model,
-  });
 
   await refreshProviderModelCatalog();
 

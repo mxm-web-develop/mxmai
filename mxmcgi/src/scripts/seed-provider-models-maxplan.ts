@@ -145,6 +145,7 @@ const MAXPLAN_PROVIDER_MODELS: SeedRow[] = [
         temperature: 0.7,
         max_tokens: 131072,
         max_completion_tokens: 131072,
+        // thinking 由业务 generateParams.parameters 显性配置，勿在 catalog 隐式关/开
       },
       is_enabled: true,
     },
@@ -215,6 +216,7 @@ const MAXPLAN_PROVIDER_MODELS: SeedRow[] = [
       default_parameters: {
         voice_setting: { voice_id: 'female-shaonv', speed: 1, vol: 1, pitch: 0 },
         audio_setting: { sample_rate: 32000, bitrate: 128000, format: 'mp3' },
+        // MiniMax 官方：speech-2.8 支持 subtitle_enable + sentence/word
         subtitle_enable: true,
         subtitle_type: 'sentence',
         language_boost: 'Chinese',
@@ -318,7 +320,7 @@ const MAXPLAN_SCOPE_ROUTES = [
   {
     table: 'audio' as const,
     scope: 'audio',
-    task_key: 'speak',
+    task_key: 'generator',
     sub_type: 'voice-over-test',
     model: 'speech-2.8-hd',
     provider: 'maxplan',
@@ -326,8 +328,8 @@ const MAXPLAN_SCOPE_ROUTES = [
   {
     table: 'audio' as const,
     scope: 'audio',
-    task_key: 'speak',
-    sub_type: 'default',
+    task_key: 'group',
+    sub_type: 'multi-voice',
     model: 'speech-2.8-hd',
     provider: 'maxplan',
   },

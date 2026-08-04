@@ -111,7 +111,7 @@ async function start(): Promise<void> {
   app.use('/virtual-folder-index', virtualFolderIndexRouter);
   app.use('/api/v2/agent', agentV2Router);
 
-  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  app.use(async (err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (res.headersSent) return;
     const msg = err?.message ?? String(err);
     const isAborted = err?.code === 'ECONNABORTED' || /request aborted|aborted/i.test(msg);
@@ -120,7 +120,13 @@ async function start(): Promise<void> {
       return;
     }
     console.error('[mxmcgi] Unhandled error:', err);
-    try { res.status(500).json({ success: false, error: msg }); } catch { /* ignore */ }
+    try {
+      const { shapeErrorForViewer, isAdminFromRequest } = await import('./errors');
+      const { status, body } = shapeErrorForViewer(err, { isAdmin: isAdminFromRequest(req) });
+      res.status(status).json(body);
+    } catch {
+      try { res.status(500).json({ success: false, code: 'INTERNAL_ERROR', error: '操作失败，请稍后重试' }); } catch { /* ignore */ }
+    }
   });
 
   try {

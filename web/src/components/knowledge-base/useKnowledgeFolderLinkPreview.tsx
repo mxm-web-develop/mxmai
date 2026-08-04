@@ -49,7 +49,7 @@ export function useKnowledgeFolderLinkPreview() {
   const [writingTask, setWritingTask] = useState<WritingTaskItem | null>(null);
   const [writingContent, setWritingContent] = useState('');
   const [writingPdfUrl, setWritingPdfUrl] = useState<string | null>(null);
-  const writingPdfRevokeRef = useRef<(() => void) | null>(null);
+  const [writingPdfHeaders, setWritingPdfHeaders] = useState<Record<string, string> | null>(null);
   const [writingLoading, setWritingLoading] = useState(false);
   const [writingError, setWritingError] = useState<string | null>(null);
 
@@ -63,9 +63,8 @@ export function useKnowledgeFolderLinkPreview() {
   const noopSetTasks = useCallback<Dispatch<SetStateAction<WritingTaskItem[]>>>(() => {}, []);
 
   const clearWritingPdf = useCallback(() => {
-    writingPdfRevokeRef.current?.();
-    writingPdfRevokeRef.current = null;
     setWritingPdfUrl(null);
+    setWritingPdfHeaders(null);
   }, []);
 
   const openGraphTask = useCallback(async (task: WritingTaskItem) => {
@@ -121,8 +120,8 @@ export function useKnowledgeFolderLinkPreview() {
       try {
         const media = await fetchWritingMediaContent(task.id);
         if (media.kind === 'pdf') {
-          setWritingPdfUrl(media.blobUrl);
-          writingPdfRevokeRef.current = media.revoke;
+          setWritingPdfUrl(media.sourceUrl);
+          setWritingPdfHeaders(media.httpHeaders);
         } else {
           setWritingContent(media.text);
         }
@@ -282,6 +281,7 @@ export function useKnowledgeFolderLinkPreview() {
         title={writingTask ? linkDisplayTitle(writingTask) : '写作'}
         content={writingContent}
         pdfPreviewUrl={writingPdfUrl}
+        pdfHttpHeaders={writingPdfHeaders}
         task={writingTask}
         loading={writingLoading}
         error={writingError}

@@ -150,7 +150,7 @@
             "generateParams": {
               "temperature": 0.35,
               "topP": 0.9,
-              "maxTokens": 16384
+              "maxTokens": 20000
             }
           },
           "pipeline": {

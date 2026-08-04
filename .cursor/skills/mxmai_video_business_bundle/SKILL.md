@@ -14,7 +14,7 @@ description: 在 SuperMXMai 中新增或更新 Video 子业务（formSchema + un
 
 > 宫格分镜成片：[`video-storyboard-grid.business.json`](../../../mxmcgi/src/tasks/examples/video-storyboard-grid.business.json)
 
-**可选执行管线**（前置 / 人工审核 / 后置，**非必须**）：视频业务通常 **无 pipeline**；分步编排优先 Smartflow。若单任务内需 pre/post，见 [`.cursor/skills/mxmai_business_pipeline/SKILL.md`](../mxmai_business_pipeline/SKILL.md)。
+**可选执行管线**（前置 / 人工审核 / 后置，**非必须**）：视频业务通常 **无 pipeline**；分步编排优先 Smartflow。若单任务内需 pre/post，见 [`.cursor/skills/mxmai_business_pipeline/SKILL.md`](../mxmai_business_pipeline/SKILL.md)。**主渲染 / 主生成接口在 output**（`group` 遍历 clip 亦然）；勿把主成片链长期挂 post。
 
 ## 1. 数据落在哪里
 

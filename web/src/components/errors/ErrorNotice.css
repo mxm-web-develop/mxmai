@@ -1,0 +1,71 @@
+.mxm-error-notice {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, rgb(14 165 233) 6%, transparent);
+  border: 1px solid color-mix(in srgb, rgb(14 165 233) 18%, transparent);
+  color: inherit;
+  max-width: 36rem;
+}
+
+.mxm-error-notice--page {
+  margin: 2rem auto;
+  padding: 1.25rem 1.35rem;
+  max-width: 28rem;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.mxm-error-notice--page .mxm-error-notice__body {
+  align-items: center;
+}
+
+.mxm-error-notice__icon {
+  flex-shrink: 0;
+  color: rgb(2 132 199);
+  margin-top: 0.1rem;
+}
+
+.mxm-error-notice--page .mxm-error-notice__icon {
+  margin-top: 0;
+  margin-bottom: 0.35rem;
+}
+
+.mxm-error-notice__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: inherit;
+}
+
+.mxm-error-notice__message {
+  margin: 0.25rem 0 0.5rem !important;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.mxm-error-notice__action {
+  margin-top: 0.15rem;
+}
+
+.mxm-error-notice__debug {
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.mxm-error-notice__debug-pre {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 12rem;
+  overflow: auto;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}

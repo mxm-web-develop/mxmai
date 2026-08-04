@@ -1,6 +1,7 @@
 /**
  * 平台默认 LLM 路由（文本 / 写作 / 管线 nestedText 等）
  * 可通过根目录 .env 覆盖：DEFAULT_PROVIDER=maxplan、DEFAULT_MODEL=MiniMax-M3
+ * deer / deerapi 已下架：即便 env 仍写旧值，也回退 maxplan。
  */
 import type { ProviderType } from '../core/providers/types';
 
@@ -10,7 +11,6 @@ const ALLOWED_PROVIDERS = new Set<ProviderType>([
   'maxplan',
   'replicate',
   'ppio',
-  'deer',
   'openai',
   'google',
   'anthropic',
@@ -24,11 +24,11 @@ const ALLOWED_PROVIDERS = new Set<ProviderType>([
   'mcp',
 ]);
 
-/** 解析 DEFAULT_PROVIDER；未设置或非法值时回退 maxplan（不用 replicate） */
+/** 解析 DEFAULT_PROVIDER；未设置、非法值、或已下架的 deer → maxplan */
 export function resolveDefaultLlmProvider(): ProviderType {
   const raw = process.env.DEFAULT_PROVIDER?.toLowerCase();
-  if (raw === 'deerapi') return 'deer';
-  if (raw && ALLOWED_PROVIDERS.has(raw as ProviderType)) {
+  if (!raw || raw === 'deer' || raw === 'deerapi') return 'maxplan';
+  if (ALLOWED_PROVIDERS.has(raw as ProviderType)) {
     return raw as ProviderType;
   }
   return 'maxplan';

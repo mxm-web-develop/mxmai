@@ -34,7 +34,7 @@ const PROVIDERS = [
     dimensions: 'general, news, academic, forum, social, finance, official（垂域+全文抽取）',
     free: '约1000次/天',
   },
-  { name: 'bocha', label: '博查 AI', dimensions: 'general, news, academic, forum', free: '国内可用' },
+  { name: 'bocha', label: '博查 / 数眼搜索', dimensions: 'general, news, academic, forum', free: '数眼用 api.shuyanai.com + 搜索阅读 Key' },
   { name: 'arxiv', label: 'ArXiv', dimensions: 'academic', free: '无限制' },
   { name: 'bing', label: 'Bing 必应', dimensions: 'general, news', free: '国内可用' },
   { name: 'serpapi', label: 'SerpAPI (Google)', dimensions: 'all', free: '付费' },

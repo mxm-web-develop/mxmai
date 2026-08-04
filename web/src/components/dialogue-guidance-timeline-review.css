@@ -1,0 +1,247 @@
+/* 多人语音 · 单轴台词时间线（竖轴时间，重叠并排；文案框自适应） */
+
+.dgt-review {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.dgt-review.is-disabled {
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.dgt-review__banner {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(2, 132, 199, 0.22);
+  font-size: 13px;
+  line-height: 1.55;
+  color: #0f172a;
+}
+
+.dgt-review__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.dgt-review__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dgt-review__legend-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dgt-review__scroll {
+  flex: 1;
+  min-height: 260px;
+  max-height: min(54vh, 580px);
+  overflow: auto;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  background: #f1f5f9;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dgt-review__axis-wrap {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px 14px minmax(0, 1fr);
+  gap: 0 6px;
+  min-width: 320px;
+  padding: 12px 14px 20px 8px;
+}
+
+.dgt-review__axis-labels {
+  position: relative;
+}
+
+.dgt-review__axis-tick {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dgt-review__axis-line {
+  position: relative;
+  width: 3px;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(2, 132, 199, 0.15),
+    rgba(2, 132, 199, 0.55),
+    rgba(2, 132, 199, 0.15)
+  );
+}
+
+.dgt-review__axis-line::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #0284c7;
+}
+
+.dgt-review__canvas {
+  position: relative;
+  min-height: 100%;
+}
+
+.dgt-review__lane {
+  position: absolute;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.dgt-review__lane.is-active {
+  z-index: 4;
+}
+
+.dgt-review__span {
+  flex: 0 0 5px;
+  width: 5px;
+  border-radius: 999px;
+  align-self: flex-start;
+  pointer-events: none;
+}
+
+.dgt-review__block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1.5px solid;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  font-family: inherit;
+  box-sizing: border-box;
+  max-height: 88px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  transition: box-shadow 120ms ease, transform 120ms ease;
+  pointer-events: auto;
+  align-self: flex-start;
+}
+
+.dgt-review__block:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.dgt-review__block.is-active {
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.5), 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.dgt-review__block.is-overlap-kind {
+  border-style: dashed;
+}
+
+.dgt-review__block-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dgt-review__block-speaker {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dgt-review__block-kind {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.dgt-review__block-time {
+  margin-left: auto;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.dgt-review__block-text {
+  font-size: 12.5px;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+.dgt-review__empty {
+  margin: 32px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.dgt-review__editor {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #fff;
+}
+
+.dgt-review__editor-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+html.dark .dgt-review__banner {
+  background: rgba(14, 165, 233, 0.12);
+  color: #e2e8f0;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+html.dark .dgt-review__scroll {
+  background: rgba(15, 23, 42, 0.75);
+  border-color: rgba(100, 116, 139, 0.55);
+}
+
+html.dark .dgt-review__editor {
+  background: #1e293b;
+  border-color: rgba(100, 116, 139, 0.55);
+}

@@ -12,6 +12,7 @@ import {
   type TaskBillingState,
 } from '../components/billing/TaskBillingBar';
 import { useAuth } from '../context/AuthContext';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 import {
   useTaskV2FormConfig,
   formatTaskSelectionKey,
@@ -108,7 +109,7 @@ export default function Text() {
     } catch (err) {
       notification.error({
         message: t('common.submitFailed'),
-        description: err instanceof Error ? err.message : String(err),
+        description: toUserFacingErrorMessage(err instanceof Error ? err.message : err),
         placement: 'top',
       });
     } finally {

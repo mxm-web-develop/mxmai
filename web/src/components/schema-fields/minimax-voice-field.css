@@ -66,8 +66,9 @@ html.dark .music-drawer .minimax-voice-field {
 }
 
 .minimax-voice-field__tabs {
-  display: inline-flex;
-  align-self: flex-start;
+  display: flex;
+  width: 100%;
+  align-self: stretch;
   padding: 2px;
   border-radius: 8px;
   border: 1px solid var(--mvf-border);
@@ -75,9 +76,13 @@ html.dark .music-drawer .minimax-voice-field {
 }
 
 .minimax-voice-field__tab {
-  padding: 0.35rem 0.85rem;
+  flex: 1;
+  justify-content: center;
+  padding: 0.35rem 0.5rem;
   font-size: 0.8125rem;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
   line-height: 1.2;
   border: none;
   border-radius: 6px;
@@ -418,10 +423,166 @@ html:not(.dark) .music-drawer .minimax-voice-field .ant-spin-text {
   color: var(--mvf-text-muted) !important;
 }
 
+.minimax-voice-field__tag--voice {
+  border-color: var(--mvf-accent-border);
+  color: var(--mvf-accent);
+  background: var(--mvf-accent-soft);
+}
+
+.minimax-voice-field__tag--muted {
+  opacity: 0.85;
+}
+
+.minimax-voice-field__char-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.minimax-voice-field__char-card {
+  border: 1px solid var(--mvf-border);
+  border-radius: 10px;
+  background: var(--mvf-surface);
+  overflow: hidden;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.minimax-voice-field__char-card.is-active {
+  border-color: var(--mvf-accent-border);
+  box-shadow: 0 0 0 1px var(--mvf-accent-border);
+}
+
+.minimax-voice-field__char-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.minimax-voice-field__char-main:hover {
+  background: var(--mvf-surface-hover);
+}
+
+.minimax-voice-field__char-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--mvf-accent-soft);
+  color: var(--mvf-accent);
+  flex-shrink: 0;
+}
+
+.minimax-voice-field__char-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.minimax-voice-field__char-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mvf-text);
+  line-height: 1.35;
+}
+
+.minimax-voice-field__char-sys {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--mvf-text-muted);
+}
+
+.minimax-voice-field__char-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.minimax-voice-field__char-voice-id {
+  font-size: 11px;
+  color: var(--mvf-text-muted);
+  word-break: break-all;
+}
+
+.minimax-voice-field__char-detail {
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.minimax-voice-field__char-voices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+}
+
+.minimax-voice-field__char-voice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--mvf-border);
+  background: var(--mvf-panel);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.minimax-voice-field__char-voice:hover {
+  border-color: var(--mvf-accent-border);
+}
+
+.minimax-voice-field__char-voice.is-active {
+  border-color: var(--mvf-accent-border);
+  background: var(--mvf-accent-soft);
+}
+
+.minimax-voice-field__char-voice-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mvf-text);
+}
+
+.minimax-voice-field__char-voice-id {
+  font-size: 11px;
+  color: var(--mvf-text-muted);
+  word-break: break-all;
+}
+
+.minimax-voice-field__char-clone {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .minimax-voice-field__tab,
   .minimax-voice-field__card,
-  .minimax-voice-field__filter {
+  .minimax-voice-field__filter,
+  .minimax-voice-field__char-card {
     transition: none;
   }
 

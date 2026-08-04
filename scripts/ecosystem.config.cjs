@@ -51,5 +51,17 @@ module.exports = {
       script: 'mxmnotify/dist/index.js',
       env: { NODE_ENV: 'production' },
     },
+    {
+      name: 'pptx-compiler',
+      cwd: __dirname + '/../mxmcgi/tools/pptx-compiler',
+      script: 'server.py',
+      interpreter: 'python3',
+      env: {
+        NODE_ENV: 'production',
+        PPTX_COMPILER_HOST: '127.0.0.1',
+        PPTX_COMPILER_PORT: '4010',
+        PPTX_COMPILER_WORKERS: '4',
+      },
+    },
   ],
 };

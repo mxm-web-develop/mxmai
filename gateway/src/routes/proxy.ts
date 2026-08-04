@@ -127,7 +127,7 @@ export function createProxyRouter(): Router {
               success: false,
               error: {
                 code: 'PROXY_ERROR',
-                message: `无法连接到通知服务: ${err.message}`,
+                message: '通知服务暂不可用，请稍后重试',
               },
             });
           }
@@ -999,7 +999,7 @@ export function createProxyRouter(): Router {
           if (res && typeof res.status === 'function' && !res.headersSent) {
             res.status(502).json({
               success: false,
-              error: { code: 'PROXY_ERROR', message: `Smartflow service unavailable: ${err.message}` },
+              error: { code: 'PROXY_ERROR', message: 'Smartflow 服务暂不可用，请稍后重试' },
             });
           }
         },
@@ -1036,7 +1036,7 @@ export function createProxyRouter(): Router {
           if (res && typeof res.status === 'function' && !res.headersSent) {
             res.status(502).json({
               success: false,
-              error: { code: 'PROXY_ERROR', message: `Smartflow tasks service unavailable: ${err.message}` },
+              error: { code: 'PROXY_ERROR', message: 'Smartflow 任务服务暂不可用，请稍后重试' },
             });
           }
         },
@@ -1177,7 +1177,7 @@ export function createProxyRouter(): Router {
               success: false,
               error: {
                 code: 'PROXY_ERROR',
-                message: `无法连接到知识库服务: ${err.message}`,
+                message: '知识库服务暂不可用，请稍后重试',
               },
             });
           } else {

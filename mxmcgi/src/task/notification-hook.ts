@@ -7,6 +7,7 @@ import { Task, TaskStatus, TaskType } from './types';
 import type { TaskSnapshot } from './task-snapshot';
 import { buildTaskSnapshot } from './task-snapshot';
 import { buildTaskStatusChangedEvent, deliverToMxmnotify, enqueueOutboxEvent } from './notification-outbox';
+import { sanitizeErrorTextForUser } from '../errors';
 
 // 简单的 logger 实现（mxmcgi 模块使用 console）
 const logger = {
@@ -47,17 +48,24 @@ export async function sendTaskStatusNotification(
 
     const snapshot = taskSnapshot ?? buildTaskSnapshot(task);
 
+    // 通知目标为任务所有者：默认按非 admin 脱敏（避免 WS 推送泄漏上游细节）
+    const safeError = sanitizeErrorTextForUser(task.progress.error, false);
+    const safeStatusMessage =
+      status === 'failed' && statusMessage
+        ? sanitizeErrorTextForUser(statusMessage, false)
+        : statusMessage;
+
     // 构建通知事件（加入 event_id/event_ts，便于幂等与回放）
     const event = buildTaskStatusChangedEvent({
       taskId: task.id,
       userId: task.metadata.userId,
       status,
-      statusMessage,
+      statusMessage: safeStatusMessage,
       taskType: task.type,
       modelName: task.metadata.model,
       modelProvider: task.metadata.provider,
       progress: task.progress.progress,
-      error: task.progress.error,
+      error: safeError || undefined,
       task_snapshot: snapshot,
       result: task.result ? { mediaUrls: task.result.mediaUrls, storageInfo: task.result.storageInfo } : undefined,
       notification_config: {

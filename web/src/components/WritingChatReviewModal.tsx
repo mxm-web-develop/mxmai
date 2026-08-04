@@ -14,6 +14,7 @@ import type { WarpGateField } from './WarpGateWizard';
 import './writing-create-wizard.css';
 import './video-timeline-review/video-timeline-review.css';
 import './writing-chat-review.css';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 type WritingChatReviewModalProps = {
   open: boolean;
@@ -218,7 +219,7 @@ export function WritingChatReviewModal({
       })
       .catch((e: unknown) => {
         if (!cancelled) {
-          const errMsg = e instanceof Error ? e.message : String(e);
+          const errMsg = toUserFacingErrorMessage(e instanceof Error ? e.message : e);
           setDraftLoadError(errMsg);
           antdMessage.error(errMsg);
         }
@@ -294,7 +295,7 @@ export function WritingChatReviewModal({
       onApproved?.();
       onClose();
     } catch (e) {
-      message.error(e instanceof Error ? e.message : String(e));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e));
     } finally {
       setSubmitting(false);
     }

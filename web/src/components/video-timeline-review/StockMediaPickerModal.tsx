@@ -9,6 +9,7 @@ import {
   type StockImageItem,
   type StockVideoItem,
 } from '../../api/client';
+import { toUserFacingErrorMessage } from '../../lib/platformErrors';
 import {
   DEFAULT_STOCK_IMAGE_ATTRIBUTION,
   stockImageLicenseUrl,
@@ -91,7 +92,7 @@ export function StockMediaPickerModal({
         setSubmittedQuery(trimmed);
         setPage(p);
       } catch (e) {
-        message.error(e instanceof Error ? e.message : t('video.stock.searchFailed'));
+        message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: t('video.stock.searchFailed') }));
       } finally {
         setLoading(false);
       }

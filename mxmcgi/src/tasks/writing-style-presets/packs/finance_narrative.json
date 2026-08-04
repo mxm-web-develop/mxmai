@@ -1,0 +1,355 @@
+{
+  "schemaVersion": 1,
+  "kind": "writing-voice-pack",
+  "voice_category": "finance_narrative",
+  "notes": [
+    "财经叙事多语言叶子。"
+  ],
+  "voices": [
+    {
+      "id": "fin_bu_mian_night",
+      "craft": {
+        "sentence": "先场面后机制；数字带不确定表述",
+        "stance": "冷静叙事，揭示激励不相容",
+        "opening": "一个具体谈判或砸盘夜",
+        "avoid": "荐股、保证收益、伪造精确财务数据",
+        "lexicon": "对赌、稀释、回购、动机、筹码"
+      },
+      "referenceParagraph": {
+        "zh": "午夜的会议室只剩两瓶水。他问的不是估值，而是：谁愿意在下一轮把自己变成少数股东。",
+        "zh-TW": "午夜的会议室只剩两瓶水。他问的不是估值，而是：谁愿意在下一轮把自己变成少数股东。",
+        "en": "Two water bottles left in the midnight room. He didn’t ask valuation—he asked who would volunteer to become the minority next round.",
+        "ja": "Two water bottles left in the midnight room. He didn’t ask valuation—he asked who would volunteer to become the minority next round."
+      },
+      "reportPack": {
+        "evidence": "soft_required",
+        "forbid": [
+          "精确假财报",
+          "荐股"
+        ],
+        "shape": [
+          "场景",
+          "激励结构",
+          "未证实边界"
+        ]
+      }
+    },
+    {
+      "id": "fin_deal_anatomy",
+      "craft": {
+        "sentence": "定义→机制→谁受益；短段",
+        "stance": "中性解剖，结论谨慎",
+        "opening": "先抛最反直觉的一条条款",
+        "avoid": "阴谋论、无来源的「内部人士称」精确引语",
+        "lexicon": "交割、或有、控制权、稀释、附表"
+      },
+      "referenceParagraph": {
+        "zh": "表面是「业绩对赌」，真正改变控制权的是未能完成时的代持解除条件——多数报道停在第一句。",
+        "zh-TW": "表面是「业绩对赌」，真正改变控制权的是未能完成时的代持解除条件——多数报道停在第一句。",
+        "en": "The headline is an earnout; control actually shifts on the escrow-release trigger if targets miss—most coverage stops at the first sentence.",
+        "ja": "The headline is an earnout; control actually shifts on the escrow-release trigger if targets miss—most coverage stops at the first sentence."
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "假引语"
+        ],
+        "shape": [
+          "条款对照",
+          "受益方",
+          "风险边界"
+        ]
+      }
+    },
+    {
+      "id": "fin_market_scene",
+      "craft": {
+        "sentence": "时间戳意识；感官细节服务机制",
+        "stance": "现场感强，判断克制",
+        "opening": "某一刻盘口/情绪转折",
+        "avoid": "买卖点、目标价、保证收益",
+        "lexicon": "流动性、预期差、盘口、展期、拥挤"
+      },
+      "referenceParagraph": {
+        "zh": "十四点二十，买盘突然变薄。不是崩，是大家同时想起：昨天那句「稳了」并没有担保函。",
+        "zh-TW": "十四点二十，买盘突然变薄。不是崩，是大家同时想起：昨天那句「稳了」并没有担保函。",
+        "en": "At 14:20 bids thinned. Not a crash—just everyone remembering yesterday’s “it’s fine” came with no guarantee letter.",
+        "ja": "At 14:20 bids thinned. Not a crash—just everyone remembering yesterday’s “it’s fine” came with no guarantee letter."
+      },
+      "reportPack": {
+        "evidence": "soft_required",
+        "forbid": [
+          "荐股",
+          "目标价"
+        ],
+        "shape": [
+          "时间切片",
+          "流动性",
+          "叙事与事实差"
+        ]
+      }
+    },
+    {
+      "id": "fin_company_story",
+      "craft": {
+        "sentence": "人物动作→治理含义",
+        "stance": "理解动机，不神化不妖魔化",
+        "opening": "一个反常人事决定",
+        "avoid": "编造私生活细节、侮辱性标签",
+        "lexicon": "治理、激励、投票权、披露、口径"
+      },
+      "referenceParagraph": {
+        "zh": "他减持的声明写「个人资金需求」。同日公司宣布回购——两件事可以都真，但激励方向相反。",
+        "zh-TW": "他减持的声明写「个人资金需求」。同日公司宣布回购——两件事可以都真，但激励方向相反。",
+        "en": "His filing said “personal liquidity.” The same day the company announced a buyback—both can be true; the incentives point opposite ways.",
+        "ja": "His filing said “personal liquidity.” The same day the company announced a buyback—both can be true; the incentives point opposite ways."
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "诽谤性私生活"
+        ],
+        "shape": [
+          "人物动作",
+          "治理含义",
+          "未知项"
+        ]
+      }
+    },
+    {
+      "id": "fin_tw_deal",
+      "craft": {
+        "sentence": "定義→機制→誰受益",
+        "stance": "中性解剖，結論謹慎",
+        "opening": "最反直覺的一條條款",
+        "avoid": "陰謀論、假內部人士精確引語",
+        "lexicon": "交割、或有、控制權、稀釋"
+      },
+      "referenceParagraph": {
+        "zh": "表面是業績對賭，真正改變控制權的是未能完成時的代持解除條件。",
+        "zh-TW": "表面是業績對賭，真正改變控制權的是代持解除條件。",
+        "en": "The headline is an earnout; control shifts on the escrow-release if targets miss.",
+        "ja": "見出しはアーンアウト。支配が動くのは未達時の解除条件だ。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "假引語"
+        ],
+        "shape": [
+          "條款對照",
+          "受益方",
+          "風險邊界"
+        ]
+      }
+    },
+    {
+      "id": "fin_tw_floor",
+      "craft": {
+        "sentence": "時間戳意識；感官服務機制",
+        "stance": "現場感強，判斷克制",
+        "opening": "某一刻盤口轉折",
+        "avoid": "買賣點、目標價",
+        "lexicon": "流動性、預期差、擁擠"
+      },
+      "referenceParagraph": {
+        "zh": "十四點二十買盤變薄。不是崩，是大家想起「穩了」沒有擔保函。",
+        "zh-TW": "十四點二十買盤變薄。",
+        "en": "At 14:20 bids thinned—not a crash, just memory that “it’s fine” had no guarantee.",
+        "ja": "14:20、買いが薄くなった。「大丈夫」に保証はなかった。"
+      },
+      "reportPack": {
+        "evidence": "soft_required",
+        "forbid": [
+          "薦股"
+        ],
+        "shape": [
+          "時間切片",
+          "流動性"
+        ]
+      }
+    },
+    {
+      "id": "fin_tw_governance",
+      "craft": {
+        "sentence": "人物動作→治理含義",
+        "stance": "理解動機，不神化",
+        "opening": "反常人事決定",
+        "avoid": "編造私生活、侮辱標籤",
+        "lexicon": "治理、激勵、投票權、披露"
+      },
+      "referenceParagraph": {
+        "zh": "減持聲明寫個人資金需求，同日公司宣布回購——激勵方向相反。",
+        "zh-TW": "減持與回購同一天，激勵方向相反。",
+        "en": "His filing said personal liquidity; the same day a buyback—incentives point opposite ways.",
+        "ja": "個人資金需要の開示と同日の自社株買い。インセンティブは逆向き。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "誹謗性私生活"
+        ],
+        "shape": [
+          "人物動作",
+          "治理含義"
+        ]
+      }
+    },
+    {
+      "id": "fin_en_deal",
+      "craft": {
+        "sentence": "Define → mechanism → who benefits",
+        "stance": "Neutral anatomy",
+        "opening": "Most counterintuitive clause",
+        "avoid": "Conspiracy, fake precise quotes",
+        "lexicon": "closing, contingent, control, dilution"
+      },
+      "referenceParagraph": {
+        "zh": "表面是对赌，控制权在未完成时的代持解除条件上移动。",
+        "zh-TW": "表面是對賭，控制權在解除條件上移動。",
+        "en": "The headline is an earnout; control moves on the escrow-release if targets miss.",
+        "ja": "見出しはアーンアウト。支配は未達時の解除で動く。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "fake quotes"
+        ],
+        "shape": [
+          "clause contrast",
+          "beneficiaries"
+        ]
+      }
+    },
+    {
+      "id": "fin_en_floor",
+      "craft": {
+        "sentence": "Timestamped; sensory serves mechanism",
+        "stance": "Scene-rich, judgment light",
+        "opening": "One tape turn",
+        "avoid": "Buy/sell calls, price targets",
+        "lexicon": "liquidity, crowded, basis, roll"
+      },
+      "referenceParagraph": {
+        "zh": "十四点二十买盘变薄——「稳了」没有担保函。",
+        "zh-TW": "十四點二十買盤變薄。",
+        "en": "At 14:20 bids thinned—yesterday’s “it’s fine” came with no guarantee letter.",
+        "ja": "14:20、買いが薄くなった。「大丈夫」に保証はなかった。"
+      },
+      "reportPack": {
+        "evidence": "soft_required",
+        "forbid": [
+          "stock tips"
+        ],
+        "shape": [
+          "time slice",
+          "liquidity"
+        ]
+      }
+    },
+    {
+      "id": "fin_en_governance",
+      "craft": {
+        "sentence": "Action → governance meaning",
+        "stance": "Motive without myth",
+        "opening": "Odd HR decision",
+        "avoid": "Invented private life",
+        "lexicon": "governance, incentive, disclosure, vote"
+      },
+      "referenceParagraph": {
+        "zh": "减持称个人资金需求，同日回购——激励相反。",
+        "zh-TW": "減持與回購同一天。",
+        "en": "Filing: personal liquidity. Same day: buyback. Incentives point opposite ways.",
+        "ja": "個人流動性開示と同日の自社株買い。向きが逆。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "defamation"
+        ],
+        "shape": [
+          "action",
+          "governance"
+        ]
+      }
+    },
+    {
+      "id": "fin_ja_deal",
+      "craft": {
+        "sentence": "定義→機制→受益者",
+        "stance": "中立。結論は慎重",
+        "opening": "最も反直感な条項",
+        "avoid": "陰謀、偽の内部筋",
+        "lexicon": "クロージング、偶発、支配、希薄化"
+      },
+      "referenceParagraph": {
+        "zh": "表面是对赌，控制权在未达时的解除条件上。",
+        "zh-TW": "表面是對賭，控制權在解除條件上。",
+        "en": "Earnout headline; control moves on miss-triggered release.",
+        "ja": "見出しはアーンアウト。支配は未達時の解除で動く。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "偽引用"
+        ],
+        "shape": [
+          "条項対照",
+          "受益者"
+        ]
+      }
+    },
+    {
+      "id": "fin_ja_floor",
+      "craft": {
+        "sentence": "時刻意識。感覚は機制のため",
+        "stance": "現場感、判断は抑える",
+        "opening": "板の転換点",
+        "avoid": "売買指示",
+        "lexicon": "流動性、期待差、過密"
+      },
+      "referenceParagraph": {
+        "zh": "十四点二十买盘变薄。",
+        "zh-TW": "十四點二十買盤變薄。",
+        "en": "At 14:20 bids thinned.",
+        "ja": "14:20、買いが薄くなった。「大丈夫」に保証はなかった。"
+      },
+      "reportPack": {
+        "evidence": "soft_required",
+        "forbid": [
+          "推奨"
+        ],
+        "shape": [
+          "時間切片",
+          "流動性"
+        ]
+      }
+    },
+    {
+      "id": "fin_ja_governance",
+      "craft": {
+        "sentence": "動作→統治の意味",
+        "stance": "神格化しない",
+        "opening": "奇妙な人事",
+        "avoid": "私生活捏造",
+        "lexicon": "統治、インセンティブ、開示"
+      },
+      "referenceParagraph": {
+        "zh": "减持与回购同一天，激励相反。",
+        "zh-TW": "減持與回購同一天。",
+        "en": "Sale filing and buyback same day—opposite incentives.",
+        "ja": "個人売却開示と同日の自社株買い。向きが逆。"
+      },
+      "reportPack": {
+        "evidence": "required",
+        "forbid": [
+          "誹謗"
+        ],
+        "shape": [
+          "動作",
+          "統治"
+        ]
+      }
+    }
+  ]
+}

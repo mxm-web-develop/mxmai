@@ -71,7 +71,7 @@ export function getCurrentDataSourceApiKey(provider: string): string | undefined
   return currentKey;
 }
 
-const ALWAYS_AVAILABLE = new Set(['coingecko', 'defillama']);
+const ALWAYS_AVAILABLE = new Set(['coingecko', 'defillama', 'cn-market']);
 
 export async function isDataSourceProviderUsable(provider: string): Promise<boolean> {
   const name = provider.trim().toLowerCase();
@@ -92,8 +92,9 @@ export async function isDataSourceProviderUsable(provider: string): Promise<bool
 
 const DOMAIN_PROVIDER_FALLBACK: Record<string, string[]> = {
   legal: ['pkulaw'],
-  finance: ['finnhub'],
-  stock: ['finnhub'],
+  // cn-market：免费 A 股指数快照；Finnhub：个股/美股（需 Key）
+  finance: ['cn-market', 'finnhub'],
+  stock: ['cn-market', 'finnhub'],
   crypto: ['coingecko', 'defillama'],
   business: ['tianyancha'],
 };
@@ -107,12 +108,12 @@ export async function resolveProviderForDomain(domain: string): Promise<string |
 }
 
 export async function getAllDataSourceProviderConfigs(): Promise<DataSourceProviderConfig[]> {
-  const providers = ['coingecko', 'finnhub', 'defillama', 'pkulaw', 'tianyancha'];
+  const providers = ['coingecko', 'cn-market', 'finnhub', 'defillama', 'pkulaw', 'tianyancha'];
   return Promise.all(providers.map((p) => getDataSourceProviderConfig(p)));
 }
 
 export async function listUsableDataSourceProviderNames(): Promise<string[]> {
-  const all = ['coingecko', 'finnhub', 'defillama', 'pkulaw', 'tianyancha'];
+  const all = ['coingecko', 'cn-market', 'finnhub', 'defillama', 'pkulaw', 'tianyancha'];
   const usable: string[] = [];
   for (const p of all) {
     if (await isDataSourceProviderUsable(p)) usable.push(p);

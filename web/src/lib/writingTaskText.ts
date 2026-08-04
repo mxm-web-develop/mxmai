@@ -47,7 +47,7 @@ export async function fetchWritingTaskPlainText(taskId: string): Promise<string>
     return text;
   }
   try {
-    const res = await fetch(media.blobUrl);
+    const res = await fetch(media.sourceUrl, { headers: media.httpHeaders });
     if (!res.ok) throw new Error(`读取 PDF 失败 (${res.status})`);
     const blob = await res.blob();
     const file = new File([blob], 'writing.pdf', { type: 'application/pdf' });
@@ -59,6 +59,6 @@ export async function fetchWritingTaskPlainText(taskId: string): Promise<string>
     const hint = exportErrors.length ? exportErrors.join('；') : detail;
     throw new Error(`无法获取写作正文：${hint}`);
   } finally {
-    media.revoke();
+    media.revoke?.();
   }
 }

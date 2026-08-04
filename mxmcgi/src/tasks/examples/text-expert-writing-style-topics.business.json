@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-08-02T00:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "writing-style-topics",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {},
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家填合同",
+          "subtypeLabel": "写作风格选题提炼",
+          "description": "按选定文风从检索素材提炼可写的创作选题（剧名/书名/议题+核心冲突），不是行业日报热点。",
+          "taskLabelI18n": {
+            "zh": "专家填合同",
+            "zh-TW": "專家填合同",
+            "en": "Expert",
+            "ja": "Expert"
+          },
+          "subtypeLabelI18n": {
+            "zh": "写作风格选题提炼",
+            "zh-TW": "寫作風格選題提煉",
+            "en": "Writing-style topic extract",
+            "ja": "文体トピック抽出"
+          },
+          "descriptionI18n": {
+            "zh": "按选定文风从检索素材提炼可写的创作选题，不是行业日报热点。",
+            "zh-TW": "依選定文風提煉可寫創作選題，非行業日報熱點。",
+            "en": "Extract writable creative topics for a chosen voice — not industry daily headlines.",
+            "ja": "選定文体向けの創作トピックを抽出（業界日報ではない）。"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "待填字段说明",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "你是创作选题策划，不是新闻编辑，也不是短剧编剧（除非 basic.voice_category 明确是 hongguo_drama）。\n\n## 类别 + 写作风格双锁定（最高优先级，违反即失败）\n- 类别格式：只允许使用 contract.basic.topic_format；正例/反例见 topic_format_example_good / _bad。\n- 写作风格：必须贴合 contract.basic.voice_style（voice_label、blurb、craft、topic_hints）。同类别下换 voice_id，选题角度必须明显不同。\n- topic_hints 是**工艺角度**（怎么写），不是写死题材清单；具体题材必须优先从检索到的**近7天仍在发酵的热门/热议/热播**提炼，再用风格工艺改写。\n- **近热优先（硬）**：优先本周仍被讨论的议题；过气旧爆款（如早已降温的「老板体验日/送外卖」类旧闻翻炒）除非检索标题/摘要明确显示仍在本周热议，否则不要推荐。\n- 用 craft.opening/stance/lexicon 定调；严格避开 craft.avoid。\n- 禁止把短剧格式套到其它类别：除非 voice_category=hongguo_drama，否则禁止「【剧名】+长剧情」与婚礼/重生/真假千金等竖屏梗。\n- 全类别通用：题材跟检索热门走，禁止无视检索整批自造固定梗/固定学科。\n- finance_narrative：自媒体财经专栏角度（交易/条款/激励/现场），题材跟热议公司/交易走，不是剧本梗概。\n- course_tutorial：从检索到的当前热门课/教程提炼一课标题；禁止写死学科，也禁止整批自造编程入门课。\n- hongguo_drama / fanqie_web：从热播剧名/热门书名素材提炼钩子，用所选节拍/笔法改写；选题须能在单次篇幅内写完（完整故事/单集打完），禁止「未完/下章」连载钩选题。\n- talk_brief：**voice_label / 参考节目名只定交锋笔法**；选题必须是社会/新闻/经济/民生等公共议题；禁止把参考节目本身、主持人、嘉宾名单、停播复播、沙发考古写成选题。self_media / voiceover_brief / political_report / literary_column：议题/锐评/口播/报道/专栏选题跟检索热门走。\n\n## 与行业日报的区别\n- 禁止监管通报腔、榜单、工具上线、版权合规新闻句（不是在禁「网课讲义选题」）。\n- 要「我想写这一篇/这一课」的角度，不是「今日要闻标题」。\n\n## 输出格式\n- 第一个字符 `{`，最后一个字符 `}`；仅 JSON：{\"topics\":[\"…\",…]} 或带 sources 对象数组。\n- 禁止 markdown 围栏、编号列表、解释散文、thinking。\n\n## 语言与条数\n- topics 用 basic.language；条数按 field_specs；检索非空禁止空数组。\n- 可据检索意译收拢，但必须服从当前类别格式与所选风格；勿编造假财报数字/假监管文件。\n- 选题读感应是「这周还能写」、不是「去年旧梗复读」。\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.35,
+              "maxTokens": 4096,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "reasoning_split": true
+              }
+            }
+          }
+        }
+      },
+      "routing": {
+        "logical_model": "text-expert-writing-style-topics",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [],
+      "linkedTextFormat": null
+    }
+  ]
+}

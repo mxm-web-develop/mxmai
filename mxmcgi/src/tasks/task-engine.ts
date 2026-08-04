@@ -57,16 +57,24 @@ function readTemplateGenerateParamsRaw(template: unknown): Record<string, unknow
   return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
 }
 
+/** 全业务输出 token 下限：禁止再落 8k 等过紧上限导致 nestedText/成稿截断 */
+export const BUSINESS_MAX_TOKENS_FLOOR = 20_000;
+
 function pickGenerateDefaultsFromTemplate(template: any): Partial<Record<'temperature' | 'maxTokens' | 'topP', number>> {
   const raw = readTemplateGenerateParamsRaw(template);
-  if (!raw) return {};
   const out: Partial<Record<'temperature' | 'maxTokens' | 'topP', number>> = {};
-  const t = raw.temperature;
-  const mt = raw.maxTokens;
-  const tp = raw.topP;
-  if (typeof t === 'number' && Number.isFinite(t)) out.temperature = t;
-  if (typeof mt === 'number' && Number.isFinite(mt)) out.maxTokens = mt;
-  if (typeof tp === 'number' && Number.isFinite(tp)) out.topP = tp;
+  if (raw) {
+    const t = raw.temperature;
+    const mt = raw.maxTokens;
+    const tp = raw.topP;
+    if (typeof t === 'number' && Number.isFinite(t)) out.temperature = t;
+    if (typeof mt === 'number' && Number.isFinite(mt) && mt > 0) {
+      out.maxTokens = Math.max(Math.floor(mt), BUSINESS_MAX_TOKENS_FLOOR);
+    }
+    if (typeof tp === 'number' && Number.isFinite(tp)) out.topP = tp;
+  }
+  // 未配置或过低时一律抬到 20k，避免 provider 默认 4k/8k
+  if (out.maxTokens == null) out.maxTokens = BUSINESS_MAX_TOKENS_FLOOR;
   return out;
 }
 
@@ -88,6 +96,11 @@ function mergeGenerateDefaults<T extends Record<string, any>>(
     if (next[k] === undefined && defaults[k] !== undefined) {
       next[k] = defaults[k];
     }
+  }
+  if (typeof next.maxTokens === 'number' && Number.isFinite(next.maxTokens) && next.maxTokens > 0) {
+    next.maxTokens = Math.max(Math.floor(next.maxTokens), BUSINESS_MAX_TOKENS_FLOOR);
+  } else if (next.maxTokens == null) {
+    next.maxTokens = defaults.maxTokens ?? BUSINESS_MAX_TOKENS_FLOOR;
   }
   return next as T;
 }
@@ -174,6 +187,10 @@ export async function runTaskV2Single(
   }
 
   let normalizedParams = { ...(req.params as Record<string, any>) };
+  const adminPipelineDebug = req.options?.adminPipelineDebug === true;
+  if (adminPipelineDebug) {
+    normalizedParams.__adminPipelineDebug = true;
+  }
   const templateFormSchema = (template as { formSchema?: import('./types').JsonSchemaV2 }).formSchema;
   const formSchemaForInput = options?.publishedFormSchema ?? templateFormSchema;
   /** mxm-warp：以 contractSchema 校验入参；无则回退 formSchema（仅便于过渡） */
@@ -320,21 +337,38 @@ export async function runTaskV2Single(
       };
     }
 
-    const rendered = renderPromptFromTemplate({
-      prompt: template.prompt,
-      paramsSchema: templateFormSchema ?? formSchemaForInput,
-      params: ctx.params,
-      contextVars: {
-        userId: userId ?? '',
-        taskId: batchCtx?.parentTaskId ?? '',
-        uuid: '',
-        timestamp: Date.now(),
-        date: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-        subtype: subtype ?? '',
-        ...(batchCtx ? parallelContextVars(batchCtx) : {}),
-      },
-    });
-    finalPrompt = rendered.finalPrompt;
+    const templateExtraForSkill = (template.extra as Record<string, unknown> | undefined) ?? {};
+    const { resolveSkillPackFromTemplateExtra, renderTextSkillPrompt } = await import('./skill');
+    const textSkillPack = resolveSkillPackFromTemplateExtra(templateExtraForSkill);
+    if (textSkillPack && scope === 'text') {
+      const renderedSkill = renderTextSkillPrompt({ pack: textSkillPack, params: ctx.params });
+      finalPrompt = renderedSkill.finalPrompt;
+      ctx = {
+        ...ctx,
+        state: {
+          ...ctx.state,
+          coreSkill: true,
+          skillSystem: renderedSkill.system,
+          skillUser: renderedSkill.user,
+        },
+      };
+    } else {
+      const rendered = renderPromptFromTemplate({
+        prompt: template.prompt,
+        paramsSchema: templateFormSchema ?? formSchemaForInput,
+        params: ctx.params,
+        contextVars: {
+          userId: userId ?? '',
+          taskId: batchCtx?.parentTaskId ?? '',
+          uuid: '',
+          timestamp: Date.now(),
+          date: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+          subtype: subtype ?? '',
+          ...(batchCtx ? parallelContextVars(batchCtx) : {}),
+        },
+      });
+      finalPrompt = rendered.finalPrompt;
+    }
 
     if (!deferBusinessPrePipeline) {
       ctx = await runBusinessPrePromptSteps(ctx, template, scope, finalPrompt);
@@ -589,6 +623,7 @@ export async function runTaskV2Single(
           mxmWarp: true,
           contract: warpContract,
           pipelineTrace: afterWarp.state.pipelineTrace,
+          evidence: afterWarp.state.evidence,
         },
       } as unknown as GenerateResult;
     } else {
@@ -792,6 +827,7 @@ export async function runTaskV2Single(
     pipeline: (ctx.state as { pipeline?: unknown }).pipeline,
     pipelineNestedUsage: (ctx.state as { pipelineNestedUsage?: unknown }).pipelineNestedUsage,
     nestedTextLast: (ctx.state as { nestedTextLast?: unknown }).nestedTextLast,
+    evidence: (ctx.state as { evidence?: unknown }).evidence,
     businessPipelinePre: !deferMediaPrePipeline,
     businessPipelinePreDeferred: deferMediaPrePipeline,
     ...(warpMode ? { executionMode: 'mxm-warp' as const } : {}),
@@ -835,6 +871,12 @@ export async function runTaskV2Single(
       metadata: {
         ...((createParamsBody as { params?: { metadata?: Record<string, unknown> } }).params?.metadata ?? {}),
         ...((req.metadata && typeof req.metadata === 'object' ? req.metadata : {}) as Record<string, unknown>),
+        ...(adminPipelineDebug
+          ? {
+              adminPipelineDebug: true,
+              hideFromUserList: true,
+            }
+          : {}),
       },
     },
     userId: billingUserId,
@@ -859,6 +901,12 @@ export async function runTaskV2Single(
             taskV2: { scope, taskKey, subtype: subtype ?? null },
             businessPipelineState: pipelineStateSnapshot,
             contextFieldMeta: (ctx.state as { contextFieldMeta?: unknown }).contextFieldMeta,
+            ...(adminPipelineDebug
+              ? {
+                  adminPipelineDebug: true,
+                  hideFromUserList: true,
+                }
+              : {}),
           },
         });
       } catch (metaErr) {

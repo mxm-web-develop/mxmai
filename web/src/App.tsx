@@ -10,6 +10,7 @@ import { ImageIcon, LayoutDashboard, Menu, MessageSquare, ShieldCheck, Workflow 
 import { useTranslation } from 'react-i18next';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { KnowledgeBaseParseProvider } from './context/KnowledgeBaseParseContext';
+import { AppErrorBoundary } from './components/errors/AppErrorBoundary';
 const Landing = lazy(() => import('./pages/Landing'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Writing = lazy(() => import('./pages/Writing'));
@@ -474,9 +475,24 @@ export default function App() {
     >
       <AntdApp>
         <AuthProvider>
-          <AppContent isDark={isDark} setMode={setMode} />
+          <AppWithErrorBoundary isDark={isDark} setMode={setMode} />
         </AuthProvider>
       </AntdApp>
     </ConfigProvider>
+  );
+}
+
+function AppWithErrorBoundary({
+  isDark,
+  setMode,
+}: {
+  isDark: boolean;
+  setMode: (mode: ThemeMode, options?: { manual?: boolean }) => void;
+}) {
+  const { isAdmin } = useAuth();
+  return (
+    <AppErrorBoundary isAdmin={isAdmin}>
+      <AppContent isDark={isDark} setMode={setMode} />
+    </AppErrorBoundary>
   );
 }

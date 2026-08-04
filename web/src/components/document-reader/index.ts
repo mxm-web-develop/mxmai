@@ -5,3 +5,5 @@ export type { PdfReaderControls } from './pdfReaderControls';
 export { MarkdownReader } from './MarkdownReader';
 export { PlainTextReader } from './PlainTextReader';
 export { ReaderToolbar } from './ReaderToolbar';
+export { PptxDeckReader } from './PptxDeckReader';
+export type { PptxDeckSlide } from './PptxDeckReader';

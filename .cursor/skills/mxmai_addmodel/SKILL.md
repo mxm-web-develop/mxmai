@@ -5,7 +5,8 @@ description: Adds or updates model support in the mxmcgi service. Use when the u
 
 # 在 mxmcgi 中新增模型支持（mxmai 专用流程）
 
-> **主通道 atlascloud / maxplan**：请改用 [`.cursor/skills/mxmai_provider_maintain/SKILL.md`](../mxmai_provider_maintain/SKILL.md)（含官方定价、probe 门禁、模态能力集中表、同步生产）。本 skill 覆盖 deer / replicate / openrouter 等其它 Provider。
+> **主通道 atlascloud / maxplan**：请改用 [`.cursor/skills/mxmai_provider_maintain/SKILL.md`](../mxmai_provider_maintain/SKILL.md)（含官方定价、probe 门禁、模态能力集中表、同步生产）。  
+> **text / writing 默认 LLM**：一律 `maxplan` / `MiniMax-M3`；**不要**再给业务配 `deer`。本 skill 仅用于仍在维护的其它 Provider（replicate / openrouter / qhai 等）。
 
 > 适用场景：用户说"给 DeerAPI/Replicate/OpenAI 等新增某个模型"，并提供了对应的线上文档或 pricing 页，希望：
 > - 代码能调用新模型；

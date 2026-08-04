@@ -6,6 +6,7 @@ import {
   resolveStructuredMetaTitle,
   resolveThemeColors,
 } from './theme-registry';
+import { fitCoverTitleForDisplay } from '../writing/markdown-pdf-renderer';
 
 function escapeHtml(text: string): string {
   return text
@@ -66,11 +67,14 @@ function renderBlocksHtml(
   for (const block of spec.blocks) {
     switch (block.type) {
       case 'cover': {
-        const title =
+        const title = fitCoverTitleForDisplay(
           block.title?.trim() ||
-          resolveStructuredMetaTitle(structured) ||
-          'Document';
-        const subtitle = block.subtitle?.trim() || '';
+            resolveStructuredMetaTitle(structured) ||
+            'Document'
+        );
+        const subtitle = block.subtitle?.trim()
+          ? fitCoverTitleForDisplay(block.subtitle.trim(), 48)
+          : '';
         const bg = block.assetId
           ? resolveAssetUrl(spec, block.assetId)
           : spec.page.backgroundImage;
@@ -150,8 +154,8 @@ function buildHtmlDocument(spec: DocumentRenderSpecV1, body: string): string {
     @page { size: ${spec.page.size}; margin: ${(spec.page.margin ?? [48, 48, 48, 48]).map((n) => `${n}px`).join(' ')}; }
     body { font-family: "Noto Sans SC", "PingFang SC", sans-serif; color: ${colors.text}; background: ${colors.background}; line-height: 1.55; font-size: 11pt; }
     h1,h2,h3 { color: ${colors.primary}; }
-    .cover { min-height: 90vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; page-break-after: always; }
-    .cover h1 { font-size: 28pt; }
+    .cover { min-height: 90vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; page-break-after: always; page-break-inside: avoid; }
+    .cover h1 { font-size: clamp(16pt, 3.2vw, 28pt); max-width: 88%; line-height: 1.35; overflow-wrap: anywhere; }
     .subtitle { color: ${colors.muted}; font-size: 14pt; }
     .toc { page-break-after: always; }
     .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }

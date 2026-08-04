@@ -644,6 +644,99 @@ html:not(.dark) .asset-storage-mode-tabs.ant-segmented {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
+/* 「我的资源」弹窗：文档/音频列表（去掉原生 bullet，更密行） */
+.mkf-doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.mkf-doc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.mkf-doc-row:hover:not(:disabled) {
+  border-color: rgba(2, 132, 199, 0.45);
+  background: rgba(2, 132, 199, 0.04);
+}
+
+.mkf-doc-row:focus-visible {
+  outline: 2px solid rgba(2, 132, 199, 0.45);
+  outline-offset: 1px;
+}
+
+.mkf-doc-row:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.mkf-doc-row__icon {
+  flex-shrink: 0;
+  color: #0284c7;
+}
+
+.mkf-doc-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mkf-doc-row__name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mkf-doc-row__meta {
+  font-size: 11px;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.mkf-doc-row__action {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0284c7;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.mkf-doc-row:hover:not(:disabled) .mkf-doc-row__action,
+.mkf-doc-row:focus-visible .mkf-doc-row__action,
+.mkf-doc-row--busy .mkf-doc-row__action {
+  opacity: 1;
+}
+
+.mkf-doc-list-footer {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
 .vf-link-picker-selected-hint {
   color: #6366f1;
   font-size: 0.8125rem;

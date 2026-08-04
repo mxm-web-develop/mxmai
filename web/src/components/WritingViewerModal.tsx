@@ -8,7 +8,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileDown, FileText, FolderInput, Trash2 } from 'lucide-react';
+import { FileDown, FileText, FolderInput, Presentation, Trash2 } from 'lucide-react';
 import { App } from 'antd';
 import {
   downloadWritingExport,
@@ -27,8 +27,10 @@ import {
   MarkdownReader,
   PdfJsReader,
   PlainTextReader,
+  PptxDeckReader,
   ReaderToolbar,
   type PdfReaderControls,
+  type PptxDeckSlide,
 } from './document-reader';
 import { TaskProgressStage } from './TaskProgressStage';
 import { TaskViewerDataPanel } from './TaskViewerDataPanel';
@@ -37,6 +39,7 @@ import {
   MoveTasksToKnowledgeFolderModal,
   type PrepareKnowledgeLinksResult,
 } from './task-list/MoveTasksToKnowledgeFolderModal';
+import { pickPresentationDeckMeta, type WritingCollectionTeaser } from './task-list/taskPreviewText';
 import './WritingViewerModal.css';
 
 interface WritingViewerModalProps {
@@ -44,8 +47,12 @@ interface WritingViewerModalProps {
   onClose: () => void;
   title?: string;
   content: string;
-  /** PDF 存储时使用 blob URL 内嵌预览 */
+  /** PDF 预览：同源媒体 URL（pdf.js Range） */
   pdfPreviewUrl?: string | null;
+  /** PDF 鉴权头（Bearer / x-user-id） */
+  pdfHttpHeaders?: Record<string, string> | null;
+  /** PPTX 预览：优先预签名公网 URL（Office Online），否则同源媒体 URL */
+  pptxPreviewUrl?: string | null;
   task: WritingTaskItem | null;
   loading?: boolean;
   error?: string | null;
@@ -116,6 +123,83 @@ type WritingCollectionResult = {
   items: WritingCollectionItem[];
 };
 
+function extractH1Title(md: string): string {
+  const m = String(md || '').match(/^\s*#\s+(.+?)\s*$/m);
+  return m?.[1]?.replace(/^[【「『]|[】」』]$/g, '').trim() || '';
+}
+
+function isPlaceholderPieceTitle(title: string): boolean {
+  return /^(路线|第)\s*\d+(\s*路)?$/.test(title.trim());
+}
+
+function shortenChipLabel(label: string, max = 14): string {
+  const one = label.replace(/\s+/g, ' ').trim();
+  if (one.length <= max) return one;
+  return `${one.slice(0, max)}…`;
+}
+
+function isPublicHttpsUrl(raw: string | null | undefined): boolean {
+  if (!raw?.trim()) return false;
+  try {
+    const u = new URL(raw.trim());
+    if (u.protocol !== 'https:') return false;
+    const host = u.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) return false;
+    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(host)) return false;
+    if (u.port === '9000' || u.port === '9001') return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readDeckSlidesFromTask(task: WritingTaskItem | null): PptxDeckSlide[] {
+  if (!task) return [];
+  const meta = {
+    ...((task.metadata ?? {}) as Record<string, unknown>),
+    ...((task.result?.metadata ?? {}) as Record<string, unknown>),
+  };
+  const collection = meta.collectionResult;
+  const items =
+    collection && typeof collection === 'object' && !Array.isArray(collection)
+      ? (collection as { items?: unknown }).items
+      : null;
+  const out: PptxDeckSlide[] = [];
+  if (Array.isArray(items)) {
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (!it || typeof it !== 'object') continue;
+      const o = it as Record<string, unknown>;
+      const title = String(o.title ?? o.name ?? `第 ${i + 1} 页`).trim() || `第 ${i + 1} 页`;
+      const manuscript = typeof o.manuscript === 'string' ? o.manuscript.trim() : '';
+      const preview = typeof o.textPreview === 'string' ? o.textPreview.trim() : '';
+      out.push({
+        id: String(o.id ?? `s${i + 1}`),
+        title,
+        subtitle: typeof o.angle === 'string' ? o.angle.trim() : undefined,
+        bodyMarkdown: manuscript || preview || undefined,
+      });
+    }
+  }
+  if (out.length > 0) return out;
+
+  const teasers = Array.isArray(meta.collectionTeasers) ? meta.collectionTeasers : [];
+  for (let i = 0; i < teasers.length; i++) {
+    const it = teasers[i];
+    if (!it || typeof it !== 'object') continue;
+    const o = it as Record<string, unknown>;
+    const title = String(o.title ?? o.name ?? '').trim();
+    if (!title) continue;
+    out.push({
+      id: String(o.id ?? `t${i + 1}`),
+      title,
+      subtitle: typeof o.angle === 'string' ? o.angle.trim() : undefined,
+      bodyMarkdown: typeof o.textPreview === 'string' ? o.textPreview.trim() : undefined,
+    });
+  }
+  return out;
+}
+
 function readWritingCollection(task: WritingTaskItem | null): WritingCollectionResult | null {
   if (!task) return null;
   const fromResult = task.result?.metadata?.collectionResult;
@@ -130,11 +214,28 @@ function readWritingCollection(task: WritingTaskItem | null): WritingCollectionR
     if (!it || typeof it !== 'object') continue;
     const o = it as Record<string, unknown>;
     const manuscript = typeof o.manuscript === 'string' ? o.manuscript.trim() : '';
+    const rawTitle = String(o.title ?? o.name ?? '').trim();
+    const styleName =
+      typeof o.name === 'string' && o.name.trim() ? o.name.trim() : undefined;
+    const fromMs = manuscript ? extractH1Title(manuscript) : '';
+    // 旧任务「路线 N」：用成稿 H1 + 文风名拼回可读标签
+    let title = rawTitle;
+    if (!title || isPlaceholderPieceTitle(title)) {
+      if (fromMs && styleName && !isPlaceholderPieceTitle(styleName)) {
+        title = `${fromMs} · ${styleName}`;
+      } else if (fromMs) {
+        title = fromMs;
+      } else if (styleName && !isPlaceholderPieceTitle(styleName)) {
+        title = styleName;
+      } else {
+        title = `探索稿 ${i + 1}`;
+      }
+    }
     normalized.push({
       id: String(o.id ?? `v${i + 1}`),
       order: typeof o.order === 'number' ? o.order : i,
-      title: String(o.title ?? o.name ?? `路线 ${i + 1}`).trim() || `路线 ${i + 1}`,
-      name: typeof o.name === 'string' && o.name.trim() ? o.name.trim() : undefined,
+      title,
+      name: styleName && !isPlaceholderPieceTitle(styleName) ? styleName : undefined,
       angle: typeof o.angle === 'string' && o.angle.trim() ? o.angle.trim() : undefined,
       status: o.status === 'failed' || !manuscript ? 'failed' : 'ready',
       error: typeof o.error === 'string' ? o.error : undefined,
@@ -235,9 +336,8 @@ function WritingCollectionView({
         <div className="wv-collection__chips" role="tablist" aria-label="快速切换">
           {collection.items.map((item, idx) => {
             const selected = item.id === active?.id;
-            const short =
-              item.name ||
-              (item.title.length <= 14 ? item.title : `第 ${idx + 1} 路`);
+            // 优先文风短名；否则截断「标题 · 文风」，不再退化成「第 N 路」
+            const short = shortenChipLabel(item.name || item.title || `探索稿 ${idx + 1}`);
             return (
               <button
                 key={`chip-${item.id}`}
@@ -549,6 +649,8 @@ export function WritingViewerModal({
   title,
   content,
   pdfPreviewUrl = null,
+  pdfHttpHeaders = null,
+  pptxPreviewUrl = null,
   task,
   loading = false,
   error = null,
@@ -557,7 +659,7 @@ export function WritingViewerModal({
   const { t } = useTranslation();
   const { modal, message } = App.useApp();
   const { isAdmin, viewMode, setViewMode } = useAdminGatedViewerMode<'content' | 'raw'>('content');
-  const [downloadBusy, setDownloadBusy] = useState<'pdf' | 'markdown' | null>(null);
+  const [downloadBusy, setDownloadBusy] = useState<'pdf' | 'markdown' | 'pptx' | null>(null);
   const [pdfControls, setPdfControls] = useState<PdfReaderControls | null>(null);
   const [pieceBusy, setPieceBusy] = useState(false);
   const [moveSession, setMoveSession] = useState<{
@@ -593,7 +695,8 @@ export function WritingViewerModal({
     !isTaskFailed &&
     !['completed', 'awaiting_review'].includes(taskStatus) &&
     !content?.trim() &&
-    !pdfPreviewUrl;
+    !pdfPreviewUrl &&
+    !pptxPreviewUrl;
   const taskError = (task?.progress?.error || '').trim() || null;
   const contentErrorLabel =
     error && /no content found/i.test(error)
@@ -653,7 +756,27 @@ export function WritingViewerModal({
     return null;
   }, [isSunoJson, content]);
 
-  const writingCollection = useMemo(() => readWritingCollection(task), [task]);
+  const deckMeta = useMemo(
+    () =>
+      task
+        ? pickPresentationDeckMeta(task)
+        : { isDeck: false as const, teasers: [] as WritingCollectionTeaser[] },
+    [task]
+  );
+  const deckSlides = useMemo(() => readDeckSlidesFromTask(task), [task]);
+  const writingCollection = useMemo(() => {
+    // 演示文稿不得再进文集视图
+    if (deckMeta.isDeck) return null;
+    return readWritingCollection(task);
+  }, [task, deckMeta.isDeck]);
+
+  const officeEmbedUrl = useMemo(() => {
+    // 仅公网 HTTPS 才走 Office Online；本地/内网 MinIO 会白屏
+    if (!isPublicHttpsUrl(pptxPreviewUrl)) return null;
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptxPreviewUrl!)}`;
+  }, [pptxPreviewUrl]);
+
+  const showPptxViewer = Boolean(deckMeta.isDeck || pptxPreviewUrl);
 
   const openMoveWhole = useCallback(() => {
     if (!task?.id) return;
@@ -745,23 +868,46 @@ export function WritingViewerModal({
   );
 
   const markdownContent = useMemo(() => {
-    if (writingCollection) return null;
+    if (writingCollection || showPptxViewer) return null;
     if (!content?.trim() || isPlainText || storyboardChunks || sunoData) return null;
     return content.trim();
-  }, [content, isPlainText, storyboardChunks, sunoData, writingCollection]);
+  }, [content, isPlainText, storyboardChunks, sunoData, writingCollection, showPptxViewer]);
 
   const renderContent = () => {
-    if (pdfPreviewUrl) {
+    // 演示文稿：公网 URL → Office Online；否则页舞台预览 + 下载 PPTX
+    if (showPptxViewer) {
+      if (officeEmbedUrl) {
+        return (
+          <div className="wv-pptx-frame-wrap">
+            <iframe
+              className="wv-pptx-frame"
+              title={title || '演示文稿'}
+              src={officeEmbedUrl}
+              allowFullScreen
+            />
+          </div>
+        );
+      }
       return (
-        <DocumentReaderShell variant="immersive">
-          <PdfJsReader
-            source={pdfPreviewUrl}
-            showInlineToolbar={false}
-            onControlsChange={handlePdfControlsChange}
-          />
-        </DocumentReaderShell>
+        <PptxDeckReader
+          slides={
+            deckSlides.length > 0
+              ? deckSlides
+              : deckMeta.teasers.map((t) => ({
+                  id: t.id,
+                  title: t.title || t.name || '幻灯片',
+                  subtitle: t.angle,
+                  bodyMarkdown: t.textPreview,
+                }))
+          }
+          slideCount={deckMeta.slideCount}
+          sourceUrl={pptxPreviewUrl}
+          onDownload={task?.id ? () => void handleDownload('pptx') : undefined}
+          downloadBusy={downloadBusy === 'pptx'}
+        />
       );
     }
+    // 文集 / 结构化稿优先于 PDF，避免 sidecar 盖住专用视图
     if (writingCollection) {
       return (
         <WritingCollectionView
@@ -778,6 +924,18 @@ export function WritingViewerModal({
     }
     if (sunoData) {
       return <SunoJsonView data={sunoData} />;
+    }
+    if (pdfPreviewUrl) {
+      return (
+        <DocumentReaderShell variant="immersive">
+          <PdfJsReader
+            source={pdfPreviewUrl}
+            httpHeaders={pdfHttpHeaders ?? undefined}
+            showInlineToolbar={false}
+            onControlsChange={handlePdfControlsChange}
+          />
+        </DocumentReaderShell>
+      );
     }
     if (isPlainText) {
       return (
@@ -800,7 +958,7 @@ export function WritingViewerModal({
     );
   };
 
-  const handleDownload = async (format: 'pdf' | 'markdown') => {
+  const handleDownload = async (format: 'pdf' | 'markdown' | 'pptx') => {
     const taskId = task?.id;
     if (!taskId || downloadBusy || loading || error) return;
     setDownloadBusy(format);
@@ -815,14 +973,27 @@ export function WritingViewerModal({
 
   if (!visible) return null;
 
-  const hasReadableContent = Boolean(pdfPreviewUrl || content?.trim());
+  const hasReadableContent = Boolean(
+    pdfPreviewUrl || pptxPreviewUrl || showPptxViewer || content?.trim()
+  );
   const showDownloads = Boolean(task?.id && !loading && !error && hasReadableContent);
+  const hasPptx = Boolean(
+    showPptxViewer ||
+      task?.metadata?.presentationStorage ||
+      task?.result?.metadata?.presentationStorage ||
+      task?.metadata?.presentationRenderStatus === 'ok' ||
+      task?.result?.metadata?.presentationRenderStatus === 'ok'
+  );
 
   const showPdfToolbar =
     Boolean(pdfPreviewUrl && viewMode === 'content' && pdfControls && !loading && !error);
 
   const bodyScrollClass =
-    !loading && viewMode === 'content' && !pdfPreviewUrl && !writingCollection
+    !loading &&
+    viewMode === 'content' &&
+    !pdfPreviewUrl &&
+    !showPptxViewer &&
+    !writingCollection
       ? 'wv-body wv-body--edge-scroll'
       : 'wv-body wv-body--contained';
 
@@ -894,6 +1065,16 @@ export function WritingViewerModal({
               >
                 <FileDown size={15} strokeWidth={2} />
               </MediaViewerHeaderIconButton>
+              {hasPptx ? (
+                <MediaViewerHeaderIconButton
+                  disabled={!!downloadBusy}
+                  onClick={() => void handleDownload('pptx')}
+                  aria-label="下载 PPTX"
+                  title={downloadBusy === 'pptx' ? t('common.viewer.downloading') : '下载 PPTX'}
+                >
+                  <Presentation size={15} strokeWidth={2} />
+                </MediaViewerHeaderIconButton>
+              ) : null}
             </>
           ) : null}
 
@@ -933,9 +1114,11 @@ export function WritingViewerModal({
               className={`wv-body-inner${
                 pdfPreviewUrl
                   ? ' wv-body-inner--pdf'
-                  : writingCollection
-                    ? ' wv-body-inner--collection'
-                    : ''
+                  : showPptxViewer
+                    ? ' wv-body-inner--pptx'
+                    : writingCollection
+                      ? ' wv-body-inner--collection'
+                      : ''
               }`}
             >
               {isTaskFailed && task ? (

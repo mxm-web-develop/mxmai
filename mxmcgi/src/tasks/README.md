@@ -66,7 +66,7 @@ schema 校验 → 敏感词（`prompt`）→ **写作/大纲：kbRecall/webSearc
 
 #### kbRecall / webSearch 字段（写作 scope）
 
-Admin 在 `formSchema.properties` 中为字段设置 `x-ui-type: kbRecall` 或 `webSearch`。用户提交 object，prelude 执行后该字段变为格式化摘要字符串，可在 `unifiedTemplate` 用 `${fieldName}` 引用。示例 bundle：[`examples/writing-articles-with-context.business.json`](./examples/writing-articles-with-context.business.json)。
+Admin 在 `formSchema.properties` 中为字段设置 `x-ui-type: kbRecall` 或 `webSearch`。用户提交 object，prelude 执行后该字段变为格式化摘要字符串，可在 `unifiedTemplate` 用 `${fieldName}` 引用。示例见行业日报 / 选题长文等 writing bundle 中的 `webSearch` / `kbRecall` 字段。
 
 **注意**：这里的「TaskTemplate」是**单任务级别**的，不是 Smartflow。多 Task 串联仍由 Smartflow/Smartchain 另行设计。
 

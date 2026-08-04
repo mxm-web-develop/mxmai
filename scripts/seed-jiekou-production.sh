@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 向生产 Supabase 写入 jiekou 常用模型 + tech-intelligence 路由（读取主服务器 /opt/supermxmai/.env）
+# 向生产 Supabase 写入 jiekou 常用模型（读取主服务器 /opt/supermxmai/.env）
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

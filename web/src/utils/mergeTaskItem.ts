@@ -157,13 +157,34 @@ function taskHasMediaOutput(task: WritingTaskItem): boolean {
   return Array.isArray(result?.mediaUrls) && result.mediaUrls.length > 0;
 }
 
-/** 仍挂人工审核闸门、且尚无最终媒体产出 */
+function hasWritingContentPreview(task: WritingTaskItem): boolean {
+  const cp = task.result?.contentPreview;
+  if (typeof cp === 'string' && cp.trim().length >= 40) return true;
+  const meta = task.metadata as { listContentPreview?: unknown } | undefined;
+  return typeof meta?.listContentPreview === 'string' && meta.listContentPreview.trim().length >= 40;
+}
+
+function readManualReviewGate(
+  task: WritingTaskItem | null
+): { gateId?: string; kind?: string; label?: string; index?: number; totalGates?: number } | null {
+  if (!task) return null;
+  const gate = (
+    task.metadata as { manualReviewGate?: { gateId?: string; kind?: string; label?: string; index?: number; totalGates?: number } } | undefined
+  )?.manualReviewGate;
+  return gate?.gateId ? gate : null;
+}
+
+/** pre 交互卡 / 分步表：等用户补信息，不是人工审核 */
+export function isUserInputGateKind(kind: string | undefined | null): boolean {
+  return kind === 'interactive-card' || kind === 'basic-form';
+}
+
+/** 仍挂「真」人工审核闸门、且尚无最终媒体产出（不含交互卡） */
 export function hasPendingManualReviewGate(task: WritingTaskItem | null): boolean {
   if (!task) return false;
-  const gate = (
-    task.metadata as { manualReviewGate?: { gateId?: string; kind?: string } } | undefined
-  )?.manualReviewGate;
+  const gate = readManualReviewGate(task);
   if (!gate?.gateId) return false;
+  if (isUserInputGateKind(gate.kind)) return false;
   if (taskHasMediaOutput(task)) return false;
 
   const st = task.status ?? '';
@@ -178,12 +199,40 @@ export function hasPendingManualReviewGate(task: WritingTaskItem | null): boolea
   return true;
 }
 
-/** 列表展示用：修正「status=awaiting_review 但已 100%/有结果」的陈旧行 */
+/** 仍挂交互卡 / basic-form，等用户补全 */
+export function hasPendingUserInputGate(task: WritingTaskItem | null): boolean {
+  if (!task) return false;
+  const gate = readManualReviewGate(task);
+  if (!gate?.gateId || !isUserInputGateKind(gate.kind)) return false;
+  if (taskHasMediaOutput(task)) return false;
+  const st = task.status ?? '';
+  if (st === 'failed' || st === 'cancelled' || st === 'network_error' || st === 'completed') {
+    return false;
+  }
+  return true;
+}
+
+/** 列表展示用：修正陈旧行；交互卡不得显示成「待审核」 */
 export function resolveTaskListStatus(task: WritingTaskItem): string {
   const raw = task.status ?? 'pending';
 
+  if (hasPendingUserInputGate(task)) {
+    return 'awaiting_user_input';
+  }
+
   if (hasPendingManualReviewGate(task)) {
     return 'awaiting_review';
+  }
+
+  // 本地列表未收到终态推送，但产出已齐全（写作 mediaUrls / 摘要）
+  if (
+    (raw === 'processing' || raw === 'pending' || raw === 'queued') &&
+    (taskHasMediaOutput(task) || hasWritingContentPreview(task))
+  ) {
+    const pct = task.progress?.progress ?? 0;
+    if (pct >= 100 || Boolean(task.progress?.completedAt)) {
+      return 'completed';
+    }
   }
 
   if (raw !== 'awaiting_review') return raw;
@@ -243,6 +292,8 @@ export function formatManualReviewProgressDetail(task: WritingTaskItem): string 
 
 export function isTaskEligibleForManualReview(task: WritingTaskItem | null): boolean {
   if (!task) return false;
+  // interactive-card / basic-form：仅创建前引导，创建后不应再弹审核/填表
+  if (hasPendingUserInputGate(task)) return false;
   if (hasPendingManualReviewGate(task)) return true;
   if (resolveTaskListStatus(task) !== 'awaiting_review') return false;
   const pct = task.progress?.progress ?? 0;

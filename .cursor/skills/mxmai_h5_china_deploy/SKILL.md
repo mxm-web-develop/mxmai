@@ -5,12 +5,14 @@ description: 部署 eshop-agentic-h5 到国内副服务器（8.136.186.242）。
 
 # 国内 H5 副机部署（eshop-agentic-h5）
 
+> ⚠️ **2026-07-28 状态**：本副机上的 supermxmai Admin Web 已停同步。**H5 继续在线**（`:80`），`pnpm deploy:h5-china` 正常。
+
 ## 架构
 
 | 节点 | IP | 角色 |
 |------|-----|------|
 | **主力（杭州）** | `121.43.32.168` | 全量后端 Gateway :3000 + Admin Web |
-| **副机（国内）** | `8.136.186.242` | 仅 H5（Next.js :3100 + Nginx :80） |
+| **副机（国内）** | `8.136.186.242` | **仅 H5**（Next.js :3100 + Nginx :80）；Admin 已停 |
 
 H5 浏览器请求 **同源** `/api/*` → Next.js `rewrites` → `OPEN_API_PROXY_TARGET`（默认杭州主力 Gateway）。避免国内页直连产生 CORS。
 

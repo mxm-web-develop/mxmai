@@ -5,21 +5,35 @@
 
 import type { Request, Response } from 'express';
 import { taskExecutor } from '../task/task-executor';
-import type { TaskType } from '../task/types';
+import type { TaskProgress, TaskType } from '../task/types';
 import { sanitizeBase64InObject } from '../task/reference-image';
 import { toTaskListSummary } from '../task/task-list-summary';
 import { filterUserFacingListTasks } from '../task/task-list-visibility';
 import { hasPendingManualReviewGate } from '../task/task-status-normalize';
+import { sanitizeProgressError, shapeErrorForViewer } from '../errors';
 
-function mapTaskForListResponse(task: unknown): Record<string, unknown> {
+function mapTaskForListResponse(task: unknown, isAdmin = false): Record<string, unknown> {
   const row = task as Record<string, unknown>;
+  const progress = sanitizeProgressError(
+    row.progress as TaskProgress | undefined,
+    isAdmin
+  );
   const sanitized = {
     ...row,
+    ...(progress ? { progress } : {}),
     requestParams: pruneDuplicateGraphReferenceFields(
       sanitizeBase64InObject(row.requestParams)
     ),
   };
   return toTaskListSummary(sanitized);
+}
+
+function sendShapedError(req: Request, res: Response, error: unknown, fallbackStatus = 500): void {
+  const { status, body } = shapeErrorForViewer(error, {
+    isAdmin: String(req.headers['x-user-role'] ?? '').toLowerCase() === 'admin',
+    httpStatus: fallbackStatus === 500 ? undefined : fallbackStatus,
+  });
+  res.status(status).json(body);
 }
 
 /** 已有合并 referenceImage 时，从返回体中省略与 reference 重复的 model_images / clothing_images / environment_images */
@@ -134,15 +148,12 @@ export async function handleTaskAdminList(req: Request, res: Response): Promise<
       success: true,
       data: {
         ...response,
-        tasks: tasksWithUserNames.map((t) => mapTaskForListResponse(t)),
+        tasks: tasksWithUserNames.map((t) => mapTaskForListResponse(t, true)),
       },
     });
   } catch (error) {
     console.error('[TaskHttpHandlers] Admin 查询任务列表失败:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    sendShapedError(req, res, error);
   }
 }
 
@@ -176,8 +187,10 @@ export async function handleTaskGetById(req: Request, res: Response): Promise<vo
       }
     }
 
+    const progress = sanitizeProgressError(response.task.progress, isAdmin);
     const sanitizedTask = {
       ...response.task,
+      ...(progress ? { progress } : {}),
       requestParams: pruneDuplicateGraphReferenceFields(
         sanitizeBase64InObject(response.task.requestParams)
       ),
@@ -191,15 +204,12 @@ export async function handleTaskGetById(req: Request, res: Response): Promise<vo
     if (error instanceof Error && error.message.includes('not found')) {
       res.status(404).json({
         success: false,
-        error: error.message,
+        error: '任务不存在或已删除',
       });
       return;
     }
     console.error('[TaskHttpHandlers] 查询任务失败:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    sendShapedError(req, res, error);
   }
 }
 
@@ -242,22 +252,20 @@ export async function handleTaskListMine(req: Request, res: Response): Promise<v
     });
 
     const visibleTasks = filterUserFacingListTasks(response.tasks);
+    const isAdmin = await isAdminUser(req);
 
     res.json({
       success: true,
       data: {
         ...response,
-        tasks: visibleTasks.map((t) => mapTaskForListResponse(t)),
+        tasks: visibleTasks.map((t) => mapTaskForListResponse(t, isAdmin)),
         count: visibleTasks.length,
         total: Math.max(0, response.total - (response.tasks.length - visibleTasks.length)),
       },
     });
   } catch (error) {
     console.error('[TaskHttpHandlers] 查询任务列表失败:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    sendShapedError(req, res, error);
   }
 }
 
@@ -290,19 +298,17 @@ export async function handleTaskListByUser(req: Request, res: Response): Promise
       offset: Number(offset),
     });
 
+    const isAdmin = await isAdminUser(req);
     res.json({
       success: true,
       data: {
         ...response,
-        tasks: response.tasks.map((t) => mapTaskForListResponse(t)),
+        tasks: response.tasks.map((t) => mapTaskForListResponse(t, isAdmin)),
       },
     });
   } catch (error) {
     console.error('[TaskHttpHandlers] 按用户查询任务列表失败:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    sendShapedError(req, res, error);
   }
 }
 
@@ -519,6 +525,72 @@ export async function handleTaskGetReviewDraft(req: Request, res: Response): Pro
         void setManualReviewDraft(taskId, gateId, draft).catch((e) => {
           console.warn('[TaskHttpHandlers] 恢复审核草稿写回 Redis 失败:', e);
         });
+      }
+    }
+
+    // 多人语音：旧 Redis 草稿无指导时间轴元数据时，从合同 lines/cast 补齐（无需重跑任务）
+    if (draft?.kind === 'text') {
+      const hasDialogueUi =
+        draft.metadata?.ui === 'dialogue-guidance-timeline' &&
+        draft.metadata?.dialogueReview &&
+        typeof draft.metadata.dialogueReview === 'object';
+      if (!hasDialogueUi) {
+        try {
+          const { mergeBusinessPipelineState } = await import('./manual-review');
+          const { formatDialogueScriptFromLines } = await import('./sync-dialogue-lines-from-script');
+          const { setManualReviewDraft } = await import('./manual-review-store');
+          const rp = (task.requestParams ?? {}) as Record<string, unknown>;
+          const nested = (rp.params && typeof rp.params === 'object' ? rp.params : {}) as Record<
+            string,
+            unknown
+          >;
+          const bps = mergeBusinessPipelineState(
+            rp,
+            nested,
+            (task.metadata ?? {}) as Record<string, unknown>
+          );
+          const contract = bps.contract as
+            | { basic?: Record<string, unknown>; business?: Record<string, unknown> }
+            | undefined;
+          const business = contract?.business ?? {};
+          const basic = contract?.basic ?? {};
+          const lines = Array.isArray(business.lines)
+            ? (business.lines as Array<Record<string, unknown>>)
+            : [];
+          const cast = Array.isArray(business.cast)
+            ? (business.cast as Array<Record<string, unknown>>)
+            : [];
+          if (lines.length > 0) {
+            const script =
+              String(draft.text ?? '').trim() ||
+              formatDialogueScriptFromLines(lines, cast);
+            draft = {
+              ...draft,
+              text: script,
+              metadata: {
+                ...(draft.metadata ?? {}),
+                ui: 'dialogue-guidance-timeline',
+                dialogueReview: {
+                  lines,
+                  cast,
+                  broadcast_style:
+                    String(basic.broadcast_style ?? nested.broadcast_style ?? '').trim() ||
+                    undefined,
+                  guidanceNote:
+                    '本时间轴为剪辑指导（预估语速 + 相对 cue），与最终 TTS 成片时长会有偏差。',
+                },
+              },
+            };
+            void setManualReviewDraft(taskId, gateId, draft).catch((e) => {
+              console.warn('[TaskHttpHandlers] dialogueReview 补齐写回 Redis 失败:', e);
+            });
+          }
+        } catch (e) {
+          console.warn(
+            '[TaskHttpHandlers] dialogueReview 补齐失败:',
+            e instanceof Error ? e.message : e
+          );
+        }
       }
     }
 
@@ -1028,7 +1100,11 @@ export async function handleTaskRetryRenderedReviewClips(
       return;
     }
 
-    if (task.status !== 'awaiting_review' && !hasPendingManualReviewGate(task)) {
+    if (
+      task.status !== 'awaiting_review' &&
+      task.status !== 'awaiting_user_input' &&
+      !hasPendingManualReviewGate(task)
+    ) {
       res.status(400).json({
         success: false,
         error: `Task is not awaiting review (status=${task.status})`,

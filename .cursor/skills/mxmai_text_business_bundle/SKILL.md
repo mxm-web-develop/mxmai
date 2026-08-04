@@ -7,7 +7,8 @@ description: SuperMXMai scope=text 业务上架（plan/transform/expert/validati
 
 > **对齐**：`docs/mxm-warp-v2-对齐记录.md` §T  
 > **命名**：`.cursor/skills/mxmai_business_naming/SKILL.md`  
-> **与 writing 区别**：writing 面向用户文稿；**text** 是宿主管道的 LLM 原子步骤。
+> **与 writing 区别**：writing 面向用户文稿；**text** 是宿主管道的 LLM 原子步骤。  
+> **默认模型（硬约束）**：`routing` **一律** `provider=maxplan` + `model=MiniMax-M3`。**禁止** `deer` / `deepseek-*` / `deerapi`。
 
 ## 四档 type（taskKey）
 
@@ -19,6 +20,19 @@ description: SuperMXMai scope=text 业务上架（plan/transform/expert/validati
 | `validation` | `contract` + `rules` | `{ ok: boolean, errors: string[] }`；失败则管道停步 |
 
 **废止**：`format` / `think` / `structure` / `layout`（不做运行时映射）。
+
+## 超长输出截断：`deterministicPolish` 兜底
+
+`transform` 子业务（如 `text/transform/md-format`）在 post 阶段如果输出撞 LLM `maxTokens` 上限（`finish_reason: 'length'`），平台行为：
+
+- 默认：`assertNestedTextOutputComplete` 抛 `ConfigurationError` → 任务 failed。
+- 当 `step.params.deterministicPolish === true` 时：自动 fallback——退回入参 `input` + `polishEditorialMarkdown` 机械打磨，写回 `coreArtifact` / `finalArtifact`，任务继续。
+- 其它 type（plan / expert / validation）一律保留抛错语义。
+
+配 transform 子业务时建议：
+
+- `generateParams.maxTokens` 留够（`text/transform/md-format` 推荐 65536，超长日报建议 131072）。
+- 如输出已结构合规，可加 `params.deterministicPolish: true` 让截断时不阻断任务。
 
 ## 硬约束
 
@@ -48,6 +62,8 @@ pnpm --filter mxmcgi exec tsx src/scripts/apply-mxm-business-bundle.ts src/tasks
 
 - [ ] type ∈ plan|transform|expert|validation
 - [ ] 入参键与上表一致
+- [ ] **routing = maxplan / MiniMax-M3**（禁止 deer）
 - [ ] 无 text 自管线
 - [ ] validation 输出形状正确
+- [ ] transform 节点：明确是否需要 `deterministicPolish` 兜底
 - [ ] 本地已 wipe + apply 示范（如需）

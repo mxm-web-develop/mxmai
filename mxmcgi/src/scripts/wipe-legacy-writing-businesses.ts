@@ -1,7 +1,8 @@
 /**
  * 清空不合规的旧 writing 业务，仅保留：
- *   - writing / editorial / industry-daily（行业日报）
- *   - writing / group / seek（角度探索）
+ *   - writing / generator / industry-daily（行业日报）
+ *   - writing / generator / topic-article（话题写作）
+ *   - writing / group / deck（演示文稿）
  *
  * 同步清理 writing_scope_config、business_pricing 中对应项。
  * 不删 text/*（管道依赖可保留）；不删 cgi_tasks。
@@ -19,13 +20,15 @@ const MXMCGI_ROOT = process.cwd();
 const PROJECT_ROOT = join(MXMCGI_ROOT, '..');
 
 const KEEP = [
-  { type: 'editorial', subtype: 'industry-daily' },
-  { type: 'group', subtype: 'seek' },
+  { type: 'generator', subtype: 'industry-daily' },
+  { type: 'generator', subtype: 'topic-article' },
+  { type: 'group', subtype: 'deck' },
 ] as const;
 
 const KEEP_PRICING_PREFIXES = [
-  'writing-editorial-industry-daily',
-  'writing-group-seek',
+  'writing-generator-industry-daily',
+  'writing-generator-topic-article',
+  'writing-group-deck',
 ] as const;
 
 function loadEnvOnce() {
@@ -129,7 +132,7 @@ async function main() {
 
   if (keepRows.length < KEEP.length) {
     console.warn(
-      `⚠️ 保留业务不足 ${KEEP.length} 条（当前 ${keepRows.length}）。仍会删除旧业务；请随后 re-seed 行业日报/角度探索。`
+      `⚠️ 保留业务不足 ${KEEP.length} 条（当前 ${keepRows.length}）。仍会删除旧业务；请随后 re-seed 行业日报/演示文稿。`
     );
   }
 

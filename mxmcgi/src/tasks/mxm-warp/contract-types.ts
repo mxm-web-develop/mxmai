@@ -82,6 +82,8 @@ export interface MxmWarpContract {
   sources: MxmWarpSources;
   assets: Record<string, unknown>;
   enrich_search: MxmWarpEnrichSearch;
+  /** 选题剪枝后的选择面（pruneToSelection 写入；可选） */
+  selection?: Record<string, unknown>;
 }
 
 export type XZone = 'basic' | 'business';

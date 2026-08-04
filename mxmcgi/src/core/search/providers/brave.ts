@@ -57,7 +57,7 @@ export class BraveSearchProvider implements SearchProvider {
 
       if (!response.ok) {
         console.error(`[BraveSearch] API error: ${response.status}`);
-        return this.createEmptyResult(dimension, query);
+        return this.createEmptyResult(dimension, query, `HTTP ${response.status}`);
       }
 
       const data = await response.json() as BraveSearchResponse;
@@ -82,7 +82,8 @@ export class BraveSearchProvider implements SearchProvider {
       };
     } catch (error) {
       console.error('[BraveSearch] Search failed:', error);
-      return this.createEmptyResult(dimension, query);
+      const msg = error instanceof Error ? error.message : String(error);
+      return this.createEmptyResult(dimension, query, msg);
     }
   }
 
@@ -114,7 +115,11 @@ export class BraveSearchProvider implements SearchProvider {
     }
   }
 
-  private createEmptyResult(dimension: SearchDimension, query: string): DimensionSearchResult {
+  private createEmptyResult(
+    dimension: SearchDimension,
+    query: string,
+    error?: string
+  ): DimensionSearchResult {
     return {
       dimension,
       provider: this.name,
@@ -122,6 +127,7 @@ export class BraveSearchProvider implements SearchProvider {
       total: 0,
       query,
       timestamp: new Date().toISOString(),
+      ...(error ? { error } : {}),
     };
   }
 }

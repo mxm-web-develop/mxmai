@@ -14,6 +14,7 @@ import {
   type MxmWarpContract,
   type MxmWarpEnrichSearch,
 } from './contract-types';
+import { promoteParamsAssetsToContract } from './promote-assets';
 
 export type WarpLlmFn = (args: {
   system: string;
@@ -214,7 +215,9 @@ export function runInputAssembleOnly(
     assets,
     enrich_search,
   };
-  return withContract(ctx, contract);
+  let next = withContract(ctx, contract);
+  next = promoteParamsAssetsToContract(next, contractSchema);
+  return next;
 }
 
 /**

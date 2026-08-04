@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { MfaCodeInput } from './MfaCodeInput';
 import { TotpSetupModal } from './TotpSetupModal';
+import { toUserFacingErrorMessage } from '../../lib/platformErrors';
 
 type PasswordFormValues = {
   currentPassword: string;
@@ -55,7 +56,7 @@ export function AccountSecurityPanel() {
     const res = await disableMfaTotp(disablePassword, disableCode);
     setDisableBusy(false);
     if (res.error) {
-      message.error(res.error);
+      message.error(toUserFacingErrorMessage(res.error));
       return;
     }
     message.success(t('account.mfa.disabledSuccess'));
@@ -150,7 +151,7 @@ export function AccountSecurityPanel() {
                 });
                 setPasswordSubmitting(false);
                 if (res.error) {
-                  message.error(res.error);
+                  message.error(toUserFacingErrorMessage(res.error));
                   return;
                 }
                 message.success(t('account.password.updated'));

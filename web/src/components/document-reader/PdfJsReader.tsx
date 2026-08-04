@@ -14,6 +14,8 @@ const PDF_PAGE_MAX_WIDTH = 960;
 
 interface PdfJsReaderProps {
   source: PdfDocumentSource;
+  /** 鉴权 Range 加载（写作 /media/writing 等） */
+  httpHeaders?: Record<string, string>;
   /** 默认 true；弹窗顶栏已挂载工具条时设为 false */
   showInlineToolbar?: boolean;
   onControlsChange?: (controls: PdfReaderControls | null) => void;
@@ -168,6 +170,7 @@ function PdfPageSlot({
 
 export function PdfJsReader({
   source,
+  httpHeaders,
   showInlineToolbar = true,
   onControlsChange,
 }: PdfJsReaderProps) {
@@ -229,7 +232,7 @@ export function PdfJsReader({
     pageAspectsRef.current.clear();
     visibleRatiosRef.current.clear();
 
-    void loadPdfDocument(source)
+    void loadPdfDocument(source, httpHeaders ? { httpHeaders } : undefined)
       .then(async (loaded) => {
         if (cancelled) return;
         setDoc(loaded);
@@ -257,7 +260,9 @@ export function PdfJsReader({
     return () => {
       cancelled = true;
     };
-  }, [source]);
+    // httpHeaders 用序列化键避免对象引用抖动
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- headersKey 代理 httpHeaders
+  }, [source, httpHeaders ? JSON.stringify(httpHeaders) : '']);
 
   useLayoutEffect(() => {
     const el = scrollRef.current;

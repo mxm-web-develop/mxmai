@@ -34,8 +34,16 @@
           "title": "模特参与度",
           "description": "控制画面中是否出现真人模特、以及面部是否入镜；与「模特参考」配合使用。",
           "x-ui-type": "selection",
-          "enum": ["default", "face_hidden", "no_model"],
-          "x-enum-labels": ["默认", "去模特身份", "无模特"],
+          "enum": [
+            "default",
+            "face_hidden",
+            "no_model"
+          ],
+          "x-enum-labels": [
+            "默认",
+            "去模特身份",
+            "无模特"
+          ],
           "default": "default",
           "x-enum-descriptions": {
             "default": "根据描述或模特参考完整展示人物；须保证与参考为同一人（identity lock）。",
@@ -54,19 +62,43 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "content": { "type": "string", "title": "图片 URL / Base64" },
+              "content": {
+                "type": "string",
+                "title": "图片 URL / Base64"
+              },
               "type": {
                 "type": "string",
                 "title": "用途类型",
-                "enum": ["main-subject", "background", "outfits", "color-reference", "style-reference"],
+                "enum": [
+                  "main-subject",
+                  "background",
+                  "outfits",
+                  "color-reference",
+                  "style-reference"
+                ],
                 "default": "main-subject"
               },
-              "purpose": { "type": "string", "title": "用途说明（可选）" },
-              "groupKey": { "type": "string", "title": "槽位键" },
-              "groupTitle": { "type": "string", "title": "分组标题" },
-              "groupDesc": { "type": "string", "title": "分组说明（可选）" }
+              "purpose": {
+                "type": "string",
+                "title": "用途说明（可选）"
+              },
+              "groupKey": {
+                "type": "string",
+                "title": "槽位键"
+              },
+              "groupTitle": {
+                "type": "string",
+                "title": "分组标题"
+              },
+              "groupDesc": {
+                "type": "string",
+                "title": "分组说明（可选）"
+              }
             },
-            "required": ["content", "type"]
+            "required": [
+              "content",
+              "type"
+            ]
           }
         },
         "garment_images": {
@@ -80,19 +112,43 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "content": { "type": "string", "title": "图片 URL / Base64" },
+              "content": {
+                "type": "string",
+                "title": "图片 URL / Base64"
+              },
               "type": {
                 "type": "string",
                 "title": "用途类型",
-                "enum": ["main-subject", "background", "outfits", "color-reference", "style-reference"],
+                "enum": [
+                  "main-subject",
+                  "background",
+                  "outfits",
+                  "color-reference",
+                  "style-reference"
+                ],
                 "default": "outfits"
               },
-              "purpose": { "type": "string", "title": "用途说明（可选）" },
-              "groupKey": { "type": "string", "title": "槽位键" },
-              "groupTitle": { "type": "string", "title": "分组标题" },
-              "groupDesc": { "type": "string", "title": "分组说明（可选）" }
+              "purpose": {
+                "type": "string",
+                "title": "用途说明（可选）"
+              },
+              "groupKey": {
+                "type": "string",
+                "title": "槽位键"
+              },
+              "groupTitle": {
+                "type": "string",
+                "title": "分组标题"
+              },
+              "groupDesc": {
+                "type": "string",
+                "title": "分组说明（可选）"
+              }
             },
-            "required": ["content", "type"]
+            "required": [
+              "content",
+              "type"
+            ]
           }
         },
         "garment_material": {
@@ -182,19 +238,43 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "content": { "type": "string", "title": "图片 URL / Base64" },
+              "content": {
+                "type": "string",
+                "title": "图片 URL / Base64"
+              },
               "type": {
                 "type": "string",
                 "title": "用途类型",
-                "enum": ["main-subject", "background", "outfits", "color-reference", "style-reference"],
+                "enum": [
+                  "main-subject",
+                  "background",
+                  "outfits",
+                  "color-reference",
+                  "style-reference"
+                ],
                 "default": "style-reference"
               },
-              "purpose": { "type": "string", "title": "用途说明（可选）" },
-              "groupKey": { "type": "string", "title": "槽位键" },
-              "groupTitle": { "type": "string", "title": "分组标题" },
-              "groupDesc": { "type": "string", "title": "分组说明（可选）" }
+              "purpose": {
+                "type": "string",
+                "title": "用途说明（可选）"
+              },
+              "groupKey": {
+                "type": "string",
+                "title": "槽位键"
+              },
+              "groupTitle": {
+                "type": "string",
+                "title": "分组标题"
+              },
+              "groupDesc": {
+                "type": "string",
+                "title": "分组说明（可选）"
+              }
             },
-            "required": ["content", "type"]
+            "required": [
+              "content",
+              "type"
+            ]
           }
         },
         "environment_images": {
@@ -208,19 +288,43 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "content": { "type": "string", "title": "图片 URL / Base64" },
+              "content": {
+                "type": "string",
+                "title": "图片 URL / Base64"
+              },
               "type": {
                 "type": "string",
                 "title": "用途类型",
-                "enum": ["main-subject", "background", "outfits", "color-reference", "style-reference"],
+                "enum": [
+                  "main-subject",
+                  "background",
+                  "outfits",
+                  "color-reference",
+                  "style-reference"
+                ],
                 "default": "background"
               },
-              "purpose": { "type": "string", "title": "用途说明（可选）" },
-              "groupKey": { "type": "string", "title": "槽位键" },
-              "groupTitle": { "type": "string", "title": "分组标题" },
-              "groupDesc": { "type": "string", "title": "分组说明（可选）" }
+              "purpose": {
+                "type": "string",
+                "title": "用途说明（可选）"
+              },
+              "groupKey": {
+                "type": "string",
+                "title": "槽位键"
+              },
+              "groupTitle": {
+                "type": "string",
+                "title": "分组标题"
+              },
+              "groupDesc": {
+                "type": "string",
+                "title": "分组说明（可选）"
+              }
             },
-            "required": ["content", "type"]
+            "required": [
+              "content",
+              "type"
+            ]
           }
         },
         "shoot_preset": {
@@ -319,15 +423,27 @@
           "title": "输出宫格",
           "description": "与拍摄场景独立：单张选 1×1；需多角度连拍选 2×2 或 3×3（contact sheet 生成后裁格）。",
           "x-ui-type": "selection",
-          "enum": ["1x1", "2x2", "3x3"],
-          "x-enum-labels": ["单张（1×1）", "四宫格（2×2）", "九宫格（3×3）"],
+          "enum": [
+            "1x1",
+            "2x2",
+            "3x3"
+          ],
+          "x-enum-labels": [
+            "单张（1×1）",
+            "四宫格（2×2）",
+            "九宫格（3×3）"
+          ],
           "default": "1x1"
         },
         "grid_cell_constraint_preset": {
           "type": "string",
           "title": "宫格单元约束",
           "x-user-visible": false,
-          "enum": ["strict_seamless", "standard", "none"],
+          "enum": [
+            "strict_seamless",
+            "standard",
+            "none"
+          ],
           "default": "strict_seamless",
           "x-enum-prompt-append": {
             "strict_seamless": "**CRITICAL REQUIREMENTS FOR CELLS:** 1. NO borders, NO white edges, NO margins, NO gaps between cells. 2. Content must fill the entire cell area edge-to-edge with no empty spaces. 3. Each cell must be seamless and complete, with content extending to all edges. 4. Ensure cells are clearly separated visually but can be cropped independently without any white borders or edges. 5. The grid should appear as ${total_cells} complete, edge-to-edge images that can be perfectly cropped without any borders or margins.",
@@ -339,7 +455,13 @@
           "type": "string",
           "title": "画幅",
           "x-user-visible": false,
-          "enum": ["1:1", "3:4", "4:3", "16:9", "9:16"],
+          "enum": [
+            "1:1",
+            "3:4",
+            "4:3",
+            "16:9",
+            "9:16"
+          ],
           "default": "3:4"
         },
         "prompt": {
@@ -372,7 +494,9 @@
     "uiSchema": {
       "prompt": {
         "ui:widget": "textarea",
-        "ui:options": { "rows": 3 }
+        "ui:options": {
+          "rows": 3
+        }
       }
     },
     "prompt": {
@@ -381,7 +505,7 @@
     "extra": {
       "generateParams": {
         "temperature": 0.32,
-        "maxTokens": 2048
+        "maxTokens": 20000
       }
     }
   }

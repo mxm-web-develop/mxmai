@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Button, Collapse, Dropdown, Input, Popover, Select, Switch, Tooltip, Typography } from 'antd';
+import { Button, Collapse, Dropdown, Input, InputNumber, Popover, Radio, Select, Switch, Tooltip, Typography } from 'antd';
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
@@ -25,13 +25,16 @@ import {
   buildInteractiveCardStep,
   buildVideoTimelineClipRenderStep,
   buildVideoTimelineConcatStep,
-  buildRenderDocumentPdfStep,
+  buildMarkdownToPdfStep,
   buildTranscribeVoiceoverAudioStep,
   buildResolveVoiceoverAudioStep,
   buildVideoEditTimelineStep,
   buildVideoTimelineManualReviewStep,
   collectSensitivePathOptions,
   collectFormParamFieldOptions,
+  collectContractClaimPathOptions,
+  collectContractCommitPathOptions,
+  SYSTEM_EVIDENCE_KEY_OPTIONS,
   defaultNestedTextMapping,
   deriveAutoPipelineDisplayItems,
   formatPipelineStepLabel,
@@ -39,8 +42,10 @@ import {
   NESTED_TEXT_OUTPUT_TARGET_OPTIONS,
   PIPELINE_WHEN_OP_OPTIONS,
   readPipelineWhenClauses,
+  readPipelineWhenMode,
   writePipelineWhenClauses,
   type PipelineWhenClause,
+  type PipelineWhenMode,
   formatPipelineStepTooltip,
   isGraphPreFormatStep,
   isRedundantManualStep,
@@ -51,6 +56,7 @@ import {
   setGraphPreFormatTaskKey,
   buildExtractHotTopicsStep,
   buildPickMainTopicStep,
+  buildPruneToSelectionStep,
   type PipelineDisplayItem,
   type TextBusinessOption,
 } from './admin-business-pipeline.utils';
@@ -254,10 +260,17 @@ function stepTypeBadge(step: PipelineStepDraft): string | null {
       return '检索';
     case 'pickMainTopic':
       return '主话题';
+    case 'pruneToSelection':
+      return '剪枝';
     case 'resolveContextFields':
       return '上下文';
+    case 'markdownToPdf':
     case 'renderDocumentPdf':
       return 'PDF';
+    case 'renderPptx':
+      return 'PPTX';
+    case 'expandDeckSlides':
+      return '幻灯片骨架';
     case 'transcribeVoiceoverAudio':
       return 'ASR';
     case 'resolveVoiceoverAudio':
@@ -653,16 +666,19 @@ function InteractiveCardStepSettings({
 
 function WarpWebSearchStepSettings({
   step,
+  phase,
   onChange,
 }: {
   step: PipelineStepDraft;
+  phase?: PipelineAdminPhase;
   textOptions?: TextBusinessOption[];
   onChange: (patch: Partial<PipelineStepDraft>) => void;
 }) {
   const params = step.params ?? {};
   const patch = (next: Record<string, unknown>) =>
     onChange({ params: { ...params, ...next } });
-  const target = String(params.target ?? 'sources.websource').trim();
+  const defaultTarget = phase === 'enrich' ? 'enrich_search.result' : 'sources.websource';
+  const target = String(params.target ?? defaultTarget).trim();
   const builder = String(params.queryBuilder ?? '').trim();
   const isIndustryTrend = builder === 'industryTrend';
 
@@ -716,6 +732,41 @@ function WarpWebSearchStepSettings({
         />
       </div>
       <div className="admin-pipeline-settings__field">
+        <div className="admin-pipeline-settings__label">列表查询 queriesFrom（副线）</div>
+        <Input
+          size="small"
+          disabled={isIndustryTrend}
+          placeholder="contract.selection.topics"
+          value={(params.queriesFrom as string | undefined) ?? ''}
+          onChange={(e) => patch({ queriesFrom: e.target.value || undefined })}
+        />
+        <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+          从数组/分号串拆多 query；可配 excludeQueryFrom 排除主线、querySuffix、maxQueries
+        </Typography.Text>
+      </div>
+      {(params.queriesFrom as string | undefined) ? (
+        <>
+          <div className="admin-pipeline-settings__field">
+            <div className="admin-pipeline-settings__label">排除主线 excludeQueryFrom</div>
+            <Input
+              size="small"
+              placeholder="contract.basic.main_topic"
+              value={(params.excludeQueryFrom as string | undefined) ?? ''}
+              onChange={(e) => patch({ excludeQueryFrom: e.target.value || undefined })}
+            />
+          </div>
+          <div className="admin-pipeline-settings__field">
+            <div className="admin-pipeline-settings__label">querySuffix</div>
+            <Input
+              size="small"
+              placeholder="最新进展 数据 简讯"
+              value={(params.querySuffix as string | undefined) ?? ''}
+              onChange={(e) => patch({ querySuffix: e.target.value || undefined })}
+            />
+          </div>
+        </>
+      ) : null}
+      <div className="admin-pipeline-settings__field">
         <div className="admin-pipeline-settings__label">固定查询 query（可选，优先）</div>
         <Input
           size="small"
@@ -729,7 +780,7 @@ function WarpWebSearchStepSettings({
         <Select
           size="small"
           className="admin-pipeline-settings__control"
-          value={(params.target as string | undefined) ?? 'sources.websource'}
+          value={(params.target as string | undefined) ?? defaultTarget}
           options={[
             { value: 'sources.websource', label: 'sources.websource（pre）' },
             { value: 'enrich_search.result', label: 'enrich_search.result（enrich）' },
@@ -979,15 +1030,15 @@ function ExtractHotTopicsStepSettings({
         />
       </div>
       <div className="admin-pipeline-settings__field">
-        <div className="admin-pipeline-settings__label">返回热点条数</div>
+        <div className="admin-pipeline-settings__label">发现池提炼条数</div>
         <Input
           size="small"
           type="number"
-          value={String(params.maxTopics ?? 8)}
-          onChange={(e) => patch({ maxTopics: Number(e.target.value) || 8 })}
+          value={String(params.maxTopics ?? 40)}
+          onChange={(e) => patch({ maxTopics: Number(e.target.value) || 40 })}
         />
         <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-          也可由表单 topic_count 覆盖；默认 textKey 仅作缺省，业务应显式配置。只把这些 chips 给用户选。
+          整池提炼后供用户「换一批」翻页选用；不再由用户填热点条数。默认 textKey 仅作缺省，业务应显式配置。
         </Typography.Text>
       </div>
       <div className="admin-pipeline-settings__field">
@@ -999,6 +1050,82 @@ function ExtractHotTopicsStepSettings({
           onChange={(e) => patch({ maxInputItems: Number(e.target.value) || 80 })}
         />
       </div>
+    </div>
+  );
+}
+
+function MarkdownToPdfStepSettings({
+  step,
+  onChange,
+}: {
+  step: PipelineStepDraft;
+  onChange: (patch: Partial<PipelineStepDraft>) => void;
+}) {
+  const params = step.params ?? {};
+  const storageMode = String(params.storageMode ?? 'sidecar') === 'overwrite' ? 'overwrite' : 'sidecar';
+  const includeCover = params.includeCover !== false;
+  const includeToc = params.includeToc !== false;
+  const useLayoutLlm = params.useLayoutLlm === true;
+  const patch = (next: Record<string, unknown>) => onChange({ params: { ...params, ...next } });
+
+  return (
+    <div className="admin-pipeline-settings">
+      <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
+        主存默认 Markdown；PDF 供写作模块阅读。失败不阻断任务，接口返回 warnings。
+      </Typography.Paragraph>
+      <div className="admin-pipeline-settings__field">
+        <div className="admin-pipeline-settings__label">存储模式</div>
+        <Select
+          size="small"
+          className="admin-pipeline-settings__control"
+          value={storageMode}
+          options={[
+            { value: 'sidecar', label: '独立存储（推荐，地址写入 meta.pdfStorage）' },
+            { value: 'overwrite', label: '覆盖主 storageInfo（慎用）' },
+          ]}
+          onChange={(v) => patch({ storageMode: v })}
+        />
+      </div>
+      <div className="admin-pipeline-settings__field">
+        <div className="admin-pipeline-settings__label">封面页</div>
+        <Switch size="small" checked={includeCover} onChange={(v) => patch({ includeCover: v })} />
+      </div>
+      <div className="admin-pipeline-settings__field">
+        <div className="admin-pipeline-settings__label">目录页</div>
+        <Switch size="small" checked={includeToc} onChange={(v) => patch({ includeToc: v })} />
+      </div>
+      <div className="admin-pipeline-settings__field">
+        <div className="admin-pipeline-settings__label">LLM 版式编排</div>
+        <Switch
+          size="small"
+          checked={useLayoutLlm}
+          onChange={(v) => patch({ useLayoutLlm: v })}
+        />
+        <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+          关闭时直接 Markdown 渲染（含封面/目录）；开启需配置 layoutTaskKey
+        </Typography.Text>
+      </div>
+      {useLayoutLlm ? (
+        <div className="admin-pipeline-settings__field">
+          <div className="admin-pipeline-settings__label">layoutTaskKey</div>
+          <Input
+            size="small"
+            className="admin-pipeline-settings__control"
+            value={String(params.layoutTaskKey ?? step.layoutTaskKey ?? '')}
+            placeholder="text/layout/document-render-spec"
+            onChange={(e) =>
+              onChange({
+                layoutTaskKey: e.target.value.trim() || undefined,
+                params: {
+                  ...params,
+                  layoutTaskKey: e.target.value.trim() || undefined,
+                  useLayoutLlm: true,
+                },
+              })
+            }
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1164,17 +1291,29 @@ function PipelineStepWhenSettings({
   onChange: (patch: Partial<PipelineStepDraft>) => void;
 }) {
   const clauses = readPipelineWhenClauses(step);
+  const mode = readPipelineWhenMode(step);
   const fieldOptions = useMemo(() => collectFormParamFieldOptions(formSchema), [formSchema]);
 
-  const patchClauses = (next: PipelineWhenClause[]) => {
-    onChange(writePipelineWhenClauses(step, next));
+  const patchClauses = (next: PipelineWhenClause[], nextMode: PipelineWhenMode = mode) => {
+    onChange(writePipelineWhenClauses(step, next, nextMode));
   };
 
   return (
     <div className="admin-pipeline-settings">
       <Typography.Paragraph type="secondary" style={{ fontSize: 11, margin: '0 0 8px' }}>
-        未配置条件时始终执行。配置后需<strong>全部满足</strong>才运行本步骤（如纯器乐时跳过歌词生成）。
+        未配置条件时始终执行。配置后按下方模式判断是否运行本步骤。
       </Typography.Paragraph>
+      <div className="admin-pipeline-settings__label">条件关系</div>
+      <Radio.Group
+        size="small"
+        value={mode}
+        style={{ marginBottom: 8 }}
+        onChange={(e) => patchClauses(clauses, e.target.value as PipelineWhenMode)}
+        options={[
+          { value: 'all', label: '全部满足（AND）' },
+          { value: 'any', label: '任一满足（OR）' },
+        ]}
+      />
       {clauses.map((clause, index) => (
         <div key={`when-${index}`} className="admin-pipeline-settings__when-row">
           <Select
@@ -1274,6 +1413,20 @@ function NestedTextStepSettings({
   };
 
   const mapping = step.inputMapping ?? {};
+  const claimPaths = Array.isArray(step.params?.claimPaths)
+    ? (step.params!.claimPaths as unknown[]).map((p) => String(p ?? '').trim()).filter(Boolean)
+    : [];
+  const commitPaths = Array.isArray(step.params?.commitPaths)
+    ? (step.params!.commitPaths as unknown[]).map((p) => String(p ?? '').trim()).filter(Boolean)
+    : [];
+  const evidenceKeys = Array.isArray(step.params?.evidenceKeys)
+    ? (step.params!.evidenceKeys as unknown[]).map((p) => String(p ?? '').trim()).filter(Boolean)
+    : [];
+  const evidenceMaxChars =
+    typeof step.params?.evidenceMaxChars === 'number' ? step.params.evidenceMaxChars : undefined;
+  const claimOptions = collectContractClaimPathOptions(formSchema);
+  const commitOptions = collectContractCommitPathOptions(formSchema, step.params?.field_specs);
+  const showClaimUi = textType === 'expert' || textType === 'plan' || textType === 'validation';
 
   return (
     <div className="admin-pipeline-settings">
@@ -1329,6 +1482,83 @@ function NestedTextStepSettings({
           onChange={(v) => patchParams({ outputTarget: v || undefined })}
         />
       </div>
+      {showClaimUi ? (
+        <>
+          <div className="admin-pipeline-settings__field">
+            <div className="admin-pipeline-settings__label">领取字段 claimPaths</div>
+            <Select
+              mode="multiple"
+              size="small"
+              showSearch
+              optionFilterProp="label"
+              allowClear
+              className="admin-pipeline-settings__control"
+              placeholder="从合同 schema / 系统键联想选择"
+              value={claimPaths}
+              options={claimOptions}
+              onChange={(v) =>
+                patchParams({ claimPaths: Array.isArray(v) && v.length ? v : undefined })
+              }
+            />
+            <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+              本步只把选中路径拼成迷你合同给 LLM；配置后忽略整包合同占位
+            </Typography.Text>
+          </div>
+          {textType === 'expert' ? (
+            <div className="admin-pipeline-settings__field">
+              <div className="admin-pipeline-settings__label">写回字段 commitPaths</div>
+              <Select
+                mode="multiple"
+                size="small"
+                showSearch
+                optionFilterProp="label"
+                allowClear
+                className="admin-pipeline-settings__control"
+                placeholder="默认=上方 field_specs 名；可显式收窄"
+                value={commitPaths}
+                options={commitOptions}
+                onChange={(v) =>
+                  patchParams({ commitPaths: Array.isArray(v) && v.length ? v : undefined })
+                }
+              />
+            </div>
+          ) : null}
+          <div className="admin-pipeline-settings__field">
+            <div className="admin-pipeline-settings__label">证据仓 evidenceKeys</div>
+            <Select
+              mode="multiple"
+              size="small"
+              showSearch
+              optionFilterProp="label"
+              allowClear
+              className="admin-pipeline-settings__control"
+              placeholder="有 claim 时未选则不挂证据"
+              value={evidenceKeys}
+              options={SYSTEM_EVIDENCE_KEY_OPTIONS}
+              onChange={(v) =>
+                patchParams({ evidenceKeys: Array.isArray(v) && v.length ? v : undefined })
+              }
+            />
+          </div>
+          <div className="admin-pipeline-settings__field">
+            <div className="admin-pipeline-settings__label">证据预算（字符）</div>
+            <InputNumber
+              size="small"
+              min={500}
+              max={24000}
+              step={500}
+              className="admin-pipeline-settings__control"
+              placeholder="默认平台限额"
+              value={evidenceMaxChars}
+              onChange={(v) =>
+                patchParams({
+                  evidenceMaxChars: typeof v === 'number' && v > 0 ? v : undefined,
+                })
+              }
+            />
+          </div>
+        </>
+      ) : null}
       <div className="admin-pipeline-settings__field">
         <div className="admin-pipeline-settings__label">inputMapping（仅固定键）</div>
         {(fixedKeys ? [...fixedKeys] : Object.keys(mapping)).map((key) => (
@@ -1343,7 +1573,9 @@ function NestedTextStepSettings({
               placeholder={
                 key === 'field_specs'
                   ? '可留空 → 运行时按 business 空字段自动生成'
-                  : `\${state.contract} 等`
+                  : claimPaths.length
+                    ? '已配置 claimPaths 时 contract 占位可忽略'
+                    : `\${state.contract} 等`
               }
               style={{ width: '100%' }}
               onChange={(e) =>
@@ -1432,7 +1664,31 @@ function StepSettingsPopover({
     title = '联网检索';
     content = (
       <>
-        <WarpWebSearchStepSettings step={step} onChange={onUpdateStep} />
+        <WarpWebSearchStepSettings step={step} phase={phase} onChange={onUpdateStep} />
+        <Collapse
+          ghost
+          size="small"
+          className="admin-pipeline-settings__advanced"
+          defaultActiveKey={readPipelineWhenClauses(step).length > 0 ? ['when'] : undefined}
+          items={[
+            {
+              key: 'when',
+              label: readPipelineWhenClauses(step).length
+                ? `执行条件（已配 ${readPipelineWhenClauses(step).length} 条）`
+                : '执行条件',
+              children: (
+                <PipelineStepWhenSettings step={step} formSchema={formSchema} onChange={onUpdateStep} />
+              ),
+            },
+          ]}
+        />
+      </>
+    );
+  } else if (step.step === 'pickMainTopic') {
+    title = '选主话题';
+    content = (
+      <>
+        <PickMainTopicStepSettings step={step} onChange={onUpdateStep} />
         <Collapse
           ghost
           size="small"
@@ -1449,11 +1705,14 @@ function StepSettingsPopover({
         />
       </>
     );
-  } else if (step.step === 'pickMainTopic') {
-    title = '选主话题';
+  } else if (step.step === 'pruneToSelection') {
+    title = '选题后剪枝';
     content = (
       <>
-        <PickMainTopicStepSettings step={step} onChange={onUpdateStep} />
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 8, fontSize: 12 }}>
+          按已选话题裁剪 websource；未选题材料（含 topicPool）直接抛弃。默认不归档发现池；仅调试可开
+          archiveDiscovery → websource_discovery。
+        </Typography.Paragraph>
         <Collapse
           ghost
           size="small"
@@ -1553,6 +1812,27 @@ function StepSettingsPopover({
     content = (
       <>
         <BuildVideoEditTimelineStepSettings step={step} onChange={onUpdateStep} />
+        <Collapse
+          ghost
+          size="small"
+          className="admin-pipeline-settings__advanced"
+          items={[
+            {
+              key: 'when',
+              label: '执行条件',
+              children: (
+                <PipelineStepWhenSettings step={step} formSchema={formSchema} onChange={onUpdateStep} />
+              ),
+            },
+          ]}
+        />
+      </>
+    );
+  } else if (step.step === 'markdownToPdf' || step.step === 'renderDocumentPdf') {
+    title = 'Markdown → PDF';
+    content = (
+      <>
+        <MarkdownToPdfStepSettings step={step} onChange={onUpdateStep} />
         <Collapse
           ghost
           size="small"
@@ -1981,6 +2261,13 @@ function PipelineSegment({
         group: '检索',
         onClick: () => addStep(buildPickMainTopicStep()),
       });
+      opts.push({
+        key: 'pruneToSelection',
+        title: '选题后剪枝',
+        description: '抛弃未选题的发现池材料，仅保留与已选话题相关的检索',
+        group: '检索',
+        onClick: () => addStep(buildPruneToSelectionStep()),
+      });
     }
 
     if (phase === 'pre' || phase === 'enrich') {
@@ -2036,11 +2323,11 @@ function PipelineSegment({
         });
       }
       opts.push({
-        key: 'renderDocumentPdf',
-        title: 'PDF 渲染',
-        description: '将产出渲染为 PDF',
+        key: 'markdownToPdf',
+        title: 'Markdown → PDF',
+        description: 'Post 产出阅读用 PDF（默认独立存储；失败不阻断）',
         group: '文档',
-        onClick: () => addStep(buildRenderDocumentPdfStep()),
+        onClick: () => addStep(buildMarkdownToPdfStep()),
       });
     }
 

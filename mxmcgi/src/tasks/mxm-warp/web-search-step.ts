@@ -5,6 +5,8 @@
  * - query / queryTemplate / queryFrom
  * - queryBuilder?: 命名策略（如 industryTrend）
  * - target / depth / maxResults / resultMaxChars
+ * - scaleFrom?: 表单/合同字段名；配合 depthByScale / maxResultsByScale 按档覆盖 depth/maxResults
+ * - depthByScale / maxResultsByScale?: Record<档位值, depth|number>
  * - dimensions / timeRange / startDate / endDate / includeDomains / language
  * - resultClean?: true | false | { dropLowQualityDomains?, stripBoilerplate?, dedupeByUrlTitle? }
  *   industryTrend 默认开启；其它 builder 默认关（可显式 true）
@@ -28,16 +30,63 @@ import {
   sanitizeWebsourceForLlm,
   clampSearchMaxResults,
   clampTopicMaxResults,
+  TOPIC_POOL_DEFAULT,
 } from '../websearch-topic-extract';
 import {
   resolveWebSearchQueryBuilder,
   buildIndustryTrendSearchQuery,
   mergeIndustryParams,
 } from './query-builders';
+import {
+  putEvidence,
+  slimWebSearchForContract,
+  targetToEvidenceKey,
+  getEvidence,
+} from './evidence';
 import './query-builders';
 
 const DEFAULT_RESULT_MAX_CHARS = 2500;
 const SEARCH_DEPTHS = new Set<SearchDepth>(['quick', 'standard', 'deep']);
+
+/**
+ * 从节点静态 params + 可选 scaleFrom 档位表解析 depth / maxResults。
+ * 业务把篇幅等枚举写在 formSchema，用 depthByScale / maxResultsByScale 映射，勿在此写死业务键。
+ */
+export function resolveScaledSearchKnobs(
+  ctx: TaskContext,
+  params: Record<string, unknown>
+): { depth: SearchDepth; maxResults: number } {
+  let depthRaw = typeof params.depth === 'string' ? params.depth.trim() : '';
+  let maxResults =
+    typeof params.maxResults === 'number' && Number.isFinite(params.maxResults)
+      ? clampSearchMaxResults(params.maxResults)
+      : 8;
+
+  const scaleFrom = String(params.scaleFrom ?? '').trim();
+  if (scaleFrom) {
+    const merged = mergeIndustryParams(ctx);
+    const scaleKey = String(merged[scaleFrom] ?? '').trim();
+    if (scaleKey) {
+      const depthBy = params.depthByScale;
+      if (depthBy && typeof depthBy === 'object' && !Array.isArray(depthBy)) {
+        const mapped = String((depthBy as Record<string, unknown>)[scaleKey] ?? '').trim();
+        if (mapped) depthRaw = mapped;
+      }
+      const maxBy = params.maxResultsByScale;
+      if (maxBy && typeof maxBy === 'object' && !Array.isArray(maxBy)) {
+        const n = Number((maxBy as Record<string, unknown>)[scaleKey]);
+        if (Number.isFinite(n)) maxResults = clampSearchMaxResults(n);
+      }
+    }
+  }
+
+  const depth: SearchDepth =
+    depthRaw && SEARCH_DEPTHS.has(depthRaw as SearchDepth)
+      ? (depthRaw as SearchDepth)
+      : 'standard';
+  return { depth, maxResults };
+}
+
 const SEARCH_DEPTH_LABELS: Record<SearchDepth, string> = {
   quick: '快速',
   standard: '标准',
@@ -314,6 +363,65 @@ export function interpolateQueryTemplate(template: string, ctx: TaskContext): st
   });
 }
 
+/**
+ * 列表式多 query（平台原语，无业务硬编码）：
+ * - queriesFrom: 路径 → string | string[]（；/; 可拆）
+ * - excludeQueryFrom: 可选，排除主线话题
+ * - querySuffix: 可选，拼到每条话题后
+ * - maxQueries: 最多几条（默认 3）
+ * 返回 null = 未启用列表模式；[] = 启用但无有效副线（调用方应 no-op）。
+ */
+export function resolveQueriesFromList(ctx: TaskContext, step: PipelineStep): string[] | null {
+  const params = (step.params ?? {}) as Record<string, unknown>;
+  const from = typeof params.queriesFrom === 'string' ? params.queriesFrom.trim() : '';
+  if (!from) return null;
+
+  const raw = readPath(ctx, from);
+  let topics: string[] = [];
+  if (Array.isArray(raw)) {
+    for (const it of raw) {
+      if (typeof it === 'string' || typeof it === 'number') {
+        topics.push(...String(it).split(/[；;]/).map((s) => s.trim()).filter(Boolean));
+      } else if (it && typeof it === 'object' && !Array.isArray(it)) {
+        const o = it as Record<string, unknown>;
+        const label = String(o.title ?? o.topic ?? o.name ?? '').trim();
+        if (label) topics.push(label);
+      }
+    }
+  } else if (typeof raw === 'string' || typeof raw === 'number') {
+    topics = String(raw)
+      .split(/[；;]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  const excludePath =
+    typeof params.excludeQueryFrom === 'string' ? params.excludeQueryFrom.trim() : '';
+  const exclude = excludePath ? coerceQuery(readPath(ctx, excludePath)) : '';
+  const suffix = typeof params.querySuffix === 'string' ? params.querySuffix.trim() : '';
+  const maxRaw = Number(params.maxQueries ?? 3);
+  const maxQueries =
+    Number.isFinite(maxRaw) && maxRaw > 0 ? Math.min(8, Math.floor(maxRaw)) : 3;
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const t of topics) {
+    if (!t) continue;
+    if (
+      exclude &&
+      (t === exclude || t.includes(exclude) || exclude.includes(t))
+    ) {
+      continue;
+    }
+    const q = suffix ? `${t} ${suffix}`.replace(/\s+/g, ' ').trim() : t;
+    if (seen.has(q)) continue;
+    seen.add(q);
+    out.push(q);
+    if (out.length >= maxQueries) break;
+  }
+  return out;
+}
+
 /** @deprecated 请从 query-builders 导入；保留兼容旧测试 */
 export { buildIndustryTrendSearchQuery, mergeIndustryParams };
 
@@ -395,15 +503,7 @@ export function resolveWebSearchRequest(
   query: string
 ): DeepSearchRequest {
   const params = (step.params ?? {}) as Record<string, unknown>;
-  const depthRaw = typeof params.depth === 'string' ? params.depth.trim() : '';
-  const maxResults =
-    typeof params.maxResults === 'number' && Number.isFinite(params.maxResults)
-      ? clampSearchMaxResults(params.maxResults)
-      : 8;
-  const depth: SearchDepth =
-    depthRaw && SEARCH_DEPTHS.has(depthRaw as SearchDepth)
-      ? (depthRaw as SearchDepth)
-      : 'standard';
+  const { depth, maxResults } = resolveScaledSearchKnobs(ctx, params);
 
   const builderName = String(params.queryBuilder ?? '').trim();
   const builder = resolveWebSearchQueryBuilder(builderName);
@@ -432,25 +532,33 @@ export async function runWebSearchStep(
 
   const contract0 = getContract(next)!;
 
-  // C 端 pre 预览已写入合同：跳过重复检索，但必须再清洗一次
+  // C 端 pre 预览 / 续跑：已有证据或全量合同则跳过重复检索
   if (target === 'sources.websource') {
+    const existingEv = getEvidence(next, 'websource');
+    const evPayload = existingEv?.payload;
     const existing = contract0.sources?.websource;
-    if (
-      existing &&
-      typeof existing === 'object' &&
-      !Array.isArray(existing) &&
-      (Number((existing as { hitCount?: number }).hitCount) > 0 ||
-        (Array.isArray((existing as { items?: unknown[] }).items) &&
-          ((existing as { items?: unknown[] }).items?.length ?? 0) > 0))
-    ) {
+    const sourcePayload =
+      evPayload &&
+      typeof evPayload === 'object' &&
+      (Number(evPayload.hitCount) > 0 ||
+        (Array.isArray(evPayload.items) && evPayload.items.length > 0))
+        ? evPayload
+        : existing &&
+            typeof existing === 'object' &&
+            !Array.isArray(existing) &&
+            !(existing as { evidenceKey?: string }).evidenceKey &&
+            (Number((existing as { hitCount?: number }).hitCount) > 0 ||
+              (Array.isArray((existing as { items?: unknown[] }).items) &&
+                ((existing as { items?: unknown[] }).items?.length ?? 0) > 0))
+          ? (existing as Record<string, unknown>)
+          : null;
+
+    if (sourcePayload) {
       const industry = resolveSectorLabel(mergeIndustryParams(next));
-      const maxResults =
-        typeof params.maxResults === 'number' && Number.isFinite(params.maxResults)
-          ? clampSearchMaxResults(params.maxResults)
-          : 12;
+      const { maxResults } = resolveScaledSearchKnobs(next, params);
       const preferClean = builderName === 'industryTrend';
       const cleaned = sanitizeWebsourceForLlm(
-        existing as import('../websearch-topic-extract').WebsourcePayload,
+        sourcePayload as import('../websearch-topic-extract').WebsourcePayload,
         industry,
         maxResults,
         {
@@ -462,24 +570,41 @@ export async function runWebSearchStep(
               : (params.resultClean as boolean | Record<string, unknown> | null),
         }
       );
+      const topicChips =
+        sourcePayload.topicChips ??
+        (existing && typeof existing === 'object'
+          ? (existing as { topicChips?: unknown }).topicChips
+          : undefined);
+      const fullPayload: Record<string, unknown> = {
+        ...sourcePayload,
+        ...cleaned,
+        topicChips,
+      };
+      const evidenceKey = targetToEvidenceKey(target);
+      next = putEvidence(next, evidenceKey, fullPayload);
       return withContract(next, {
         ...contract0,
         sources: {
           ...contract0.sources,
-          websource: {
-            ...(existing as Record<string, unknown>),
-            ...cleaned,
-            topicChips: (existing as { topicChips?: unknown }).topicChips,
-          },
+          websource: slimWebSearchForContract(fullPayload, evidenceKey),
         },
       });
     }
   }
 
-  const query = resolveWebSearchQuery(next, step);
+  const listQueries = resolveQueriesFromList(next, step);
+  if (listQueries !== null && listQueries.length === 0) {
+    // 列表模式已声明但无副线话题：跳过，不抛错
+    return next;
+  }
+
+  const query =
+    listQueries && listQueries.length > 0
+      ? listQueries[0]!
+      : resolveWebSearchQuery(next, step);
   if (!query) {
     throw new ConfigurationError(
-      'webSearch：缺少查询。请在节点配置 query、queryTemplate、queryFrom 或已注册的 queryBuilder'
+      'webSearch：缺少查询。请在节点配置 query、queryTemplate、queryFrom、queriesFrom 或已注册的 queryBuilder'
     );
   }
 
@@ -495,10 +620,11 @@ export async function runWebSearchStep(
   const buildMultiQueries =
     deps?.buildMultiQueries ?? defaultBuildMultiQueries;
 
-  // multiQuery：同一问题从多个角度补搜，跨 Providers 聚合
+  // queriesFrom 列表优先；否则 multiQuery 从主 query 派生多角度
   const multi = parseMultiQueries(params.multiQuery);
-  const queries: string[] = [query];
-  if (multi.enabled) {
+  const queries: string[] =
+    listQueries && listQueries.length > 0 ? [...listQueries] : [query];
+  if (!(listQueries && listQueries.length > 0) && multi.enabled) {
     const extra = await buildMultiQueries(query, next);
     for (const q of extra ?? []) {
       const t = String(q ?? '').trim();
@@ -526,14 +652,19 @@ export async function runWebSearchStep(
     providers = mr.providers;
     queryLabel = mr.queryLabel;
   } else if (queries.length > 1) {
-    // 多角度：并行搜多 query，合并 items
+    // 多角度：并行搜多 query，合并 items；extract 默认与单 query 一致（可用 params.extractContent=false 关闭）
+    const wantExtract =
+      params.extractContent === undefined
+        ? true
+        : params.extractContent === true || multi.extractContent === true;
     const perQueryReq = buildGenericWebSearchRequest(step, query, { depth, maxResults });
-    perQueryReq.extractContent = multi.extractContent === true ? true : perQueryReq.extractContent;
-    if (multi.extractContent === true) {
+    perQueryReq.extractContent = wantExtract;
+    if (wantExtract) {
       perQueryReq.maxExtractCount =
         typeof params.maxExtractCount === 'number' && Number.isFinite(params.maxExtractCount)
           ? Math.max(1, Math.floor(params.maxExtractCount))
           : 5;
+      perQueryReq.extractDomains = parseIncludeDomains(params.extractDomains);
     }
     const subResults = await Promise.all(
       queries.map((q) =>
@@ -598,14 +729,25 @@ export async function runWebSearchStep(
       ...(queries.length > 1 ? { queries } : {}),
       ...(extracted && extracted.length > 0
         ? {
-            extracted: extracted.slice(0, params.maxExtractCount ?? 5).map((e) => ({
-              url: e.url,
-              title: e.title,
-              summary: e.summary,
-              keyPoints: e.keyPoints?.slice(0, 6),
-              dataPoints: e.dataPoints?.slice(0, 8),
-              confidence: e.confidence,
-            })),
+            extracted: extracted.slice(0, params.maxExtractCount ?? 5).map((e) => {
+              const content =
+                typeof (e as { content?: unknown }).content === 'string'
+                  ? String((e as { content: string }).content).trim()
+                  : '';
+              const summaryRaw =
+                typeof e.summary === 'string' && e.summary.trim()
+                  ? e.summary.trim()
+                  : content;
+              return {
+                url: e.url,
+                title: e.title,
+                // ContentExtractor 只填 content；下游 evidence 读 summary —— 必须回填
+                summary: summaryRaw ? summaryRaw.slice(0, 1200) : undefined,
+                keyPoints: e.keyPoints?.slice(0, 6),
+                dataPoints: e.dataPoints?.slice(0, 8),
+                confidence: e.confidence,
+              };
+            }),
           }
         : {}),
     },
@@ -655,7 +797,7 @@ export async function runWebSearchStep(
     const userLang =
       String(p.language ?? getContract(next)?.basic?.language ?? 'zh').trim() || 'zh';
     const topicExtractMax = clampTopicMaxResults(
-      p.topic_count ?? p.topicCount ?? params.topicExtractMax ?? 8
+      params.topicExtractMax ?? params.maxTopics ?? TOPIC_POOL_DEFAULT
     );
     const extracted = await extractTopicChipsViaTextBusiness({
       textKey: topicExtractTextKey,
@@ -671,6 +813,7 @@ export async function runWebSearchStep(
       maxInputItems: Math.min(sliced.length, 80),
     });
     payload.topicChips = extracted.topics;
+    payload.topicSourceMap = extracted.topicSourceMap;
     const nestedUsage = Array.isArray(next.state.pipelineNestedUsage)
       ? [...(next.state.pipelineNestedUsage as unknown[])]
       : [];
@@ -683,6 +826,10 @@ export async function runWebSearchStep(
     next = { ...next, state: { ...next.state, pipelineNestedUsage: nestedUsage } };
   }
 
+  const evidenceKey = targetToEvidenceKey(target);
+  next = putEvidence(next, evidenceKey, payload);
+  const pointer = slimWebSearchForContract(payload, evidenceKey);
+
   const contract = getContract(next)!;
   if (target.startsWith('enrich_search.')) {
     const key = target.slice('enrich_search.'.length);
@@ -690,7 +837,7 @@ export async function runWebSearchStep(
       ...contract,
       enrich_search: {
         ...contract.enrich_search,
-        [key]: payload,
+        [key]: pointer,
       },
     });
   } else {
@@ -698,7 +845,7 @@ export async function runWebSearchStep(
       ...contract,
       sources: {
         ...contract.sources,
-        websource: payload,
+        websource: pointer,
       },
     });
   }

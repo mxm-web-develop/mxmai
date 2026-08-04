@@ -7,7 +7,7 @@ describe('synthesizeEnrichSearchQuery', () => {
     const contract = emptyContract({
       version: MXM_WARP_CONTRACT_VERSION,
       scope: 'writing',
-      taskKey: 'editorial',
+      taskKey: 'generator',
       subtype: 'industry-daily',
       taskId: 't1',
     });
@@ -23,7 +23,7 @@ describe('synthesizeEnrichSearchQuery', () => {
     const contract = emptyContract({
       version: MXM_WARP_CONTRACT_VERSION,
       scope: 'writing',
-      taskKey: 'editorial',
+      taskKey: 'generator',
       subtype: null,
       taskId: 't1',
     });

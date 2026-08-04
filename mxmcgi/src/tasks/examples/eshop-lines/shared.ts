@@ -307,7 +307,7 @@ export const TEXT_FORMAT_KEY = 'text/format/gpt-image-2';
 
 export const GENERATE_PARAMS = {
   temperature: 0.32,
-  maxTokens: 2048,
+  maxTokens: 20_000,
 };
 
 export const UI_SCHEMA = {

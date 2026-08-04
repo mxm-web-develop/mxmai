@@ -17,6 +17,8 @@ import {
   DEFAULT_QUALITY_EVAL_PROVIDER,
   MAX_STORED_ARTICLE_CHARS,
 } from './types';
+import { countManuscriptChars } from './eval-run-context';
+import type { EvalRunContext } from './eval-run-context';
 
 async function loadBusinessDisplayContext(
   scope: string,
@@ -72,6 +74,8 @@ export async function runQualityEval(args: {
   createdBy?: string | null;
   /** 无 rubric 时用临时维度（不应常发生） */
   skipRubricRequire?: boolean;
+  /** 粘贴稿等无任务时，可显式传入用户选项以启用动态评分 */
+  evalRunContext?: EvalRunContext | null;
 }): Promise<QualityEvalRun> {
   const scope = args.scope || 'writing';
   const rubric = await store.getRubric(scope, args.taskKey, args.subtype);
@@ -87,6 +91,9 @@ export async function runQualityEval(args: {
     sourceRef: args.sourceRef,
     text: args.text,
   });
+
+  const evalRunContext = args.evalRunContext || resolved.evalRunContext || null;
+  const manuscriptChars = countManuscriptChars(resolved.text);
 
   const storedArticle =
     resolved.text.length > MAX_STORED_ARTICLE_CHARS
@@ -115,7 +122,13 @@ export async function runQualityEval(args: {
       args.taskKey,
       args.subtype
     );
-    const businessContext = buildBusinessContext({ rubric, displayBrief, formFieldTitles });
+    const businessContext = buildBusinessContext({
+      rubric,
+      displayBrief,
+      formFieldTitles,
+      evalRunContext,
+      manuscriptChars,
+    });
 
     const scores = await scoreArticle({
       rubric,
@@ -124,6 +137,7 @@ export async function runQualityEval(args: {
       provider,
       modelKey,
       runId: run.id,
+      evalRunContext,
     });
 
     run = await store.updateRun(run.id, { status: 'scoring', scores });

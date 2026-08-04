@@ -7,6 +7,7 @@ const STATUS_KEYS: Record<string, string> = {
   completed: 'common.task.status.completed',
   failed: 'common.task.status.failed',
   cancelled: 'common.task.status.cancelled',
+  awaiting_user_input: 'common.task.status.awaiting_user_input',
   awaiting_review: 'common.task.status.awaiting_review',
 };
 

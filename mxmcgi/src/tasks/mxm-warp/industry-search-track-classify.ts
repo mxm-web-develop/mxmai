@@ -180,7 +180,7 @@ function buildTrackClassifyRequest(args: {
   industryCustom?: string;
   sector: string;
   parentTaskId?: string;
-  /** 宿主业务身份；缺省不伪造 writing/editorial/industry-daily */
+  /** 宿主业务身份；缺省不伪造 writing/generator/industry-daily */
   hostScope?: string;
   hostTaskKey?: string;
   hostSubtype?: string | null;

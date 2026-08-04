@@ -15,7 +15,7 @@
         "display": {
           "taskLabel": "专家填合同",
           "subtypeLabel": "行业热点提取",
-          "description": "从大量联网检索结果中按关联度/热度/可报道价值提炼少量 topics[]，供用户选题；按 field_specs 上限提炼，宁缺毋滥、多余过滤。",
+          "description": "从大量联网检索结果中按关联度/热度/可报道价值提炼发现池 topics[]（意译为用户语言），供换一批选题。",
           "taskLabelI18n": {
             "zh": "专家填合同",
             "zh-TW": "專家填合同",
@@ -71,7 +71,13 @@
           "extra": {
             "generateParams": {
               "temperature": 0.1,
-              "maxTokens": 2048
+              "maxTokens": 20000,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "reasoning_split": true
+              }
             }
           }
         }

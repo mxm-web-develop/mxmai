@@ -16,6 +16,11 @@ export type TaskStatus =
    * - 任务恢复服务不会主动对该状态做二次恢复
    */
   | 'network_error'
+  /**
+   * 前置交互卡 / basic-form 闸门未补齐（pre 引导 / API 缺必填字段），等待用户补全后继续。
+   * 与 awaiting_review 区分：这是「我还没开始干活」，不是「我已经出活等审核」。
+   */
+  | 'awaiting_user_input'
   /** 前置管线完成后等待用户审核编辑，再继续核心生成 */
   | 'awaiting_review';
 
@@ -53,6 +58,10 @@ export interface TaskProgress {
   phaseIndex?: number;
   phaseTotal?: number;
   error?: string;
+  /** 稳定错误码（落库/出站）；见 docs/adr/user-facing-error-policy.md */
+  errorCode?: string;
+  /** 仅 admin 出站附带的完整上游错误；落库时可不写 */
+  errorDebug?: string;
   startedAt?: Date | null;
   completedAt?: Date | null;
 }

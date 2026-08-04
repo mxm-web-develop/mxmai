@@ -1,0 +1,270 @@
+{
+  "schemaVersion": 1,
+  "kind": "writing-voice-pack",
+  "voice_category": "self_media",
+  "notes": [
+    "自媒体多语言叶子。"
+  ],
+  "voices": [
+    {
+      "id": "sm_opin_sharp",
+      "craft": {
+        "sentence": "判断句靠前；例子短；少学术腔；比喻少而准，不硬凑金句",
+        "stance": "有立场，但要给反方一句公平转述",
+        "opening": "刺耳判断",
+        "avoid": "人身攻击、造谣、煽动对抗；假精确「概率约等于」金句；脱语境城市梗（早高峰空出租等）；比喻与论点不同构（例如要用证据证「编排」却拿稀缺偶遇类比）",
+        "lexicon": "本质是、别被、真正、一句说清"
+      },
+      "referenceParagraph": {
+        "zh": "别再把「用户体验」当遮羞布。这版规则改的是谁能说话，不是谁加载更快。",
+        "zh-TW": "别再把「用户体验」当遮羞布。这版规则改的是谁能说话，不是谁加载更快。",
+        "en": "Stop using “UX” as cover. This rule change is about who may speak—not who loads faster.",
+        "ja": "Stop using “UX” as cover. This rule change is about who may speak—not who loads faster."
+      },
+      "mediaPack": {
+        "channel": "feed_article",
+        "share_close": true
+      }
+    },
+    {
+      "id": "sm_story_case",
+      "craft": {
+        "sentence": "场景白描→问题→轻判断",
+        "stance": "共情但不代受害者立誓",
+        "opening": "具体一天",
+        "avoid": "消费苦难、编造细节",
+        "lexicon": "那天、她说、合同、空白"
+      },
+      "referenceParagraph": {
+        "zh": "她把排班表拍给我看：连上十三天，中间只有一个「调休待定」。待定的是休息，不是订单。",
+        "zh-TW": "她把排班表拍给我看：连上十三天，中间只有一个「调休待定」。待定的是休息，不是订单。",
+        "en": "She showed the roster: thirteen days on, one “comp day TBD.” What was TBD was rest—not orders.",
+        "ja": "She showed the roster: thirteen days on, one “comp day TBD.” What was TBD was rest—not orders."
+      },
+      "mediaPack": {
+        "channel": "feed_article",
+        "share_close": true
+      }
+    },
+    {
+      "id": "sm_list_practical",
+      "craft": {
+        "sentence": "祈使句+条件句；条目短",
+        "stance": "助手心态，不贩卖焦虑",
+        "opening": "读者当下能做的第一步",
+        "avoid": "恐吓营销、虚假功效",
+        "lexicon": "第一步、如果、核对、不要"
+      },
+      "referenceParagraph": {
+        "zh": "先别写长文道歉。第一步：导出近7日发帖与私信关键词，看怒点集中在哪一条规则。",
+        "zh-TW": "先别写长文道歉。第一步：导出近7日发帖与私信关键词，看怒点集中在哪一条规则。",
+        "en": "Don’t draft a long apology yet. Step one: export 7-day posts/DMs and see which rule the anger clusters on.",
+        "ja": "Don’t draft a long apology yet. Step one: export 7-day posts/DMs and see which rule the anger clusters on."
+      },
+      "mediaPack": {
+        "channel": "feed_article",
+        "share_close": false
+      }
+    },
+    {
+      "id": "sm_hot_take_fast",
+      "craft": {
+        "sentence": "200～600字意识；金句收束",
+        "stance": "快反但可核对，不造谣",
+        "opening": "热点核心矛盾一句",
+        "avoid": "跟风脏话、未证实 indictments",
+        "lexicon": "核心是、先分清、记住"
+      },
+      "referenceParagraph": {
+        "zh": "这波热搜不是道德剧，是规则剧：谁有权定义「适度」。记住这句就够转发。",
+        "zh-TW": "这波热搜不是道德剧，是规则剧：谁有权定义「适度」。记住这句就够转发。",
+        "en": "This trend isn’t a morality play—it’s a rules play: who defines “appropriate.” That line is enough to share.",
+        "ja": "This trend isn’t a morality play—it’s a rules play: who defines “appropriate.” That line is enough to share."
+      },
+      "mediaPack": {
+        "channel": "feed_short",
+        "share_close": true
+      }
+    },
+    {
+      "id": "sm_tw_sharp",
+      "craft": {
+        "sentence": "判斷句靠前；例子短",
+        "stance": "有立場，給反方一句公平轉述",
+        "opening": "刺耳判斷",
+        "avoid": "人身攻擊、造謠",
+        "lexicon": "本質是、別被、一句說清"
+      },
+      "referenceParagraph": {
+        "zh": "別再把用戶體驗當遮羞布。這版規則改的是誰能說話。",
+        "zh-TW": "別再把用戶體驗當遮羞布。",
+        "en": "Stop using “UX” as cover. This rule change is about who may speak.",
+        "ja": "UXを言い訳にするな。誰が話せるかの変更だ。"
+      },
+      "mediaPack": {
+        "channel": "feed_article",
+        "share_close": true
+      }
+    },
+    {
+      "id": "sm_tw_story",
+      "craft": {
+        "sentence": "場景白描→問題→輕判斷",
+        "stance": "共情但不代立誓",
+        "opening": "具體一天",
+        "avoid": "消費苦難、編造細節",
+        "lexicon": "那天、她說、合同、空白"
+      },
+      "referenceParagraph": {
+        "zh": "排班表連上十三天，中間只有調休待定——待定的是休息不是訂單。",
+        "zh-TW": "連上十三天，調休待定。",
+        "en": "Thirteen days on the roster, one “comp day TBD”—TBD was rest, not orders.",
+        "ja": "十三日連続。代休は「未定」——未定なのは休みであり注文ではない。"
+      },
+      "mediaPack": {
+        "channel": "feed_article",
+        "share_close": true
+      }
+    },
+    {
+      "id": "sm_tw_list",
+      "craft": {
+        "sentence": "祈使句+條件句；條目短",
+        "stance": "助手心態，不販賣焦慮",
+        "opening": "當下能做的第一步",
+        "avoid": "恐嚇營銷",
+        "lexicon": "第一步、如果、核對、不要"
+      },
+      "referenceParagraph": {
+        "zh": "先別寫長文道歉。第一步：導出近7日發帖與私信關鍵詞。",
+        "zh-TW": "先別寫長文道歉。先導出關鍵詞。",
+        "en": "Don’t draft a long apology yet. Step one: export 7-day posts/DMs and cluster the anger.",
+        "ja": "長い謝罪文はまだ。まず7日分の投稿とDM語を出す。"
+      },
+      "mediaPack": {
+        "channel": "feed_article",
+        "share_close": false
+      }
+    },
+    {
+      "id": "sm_en_sharp",
+      "craft": {
+        "sentence": "Judgment first; short examples",
+        "stance": "Take a side; steelman one clause for the other",
+        "opening": "Abrasive claim",
+        "avoid": "Personal attacks, rumors",
+        "lexicon": "actually, stop, the point is"
+      },
+      "referenceParagraph": {
+        "zh": "别再用用户体验遮羞。规则改的是谁能说话。",
+        "zh-TW": "別再用 UX 遮羞。",
+        "en": "Stop using “UX” as cover. This rule change is about who may speak—not who loads faster.",
+        "ja": "UXを言い訳にするな。誰が話せるかの変更だ。"
+      },
+      "mediaPack": {
+        "channel": "feed_article",
+        "share_close": true
+      }
+    },
+    {
+      "id": "sm_en_story",
+      "craft": {
+        "sentence": "Scene → problem → light judgment",
+        "stance": "Empathy without ventriloquism",
+        "opening": "One concrete day",
+        "avoid": "Trauma tourism, invented detail",
+        "lexicon": "that day, she said, contract, blank"
+      },
+      "referenceParagraph": {
+        "zh": "排班十三天，调休待定——待定的是休息。",
+        "zh-TW": "十三天，調休待定。",
+        "en": "Thirteen days on; one “comp day TBD.” What was TBD was rest—not orders.",
+        "ja": "十三日連続。代休は未定——未定なのは休みだ。"
+      },
+      "mediaPack": {
+        "channel": "feed_article",
+        "share_close": true
+      }
+    },
+    {
+      "id": "sm_en_hot",
+      "craft": {
+        "sentence": "200–600 words mindset; close on a line",
+        "stance": "Fast but checkable",
+        "opening": "Core conflict in one sentence",
+        "avoid": "Unverified indictments",
+        "lexicon": "the core is, first separate, remember"
+      },
+      "referenceParagraph": {
+        "zh": "这波不是道德剧，是规则剧：谁有权定义适度。",
+        "zh-TW": "這波是規則劇：誰定義適度。",
+        "en": "This trend isn’t a morality play—it’s a rules play: who defines “appropriate.”",
+        "ja": "道徳劇ではなくルール劇だ。誰が「適切」を定義するか。"
+      },
+      "mediaPack": {
+        "channel": "feed_short",
+        "share_close": true
+      }
+    },
+    {
+      "id": "sm_ja_sharp",
+      "craft": {
+        "sentence": "判断を先に。例は短く",
+        "stance": "立場を取る。相手にも一文の公平",
+        "opening": "刺さる判断",
+        "avoid": "人身攻撃、デマ",
+        "lexicon": "本質は、騙されるな、一言で"
+      },
+      "referenceParagraph": {
+        "zh": "别再用UX遮羞。规则改的是谁能说话。",
+        "zh-TW": "別再用 UX 遮羞。",
+        "en": "Stop using UX as cover. It’s about who may speak.",
+        "ja": "UXを言い訳にするな。誰が話せるかの変更だ。"
+      },
+      "mediaPack": {
+        "channel": "feed_article",
+        "share_close": true
+      }
+    },
+    {
+      "id": "sm_ja_story",
+      "craft": {
+        "sentence": "場面→問題→軽い判断",
+        "stance": "共感。代弁の誓いをしない",
+        "opening": "具体的な一日",
+        "avoid": "苦難消費、細部捏造",
+        "lexicon": "あの日、彼女は、契約、空白"
+      },
+      "referenceParagraph": {
+        "zh": "连上十三天，调休待定。",
+        "zh-TW": "十三天，調休待定。",
+        "en": "Thirteen days on; rest still TBD.",
+        "ja": "十三日連続。代休は未定——未定なのは休みだ。"
+      },
+      "mediaPack": {
+        "channel": "feed_article",
+        "share_close": true
+      }
+    },
+    {
+      "id": "sm_ja_list",
+      "craft": {
+        "sentence": "命令形＋条件。項目は短く",
+        "stance": "助手。不安を売らない",
+        "opening": "今できる第一步",
+        "avoid": "恐怖マーケティング",
+        "lexicon": "第一步、もし、確認、しないで"
+      },
+      "referenceParagraph": {
+        "zh": "先别写长文道歉。先导出近7日关键词。",
+        "zh-TW": "先別寫長文道歉。",
+        "en": "Don’t draft a long apology yet. Export 7-day keywords first.",
+        "ja": "長い謝罪はまだ。まず7日分の語を出す。"
+      },
+      "mediaPack": {
+        "channel": "feed_article",
+        "share_close": false
+      }
+    }
+  ]
+}

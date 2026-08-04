@@ -20,8 +20,15 @@ export class FinnhubProvider implements DataSourceProvider {
     }
 
     const ticker = this.resolveSymbol(symbol || query);
-    if (!ticker) {
-      return this.emptyResult(query, '无法解析股票代码，请提供如 AAPL 或 600519.SS');
+    // 大盘/指数类查询：拉美股核心指数（免费层可用）
+    if (!ticker || this.isIndexOverviewQuery(query)) {
+      if (this.isIndexOverviewQuery(query) || !ticker) {
+        const overview = await this.indexOverview(query, apiKey);
+        if (overview) return overview;
+      }
+      if (!ticker) {
+        return this.emptyResult(query, '无法解析股票代码，请提供如 AAPL 或 600519.SS');
+      }
     }
 
     try {
@@ -87,8 +94,61 @@ export class FinnhubProvider implements DataSourceProvider {
     };
   }
 
+  private isIndexOverviewQuery(q: string): boolean {
+    return /大盘|指数|行情|市场|nasdaq|标普|道指|s&p|dow|美股/i.test(q);
+  }
+
+  private async indexOverview(query: string, apiKey: string): Promise<DataSourceResult | null> {
+    // 免费层用 ETF 代理主要美股指数，比 ^GSPC 一类更稳
+    const symbols = [
+      { s: 'SPY', n: 'S&P 500 (SPY)' },
+      { s: 'QQQ', n: 'NASDAQ-100 (QQQ)' },
+      { s: 'DIA', n: 'Dow (DIA)' },
+    ];
+    const rows: Array<{ symbol: string; name: string; quote: FinnhubQuote | null }> = [];
+    for (const { s, n } of symbols) {
+      try {
+        const quoteRes = await fetch(
+          `${BASE_URL}/quote?symbol=${encodeURIComponent(s)}&token=${apiKey}`,
+          { signal: AbortSignal.timeout(10000) }
+        );
+        const quote = quoteRes.ok ? ((await quoteRes.json()) as FinnhubQuote) : null;
+        if (quote && typeof quote.c === 'number' && quote.c > 0) {
+          rows.push({ symbol: s, name: n, quote });
+        }
+      } catch {
+        /* skip */
+      }
+    }
+    if (rows.length === 0) return null;
+    const summary = rows
+      .map(({ name, quote }) => {
+        const q = quote!;
+        const pct =
+          q.dp != null ? `${q.dp >= 0 ? '+' : ''}${Number(q.dp).toFixed(2)}%` : '?';
+        return `${name}: ${q.c}（${pct}）`;
+      })
+      .join('\n');
+    return {
+      domain: 'stock',
+      provider: this.name,
+      query,
+      summary: `美股指数代理快照（Finnhub ETF）\n${summary}`,
+      structuredData: rows,
+      provenance: {
+        provider: this.name,
+        domain: 'stock',
+        fetchedAt: new Date().toISOString(),
+        confidence: 'high',
+        sourceUrl: 'https://finnhub.io',
+      },
+    };
+  }
+
   private resolveSymbol(raw: string): string | null {
     const s = raw.trim().toUpperCase();
+    // 中文大盘句：不要误吞成假 ticker
+    if (/[\u4e00-\u9fff]/.test(raw) && this.isIndexOverviewQuery(raw)) return null;
     // 提取常见 ticker 模式
     const match = s.match(/\b([A-Z]{1,5}(?:\.[A-Z]{1,2})?)\b/);
     if (match) return match[1];
@@ -99,7 +159,7 @@ export class FinnhubProvider implements DataSourceProvider {
       const prefix = code.startsWith('6') ? 'SS' : 'SZ';
       return `${code}.${prefix}`;
     }
-    return s.length <= 10 ? s : null;
+    return s.length <= 10 && /^[A-Z0-9.]+$/.test(s) ? s : null;
   }
 
   private formatSummary(ticker: string, quote: FinnhubQuote | null, profile: FinnhubProfile | null): string {

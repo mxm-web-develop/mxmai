@@ -1,0 +1,826 @@
+{
+  "schemaVersion": 1,
+  "kind": "mxm-business-bundle",
+  "exportedAt": "2026-07-28T02:00:00.000Z",
+  "items": [
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "voice-script-draft",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换",
+          "subtypeLabel": "口播稿改写",
+          "description": "按播报风格把源文档改写成可朗读的口播稿；挂载于 audio/generator enrich。",
+          "taskLabelI18n": {
+            "zh": "转换",
+            "zh-TW": "轉換",
+            "en": "Transform",
+            "ja": "変換"
+          },
+          "subtypeLabelI18n": {
+            "zh": "口播稿改写",
+            "zh-TW": "口播稿改寫",
+            "en": "Voice script draft",
+            "ja": "ナレーション原稿"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "input",
+              "instruction"
+            ],
+            "properties": {
+              "input": {
+                "type": "string",
+                "title": "输入内容",
+                "minLength": 1
+              },
+              "instruction": {
+                "type": "string",
+                "title": "转换说明",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是资深口播文案，把源材料改写成**可直接朗读**的中文口播稿。\n\n【转换说明】\n${instruction}\n\n【源材料】\n${input}\n\n【任务】\n1. 保留事实与叙事顺序，不无故扩写；不编造数字与引语。\n2. 输出**完整口播稿正文**（纯文本：无 Markdown 标题/列表符号/舞台说明括号）。\n3. 口语化、分段自然；严格遵守【转换说明】中的播报风格（语速感、语气词密度、段落节奏）。\n4. **数字与量词（TTS 友好）**：阿拉伯数字、百分比、金额、日期等改为中文读法（2024→二零二四年，50%→百分之五十）。\n5. **禁止** JSON、过程说明、「以下是口播稿」等前缀；禁止 [开场]/[主稿] 等标记词。\n\n【输出】只输出口播稿正文。"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.45,
+              "maxTokens": 131072,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "max_completion_tokens": 131072
+              }
+            },
+            "skillMode": "core-skill",
+            "skillPack": {
+              "version": 1,
+              "files": [
+                {
+                  "path": "references/contract.md",
+                  "content": "# Business contract shape\n\nThis file is **platform-generated** from `contractSchema`. It is read-only in the editor.\nRuntime filled values are injected separately by the skill executor (data plane).\n\n## Zones\n\n- `basic` — user-facing / input-stage fields\n- `business` — enrich / expert-filled fields\n- `sources` / `enrich_search` — pipeline evidence (not schema properties; present at runtime)\n\n## basic\n\n- _(no basic fields)_\n\n## business\n\n- `input` (string) 输入内容\n- `instruction` (string) 转换说明\n",
+                  "readonly": true
+                },
+                {
+                  "path": "references/rules.md",
+                  "content": "【角色】你是资深口播文案，把源材料改写成**可直接朗读**的中文口播稿。\n\n【转换说明】\n_(instruction provided at runtime)_\n\n【源材料】\n_(input provided at runtime)_\n\n【任务】\n1. 保留事实与叙事顺序，不无故扩写；不编造数字与引语。\n2. 输出**完整口播稿正文**（纯文本：无 Markdown 标题/列表符号/舞台说明括号）。\n3. 口语化、分段自然；严格遵守【转换说明】中的播报风格（语速感、语气词密度、段落节奏）。\n4. **数字与量词（TTS 友好）**：阿拉伯数字、百分比、金额、日期等改为中文读法（2024→二零二四年，50%→百分之五十）。\n5. **禁止** JSON、过程说明、「以下是口播稿」等前缀；禁止 [开场]/[主稿] 等标记词。\n\n【输出】只输出口播稿正文。\n",
+                  "readonly": false
+                },
+                {
+                  "path": "scripts/invoke-text.mjs",
+                  "content": "/**\n * @readonly platform invoke for text skill\n * Runtime: nestedText / runTaskV2(scope=text) → skill executor → sync text result.\n * Do not edit.\n */\nexport const invokeMode = 'text';\nexport const steps = ['skillLlm'];\nexport default { invokeMode, steps };\n",
+                  "readonly": true
+                },
+                {
+                  "path": "SKILL.md",
+                  "content": "---\nname: text-transform-voice-script-draft\ndescription: Core skill for text/transform/voice-script-draft. Use when running this business node.\nloadReferences:\n  - references/contract.md\n  - references/rules.md\n---\n\nYou are the `transform/voice-script-draft` text skill. Follow references/rules.md. Fill only requested fields.\n\n## Workflow\n\n1. Read `references/contract.md` for field shape.\n2. Read `references/rules.md` for hard constraints.\n3. Use bound / provided inputs only — do not invent facts.\n\nInput:\n${input}\n\nInstruction:\n${instruction}\n",
+                  "readonly": false
+                }
+              ]
+            }
+          }
+        },
+        "skillMode": "core-skill"
+      },
+      "routing": {
+        "logical_model": "text-transform-voice-script-draft",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-transform-voice-script-draft",
+          "charge_metric": "per_request",
+          "price_in_tokens": 15,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "voice-script-draft",
+          "metadata": {
+            "margin": 0.2,
+            "voiceOverStage": "draft"
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "expert",
+      "subtype": "voice-persona-sketch",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "专家",
+          "subtypeLabel": "音色人设",
+          "description": "根据系统音色名称与描述生成可编辑口播人设草稿",
+          "taskLabelI18n": {
+            "zh": "专家",
+            "zh-TW": "專家",
+            "en": "Expert",
+            "ja": "専門家"
+          },
+          "subtypeLabelI18n": {
+            "zh": "音色人设",
+            "zh-TW": "音色人設",
+            "en": "Voice persona",
+            "ja": "ボイス人設"
+          },
+          "descriptionI18n": {
+            "zh": "根据系统音色名称与描述生成可编辑口播人设草稿",
+            "zh-TW": "依系統音色名稱與描述生成可編輯口播人設草稿",
+            "en": "Draft editable host persona from system voice label/description",
+            "ja": "システムボイス名と説明から話者ペルソナ草稿を生成"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "contract",
+              "field_specs"
+            ],
+            "properties": {
+              "contract": {
+                "type": "object",
+                "title": "运行时合同",
+                "additionalProperties": true
+              },
+              "field_specs": {
+                "type": "array",
+                "title": "字段规格",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是口播导演助理。根据系统音色的名称与官方描述，写一段**可编辑**的口播人设短文，供后续写稿/TTS 择位点缀。\n\n【合同 JSON】\n${contract}\n\n【字段规格】\n${field_specs}\n\n【输入】\n- basic.voice_label：音色显示名（必有）\n- basic.voice_descriptions：官方描述字符串数组（可空）\n- basic.voice_id：可选技术 id\n\n【输出】只输出一个 JSON object（无 Markdown），键仅：\n- persona：多行中文短文，建议结构：\n  性格：…\n  常用语气词：…\n  口头语：…\n  用法：按内容情绪与节奏择位点缀；庄重/事实句勿句首硬塞；勿每句都加\n\n【硬约束】\n1. 只根据音色给人的听觉/命名印象写人设，**禁止**编造具体生平、年龄数字、虚构履历。\n2. 语气词与口头语必须贴合该音色气质；偏播音/资讯/主持则语气词写「少用」或空，口头语偏转场短句。\n3. 口头禅是**候选库**不是句首模板；用法行必须保留「择位、勿硬塞」提示。\n4. 全文简洁（约 4～8 行），可直接放进表单给用户改。\n5. 语言跟 basic.language（缺省 zh）。"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.5,
+              "maxTokens": 20000,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "max_completion_tokens": 2048
+              }
+            },
+            "skillMode": "core-skill",
+            "skillPack": {
+              "version": 1,
+              "files": [
+                {
+                  "path": "references/contract.md",
+                  "content": "# Business contract shape\n\nThis file is **platform-generated** from `contractSchema`. It is read-only in the editor.\nRuntime filled values are injected separately by the skill executor (data plane).\n\n## Zones\n\n- `basic` — user-facing / input-stage fields\n- `business` — enrich / expert-filled fields\n- `sources` / `enrich_search` — pipeline evidence (not schema properties; present at runtime)\n\n## basic\n\n- _(no basic fields)_\n\n## business\n\n- `contract` (object) 运行时合同\n- `field_specs` (array) 字段规格\n",
+                  "readonly": true
+                },
+                {
+                  "path": "references/rules.md",
+                  "content": "【角色】你是口播导演助理。根据系统音色的名称与官方描述，写一段**可编辑**的口播人设短文，供后续写稿/TTS 择位点缀。\n\n【合同 JSON】\n_(contract provided at runtime)_\n\n【字段规格】\n_(field_specs provided at runtime)_\n\n【输入】\n- basic.voice_label：音色显示名（必有）\n- basic.voice_descriptions：官方描述字符串数组（可空）\n- basic.voice_id：可选技术 id\n\n【输出】只输出一个 JSON object（无 Markdown），键仅：\n- persona：多行中文短文，建议结构：\n  性格：…\n  常用语气词：…\n  口头语：…\n  用法：按内容情绪与节奏择位点缀；庄重/事实句勿句首硬塞；勿每句都加\n\n【硬约束】\n1. 只根据音色给人的听觉/命名印象写人设，**禁止**编造具体生平、年龄数字、虚构履历。\n2. 语气词与口头语必须贴合该音色气质；偏播音/资讯/主持则语气词写「少用」或空，口头语偏转场短句。\n3. 口头禅是**候选库**不是句首模板；用法行必须保留「择位、勿硬塞」提示。\n4. 全文简洁（约 4～8 行），可直接放进表单给用户改。\n5. 语言跟 basic.language（缺省 zh）。\n",
+                  "readonly": false
+                },
+                {
+                  "path": "scripts/invoke-text.mjs",
+                  "content": "/**\n * @readonly platform invoke for text skill\n * Runtime: nestedText / runTaskV2(scope=text) → skill executor → sync text result.\n * Do not edit.\n */\nexport const invokeMode = 'text';\nexport const steps = ['skillLlm'];\nexport default { invokeMode, steps };\n",
+                  "readonly": true
+                },
+                {
+                  "path": "SKILL.md",
+                  "content": "---\nname: text-expert-voice-persona-sketch\ndescription: Core skill for text/expert/voice-persona-sketch. Use when running this business node.\nloadReferences:\n  - references/contract.md\n  - references/rules.md\n---\n\nYou are the `expert/voice-persona-sketch` text skill. Follow references/rules.md. Fill only requested fields.\n\n## Workflow\n\n1. Read `references/contract.md` for field shape.\n2. Read `references/rules.md` for hard constraints.\n3. Use bound / provided inputs only — do not invent facts.\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}\n",
+                  "readonly": false
+                }
+              ]
+            }
+          }
+        },
+        "skillMode": "core-skill"
+      },
+      "routing": {
+        "logical_model": "text-expert-voice-persona-sketch",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-expert-voice-persona-sketch",
+          "charge_metric": "per_request",
+          "price_in_tokens": 4,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "voice-persona-sketch",
+          "metadata": {
+            "margin": 0.2,
+            "note": "选音色预填人设"
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "text",
+      "type": "transform",
+      "subtype": "voice-script-tts-markup",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "extra": {
+        "display": {
+          "taskLabel": "转换",
+          "subtypeLabel": "TTS稿改写",
+          "description": "为 MiniMax Speech 插入停顿与口语优化；挂载于 audio/generator enrich。",
+          "taskLabelI18n": {
+            "zh": "转换",
+            "zh-TW": "轉換",
+            "en": "Transform",
+            "ja": "変換"
+          },
+          "subtypeLabelI18n": {
+            "zh": "TTS稿改写",
+            "zh-TW": "TTS稿改寫",
+            "en": "TTS markup",
+            "ja": "TTS最適化"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "required": [
+              "input",
+              "instruction"
+            ],
+            "properties": {
+              "input": {
+                "type": "string",
+                "title": "输入内容",
+                "minLength": 1
+              },
+              "instruction": {
+                "type": "string",
+                "title": "转换说明",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "unifiedTemplate": "【角色】你是 MiniMax Speech 2.8 TTS 口播导演，把口播稿优化成**可直接送入 t2a_v2 的合成文本**。\n\n【转换说明】\n${instruction}\n\n【口播稿】\n${input}\n\n【MiniMax 2.8 语法】\n1. 停顿标签 `<#秒数#>`（0.01–99.99），密度严格按【转换说明】中的播报风格。\n2. **首尾留白**：全文必须以 `<#0.8#>` 开头并以 `<#0.8#>` 结尾（平台合成也会兜底补齐）。\n3. 语气词与助词：仅按风格允许的范围加入；禁止 (gasps)(sighs)(laughs) 及相邻两句连续语气标签。\n4. 保持事实与顺序；阿拉伯数字改为中文读法。\n5. **禁止** Markdown、JSON、解释文字与 [开场] 等标记。\n6. 必须覆盖初稿全部信息。\n\n【输出】只输出优化后的 TTS 合成文本（含必要标签）。"
+          },
+          "pipeline": {
+            "pre": [],
+            "enrich": [],
+            "post": []
+          },
+          "extra": {
+            "generateParams": {
+              "temperature": 0.32,
+              "maxTokens": 131072,
+              "parameters": {
+                "thinking": {
+                  "type": "disabled"
+                },
+                "max_completion_tokens": 131072
+              }
+            },
+            "skillMode": "core-skill",
+            "skillPack": {
+              "version": 1,
+              "files": [
+                {
+                  "path": "references/contract.md",
+                  "content": "# Business contract shape\n\nThis file is **platform-generated** from `contractSchema`. It is read-only in the editor.\nRuntime filled values are injected separately by the skill executor (data plane).\n\n## Zones\n\n- `basic` — user-facing / input-stage fields\n- `business` — enrich / expert-filled fields\n- `sources` / `enrich_search` — pipeline evidence (not schema properties; present at runtime)\n\n## basic\n\n- _(no basic fields)_\n\n## business\n\n- `input` (string) 输入内容\n- `instruction` (string) 转换说明\n",
+                  "readonly": true
+                },
+                {
+                  "path": "references/rules.md",
+                  "content": "【角色】你是 MiniMax Speech 2.8 TTS 口播导演，把口播稿优化成**可直接送入 t2a_v2 的合成文本**。\n\n【转换说明】\n_(instruction provided at runtime)_\n\n【口播稿】\n_(input provided at runtime)_\n\n【MiniMax 2.8 语法】\n1. 停顿标签 `<#秒数#>`（0.01–99.99），密度严格按【转换说明】中的播报风格。\n2. **首尾留白**：全文必须以 `<#0.8#>` 开头并以 `<#0.8#>` 结尾（平台合成也会兜底补齐）。\n3. 语气词与助词：仅按风格允许的范围加入；禁止 (gasps)(sighs)(laughs) 及相邻两句连续语气标签。\n4. 保持事实与顺序；阿拉伯数字改为中文读法。\n5. **禁止** Markdown、JSON、解释文字与 [开场] 等标记。\n6. 必须覆盖初稿全部信息。\n\n【输出】只输出优化后的 TTS 合成文本（含必要标签）。\n",
+                  "readonly": false
+                },
+                {
+                  "path": "scripts/invoke-text.mjs",
+                  "content": "/**\n * @readonly platform invoke for text skill\n * Runtime: nestedText / runTaskV2(scope=text) → skill executor → sync text result.\n * Do not edit.\n */\nexport const invokeMode = 'text';\nexport const steps = ['skillLlm'];\nexport default { invokeMode, steps };\n",
+                  "readonly": true
+                },
+                {
+                  "path": "SKILL.md",
+                  "content": "---\nname: text-transform-voice-script-tts-markup\ndescription: Core skill for text/transform/voice-script-tts-markup. Use when running this business node.\nloadReferences:\n  - references/contract.md\n  - references/rules.md\n---\n\nYou are the `transform/voice-script-tts-markup` text skill. Follow references/rules.md. Fill only requested fields.\n\n## Workflow\n\n1. Read `references/contract.md` for field shape.\n2. Read `references/rules.md` for hard constraints.\n3. Use bound / provided inputs only — do not invent facts.\n\nInput:\n${input}\n\nInstruction:\n${instruction}\n",
+                  "readonly": false
+                }
+              ]
+            }
+          }
+        },
+        "skillMode": "core-skill"
+      },
+      "routing": {
+        "logical_model": "text-transform-voice-script-tts-markup",
+        "provider": "maxplan",
+        "model": "MiniMax-M3",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "text-transform-voice-script-tts-markup",
+          "charge_metric": "per_request",
+          "price_in_tokens": 15,
+          "min_charge_tokens": 0,
+          "provider": "maxplan",
+          "model_key": "MiniMax-M3",
+          "subtype": "voice-script-tts-markup",
+          "metadata": {
+            "margin": 0.2,
+            "voiceOverStage": "tts_markup"
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    },
+    {
+      "scope": "audio",
+      "type": "generator",
+      "subtype": "voice-over-test",
+      "is_active": true,
+      "rules_i18n": {},
+      "output_format_i18n": {
+        "zh": "",
+        "en": ""
+      },
+      "form_options_i18n": null,
+      "executionMode": "mxm-warp",
+      "extra": {
+        "executionMode": "mxm-warp",
+        "skipOutputLlm": true,
+        "subtitle_enable": true,
+        "warpTextModel": {
+          "provider": "maxplan",
+          "model": "MiniMax-M3"
+        },
+        "display": {
+          "taskLabel": "单口",
+          "subtypeLabel": "智能口播",
+          "description": "粘贴或上传文档，选音色与播报风格；经口播稿与 TTS 改写、人工确认后合成带句级字幕的 MP3。",
+          "taskLabelI18n": {
+            "zh": "单口",
+            "zh-TW": "單口",
+            "en": "Voiceover",
+            "ja": "ボイスオーバー"
+          },
+          "subtypeLabelI18n": {
+            "zh": "智能口播",
+            "zh-TW": "智能口播",
+            "en": "Smart voiceover",
+            "ja": "スマートナレーション"
+          },
+          "descriptionI18n": {
+            "zh": "粘贴或上传文档，选音色与播报风格；经口播稿与 TTS 改写、人工确认后合成带句级字幕的 MP3。",
+            "zh-TW": "貼上或上傳文件，選音色與播報風格；經口播稿與 TTS 改寫、人工確認後合成帶句級字幕的 MP3。",
+            "en": "Paste or upload a document, pick a voice and broadcast style; rewrite script + TTS markup, review, then MP3 with sentence subtitles.",
+            "ja": "文書を貼付/アップロードし、声と放送スタイルを選び、原稿と TTS 最適化・確認後に字幕付き MP3 を生成。"
+          }
+        },
+        "taskTemplate": {
+          "formSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "x-createUx": "warp-gates",
+            "required": [
+              "source_material",
+              "voice",
+              "broadcast_style"
+            ],
+            "properties": {
+              "source_material": {
+                "type": "string",
+                "title": "口播文档",
+                "description": "从知识库选取、上传库选取、拖拽上传，或直接粘贴文本。",
+                "x-ui-type": "textFileOrPaste",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-max-chars": 120000,
+                "minLength": 1,
+                "default": ""
+              },
+              "voice": {
+                "type": "object",
+                "title": "音色",
+                "description": "选择系统音色，或录制/上传音频克隆专属音色。",
+                "x-ui-type": "minimaxVoice",
+                "x-voice-model": "speech-2.8-hd",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "system",
+                      "clone"
+                    ]
+                  },
+                  "voice_id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "default": {
+                  "mode": "system",
+                  "voice_id": "female-shaonv",
+                  "label": "少女音色"
+                }
+              },
+              "broadcast_style": {
+                "type": "string",
+                "title": "播报风格",
+                "description": "决定语速与口播稿里的口语词、停顿密度。",
+                "x-ui-type": "selection",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "enum": [
+                  "fast_talk",
+                  "news",
+                  "chat_show",
+                  "late_night"
+                ],
+                "x-enum-labels": [
+                  "快嘴播报",
+                  "资讯播报",
+                  "聊天节目",
+                  "深夜电台"
+                ],
+                "default": "news"
+              },
+              "host_persona": {
+                "type": "string",
+                "title": "主播人设",
+                "description": "性格、常用语气词、口头语。选角色卡会自动带入；选系统音色且名称鲜明时会给草稿；没有就留空。",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "x-guided-hidden": true,
+                "default": "性格：清澈活泼、略带俏皮与好奇，像邻家少女聊天\n常用语气词：呀、呢、欸、嗯\n口头语：真的假的、好耶、等一下哦"
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充说明",
+                "description": "可选：重点、受众、禁忌等",
+                "x-zone": "basic"
+              },
+              "script_draft": {
+                "type": "string",
+                "title": "口播稿",
+                "description": "enrich 口播稿改写产物",
+                "x-zone": "business"
+              },
+              "tts_script": {
+                "type": "string",
+                "title": "TTS 合成稿",
+                "description": "enrich TTS 改写产物，供人工审核与合成",
+                "x-zone": "business"
+              }
+            }
+          },
+          "contractSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "source_material": {
+                "type": "string",
+                "title": "口播文档",
+                "description": "用户提供的待转译源文本",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "voice": {
+                "type": "object",
+                "title": "音色",
+                "description": "系统音色或克隆音色",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "additionalProperties": true
+              },
+              "voice_id": {
+                "type": "string",
+                "title": "音色 ID",
+                "description": "由 voice 扁平化",
+                "x-zone": "basic",
+                "x-hidden": true,
+                "x-guided-hidden": true
+              },
+              "broadcast_style": {
+                "type": "string",
+                "title": "播报风格",
+                "description": "fast_talk / news / chat_show / late_night",
+                "x-zone": "basic",
+                "x-collect": "pre",
+                "enum": [
+                  "fast_talk",
+                  "news",
+                  "chat_show",
+                  "late_night"
+                ]
+              },
+              "host_persona": {
+                "type": "string",
+                "title": "主播人设",
+                "description": "性格、语气词、口头语；供口播稿与 TTS 改写点缀",
+                "x-zone": "basic",
+                "x-collect": "pre"
+              },
+              "speed": {
+                "type": "number",
+                "title": "语速",
+                "description": "由播报风格推导，供 TTS",
+                "x-zone": "basic",
+                "x-hidden": true,
+                "x-guided-hidden": true
+              },
+              "supplement": {
+                "type": "string",
+                "title": "补充说明",
+                "x-zone": "basic"
+              },
+              "script_draft": {
+                "type": "string",
+                "title": "口播稿",
+                "description": "enrich 第一步改写结果",
+                "x-zone": "business"
+              },
+              "tts_script": {
+                "type": "string",
+                "title": "TTS 合成稿",
+                "description": "enrich 第二步改写结果",
+                "x-zone": "business"
+              }
+            }
+          },
+          "uiSchema": {
+            "host_persona": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 3
+              }
+            },
+            "supplement": {
+              "ui:widget": "textarea",
+              "ui:options": {
+                "rows": 2
+              }
+            }
+          },
+          "prompt": {
+            "unifiedTemplate": "# Rules\n\n(No legacy prompt body; edit this file to add domain rules.)"
+          },
+          "storage": {
+            "scope": "audio",
+            "extension": "mp3",
+            "mime": "audio/mpeg",
+            "pathTemplate": "{userId}/audio/{timestamp}-{randomId}/",
+            "filenameTemplate": "voiceover_{taskId}_{randomId}.mp3"
+          },
+          "pipeline": {
+            "pre": [
+              {
+                "step": "interactiveCard",
+                "params": {
+                  "id": "voiceover-pre-card",
+                  "label": "准备口播材料",
+                  "hint": "先备好文档、音色和播报风格；确认后才会创建任务并改写口播稿。",
+                  "kind": "interactive-card",
+                  "fields": [
+                    {
+                      "name": "source_material",
+                      "type": "string",
+                      "title": "口播文档",
+                      "description": "从知识库、上传库选取，或拖拽/粘贴文本",
+                      "required": true,
+                      "x-ui-type": "textFileOrPaste"
+                    },
+                    {
+                      "name": "voice",
+                      "type": "object",
+                      "title": "音色",
+                      "description": "选择系统音色或录制/上传克隆",
+                      "required": true,
+                      "x-ui-type": "minimaxVoice",
+                      "x-voice-model": "speech-2.8-hd"
+                    },
+                    {
+                      "name": "broadcast_style",
+                      "type": "string",
+                      "title": "播报风格",
+                      "description": "决定语速与口语词密度",
+                      "required": true,
+                      "enum": [
+                        "fast_talk",
+                        "news",
+                        "chat_show",
+                        "late_night"
+                      ],
+                      "x-enum-labels": [
+                        "快嘴播报",
+                        "资讯播报",
+                        "聊天节目",
+                        "深夜电台"
+                      ],
+                      "default": "news"
+                    }
+                  ],
+                  "editable": true,
+                  "postPreHint": "材料已齐。若有补充说明可再写一句；随后将改写口播稿并合成语音。"
+                }
+              }
+            ],
+            "enrich": [
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/transform/voice-script-draft",
+                "inputMapping": {
+                  "input": "${params.source_material}",
+                  "instruction": "播报风格=${params.broadcast_style}；主播人设=${params.host_persona}；补充=${params.supplement}\n风格规则：\n- fast_talk 快嘴播报：极短句、干脆利落；**禁止任何语气词/助词**；段落间几乎不停顿感。\n- news 资讯播报：断句简短自然换气；**禁止任何语气词**；客观播报口吻。\n- chat_show 聊天节目：像聊天；按音色性别（voice_id/label 含 female/男/女等）加入少量合适语气词（全文≤3处）；节奏随内容松紧。\n- late_night 深夜电台：舒缓、留白；可加入更多语气助词与段落间隔感。\n主播人设：\n- 若 host_persona 非空：在**不违背上方风格禁令**的前提下，把性格态度写入用词；仅在 chat_show / late_night 允许把「常用语气词 / 口头语」自然点缀进稿（全文克制，勿每句都加；fast_talk / news 仍禁止语气词，只吸收性格态度如更干脆/更沉稳）。\n- 若 host_persona 为空：不要脑补人设，只按播报风格改写。\n只输出口播稿正文。"
+                },
+                "params": {
+                  "overwriteCoreArtifact": true
+                }
+              },
+              {
+                "step": "nestedText",
+                "nestedTextTaskKey": "text/transform/voice-script-tts-markup",
+                "inputMapping": {
+                  "input": "${state.coreArtifact.text}",
+                  "instruction": "播报风格=${params.broadcast_style}；主播人设=${params.host_persona}；音色 voice_id=${params.voice_id}；语速将按风格设定（fast_talk=1.4, news=1.3, chat_show≈1.2, late_night≈1.0）。\n停顿与语气词：\n- **首尾留白（硬）**：全文以 `<#0.8#>` 开头、以 `<#0.8#>` 结尾（避免起止过陡）；中间停顿仍按风格。\n- fast_talk：**禁止**语气标签与 (breath)；段落之间最多 1 处 `<#0.15#>`；句内不加停顿。\n- news：**禁止**语气标签；句末可 `<#0.25#>`，段落 `<#0.4#>`；约每 2～3 句一处。\n- chat_show：可少量助词（按音色性别与人设，全文≤3）；句末 `<#0.3#>`，段落 `<#0.5#>`。\n- late_night：可更多助词与 (breath)；意群间 `<#0.4#>`～`<#0.6#>`，段落 `<#0.8#>`～`<#1#>`。\n主播人设微调：\n- 若 host_persona 非空：在 chat_show / late_night 按其中语气词/口头语做**轻量**点缀，并按性格微调停顿疏密（活泼略密、沉稳略疏）；fast_talk / news 仍禁止语气词，仅可按性格微调停顿密度（±1 处量级）。\n- 若为空：不要额外加人设口头禅。\n只输出 TTS 合成文本。"
+                },
+                "params": {
+                  "overwriteCoreArtifact": true
+                }
+              },
+              {
+                "step": "manualReview",
+                "params": {
+                  "id": "voiceover-tts-review",
+                  "label": "确认口播合成稿",
+                  "hint": "确认或微调 TTS 稿后开始合成带字幕的 MP3。",
+                  "kind": "text",
+                  "draftFrom": "${state.coreArtifact.text}",
+                  "applyMapping": {
+                    "prompt": "${review.text}"
+                  },
+                  "editable": true
+                }
+              }
+            ],
+            "post": []
+          },
+          "extra": {
+            "subtitle_enable": true,
+            "executionMode": "mxm-warp",
+            "skipOutputLlm": true,
+            "createGuide": {
+              "interactiveCard": {
+                "id": "voiceover-pre-card",
+                "label": "准备口播材料",
+                "hint": "先备好文档、音色和播报风格。",
+                "fields": [
+                  {
+                    "name": "source_material",
+                    "type": "string",
+                    "title": "口播文档",
+                    "description": "从知识库、上传库选取，或拖拽/粘贴文本",
+                    "required": true,
+                    "x-ui-type": "textFileOrPaste"
+                  },
+                  {
+                    "name": "voice",
+                    "type": "object",
+                    "title": "音色",
+                    "description": "选择系统音色或录制/上传克隆",
+                    "required": true,
+                    "x-ui-type": "minimaxVoice",
+                    "x-voice-model": "speech-2.8-hd"
+                  },
+                  {
+                    "name": "broadcast_style",
+                    "type": "string",
+                    "title": "播报风格",
+                    "description": "决定语速与口语词密度",
+                    "required": true,
+                    "enum": [
+                      "fast_talk",
+                      "news",
+                      "chat_show",
+                      "late_night"
+                    ],
+                    "x-enum-labels": [
+                      "快嘴播报",
+                      "资讯播报",
+                      "聊天节目",
+                      "深夜电台"
+                    ],
+                    "default": "news"
+                  }
+                ]
+              }
+            },
+            "skillMode": "core-skill",
+            "skillPack": {
+              "version": 1,
+              "files": [
+                {
+                  "path": "references/contract.md",
+                  "content": "# Business contract shape\n\nThis file is **platform-generated** from `contractSchema`. It is read-only in the editor.\nRuntime filled values are injected separately by the skill executor (data plane).\n\n## Zones\n\n- `basic` — user-facing / input-stage fields\n- `business` — enrich / expert-filled fields\n- `sources` / `enrich_search` — pipeline evidence (not schema properties; present at runtime)\n\n## basic\n\n- `source_material` (string) 口播文档 — 用户提供的待转译源文本\n- `voice` (object) 音色 — 系统音色或克隆音色\n- `voice_id` (string) 音色 ID — 由 voice 扁平化\n- `broadcast_style` (string) 播报风格 enum: fast_talk | news | chat_show | late_night — fast_talk / news / chat_show / late_night\n- `host_persona` (string) 主播人设 — 性格、语气词、口头语；供口播稿与 TTS 改写点缀\n- `speed` (number) 语速 — 由播报风格推导，供 TTS\n- `supplement` (string) 补充说明\n\n## business\n\n- `script_draft` (string) 口播稿 — enrich 第一步改写结果\n- `tts_script` (string) TTS 合成稿 — enrich 第二步改写结果\n",
+                  "readonly": true
+                },
+                {
+                  "path": "references/rules.md",
+                  "content": "# Rules\n\n(No legacy prompt body; edit this file to add domain rules.)\n",
+                  "readonly": false
+                },
+                {
+                  "path": "scripts/invoke-generator.mjs",
+                  "content": "/**\n * @readonly platform invoke-generator\n * Output skill entry for taskKey=generator.\n * Runtime: load SKILL.md + references → LLM (unless skipOutputLlm) → coreArtifact;\n * media scopes may then call speech / graph / music primary APIs outside this text step.\n * Do not edit.\n */\nexport const invokeMode = 'generator';\nexport const steps = ['skillLlm', 'scopePrimaryGenerate'];\nexport default { invokeMode, steps };\n",
+                  "readonly": true
+                },
+                {
+                  "path": "SKILL.md",
+                  "content": "---\nname: audio-generator-voice-over-test\ndescription: Core skill for audio/generator/voice-over-test. Use when running this business node.\nloadReferences:\n  - references/contract.md\n  - references/rules.md\n---\n\nYou produce the final deliverable for `audio/generator/voice-over-test`. Follow references/rules.md and the contract.\n\n## Workflow\n\n1. Read `references/contract.md` for field shape.\n2. Read `references/rules.md` for hard constraints.\n3. Use bound / provided inputs only — do not invent facts.\n",
+                  "readonly": false
+                }
+              ]
+            }
+          }
+        },
+        "skillMode": "core-skill"
+      },
+      "routing": {
+        "logical_model": "audio-generator-voice-over-test",
+        "provider": "maxplan",
+        "model": "speech-2.8-hd",
+        "enabled": true,
+        "sensitive_word_lists": []
+      },
+      "businessPricing": [
+        {
+          "business_type": "audio-generator-voice-over-test",
+          "charge_metric": "per_audio_second",
+          "price_in_tokens": 2,
+          "min_charge_tokens": 30,
+          "provider": "maxplan",
+          "model_key": "speech-2.8-hd",
+          "subtype": "voice-over-test",
+          "metadata": {
+            "margin": 0.25
+          }
+        }
+      ],
+      "linkedTextFormat": null
+    }
+  ]
+}

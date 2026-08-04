@@ -17,6 +17,7 @@ import {
   persistTtsSubtitleInResult,
   pickSubtitleFileUrl,
 } from '../task/tts-subtitle-persist';
+import { parseReferenceImageLocator } from '../task/reference-image';
 
 const router = Router();
 
@@ -101,6 +102,25 @@ function pickFirstHttpMediaUrl(task: {
   if (Array.isArray(mediaUrls)) {
     const u = mediaUrls.find((x) => typeof x === 'string' && /^https?:\/\//i.test(x.trim()));
     if (typeof u === 'string') return u.trim();
+  }
+  return null;
+}
+
+/** 相对 Gateway asset 路径 → MinIO bucket/key（多人语音成片等） */
+function pickMediaAssetBucketKey(task: {
+  result?: { mediaUrls?: unknown; storageInfo?: { urls?: unknown } };
+}): { bucket: string; key: string } | null {
+  const candidates: unknown[] = [];
+  const storageUrls = task.result?.storageInfo?.urls;
+  if (Array.isArray(storageUrls)) candidates.push(...storageUrls);
+  const mediaUrls = task.result?.mediaUrls;
+  if (Array.isArray(mediaUrls)) candidates.push(...mediaUrls);
+  for (const raw of candidates) {
+    if (typeof raw !== 'string' || !raw.trim()) continue;
+    const loc = parseReferenceImageLocator(raw.trim());
+    if (loc?.kind === 'media-asset' && loc.bucket && loc.key) {
+      return { bucket: loc.bucket, key: loc.key };
+    }
   }
   return null;
 }
@@ -710,7 +730,7 @@ router.get('/video/:taskId', async (req: Request, res: Response) => {
 /**
  * 写作内容导出（按需转换，不改变存储）
  *
- *   GET /media/writing/:taskId/export?format=pdf|markdown|md|txt
+ *   GET /media/writing/:taskId/export?format=pdf|markdown|md|txt|pptx
  */
 router.get('/writing/:taskId/export', async (req: Request, res: Response) => {
   try {
@@ -728,16 +748,18 @@ router.get('/writing/:taskId/export', async (req: Request, res: Response) => {
     const exportFormat =
       rawFormat === 'pdf'
         ? 'pdf'
-        : rawFormat === 'txt'
-          ? 'txt'
-          : rawFormat === 'md' || rawFormat === 'markdown'
-            ? 'markdown'
-            : null;
+        : rawFormat === 'pptx'
+          ? 'pptx'
+          : rawFormat === 'txt'
+            ? 'txt'
+            : rawFormat === 'md' || rawFormat === 'markdown'
+              ? 'markdown'
+              : null;
 
     if (!exportFormat) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid format. Use pdf, markdown, md, or txt',
+        error: 'Invalid format. Use pdf, pptx, markdown, md, or txt',
       });
     }
 
@@ -801,7 +823,9 @@ router.get('/writing/:taskId/export', async (req: Request, res: Response) => {
  * 访问约定：
  *   - Gateway 会在请求头中注入 x-user-id（已通过 JWT 认证）
  *   - 这里只做简单的"只能访问自己的任务"校验
- *   - 文件真实位置由 Task.result.storageInfo 中的 bucket + key 决定
+ *   - 有 pdfStorage / 主存 PDF 时走对象存储 Range/stream（不整包进 Node）
+ *   - 否则有 presentationStorage PPTX 时流式返回 PPTX
+ *   - 否则返回 Markdown/文本正文
  */
 router.get('/writing/:taskId', async (req: Request, res: Response) => {
   try {
@@ -821,14 +845,87 @@ router.get('/writing/:taskId', async (req: Request, res: Response) => {
       });
     }
 
-    const { resolveWritingTaskContent } = await import('../core/writing/writing-content-resolver');
+    const {
+      locateWritingCachedPdf,
+      locateWritingCachedPptx,
+      resolveWritingTaskContent,
+    } = await import('../core/writing/writing-content-resolver');
+
+    const pdfTarget = await locateWritingCachedPdf(taskId, userId);
+    if (pdfTarget) {
+      const storageRepo = RepositoryFactory.createStorageRepository();
+      const safeName = encodeURIComponent(pdfTarget.filename);
+      try {
+        await streamStorageObjectToResponse(
+          req,
+          res,
+          storageRepo,
+          pdfTarget.bucket,
+          pdfTarget.key,
+          'application/pdf',
+          { contentDisposition: `inline; filename="${safeName}"` }
+        );
+        return;
+      } catch (streamErr: unknown) {
+        const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+        console.warn('[Media Route] writing PDF stream failed, fallback to text resolve:', {
+          taskId,
+          error: msg,
+        });
+        // 流失败时继续走正文解析（可能降级 MD）
+      }
+    }
+
+    const pptxTarget = await locateWritingCachedPptx(taskId, userId);
+    if (pptxTarget) {
+      const storageRepo = RepositoryFactory.createStorageRepository();
+      const safeName = encodeURIComponent(pptxTarget.filename);
+      const pptxType =
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      try {
+        await streamStorageObjectToResponse(
+          req,
+          res,
+          storageRepo,
+          pptxTarget.bucket,
+          pptxTarget.key,
+          pptxType,
+          { contentDisposition: `inline; filename="${safeName}"` }
+        );
+        return;
+      } catch (streamErr: unknown) {
+        const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+        console.warn('[Media Route] writing PPTX stream failed, fallback to text resolve:', {
+          taskId,
+          error: msg,
+        });
+      }
+    }
+
     const resolved = await resolveWritingTaskContent(taskId, userId);
 
     if (resolved.rawPdfBuffer) {
       res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Accept-Ranges', 'bytes');
       res.setHeader('Content-Length', resolved.rawPdfBuffer.length.toString());
       res.setHeader('Content-Disposition', `inline; filename="${resolved.suggestedFilename}"`);
+      if (req.method === 'HEAD') {
+        return res.end();
+      }
       return res.send(resolved.rawPdfBuffer);
+    }
+
+    if (resolved.rawPptxBuffer) {
+      const pptxType =
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      res.setHeader('Content-Type', pptxType);
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Length', resolved.rawPptxBuffer.length.toString());
+      res.setHeader('Content-Disposition', `inline; filename="${resolved.suggestedFilename}"`);
+      if (req.method === 'HEAD') {
+        return res.end();
+      }
+      return res.send(resolved.rawPptxBuffer);
     }
 
     const format = resolved.sourceFormat || 'markdown';
@@ -843,6 +940,9 @@ router.get('/writing/:taskId', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', contentBuffer.length.toString());
     res.setHeader('Content-Disposition', `inline; filename="${resolved.suggestedFilename}"`);
+    if (req.method === 'HEAD') {
+      return res.end();
+    }
 
     return res.send(contentBuffer);
   } catch (error: unknown) {
@@ -1125,8 +1225,32 @@ async function serveAudioLike(req: Request, res: Response) {
 
     const storageInfo = task.result?.storageInfo;
     const remoteFallback = pickFirstHttpMediaUrl(task);
+    const assetFallback = pickMediaAssetBucketKey(task);
 
     if (!storageInfo || !storageInfo.bucket || !storageInfo.keys || storageInfo.keys.length === 0) {
+      if (assetFallback) {
+        const storageRepo = RepositoryFactory.createStorageRepository();
+        try {
+          const meta = await storageRepo.getFileMetadata(assetFallback.bucket, assetFallback.key);
+          await streamStorageObjectToResponse(
+            req,
+            res,
+            storageRepo,
+            assetFallback.bucket,
+            assetFallback.key,
+            meta?.contentType,
+            attachmentOptsForKey(req, taskId, assetFallback.key)
+          );
+          return;
+        } catch (assetErr) {
+          console.warn('[Media Route] audio asset fallback failed', {
+            taskId,
+            bucket: assetFallback.bucket,
+            key: assetFallback.key,
+            error: assetErr instanceof Error ? assetErr.message : String(assetErr),
+          });
+        }
+      }
       if (remoteFallback) {
         await streamHttpAudioToResponse(req, res, remoteFallback, {
           taskId,
@@ -1231,35 +1355,62 @@ async function serveAudioSubtitles(req: Request, res: Response) {
 
     const meta = (task.result?.metadata ?? {}) as Record<string, unknown>;
     let payload = await loadPersistedSubtitlePayload(meta);
+    let shouldLazyPersistEstimate = false;
 
     if (payload == null) {
       const subtitleUrl = pickSubtitleFileUrl(meta);
-      if (!subtitleUrl) {
-        return res.status(404).json({ success: false, error: 'No subtitles for this task' });
-      }
-
-      try {
-        payload = await fetchSubtitleJsonFromUrl(subtitleUrl);
-      } catch (error) {
-        return res.status(502).json({
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-
-      if (task.result && (task.type === 'audio' || task.type === 'music')) {
-        void persistTtsSubtitleInResult(task, task.result)
-          .then(async (nextResult) => {
-            if (nextResult.metadata === task.result?.metadata) return;
-            await taskManager.update(taskId, { result: nextResult });
-          })
-          .catch((err) => {
-            console.warn('[Media Route] lazy subtitle persist failed', {
-              taskId,
-              error: err instanceof Error ? err.message : String(err),
-            });
+      if (subtitleUrl) {
+        try {
+          payload = await fetchSubtitleJsonFromUrl(subtitleUrl);
+        } catch (error) {
+          return res.status(502).json({
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
           });
+        }
+
+        if (task.result && (task.type === 'audio' || task.type === 'music')) {
+          void persistTtsSubtitleInResult(task, task.result)
+            .then(async (nextResult) => {
+              if (nextResult.metadata === task.result?.metadata) return;
+              await taskManager.update(taskId, { result: nextResult });
+            })
+            .catch((err) => {
+              console.warn('[Media Route] lazy subtitle persist failed', {
+                taskId,
+                error: err instanceof Error ? err.message : String(err),
+              });
+            });
+        }
       }
+    }
+
+    // 上游无字幕时：用口播文稿 + 时长估算（兼容旧任务 / 偶发未返回 subtitle_file）
+    if (payload == null && (task.type === 'audio' || task.type === 'music')) {
+      const { estimateSubtitlePayloadForTask } = await import('../task/tts-subtitle-persist');
+      const estimated = estimateSubtitlePayloadForTask(task, meta);
+      if (estimated) {
+        payload = estimated;
+        shouldLazyPersistEstimate = true;
+      }
+    }
+
+    if (payload == null) {
+      return res.status(404).json({ success: false, error: 'No subtitles for this task' });
+    }
+
+    if (shouldLazyPersistEstimate && task.result) {
+      void persistTtsSubtitleInResult(task, task.result)
+        .then(async (nextResult) => {
+          if (nextResult.metadata === task.result?.metadata) return;
+          await taskManager.update(taskId, { result: nextResult });
+        })
+        .catch((err) => {
+          console.warn('[Media Route] lazy script_only subtitle persist failed', {
+            taskId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
     }
 
     return res.json({ success: true, data: payload });

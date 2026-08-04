@@ -1,0 +1,85 @@
+{
+  "taskId": "b151025955af0537bd3b9",
+  "status": "awaiting_review",
+  "topic": "2026 人工智能发展趋势（Agent 分镜烟测）",
+  "source": "rpBps.videoEditScriptJson.shotList",
+  "generatedAt": "2026-07-08T02:46:12.520Z",
+  "manualReviewGate": {
+    "hint": "按节奏检查各段画面与素材，可切换类型、选图或生成动画。通过后逐段生成，再进入成片审核。",
+    "kind": "video-timeline",
+    "index": 1,
+    "label": "自动剪辑分镜审核（时间轴）",
+    "phase": "post",
+    "gateId": "voiceover-science-pop-review",
+    "stepIndex": 0,
+    "totalGates": 2
+  },
+  "script": {
+    "segments": [
+      {
+        "text": "科技终端风格打字机标题卡：「2026 / AI · 生产力」主标逐字敲出，右侧 glitch 闪烁关键词「agent / multimodal」，深色背景带扫描线。",
+        "keywords": [
+          "人工智能",
+          "Agent",
+          "2026"
+        ],
+        "startSeconds": 0,
+        "mxmRenderMode": "gsap-html-animation",
+        "mxmGsapStyleId": "tech_terminal",
+        "voiceover_text": "2026 年，人工智能正在从聊天助手走向真正的生产力工具。",
+        "durationSeconds": 1.747,
+        "on_topic_reason": "用标题卡锚定 2026 AI 主题与 Agent 关键词，建立全片开篇语境。",
+        "mxmGsapSceneData": {
+          "title": "2026 / AI · 生产力",
+          "scanline": true,
+          "subtitle": "From Chatbot to Agent",
+          "accentWords": [
+            "agent",
+            "multimodal"
+          ],
+          "terminalPrefix": "> initializing_2026_ai_trends.sh"
+        },
+        "mxmGsapSceneType": "title_card",
+        "mxmGsapSceneBrief": "终端打字机主标，glitch 强调 agent / multimodal，扫描线动效。语义参考：从聊天助手走向生产力工具。"
+      },
+      {
+        "text": "静态概念图：俯视角度的服务器机房机柜冷光画面，叠加「推理成本 ↓ 92%」「多模态 普及」两块数据标签。",
+        "keywords": [
+          "大模型",
+          "多模态",
+          "2026"
+        ],
+        "startSeconds": 1.747,
+        "mxmRenderMode": "static-image",
+        "voiceover_text": "大模型推理成本持续下降，多模态能力快速普及。",
+        "durationSeconds": 1.325,
+        "on_topic_reason": "用机房+成本下行视觉化「推理成本下降」，点出多模态普及趋势，支撑主题。",
+        "mxmStockSearchQuery": "2026 AI 大模型 推理成本下降 多模态 普及 数据中心 服务器机房 GPU 集群"
+      },
+      {
+        "text": "AI 生成视频片段：半透明全息 AI Agent 数字人在深色极简工作台前调度多模态文档、图像与代码面板，镜头缓慢推近。",
+        "keywords": [
+          "Agent",
+          "多模态",
+          "人工智能"
+        ],
+        "mxmPrompt": "A translucent holographic AI agent avatar at a dark minimalist workstation, seamlessly orchestrating multimodal panels of text documents, images and code blocks on the screen, slow dolly-in camera movement, cool blue rim light, dark studio background, science-minimal aesthetic, 16:9, cinematic",
+        "startSeconds": 3.072,
+        "mxmRenderMode": "ai-video-gen",
+        "voiceover_text": "本视频为自动剪辑分镜脚本烟测，用于验证 LLM 生成的切镜方案。",
+        "durationSeconds": 1.928,
+        "on_topic_reason": "演示 AI Agent 作为新一代生产力工具的多模态调度能力，呼应主题并展示自动切镜成果。"
+      }
+    ],
+    "core_message": "2026 年 AI 从对话助手进化为生产力工具，推理成本下行 + 多模态普及双轮驱动。",
+    "global_topic": "2026 人工智能发展趋势（Agent 分镜烟测）",
+    "gsap_style_id": "tech_terminal",
+    "global_keywords": [
+      "人工智能",
+      "Agent",
+      "2026",
+      "大模型",
+      "多模态"
+    ]
+  }
+}

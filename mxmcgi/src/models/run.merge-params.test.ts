@@ -19,4 +19,26 @@ describe('mergeGenerateParamsIntoParameters', () => {
     expect(merged.max_completion_tokens).toBe(65536);
     expect(merged.max_tokens).toBe(8192);
   });
+
+  it('does not inherit thinking from catalog default_parameters', () => {
+    const merged = mergeGenerateParamsIntoParameters(
+      { maxTokens: 20000, parameters: {} } as never,
+      { thinking: { type: 'disabled' }, reasoning_split: true, temperature: 0.7 },
+    );
+    expect(merged.thinking).toBeUndefined();
+    expect(merged.reasoning_split).toBeUndefined();
+    expect(merged.temperature).toBe(0.7);
+  });
+
+  it('keeps business-explicit thinking over catalog', () => {
+    const merged = mergeGenerateParamsIntoParameters(
+      {
+        maxTokens: 20000,
+        parameters: { thinking: { type: 'adaptive' }, reasoning_split: true },
+      } as never,
+      { thinking: { type: 'disabled' } },
+    );
+    expect(merged.thinking).toEqual({ type: 'adaptive' });
+    expect(merged.reasoning_split).toBe(true);
+  });
 });

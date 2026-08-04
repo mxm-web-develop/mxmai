@@ -87,14 +87,20 @@ export function TaskViewerDataPanel({ task }: { task: TaskViewerDataLike | null 
     typeof task?.progress?.progress === 'number' && !Number.isNaN(task.progress.progress)
       ? Math.min(100, Math.max(0, task.progress.progress))
       : null;
-  const errorText = (task?.progress?.error || '').trim() || null;
+  const errorTextRaw = (task?.progress?.error || '').trim() || null;
+  const errorDebug =
+    typeof (task?.progress as { errorDebug?: unknown } | undefined)?.errorDebug === 'string'
+      ? String((task?.progress as { errorDebug?: string }).errorDebug).trim()
+      : '';
+  const errorText = errorDebug || errorTextRaw;
   const isFailed = status === 'failed' || status === 'cancelled' || status === 'network_error';
   const steps = useMemo(() => collectPipelineTrace(task), [task]);
   const failedStepHint = useMemo(() => {
-    if (!errorText) return null;
-    const m = errorText.match(/^([A-Za-z][A-Za-z0-9_-]*)\s*[：:]/);
+    if (!errorDebug && !errorTextRaw) return null;
+    const probe = errorDebug || errorTextRaw || '';
+    const m = probe.match(/^([A-Za-z][A-Za-z0-9_-]*)\s*[：:]/);
     return m?.[1] ?? null;
-  }, [errorText]);
+  }, [errorDebug, errorTextRaw]);
 
   if (!task) {
     return <p className="tvd-empty">{t('common.viewer.noTaskData')}</p>;
@@ -141,7 +147,10 @@ export function TaskViewerDataPanel({ task }: { task: TaskViewerDataLike | null 
               {t('common.viewer.taskData.failedAtStep', { step: failedStepHint })}
             </p>
           ) : null}
-          <p className="tvd-error-text">{errorText}</p>
+          <p className="tvd-error-text">{errorTextRaw}</p>
+          {errorDebug && errorDebug !== errorTextRaw ? (
+            <pre className="tvd-error-debug">{errorDebug}</pre>
+          ) : null}
         </section>
       ) : null}
 

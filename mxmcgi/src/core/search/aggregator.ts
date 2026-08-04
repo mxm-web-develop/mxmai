@@ -5,6 +5,7 @@ import type {
   SearchResultItem,
   SearchDimension,
   SearchDepth,
+  ProviderSearchRequest,
 } from './types';
 import type { SearchProvider } from './providers/base';
 import { BraveSearchProvider } from './providers/brave';
@@ -19,7 +20,12 @@ import {
   isOfficialDomain,
   isAuthoritativeSource,
 } from './score-weights';
-import { resolveProviderForDimension } from './search-config';
+import {
+  isRateLimitSignal,
+  isSearchProviderInCooldown,
+  listUsableProvidersForDimension,
+  markSearchProviderCooldown,
+} from './search-config';
 
 const DEPTH_CONFIGS: Record<SearchDepth, { resultsPerProvider: number }> = {
   quick: { resultsPerProvider: 3 },
@@ -43,7 +49,9 @@ function resolveNumResultsPerProvider(
 
 /**
  * 多源搜索聚合器
- * 负责并行调用多个 Provider、去重、评分、排序
+ * - 多维度并行
+ * - 同维度按 fallback 链串试 Provider（失败/空结果/超时 → 下一个）
+ * - 限流信号触发短时熔断
  */
 export class SearchAggregator {
   private providers: Map<string, SearchProvider> = new Map();
@@ -62,23 +70,14 @@ export class SearchAggregator {
     this.providers.set('bocha', new BochaSearchProvider());
   }
 
-  /**
-   * 注册自定义 Provider
-   */
   registerProvider(name: string, provider: SearchProvider) {
     this.providers.set(name, provider);
   }
 
-  /**
-   * 获取已注册的 Provider
-   */
   getProvider(name: string): SearchProvider | undefined {
     return this.providers.get(name);
   }
 
-  /**
-   * 聚合多维度搜索结果
-   */
   async aggregate(request: DeepSearchRequest): Promise<MultiDimensionSearchResult> {
     const { query, dimensions = ['general'], depth = 'standard' } = request;
 
@@ -92,27 +91,20 @@ export class SearchAggregator {
       selectedDimensions.length
     );
 
+    const searchArgsBase: Omit<ProviderSearchRequest, 'dimension'> = {
+      query,
+      numResults: perProvider,
+      timeRange: request.timeRange,
+      startDate: request.startDate,
+      endDate: request.endDate,
+      language: request.language,
+      includeDomains: request.includeDomains,
+    };
+
     const dimensionJobs = await Promise.all(
-      selectedDimensions.map(async (dimension) => {
-        const providerName = await resolveProviderForDimension(dimension);
-        if (!providerName) return null;
-        const provider = this.providers.get(providerName);
-        if (!provider || !provider.supportedDimensions.includes(dimension)) return null;
-        return this.executeWithTimeout(
-          provider.search({
-            query,
-            dimension,
-            numResults: perProvider,
-            timeRange: request.timeRange,
-            startDate: request.startDate,
-            endDate: request.endDate,
-            language: request.language,
-            includeDomains: request.includeDomains,
-          }),
-          dimension,
-          query
-        ).catch((err) => this.createErrorResult(dimension, query, providerName, err.message));
-      })
+      selectedDimensions.map((dimension) =>
+        this.searchDimensionWithFallback(dimension, searchArgsBase)
+      )
     );
 
     const dimensionResultsArr = dimensionJobs.filter(
@@ -124,7 +116,6 @@ export class SearchAggregator {
       dimensionResults[result.dimension] = result;
     }
 
-    // 合并所有结果并去重
     const allItems = dimensionResultsArr.flatMap((r) => r.items);
     const deduplicated = this.deduplicate(allItems);
     const scored = this.scoreResults(deduplicated, query);
@@ -139,25 +130,106 @@ export class SearchAggregator {
   }
 
   /**
-   * 执行带超时的搜索
+   * 按维度 fallback 链串试，直到拿到非空 items，或链耗尽。
    */
+  private async searchDimensionWithFallback(
+    dimension: SearchDimension,
+    base: Omit<ProviderSearchRequest, 'dimension'>
+  ): Promise<DimensionSearchResult | null> {
+    const chain = await listUsableProvidersForDimension(dimension);
+    const candidates = chain.filter((name) => {
+      const p = this.providers.get(name);
+      return Boolean(p && p.supportedDimensions.includes(dimension));
+    });
+
+    if (candidates.length === 0) {
+      console.warn(`[SearchAggregator] ${dimension}: no usable provider in chain`);
+      return null;
+    }
+
+    let last: DimensionSearchResult | null = null;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const providerName = candidates[i]!;
+      if (isSearchProviderInCooldown(providerName)) {
+        console.warn(`[SearchAggregator] ${dimension}/${providerName}: skip (cooldown)`);
+        continue;
+      }
+
+      const provider = this.providers.get(providerName);
+      if (!provider) continue;
+
+      try {
+        const result = await this.executeWithTimeout(
+          provider.search({ ...base, dimension }),
+          dimension,
+          base.query,
+          providerName
+        );
+
+        this.maybeTripCircuit(providerName, result.error);
+
+        if (result.items.length > 0) {
+          if (i > 0) {
+            console.info(
+              `[SearchAggregator] ${dimension}: fallback hit via ${providerName} (tried ${i} before)`
+            );
+          }
+          return result;
+        }
+
+        const reason = result.error || 'empty';
+        console.warn(
+          `[SearchAggregator] ${dimension}/${providerName}: ${reason}; try next (${i + 1}/${candidates.length})`
+        );
+        last = result;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.maybeTripCircuit(providerName, msg);
+        console.warn(
+          `[SearchAggregator] ${dimension}/${providerName}: threw ${msg}; try next (${i + 1}/${candidates.length})`
+        );
+        last = this.createErrorResult(dimension, base.query, providerName, msg);
+      }
+    }
+
+    return (
+      last ??
+      this.createErrorResult(dimension, base.query, candidates[0]!, 'all providers failed or empty')
+    );
+  }
+
+  private maybeTripCircuit(providerName: string, signal: string | undefined): void {
+    if (!signal) return;
+    if (isRateLimitSignal(signal)) {
+      markSearchProviderCooldown(providerName, signal);
+    }
+  }
+
   private async executeWithTimeout(
     promise: Promise<DimensionSearchResult>,
     dimension: SearchDimension,
     query: string,
+    providerName: string,
     timeoutMs = 20000
   ): Promise<DimensionSearchResult> {
-    return Promise.race([
-      promise,
-      new Promise<DimensionSearchResult>((resolve) =>
-        setTimeout(() => resolve(this.createErrorResult(dimension, query, 'Timeout')), timeoutMs)
-      ),
+    type Race =
+      | { kind: 'ok'; result: DimensionSearchResult }
+      | { kind: 'timeout' };
+
+    const raced = await Promise.race<Race>([
+      promise.then((result) => ({ kind: 'ok' as const, result })),
+      new Promise<Race>((resolve) => {
+        setTimeout(() => resolve({ kind: 'timeout' }), timeoutMs);
+      }),
     ]);
+
+    if (raced.kind === 'timeout') {
+      return this.createErrorResult(dimension, query, providerName, 'Timeout');
+    }
+    return raced.result;
   }
 
-  /**
-   * 去重（基于 domain + title）
-   */
   private deduplicate(items: SearchResultItem[]): SearchResultItem[] {
     const seen = new Set<string>();
     return items.filter((item) => {
@@ -172,13 +244,7 @@ export class SearchAggregator {
     return str.toLowerCase().replace(/\s+/g, '').slice(0, 100);
   }
 
-  /**
-   * 评分算法
-   */
-  private scoreResults(
-    items: SearchResultItem[],
-    query: string
-  ): SearchResultItem[] {
+  private scoreResults(items: SearchResultItem[], query: string): SearchResultItem[] {
     return items
       .map((item) => ({
         ...item,
@@ -189,22 +255,13 @@ export class SearchAggregator {
 
   private calculateScore(item: SearchResultItem, query: string): number {
     let score = PROVIDER_BASE_SCORE[item.source] || 50;
-
-    // 官方域名加分
     if (isOfficialDomain(item.domain)) score += 20;
-
-    // 权威来源加分
     if (isAuthoritativeSource(item.domain)) score += 10;
-
-    // 相关性评分（标题匹配度）
     score += this.calculateRelevance(item.title, query) * 30;
-
-    // 新鲜度衰减
     if (item.publishedAt) {
       const age = this.daysSince(item.publishedAt);
       score -= age * 0.5;
     }
-
     return Math.max(0, Math.min(100, score));
   }
 
@@ -213,7 +270,6 @@ export class SearchAggregator {
     const lowerQuery = query.toLowerCase();
     const queryWords = lowerQuery.split(/\s+/).filter((w) => w.length > 1);
     if (queryWords.length === 0) return 0;
-
     const matchedWords = queryWords.filter((w) => lowerTitle.includes(w));
     return matchedWords.length / queryWords.length;
   }
@@ -239,6 +295,7 @@ export class SearchAggregator {
       total: 0,
       query,
       timestamp: new Date().toISOString(),
+      error,
     };
   }
 }

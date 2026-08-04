@@ -21,37 +21,18 @@ function looksLikePlanningJson(text: string): boolean {
   );
 }
 
-export function pickWritingCollectionMeta(task: WritingTaskItem): {
-  isCollection: boolean;
-  title?: string;
-  readyCount?: number;
-  itemCount?: number;
-  teasers: WritingCollectionTeaser[];
-} {
+function readTaskMeta(task: WritingTaskItem): Record<string, unknown> {
   const resultMeta = (task.result?.metadata ?? {}) as Record<string, unknown>;
   const taskMeta = (task.metadata ?? {}) as Record<string, unknown>;
-  const meta = { ...taskMeta, ...resultMeta };
+  return { ...taskMeta, ...resultMeta };
+}
 
-  const taskV2 = (meta.taskV2 ?? null) as { taskKey?: string; subtype?: string } | null;
-  const isSeekGroup =
-    taskV2?.taskKey === 'group' &&
-    (taskV2?.subtype === 'seek' || String(taskV2?.subtype ?? '').includes('seek'));
-
-  const readyCount =
-    typeof meta.collectionReadyCount === 'number' ? meta.collectionReadyCount : undefined;
-  const itemCount =
-    typeof meta.collectionItemCount === 'number'
-      ? meta.collectionItemCount
-      : typeof readyCount === 'number'
-        ? readyCount
-        : undefined;
-  const title =
-    typeof meta.collectionTitle === 'string' && meta.collectionTitle.trim()
-      ? meta.collectionTitle.trim()
-      : undefined;
-
-  const teasersRaw = meta.collectionTeasers;
+function collectTeasersFromMeta(
+  meta: Record<string, unknown>,
+  task: WritingTaskItem
+): WritingCollectionTeaser[] {
   const teasers: WritingCollectionTeaser[] = [];
+  const teasersRaw = meta.collectionTeasers;
   if (Array.isArray(teasersRaw)) {
     for (let i = 0; i < teasersRaw.length; i++) {
       const it = teasersRaw[i];
@@ -108,6 +89,102 @@ export function pickWritingCollectionMeta(task: WritingTaskItem): {
       }
     }
   }
+
+  return teasers;
+}
+
+/** 演示文稿（PPTX sidecar）：不得按写作文集卡渲染 */
+export function pickPresentationDeckMeta(task: WritingTaskItem): {
+  isDeck: boolean;
+  slideCount?: number;
+  title?: string;
+  teasers: WritingCollectionTeaser[];
+  presentationUrl?: string;
+} {
+  const meta = readTaskMeta(task);
+  const storage = meta.presentationStorage;
+  const hasStorage =
+    storage &&
+    typeof storage === 'object' &&
+    !Array.isArray(storage) &&
+    typeof (storage as { key?: unknown }).key === 'string' &&
+    Boolean(String((storage as { key: string }).key).trim());
+  const taskV2 = (meta.taskV2 ??
+    (task.requestParams as { taskV2?: { taskKey?: string; subtype?: string } } | undefined)?.taskV2 ??
+    (
+      (task.requestParams as { params?: { taskV2?: { taskKey?: string; subtype?: string } } } | undefined)
+        ?.params?.taskV2
+    ) ??
+    null) as { taskKey?: string; subtype?: string } | null;
+  const isDeckSubtype =
+    taskV2?.taskKey === 'group' &&
+    (taskV2?.subtype === 'deck' || String(taskV2?.subtype ?? '').includes('deck'));
+  const isDeck =
+    meta.resultKind === 'presentation-deck' ||
+    String(meta.reading_format ?? '').toLowerCase() === 'pptx' ||
+    isDeckSubtype ||
+    (Boolean(hasStorage) && meta.presentationRenderStatus !== 'failed');
+
+  if (!isDeck) {
+    return { isDeck: false, teasers: [] };
+  }
+
+  const teasers = collectTeasersFromMeta(meta, task);
+  const slideCount =
+    typeof meta.presentationSlideCount === 'number'
+      ? meta.presentationSlideCount
+      : typeof meta.collectionItemCount === 'number'
+        ? meta.collectionItemCount
+        : typeof meta.collectionReadyCount === 'number'
+          ? meta.collectionReadyCount
+          : teasers.length > 0
+            ? teasers.length
+            : undefined;
+  const title =
+    typeof meta.collectionTitle === 'string' && meta.collectionTitle.trim()
+      ? meta.collectionTitle.trim()
+      : undefined;
+  const presentationUrl =
+    hasStorage && typeof (storage as { url?: unknown }).url === 'string'
+      ? String((storage as { url: string }).url).trim() || undefined
+      : undefined;
+
+  return { isDeck: true, slideCount, title, teasers, presentationUrl };
+}
+
+export function pickWritingCollectionMeta(task: WritingTaskItem): {
+  isCollection: boolean;
+  title?: string;
+  readyCount?: number;
+  itemCount?: number;
+  teasers: WritingCollectionTeaser[];
+} {
+  const meta = readTaskMeta(task);
+
+  // 演示文稿优先：即使残留 collection* 字段也不当文集
+  if (pickPresentationDeckMeta(task).isDeck) {
+    return { isCollection: false, teasers: [] };
+  }
+
+  const taskV2 = (meta.taskV2 ?? null) as { taskKey?: string; subtype?: string } | null;
+  const isSeekGroup =
+    taskV2?.taskKey === 'group' &&
+    (taskV2?.subtype === 'seek' || String(taskV2?.subtype ?? '').includes('seek'));
+
+  const readyCount =
+    typeof meta.collectionReadyCount === 'number' ? meta.collectionReadyCount : undefined;
+  const itemCount =
+    typeof meta.collectionItemCount === 'number'
+      ? meta.collectionItemCount
+      : typeof readyCount === 'number'
+        ? readyCount
+        : undefined;
+  const title =
+    typeof meta.collectionTitle === 'string' && meta.collectionTitle.trim()
+      ? meta.collectionTitle.trim()
+      : undefined;
+
+  const teasers = collectTeasersFromMeta(meta, task);
 
   const isCollection =
     meta.resultKind === 'writing-collection' ||

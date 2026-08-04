@@ -43,6 +43,7 @@ import { AgentThinkingBlock } from './agent-chat/AgentThinkingBlock';
 import { AgentMentionPicker } from './agent-chat/AgentMentionPicker';
 import { AgentRefChip } from './agent-chat/AgentRefChip';
 import './agent-chat.css';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 gsap.registerPlugin(useGSAP);
 
@@ -600,7 +601,7 @@ export default function AgentChat() {
       ensureDraftAssistant();
     } catch (err) {
       setSending(false);
-      antdMessage.error(err instanceof Error ? err.message : String(err));
+      antdMessage.error(toUserFacingErrorMessage(err instanceof Error ? err.message : err));
     }
   };
 

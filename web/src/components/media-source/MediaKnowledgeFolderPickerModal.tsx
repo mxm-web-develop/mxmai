@@ -45,6 +45,7 @@ import { storageObjectPublicUrl } from '../knowledge-base/knowledgeFolderLinkMod
 import type { MediaPickPayload } from './types';
 import '../schema-form/reference-images.css';
 import '../../styles/asset-center.css';
+import { toUserFacingErrorMessage } from '../../lib/platformErrors';
 
 export type MediaKnowledgeFolderPickerAccept = 'visual' | 'audio' | 'document';
 
@@ -156,7 +157,7 @@ export function MediaKnowledgeFolderPickerModal({
           if (!hasAny) setSourceTab('uploads');
         }
       })
-      .catch((e) => message.error(e instanceof Error ? e.message : '加载知识库失败'));
+      .catch((e) => message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: '加载知识库失败' })));
 
     if (enableMyUploads) {
       void getFolders()
@@ -243,9 +244,24 @@ export function MediaKnowledgeFolderPickerModal({
   const filteredUploads = useMemo(() => {
     const inFolder = uploadItems.filter((it) => (it.folderId ?? null) === uploadFolderId);
     const q = uploadSearch.trim().toLowerCase();
-    if (!q) return inFolder;
-    return inFolder.filter((it) => (it.originalName ?? '').toLowerCase().includes(q));
-  }, [uploadItems, uploadFolderId, uploadSearch]);
+    const matched = q
+      ? inFolder.filter((it) => (it.originalName ?? '').toLowerCase().includes(q))
+      : inFolder;
+
+    // 同名文档只保留最新一条，避免重复上传造成列表噪音
+    if (accept !== 'document') return matched;
+    const byName = new Map<string, StorageObjectListItem>();
+    for (const item of matched) {
+      const key = (item.originalName ?? item.id).trim().toLowerCase() || item.id;
+      const prev = byName.get(key);
+      if (!prev || (item.createdAt ?? '') > (prev.createdAt ?? '')) {
+        byName.set(key, item);
+      }
+    }
+    return Array.from(byName.values()).sort((a, b) =>
+      (b.createdAt ?? '').localeCompare(a.createdAt ?? '')
+    );
+  }, [uploadItems, uploadFolderId, uploadSearch, accept]);
 
   const finishPick = (item: MediaPickPayload) => {
     onPick(item);
@@ -310,7 +326,7 @@ export function MediaKnowledgeFolderPickerModal({
         purpose: resolveLinkDisplayTitle(link),
       });
     } catch (e) {
-      message.error(e instanceof Error ? e.message : '选取失败');
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: '选取失败' }));
     } finally {
       setVfResolvingId(null);
     }
@@ -334,28 +350,25 @@ export function MediaKnowledgeFolderPickerModal({
       }
       setUploadResolvingId(item.id);
       try {
+        // blob URL 由 mediaBlobCache 统一管理，不得 revoke
         const blobUrl = await fetchStorageObjectBlobUrl(content, item.id);
-        try {
-          const res = await fetch(blobUrl);
-          if (!res.ok) throw new Error(`读取文件失败 (${res.status})`);
-          const blob = await res.blob();
-          const file = new File([blob], item.originalName ?? 'document', {
-            type: blob.type || item.contentType || 'application/octet-stream',
-          });
-          const text = (await extractTextFromFile(file)).trim();
-          if (!text) throw new Error('文件内容为空');
-          finishPick({
-            content: text,
-            mediaKind: 'document',
-            source: 'asset',
-            sourceLabel: item.originalName ?? '已上传管理',
-            textContent: text,
-          });
-        } finally {
-          URL.revokeObjectURL(blobUrl);
-        }
+        const res = await fetch(blobUrl);
+        if (!res.ok) throw new Error(`读取文件失败 (${res.status})`);
+        const blob = await res.blob();
+        const file = new File([blob], item.originalName ?? 'document', {
+          type: blob.type || item.contentType || 'application/octet-stream',
+        });
+        const text = (await extractTextFromFile(file)).trim();
+        if (!text) throw new Error('文件内容为空');
+        finishPick({
+          content: text,
+          mediaKind: 'document',
+          source: 'asset',
+          sourceLabel: item.originalName ?? '已上传管理',
+          textContent: text,
+        });
       } catch (e) {
-        message.error(e instanceof Error ? e.message : '读取文档失败');
+        message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e, { fallback: '读取文档失败' }));
       } finally {
         setUploadResolvingId(null);
       }
@@ -387,8 +400,8 @@ export function MediaKnowledgeFolderPickerModal({
         : '该上传文件夹暂无图片，请先在资产中心上传';
 
   const knowledgePanel = (
-    <div className="ref-images__panel ref-images__panel--virtual" style={{ display: 'flex', gap: 12, minHeight: 320 }}>
-      <aside style={{ width: 200, flexShrink: 0 }}>
+    <div className="ref-images__panel ref-images__panel--virtual mkf-picker-panel" style={{ display: 'flex', gap: 12, minHeight: 280 }}>
+      <aside style={{ width: 180, flexShrink: 0 }}>
         {vfFolders.length === 0 ? (
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             暂无知识库
@@ -481,23 +494,44 @@ export function MediaKnowledgeFolderPickerModal({
             ))}
           </div>
         ) : (
-          <ul className="vf-content-list vf-content-list--compact" style={{ maxHeight: 360, overflow: 'auto' }}>
-            {filteredUploads.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className="vf-content-row"
-                  disabled={uploadResolvingId === item.id}
-                  onClick={() => void pickUpload(item)}
-                  style={{ width: '100%', textAlign: 'left' }}
-                >
-                  {accept === 'audio' ? <FileAudio size={16} /> : <FileText size={16} />}
-                  <span className="vf-content-row__name">{item.originalName ?? item.id}</span>
-                  {uploadResolvingId === item.id ? <BrandLoading size="small" /> : null}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="mkf-doc-list" aria-label={accept === 'audio' ? '音频列表' : '文档列表'}>
+              {filteredUploads.map((item) => {
+                const busy = uploadResolvingId === item.id;
+                const created =
+                  item.createdAt && !Number.isNaN(Date.parse(item.createdAt))
+                    ? new Date(item.createdAt).toLocaleString()
+                    : null;
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className={`mkf-doc-row${busy ? ' mkf-doc-row--busy' : ''}`}
+                      disabled={busy}
+                      onClick={() => void pickUpload(item)}
+                      title={item.originalName ?? undefined}
+                    >
+                      {accept === 'audio' ? (
+                        <FileAudio size={16} className="mkf-doc-row__icon" />
+                      ) : (
+                        <FileText size={16} className="mkf-doc-row__icon" />
+                      )}
+                      <span className="mkf-doc-row__body">
+                        <span className="mkf-doc-row__name">{item.originalName ?? item.id}</span>
+                        {created ? <span className="mkf-doc-row__meta">{created}</span> : null}
+                      </span>
+                      {busy ? (
+                        <BrandLoading size="small" />
+                      ) : (
+                        <span className="mkf-doc-row__action">选用</span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mkf-doc-list-footer">点击一行即可选用</p>
+          </>
         )}
       </div>
     </div>
@@ -509,9 +543,9 @@ export function MediaKnowledgeFolderPickerModal({
       open={open}
       onCancel={onClose}
       footer={null}
-      width={Math.min(820, typeof window !== 'undefined' ? window.innerWidth - 32 : 820)}
+      width={Math.min(760, typeof window !== 'undefined' ? window.innerWidth - 32 : 760)}
       destroyOnClose
-      className="unified-media-source-virtual-modal"
+      className="unified-media-source-virtual-modal mkf-picker-modal"
     >
       {enableMyUploads ? (
         <Tabs

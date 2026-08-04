@@ -39,6 +39,7 @@ import {
   Spin,
 } from 'antd';
 import {
+  BugOutlined,
   DeleteOutlined,
   DownOutlined,
   DownloadOutlined,
@@ -69,6 +70,8 @@ import {
   getBusinessTypeForPromptRow,
   parseTemplateMarkup,
   prettyJson,
+  mergeGenerateParams,
+  RECOMMENDED_GENERATE_PARAMS,
   readGenerateParams,
   resolveSubtypeDisplay,
   resolveTaskKeyDisplay,
@@ -105,6 +108,14 @@ function formatPlatformPriceSummary(pp: ProviderPricingRow | undefined): {
 
 import { AdminBusinessSchemaTab } from './AdminBusinessSchemaTab';
 import { AdminBusinessPromptTab } from './AdminBusinessPromptTab';
+import { AdminBusinessCoreSkillTab } from './AdminBusinessCoreSkillTab';
+import {
+  isCoreSkillSlice,
+  ensureCoreSkillPack,
+  readSkillPackFromDraftExtra,
+  skillBodyFromPack,
+  SKILL_MODE_CORE,
+} from './admin-core-skill';
 import { AdminBusinessPricingTab } from './AdminBusinessPricingTab';
 import { AdminBusinessConfigTab } from './AdminBusinessConfigTab';
 import { AdminBusinessPipelineTab } from './AdminBusinessPipelineTab';
@@ -137,7 +148,7 @@ function renderBusinessIdentityCell(display: {
 }
 
 /** 业务列表表格横向滚动最小宽度（列宽之和，避免窄屏压缩 subtype） */
-const BUSINESS_LIST_TABLE_SCROLL_X = 1080;
+const BUSINESS_LIST_TABLE_SCROLL_X = 1140;
 
 export default function AdminBusiness() {
   const { message } = App.useApp();
@@ -449,12 +460,16 @@ export default function AdminBusiness() {
       };
     }
     const hasAnyGp = readGenerateParams(tpl.extra) !== null;
+    const defaultExtra = mergeGenerateParams(
+      (tpl.extra ?? {}) as Record<string, unknown>,
+      RECOMMENDED_GENERATE_PARAMS,
+    );
     setDraft(
       hasAnyGp
         ? tpl
         : {
             ...tpl,
-            extra: { ...((tpl.extra ?? {}) as Record<string, unknown>), generateParams: { temperature: 0.5, maxTokens: 1600, topP: 0.95 } },
+            extra: defaultExtra,
           }
     );
     setExtraDraft({
@@ -487,10 +502,7 @@ export default function AdminBusiness() {
             ? tpl
             : {
                 ...tpl,
-                extra: {
-                  ...((tpl.extra ?? {}) as Record<string, unknown>),
-                  generateParams: { temperature: 0.5, maxTokens: 1600, topP: 0.95 },
-                },
+                extra: defaultExtra,
               },
           extraDraft: {
             ...extra,
@@ -582,15 +594,18 @@ export default function AdminBusiness() {
         return;
       }
       const fixed = getTextV2FixedFormSchema(taskKey);
-      const initial: TaskTemplateDraft = ensureTaskTemplate({
-        formSchema: fixed,
-        contractSchema: fixed,
-        prompt: {
-          unifiedTemplate:
-            'You are a specialist for this text step. Follow the subtype rules. Use only the provided fixed inputs. Output exactly as specified in this prompt.',
-        },
-        pipeline: { pre: [], enrich: [], post: [] },
-      });
+      const initial: TaskTemplateDraft = {
+        ...ensureTaskTemplate({
+          formSchema: fixed,
+          contractSchema: fixed,
+          prompt: {
+            unifiedTemplate:
+              'You are a specialist for this text step. Follow the subtype rules. Use only the provided fixed inputs. Output exactly as specified in this prompt.',
+          },
+          pipeline: { pre: [], enrich: [], post: [] },
+        }),
+        extra: mergeGenerateParams({}, RECOMMENDED_GENERATE_PARAMS),
+      };
       const row: PromptConfigRow = {
         id: `new:${createScope}/${taskKey}/${subtype || '-'}`,
         scope: createScope,
@@ -630,7 +645,7 @@ export default function AdminBusiness() {
       },
       required: ['topic'],
     };
-    const initial: TaskTemplateDraft = ensureWritingStorageDefaults(
+    const initialBase = ensureWritingStorageDefaults(
       ensureTaskTemplate({
         formSchema: initialSchema,
         contractSchema: initialSchema,
@@ -641,6 +656,13 @@ export default function AdminBusiness() {
       }),
       createScope
     );
+    const initial: TaskTemplateDraft = {
+      ...initialBase,
+      extra: mergeGenerateParams(
+        (initialBase.extra ?? {}) as Record<string, unknown>,
+        RECOMMENDED_GENERATE_PARAMS,
+      ),
+    };
     const row: PromptConfigRow = {
       id: `new:${createScope}/${taskKey}/${subtype || '-'}`,
       scope: createScope,
@@ -905,15 +927,50 @@ export default function AdminBusiness() {
       }
     }
 
-    const parsedUnified = parseTemplateMarkup(effectiveMarkup);
-    const unifiedText = parsedUnified.text.trim();
-    if (!unifiedText) {
-      throw new Error('unifiedTemplate 不能为空');
+    const useCoreSkill =
+      !!selected &&
+      isCoreSkillSlice({
+        scope: selected.scope,
+        type: selected.type,
+        subtype: selected.subtype,
+      });
+
+    if (useCoreSkill) {
+      const seed =
+        String(next.prompt?.unifiedTemplate ?? '').trim() ||
+        String(
+          ((next.extra as { groupOutput?: { itemManuscript?: { systemPrompt?: string } } } | undefined)
+            ?.groupOutput?.itemManuscript?.systemPrompt ?? '') as string
+        );
+      const pack = ensureCoreSkillPack({
+        pack: readSkillPackFromDraftExtra(next.extra as Record<string, unknown> | undefined),
+        contractSchema: (next.contractSchema ?? next.formSchema) as Record<string, unknown>,
+        scope: selected!.scope,
+        type: selected!.type,
+        subtype: selected!.subtype ?? '',
+        seedBody: seed,
+      });
+      const body = skillBodyFromPack(pack);
+      next.prompt = {
+        unifiedTemplate: body || 'Core Skill',
+        unifiedTemplateMarkup: body || 'Core Skill',
+      };
+      next.extra = {
+        ...(next.extra ?? {}),
+        skillMode: SKILL_MODE_CORE,
+        skillPack: pack,
+      };
+    } else {
+      const parsedUnified = parseTemplateMarkup(effectiveMarkup);
+      const unifiedText = parsedUnified.text.trim();
+      if (!unifiedText) {
+        throw new Error('unifiedTemplate 不能为空');
+      }
+      next.prompt = {
+        unifiedTemplate: unifiedText,
+        unifiedTemplateMarkup: effectiveMarkup,
+      };
     }
-    next.prompt = {
-      unifiedTemplate: unifiedText,
-      unifiedTemplateMarkup: effectiveMarkup,
-    };
 
     // pipeline：text 已清空；其它 scope 保留 pre / enrich / post
     if (!isTextScope && next.pipeline) {
@@ -948,7 +1005,22 @@ export default function AdminBusiness() {
           : unifiedTemplateMarkup;
       setUnifiedTemplateMarkup(flushedMarkup);
       const tpl = buildTaskTemplateFromUi(flushedMarkup);
-      if (!tpl.prompt.unifiedTemplate?.trim()) throw new Error('unifiedTemplate 不能为空');
+      const coreSkillSelected =
+        !!selected &&
+        isCoreSkillSlice({
+          scope: selected.scope,
+          type: selected.type,
+          subtype: selected.subtype,
+        });
+      if (!coreSkillSelected && !tpl.prompt.unifiedTemplate?.trim()) {
+        throw new Error('unifiedTemplate 不能为空');
+      }
+      if (coreSkillSelected) {
+        const pack = readSkillPackFromDraftExtra(tpl.extra as Record<string, unknown> | undefined);
+        if (!pack?.files.some((f) => f.path === 'SKILL.md' && f.content.trim())) {
+          throw new Error('Core Skill：SKILL.md 不能为空');
+        }
+      }
       if (!tpl.contractSchema || typeof tpl.contractSchema !== 'object') {
         throw new Error('contractSchema 无效');
       }
@@ -958,7 +1030,10 @@ export default function AdminBusiness() {
 
       const extra: Record<string, unknown> = {
         ...(extraDraft ?? {}),
-        executionMode: 'mxm-warp',
+        executionMode:
+          selected.scope === 'text'
+            ? ((extraDraft as { executionMode?: string } | null)?.executionMode ?? 'sync')
+            : 'mxm-warp',
         taskTemplate: tpl,
       };
       delete extra.promptTextTaskKey;
@@ -1241,7 +1316,7 @@ export default function AdminBusiness() {
                             },
                             {
                               title: '操作',
-                              width: 240,
+                              width: 300,
                               fixed: 'right',
                               className: 'admin-business-col-actions',
                               render: (_: unknown, r: PromptConfigRow) => {
@@ -1253,6 +1328,21 @@ export default function AdminBusiness() {
                                       onClick={() => void openRow(r)}
                                     >
                                       编辑
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      icon={<BugOutlined />}
+                                      onClick={() => {
+                                        setTestRow({
+                                          id: r.id,
+                                          scope: r.scope,
+                                          type: r.type,
+                                          subtype: r.subtype ?? null,
+                                        });
+                                        setTestOpen(true);
+                                      }}
+                                    >
+                                      调试
                                     </Button>
                                     <Button
                                       size="small"
@@ -1362,16 +1452,6 @@ export default function AdminBusiness() {
               </Typography.Text>
             </Space>
             <Space size={8}>
-              <Button
-                size="small"
-                onClick={() => {
-                  setTestRow(selected);
-                  setTestOpen(true);
-                }}
-                disabled={!selected || detailLoading}
-              >
-                调试
-              </Button>
               <Button
                 size="small"
                 disabled={!selected || detailLoading || !isActive || selected?.id?.startsWith('new:')}
@@ -1589,24 +1669,56 @@ export default function AdminBusiness() {
                       ]),
                   {
                     key: 'prompt',
-                    label: selected?.scope === 'text' ? 'Prompt' : 'Output Prompt',
-                    children: (
-                      <AdminBusinessPromptTab
-                        draft={draft}
-                        schemaMode={schemaMode}
-                        schemaRows={schemaRows}
-                        schemaJson={schemaJson}
-                        scopeFilter={scopeFilter}
-                        promptVarSearch={promptVarSearch}
-                        unifiedTemplateMarkup={unifiedTemplateMarkup}
-                        promptMarkupGetterRef={promptMarkupGetterRef}
-                        missingSchemaVars={missingSchemaVars}
-                        unusedSchemaVars={unusedSchemaVars}
-                        onPromptVarSearchChange={setPromptVarSearch}
-                        onUnifiedTemplateMarkupChange={setUnifiedTemplateMarkup}
-                        onAddMissingVarsToSchema={handleAddMissingVarsToSchema}
-                      />
-                    ),
+                    label: (() => {
+                      if (!selected) return 'Output Prompt';
+                      if (
+                        isCoreSkillSlice({
+                          scope: selected.scope,
+                          type: selected.type,
+                          subtype: selected.subtype,
+                        })
+                      ) {
+                        return selected.scope === 'text' ? 'Skill' : 'Core Skill';
+                      }
+                      return selected.scope === 'text' ? 'Prompt' : 'Output Prompt';
+                    })(),
+                    children: (() => {
+                      if (
+                        selected &&
+                        isCoreSkillSlice({
+                          scope: selected.scope,
+                          type: selected.type,
+                          subtype: selected.subtype,
+                        })
+                      ) {
+                        return (
+                          <AdminBusinessCoreSkillTab
+                            draft={draft}
+                            scope={selected.scope}
+                            type={selected.type}
+                            subtype={selected.subtype}
+                            onDraftChange={setDraft}
+                          />
+                        );
+                      }
+                      return (
+                        <AdminBusinessPromptTab
+                          draft={draft}
+                          schemaMode={schemaMode}
+                          schemaRows={schemaRows}
+                          schemaJson={schemaJson}
+                          scopeFilter={scopeFilter}
+                          promptVarSearch={promptVarSearch}
+                          unifiedTemplateMarkup={unifiedTemplateMarkup}
+                          promptMarkupGetterRef={promptMarkupGetterRef}
+                          missingSchemaVars={missingSchemaVars}
+                          unusedSchemaVars={unusedSchemaVars}
+                          onPromptVarSearchChange={setPromptVarSearch}
+                          onUnifiedTemplateMarkupChange={setUnifiedTemplateMarkup}
+                          onAddMissingVarsToSchema={handleAddMissingVarsToSchema}
+                        />
+                      );
+                    })(),
                   },
                   {
                     key: 'model_config',

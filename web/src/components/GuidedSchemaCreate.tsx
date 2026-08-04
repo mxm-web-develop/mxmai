@@ -17,6 +17,7 @@ import { WarpGateWizard } from './WarpGateWizard';
 import { schemaToWarpFields } from './schemaToWarpFields';
 import { pickTaskIdFromRunTaskV2Response, pickParallelFromRunTaskV2Response } from '../task-v2';
 import type { AppLocale } from '../i18n/appLocale';
+import { toUserFacingErrorMessage } from '../lib/platformErrors';
 
 const EMPTY_BILLING_PARAMS: Record<string, unknown> = {};
 
@@ -81,7 +82,7 @@ export function GuidedSchemaCreate({
       if (taskId) onTaskCreated(taskId);
       onFinished();
     } catch (e) {
-      message.error(e instanceof Error ? e.message : String(e));
+      message.error(toUserFacingErrorMessage(e instanceof Error ? e.message : e));
     } finally {
       setSubmitting(false);
     }

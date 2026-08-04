@@ -1,0 +1,5650 @@
+{
+  "schemaVersion": 1,
+  "kind": "writing-voice-catalog",
+  "notes": [
+    "轻量目录：类别方向全语言完整；写作风格按 language + voice_category 过滤。",
+    "详参在 packs/<category>.json，resolveVoiceForModelAsync 只注入选中一条。",
+    "统一合同字段见 topic-article：language/voice_category/voice_id/topic/purpose/article_length/structure_id/outline。"
+  ],
+  "languages": [
+    {
+      "id": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "简体中文",
+        "zh-TW": "簡體中文",
+        "en": "Simplified Chinese",
+        "ja": "中国語（簡体）"
+      }
+    },
+    {
+      "id": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "繁体中文",
+        "zh-TW": "繁體中文",
+        "en": "Traditional Chinese",
+        "ja": "中国語（繁体）"
+      }
+    },
+    {
+      "id": "en",
+      "region": "en",
+      "label": {
+        "zh": "English",
+        "zh-TW": "English",
+        "en": "English",
+        "ja": "英語"
+      }
+    },
+    {
+      "id": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "日本語",
+        "zh-TW": "日本語",
+        "en": "Japanese",
+        "ja": "日本語"
+      }
+    }
+  ],
+  "categories": [
+    {
+      "id": "talk_brief",
+      "label": {
+        "zh": "谈话资料",
+        "zh-TW": "談話資料",
+        "en": "Talk-show dossier",
+        "ja": "トーク番組用資料"
+      },
+      "blurb": {
+        "zh": "圆桌/访谈资料稿，不是综艺逐字稿；风格步按语言露出当地热门节目笔法",
+        "zh-TW": "圓桌/訪談資料稿；風格步依語言露出當地熱門節目筆法",
+        "en": "Interview dossier — not a variety transcript; style step shows local hit-show crafts",
+        "ja": "座談資料。スタイル段で各言語の人気番組筆法を出す"
+      },
+      "packFile": "talk_brief",
+      "topic_hints": [
+        "热议议题可抬杠矛盾",
+        "追问清单式资料角度",
+        "题材跟检索热门走"
+      ]
+    },
+    {
+      "id": "literary_column",
+      "label": {
+        "zh": "文学·专栏",
+        "zh-TW": "文學·專欄",
+        "en": "Literary / column",
+        "ja": "文学・コラム"
+      },
+      "blurb": {
+        "zh": "文学/专栏笔法底座；各语言作家向叶子",
+        "zh-TW": "文學/專欄筆法底座",
+        "en": "Literary/column base; author-craft leaves per language",
+        "ja": "文学・コラム筆法の土台"
+      },
+      "packFile": "literary_column",
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ]
+    },
+    {
+      "id": "fanqie_web",
+      "label": {
+        "zh": "短篇网文",
+        "zh-TW": "短篇網文",
+        "en": "Short web fiction",
+        "ja": "短編ネット小説"
+      },
+      "blurb": {
+        "zh": "番茄热门短篇笔法；各语言短篇网文叶子（连载长篇另见 series）",
+        "zh-TW": "番茄熱門短篇筆法；各語言短篇網文（連載長篇另見 series）",
+        "en": "Short-form web fiction craft per locale (long serials → series)",
+        "ja": "短編ネット小説の筆法（長編連載は series）"
+      },
+      "packFile": "fanqie_web",
+      "topic_hints": [
+        "短篇开局设定钩",
+        "反转与章末疑问",
+        "题材跟检索热门走"
+      ]
+    },
+    {
+      "id": "hongguo_drama",
+      "label": {
+        "zh": "短剧节拍",
+        "zh-TW": "短劇節拍",
+        "en": "Vertical short drama",
+        "ja": "縦型ショートドラマ"
+      },
+      "blurb": {
+        "zh": "强冲突/身份/反击；各语言竖屏短剧热门节拍",
+        "zh-TW": "強衝突/身份/反擊；各語言豎屏短劇熱門節拍",
+        "en": "Conflict / identity / payback — vertical short-drama hits per locale",
+        "ja": "強衝突・身分・逆転。各言語の縦型ヒット節拍"
+      },
+      "packFile": "hongguo_drama",
+      "topic_hints": [
+        "竖屏冲突可拍节拍",
+        "集末身份/反击钩",
+        "题材跟检索热门走"
+      ]
+    },
+    {
+      "id": "finance_narrative",
+      "label": {
+        "zh": "财经叙事",
+        "zh-TW": "財經敘事",
+        "en": "Finance narrative",
+        "ja": "金融ナラティブ"
+      },
+      "blurb": {
+        "zh": "博弈、条款、现场与公司治理",
+        "zh-TW": "博弈、条款、现场与公司治理",
+        "en": "Games, clauses, floor, governance",
+        "ja": "Games, clauses, floor, governance"
+      },
+      "packFile": "finance_narrative",
+      "topic_hints": [
+        "专栏文章选题角度",
+        "条款/激励/现场切入",
+        "题材跟检索热门走"
+      ]
+    },
+    {
+      "id": "political_report",
+      "label": {
+        "zh": "时政报道",
+        "zh-TW": "時政報道",
+        "en": "Public-affairs reporting",
+        "ja": "時事報道"
+      },
+      "blurb": {
+        "zh": "电讯、政策解说、地方温差、发布会",
+        "zh-TW": "电讯、政策解说、地方温差、发布会",
+        "en": "Wire, explainer, local gap, press brief",
+        "ja": "Wire, explainer, local gap, press brief"
+      },
+      "packFile": "political_report",
+      "topic_hints": [
+        "报道角度材料边界",
+        "现场/口径/温差",
+        "题材跟检索热门走"
+      ]
+    },
+    {
+      "id": "self_media",
+      "label": {
+        "zh": "热点锐评",
+        "zh-TW": "熱點銳評",
+        "en": "Hot-take commentary",
+        "ja": "ホットテイク評論"
+      },
+      "blurb": {
+        "zh": "锐评立场、个案故事、清单拆解、热点快反",
+        "zh-TW": "銳評立場、個案故事、清單拆解、熱點快反",
+        "en": "Sharp takes, case stories, checklists, hot reactions",
+        "ja": "鋭い論評・事例・チェックリスト・即時反応"
+      },
+      "packFile": "self_media",
+      "topic_hints": [
+        "判断向锐评切入",
+        "个案或清单可展开",
+        "题材跟检索热门走"
+      ]
+    },
+    {
+      "id": "voiceover_brief",
+      "label": {
+        "zh": "短视频解说",
+        "zh-TW": "短視頻解說",
+        "en": "Short-video explainer",
+        "ja": "ショート解説"
+      },
+      "blurb": {
+        "zh": "资讯播报、故事讲述、知识科普等可播解说稿",
+        "zh-TW": "資訊播報、故事講述、知識科普等可播解說稿",
+        "en": "News / story / knowledge explainer scripts for short video",
+        "ja": "ニュース・物語・知識のショート解説原稿"
+      },
+      "packFile": "voiceover_brief",
+      "topic_hints": [
+        "开口一点说清",
+        "可播短句钩子",
+        "题材跟检索热门走"
+      ]
+    },
+    {
+      "id": "course_tutorial",
+      "label": {
+        "zh": "网课教程",
+        "zh-TW": "網課教程",
+        "en": "Online course lesson",
+        "ja": "オンライン講座"
+      },
+      "blurb": {
+        "zh": "知识精讲、跟练教程、系统课与项目交付课稿",
+        "zh-TW": "知識精講、跟練教程、系統課與專案交付課稿",
+        "en": "Knowledge lectures, follow-along drills, system courses, project workshops",
+        "ja": "知識精講・追従演習・体系講座・プロジェクト授業"
+      },
+      "packFile": "course_tutorial",
+      "topic_hints": [
+        "热门一课可带走点",
+        "跟练/精讲课型工艺",
+        "题材跟检索热门走"
+      ]
+    }
+  ],
+  "voices": [
+    {
+      "id": "talk_qq_three",
+      "voice_category": "talk_brief",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "锵锵三人行式交锋闲谈",
+        "zh-TW": "锵锵三人行式交锋闲谈",
+        "en": "Qiangqiang Three–style clash chat",
+        "ja": "Qiangqiang Three–style clash chat"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：锵锵三人行",
+        "zh-TW": "參考：鏘鏘三人行",
+        "en": "Ref: Chinese cultured roundtable (Qiangqiang-era)",
+        "ja": "参考：中国の文化座談番組"
+      },
+      "blurb": {
+        "zh": "三人互呛、典故随手、观点转得快；资料稿要备「可接话」与「可抬杠」点",
+        "zh-TW": "三人互嗆、典故隨手、觀點轉得快；資料稿要備「可接話」與「可抬槓」點",
+        "en": "Fast sparring, casual allusion; brief must stock rejoinders and counter-angles",
+        "ja": "切り返しと典故。資料は承接と反論の種を用意"
+      },
+      "topic_hints": [
+        "交锋闲谈可抬杠",
+        "多声部对立议题",
+        "题材跟检索热议走"
+      ],
+      "search_angles": [
+        "多声部对立公共议题",
+        "可抬杠社会争议",
+        "交锋向时事热议"
+      ]
+    },
+    {
+      "id": "talk_yuanzhuo",
+      "voice_category": "talk_brief",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "圆桌派式议题深挖",
+        "zh-TW": "圆桌派式议题深挖",
+        "en": "Round Table–style issue dig",
+        "ja": "Round Table–style issue dig"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：圆桌派",
+        "zh-TW": "參考：圓桌派",
+        "en": "Ref: Chinese youth roundtable show",
+        "ja": "参考：若者座談番組"
+      },
+      "blurb": {
+        "zh": "一题多切面、代际视角并置；资料稿要分层论据而非段子堆叠",
+        "zh-TW": "一題多切面、代際視角並置；資料稿要分層論據而非段子堆疊",
+        "en": "One issue, many facets + generational lenses; layered evidence over jokes",
+        "ja": "一テーマ多断面。世代視点。根拠を層に"
+      },
+      "topic_hints": [
+        "议题深挖可追问",
+        "多切面资料清单角",
+        "题材跟检索热议走"
+      ],
+      "search_angles": [
+        "多切面公共议题",
+        "代际价值观冲突",
+        "机制拆解社会话题"
+      ]
+    },
+    {
+      "id": "talk_luyu",
+      "voice_category": "talk_brief",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "鲁豫有约式生命叙事",
+        "zh-TW": "鲁豫有约式生命叙事",
+        "en": "A Date with Luyu–style life narrative",
+        "ja": "A Date with Luyu–style life narrative"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：鲁豫有约",
+        "zh-TW": "參考：魯豫有約",
+        "en": "Ref: Chinese 1:1 celebrity life interview",
+        "ja": "参考：中国の一対一人生インタビュー"
+      },
+      "blurb": {
+        "zh": "听故事、抓转折与情绪节拍；资料稿重时间线与「未说出口的动机」",
+        "zh-TW": "聽故事、抓轉折與情緒節拍；資料稿重時間線與「未說出口的動機」",
+        "en": "Story listening; turns + emotion beats; timeline and unspoken motives",
+        "ja": "物語を聴く。転換と感情。年表と語られぬ動機"
+      },
+      "topic_hints": [
+        "生命叙事时间线",
+        "情绪高点柔追问",
+        "题材跟检索热议走"
+      ],
+      "search_angles": [
+        "人物命运转折故事",
+        "公众人物人生节点",
+        "生命叙事向社会话题"
+      ]
+    },
+    {
+      "id": "talk_face_probe",
+      "voice_category": "talk_brief",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "面对面式追问核实",
+        "zh-TW": "面对面式追问核实",
+        "en": "Face to Face–style hard probe",
+        "ja": "Face to Face–style hard probe"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：面对面",
+        "zh-TW": "參考：面對面",
+        "en": "Ref: Chinese hard face-to-face interview",
+        "ja": "参考：中国の追及型インタビュー"
+      },
+      "blurb": {
+        "zh": "问题短、回怼准备足；资料稿要事实锚点与「对方可能的遁词」",
+        "zh-TW": "問題短、回懟準備足；資料稿要事實錨點與「對方可能的遁詞」",
+        "en": "Short questions; anticipate evasions; fact anchors in the brief",
+        "ja": "短い質問。逃げ道の先回り。事実アンカー"
+      },
+      "topic_hints": [
+        "矛盾对照硬核实",
+        "时间线压力追问",
+        "题材跟检索热议走"
+      ],
+      "search_angles": [
+        "待核实社会争议事件",
+        "时间线矛盾新闻",
+        "硬核实向公共事件"
+      ]
+    },
+    {
+      "id": "talk_yanglan_salon",
+      "voice_category": "talk_brief",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "杨澜访谈录式格局提问",
+        "zh-TW": "杨澜访谈录式格局提问",
+        "en": "Yang Lan One-on-One–style salon",
+        "ja": "Yang Lan One-on-One–style salon"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：杨澜访谈录",
+        "zh-TW": "參考：楊瀾訪談錄",
+        "en": "Ref: Chinese stature salon interview",
+        "ja": "参考：中国のハイエンド面談"
+      },
+      "blurb": {
+        "zh": "礼貌锋利、国际视野；资料稿备成就叙事与价值观冲突题",
+        "zh-TW": "禮貌鋒利、國際視野；資料稿備成就敘事與價值觀衝突題",
+        "en": "Polite edge + global frame; achievement arcs and value clashes",
+        "ja": "礼儀ある鋭さ。国際枠。達成譚と価値衝突"
+      },
+      "topic_hints": [
+        "格局提问带出选择",
+        "访谈资料可展开",
+        "题材跟检索热议走"
+      ],
+      "search_angles": [
+        "成就叙事人物专访素材",
+        "国际视野价值冲突",
+        "格局提问向公共人物"
+      ]
+    },
+    {
+      "id": "talk_fresh_air",
+      "voice_category": "talk_brief",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Fresh Air式细读追问",
+        "zh-TW": "Fresh Air式细读追问",
+        "en": "Fresh Air–style close reading",
+        "ja": "Fresh Air–style close reading"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：Fresh Air",
+        "zh-TW": "參考：Fresh Air",
+        "en": "Ref: Fresh Air–style",
+        "ja": "参考：Fresh Air 系"
+      },
+      "blurb": {
+        "zh": "从作品/文本细节进入人格与时代；资料稿要引文级锚点（自拟转述，非侵权摘录）",
+        "zh-TW": "從作品/文本細節進入人格與時代；資料稿要引文級錨點（自擬轉述，非侵權摘錄）",
+        "en": "Enter via work details into person/era; quote-level anchors as paraphrases",
+        "ja": "作品细节から人格と時代へ。言い換えアンカー"
+      },
+      "topic_hints": [
+        "细读追问文本/作品",
+        "慢热深挖角度",
+        "题材跟检索热议走"
+      ],
+      "search_angles": [
+        "cultural works interviews",
+        "artists books films in news",
+        "close-reading interview topics"
+      ]
+    },
+    {
+      "id": "talk_hardtalk",
+      "voice_category": "talk_brief",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "HARDtalk式立场对峙",
+        "zh-TW": "HARDtalk式立场对峙",
+        "en": "HARDtalk-style confrontation",
+        "ja": "HARDtalk-style confrontation"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：BBC HARDtalk",
+        "zh-TW": "參考：BBC HARDtalk",
+        "en": "Ref: HARDtalk–style",
+        "ja": "参考：HARDtalk 系"
+      },
+      "blurb": {
+        "zh": "一问压一句、不允许空泛愿景；资料稿备矛盾陈述与时间线对照",
+        "zh-TW": "一問壓一句、不允許空泛願景；資料稿備矛盾陳述與時間線對照",
+        "en": "One pressure question at a time; contradicting statements + timeline",
+        "ja": "一問一圧。矛盾発言と時系列"
+      },
+      "topic_hints": [
+        "立场对峙是非题",
+        "短问逼清口径",
+        "题材跟检索热议走"
+      ],
+      "search_angles": [
+        "contested public claims",
+        "policy controversy interviews",
+        "accountability news topics"
+      ]
+    },
+    {
+      "id": "talk_oprah_arc",
+      "voice_category": "talk_brief",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Oprah式情感揭示弧线",
+        "zh-TW": "Oprah式情感揭示弧线",
+        "en": "Oprah-style reveal arc",
+        "ja": "Oprah-style reveal arc"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：Oprah 式情感访谈",
+        "zh-TW": "參考：Oprah 式情感訪談",
+        "en": "Ref: Oprah-style reveal interview",
+        "ja": "参考：Oprah 系感情面談"
+      },
+      "blurb": {
+        "zh": "安全氛围下推向坦白；资料稿重创伤节点、支持系统与观众共情点（禁猎奇）",
+        "zh-TW": "安全氛圍下推向坦白；資料稿重創傷節點、支持系統與觀眾共情點（禁獵奇）",
+        "en": "Safe container toward candor; trauma nodes + support systems; no voyeurism",
+        "ja": "安全な場での坦白。外傷点と支援。猟奇禁止"
+      },
+      "topic_hints": [
+        "情感揭示弧线",
+        "陪伴式再抬矛盾",
+        "题材跟检索热议走"
+      ],
+      "search_angles": [
+        "personal transformation stories",
+        "emotional reveal human interest",
+        "life turning-point interviews"
+      ]
+    },
+    {
+      "id": "talk_tw_keymoment",
+      "voice_category": "talk_brief",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "硬訪核對·關鍵時刻",
+        "zh-TW": "硬訪核對·關鍵時刻",
+        "en": "Hard probe · key moment",
+        "ja": "検証インタビュー"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：關鍵時刻式硬訪",
+        "zh-TW": "參考：關鍵時刻式硬訪",
+        "en": "Ref: Key Moment–style hard interview",
+        "ja": "キーモーメント系"
+      },
+      "blurb": {
+        "zh": "矛盾對照、時間線追問",
+        "zh-TW": "矛盾對照、時間線追問",
+        "en": "Contradiction + timeline pressure",
+        "ja": "矛盾と時系列"
+      },
+      "topic_hints": [
+        "公開承諾與兌現落差",
+        "記者會未答清單",
+        "兩套口徑的同一天"
+      ],
+      "search_angles": [
+        "公開承諾與兌現落差事件",
+        "記者會未答清單",
+        "硬訪核對向新聞"
+      ]
+    },
+    {
+      "id": "talk_tw_dinner",
+      "voice_category": "talk_brief",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "人物餐敘·生命切片",
+        "zh-TW": "人物餐敘·生命切片",
+        "en": "Dinner life narrative",
+        "ja": "人物ダイニング"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：誰來晚餐式人物訪談",
+        "zh-TW": "參考：誰來晚餐式人物訪談",
+        "en": "Ref: Who’s Dinner–style life chat",
+        "ja": "誰來晚餐系"
+      },
+      "blurb": {
+        "zh": "日常場景帶出選擇與代價",
+        "zh-TW": "日常場景帶出選擇與代價",
+        "en": "Daily scene → choice & cost",
+        "ja": "日常から選択へ"
+      },
+      "topic_hints": [
+        "一頓飯裡沒說出口的決定",
+        "搬家紙箱裡的舊名片",
+        "母親一句話改變的科系"
+      ],
+      "search_angles": [
+        "人生轉折日常故事",
+        "家庭決策關鍵時刻",
+        "情感訪談向社會話題"
+      ]
+    },
+    {
+      "id": "talk_tw_newsdeep",
+      "voice_category": "talk_brief",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "議題深一度·機制拆",
+        "zh-TW": "議題深一度·機制拆",
+        "en": "News deep-dive mechanisms",
+        "ja": "ニュース深掘り"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：新聞深一度式議題訪",
+        "zh-TW": "參考：新聞深一度式議題訪",
+        "en": "Ref: News Deep–style issue talk",
+        "ja": "報道深掘り系"
+      },
+      "blurb": {
+        "zh": "一題多切面，禁段子大賽",
+        "zh-TW": "一題多切面",
+        "en": "Multi-facet issue; no joke contest",
+        "ja": "多断面の議題"
+      },
+      "topic_hints": [
+        "補貼門檻提高後的中小玩家",
+        "同一文件兩個窗口的排隊規則",
+        "熱搜冷卻後仍未答的問題"
+      ],
+      "search_angles": [
+        "政策門檻與中小玩家",
+        "窗口規則差異新聞",
+        "深度訪談向公共議題"
+      ]
+    },
+    {
+      "id": "talk_tw_roundfire",
+      "voice_category": "talk_brief",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "發燒圓桌·交鋒趣味",
+        "zh-TW": "發燒圓桌·交鋒趣味",
+        "en": "Fiery roundtable banter",
+        "ja": "熱議円卓"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：台灣談話性節目圓桌",
+        "zh-TW": "參考：台灣談話性節目圓桌",
+        "en": "Ref: TW talk-show roundtable",
+        "ja": "台湾トーク円卓"
+      },
+      "blurb": {
+        "zh": "輕嗆快轉，趣味綁觀點",
+        "zh-TW": "輕嗆快轉",
+        "en": "Light clash; fun tied to ideas",
+        "ja": "軽口と論点"
+      },
+      "topic_hints": [
+        "流行文化符號如何變成生意",
+        "跨代誤解句式",
+        "平台規則改了誰在買單"
+      ],
+      "search_angles": [
+        "流行文化變生意",
+        "跨代誤解公共討論",
+        "圓桌火藥向熱議"
+      ]
+    },
+    {
+      "id": "talk_ja_tetsuko",
+      "voice_category": "talk_brief",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "人物長訪·生活剖面",
+        "zh-TW": "人物長訪·生活剖面",
+        "en": "Long life portrait interview",
+        "ja": "人物長訪・生活断面"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：徹子の部屋式人物訪談",
+        "zh-TW": "參考：徹子の部屋式",
+        "en": "Ref: Tetsuko’s Room–style",
+        "ja": "参考：徹子の部屋系"
+      },
+      "blurb": {
+        "zh": "日常細節帶出人生轉折",
+        "zh-TW": "日常細節帶出轉折",
+        "en": "Daily detail → life turns",
+        "ja": "日常細部から転機へ"
+      },
+      "topic_hints": [
+        "初めて断った仕事の朝",
+        "母親の一言で変わった進路",
+        "名刺を捨てた日"
+      ],
+      "search_angles": [
+        "人生の転機ストーリー",
+        "仕事と家族の決断",
+        "人生語り向け話題"
+      ]
+    },
+    {
+      "id": "talk_ja_closeup",
+      "voice_category": "talk_brief",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "報道硬訪·責任追問",
+        "zh-TW": "報道硬訪·責任追問",
+        "en": "Close-up hard accountability",
+        "ja": "報道硬訪・責任追及"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：クローズアップ現代式",
+        "zh-TW": "參考：クローズアップ現代式",
+        "en": "Ref: Close-up Gendai–style",
+        "ja": "参考：クローズアップ現代系"
+      },
+      "blurb": {
+        "zh": "材料密度施壓，禁空話",
+        "zh-TW": "材料密度施壓",
+        "en": "Document pressure; no fog",
+        "ja": "資料密度で追う"
+      },
+      "topic_hints": [
+        "答弁と統計のズレ",
+        "未回答の三問",
+        "所管のたらい回し"
+      ],
+      "search_angles": [
+        "答弁と統計のズレ",
+        "未回答の追及ニュース",
+        "検証インタビュー向け"
+      ]
+    },
+    {
+      "id": "talk_ja_honma",
+      "voice_category": "talk_brief",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "雜學圓桌·觀點交鋒",
+        "zh-TW": "雜學圓桌·觀點交鋒",
+        "en": "Trivia roundtable clash",
+        "ja": "雑学円卓・論点交差"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：ホンマでっか!?式圓桌",
+        "zh-TW": "參考：ホンマでっか式",
+        "en": "Ref: Honma Dekka–style panel",
+        "ja": "参考：ホンマでっか系"
+      },
+      "blurb": {
+        "zh": "趣味鉤子綁機制爭論",
+        "zh-TW": "趣味鉤子綁機制",
+        "en": "Fun hooks + mechanism debate",
+        "ja": "面白さと機制"
+      },
+      "topic_hints": [
+        "流行語が制度になる瞬間",
+        "世代で違う「普通」",
+        "専門家の言い過ぎ"
+      ],
+      "search_angles": [
+        "流行語が制度になる話題",
+        "世代で違う常識",
+        "本音座談向け社会論点"
+      ]
+    },
+    {
+      "id": "talk_ja_news_dinner",
+      "voice_category": "talk_brief",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "新聞餐敘·議題深挖",
+        "zh-TW": "新聞餐敘·議題深挖",
+        "en": "News dinner deep issue",
+        "ja": "ニュース餐敘・深掘り"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：報道系餐敘對談",
+        "zh-TW": "參考：報道系餐敘",
+        "en": "Ref: news-dinner issue talk",
+        "ja": "参考：報道餐敘系"
+      },
+      "blurb": {
+        "zh": "一題三切面，留下分歧",
+        "zh-TW": "一題三切面",
+        "en": "One issue, three facets",
+        "ja": "一題三断面"
+      },
+      "topic_hints": [
+        "補助金の閾値",
+        "窓口ごとの運用差",
+        "冷却後の未解決"
+      ],
+      "search_angles": [
+        "補助金の閾値ニュース",
+        "窓口運用差",
+        "ニュース深掘り向け"
+      ]
+    },
+    {
+      "id": "cn_cold_irony",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "鲁迅式冷峭",
+        "zh-TW": "魯迅式冷峭",
+        "en": "Cold irony (Lu Xun–esque)",
+        "ja": "冷峭な皮肉調"
+      },
+      "uiAuthorHint": {
+        "zh": "鲁迅式冷峭",
+        "zh-TW": "魯迅式冷峭",
+        "en": "Cold irony (Lu Xun–esque)",
+        "ja": "冷峭な皮肉調"
+      },
+      "blurb": {
+        "zh": "短句刺点，反讽压着写，不煽情喊口号",
+        "zh-TW": "短句刺點，反諷壓著寫，不煽情喊口號",
+        "en": "Short thrusts, irony under pressure; no slogans",
+        "ja": "短い刺、抑えめの皮肉。スローガン禁止"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "冷讽社会观察选题",
+        "反差日常可写专栏",
+        "讽刺向近期热点"
+      ]
+    },
+    {
+      "id": "cn_plain_warm",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "汪曾祺式冲淡",
+        "zh-TW": "汪曾祺式沖淡",
+        "en": "Plain warmth (Wang Zengqi–esque)",
+        "ja": "淡く温かい日常調"
+      },
+      "uiAuthorHint": {
+        "zh": "汪曾祺式冲淡",
+        "zh-TW": "汪曾祺式沖淡",
+        "en": "Plain warmth (Wang Zengqi–esque)",
+        "ja": "淡く温かい日常調"
+      },
+      "blurb": {
+        "zh": "白描烟火气，闲笔有味，不用力",
+        "zh-TW": "白描煙火氣，閒筆有味，不用力",
+        "en": "Quiet daily detail; unforced digressions",
+        "ja": "日常の素描。力まない余談"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "温暖日常人物故事",
+        "烟火气生活选题",
+        "温情向可写专栏"
+      ]
+    },
+    {
+      "id": "cn_lyrical_landscape",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "沈从文式抒情白描",
+        "zh-TW": "沈從文式抒情白描",
+        "en": "Lyrical landscape sketch",
+        "ja": "叙情的な風景素描"
+      },
+      "uiAuthorHint": {
+        "zh": "沈从文式抒情白描",
+        "zh-TW": "沈從文式抒情白描",
+        "en": "Lyrical landscape sketch",
+        "ja": "叙情的な風景素描"
+      },
+      "blurb": {
+        "zh": "景物带人，缓慢干净，少说教",
+        "zh-TW": "景物帶人，緩慢乾淨，少說教",
+        "en": "Landscape carries people; slow, clean, little sermon",
+        "ja": "風景が人を運ぶ。遅く、清い。説教少"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "风景意象抒情选题",
+        "物候与心境专栏",
+        "抒情向近期可写"
+      ]
+    },
+    {
+      "id": "cn_sharp_society",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "张爱玲式尖细世情",
+        "zh-TW": "張愛玲式尖細世情",
+        "en": "Sharp worldly detail",
+        "ja": "鋭く細い世俗描写"
+      },
+      "uiAuthorHint": {
+        "zh": "张爱玲式尖细世情",
+        "zh-TW": "張愛玲式尖細世情",
+        "en": "Sharp worldly detail",
+        "ja": "鋭く細い世俗描写"
+      },
+      "blurb": {
+        "zh": "物象凉感，世情刀，华丽里发冷",
+        "zh-TW": "物象涼感，世情刀，華麗裡發冷",
+        "en": "Cool objects, worldly blade; glamour with chill",
+        "ja": "物の冷たさ、世俗の刃。華やかさの中の冷気"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "锐利社会切片选题",
+        "制度与人情冲突",
+        "社会批评向热点"
+      ]
+    },
+    {
+      "id": "cn_absurd_reason",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "王小波式理趣荒诞",
+        "zh-TW": "王小波式理趣荒誕",
+        "en": "Reasoned absurdity",
+        "ja": "理知的な不条理"
+      },
+      "uiAuthorHint": {
+        "zh": "王小波式理趣荒诞",
+        "zh-TW": "王小波式理趣荒誕",
+        "en": "Reasoned absurdity",
+        "ja": "理知的な不条理"
+      },
+      "blurb": {
+        "zh": "理趣反常识，比喻跳脱但逻辑自洽",
+        "zh-TW": "理趣反常識，比喻跳脫但邏輯自洽",
+        "en": "Playful counter-intuition; odd metaphors, sound logic",
+        "ja": "反常識の理。奇妙な比喩、筋は通る"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "荒诞现实对照选题",
+        "理性拆解荒诞新闻",
+        "荒诞向可写专栏"
+      ]
+    },
+    {
+      "id": "cn_beijing_vernacular",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "老舍式京味市井",
+        "zh-TW": "老舍式京味市井",
+        "en": "Beijing vernacular street life",
+        "ja": "市井の話し言葉調"
+      },
+      "uiAuthorHint": {
+        "zh": "老舍式京味市井",
+        "zh-TW": "老舍式京味市井",
+        "en": "Beijing vernacular street life",
+        "ja": "市井の話し言葉調"
+      },
+      "blurb": {
+        "zh": "口语市井，人物声口活，烟火里见性格",
+        "zh-TW": "口語市井，人物聲口活，煙火裡見性格",
+        "en": "Colloquial street voices; character in chatter",
+        "ja": "口語の街。話し方に性格"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "市井口语生活选题",
+        "胡同烟火社会切片",
+        "京味向可写专栏"
+      ]
+    },
+    {
+      "id": "cn_sensory_rich",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "莫言式丰沛感官",
+        "zh-TW": "莫言式豐沛感官",
+        "en": "Sensory abundance",
+        "ja": "感覚の奔流"
+      },
+      "uiAuthorHint": {
+        "zh": "莫言式丰沛感官",
+        "zh-TW": "莫言式豐沛感官",
+        "en": "Sensory abundance",
+        "ja": "感覚の奔流"
+      },
+      "blurb": {
+        "zh": "感官密集，土气猛烈，叙事有冲力",
+        "zh-TW": "感官密集，土氣猛烈，敘事有衝力",
+        "en": "Dense senses, earthy force, narrative drive",
+        "ja": "濃密な感覚。土の勢い。物語の推力"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "感官细节生活选题",
+        "物与味记忆专栏",
+        "感官向可写选题"
+      ]
+    },
+    {
+      "id": "cn_cold_cruelty",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "余华式冷静残酷",
+        "zh-TW": "余華式冷靜殘酷",
+        "en": "Calm cruelty",
+        "ja": "冷静な残酷"
+      },
+      "uiAuthorHint": {
+        "zh": "余华式冷静残酷",
+        "zh-TW": "余華式冷靜殘酷",
+        "en": "Calm cruelty",
+        "ja": "冷静な残酷"
+      },
+      "blurb": {
+        "zh": "语气极稳，事态很狠，少渲染表情",
+        "zh-TW": "語氣極穩，事態很狠，少渲染表情",
+        "en": "Even tone, harsh facts, little facial drama",
+        "ja": "声は平。事態は酷。表情描写は少"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "冷硬人性切片选题",
+        "克制叙事社会事件",
+        "冷硬向可写专栏"
+      ]
+    },
+    {
+      "id": "cn_dense_society",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "王安忆式细密世情",
+        "zh-TW": "王安憶式細密世情",
+        "en": "Dense social weave",
+        "ja": "密な世情の織物"
+      },
+      "uiAuthorHint": {
+        "zh": "王安忆式细密世情",
+        "zh-TW": "王安憶式細密世情",
+        "en": "Dense social weave",
+        "ja": "密な世情の織物"
+      },
+      "blurb": {
+        "zh": "关系网细密，城市生活纹理清楚",
+        "zh-TW": "關係網細密，城市生活紋理清楚",
+        "en": "Fine social mesh; clear urban texture",
+        "ja": "人間関係が細かい。都市の肌理がはっきり"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "密实社会调查向选题",
+        "结构问题人物故事",
+        "社会密度向热点"
+      ]
+    },
+    {
+      "id": "cn_inward_reflect",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "史铁生式沉思内省",
+        "zh-TW": "史鐵生式沉思內省",
+        "en": "Inward reflection",
+        "ja": "内省的な思索"
+      },
+      "uiAuthorHint": {
+        "zh": "史铁生式沉思内省",
+        "zh-TW": "史鐵生式沉思內省",
+        "en": "Inward reflection",
+        "ja": "内省的な思索"
+      },
+      "blurb": {
+        "zh": "向内问，慢，带哲思但不玄虚",
+        "zh-TW": "向內問，慢，帶哲思但不玄虛",
+        "en": "Inward questions; slow; philosophical without fog",
+        "ja": "内へ問う。遅い。哲理はあるが霞まない"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "向内反省生活选题",
+        "自我与时代摩擦",
+        "内省向可写专栏"
+      ]
+    },
+    {
+      "id": "cn_investigative_restraint",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "财新式调查克制",
+        "zh-TW": "財新式調查克制",
+        "en": "Investigative restraint",
+        "ja": "調査報道の抑制"
+      },
+      "uiAuthorHint": {
+        "zh": "财新式调查克制",
+        "zh-TW": "財新式調查克制",
+        "en": "Investigative restraint",
+        "ja": "調査報道の抑制"
+      },
+      "blurb": {
+        "zh": "事实链清晰，判断克制，禁鸡血",
+        "zh-TW": "事實鏈清晰，判斷克制，禁雞血",
+        "en": "Clear fact chain; restrained judgment; no hype",
+        "ja": "事実の鎖が明確。判断は控え。煽らない"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "调查克制事实选题",
+        "可核对公共事件",
+        "调查向近期热点"
+      ]
+    },
+    {
+      "id": "cn_culture_feature",
+      "voice_category": "literary_column",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "三联式文化特稿",
+        "zh-TW": "三聯式文化特稿",
+        "en": "Culture longfeature",
+        "ja": "文化長尺の特集調"
+      },
+      "uiAuthorHint": {
+        "zh": "三联式文化特稿",
+        "zh-TW": "三聯式文化特稿",
+        "en": "Culture longfeature",
+        "ja": "文化長尺の特集調"
+      },
+      "blurb": {
+        "zh": "文化语境厚，叙述稳，观点藏在材料里",
+        "zh-TW": "文化語境厚，敘述穩，觀點藏在材料裡",
+        "en": "Thick cultural context; steady narration; view in material",
+        "ja": "文化の文脈が厚い。叙述は安定。見解は材料の中"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "文化现场特写选题",
+        "作品与时代交汇",
+        "文化特写向热点"
+      ]
+    },
+    {
+      "id": "gat_public_rebuke",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "龙应台式公共直谏",
+        "zh-TW": "龍應台式公共直諫",
+        "en": "Public civic rebuke",
+        "ja": "公共への直諫調"
+      },
+      "uiAuthorHint": {
+        "zh": "龙应台式公共直谏",
+        "zh-TW": "龍應台式公共直諫",
+        "en": "Public civic rebuke",
+        "ja": "公共への直諫調"
+      },
+      "blurb": {
+        "zh": "公共议题，第二人称逼问感，道德压力清楚",
+        "zh-TW": "公共議題，第二人稱逼問感，道德壓力清楚",
+        "en": "Civic issues; second-person pressure; clear moral ask",
+        "ja": "公共課題。二人称の追及。道徳的な圧"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "公開責備社會題",
+        "銳評公共事件",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "gat_ornate_sorrow",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "白先勇式华丽悲悯",
+        "zh-TW": "白先勇式華麗悲憫",
+        "en": "Ornate compassion",
+        "ja": "華麗な悲憫"
+      },
+      "uiAuthorHint": {
+        "zh": "白先勇式华丽悲悯",
+        "zh-TW": "白先勇式華麗悲憫",
+        "en": "Ornate compassion",
+        "ja": "華麗な悲憫"
+      },
+      "blurb": {
+        "zh": "辞藻华丽，人物命运感强，悲悯大于控诉",
+        "zh-TW": "辭藻華麗，人物命運感強，悲憫大於控訴",
+        "en": "Lush diction; strong fate; pity over rant",
+        "ja": "華麗な語。運命感。非難より哀しみ"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "華麗哀愁抒情題",
+        "物候與心事",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "gat_playful_erudite",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "张大春式戏谑博识",
+        "zh-TW": "張大春式戲謔博識",
+        "en": "Playful erudition",
+        "ja": "戲れの博識"
+      },
+      "uiAuthorHint": {
+        "zh": "张大春式戏谑博识",
+        "zh-TW": "張大春式戲謔博識",
+        "en": "Playful erudition",
+        "ja": "戲れの博識"
+      },
+      "blurb": {
+        "zh": "博学玩笑，叙事爱绕，智性俏皮",
+        "zh-TW": "博學玩笑，敘事愛繞，智性俏皮",
+        "en": "Learned jokes; winding narrative; witty intellect",
+        "ja": "博識な冗談。回り道の語り。知的な軽妙"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "戲謔博學文化題",
+        "典故輕觸熱點",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "gat_dense_sensual",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "朱天文式绵密感官",
+        "zh-TW": "朱天文式綿密感官",
+        "en": "Dense sensual prose",
+        "ja": "綿密な感覚散文"
+      },
+      "uiAuthorHint": {
+        "zh": "朱天文式绵密感官",
+        "zh-TW": "朱天文式綿密感官",
+        "en": "Dense sensual prose",
+        "ja": "綿密な感覚散文"
+      },
+      "blurb": {
+        "zh": "感官绵密，时间黏稠，情绪内收",
+        "zh-TW": "感官綿密，時間黏稠，情緒內收",
+        "en": "Thick senses; sticky time; emotion held in",
+        "ja": "感覚が密。時間が粘る。情は内へ"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "密實感官生活題",
+        "物與味記憶",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "gat_sharp_self",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "朱天心式锐利自省",
+        "zh-TW": "朱天心式銳利自省",
+        "en": "Sharp self-audit",
+        "ja": "鋭い自己監査"
+      },
+      "uiAuthorHint": {
+        "zh": "朱天心式锐利自省",
+        "zh-TW": "朱天心式銳利自省",
+        "en": "Sharp self-audit",
+        "ja": "鋭い自己監査"
+      },
+      "blurb": {
+        "zh": "自我解剖锋利，世代感强，不自怜",
+        "zh-TW": "自我解剖鋒利，世代感強，不自憐",
+        "en": "Sharp self-dissection; generational; no self-pity",
+        "ja": "自己解剖が鋭い。世代感。自憐なし"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "銳利自我剖白",
+        "自我與時代摩擦",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "gat_polemic_edge",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "李敖式论战犀利",
+        "zh-TW": "李敖式論戰犀利",
+        "en": "Polemic edge",
+        "ja": "論戦の切れ味"
+      },
+      "uiAuthorHint": {
+        "zh": "李敖式论战犀利",
+        "zh-TW": "李敖式論戰犀利",
+        "en": "Polemic edge",
+        "ja": "論戦の切れ味"
+      },
+      "blurb": {
+        "zh": "论战节奏，拆招快，气势压人但不脏话堆砌",
+        "zh-TW": "論戰節奏，拆招快，氣勢壓人但不髒話堆砌",
+        "en": "Debate pace; fast dismantling; force without slur piles",
+        "ja": "論戦の速度。速い崩し。罵倒の山は作らない"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "論戰鋒利公共題",
+        "立場交鋒熱點",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "gat_humor_genial",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "林语堂式幽默通达",
+        "zh-TW": "林語堂式幽默通達",
+        "en": "Genial humor",
+        "ja": "通達なユーモア"
+      },
+      "uiAuthorHint": {
+        "zh": "林语堂式幽默通达",
+        "zh-TW": "林語堂式幽默通達",
+        "en": "Genial humor",
+        "ja": "通達なユーモア"
+      },
+      "blurb": {
+        "zh": "闲谈幽默，通达人情，不尖酸",
+        "zh-TW": "閒談幽默，通達人情，不尖酸",
+        "en": "Conversational humor; humane; not bitter",
+        "ja": "雑談のユーモア。人情に通ず。辛辣すぎない"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "溫厚幽默生活題",
+        "笑點裡的人情",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "gat_elegant_chat",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "梁实秋式雅谑闲话",
+        "zh-TW": "梁實秋式雅謔閒話",
+        "en": "Elegant chat essay",
+        "ja": "雅な世間話"
+      },
+      "uiAuthorHint": {
+        "zh": "梁实秋式雅谑闲话",
+        "zh-TW": "梁實秋式雅謔閒話",
+        "en": "Elegant chat essay",
+        "ja": "雅な世間話"
+      },
+      "blurb": {
+        "zh": "雅谑小品，生活审美，点到为止",
+        "zh-TW": "雅謔小品，生活審美，點到為止",
+        "en": "Elegant light essay; tasteful life; stop on time",
+        "ja": "雅なお洒落小品。生活の美。言い過ぎない"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "優雅閒談文化題",
+        "沙龍向公共話題",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "gat_weird_plain",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "倪匡式奇想直白",
+        "zh-TW": "倪匡式奇想直白",
+        "en": "Weird ideas, plain talk",
+        "ja": "奇想を直截に"
+      },
+      "uiAuthorHint": {
+        "zh": "倪匡式奇想直白",
+        "zh-TW": "倪匡式奇想直白",
+        "en": "Weird ideas, plain talk",
+        "ja": "奇想を直截に"
+      },
+      "blurb": {
+        "zh": "奇想大胆，说话直白，节奏快",
+        "zh-TW": "奇想大膽，說話直白，節奏快",
+        "en": "Bold weird premises; plain speech; fast pace",
+        "ja": "大胆な奇想。言い方は率直。テンポ速い"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "怪誕平實日常題",
+        "異樣日常切片",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "gat_urban_stream",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "刘以鬯式意识流都市",
+        "zh-TW": "劉以鬯式意識流都市",
+        "en": "Urban stream-of-consciousness",
+        "ja": "都市の意識の流れ"
+      },
+      "uiAuthorHint": {
+        "zh": "刘以鬯式意识流都市",
+        "zh-TW": "劉以鬯式意識流都市",
+        "en": "Urban stream-of-consciousness",
+        "ja": "都市の意識の流れ"
+      },
+      "blurb": {
+        "zh": "都市意识流，片段拼贴，心理外翻",
+        "zh-TW": "都市意識流，片段拼貼，心理外翻",
+        "en": "Urban SoC; collage fragments; psyche outward",
+        "ja": "都市の意識流。断片のコラージュ。心理が外へ"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "都市意識流題",
+        "城市節奏切片",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "gat_light_magic",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "西西式轻巧魔幻日常",
+        "zh-TW": "西西式輕巧魔幻日常",
+        "en": "Light magic in daily life",
+        "ja": "日常の軽い魔術"
+      },
+      "uiAuthorHint": {
+        "zh": "西西式轻巧魔幻日常",
+        "zh-TW": "西西式輕巧魔幻日常",
+        "en": "Light magic in daily life",
+        "ja": "日常の軽い魔術"
+      },
+      "blurb": {
+        "zh": "轻巧奇想，日常里长出一点魔幻",
+        "zh-TW": "輕巧奇想，日常裡長出一點魔幻",
+        "en": "Light fancy; a little magic from the ordinary",
+        "ja": "軽い奇想。日常から小さな魔術"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "輕魔法現實題",
+        "日常裡一點超現實",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "gat_dialogue_probe",
+      "voice_category": "literary_column",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "梁文道式对谈追问",
+        "zh-TW": "梁文道式對談追問",
+        "en": "Dialogic probing",
+        "ja": "対談の追問"
+      },
+      "uiAuthorHint": {
+        "zh": "梁文道式对谈追问",
+        "zh-TW": "梁文道式對談追問",
+        "en": "Dialogic probing",
+        "ja": "対談の追問"
+      },
+      "blurb": {
+        "zh": "谈话体层层追问，把概念拆开再拼",
+        "zh-TW": "談話體層層追問，把概念拆開再拼",
+        "en": "Talk-show logic; unpack then rebuild concepts",
+        "ja": "対話体で層層と問う。概念を分解し再構成"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "對話探問人物題",
+        "對白帶出結構",
+        "近期可寫專欄"
+      ]
+    },
+    {
+      "id": "ja_intellectual_irony",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "夏目漱石式知性反讽",
+        "zh-TW": "夏目漱石式知性反諷",
+        "en": "Intellectual irony",
+        "ja": "夏目漱石風の知的アイロニー"
+      },
+      "uiAuthorHint": {
+        "zh": "夏目漱石式知性反讽",
+        "zh-TW": "夏目漱石式知性反諷",
+        "en": "Intellectual irony",
+        "ja": "夏目漱石風の知的アイロニー"
+      },
+      "blurb": {
+        "zh": "知性反讽，文明病轻轻刺",
+        "zh-TW": "知性反諷，文明病輕輕刺",
+        "en": "Intellectual irony; light stab at modern malaise",
+        "ja": "知的皮肉。近代の病を軽く突く"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "知的アイロニー社会題",
+        "皮肉コラム向け話題",
+        "今書ける社会観察"
+      ]
+    },
+    {
+      "id": "ja_cold_short",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "芥川式冷冽短制",
+        "zh-TW": "芥川式冷冽短制",
+        "en": "Cold short form",
+        "ja": "芥川風の冷たい短制"
+      },
+      "uiAuthorHint": {
+        "zh": "芥川式冷冽短制",
+        "zh-TW": "芥川式冷冽短制",
+        "en": "Cold short form",
+        "ja": "芥川風の冷たい短制"
+      },
+      "blurb": {
+        "zh": "短制冷冽，收束狠，余味尖",
+        "zh-TW": "短制冷冽，收束狠，餘味尖",
+        "en": "Cold brevity; hard close; sharp aftertaste",
+        "ja": "短い。冷たい。締めが酷。余韻が鋭い"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "冷たい短文ネタ",
+        "余白のある人間話",
+        "今書ける短コラム"
+      ]
+    },
+    {
+      "id": "ja_mono_no_aware",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "川端式幽玄余情",
+        "zh-TW": "川端式幽玄餘情",
+        "en": "Mono no aware lyricism",
+        "ja": "川端風の幽玄の余情"
+      },
+      "uiAuthorHint": {
+        "zh": "川端式幽玄余情",
+        "zh-TW": "川端式幽玄餘情",
+        "en": "Mono no aware lyricism",
+        "ja": "川端風の幽玄の余情"
+      },
+      "blurb": {
+        "zh": "幽玄余情，物哀轻触，美而淡",
+        "zh-TW": "幽玄餘情，物哀輕觸，美而淡",
+        "en": "Subtle pathos; beauty in restraint",
+        "ja": "幽玄。物の哀れ。美は控えに"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "物の哀れ季節題",
+        "移ろいと心象",
+        "今書ける抒情"
+      ]
+    },
+    {
+      "id": "ja_self_mock_confide",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "太宰式自嘲告白",
+        "zh-TW": "太宰式自嘲告白",
+        "en": "Self-mocking confession",
+        "ja": "太宰風の自嘲の告白"
+      },
+      "uiAuthorHint": {
+        "zh": "太宰式自嘲告白",
+        "zh-TW": "太宰式自嘲告白",
+        "en": "Self-mocking confession",
+        "ja": "太宰風の自嘲の告白"
+      },
+      "blurb": {
+        "zh": "自嘲告白，脆弱摊开，笑里发颤",
+        "zh-TW": "自嘲告白，脆弱攤開，笑裡發顫",
+        "en": "Self-mock confession; frailty shown; laugh that shakes",
+        "ja": "自嘲の告白。弱さを晒す。笑いが震える"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "自嘲告白ネタ",
+        "弱さの共有話題",
+        "今書けるエッセイ"
+      ]
+    },
+    {
+      "id": "ja_ornate_severe",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "三岛式华丽峻烈",
+        "zh-TW": "三島式華麗峻烈",
+        "en": "Ornate severity",
+        "ja": "三島風の華麗で峻烈"
+      },
+      "uiAuthorHint": {
+        "zh": "三岛式华丽峻烈",
+        "zh-TW": "三島式華麗峻烈",
+        "en": "Ornate severity",
+        "ja": "三島風の華麗で峻烈"
+      },
+      "blurb": {
+        "zh": "辞藻华丽，意志峻烈，美与决断并置",
+        "zh-TW": "辭藻華麗，意志峻烈，美與決斷並置",
+        "en": "Ornate diction; severe will; beauty beside decision",
+        "ja": "華麗な語。峻烈な意志。美と決断が並ぶ"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "華麗で厳しい批評",
+        "美文社会批評題",
+        "今書ける批評"
+      ]
+    },
+    {
+      "id": "ja_heavy_dialectic",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "大江式厚重思辨",
+        "zh-TW": "大江式厚重思辨",
+        "en": "Heavy dialectic",
+        "ja": "大江風の重厚な思弁"
+      },
+      "uiAuthorHint": {
+        "zh": "大江式厚重思辨",
+        "zh-TW": "大江式厚重思辨",
+        "en": "Heavy dialectic",
+        "ja": "大江風の重厚な思弁"
+      },
+      "blurb": {
+        "zh": "思辨厚重，句子可缠，伦理压力大",
+        "zh-TW": "思辨厚重，句子可纏，倫理壓力大",
+        "en": "Heavy thought; winding sentences; ethical pressure",
+        "ja": "思弁が重い。文が絡む。倫理の圧"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "重い弁証法テーマ",
+        "対立する価値の議論",
+        "今書ける思想コラム"
+      ]
+    },
+    {
+      "id": "ja_urban_detach",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "村上春树式疏离都市",
+        "zh-TW": "村上春樹式疏離都市",
+        "en": "Detached urban cool",
+        "ja": "村上春樹風の都市の疎外"
+      },
+      "uiAuthorHint": {
+        "zh": "村上春树式疏离都市",
+        "zh-TW": "村上春樹式疏離都市",
+        "en": "Detached urban cool",
+        "ja": "村上春樹風の都市の疎外"
+      },
+      "blurb": {
+        "zh": "都市疏离，平淡句子下涌动不安",
+        "zh-TW": "都市疏離，平淡句子下湧動不安",
+        "en": "Urban detachment; flat sentences over unease",
+        "ja": "都市の距離。平坦な文の下の不安"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "都市の距離感ネタ",
+        "冷ややか日常観察",
+        "今書ける都市コラム"
+      ]
+    },
+    {
+      "id": "ja_soft_melancholy",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "吉本式轻柔伤感",
+        "zh-TW": "吉本式輕柔傷感",
+        "en": "Soft melancholy",
+        "ja": "吉本風のやわらかな哀しみ"
+      },
+      "uiAuthorHint": {
+        "zh": "吉本式轻柔伤感",
+        "zh-TW": "吉本式輕柔傷感",
+        "en": "Soft melancholy",
+        "ja": "吉本風のやわらかな哀しみ"
+      },
+      "blurb": {
+        "zh": "轻柔伤感，治愈向，伤口不血腥展示",
+        "zh-TW": "輕柔傷感，治癒向，傷口不血腥展示",
+        "en": "Soft melancholy; healing; wounds without gore",
+        "ja": "柔い哀しみ。癒やし。傷を血腥く晒さない"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "柔らかい憂鬱ネタ",
+        "日常の小さなかなしみ",
+        "今書ける抒情"
+      ]
+    },
+    {
+      "id": "ja_mystery_restraint",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "东野式谜面克制",
+        "zh-TW": "東野式謎面克制",
+        "en": "Mystery restraint",
+        "ja": "東野風の謎の抑制"
+      },
+      "uiAuthorHint": {
+        "zh": "东野式谜面克制",
+        "zh-TW": "東野式謎面克制",
+        "en": "Mystery restraint",
+        "ja": "東野風の謎の抑制"
+      },
+      "blurb": {
+        "zh": "信息克制，线索安静放，结局前不泄压",
+        "zh-TW": "資訊克制，線索安靜放，結局前不洩壓",
+        "en": "Sparse info; quiet clues; no early release",
+        "ja": "情報は控え。手がかりは静かに。早期解圧なし"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "抑制ミステリ雰囲気",
+        "謎めく日常断片",
+        "今書ける物語コラム"
+      ]
+    },
+    {
+      "id": "ja_detective_lay",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "江户川式推理铺陈",
+        "zh-TW": "江戶川式推理鋪陳",
+        "en": "Classic detective laying-out",
+        "ja": "江戸川風の古典推理"
+      },
+      "uiAuthorHint": {
+        "zh": "江户川式推理铺陈",
+        "zh-TW": "江戶川式推理鋪陳",
+        "en": "Classic detective laying-out",
+        "ja": "江戸川風の古典推理"
+      },
+      "blurb": {
+        "zh": "谜题意识强，铺陈线索，读者可参与推理",
+        "zh-TW": "謎題意識強，鋪陳線索，讀者可參與推理",
+        "en": "Puzzle-forward; clues laid; reader can reason",
+        "ja": "謎が先。手がかりを並べ、読者も推理できる"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "素人探偵風観察",
+        "手がかり日常題",
+        "今書ける推理風"
+      ]
+    },
+    {
+      "id": "ja_erudite_density",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "京极式考据密度",
+        "zh-TW": "京極式考據密度",
+        "en": "Erudite density",
+        "ja": "京極風の考証の密度"
+      },
+      "uiAuthorHint": {
+        "zh": "京极式考据密度",
+        "zh-TW": "京極式考據密度",
+        "en": "Erudite density",
+        "ja": "京極風の考証の密度"
+      },
+      "blurb": {
+        "zh": "考据密集，知识压进叙事， denseness 有快感",
+        "zh-TW": "考據密集，知識壓進敘事，稠密有快感",
+        "en": "Dense lore pressed into story; density as pleasure",
+        "ja": "考証が密。知識が物語に圧入される快感"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "博識密度の高い題",
+        "引用と知識の交差",
+        "今書ける教養コラム"
+      ]
+    },
+    {
+      "id": "ja_magazine_clean",
+      "voice_category": "literary_column",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "暮しの手帖式清爽短句",
+        "zh-TW": "暮しの手帖式清爽短句",
+        "en": "Kurashi-no-Techo–style clean short prose",
+        "ja": "暮しの手帖式の爽快短文"
+      },
+      "uiAuthorHint": {
+        "zh": "暮しの手帖式清爽短句",
+        "zh-TW": "暮しの手帖式清爽短句",
+        "en": "Kurashi-no-Techo–style clean short prose",
+        "ja": "暮しの手帖式の爽快短文"
+      },
+      "blurb": {
+        "zh": "暮しの手帖式生活刊：清爽短句、可执行感",
+        "zh-TW": "當代生活刊文體：清爽、短句、可執行感",
+        "en": "Lifestyle-mag clarity; short; actionable feel",
+        "ja": "生活誌の明快。短文。実行できそう"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "雑誌調クリーン題",
+        "読みやすい特集角",
+        "今書ける雑誌コラム"
+      ]
+    },
+    {
+      "id": "en_clear_politics",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Orwell式清晰论政",
+        "zh-TW": "Orwell式清晰論政",
+        "en": "Orwell — clear political prose",
+        "ja": "明晰な政治散文"
+      },
+      "uiAuthorHint": {
+        "zh": "Orwell式清晰论政",
+        "zh-TW": "Orwell式清晰論政",
+        "en": "Orwell — clear political prose",
+        "ja": "明晰な政治散文"
+      },
+      "blurb": {
+        "zh": "用词干净，反套话，政治书写求清楚",
+        "zh-TW": "用詞乾淨，反套話，政治書寫求清楚",
+        "en": "Clean diction; anti-cant; clarity in politics",
+        "ja": "語をきれいに。空語を嫌う。政治を明晰に"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "clear political essay topics",
+        "civic explain feature angles",
+        "trending politics columns"
+      ]
+    },
+    {
+      "id": "en_cool_anatomy",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Didion式冷静解剖",
+        "zh-TW": "Didion式冷靜解剖",
+        "en": "Didion — cool cultural anatomy",
+        "ja": "冷静な文化解剖"
+      },
+      "uiAuthorHint": {
+        "zh": "Didion式冷静解剖",
+        "zh-TW": "Didion式冷靜解剖",
+        "en": "Didion — cool cultural anatomy",
+        "ja": "冷静な文化解剖"
+      },
+      "blurb": {
+        "zh": "冷静解剖现场与自我，句子精确",
+        "zh-TW": "冷靜解剖現場與自我，句子精確",
+        "en": "Cool dissection of scene and self; precise sentences",
+        "ja": "現場と自己を冷静に解剖。文が精確"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "cool anatomy cultural essays",
+        "systems-dissect feature topics",
+        "trending analysis columns"
+      ]
+    },
+    {
+      "id": "en_iceberg_minimal",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Hemingway式极简冰山",
+        "zh-TW": "Hemingway式極簡冰山",
+        "en": "Hemingway — iceberg minimalism",
+        "ja": "氷山の極少主義"
+      },
+      "uiAuthorHint": {
+        "zh": "Hemingway式极简冰山",
+        "zh-TW": "Hemingway式極簡冰山",
+        "en": "Hemingway — iceberg minimalism",
+        "ja": "氷山の極少主義"
+      },
+      "blurb": {
+        "zh": "极简对白与动作，情绪在水面下",
+        "zh-TW": "極簡對白與動作，情緒在水面下",
+        "en": "Minimal talk and action; feeling under the waterline",
+        "ja": "最小の会話と動作。情は水面下"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "minimal iceberg human stories",
+        "sparse emotion essay topics",
+        "trending literary features"
+      ]
+    },
+    {
+      "id": "en_moral_heat",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Baldwin式道德热力",
+        "zh-TW": "Baldwin式道德熱力",
+        "en": "Baldwin — moral heat essay",
+        "ja": "道徳的な熱を帯びたエッセイ"
+      },
+      "uiAuthorHint": {
+        "zh": "Baldwin式道德热力",
+        "zh-TW": "Baldwin式道德熱力",
+        "en": "Baldwin — moral heat essay",
+        "ja": "道徳的な熱を帯びたエッセイ"
+      },
+      "blurb": {
+        "zh": "道德热力强，节奏如演讲，直指结构不义",
+        "zh-TW": "道德熱力強，節奏如演講，直指結構不義",
+        "en": "Moral heat; oratorical rhythm; names structural wrongs",
+        "ja": "道徳の熱。演説のリズム。構造的不正を指す"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "moral-heat public debates",
+        "ethical clash essay topics",
+        "trending opinion essays"
+      ]
+    },
+    {
+      "id": "en_stream_fine",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Woolf式意识流细密",
+        "zh-TW": "Woolf式意識流細密",
+        "en": "Woolf — fine-grained stream",
+        "ja": "繊細な意識の流れ"
+      },
+      "uiAuthorHint": {
+        "zh": "Woolf式意识流细密",
+        "zh-TW": "Woolf式意識流細密",
+        "en": "Woolf — fine-grained stream",
+        "ja": "繊細な意識の流れ"
+      },
+      "blurb": {
+        "zh": "意识流细密，时间在内心折叠",
+        "zh-TW": "意識流細密，時間在內心折疊",
+        "en": "Fine SoC; time folds inward",
+        "ja": "意識流が細い。時間が内で折れる"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "fine stream-of-consciousness life",
+        "interior monologue essay topics",
+        "trending literary columns"
+      ]
+    },
+    {
+      "id": "en_gonzo_heat",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Thompson式新新闻狂想",
+        "zh-TW": "Thompson式新新聞狂想",
+        "en": "Thompson — gonzo heat",
+        "ja": "ゴンゾ的な熱狂"
+      },
+      "uiAuthorHint": {
+        "zh": "Thompson式新新闻狂想",
+        "zh-TW": "Thompson式新新聞狂想",
+        "en": "Thompson — gonzo heat",
+        "ja": "ゴンゾ的な熱狂"
+      },
+      "blurb": {
+        "zh": "现场狂想，主观冲进报道，节奏疯但信息在",
+        "zh-TW": "現場狂想，主觀衝進報導，節奏瘋但資訊在",
+        "en": "Gonzo rush into reportage; wild pace, info still there",
+        "ja": "現場へ主観が突入。狂った速度でも情報はある"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "gonzo on-the-ground topics",
+        "immersive reportage angles",
+        "trending wild features"
+      ]
+    },
+    {
+      "id": "en_science_poetic",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Sagan式科普诗意",
+        "zh-TW": "Sagan式科普詩意",
+        "en": "Sagan — poetic popular science",
+        "ja": "詩的な科学普及"
+      },
+      "uiAuthorHint": {
+        "zh": "Sagan式科普诗意",
+        "zh-TW": "Sagan式科普詩意",
+        "en": "Sagan — poetic popular science",
+        "ja": "詩的な科学普及"
+      },
+      "blurb": {
+        "zh": "科普有诗意，宇宙尺度对照人类渺小与珍贵",
+        "zh-TW": "科普有詩意，宇宙尺度對照人類渺小與珍貴",
+        "en": "Poetic science; cosmic scale vs human smallness/worth",
+        "ja": "詩的科学。宇宙尺度と人間の小ささ／尊さ"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "science-poetic explain topics",
+        "nature tech wonder essays",
+        "trending science features"
+      ]
+    },
+    {
+      "id": "en_epistle_weight",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Coates式书信体沉痛",
+        "zh-TW": "Coates式書信體沉痛",
+        "en": "Coates — epistolary moral weight",
+        "ja": "書簡体の重み"
+      },
+      "uiAuthorHint": {
+        "zh": "Coates式书信体沉痛",
+        "zh-TW": "Coates式書信體沉痛",
+        "en": "Coates — epistolary moral weight",
+        "ja": "書簡体の重み"
+      },
+      "blurb": {
+        "zh": "书信体沉痛，对「你」说话，历史压在私人语气上",
+        "zh-TW": "書信體沉痛，對「你」說話，歷史壓在私人語氣上",
+        "en": "Letter to “you”; history pressing on private voice",
+        "ja": "「あなた」へ。歴史が私的な声に圧す"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "letter-form heavy topics",
+        "addressed essay public themes",
+        "trending epistolary columns"
+      ]
+    },
+    {
+      "id": "en_case_narrative",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Sacks式病例叙事温厚",
+        "zh-TW": "Sacks式病例敘事溫厚",
+        "en": "Sacks — humane case narrative",
+        "ja": "温厚な症例叙事"
+      },
+      "uiAuthorHint": {
+        "zh": "Sacks式病例叙事温厚",
+        "zh-TW": "Sacks式病例敘事溫厚",
+        "en": "Sacks — humane case narrative",
+        "ja": "温厚な症例叙事"
+      },
+      "blurb": {
+        "zh": "病例叙事温厚，奇异症状里见人性尊严",
+        "zh-TW": "病例敘事溫厚，奇異症狀裡見人性尊嚴",
+        "en": "Humane case tales; dignity inside strange symptoms",
+        "ja": "温厚な症例。奇妙な症状に尊厳"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "case-narrative true stories",
+        "documented human cases",
+        "trending narrative features"
+      ]
+    },
+    {
+      "id": "en_longform_mag",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "New Yorker式长特稿",
+        "zh-TW": "New Yorker式長特稿",
+        "en": "New Yorker — magazine longform",
+        "ja": "雑誌長尺特集調"
+      },
+      "uiAuthorHint": {
+        "zh": "New Yorker式长特稿",
+        "zh-TW": "New Yorker式長特稿",
+        "en": "New Yorker — magazine longform",
+        "ja": "雑誌長尺特集調"
+      },
+      "blurb": {
+        "zh": "长特稿节奏，场景丰富，引语精准",
+        "zh-TW": "長特稿節奏，場景豐富，引語精準",
+        "en": "Longform pacing; rich scenes; precise quotes",
+        "ja": "長尺。場面が豊か。引用が精確"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "magazine longform topics",
+        "reported essay feature angles",
+        "trending magazine stories"
+      ]
+    },
+    {
+      "id": "en_cold_leader",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Economist式冷峭社论",
+        "zh-TW": "Economist式冷峭社論",
+        "en": "Economist — cold editorial voice",
+        "ja": "冷たい社説調"
+      },
+      "uiAuthorHint": {
+        "zh": "Economist式冷峭社论",
+        "zh-TW": "Economist式冷峭社論",
+        "en": "Economist — cold editorial voice",
+        "ja": "冷たい社説調"
+      },
+      "blurb": {
+        "zh": "社论冷峭，判断利落，全球视野压缩表达",
+        "zh-TW": "社論冷峭，判斷利落，全球視野壓縮表達",
+        "en": "Cold leaders; brisk judgment; compressed global view",
+        "ja": "社説は冷たい。判断が速い。世界を圧縮して書く"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "cold leader news-essay topics",
+        "opening-hook reported columns",
+        "trending news features"
+      ]
+    },
+    {
+      "id": "en_web_hook",
+      "voice_category": "literary_column",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Medium式长文钩子",
+        "zh-TW": "Medium式長文鉤子",
+        "en": "Medium-style longform hook",
+        "ja": "Medium式ウェブ長文フック"
+      },
+      "uiAuthorHint": {
+        "zh": "Medium式长文钩子",
+        "zh-TW": "Medium式長文鉤子",
+        "en": "Medium-style longform hook",
+        "ja": "Medium式ウェブ長文フック"
+      },
+      "blurb": {
+        "zh": "Medium 网感长文：强钩子、小节推进、可读但不廉价",
+        "zh-TW": "網感長文：強鉤子、小節推進、可讀但不廉價",
+        "en": "Web longform: strong hook, section drive, readable not cheap",
+        "ja": "フックが強い。小節で進む。安くない読みやすさ"
+      },
+      "topic_hints": [
+        "意象/场景钩可展开",
+        "专栏标题向切入",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "web-hook short essay topics",
+        "scroll-stopping column angles",
+        "trending online essays"
+      ]
+    },
+    {
+      "id": "fq_zs_huigui",
+      "voice_category": "fanqie_web",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "战神回归·打脸节拍",
+        "zh-TW": "战神回归·打脸节拍",
+        "en": "War-god return slap-beat",
+        "ja": "War-god return slap-beat"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：番茄热门战神/兵王回归写手笔法",
+        "zh-TW": "参考：番茄热门战神/兵王回归写手笔法",
+        "en": "Ref: Fanqie war-god return writers",
+        "ja": "Ref: Fanqie war-god return writers"
+      },
+      "blurb": {
+        "zh": "身份差拉满，三章内打脸，章末钩子硬",
+        "zh-TW": "身份差拉满，三章内打脸，章末钩子硬",
+        "en": "Status gap, slap within 3 chapters, hard hooks",
+        "ja": "Status gap, slap within 3 chapters, hard hooks"
+      },
+      "topic_hints": [
+        "身份差当众打脸节拍",
+        "三章内兑现羞辱反转",
+        "章末更大身份钩"
+      ],
+      "search_angles": [
+        "身份差打脸短篇热梗",
+        "羞辱反转网文设定",
+        "回归身份差向热门短篇"
+      ]
+    },
+    {
+      "id": "fq_shenhao",
+      "voice_category": "fanqie_web",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "神豪捡漏·金流爽点",
+        "zh-TW": "神豪捡漏·金流爽点",
+        "en": "Tycoon windfall money-beats",
+        "ja": "Tycoon windfall money-beats"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：番茄热门神豪/重生捡漏写手",
+        "zh-TW": "参考：番茄热门神豪/重生捡漏写手",
+        "en": "Ref: Fanqie tycoon / rebirth writers",
+        "ja": "Ref: Fanqie tycoon / rebirth writers"
+      },
+      "blurb": {
+        "zh": "清单式升级，金流可见，嘲讽变捧场",
+        "zh-TW": "清单式升级，金流可见，嘲讽变捧场",
+        "en": "List upgrades, visible cashflow, mockers flip",
+        "ja": "List upgrades, visible cashflow, mockers flip"
+      },
+      "topic_hints": [
+        "可见金流升级清单",
+        "势利态度翻转节拍",
+        "下一笔更大标的钩"
+      ],
+      "search_angles": [
+        "金流升级爽文设定",
+        "势利翻转短篇热梗",
+        "神豪金流向热门短篇"
+      ]
+    },
+    {
+      "id": "fq_tianchong",
+      "voice_category": "fanqie_web",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "甜宠日常·轻冲突",
+        "zh-TW": "甜宠日常·轻冲突",
+        "en": "Sweet-romance daily light conflict",
+        "ja": "Sweet-romance daily light conflict"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：番茄热门甜宠写手笔法",
+        "zh-TW": "参考：番茄热门甜宠写手笔法",
+        "en": "Ref: Fanqie sweet-romance writers",
+        "ja": "Ref: Fanqie sweet-romance writers"
+      },
+      "blurb": {
+        "zh": "误会短、互动密、情绪暖",
+        "zh-TW": "误会短、互动密、情绪暖",
+        "en": "Short misunderstandings, dense banter, warm tone",
+        "ja": "Short misunderstandings, dense banter, warm tone"
+      },
+      "topic_hints": [
+        "生活化轻误会开场",
+        "高密度暖互动",
+        "可解开冲突不撕破"
+      ],
+      "search_angles": [
+        "轻误会甜宠短篇",
+        "暖互动可解冲突设定",
+        "甜宠向热门短篇"
+      ]
+    },
+    {
+      "id": "fq_nuelian",
+      "voice_category": "fanqie_web",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "虐恋拉扯·情绪刀",
+        "zh-TW": "虐恋拉扯·情绪刀",
+        "en": "Angst pull emotional knife",
+        "ja": "Angst pull emotional knife"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：番茄热门虐恋/拉扯写手",
+        "zh-TW": "参考：番茄热门虐恋/拉扯写手",
+        "en": "Ref: Fanqie angst writers",
+        "ja": "Ref: Fanqie angst writers"
+      },
+      "blurb": {
+        "zh": "压抑、反转、悔意延后兑现",
+        "zh-TW": "压抑、反转、悔意延后兑现",
+        "en": "Suppression, reversals, delayed regret",
+        "ja": "Suppression, reversals, delayed regret"
+      },
+      "topic_hints": [
+        "伤害结果先行再回放",
+        "压抑情绪延后兑现",
+        "误判真相的章末钩"
+      ],
+      "search_angles": [
+        "虐恋压抑反转短篇",
+        "伤害回放向热门设定",
+        "虐恋向热门短篇"
+      ]
+    },
+    {
+      "id": "fq_xuanhuan_lv",
+      "voice_category": "fanqie_web",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "玄幻升级·战力信息",
+        "zh-TW": "玄幻升级·战力信息",
+        "en": "Xuanhuan level-up power info",
+        "ja": "Xuanhuan level-up power info"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：番茄热门玄幻升级写手",
+        "zh-TW": "参考：番茄热门玄幻升级写手",
+        "en": "Ref: Fanqie xuanhuan leveling writers",
+        "ja": "Ref: Fanqie xuanhuan leveling writers"
+      },
+      "blurb": {
+        "zh": "境界清楚、战斗可读、奖励即时",
+        "zh-TW": "境界清楚、战斗可读、奖励即时",
+        "en": "Clear realms, readable fights, instant rewards",
+        "ja": "Clear realms, readable fights, instant rewards"
+      },
+      "topic_hints": [
+        "战力标尺清楚可读",
+        "战后即时结算",
+        "晋级/强敌章末钩"
+      ],
+      "search_angles": [
+        "战力标尺玄幻短篇",
+        "战后结算晋级设定",
+        "玄幻升级向热门短篇"
+      ]
+    },
+    {
+      "id": "fq_dushi_zhi",
+      "voice_category": "fanqie_web",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "都市智斗·局与筹码",
+        "zh-TW": "都市智斗·局与筹码",
+        "en": "Urban mind-game stakes",
+        "ja": "Urban mind-game stakes"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：番茄热门都市权谋/职场智斗",
+        "zh-TW": "参考：番茄热门都市权谋/职场智斗",
+        "en": "Ref: Fanqie urban intrigue writers",
+        "ja": "Ref: Fanqie urban intrigue writers"
+      },
+      "blurb": {
+        "zh": "对话交锋、筹码交换、少玄学",
+        "zh-TW": "对话交锋、筹码交换、少玄学",
+        "en": "Dialogue duels, stake trades, little mysticism",
+        "ja": "Dialogue duels, stake trades, little mysticism"
+      },
+      "topic_hints": [
+        "对白交锋换筹码",
+        "信息反转推进局",
+        "新条件或背叛迹象"
+      ],
+      "search_angles": [
+        "都市智斗筹码短篇",
+        "信息反转局设定",
+        "都市智斗向热门短篇"
+      ]
+    },
+    {
+      "id": "fq_xuanyi_naodong",
+      "voice_category": "fanqie_web",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "悬疑脑洞·线索投放",
+        "zh-TW": "悬疑脑洞·线索投放",
+        "en": "Suspense puzzle clue drops",
+        "ja": "Suspense puzzle clue drops"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：番茄热门悬疑/脑洞写手",
+        "zh-TW": "参考：番茄热门悬疑/脑洞写手",
+        "en": "Ref: Fanqie suspense puzzle writers",
+        "ja": "Ref: Fanqie suspense puzzle writers"
+      },
+      "blurb": {
+        "zh": "信息差、线索可回收、章末疑问",
+        "zh-TW": "信息差、线索可回收、章末疑问",
+        "en": "Info gaps, reclaimable clues, end questions",
+        "ja": "Info gaps, reclaimable clues, end questions"
+      },
+      "topic_hints": [
+        "可回收线索投放",
+        "异常细节先于解释",
+        "推翻假设的章末问"
+      ],
+      "search_angles": [
+        "可回收线索悬疑短篇",
+        "推翻假设脑洞设定",
+        "悬疑脑洞向热门短篇"
+      ]
+    },
+    {
+      "id": "fq_tw_chuanyue",
+      "voice_category": "fanqie_web",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "穿越重生·信息差爽點",
+        "zh-TW": "穿越重生·資訊差爽點",
+        "en": "Transmigration info-gap beats",
+        "ja": "転生情報差"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文連載穿越/重生熱門筆法",
+        "zh-TW": "參考：華文連載穿越/重生",
+        "en": "Ref: CJK web transmigration hits",
+        "ja": "華語転生系"
+      },
+      "blurb": {
+        "zh": "先知優勢可見，章末鉤硬",
+        "zh-TW": "先知優勢可見",
+        "en": "Visible foresight; hard hooks",
+        "ja": "先見が見える"
+      },
+      "topic_hints": [
+        "短篇开局设定钩",
+        "反转与章末疑问",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "穿越短篇開局設定",
+        "反轉章末疑問梗",
+        "穿越向熱門短篇"
+      ]
+    },
+    {
+      "id": "fq_tw_office_cool",
+      "voice_category": "fanqie_web",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "職場逆襲·打臉節拍",
+        "zh-TW": "職場逆襲·打臉節拍",
+        "en": "Office reverse slap-beat",
+        "ja": "職場逆転"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文職場爽文連載",
+        "zh-TW": "參考：華文職場爽文",
+        "en": "Ref: CJK office power fantasy",
+        "ja": "華語職場爽"
+      },
+      "blurb": {
+        "zh": "業績可見，當眾翻盤",
+        "zh-TW": "業績可見",
+        "en": "Visible metrics; public flip",
+        "ja": "数字で翻す"
+      },
+      "topic_hints": [
+        "短篇开局设定钩",
+        "反转与章末疑问",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "職場爽文短篇設定",
+        "辦公室反轉梗",
+        "職場向熱門短篇"
+      ]
+    },
+    {
+      "id": "fq_tw_romance_pull",
+      "voice_category": "fanqie_web",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "言情拉扯·情緒刀",
+        "zh-TW": "言情拉扯·情緒刀",
+        "en": "Romance pull angst",
+        "ja": "恋愛緊張"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文言情連載拉扯筆法",
+        "zh-TW": "參考：華文言情拉扯",
+        "en": "Ref: CJK romance tension serials",
+        "ja": "華語恋愛張力"
+      },
+      "blurb": {
+        "zh": "誤會短可控，悔意延後",
+        "zh-TW": "誤會可控",
+        "en": "Short misunderstandings; delayed regret",
+        "ja": "誤解は短く"
+      },
+      "topic_hints": [
+        "生活化轻误会",
+        "高密度互动升温",
+        "可解开冲突"
+      ],
+      "search_angles": [
+        "輕誤會甜寵短篇",
+        "高密度互動升溫",
+        "甜寵向熱門短篇"
+      ]
+    },
+    {
+      "id": "fq_tw_suspense",
+      "voice_category": "fanqie_web",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "懸疑連載·線索投放",
+        "zh-TW": "懸疑連載·線索投放",
+        "en": "Suspense serial clue drops",
+        "ja": "連載サスペンス"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文懸疑連載",
+        "zh-TW": "參考：華文懸疑連載",
+        "en": "Ref: CJK suspense web serials",
+        "ja": "華語サスペンス"
+      },
+      "blurb": {
+        "zh": "線索可回收，章末疑問",
+        "zh-TW": "線索可回收",
+        "en": "Reclaimable clues; end questions",
+        "ja": "回収可能な手がかり"
+      },
+      "topic_hints": [
+        "短篇开局设定钩",
+        "反转与章末疑问",
+        "题材跟检索热门走"
+      ],
+      "search_angles": [
+        "懸疑短篇開局設定",
+        "反轉章末疑問",
+        "懸疑向熱門短篇"
+      ]
+    },
+    {
+      "id": "fq_en_litrpg",
+      "voice_category": "fanqie_web",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "升级体系·战力可读",
+        "zh-TW": "升級體系·戰力可讀",
+        "en": "LitRPG readable power ladder",
+        "ja": "LitRPG戦力段階"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：Royal Road 升级流热门",
+        "zh-TW": "參考：Royal Road 升級流",
+        "en": "Ref: Royal Road LitRPG hits",
+        "ja": "参考：Royal Road系"
+      },
+      "blurb": {
+        "zh": "规则清楚、战斗结算即时",
+        "zh-TW": "規則清楚",
+        "en": "Clear rules; instant fight ledger",
+        "ja": "ルール明確"
+      },
+      "topic_hints": [
+        "Readable power rules",
+        "Instant growth payoff",
+        "Bigger challenge hook"
+      ],
+      "search_angles": [
+        "LitRPG power-rule premises",
+        "level-up payoff short fiction",
+        "trending LitRPG hooks"
+      ]
+    },
+    {
+      "id": "fq_en_enemies_romance",
+      "voice_category": "fanqie_web",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "冤家拉扯·慢燃亲密",
+        "zh-TW": "冤家拉扯·慢燃親密",
+        "en": "Enemies-to-lovers slow burn",
+        "ja": "敵から恋人へ"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：Kindle/Wattpad 冤家甜虐",
+        "zh-TW": "參考：Kindle/Wattpad 冤家",
+        "en": "Ref: Kindle/Wattpad enemies-to-lovers",
+        "ja": "参考：敵恋トロペ"
+      },
+      "blurb": {
+        "zh": "摩擦密、误会可解、亲密升级",
+        "zh-TW": "摩擦密",
+        "en": "Dense friction; solvable misread; intimacy ladder",
+        "ja": "摩擦が密"
+      },
+      "topic_hints": [
+        "Light daily misunderstanding",
+        "Dense warm banter",
+        "Resolvable conflict"
+      ],
+      "search_angles": [
+        "enemies-to-lovers banter premises",
+        "light misunderstanding romance",
+        "trending romance short fiction"
+      ]
+    },
+    {
+      "id": "fq_en_portal",
+      "voice_category": "fanqie_web",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "异世界门·生存节奏",
+        "zh-TW": "異世界門·生存節奏",
+        "en": "Portal fantasy survival pace",
+        "ja": "異世界サバイバル"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：Royal Road / Kindle 异世界门",
+        "zh-TW": "參考：portal fantasy 熱門",
+        "en": "Ref: portal-fantasy serial hits",
+        "ja": "参考：異世界門系"
+      },
+      "blurb": {
+        "zh": "规则发现、资源焦虑、章末危机",
+        "zh-TW": "規則發現",
+        "en": "Rule discovery, resource dread, end crisis",
+        "ja": "ルール発見"
+      },
+      "topic_hints": [
+        "Short-premises hook",
+        "Twist + chapter-end Q",
+        "Topics follow trending hits"
+      ],
+      "search_angles": [
+        "portal fantasy short premises",
+        "twist chapter-end hooks",
+        "trending portal fiction"
+      ]
+    },
+    {
+      "id": "fq_en_thriller_serial",
+      "voice_category": "fanqie_web",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "连载惊悚·线索回收",
+        "zh-TW": "連載驚悚·線索回收",
+        "en": "Serial thriller clue reclaim",
+        "ja": "連載スリラー"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文连载惊悚/神秘",
+        "zh-TW": "參考：英文連載驚悚",
+        "en": "Ref: EN serial thriller/mystery",
+        "ja": "参考：英連載スリラー"
+      },
+      "blurb": {
+        "zh": "不可靠叙述、章末翻盘疑问",
+        "zh-TW": "不可靠叙述",
+        "en": "Unreliable narrator; end flip questions",
+        "ja": "信頼できない語り"
+      },
+      "topic_hints": [
+        "Short-premises hook",
+        "Twist + chapter-end Q",
+        "Topics follow trending hits"
+      ],
+      "search_angles": [
+        "serial thriller premises",
+        "twist cliffhanger hooks",
+        "trending thriller shorts"
+      ]
+    },
+    {
+      "id": "fq_ja_tensei",
+      "voice_category": "fanqie_web",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "异世界转生·成长阶梯",
+        "zh-TW": "異世界轉生·成長階梯",
+        "en": "Isekai growth ladder",
+        "ja": "異世界転生・成長階段"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：なろう系转生热门",
+        "zh-TW": "參考：なろう系轉生",
+        "en": "Ref: Narou isekai hits",
+        "ja": "参考：なろう転生系"
+      },
+      "blurb": {
+        "zh": "能力可见、任务回报清楚",
+        "zh-TW": "能力可見",
+        "en": "Visible skill; clear quest payout",
+        "ja": "能力が見える"
+      },
+      "topic_hints": [
+        "Short-premises hook",
+        "Twist + chapter-end Q",
+        "Topics follow trending hits"
+      ],
+      "search_angles": [
+        "転生短編設定",
+        "ツイスト章末フック",
+        "転生人気短編"
+      ]
+    },
+    {
+      "id": "fq_ja_akuyaku",
+      "voice_category": "fanqie_web",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "恶役千金·信息战",
+        "zh-TW": "惡役千金·資訊戰",
+        "en": "Villainess info-war",
+        "ja": "悪役令嬢・情報戦"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：悪役令嬢系热门笔法",
+        "zh-TW": "參考：惡役令嬢系",
+        "en": "Ref: villainess otome-game hits",
+        "ja": "参考：悪役令嬢系"
+      },
+      "blurb": {
+        "zh": "剧透优势、社交牌局、反旗号",
+        "zh-TW": "劇透優勢",
+        "en": "Meta foresight; social cards; flag cuts",
+        "ja": "メタ先見"
+      },
+      "topic_hints": [
+        "Short-premises hook",
+        "Twist + chapter-end Q",
+        "Topics follow trending hits"
+      ],
+      "search_angles": [
+        "悪役転生短編設定",
+        "立場逆転フック",
+        "悪役人気短編"
+      ]
+    },
+    {
+      "id": "fq_ja_slowlife",
+      "voice_category": "fanqie_web",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "慢生活·治愈节拍",
+        "zh-TW": "慢生活·治癒節拍",
+        "en": "Slow-life comfort pace",
+        "ja": "スローライフ・癒し"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：なろう慢生活/治愈系",
+        "zh-TW": "參考：なろう慢生活",
+        "en": "Ref: Narou slow-life comfort",
+        "ja": "参考：スローライフ系"
+      },
+      "blurb": {
+        "zh": "冲突轻、生活密、温暖收束",
+        "zh-TW": "衝突輕",
+        "en": "Light conflict; dense daily; warm close",
+        "ja": "衝突は軽く"
+      },
+      "topic_hints": [
+        "Short-premises hook",
+        "Twist + chapter-end Q",
+        "Topics follow trending hits"
+      ],
+      "search_angles": [
+        "スローライフ短編設定",
+        "ほのぼの日常フック",
+        "スローライフ人気短編"
+      ]
+    },
+    {
+      "id": "fq_ja_workplace",
+      "voice_category": "fanqie_web",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "职场转生·局与筹码",
+        "zh-TW": "職場轉生·局與籌碼",
+        "en": "Workplace isekai mind-game",
+        "ja": "職場転生・駆け引き"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式职场/转生智斗",
+        "zh-TW": "參考：日式職場智鬥",
+        "en": "Ref: JP workplace / reincarnated office",
+        "ja": "参考：職場転生系"
+      },
+      "blurb": {
+        "zh": "对白交锋、可见筹码",
+        "zh-TW": "對白交鋒",
+        "en": "Dialogue duels; visible stakes",
+        "ja": "対話で勝負"
+      },
+      "topic_hints": [
+        "Short-premises hook",
+        "Twist + chapter-end Q",
+        "Topics follow trending hits"
+      ],
+      "search_angles": [
+        "職場もの短編設定",
+        "オフィス逆転フック",
+        "職場人気短編"
+      ]
+    },
+    {
+      "id": "hg_conflict_hook",
+      "voice_category": "hongguo_drama",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "红果强冲突开钩",
+        "zh-TW": "红果强冲突开钩",
+        "en": "Hongguo hard-conflict cold open",
+        "ja": "Hongguo hard-conflict cold open"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：红果热门强冲突短剧写手",
+        "zh-TW": "参考：红果热门强冲突短剧写手",
+        "en": "Ref: Hongguo high-conflict short drama",
+        "ja": "Ref: Hongguo high-conflict short drama"
+      },
+      "blurb": {
+        "zh": "前三十秒冲突，对白刀快，情绪外放",
+        "zh-TW": "前三十秒冲突，对白刀快，情绪外放",
+        "en": "Conflict in 30s, sharp dialogue, big emotion",
+        "ja": "Conflict in 30s, sharp dialogue, big emotion"
+      },
+      "topic_hints": [
+        "前三十秒可视冲突",
+        "短促可拍对白",
+        "集末更大丑闻钩"
+      ],
+      "search_angles": [
+        "前三十秒冲突短剧",
+        "可拍对白热播梗",
+        "冲突钩向热播短剧"
+      ]
+    },
+    {
+      "id": "hg_identity_twist",
+      "voice_category": "hongguo_drama",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "身份反转·打脸连击",
+        "zh-TW": "身份反转·打脸连击",
+        "en": "Identity twist slap chain",
+        "ja": "Identity twist slap chain"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：红果隐藏身份/马甲短剧",
+        "zh-TW": "参考：红果隐藏身份/马甲短剧",
+        "en": "Ref: Hongguo hidden-identity dramas",
+        "ja": "Ref: Hongguo hidden-identity dramas"
+      },
+      "blurb": {
+        "zh": "马甲一层层揭，反派越嘲越惨",
+        "zh-TW": "马甲一层层揭，反派越嘲越惨",
+        "en": "Layered reveal; mockers fall harder",
+        "ja": "Layered reveal; mockers fall harder"
+      },
+      "topic_hints": [
+        "被错待后物证揭穿",
+        "分层马甲连击打脸",
+        "更大马甲未揭钩"
+      ],
+      "search_angles": [
+        "马甲身份打脸短剧",
+        "错待物证揭穿梗",
+        "身份反转向热播短剧"
+      ]
+    },
+    {
+      "id": "hg_emotion_wall",
+      "voice_category": "hongguo_drama",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "情绪墙哭戏·关系决裂",
+        "zh-TW": "情绪墙哭戏·关系决裂",
+        "en": "Emotion-wall breakup beat",
+        "ja": "Emotion-wall breakup beat"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：红果家庭/姻亲冲突短剧",
+        "zh-TW": "参考：红果家庭/姻亲冲突短剧",
+        "en": "Ref: Hongguo family-conflict dramas",
+        "ja": "Ref: Hongguo family-conflict dramas"
+      },
+      "blurb": {
+        "zh": "关系决裂台词硬，哭点可停格",
+        "zh-TW": "关系决裂台词硬，哭点可停格",
+        "en": "Hard breakup lines; freeze-frame cry beats",
+        "ja": "Hard breakup lines; freeze-frame cry beats"
+      },
+      "topic_hints": [
+        "关系决裂硬台词",
+        "关键词重复砸伤口",
+        "反击资源集末预告"
+      ],
+      "search_angles": [
+        "关系决裂情感短剧",
+        "硬台词伤口热播梗",
+        "情感墙向热播短剧"
+      ]
+    },
+    {
+      "id": "hg_counterattack",
+      "voice_category": "hongguo_drama",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "逆袭反击·证据局",
+        "zh-TW": "逆袭反击·证据局",
+        "en": "Counterattack evidence game",
+        "ja": "Counterattack evidence game"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：红果职场/婚姻反击短剧",
+        "zh-TW": "参考：红果职场/婚姻反击短剧",
+        "en": "Ref: Hongguo counterattack dramas",
+        "ja": "Ref: Hongguo counterattack dramas"
+      },
+      "blurb": {
+        "zh": "证据链短平快，反击场面可围观",
+        "zh-TW": "证据链短平快，反击场面可围观",
+        "en": "Short evidence chain; public payback",
+        "ja": "Short evidence chain; public payback"
+      },
+      "topic_hints": [
+        "证据链短平快公开",
+        "围观场面反击",
+        "幕后黑手集末钩"
+      ],
+      "search_angles": [
+        "证据链反击短剧",
+        "围观打脸热播梗",
+        "反击向热播短剧"
+      ]
+    },
+    {
+      "id": "hg_tw_conflict",
+      "voice_category": "hongguo_drama",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "華文短劇強衝突開鉤",
+        "zh-TW": "華文短劇強衝突開鉤",
+        "en": "CJK short-drama hard open",
+        "ja": "華語縦型強衝突"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文短劇強衝突寫手",
+        "zh-TW": "參考：華文短劇強衝突",
+        "en": "Ref: CJK vertical short-drama conflict",
+        "ja": "華語縦型強衝突"
+      },
+      "blurb": {
+        "zh": "前三十秒衝突，對白可拍",
+        "zh-TW": "前三十秒衝突",
+        "en": "Conflict in 30s; shootable lines",
+        "ja": "30秒で衝突"
+      },
+      "topic_hints": [
+        "前三十秒可视冲突",
+        "短促可拍对白",
+        "集末更大钩"
+      ],
+      "search_angles": [
+        "前三十秒衝突短劇",
+        "可拍對白熱播梗",
+        "衝突鉤向熱播短劇"
+      ]
+    },
+    {
+      "id": "hg_tw_identity",
+      "voice_category": "hongguo_drama",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "身份反轉·打臉連擊",
+        "zh-TW": "身份反轉·打臉連擊",
+        "en": "Identity twist slap chain",
+        "ja": "身分逆転連打"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文馬甲短劇",
+        "zh-TW": "參考：華文馬甲短劇",
+        "en": "Ref: CJK hidden-identity shorts",
+        "ja": "華語身分劇"
+      },
+      "blurb": {
+        "zh": "馬甲層層揭，嘲諷變慘",
+        "zh-TW": "馬甲層層揭",
+        "en": "Layered reveal; mockers fall",
+        "ja": "カミングアウト段階"
+      },
+      "topic_hints": [
+        "被错待后物证揭穿",
+        "分层马甲连击",
+        "更大马甲未揭钩"
+      ],
+      "search_angles": [
+        "馬甲身份打臉短劇",
+        "錯待物證揭穿",
+        "身份反轉向熱播短劇"
+      ]
+    },
+    {
+      "id": "hg_tw_payback",
+      "voice_category": "hongguo_drama",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "逆襲證據局·可圍觀",
+        "zh-TW": "逆襲證據局·可圍觀",
+        "en": "Payback evidence spectacle",
+        "ja": "逆転証拠劇"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文短劇反击局",
+        "zh-TW": "參考：華文短劇反擊",
+        "en": "Ref: CJK payback short drama",
+        "ja": "華語逆転劇"
+      },
+      "blurb": {
+        "zh": "證據鏈短平快，公開場面",
+        "zh-TW": "證據鏈短平快",
+        "en": "Short evidence chain; public scene",
+        "ja": "短い証拠連鎖"
+      },
+      "topic_hints": [
+        "证据链短平快公开",
+        "围观场面反击",
+        "幕后黑手集末钩"
+      ],
+      "search_angles": [
+        "證據鏈反擊短劇",
+        "圍觀打臉熱播梗",
+        "反擊向熱播短劇"
+      ]
+    },
+    {
+      "id": "hg_en_reel_conflict",
+      "voice_category": "hongguo_drama",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "ReelShort式强冲突冷开场",
+        "zh-TW": "ReelShort式強衝突冷開場",
+        "en": "ReelShort hard-conflict cold open",
+        "ja": "ReelShort式強衝突"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：ReelShort/DramaBox 强冲突",
+        "zh-TW": "參考：ReelShort 強衝突",
+        "en": "Ref: ReelShort/DramaBox conflict hits",
+        "ja": "参考：縦型ドラマ衝突"
+      },
+      "blurb": {
+        "zh": "开场即撕，对白可拍",
+        "zh-TW": "開場即撕",
+        "en": "Tear open cold; shootable dialogue",
+        "ja": "冒頭で裂く"
+      },
+      "topic_hints": [
+        "Conflict in first 30s",
+        "Shootable short lines",
+        "Bigger episode-end hook"
+      ],
+      "search_angles": [
+        "first-30s conflict short dramas",
+        "shootable dialogue viral plots",
+        "conflict-hook trending reels"
+      ]
+    },
+    {
+      "id": "hg_en_ceo_twist",
+      "voice_category": "hongguo_drama",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "隐藏身份·打脸连击",
+        "zh-TW": "隱藏身份·打臉連擊",
+        "en": "Hidden CEO slap chain",
+        "ja": "隠し身分連打"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文竖屏马甲爽剧",
+        "zh-TW": "參考：英文豎屏馬甲",
+        "en": "Ref: EN vertical hidden-CEO tropes",
+        "ja": "参考：隠しCEO系"
+      },
+      "blurb": {
+        "zh": "错待→物证→连击",
+        "zh-TW": "錯待→物證",
+        "en": "Mistreat → proof → chain slap",
+        "ja": "誤解→証拠"
+      },
+      "topic_hints": [
+        "Wronged then proof reveal",
+        "Layered identity slap",
+        "Bigger mask still hidden"
+      ],
+      "search_angles": [
+        "CEO identity twist dramas",
+        "wronged-then-reveal plots",
+        "mask-reveal trending shorts"
+      ]
+    },
+    {
+      "id": "hg_en_revenge_ep",
+      "voice_category": "hongguo_drama",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "反击证据·公开处刑感",
+        "zh-TW": "反擊證據·公開處刑感",
+        "en": "Revenge evidence public beat",
+        "ja": "復讐証拠の公開"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文竖屏反击集",
+        "zh-TW": "參考：英文豎屏反擊",
+        "en": "Ref: EN vertical payback episodes",
+        "ja": "参考：縦型復讐回"
+      },
+      "blurb": {
+        "zh": "短证据链、可围观场面",
+        "zh-TW": "短證據鏈",
+        "en": "Short proof chain; crowd scene",
+        "ja": "短い証拠"
+      },
+      "topic_hints": [
+        "Conflict in first 30s",
+        "Shootable short lines",
+        "Bigger episode-end hook"
+      ],
+      "search_angles": [
+        "revenge short drama plots",
+        "public payback episode hooks",
+        "revenge trending shorts"
+      ]
+    },
+    {
+      "id": "hg_ja_tate_conflict",
+      "voice_category": "hongguo_drama",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "縦型強衝突·冒頭フック",
+        "zh-TW": "豎型強衝突·冒頭鉤",
+        "en": "Vertical conflict cold hook",
+        "ja": "縦型強衝突・冒頭フック"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式縦型ショートドラマ",
+        "zh-TW": "參考：日式縱型短劇",
+        "en": "Ref: JP vertical short-drama hits",
+        "ja": "参考：縦型ショートドラマ"
+      },
+      "blurb": {
+        "zh": "三十秒内撕裂关系",
+        "zh-TW": "三十秒撕裂",
+        "en": "Relationship tear in 30s",
+        "ja": "30秒で関係が裂ける"
+      },
+      "topic_hints": [
+        "Conflict in first 30s",
+        "Shootable short lines",
+        "Bigger episode-end hook"
+      ],
+      "search_angles": [
+        "縦型衝突ショートドラマ",
+        "撮れるセリフ衝突",
+        "衝突フック人気短劇"
+      ]
+    },
+    {
+      "id": "hg_ja_kakushi",
+      "voice_category": "hongguo_drama",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "隠し身分·逆転連打",
+        "zh-TW": "隱藏身分·逆轉連打",
+        "en": "Hidden identity slap chain",
+        "ja": "隠し身分・逆転連打"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式身分逆転短劇",
+        "zh-TW": "參考：日式身分劇",
+        "en": "Ref: JP identity-twist shorts",
+        "ja": "参考：身分逆転系"
+      },
+      "blurb": {
+        "zh": "誤解待遇→証拠→連打",
+        "zh-TW": "誤解→證據",
+        "en": "Mistreat → proof → chain",
+        "ja": "誤解→証拠"
+      },
+      "topic_hints": [
+        "Conflict in first 30s",
+        "Shootable short lines",
+        "Bigger episode-end hook"
+      ],
+      "search_angles": [
+        "身分隠し逆転ドラマ",
+        "証拠晒し打脸",
+        "正体バレ人気短劇"
+      ]
+    },
+    {
+      "id": "hg_ja_gyakushu",
+      "voice_category": "hongguo_drama",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "逆転証拠·公開局面",
+        "zh-TW": "逆轉證據·公開局面",
+        "en": "Payback proof public turn",
+        "ja": "逆転証拠・公開局面"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式逆転劇集末",
+        "zh-TW": "參考：日式逆轉集",
+        "en": "Ref: JP payback episode closes",
+        "ja": "参考：逆転ドラマ系"
+      },
+      "blurb": {
+        "zh": "短い証拠鎖と見物空間",
+        "zh-TW": "短證據鏈",
+        "en": "Short proof chain + crowd",
+        "ja": "短い証拠連鎖"
+      },
+      "topic_hints": [
+        "Conflict in first 30s",
+        "Shootable short lines",
+        "Bigger episode-end hook"
+      ],
+      "search_angles": [
+        "反撃ショートドラマ",
+        "公開制裁プロット",
+        "リベンジ人気短劇"
+      ]
+    },
+    {
+      "id": "fin_bu_mian_night",
+      "voice_category": "finance_narrative",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "资本永不眠式博弈人性",
+        "zh-TW": "资本永不眠式博弈人性",
+        "en": "Never Sleeps–style capital stakes",
+        "ja": "Never Sleeps–style capital stakes"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：资本永不眠写手群像",
+        "zh-TW": "参考：资本永不眠写手群像",
+        "en": "Ref: Capital Never Sleeps–style storytellers",
+        "ja": "Ref: Capital Never Sleeps–style storytellers"
+      },
+      "blurb": {
+        "zh": "交易细节+动机，故事化但不编造财报",
+        "zh-TW": "交易细节+动机，故事化但不编造财报",
+        "en": "Deal detail + motive; storied, no fake filings",
+        "ja": "Deal detail + motive; storied, no fake filings"
+      },
+      "topic_hints": [
+        "交易夜场景切入",
+        "激励不相容的人性博弈",
+        "故事化禁编造财报"
+      ],
+      "search_angles": [
+        "交易夜资本博弈故事",
+        "激励不相容公司新闻",
+        "财经叙事向热议交易"
+      ]
+    },
+    {
+      "id": "fin_deal_anatomy",
+      "voice_category": "finance_narrative",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "财新式交易条款拆解",
+        "zh-TW": "财新式交易条款拆解",
+        "en": "Caixin-style deal clause breakdown",
+        "ja": "Caixin-style deal clause breakdown"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：财新硬核并购/一级市场拆解",
+        "zh-TW": "参考：财新硬核并购/一级市场拆解",
+        "en": "Ref: Caixin-style deal breakdown",
+        "ja": "Ref: Caixin-style deal breakdown"
+      },
+      "blurb": {
+        "zh": "条款结构清楚，少鸡汤，多对照",
+        "zh-TW": "条款结构清楚，少鸡汤，多对照",
+        "en": "Clear clause structure; little soup; more contrast",
+        "ja": "Clear clause structure; little soup; more contrast"
+      },
+      "topic_hints": [
+        "反直觉条款先抛",
+        "机制对照谁受益",
+        "风险边界写清楚"
+      ],
+      "search_angles": [
+        "反直觉融资并购条款",
+        "交易机制受益方拆解",
+        "条款解剖向财经新闻"
+      ]
+    },
+    {
+      "id": "fin_market_scene",
+      "voice_category": "finance_narrative",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "华尔街见闻式市场现场",
+        "zh-TW": "华尔街见闻式市场现场",
+        "en": "WallStreetCN-style market floor",
+        "ja": "WallStreetCN-style market floor"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：华尔街见闻/交易员现场专栏",
+        "zh-TW": "参考：华尔街见闻/交易员现场专栏",
+        "en": "Ref: WallStreetCN / trader-floor columns",
+        "ja": "Ref: WallStreetCN / trader-floor columns"
+      },
+      "blurb": {
+        "zh": "流动性、预期差、群像，不报明牌荐股",
+        "zh-TW": "流动性、预期差、群像，不报明牌荐股",
+        "en": "Liquidity, expectation gaps, crowd—no stock tips",
+        "ja": "Liquidity, expectation gaps, crowd—no stock tips"
+      },
+      "topic_hints": [
+        "时间切片盘口转折",
+        "流动性与预期差",
+        "现场感克制不下荐股"
+      ],
+      "search_angles": [
+        "盘口转折市场现场",
+        "流动性与预期差新闻",
+        "交易日切片向热点"
+      ]
+    },
+    {
+      "id": "fin_company_story",
+      "voice_category": "finance_narrative",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "晚点LatePost式公司人物",
+        "zh-TW": "晚点LatePost式公司人物",
+        "en": "LatePost-style company profile",
+        "ja": "LatePost-style company profile"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：晚点/公司深度人物财经稿",
+        "zh-TW": "参考：晚点/公司深度人物财经稿",
+        "en": "Ref: LatePost-style company features",
+        "ja": "Ref: LatePost-style company features"
+      },
+      "blurb": {
+        "zh": "人以带出激励与治理，禁英雄传",
+        "zh-TW": "人以带出激励与治理，禁英雄传",
+        "en": "People reveal incentives/governance; no hagiography",
+        "ja": "People reveal incentives/governance; no hagiography"
+      },
+      "topic_hints": [
+        "反常人事带出治理",
+        "人物动作→激励含义",
+        "未知项标明边界"
+      ],
+      "search_angles": [
+        "反常人事治理新闻",
+        "公司人物激励故事",
+        "企业叙事向财经选题"
+      ]
+    },
+    {
+      "id": "fin_tw_deal",
+      "voice_category": "finance_narrative",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "財訊式交易條款拆解",
+        "zh-TW": "財訊式交易條款拆解",
+        "en": "Wealth Mag–style deal clauses",
+        "ja": "財経誌式ディール解剖"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文一級市場/併購拆解",
+        "zh-TW": "參考：華文併購拆解",
+        "en": "Ref: CJK deal-breakdown writers",
+        "ja": "華語ディール分解"
+      },
+      "blurb": {
+        "zh": "條款結構清楚，少雞湯",
+        "zh-TW": "條款清楚",
+        "en": "Clear clauses; little soup",
+        "ja": "条項が明確"
+      },
+      "topic_hints": [
+        "反直觉条款先抛",
+        "机制对照谁受益",
+        "风险边界写清楚"
+      ],
+      "search_angles": [
+        "反直覺融資併購條款",
+        "交易機制受益方",
+        "條款解剖向財經"
+      ]
+    },
+    {
+      "id": "fin_tw_floor",
+      "voice_category": "finance_narrative",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "經濟日報式市場現場",
+        "zh-TW": "經濟日報式市場現場",
+        "en": "Economic Daily–style floor",
+        "ja": "市場紙面式フロア"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文交易員現場感專欄",
+        "zh-TW": "參考：華文交易現場",
+        "en": "Ref: CJK trader-floor columns",
+        "ja": "華語フロア感"
+      },
+      "blurb": {
+        "zh": "預期差與群像，不薦股",
+        "zh-TW": "預期差，不薦股",
+        "en": "Expectation gaps; no tips",
+        "ja": "期待差・推奨なし"
+      },
+      "topic_hints": [
+        "时间切片盘口转折",
+        "流动性与预期差",
+        "克制不下荐股"
+      ],
+      "search_angles": [
+        "盤口轉折市場現場",
+        "流動性與預期差",
+        "交易日切片向熱點"
+      ]
+    },
+    {
+      "id": "fin_tw_governance",
+      "voice_category": "finance_narrative",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "鏡週刊式公司人物",
+        "zh-TW": "鏡週刊式公司人物",
+        "en": "Mirror–style company profile",
+        "ja": "企業人物ルポ式"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文公司深度人物稿",
+        "zh-TW": "參考：華文公司人物",
+        "en": "Ref: CJK company-profile features",
+        "ja": "華語企業人物"
+      },
+      "blurb": {
+        "zh": "人以帶出激勵，禁英雄傳",
+        "zh-TW": "人以帶出激勵",
+        "en": "People → incentives; no hagiography",
+        "ja": "人物からインセンティブ"
+      },
+      "topic_hints": [
+        "反常人事带出治理",
+        "人物动作→激励含义",
+        "未知项标明边界"
+      ],
+      "search_angles": [
+        "反常人事治理新聞",
+        "公司人物激勵故事",
+        "企業敘事向財經"
+      ]
+    },
+    {
+      "id": "fin_en_deal",
+      "voice_category": "finance_narrative",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "FT式交易条款拆解",
+        "zh-TW": "FT式交易條款拆解",
+        "en": "FT-style deal clause breakdown",
+        "ja": "FT式ディール分解"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文并购/PE 拆解写手",
+        "zh-TW": "參考：英文併購拆解",
+        "en": "Ref: EN M&A / PE breakdown writers",
+        "ja": "参考：英M&A分解"
+      },
+      "blurb": {
+        "zh": "条款清楚，结论谨慎",
+        "zh-TW": "條款清楚",
+        "en": "Clear clauses; cautious close",
+        "ja": "慎重な結論"
+      },
+      "topic_hints": [
+        "Counterintuitive clause first",
+        "Mechanism who benefits",
+        "Clear risk boundary"
+      ],
+      "search_angles": [
+        "counterintuitive deal terms",
+        "M&A mechanism winners losers",
+        "deal anatomy finance news"
+      ]
+    },
+    {
+      "id": "fin_en_floor",
+      "voice_category": "finance_narrative",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Bloomberg式市场现场",
+        "zh-TW": "Bloomberg式市場現場",
+        "en": "Bloomberg-style market floor",
+        "ja": "Bloomberg式フロア"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文交易现场专栏",
+        "zh-TW": "參考：英文交易現場",
+        "en": "Ref: EN trader-floor columns",
+        "ja": "参考：英フロアコラム"
+      },
+      "blurb": {
+        "zh": "流动性与预期差，不荐股",
+        "zh-TW": "不薦股",
+        "en": "Liquidity & gaps; no tips",
+        "ja": "推奨なし"
+      },
+      "topic_hints": [
+        "Timestamp floor turn",
+        "Liquidity vs expectation gap",
+        "No stock tips"
+      ],
+      "search_angles": [
+        "market floor turning points",
+        "liquidity vs expectation gap",
+        "trading-day scene stories"
+      ]
+    },
+    {
+      "id": "fin_en_governance",
+      "voice_category": "finance_narrative",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "WSJ式公司人物",
+        "zh-TW": "WSJ式公司人物",
+        "en": "WSJ-style company profile",
+        "ja": "WSJ式企業人物"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文公司人物深度",
+        "zh-TW": "參考：英文公司人物",
+        "en": "Ref: EN company-profile features",
+        "ja": "参考：英企業人物"
+      },
+      "blurb": {
+        "zh": "人带出治理，禁英雄传",
+        "zh-TW": "禁英雄傳",
+        "en": "People → governance; no hagiography",
+        "ja": "英雄伝禁止"
+      },
+      "topic_hints": [
+        "Odd HR → governance",
+        "Action → incentive meaning",
+        "Mark unknowns"
+      ],
+      "search_angles": [
+        "odd HR governance stories",
+        "incentive-driven company news",
+        "corporate narrative finance"
+      ]
+    },
+    {
+      "id": "fin_ja_deal",
+      "voice_category": "finance_narrative",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "東洋経済式取引解剖",
+        "zh-TW": "東洋経済式交易解剖",
+        "en": "Toyo Keizai–style deal anatomy",
+        "ja": "東洋経済式ディール解剖"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式并购/投资拆解",
+        "zh-TW": "參考：日式併購拆解",
+        "en": "Ref: JP deal-breakdown writers",
+        "ja": "参考：日本ディール分解"
+      },
+      "blurb": {
+        "zh": "条项结构清楚",
+        "zh-TW": "條款清楚",
+        "en": "Clear clause structure",
+        "ja": "条項構造が明確"
+      },
+      "topic_hints": [
+        "Counterintuitive clause first",
+        "Mechanism who benefits",
+        "Clear risk boundary"
+      ],
+      "search_angles": [
+        "直感に反する取引条項",
+        "M&A仕組みの受益者",
+        "ディール解剖ニュース"
+      ]
+    },
+    {
+      "id": "fin_ja_floor",
+      "voice_category": "finance_narrative",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "日経式市場現場",
+        "zh-TW": "日経式市場現場",
+        "en": "Nikkei-style market floor",
+        "ja": "日経式市場現場"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式市场现场专栏",
+        "zh-TW": "參考：日式市場現場",
+        "en": "Ref: JP market-floor columns",
+        "ja": "参考：日本フロア感"
+      },
+      "blurb": {
+        "zh": "期待差と群像。推奨なし",
+        "zh-TW": "不薦股",
+        "en": "Expectation gaps; no tips",
+        "ja": "推奨なし"
+      },
+      "topic_hints": [
+        "Timestamp floor turn",
+        "Liquidity vs expectation gap",
+        "No stock tips"
+      ],
+      "search_angles": [
+        "相場の転換点",
+        "流動性と期待ギャップ",
+        "取引現場ストーリー"
+      ]
+    },
+    {
+      "id": "fin_ja_governance",
+      "voice_category": "finance_narrative",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "日経ビジネス式企業人物",
+        "zh-TW": "日経ビジネス式企業人物",
+        "en": "Nikkei Business–style profile",
+        "ja": "日経ビジネス式企業人物"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式企業人物稿",
+        "zh-TW": "參考：日式企業人物",
+        "en": "Ref: JP company features",
+        "ja": "参考：日本企業人物"
+      },
+      "blurb": {
+        "zh": "人物からインセンティブへ",
+        "zh-TW": "人以帶出激勵",
+        "en": "People → incentives",
+        "ja": "人物→インセンティブ"
+      },
+      "topic_hints": [
+        "Odd HR → governance",
+        "Action → incentive meaning",
+        "Mark unknowns"
+      ],
+      "search_angles": [
+        "異常人事とガバナンス",
+        "インセンティブ企業ニュース",
+        "企業物語ファイナンス"
+      ]
+    },
+    {
+      "id": "pol_wire_restraint",
+      "voice_category": "political_report",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "新华社电讯体·事实序",
+        "zh-TW": "新华社电讯体·事实序",
+        "en": "Xinhua wire–style fact order",
+        "ja": "Xinhua wire–style fact order"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：新华社/主流电讯体",
+        "zh-TW": "参考：新华社/主流电讯体",
+        "en": "Ref: Xinhua-style political wire",
+        "ja": "Ref: Xinhua-style political wire"
+      },
+      "blurb": {
+        "zh": "时间-主体-动作-口径，少形容词",
+        "zh-TW": "时间-主体-动作-口径，少形容词",
+        "en": "Time–actor–action–line; few adjectives",
+        "ja": "Time–actor–action–line; few adjectives"
+      },
+      "topic_hints": [
+        "事实序少形容词",
+        "口径可核对意识",
+        "未知项单列"
+      ],
+      "search_angles": [
+        "本周时政通稿事实",
+        "可核对官方口径新闻",
+        "电讯向政策发布"
+      ]
+    },
+    {
+      "id": "pol_policy_explain",
+      "voice_category": "political_report",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "澎湃新闻式政策拆解",
+        "zh-TW": "澎湃新闻式政策拆解",
+        "en": "The Paper–style policy explainer",
+        "ja": "The Paper–style policy explainer"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：澎湃政策解读",
+        "zh-TW": "参考：澎湃政策解读",
+        "en": "Ref: The Paper policy explainers",
+        "ja": "Ref: The Paper policy explainers"
+      },
+      "blurb": {
+        "zh": "把政策拆成谁受益/谁承压",
+        "zh-TW": "把政策拆成谁受益/谁承压",
+        "en": "Who benefits / who bears cost",
+        "ja": "Who benefits / who bears cost"
+      },
+      "topic_hints": [
+        "谁受益谁承压拆解",
+        "机制句完整生活化",
+        "未决细则写明"
+      ],
+      "search_angles": [
+        "政策受益承压拆解",
+        "机制生活化新闻",
+        "政策解读向热点"
+      ]
+    },
+    {
+      "id": "pol_local_implement",
+      "voice_category": "political_report",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "南方周末式地方温差",
+        "zh-TW": "南方周末式地方温差",
+        "en": "Southern Weekly–style local gaps",
+        "ja": "Southern Weekly–style local gaps"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：南方周末地方观察",
+        "zh-TW": "参考：南方周末地方观察",
+        "en": "Ref: Southern Weekly local notes",
+        "ja": "Ref: Southern Weekly local notes"
+      },
+      "blurb": {
+        "zh": "中央表述与窗口执行的差异",
+        "zh-TW": "中央表述与窗口执行的差异",
+        "en": "Center wording vs window practice",
+        "ja": "Center wording vs window practice"
+      },
+      "topic_hints": [
+        "中央表述与窗口温差",
+        "对照两组做法",
+        "慎下全国性判断"
+      ],
+      "search_angles": [
+        "中央与地方窗口温差",
+        "落地做法对照新闻",
+        "地方执行向时政"
+      ]
+    },
+    {
+      "id": "pol_press_brief",
+      "voice_category": "political_report",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "央视发布会式问答速写",
+        "zh-TW": "央视发布会式问答速写",
+        "en": "CCTV briefing–style Q&A",
+        "ja": "CCTV briefing–style Q&A"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：央视/主流发布会报道",
+        "zh-TW": "参考：央视/主流发布会报道",
+        "en": "Ref: CCTV-style press briefs",
+        "ja": "Ref: CCTV-style press briefs"
+      },
+      "blurb": {
+        "zh": "发布要点+未答问题，禁标题党",
+        "zh-TW": "发布要点+未答问题，禁标题党",
+        "en": "Key points + unanswered; no clickbait",
+        "ja": "Key points + unanswered; no clickbait"
+      },
+      "topic_hints": [
+        "发布要点条目化",
+        "问答分开写",
+        "未答清单收束"
+      ],
+      "search_angles": [
+        "发布会要点新闻",
+        "发布会问答未答清单",
+        "简报向时政发布"
+      ]
+    },
+    {
+      "id": "pol_tw_wire",
+      "voice_category": "political_report",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "中央社電訊體·事實序",
+        "zh-TW": "中央社電訊體·事實序",
+        "en": "CNA wire–style fact order",
+        "ja": "通信社電信体"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文主流時政電訊",
+        "zh-TW": "參考：華文時政電訊",
+        "en": "Ref: CJK political wire style",
+        "ja": "華語時事電信"
+      },
+      "blurb": {
+        "zh": "時間-主體-動作-口徑",
+        "zh-TW": "時間-主體-動作",
+        "en": "Time–actor–action–line",
+        "ja": "時刻-主体-動作"
+      },
+      "topic_hints": [
+        "事实序少形容词",
+        "口径可核对",
+        "未知项单列"
+      ],
+      "search_angles": [
+        "時政通稿事實",
+        "可核對官方口徑",
+        "電訊向政策發布"
+      ]
+    },
+    {
+      "id": "pol_tw_explain",
+      "voice_category": "political_report",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "報導者式政策拆解",
+        "zh-TW": "報導者式政策拆解",
+        "en": "The Reporter–style policy explainer",
+        "ja": "調査媒体式政策解説"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文政策解讀寫手",
+        "zh-TW": "參考：華文政策解讀",
+        "en": "Ref: CJK policy explainers",
+        "ja": "華語政策解説"
+      },
+      "blurb": {
+        "zh": "誰受益/誰承壓",
+        "zh-TW": "誰受益誰承壓",
+        "en": "Who benefits / who pays",
+        "ja": "誰が得て誰が負う"
+      },
+      "topic_hints": [
+        "谁受益谁承压拆解",
+        "机制句完整",
+        "未决细则写明"
+      ],
+      "search_angles": [
+        "政策受益承壓拆解",
+        "機制生活化新聞",
+        "政策解讀向熱點"
+      ]
+    },
+    {
+      "id": "pol_tw_local",
+      "voice_category": "political_report",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "天下雜誌式地方溫差",
+        "zh-TW": "天下雜誌式地方溫差",
+        "en": "CommonWealth–style local gaps",
+        "ja": "現場ルポ式温度差"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文地方落實觀察",
+        "zh-TW": "參考：華文地方落實",
+        "en": "Ref: CJK local-implementation notes",
+        "ja": "華語現場観察"
+      },
+      "blurb": {
+        "zh": "中央表述與窗口執行差",
+        "zh-TW": "表述與窗口差",
+        "en": "Center wording vs window practice",
+        "ja": "文言と窓口の差"
+      },
+      "topic_hints": [
+        "中央表述与窗口温差",
+        "对照两组做法",
+        "慎下全国判断"
+      ],
+      "search_angles": [
+        "中央與地方窗口溫差",
+        "落地做法對照",
+        "地方執行向時政"
+      ]
+    },
+    {
+      "id": "pol_en_wire",
+      "voice_category": "political_report",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Reuters式电讯事实序",
+        "zh-TW": "Reuters式電訊事實序",
+        "en": "Reuters-style wire order",
+        "ja": "Reuters式電信体"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：AP/Reuters 式时政电讯",
+        "zh-TW": "參考：英美電訊體",
+        "en": "Ref: AP/Reuters-style political wire",
+        "ja": "参考：通信社電信体"
+      },
+      "blurb": {
+        "zh": "时间-主体-动作-口径",
+        "zh-TW": "時間主體動作",
+        "en": "Time–actor–action–line",
+        "ja": "時刻-主体-動作"
+      },
+      "topic_hints": [
+        "Fact order, few adjectives",
+        "Verifiable lines",
+        "List unknowns"
+      ],
+      "search_angles": [
+        "wire-style public affairs facts",
+        "verifiable official statements",
+        "briefing news topics"
+      ]
+    },
+    {
+      "id": "pol_en_explain",
+      "voice_category": "political_report",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Vox式政策拆解",
+        "zh-TW": "Vox式政策拆解",
+        "en": "Vox-style policy explainer",
+        "ja": "Vox式政策解説"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文政策解说媒体",
+        "zh-TW": "參考：英文政策解說",
+        "en": "Ref: EN policy-explainer desks",
+        "ja": "参考：英政策解説"
+      },
+      "blurb": {
+        "zh": "谁受益谁承压",
+        "zh-TW": "誰受益誰承壓",
+        "en": "Who benefits / who bears cost",
+        "ja": "得と負担"
+      },
+      "topic_hints": [
+        "Who benefits / bears cost",
+        "Full mechanism sentences",
+        "Name open rules"
+      ],
+      "search_angles": [
+        "who benefits policy explainers",
+        "mechanism explain news",
+        "policy cost-bearing topics"
+      ]
+    },
+    {
+      "id": "pol_en_brief",
+      "voice_category": "political_report",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "白宫简报式问答速写",
+        "zh-TW": "白宮簡報式問答速寫",
+        "en": "White House briefing–style Q&A",
+        "ja": "会見ブリーフィング式"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文发布会报道结构",
+        "zh-TW": "參考：英文發布會稿",
+        "en": "Ref: EN press-conference writeups",
+        "ja": "参考：英会見稿"
+      },
+      "blurb": {
+        "zh": "要点+未答，禁标题党",
+        "zh-TW": "要點+未答",
+        "en": "Key points + unanswered; no bait",
+        "ja": "要点と未回答"
+      },
+      "topic_hints": [
+        "Bullet the briefing",
+        "Q&A separated",
+        "Unanswered list close"
+      ],
+      "search_angles": [
+        "press briefing bullet topics",
+        "Q&A unanswered lists",
+        "official briefing news"
+      ]
+    },
+    {
+      "id": "pol_ja_wire",
+      "voice_category": "political_report",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "共同通信式電信体",
+        "zh-TW": "共同通信式電信體",
+        "en": "Kyodo wire–style order",
+        "ja": "共同通信式電信体"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式通信社電信体",
+        "zh-TW": "參考：日式電信體",
+        "en": "Ref: JP wire-style reporting",
+        "ja": "参考：通信社電信体"
+      },
+      "blurb": {
+        "zh": "時刻-主體-動作-口径",
+        "zh-TW": "時間主體動作",
+        "en": "Time–actor–action–line",
+        "ja": "時刻-主体-動作-文言"
+      },
+      "topic_hints": [
+        "Fact order, few adjectives",
+        "Verifiable lines",
+        "List unknowns"
+      ],
+      "search_angles": [
+        "時事電信向け事実",
+        "検証可能な公式発言",
+        "会見ブリーフィング"
+      ]
+    },
+    {
+      "id": "pol_ja_explain",
+      "voice_category": "political_report",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "NHK解説式政策拆解",
+        "zh-TW": "NHK解説式政策拆解",
+        "en": "NHK explainer–style policy",
+        "ja": "NHK解説式政策"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式政策解說媒體",
+        "zh-TW": "參考：日式政策解說",
+        "en": "Ref: JP policy explainers",
+        "ja": "参考：日本の政策解説"
+      },
+      "blurb": {
+        "zh": "誰が得て誰が負う",
+        "zh-TW": "誰受益誰承壓",
+        "en": "Who benefits / who pays",
+        "ja": "得と負担の切り分け"
+      },
+      "topic_hints": [
+        "Who benefits / bears cost",
+        "Full mechanism sentences",
+        "Name open rules"
+      ],
+      "search_angles": [
+        "受益と負担の政策解説",
+        "仕組み解説ニュース",
+        "政策コスト話題"
+      ]
+    },
+    {
+      "id": "pol_ja_local",
+      "voice_category": "political_report",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "地方紙式現場溫差",
+        "zh-TW": "地方紙式現場溫差",
+        "en": "Local-paper practice gap",
+        "ja": "地方紙式温度差"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式地方落实观察",
+        "zh-TW": "參考：日式地方落實",
+        "en": "Ref: JP local-implementation notes",
+        "ja": "参考：自治体運用観察"
+      },
+      "blurb": {
+        "zh": "文言と窓口の差",
+        "zh-TW": "表述與窗口差",
+        "en": "Wording vs window practice",
+        "ja": "文言と窓口の差を記録"
+      },
+      "topic_hints": [
+        "Center line vs window gap",
+        "Contrast two practices",
+        "Avoid national overclaim"
+      ],
+      "search_angles": [
+        "中央と窓口の温度差",
+        "現場運用の対照",
+        "地方実装ニュース"
+      ]
+    },
+    {
+      "id": "sm_opin_sharp",
+      "voice_category": "self_media",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "虎嗅式锐评立场",
+        "zh-TW": "虎嗅式锐评立场",
+        "en": "Huxiu-style sharp take",
+        "ja": "Huxiu-style sharp take"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：判断句靠前的互联网锐评",
+        "zh-TW": "参考：判断句靠前的互联网锐评",
+        "en": "Ref: judgment-first online opinion",
+        "ja": "Ref: judgment-first online opinion"
+      },
+      "blurb": {
+        "zh": "立场清楚、例子狠、收尾可转发",
+        "zh-TW": "立场清楚、例子狠、收尾可转发",
+        "en": "Clear stance, hard examples, shareable close",
+        "ja": "Clear stance, hard examples, shareable close"
+      },
+      "topic_hints": [
+        "刺耳判断靠前",
+        "短例支撑可转发收尾",
+        "给反方一句公平转述"
+      ],
+      "search_angles": [
+        "刺耳判断向热议",
+        "可转发公共争议",
+        "锐评向本周热点"
+      ]
+    },
+    {
+      "id": "sm_story_case",
+      "voice_category": "self_media",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "正午故事式个案",
+        "zh-TW": "正午故事式个案",
+        "en": "NoonStory-style case feature",
+        "ja": "NoonStory-style case feature"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：以人带出结构问题的非虚构",
+        "zh-TW": "参考：以人带出结构问题的非虚构",
+        "en": "Ref: person→structure narrative nonfiction",
+        "ja": "Ref: person→structure narrative nonfiction"
+      },
+      "blurb": {
+        "zh": "一个人带出结构问题，禁煽情滥俗",
+        "zh-TW": "一个人带出结构问题，禁煽情滥俗",
+        "en": "One person → structural issue; no melodrama",
+        "ja": "One person → structural issue; no melodrama"
+      },
+      "topic_hints": [
+        "具体一天白描开场",
+        "一人带出结构问题",
+        "共情不消费苦难"
+      ],
+      "search_angles": [
+        "一人带出结构问题",
+        "日常白描社会案例",
+        "故事案例向热议"
+      ]
+    },
+    {
+      "id": "sm_list_practical",
+      "voice_category": "self_media",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "少数派式实用清单",
+        "zh-TW": "少数派式实用清单",
+        "en": "SSPai-style checklist",
+        "ja": "SSPai-style checklist"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：可照做的工具文清单体",
+        "zh-TW": "参考：可照做的工具文清单体",
+        "en": "Ref: actionable how-to checklists",
+        "ja": "Ref: actionable how-to checklists"
+      },
+      "blurb": {
+        "zh": "步骤清楚、可照做、少鸡汤",
+        "zh-TW": "步骤清楚、可照做、少鸡汤",
+        "en": "Clear steps, actionable, little soup",
+        "ja": "Clear steps, actionable, little soup"
+      },
+      "topic_hints": [
+        "当下可做第一步",
+        "条目短可照做",
+        "不贩卖焦虑"
+      ],
+      "search_angles": [
+        "可照做实用清单选题",
+        "当下可做步骤话题",
+        "清单向生活热议"
+      ]
+    },
+    {
+      "id": "sm_hot_take_fast",
+      "voice_category": "self_media",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "微博热搜快评体",
+        "zh-TW": "微博热搜快评体",
+        "en": "Weibo hot-search quick take",
+        "ja": "Weibo hot-search quick take"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：短平快记忆点快评",
+        "zh-TW": "参考：短平快记忆点快评",
+        "en": "Ref: short memorable hot takes",
+        "ja": "Ref: short memorable hot takes"
+      },
+      "blurb": {
+        "zh": "快、准、留一句记忆点",
+        "zh-TW": "快、准、留一句记忆点",
+        "en": "Fast, precise, one memorable line",
+        "ja": "Fast, precise, one memorable line"
+      },
+      "topic_hints": [
+        "热点核心矛盾一句",
+        "快准留记忆点",
+        "可核对不造谣"
+      ],
+      "search_angles": [
+        "热点核心矛盾快反",
+        "可核对热搜争议",
+        "快评向本周热搜"
+      ]
+    },
+    {
+      "id": "sm_tw_sharp",
+      "voice_category": "self_media",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "鏡週刊式銳評立場",
+        "zh-TW": "鏡週刊式銳評立場",
+        "en": "Mirror-style sharp take",
+        "ja": "鋭い意見・立場"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文判斷型銳評",
+        "zh-TW": "參考：華文銳評",
+        "en": "Ref: CJK judgment-first opinion",
+        "ja": "華語オピニオン"
+      },
+      "blurb": {
+        "zh": "立場清楚、例子狠、可轉發",
+        "zh-TW": "立場清楚",
+        "en": "Clear stance; hard example; shareable",
+        "ja": "立場が明確"
+      },
+      "topic_hints": [
+        "刺耳判断靠前",
+        "短例支撑可转发",
+        "给反方公平转述"
+      ],
+      "search_angles": [
+        "刺耳判斷向熱議",
+        "可轉發公共爭議",
+        "銳評向本週熱點"
+      ]
+    },
+    {
+      "id": "sm_tw_story",
+      "voice_category": "self_media",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "報導者式個案故事",
+        "zh-TW": "報導者式個案故事",
+        "en": "Reporter-style case feature",
+        "ja": "事例物語"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：以人帶出結構的非虛構",
+        "zh-TW": "參考：華文人物故事",
+        "en": "Ref: person→structure nonfiction",
+        "ja": "華語人物物語"
+      },
+      "blurb": {
+        "zh": "一個人帶出結構問題",
+        "zh-TW": "以人帶結構",
+        "en": "One person → structural issue",
+        "ja": "一人から構造へ"
+      },
+      "topic_hints": [
+        "具体一天白描开场",
+        "一人带出结构问题",
+        "共情不消费苦难"
+      ],
+      "search_angles": [
+        "一人帶出結構問題",
+        "日常白描社會案例",
+        "故事案例向熱議"
+      ]
+    },
+    {
+      "id": "sm_tw_list",
+      "voice_category": "self_media",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "數位時代式實用清單",
+        "zh-TW": "數位時代式實用清單",
+        "en": "DigiTimes-style checklist",
+        "ja": "実行チェックリスト"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：可照做的工具文",
+        "zh-TW": "參考：華文清單體",
+        "en": "Ref: actionable how-to",
+        "ja": "華語ハウツー"
+      },
+      "blurb": {
+        "zh": "步驟清楚，少雞湯",
+        "zh-TW": "步驟清楚",
+        "en": "Clear steps; little soup",
+        "ja": "手順が明確"
+      },
+      "topic_hints": [
+        "当下可做第一步",
+        "条目短可照做",
+        "不贩卖焦虑"
+      ],
+      "search_angles": [
+        "可照做實用清單",
+        "當下可做步驟",
+        "清單向生活熱議"
+      ]
+    },
+    {
+      "id": "sm_en_sharp",
+      "voice_category": "self_media",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Substack锐评短论",
+        "zh-TW": "Substack銳評短論",
+        "en": "Substack sharp note",
+        "ja": "Substack鋭評"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文判断型短论",
+        "zh-TW": "參考：英文銳評",
+        "en": "Ref: EN judgment-first notes",
+        "ja": "参考：英オピニオン"
+      },
+      "blurb": {
+        "zh": "立场清、例子狠、收尾硬",
+        "zh-TW": "立場清",
+        "en": "Clear stance; hard example; hard close",
+        "ja": "立場明確"
+      },
+      "topic_hints": [
+        "Judgment first",
+        "Short examples, shareable close",
+        "Fair steelman of other side"
+      ],
+      "search_angles": [
+        "sharp judgment viral topics",
+        "shareable public controversy",
+        "hot-take commentary this week"
+      ]
+    },
+    {
+      "id": "sm_en_story",
+      "voice_category": "self_media",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Atlantic式人物个案",
+        "zh-TW": "Atlantic式人物個案",
+        "en": "Atlantic-style case feature",
+        "ja": "事例物語"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文人物特稿",
+        "zh-TW": "參考：英文人物故事",
+        "en": "Ref: EN character features",
+        "ja": "参考：英人物フィーチャー"
+      },
+      "blurb": {
+        "zh": "一人带出结构问题",
+        "zh-TW": "以人帶結構",
+        "en": "One person → structure",
+        "ja": "一人から構造"
+      },
+      "topic_hints": [
+        "One concrete day open",
+        "Person → structure",
+        "Empathy without spectacle"
+      ],
+      "search_angles": [
+        "one-person structure stories",
+        "concrete-day social cases",
+        "narrative commentary topics"
+      ]
+    },
+    {
+      "id": "sm_en_hot",
+      "voice_category": "self_media",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Twitter热搜快评体",
+        "zh-TW": "Twitter熱搜快評體",
+        "en": "X/Twitter hot-take",
+        "ja": "ホットテイク短文"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文短帖记忆点",
+        "zh-TW": "參考：英文熱點快評",
+        "en": "Ref: EN short memorable takes",
+        "ja": "参考：英ホットテイク"
+      },
+      "blurb": {
+        "zh": "快、准、一句记忆点",
+        "zh-TW": "快准記憶點",
+        "en": "Fast, precise, one memorable line",
+        "ja": "速く正確に一句"
+      },
+      "topic_hints": [
+        "One-line hot contradiction",
+        "Memorable fast take",
+        "Verifiable, no rumor"
+      ],
+      "search_angles": [
+        "one-line hot contradictions",
+        "fast verifiable takes",
+        "viral controversy this week"
+      ]
+    },
+    {
+      "id": "sm_ja_sharp",
+      "voice_category": "self_media",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "東洋経済式鋭評",
+        "zh-TW": "東洋經濟式銳評",
+        "en": "Toyo Keizai–style take",
+        "ja": "東洋経済式鋭評"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式論説・判斷靠前",
+        "zh-TW": "參考：日式銳評",
+        "en": "Ref: JP judgment-first opinion",
+        "ja": "参考：日本のオピニオン"
+      },
+      "blurb": {
+        "zh": "立場明確、例が鋭い",
+        "zh-TW": "立場明確",
+        "en": "Clear stance; sharp example",
+        "ja": "立場が明確で例が鋭い"
+      },
+      "topic_hints": [
+        "Judgment first",
+        "Short examples, shareable close",
+        "Fair steelman of other side"
+      ],
+      "search_angles": [
+        "刺々しい判断向け話題",
+        "シェア可能な論争",
+        "論評ホットテイク"
+      ]
+    },
+    {
+      "id": "sm_ja_story",
+      "voice_category": "self_media",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "新潮ノンフィクション式",
+        "zh-TW": "新潮非虛構式",
+        "en": "Shincho nonfiction-style",
+        "ja": "新潮ノンフィクション式"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式人物非虛構",
+        "zh-TW": "參考：日式人物故事",
+        "en": "Ref: JP character nonfiction",
+        "ja": "参考：日本の人物物語"
+      },
+      "blurb": {
+        "zh": "一人から構造問題へ",
+        "zh-TW": "以人帶結構",
+        "en": "One person → structure",
+        "ja": "一人の話から構造へ"
+      },
+      "topic_hints": [
+        "One concrete day open",
+        "Person → structure",
+        "Empathy without spectacle"
+      ],
+      "search_angles": [
+        "一人から構造問題",
+        "具体的な一日の事例",
+        "物語系論評ネタ"
+      ]
+    },
+    {
+      "id": "sm_ja_list",
+      "voice_category": "self_media",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "ライフハッカー式リスト",
+        "zh-TW": "Lifehacker式清單",
+        "en": "Lifehacker-style checklist",
+        "ja": "ライフハッカー式リスト"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式可執行ハウツー",
+        "zh-TW": "參考：日式清單體",
+        "en": "Ref: JP actionable how-to",
+        "ja": "参考：日本ハウツー"
+      },
+      "blurb": {
+        "zh": "手順清楚，少雞湯",
+        "zh-TW": "步驟清楚",
+        "en": "Clear steps; little soup",
+        "ja": "手順が明確で精神論なし"
+      },
+      "topic_hints": [
+        "First actionable step",
+        "Short doable items",
+        "No fear marketing"
+      ],
+      "search_angles": [
+        "今すぐできるリスト",
+        "実行可能な手順ネタ",
+        "実用リスト話題"
+      ]
+    },
+    {
+      "id": "vo_news_host",
+      "voice_category": "voiceover_brief",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "抖音资讯号·稳准清",
+        "zh-TW": "抖音资讯号·稳准清",
+        "en": "Douyin news-desk VO",
+        "ja": "Douyin news-desk VO"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：平台资讯口播账号",
+        "zh-TW": "参考：平台资讯口播账号",
+        "en": "Ref: feed news VO accounts",
+        "ja": "Ref: feed news VO accounts"
+      },
+      "blurb": {
+        "zh": "可播、少从句、数字朗读友好",
+        "zh-TW": "可播、少从句、数字朗读友好",
+        "en": "Speakable, few clauses, number-friendly",
+        "ja": "Speakable, few clauses, number-friendly"
+      },
+      "topic_hints": [
+        "可播少从句",
+        "数字朗读友好",
+        "中性播报轻判断"
+      ],
+      "search_angles": [
+        "可播新闻口播选题",
+        "数字友好时事热点",
+        "中性播报向本周新闻"
+      ]
+    },
+    {
+      "id": "vo_story_host",
+      "voice_category": "voiceover_brief",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "故事FM式钩子讲述",
+        "zh-TW": "故事FM式钩子讲述",
+        "en": "StoryFM-style hook narration",
+        "ja": "StoryFM-style hook narration"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：人物故事可停顿口播",
+        "zh-TW": "参考：人物故事可停顿口播",
+        "en": "Ref: pause-friendly story VO",
+        "ja": "Ref: pause-friendly story VO"
+      },
+      "blurb": {
+        "zh": "开口有钩，段落可停顿",
+        "zh-TW": "开口有钩，段落可停顿",
+        "en": "Hook open; pause-friendly paragraphs",
+        "ja": "Hook open; pause-friendly paragraphs"
+      },
+      "topic_hints": [
+        "开口冲突结果先行",
+        "段落可停顿",
+        "口语连接不装旁白"
+      ],
+      "search_angles": [
+        "结果先行故事口播",
+        "冲突开口短视频选题",
+        "故事口播向热议"
+      ]
+    },
+    {
+      "id": "vo_knowledge",
+      "voice_category": "voiceover_brief",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "罗翔式普法解说",
+        "zh-TW": "罗翔式普法解说",
+        "en": "Luo Xiang–style legal explainer",
+        "ja": "Luo Xiang–style legal explainer"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：一次只讲清一个概念",
+        "zh-TW": "参考：一次只讲清一个概念",
+        "en": "Ref: one-concept-at-a-time explainer",
+        "ja": "Ref: one-concept-at-a-time explainer"
+      },
+      "blurb": {
+        "zh": "概念一次只攻一个，类比生活化",
+        "zh-TW": "概念一次只攻一个，类比生活化",
+        "en": "One concept at a time; lived analogies",
+        "ja": "One concept at a time; lived analogies"
+      },
+      "topic_hints": [
+        "一概念定义例子误区",
+        "生活类比可复述",
+        "不恐吓科普"
+      ],
+      "search_angles": [
+        "一概念科普选题",
+        "生活类比知识口播",
+        "知识口播向热门话题"
+      ]
+    },
+    {
+      "id": "vo_hot_chat",
+      "voice_category": "voiceover_brief",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "小红书伴聊式热梗",
+        "zh-TW": "小红书伴聊式热梗",
+        "en": "Xiaohongshu companion hot-chat",
+        "ja": "Xiaohongshu companion hot-chat"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：第二人称亲密度口播",
+        "zh-TW": "参考：第二人称亲密度口播",
+        "en": "Ref: second-person companion VO",
+        "ja": "Ref: second-person companion VO"
+      },
+      "blurb": {
+        "zh": "像跟听众说话，梗点到为止",
+        "zh-TW": "像跟听众说话，梗点到为止",
+        "en": "Talk-with-listener; light meme use",
+        "ja": "Talk-with-listener; light meme use"
+      },
+      "topic_hints": [
+        "第二人称亲密度",
+        "时间线先捋直",
+        "梗点到为止"
+      ],
+      "search_angles": [
+        "第二人称热聊选题",
+        "时间线热梗口播",
+        "热聊向本周热点"
+      ]
+    },
+    {
+      "id": "vo_tw_news",
+      "voice_category": "voiceover_brief",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "公視新聞式穩準清",
+        "zh-TW": "公視新聞式穩準清",
+        "en": "PTS news-desk VO",
+        "ja": "ニュース口播"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文資訊口播帳號",
+        "zh-TW": "參考：華文資訊口播",
+        "en": "Ref: CJK news VO desks",
+        "ja": "華語ニュースVO"
+      },
+      "blurb": {
+        "zh": "可播、少從句、數字友好",
+        "zh-TW": "可播少從句",
+        "en": "Speakable; few clauses; number-friendly",
+        "ja": "読み上げやすい"
+      },
+      "topic_hints": [
+        "可播少从句",
+        "数字朗读友好",
+        "中性播报轻判断"
+      ],
+      "search_angles": [
+        "可播新聞口播",
+        "數字友好時事",
+        "中性播報向本週新聞"
+      ]
+    },
+    {
+      "id": "vo_tw_story",
+      "voice_category": "voiceover_brief",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "故事FM台式鉤子講述",
+        "zh-TW": "故事FM台式鉤子講述",
+        "en": "StoryFM TW hook narration",
+        "ja": "物語口播"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：人物故事可停頓口播",
+        "zh-TW": "參考：華文故事口播",
+        "en": "Ref: pause-friendly story VO",
+        "ja": "華語ストーリーVO"
+      },
+      "blurb": {
+        "zh": "開口有鉤，段落可停頓",
+        "zh-TW": "開口有鉤",
+        "en": "Hook open; pause-friendly",
+        "ja": "冒頭フック"
+      },
+      "topic_hints": [
+        "开口冲突结果先行",
+        "段落可停顿",
+        "口语连接不装旁白"
+      ],
+      "search_angles": [
+        "結果先行故事口播",
+        "衝突開口短視頻",
+        "故事口播向熱議"
+      ]
+    },
+    {
+      "id": "vo_tw_knowledge",
+      "voice_category": "voiceover_brief",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "百靈果式知識解說",
+        "zh-TW": "百靈果式知識解說",
+        "en": "BilingualNews-style explainer",
+        "ja": "知識口播"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：一次講清一個概念",
+        "zh-TW": "參考：華文知識口播",
+        "en": "Ref: one-concept explainer",
+        "ja": "華語知識VO"
+      },
+      "blurb": {
+        "zh": "一次只攻一個概念",
+        "zh-TW": "一概念",
+        "en": "One concept at a time",
+        "ja": "概念は一つずつ"
+      },
+      "topic_hints": [
+        "一概念定义例子误区",
+        "生活类比可复述",
+        "不恐吓科普"
+      ],
+      "search_angles": [
+        "一概念科普選題",
+        "生活類比知識口播",
+        "知識口播向熱門"
+      ]
+    },
+    {
+      "id": "vo_en_news",
+      "voice_category": "voiceover_brief",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "NPR式资讯口播",
+        "zh-TW": "NPR式資訊口播",
+        "en": "NPR news-desk VO",
+        "ja": "NPRニュースVO"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文资讯播客口播",
+        "zh-TW": "參考：英文資訊口播",
+        "en": "Ref: EN news-podcast VO",
+        "ja": "参考：英ニュースVO"
+      },
+      "blurb": {
+        "zh": "可播、数字友好",
+        "zh-TW": "可播",
+        "en": "Speakable; number-friendly",
+        "ja": "読み上げやすい"
+      },
+      "topic_hints": [
+        "Speakable short clauses",
+        "Number-friendly VO",
+        "Neutral light judgment"
+      ],
+      "search_angles": [
+        "speakable news VO topics",
+        "number-friendly current events",
+        "neutral news voiceover"
+      ]
+    },
+    {
+      "id": "vo_en_story",
+      "voice_category": "voiceover_brief",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "This American Life式钩子",
+        "zh-TW": "TAL式鉤子講述",
+        "en": "This American Life–style hook",
+        "ja": "TAL式フック"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文故事播客口播",
+        "zh-TW": "參考：英文故事口播",
+        "en": "Ref: EN story-podcast VO",
+        "ja": "参考：英ストーリーVO"
+      },
+      "blurb": {
+        "zh": "开口有钩，可停顿",
+        "zh-TW": "開口有鉤",
+        "en": "Hook open; pause-friendly",
+        "ja": "フックと間"
+      },
+      "topic_hints": [
+        "Result-first open",
+        "Pause-friendly beats",
+        "Spoken, not documentary VO"
+      ],
+      "search_angles": [
+        "result-first story VO",
+        "conflict-open short video topics",
+        "narrative VO trends"
+      ]
+    },
+    {
+      "id": "vo_en_chat",
+      "voice_category": "voiceover_brief",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "晚间脱口秀式伴聊",
+        "zh-TW": "晚間脫口秀式伴聊",
+        "en": "Late-night companion chat VO",
+        "ja": "トークショー伴聊"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文第二人称伴聊口播",
+        "zh-TW": "參考：英文伴聊口播",
+        "en": "Ref: EN second-person companion VO",
+        "ja": "参考：英雑談VO"
+      },
+      "blurb": {
+        "zh": "像跟听众说话",
+        "zh-TW": "伴聊感",
+        "en": "Talk-with-listener tone",
+        "ja": "聴者と話す感"
+      },
+      "topic_hints": [
+        "Second-person warmth",
+        "Timeline before take",
+        "Light meme use"
+      ],
+      "search_angles": [
+        "second-person chat VO",
+        "timeline-before-take topics",
+        "casual explainer trends"
+      ]
+    },
+    {
+      "id": "vo_ja_news",
+      "voice_category": "voiceover_brief",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "NHKニュース式安定明瞭",
+        "zh-TW": "NHK新聞式穩準清",
+        "en": "NHK news-desk VO",
+        "ja": "NHKニュース式"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式資訊旁白稿",
+        "zh-TW": "參考：日式資訊口播",
+        "en": "Ref: JP news VO desks",
+        "ja": "参考：日本ニュースVO"
+      },
+      "blurb": {
+        "zh": "読み上げやすく数字に優しい",
+        "zh-TW": "可播",
+        "en": "Speakable; number-friendly",
+        "ja": "読み上げやすく数字に優しい"
+      },
+      "topic_hints": [
+        "Speakable short clauses",
+        "Number-friendly VO",
+        "Neutral light judgment"
+      ],
+      "search_angles": [
+        "読み上げやすいニュース",
+        "数字フレンドリー時事",
+        "中立ナレ向け"
+      ]
+    },
+    {
+      "id": "vo_ja_story",
+      "voice_category": "voiceover_brief",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "物語ラジオ式フック",
+        "zh-TW": "故事電台式鉤子",
+        "en": "Story-radio hook VO",
+        "ja": "物語ラジオ式フック"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式故事口播",
+        "zh-TW": "參考：日式故事口播",
+        "en": "Ref: JP story VO",
+        "ja": "参考：日本ストーリーVO"
+      },
+      "blurb": {
+        "zh": "冒頭フック、間が取れる",
+        "zh-TW": "開口有鉤",
+        "en": "Hook open; pause-friendly",
+        "ja": "冒頭フックと間"
+      },
+      "topic_hints": [
+        "Result-first open",
+        "Pause-friendly beats",
+        "Spoken, not documentary VO"
+      ],
+      "search_angles": [
+        "結果先行ストーリー",
+        "衝突開口ショート",
+        "物語ナレ向け"
+      ]
+    },
+    {
+      "id": "vo_ja_knowledge",
+      "voice_category": "voiceover_brief",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "両学長式知識解說",
+        "zh-TW": "兩學長式知識解說",
+        "en": "Both-Gakucho–style explainer",
+        "ja": "両学長式解説"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式一次一概念解說",
+        "zh-TW": "參考：日式知識口播",
+        "en": "Ref: JP one-concept explainer",
+        "ja": "参考：日本知識VO"
+      },
+      "blurb": {
+        "zh": "概念は一つずつ",
+        "zh-TW": "一概念",
+        "en": "One concept at a time",
+        "ja": "概念は一つずつ"
+      },
+      "topic_hints": [
+        "One concept: def→ex→trap",
+        "Lived analogy retellable",
+        "No scare-science"
+      ],
+      "search_angles": [
+        "一概念科普ネタ",
+        "生活たとえ知識解説",
+        "知識ナレ向け"
+      ]
+    },
+    {
+      "id": "course_dedao",
+      "voice_category": "course_tutorial",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "得到式知识精讲",
+        "zh-TW": "得到式知识精讲",
+        "en": "Dedao-style knowledge lecture",
+        "ja": "Dedao-style knowledge lecture"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：得到知识服务课",
+        "zh-TW": "参考：得到知识服务课",
+        "en": "Ref: Dedao-style knowledge courses",
+        "ja": "Ref: Dedao-style knowledge courses"
+      },
+      "blurb": {
+        "zh": "概念一次讲透，带走可复述金句",
+        "zh-TW": "概念一次讲透，带走可复述金句",
+        "en": "One concept clear; takeaway lines",
+        "ja": "One concept clear; takeaway lines"
+      },
+      "topic_hints": [
+        "一课只攻一个可带走概念",
+        "误区先于定义",
+        "结尾可复述金句"
+      ],
+      "search_angles": [
+        "一课一概念热门课题",
+        "可带走误区纠正课",
+        "知识精讲向网课选题"
+      ]
+    },
+    {
+      "id": "course_bilibili",
+      "voice_category": "course_tutorial",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "B站知识区式跟练教程",
+        "zh-TW": "B站知识区式跟练教程",
+        "en": "Bilibili knowledge follow-along",
+        "ja": "Bilibili knowledge follow-along"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：B站知识区跟练向",
+        "zh-TW": "参考：B站知识区跟练向",
+        "en": "Ref: Bilibili knowledge follow-along",
+        "ja": "Ref: Bilibili knowledge follow-along"
+      },
+      "blurb": {
+        "zh": "边看边做，卡点给绕行",
+        "zh-TW": "边看边做，卡点给绕行",
+        "en": "Watch-and-do; detours at stuck points",
+        "ja": "Watch-and-do; detours at stuck points"
+      },
+      "topic_hints": [
+        "成品预览后只跟练一步",
+        "卡点绕行不跳步",
+        "小交付可当场验收"
+      ],
+      "search_angles": [
+        "跟练一步可验收课",
+        "成品预览技能课",
+        "跟练向热门教程"
+      ]
+    },
+    {
+      "id": "course_openuni",
+      "voice_category": "course_tutorial",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "网易公开课式系统讲解",
+        "zh-TW": "网易公开课式系统讲解",
+        "en": "NetEase Open Course–style system teach",
+        "ja": "NetEase Open Course–style system teach"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：网易公开课/系统讲解",
+        "zh-TW": "参考：网易公开课/系统讲解",
+        "en": "Ref: NetEase Open Course–style",
+        "ja": "Ref: NetEase Open Course–style"
+      },
+      "blurb": {
+        "zh": "体系清楚，章节可衔接",
+        "zh-TW": "体系清楚，章节可衔接",
+        "en": "Clear system; chapter-linkable",
+        "ja": "Clear system; chapter-linkable"
+      },
+      "topic_hints": [
+        "先给课程地图再落本章",
+        "与上一章如何衔接",
+        "预告下一章可练什么"
+      ],
+      "search_angles": [
+        "课程地图章节课题",
+        "衔接可练网课选题",
+        "系统课向热门技能"
+      ]
+    },
+    {
+      "id": "course_project",
+      "voice_category": "course_tutorial",
+      "language": "zh",
+      "region": "cn_mainland",
+      "label": {
+        "zh": "实战项目式交付课",
+        "zh-TW": "实战项目式交付课",
+        "en": "Project-delivery workshop course",
+        "ja": "Project-delivery workshop course"
+      },
+      "uiAuthorHint": {
+        "zh": "参考：实战营/项目交付课",
+        "zh-TW": "参考：实战营/项目交付课",
+        "en": "Ref: project-delivery workshops",
+        "ja": "Ref: project-delivery workshops"
+      },
+      "blurb": {
+        "zh": "交付物倒推，里程碑可验收",
+        "zh-TW": "交付物倒推，里程碑可验收",
+        "en": "Deliverable-first; checkable milestones",
+        "ja": "Deliverable-first; checkable milestones"
+      },
+      "topic_hints": [
+        "先定义完成物再倒推",
+        "里程碑必须可验收",
+        "卡住时给降级交付"
+      ],
+      "search_angles": [
+        "完成物倒推项目课",
+        "可验收里程碑课题",
+        "项目实战向热门课"
+      ]
+    },
+    {
+      "id": "course_tw_hahow",
+      "voice_category": "course_tutorial",
+      "language": "zh-TW",
+      "region": "zh_gat",
+      "label": {
+        "zh": "Hahow式專題課精講",
+        "zh-TW": "Hahow式專題課精講",
+        "en": "Hahow-style topic lesson",
+        "ja": "Hahow式レッスン"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：華文線上專題課",
+        "zh-TW": "參考：華文線上專題課",
+        "en": "Ref: CJK online topic courses",
+        "ja": "華語オンライン講座"
+      },
+      "blurb": {
+        "zh": "一課一交付，步驟可跟練",
+        "zh-TW": "一課一交付",
+        "en": "One lesson, one deliverable; followable steps",
+        "ja": "一回一成果"
+      },
+      "topic_hints": [
+        "一课只攻一个可带走概念",
+        "误区先于定义",
+        "结尾可复述金句"
+      ],
+      "search_angles": [
+        "一課一概念熱門課題",
+        "可帶走誤區糾正",
+        "知識精講向網課"
+      ]
+    },
+    {
+      "id": "course_en_masterclass",
+      "voice_category": "course_tutorial",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "MasterClass式叙事精讲",
+        "zh-TW": "MasterClass式敘事精講",
+        "en": "MasterClass-style narrative teach",
+        "ja": "MasterClass式講義"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文大师叙事课",
+        "zh-TW": "參考：英文大師課",
+        "en": "Ref: EN master narrative lessons",
+        "ja": "参考：英マスター授業"
+      },
+      "blurb": {
+        "zh": "故事带方法，可迁移练习",
+        "zh-TW": "故事帶方法",
+        "en": "Story carries method; transferable drills",
+        "ja": "物語で方法"
+      },
+      "topic_hints": [
+        "One takeaway concept",
+        "Misconception before definition",
+        "Retellable close line"
+      ],
+      "search_angles": [
+        "one-takeaway skill lessons",
+        "misconception-first course topics",
+        "masterclass-style lesson titles"
+      ]
+    },
+    {
+      "id": "course_en_coursera",
+      "voice_category": "course_tutorial",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Coursera式模块课",
+        "zh-TW": "Coursera式模組課",
+        "en": "Coursera-style modular lesson",
+        "ja": "Coursera式モジュール"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：英文平台模块课",
+        "zh-TW": "參考：英文模組課",
+        "en": "Ref: EN modular platform courses",
+        "ja": "参考：英モジュール講座"
+      },
+      "blurb": {
+        "zh": "学习目标→概念→测验感练习",
+        "zh-TW": "目標→概念→練習",
+        "en": "LO → concept → quiz-like drill",
+        "ja": "目標→概念→演習"
+      },
+      "topic_hints": [
+        "One takeaway concept",
+        "Misconception before definition",
+        "Retellable close line"
+      ],
+      "search_angles": [
+        "structured online course topics",
+        "chapter skill lesson titles",
+        "popular MOOC lesson ideas"
+      ]
+    },
+    {
+      "id": "course_en_khan",
+      "voice_category": "course_tutorial",
+      "language": "en",
+      "region": "en",
+      "label": {
+        "zh": "Khan Academy式小步拆解",
+        "zh-TW": "Khan Academy式小步拆解",
+        "en": "Khan Academy micro-steps",
+        "ja": "Khan式マイクロステップ"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：可汗小步讲解",
+        "zh-TW": "參考：可汗小步講解",
+        "en": "Ref: Khan-style micro teaching",
+        "ja": "参考：Khan式小分け"
+      },
+      "blurb": {
+        "zh": "一步一屏，错误可回退",
+        "zh-TW": "一步一屏",
+        "en": "One step per screen; rewind-friendly",
+        "ja": "一歩一画面"
+      },
+      "topic_hints": [
+        "One takeaway concept",
+        "Misconception before definition",
+        "Retellable close line"
+      ],
+      "search_angles": [
+        "foundational skill lesson topics",
+        "clear concept course titles",
+        "beginner explain lesson ideas"
+      ]
+    },
+    {
+      "id": "course_ja_schoo",
+      "voice_category": "course_tutorial",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "Schoo式ビジネス講座",
+        "zh-TW": "Schoo式商務講座",
+        "en": "Schoo-style business lesson",
+        "ja": "Schoo式ビジネス講座"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式在线商务课",
+        "zh-TW": "參考：日式商務課",
+        "en": "Ref: JP online business lessons",
+        "ja": "参考：日本ビジネス講座"
+      },
+      "blurb": {
+        "zh": "職場可落地，案例短",
+        "zh-TW": "職場可落地",
+        "en": "Workplace-ready; short cases",
+        "ja": "職場で使える"
+      },
+      "topic_hints": [
+        "One takeaway concept",
+        "Misconception before definition",
+        "Retellable close line"
+      ],
+      "search_angles": [
+        "一概念レッスン題",
+        "誤解先出し講座",
+        "人気オンライン講座"
+      ]
+    },
+    {
+      "id": "course_ja_study",
+      "voice_category": "course_tutorial",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "スタディサプリ式考点精讲",
+        "zh-TW": "スタディサプリ式考點精講",
+        "en": "Study Sapuri exam-point teach",
+        "ja": "スタディサプリ式要点"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式应试精讲课",
+        "zh-TW": "參考：日式應試精講",
+        "en": "Ref: JP exam-prep micro lessons",
+        "ja": "参考：受験精講"
+      },
+      "blurb": {
+        "zh": "考点清楚，例题跟练",
+        "zh-TW": "考點清楚",
+        "en": "Clear exam points; worked examples",
+        "ja": "要点と例題"
+      },
+      "topic_hints": [
+        "One takeaway concept",
+        "Misconception before definition",
+        "Retellable close line"
+      ],
+      "search_angles": [
+        "スキル講座レッスン題",
+        "実践できる講座テーマ",
+        "人気学習コース"
+      ]
+    },
+    {
+      "id": "course_ja_udemy",
+      "voice_category": "course_tutorial",
+      "language": "ja",
+      "region": "ja",
+      "label": {
+        "zh": "Udemy式项目跟练课",
+        "zh-TW": "Udemy式專案跟練",
+        "en": "Udemy-style project follow-along",
+        "ja": "Udemy式プロジェクト"
+      },
+      "uiAuthorHint": {
+        "zh": "參考：日式项目跟练课",
+        "zh-TW": "參考：日式專案跟練",
+        "en": "Ref: JP project follow-along courses",
+        "ja": "参考：プロジェクト講座"
+      },
+      "blurb": {
+        "zh": "边做边学，里程碑可见",
+        "zh-TW": "邊做邊學",
+        "en": "Learn by building; visible milestones",
+        "ja": "作りながら学ぶ"
+      },
+      "topic_hints": [
+        "One takeaway concept",
+        "Misconception before definition",
+        "Retellable close line"
+      ],
+      "search_angles": [
+        "実務スキル講座題",
+        "成果物のあるレッスン",
+        "人気Udemy系テーマ"
+      ]
+    }
+  ]
+}

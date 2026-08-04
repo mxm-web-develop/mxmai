@@ -6,6 +6,13 @@ import { runByModelKey } from '../models/run';
 import type { GenerateResult, ProviderType } from '../models/providers';
 import { UsageService } from '../statistics/usage-service';
 import type { ArticleScoreResult, DimensionScore, QualityEvalDimension, QualityEvalRubric } from './types';
+import type { EvalRunContext } from './eval-run-context';
+import {
+  countManuscriptChars,
+  formatEvalRunContextForPrompt,
+  resolveLengthBand,
+  scoreLengthFit,
+} from './eval-run-context';
 
 function extractText(result: GenerateResult): string {
   const t = (result as { text?: string }).text;
@@ -35,6 +42,8 @@ export function buildBusinessContext(args: {
   rubric: QualityEvalRubric;
   displayBrief?: string;
   formFieldTitles?: string[];
+  evalRunContext?: EvalRunContext | null;
+  manuscriptChars?: number;
 }): string {
   const parts: string[] = [];
   parts.push(`业务键: ${args.rubric.task_key} / ${args.rubric.subtype}`);
@@ -43,6 +52,8 @@ export function buildBusinessContext(args: {
   if (args.formFieldTitles?.length) {
     parts.push(`表单关注点: ${args.formFieldTitles.slice(0, 24).join('、')}`);
   }
+  const optionBlock = formatEvalRunContextForPrompt(args.evalRunContext, args.manuscriptChars);
+  if (optionBlock) parts.push(optionBlock);
   return parts.join('\n');
 }
 
@@ -58,10 +69,13 @@ function buildScorePrompt(args: {
     )
     .join('\n');
 
-  const system = `你是资深内容质检编辑。先依据「文章类型 / 业务要求」评估稿件是否达标，再按给定维度打分。
+  const system = `你是资深内容质检编辑。先依据「文章类型 / 业务要求 / 本次用户选项」评估稿件是否达标，再按给定维度打分。
 规则：
 - 每个维度 0-100 分；分数须有依据，evidence 摘录原文短句（可改写压缩）。
-- 优先判断是否符合该业务类型应有的内容结构与信息质量，再评语法、可读性、AI 感等通用维度。
+- **禁止一套死板标准**：若上下文给出用户选项（篇幅、主观分析开关、幽默/批判等立场、语感文风），grammar / 自然度 / 可读性 / 文风契合必须按选项调整合格线。例如用户选幽默分析时，诙谐比喻与观点先行不应被判为语法错误或空套话。
+- length_fit：对照用户 article_length 目标字数带；证据不足导致略短可谅解，注水灌水或严重超长要扣分。
+- voice_fit：对照 subjective_analysis / analysis_stance / 语感包是否匹配。
+- 优先判断是否符合该业务类型应有的内容结构与信息质量。
 - 只输出 JSON，不要 Markdown 说明。`;
 
   const user = `## 业务与类型要求
@@ -99,6 +113,7 @@ export async function scoreArticle(args: {
   provider?: string;
   modelKey?: string;
   runId?: string;
+  evalRunContext?: EvalRunContext | null;
 }): Promise<ArticleScoreResult> {
   const provider = (args.provider || args.rubric.provider) as ProviderType;
   const modelKey = args.modelKey || args.rubric.model_key;
@@ -154,7 +169,29 @@ export async function scoreArticle(args: {
     };
   });
 
-  // 若模型漏维度，已用 rubric 补齐；加权总分
+  // 篇幅：用确定性量尺校正 LLM 的 length_fit（若 rubric 含该维）
+  const band = resolveLengthBand(args.evalRunContext?.articleLength);
+  if (band) {
+    const actual = countManuscriptChars(args.article);
+    const fit = scoreLengthFit(actual, band);
+    const idx = dimensions.findIndex((d) => d.key === 'length_fit');
+    if (idx >= 0) {
+      const def = dimByKey.get('length_fit');
+      const llmScore = dimensions[idx]!.score;
+      const blended = clampScore(fit.score * 0.65 + llmScore * 0.35);
+      dimensions[idx] = {
+        ...dimensions[idx]!,
+        score: blended,
+        failed: blended < (def?.failBelow ?? 55),
+        comment: `${fit.comment}${dimensions[idx]!.comment ? `｜模型侧：${dimensions[idx]!.comment}` : ''}`,
+        evidence: [
+          `实测约 ${actual} 字 / 目标 ${band.minChars}–${band.maxChars}`,
+          ...dimensions[idx]!.evidence,
+        ].slice(0, 5),
+      };
+    }
+  }
+
   let weightSum = 0;
   let weighted = 0;
   for (const d of dimensions) {
@@ -163,7 +200,8 @@ export async function scoreArticle(args: {
     weighted += d.score * w;
   }
   const computedOverall = weightSum > 0 ? weighted / weightSum : 0;
-  const overall = clampScore(parsed.overall ?? computedOverall);
+  // 有 length 校正时用重算总分，避免 overall 与维度脱节
+  const overall = clampScore(band ? computedOverall : (parsed.overall ?? computedOverall));
 
   return {
     overall,

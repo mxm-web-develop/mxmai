@@ -1,0 +1,675 @@
+{
+  "schemaVersion": 1,
+  "kind": "writing-voice-pack",
+  "voice_category": "talk_brief",
+  "notes": [
+    "谈话资料稿本地详参：仅在用户选中某 voice_id 时注入对应条目。",
+    "talkPack 描述「资料稿应长什么样 / 主持推进手法」，不是逐字模仿节目台词。",
+    "referenceParagraph / sample_beats 均为自拟示范，禁止原著或节目逐字摘录。",
+    "模型载荷由 resolveVoiceForModel 组装；勿含 uiAuthorHint / label。"
+  ],
+  "voices": [
+    {
+      "id": "talk_qq_three",
+      "craft": {
+        "sentence": "短句为主，允许半截话与口语转折；一人抛梗、另一人接刺；少大段排比",
+        "stance": "文化人闲谈感：可以偏激，但要对准机制与趣味，不对嘉宾人身贬损",
+        "opening": "资料稿开头给「今晚为什么聊这个」的一句刺耳判断，再列三方可站立场",
+        "avoid": "通稿腔、鸡汤收束、百科词条罗列、让三位嘉宾说同一种正确废话",
+        "lexicon": "接话、抬杠、典故一笔带过、市井比喻、反问收束"
+      },
+      "talkPack": {
+        "format": "roundtable_three",
+        "dossier_goal": "给圆桌主持人与三位嘉宾预备可交锋的谈话资料，不是写成文章发表体",
+        "dossier_sections": [
+          "开场刺点（1 句可上桌的判断）",
+          "三位可能立场（立场名 + 一句论据 + 一句反驳点）",
+          "可抬杠事实/例子（3～5 条，短）",
+          "典故或文化挂钩（2 条，只写钩子不写长文）",
+          "收束可选落点（开放式，禁止道德口号）"
+        ],
+        "host_moves": [
+          "把嘉宾正确表述拧成一个可反驳的尖问题",
+          "当讨论变共识时，强制引入一个刺耳反例",
+          "用市井类比打断学术腔",
+          "允许插话，但资料稿要标「插话触发点」"
+        ],
+        "tension_style": "轻呛、快转、笑点与观点绑在一起；冲突是趣味不是撕破脸",
+        "sample_beats": [
+          "开场：先抛「这件事被讲得太温柔了」",
+          "中段：用一个普通人场景拆精英表述",
+          "后段：逼三人各自承认自己立场的代价"
+        ],
+        "guest_prompt_patterns": [
+          "如果你必须反对另外两位，你会抓哪一句？",
+          "把你的观点说成一句能上热搜的刺话（资料里先写草稿）",
+          "举一个让你自己立场难堪的例子"
+        ]
+      },
+      "referenceParagraph": {
+        "zh": "今晚不谈抽象「内卷」。先问：当你劝别人「多睡一小时」时，你是不是其实在劝他接受更低的出价？三位里得有人站「效率正义」，有人站「身体底线」，有人专门拆这两种话术。",
+        "zh-TW": "今晚不談抽象「內卷」。先問：當你勸別人「多睡一小時」時，你是不是其實在勸他接受更低的出價？三位裡得有人站「效率正義」，有人站「身體底線」，有人專門拆這兩種話術。",
+        "en": "Skip abstract “burnout.” Ask: when you tell someone to sleep more, are you asking them to accept a lower bid? One guest defends efficiency, one defends the body, one dismantles both scripts.",
+        "ja": "抽象的な「過労」はやめ、こう聞く：睡眠を勧めるとき、より安い入札を飲めと言っていないか。三人で効率／身体／言説解体を分担。"
+      }
+    },
+    {
+      "id": "talk_yuanzhuo",
+      "craft": {
+        "sentence": "完整短句，层次清楚；少互呛段子，多「另一刀切面」",
+        "stance": "认真、好奇、允许不一致；代际差异写成结构差异，不写成嘲讽年轻人/老年人",
+        "opening": "先定义本集议题的边界：今天不聊什么，只挖哪两层",
+        "avoid": "段子大赛、网络热梗堆砌、假装有结论的伪共识",
+        "lexicon": "切面、代际、样本、代价、机制、补充提问"
+      },
+      "talkPack": {
+        "format": "roundtable_issue",
+        "dossier_goal": "一题多切面的圆桌资料：让讨论往深处走，而不是意见秀",
+        "dossier_sections": [
+          "议题一句话定义（含「今天不讨论」清单）",
+          "切面 A/B/C（每面：现象 → 机制假说 → 反例）",
+          "代际/身份差异表（谁会怎么感受）",
+          "数据或案例锚点（可核查意识，禁编造精确值）",
+          "主持人深挖题（由浅到深 5 问）"
+        ],
+        "host_moves": [
+          "嘉宾举例后追问「这是个例还是结构」",
+          "把情绪表述翻译成可检验的命题",
+          "请另一位用完全不同身份重述同一事实",
+          "临近结束时逼出「你愿意付出的代价」"
+        ],
+        "tension_style": "温而韧：不吵吵嚷嚷，但不允许滑过矛盾",
+        "sample_beats": [
+          "开场澄清议题边界",
+          "中段并置三个切面，避免单线道德审判",
+          "收束留下分歧，不强制和解"
+        ],
+        "guest_prompt_patterns": [
+          "用你父母/同事会说的一句话重述这个议题",
+          "指出你自己立场最薄弱的一环",
+          "如果政策按你的话说落地，谁会立刻受损"
+        ]
+      },
+      "referenceParagraph": {
+        "zh": "今天不聊「该不该努力」，只聊：当努力的回报曲线变平，人们用哪些叙事继续说服自己上班。切面一是收入，切面二是尊严，切面三是家庭期待——三位嘉宾各认领一面，禁止三人都谈心态。",
+        "zh-TW": "今天不聊「該不該努力」，只聊：當努力的回報曲線變平，人們用哪些敘事繼續說服自己上班。切面一是收入，切面二是尊嚴，切面三是家庭期待。",
+        "en": "Not “should you hustle,” but which stories people use when returns flatten—pay, dignity, family expectation—one facet per guest.",
+        "ja": "「頑張るべきか」ではなく、報酬曲線が平坦なとき自分を説得する物語。所得／尊厳／家族期待を分担。"
+      }
+    },
+    {
+      "id": "talk_luyu",
+      "craft": {
+        "sentence": "柔和完整句；多时间连接（那时/后来/直到）；少评论腔",
+        "stance": "陪伴式倾听，锋利藏在追问时机里，不靠质问开场",
+        "opening": "资料稿先给生命时间线，再标「情绪高点」与「可能卡住的沉默」",
+        "avoid": "八卦猎奇、逼哭指令、道德宣判、替嘉宾总结人生哲理",
+        "lexicon": "转折、选择、代价、关系、那天、没说出口"
+      },
+      "talkPack": {
+        "format": "one_on_one_life",
+        "dossier_goal": "一对一生命叙事访谈资料：让故事自己显形，主持少表演",
+        "dossier_sections": [
+          "人物时间线（节点 ≤8，含公开可述与需谨慎区）",
+          "关键关系人图谱（谁影响过关键选择）",
+          "三处情绪节拍（触发物 + 建议追问，不写逼问）",
+          "成就叙事 vs 私下代价（对照表）",
+          "收尾安全题（留给嘉宾掌控的结束感）"
+        ],
+        "host_moves": [
+          "用细节（一件衣服、一通电话）打开大话题",
+          "嘉宾笑着带过时，轻问「那时怕的是什么」",
+          "允许沉默，资料稿标注「可停 3 秒」的位置",
+          "把自我鸡汤轻轻退回事实：「那天具体发生了什么」"
+        ],
+        "tension_style": "低压高密度：张力来自回忆本身，不来自主持进攻",
+        "sample_beats": [
+          "暖场具体物",
+          "中段进入未被公开讲述过的选择点",
+          "后段谈关系与后悔，不强制升华"
+        ],
+        "guest_prompt_patterns": [
+          "如果只能保留人生里的三个场景，是哪三个？",
+          "哪一次夸奖其实让你更不安？",
+          "你还没准备好被问、但观众最想知道的是什么（资料里只标敏感，不强迫问）"
+        ]
+      },
+      "referenceParagraph": {
+        "zh": "时间线先落到「离开那家公司的前一晚」。不要问「你后悔吗」，问：你给谁打了电话，电话那边先说话的人是谁。情绪节拍放在「挂断之后的三十秒」，不是放在获奖现场。",
+        "zh-TW": "時間線先落到「離開那家公司的前一晚」。不要問「你後悔嗎」，問：你給誰打了電話，電話那邊先說話的人是誰。",
+        "en": "Pin the timeline to the night before quitting. Don’t ask “regret?” Ask who they called, and who spoke first. Put the beat in the thirty seconds after hang-up.",
+        "ja": "退職前夜に年表を固定。「後悔は？」ではなく、誰に電話し、先に話したのは誰か。"
+      }
+    },
+    {
+      "id": "talk_face_probe",
+      "craft": {
+        "sentence": "问题极短；陈述句先甩事实，再问是/否或选择支",
+        "stance": "核实优先，语气可以硬，但每问必须挂得住材料",
+        "opening": "资料稿第一条必须是「矛盾点」：两句原话/两个日期/两个数字对不上",
+        "avoid": "阴谋论跳切、人身羞辱、无材料的道德质问、连珠炮不给回答空间的假问题",
+        "lexicon": "您曾表示、然而、对照、能否直接回答、时间点"
+      },
+      "talkPack": {
+        "format": "hard_one_on_one",
+        "dossier_goal": "硬访谈追问清单：逼清事实与责任，不是表演愤怒",
+        "dossier_sections": [
+          "矛盾对照表（陈述 A vs 陈述 B + 出处意识）",
+          "时间线（关键承诺与兑现节点）",
+          "核心追问 8 条（由易到难，每条附预期遁词）",
+          "数字/文件锚点（缺材料则标「不可问死」）",
+          "收束：仍未澄清的问题清单（留给观众）"
+        ],
+        "host_moves": [
+          "先复述对方原意，再指出冲突，避免歪曲起诉",
+          "遁词出现时立刻回到时间线某一天",
+          "一次只攻一个缺口，打穿再换题",
+          "对方攻主持时，回到材料，不陷入互骂"
+        ],
+        "tension_style": "冷硬：压力来自材料密度，不来自音量",
+        "sample_beats": [
+          "开场亮出最大矛盾，不寒暄太久",
+          "中段封锁「正在推进」类空话",
+          "结尾列出仍未回答的三点"
+        ],
+        "guest_prompt_patterns": [
+          "请用是或否回答：该承诺是否已到期未兑现？",
+          "若数字以贵方口径为准，请给出可公开核对的口径定义",
+          "责任人是职位还是姓名——资料里先写清该追到哪一层"
+        ]
+      },
+      "referenceParagraph": {
+        "zh": "对照两条公开表述：一月份称「年内完成」，七月称「视情况启动」。追问不从「你们是不是在撒谎」开始，而从「『完成』在贵方口径里是否包含验收」开始。",
+        "zh-TW": "對照兩條公開表述：一月份稱「年內完成」，七月稱「視情況啟動」。追問從口徑定義開始，不從道德指控開始。",
+        "en": "Hold two public lines: “done this year” vs “start when ready.” Begin with how they define “done,” not with “liar.”",
+        "ja": "「年内完了」と「状況次第で開始」を対照。嘘つき攻めではなく定義から。"
+      }
+    },
+    {
+      "id": "talk_yanglan_salon",
+      "craft": {
+        "sentence": "完整、体面、可国际转述；提问里带比较视野",
+        "stance": "尊重成就，同时逼出价值选择；不谄媚不民粹",
+        "opening": "资料稿用「成就摘要 + 未被问过的格局题」开场",
+        "avoid": "粉丝应援稿、成功学排比、鸡汤金句收束、刻板性别提问",
+        "lexicon": "选择、边界、全球、责任、下一阶段、代价"
+      },
+      "talkPack": {
+        "format": "salon_one_on_one",
+        "dossier_goal": "高端访谈资料：成就叙事与公共价值并置",
+        "dossier_sections": [
+          "成就叙事简表（可核对的节点）",
+          "价值观冲突题（3 道，礼貌但难）",
+          "国际比较锚点（同行/同业不同路径）",
+          "性别/身份若相关：只写结构题，不写猎奇",
+          "前瞻题：下一阶段真正不确定的是什么"
+        ],
+        "host_moves": [
+          "先确认成就，再问「若重来会放弃哪一块光环」",
+          "把个人故事接到公共议题，但不绑架嘉宾代言全体",
+          "用国际案例作镜，不逼站队骂战",
+          "收尾留「未完成的问题」而非励志口号"
+        ],
+        "tension_style": "绸面钢针：听感优雅，题目不好躲",
+        "sample_beats": [
+          "成就校准",
+          "价值冲突",
+          "未完成的不确定"
+        ],
+        "guest_prompt_patterns": [
+          "你最不想被简化成的标签是什么？",
+          "在全球叙事里，你的行业正在丢掉哪句旧台词？",
+          "如果只能用一个失败定义你，你希望是哪一个"
+        ]
+      },
+      "referenceParagraph": {
+        "zh": "成就表只留三个节点。真正的题是：当「代表中国」这句台词不再好用时，你的工作还向谁交代？请准备一个不诉诸民族主义的回答骨架。",
+        "zh-TW": "成就表只留三個節點。真正的題是：當「代表中國」這句台詞不再好用時，你的工作還向誰交代？",
+        "en": "Keep three achievement nodes. The real question: when “representing the nation” stops working as a line, whom is the work accountable to?",
+        "ja": "達成は三点だけ。本当の問いは、「国を代表」が効かなくなったとき、仕事は誰に応答するのか。"
+      }
+    },
+    {
+      "id": "talk_fresh_air",
+      "craft": {
+        "sentence": "Clear full sentences; questions cite a concrete detail from the work or public record (paraphrased)",
+        "stance": "Curious, precise, emotionally literate without therapy-speak",
+        "opening": "Open the dossier on one scene/line/choice, then widen to life and era",
+        "avoid": "Gotcha politics, gossip bait, spoiler dumps without purpose, pseudo-academic jargon",
+        "lexicon": "in the book/film you…, that moment, revision, influence, what shifted"
+      },
+      "talkPack": {
+        "format": "longform_close_read",
+        "dossier_goal": "Longform interview brief that enters through the work’s details",
+        "dossier_sections": [
+          "Work anchors (3–5 paraphrased details, not copyrighted block quotes)",
+          "Craft questions (how a scene was built)",
+          "Life/era bridge questions",
+          "Public misunderstanding to correct",
+          "Soft landing question the guest can own"
+        ],
+        "host_moves": [
+          "Read back a paraphrased detail and ask what still feels unresolved",
+          "When praise appears, ask what the praise misunderstands",
+          "Track revisions: earlier draft vs later public version",
+          "Leave space after a vulnerable answer before pivoting"
+        ],
+        "tension_style": "Quiet pressure: intelligence without aggression",
+        "sample_beats": [
+          "Detail → craft",
+          "Craft → biography",
+          "Biography → cultural frame"
+        ],
+        "guest_prompt_patterns": [
+          "What detail do interviewers always skip that actually structures the work?",
+          "Which compliment makes you flinch?",
+          "If listeners remember one tension from this conversation, what should it be?"
+        ]
+      },
+      "referenceParagraph": {
+        "zh": "（英文节目向）从作品里一个被忽略的道具问起：它在结局为什么消失。再问作者删掉它是怕滥情还是怕真相太具体。",
+        "zh-TW": "（英文節目向）從作品裡一個被忽略的道具問起：它在結局為什麼消失。",
+        "en": "Start from a minor prop that vanishes by the ending. Ask whether it was cut for sentimentality risk—or because it made the truth too specific.",
+        "ja": "結末で消える小道具から入る。感傷を恐れての削除か、具体が怖くての削除か。"
+      }
+    },
+    {
+      "id": "talk_hardtalk",
+      "craft": {
+        "sentence": "Short adversarial questions; preface with a hard fact clause",
+        "stance": "Accountability journalism tone; challenge the record, not the accent or identity",
+        "opening": "Dossier lead = the sharpest inconsistency on record",
+        "avoid": "Both-sides fog, personal insults, hypothetical outrage without documents",
+        "lexicon": "you said, the record shows, yes or no, in that year, responsibility"
+      },
+      "talkPack": {
+        "format": "international_hard_talk",
+        "dossier_goal": "International hard-talk brief: pin contradictions, demand plain answers",
+        "dossier_sections": [
+          "Record contradictions (paired statements)",
+          "Timeline of pledges vs outcomes",
+          "Pressure questions (8) with likely evasions",
+          "Definitions to force (what “success” meant)",
+          "Unanswered close (3 bullets)"
+        ],
+        "host_moves": [
+          "Interrupt empty vision language by returning to a date",
+          "Offer a binary, then reject a third fuzzy option",
+          "Separate personal sincerity from institutional outcome",
+          "End on what remains unresolved for the audience"
+        ],
+        "tension_style": "Formal combat; volume low, precision high",
+        "sample_beats": [
+          "Contradiction cold open",
+          "Definition fight mid-show",
+          "Unanswered list close"
+        ],
+        "guest_prompt_patterns": [
+          "Yes or no: did the pledge expire unmet?",
+          "Which budget line matches the speech you gave?",
+          "Who is accountable by title if the metric failed?"
+        ]
+      },
+      "referenceParagraph": {
+        "zh": "（国际硬谈）开场不寒暄：把「安全局势稳定」与同年伤亡统计并置，问「稳定」在贵方定义里是否包含平民伤亡下降。",
+        "zh-TW": "開場把「安全局勢穩定」與同年傷亡統計並置，追問定義。",
+        "en": "No soft open: place “the situation is stable” beside the same-year casualty trend, and ask whether “stable” requires civilian harm to fall.",
+        "ja": "挨拶なし。「安定」と同年の被害推移を並べ、定義に民間被害減少が含まれるか問う。"
+      }
+    },
+    {
+      "id": "talk_oprah_arc",
+      "craft": {
+        "sentence": "Warm, complete sentences; feelings named precisely without clinical coldness",
+        "stance": "Empathic container; courage toward disclosure; never exploit tears",
+        "opening": "Dossier maps the emotional arc: safety → specificity → meaning (not spectacle)",
+        "avoid": "Voyeuristic detail, forcing crying, fake surprise, brand-therapy slogans",
+        "lexicon": "what did that do to you, support, after that day, permission, still"
+      },
+      "talkPack": {
+        "format": "emotional_reveal",
+        "dossier_goal": "Emotional interview brief that aims for earned candor, not viral breakdown",
+        "dossier_sections": [
+          "Safety framing (what is off-limits)",
+          "Reveal arc beats (3) with consent notes",
+          "Support system map",
+          "Audience empathy bridges (non-voyeuristic)",
+          "Aftercare close (guest agency)"
+        ],
+        "host_moves": [
+          "Name the feeling you heard, then ask if the name is right",
+          "When a reveal comes, slow down; do not pile a harder question immediately",
+          "Redirect curiosity that smells like gossip back to meaning/impact",
+          "Offer the guest the last word framing"
+        ],
+        "tension_style": "Soft intensity: heat from honesty, not from ambush",
+        "sample_beats": [
+          "Establish safety",
+          "Specific day/detail",
+          "Meaning for others without preaching"
+        ],
+        "guest_prompt_patterns": [
+          "What did you need to hear that nobody said then?",
+          "Who held you up when the public story looked fine?",
+          "What part of this story are you still not ready to make neat?"
+        ]
+      },
+      "referenceParagraph": {
+        "zh": "（情感访谈）先写清「今天不追问」的边界。揭示弧线落在「第一次拒绝表演坚强的下午」，追问支持系统，不追问血腥细节。",
+        "zh-TW": "先寫清「今天不追問」的邊界。揭示落在「第一次拒絕表演堅強」的節點。",
+        "en": "State off-limits first. Place the reveal on the afternoon they stopped performing strength; ask who held them—not for graphic detail.",
+        "ja": "先に聞かない境界線。開示は「強がりをやめた午後」。支える人を聞き、生々しい描写は追わない。"
+      }
+    },
+    {
+      "id": "talk_tw_keymoment",
+      "craft": {
+        "sentence": "問題極短；先甩對照事實再追問",
+        "stance": "核實優先，硬但不羞辱",
+        "opening": "資料稿第一條必須是矛盾點",
+        "avoid": "陰謀論、人身攻擊、無材料質問",
+        "lexicon": "您曾表示、然而、對照、時間點"
+      },
+      "referenceParagraph": {
+        "zh": "先並置兩句公開表述，再問「完成」是否包含驗收——不要先罵謊言。",
+        "zh-TW": "先並置兩句公開表述，再問「完成」是否包含驗收。",
+        "en": "Hold two public lines, then ask whether “done” includes acceptance—before calling anyone a liar.",
+        "ja": "二つの公言を並べ、「完了」に検収が含まれるかから入る。"
+      },
+      "talkPack": {
+        "format": "hard_one_on_one",
+        "dossier_goal": "硬訪談追問清單：逼清事實",
+        "dossier_sections": [
+          "矛盾對照表",
+          "時間線",
+          "核心追問 8 條",
+          "未澄清清單"
+        ],
+        "host_moves": [
+          "先復述再指出衝突",
+          "遁詞回到某一天"
+        ],
+        "tension_style": "冷硬：壓力來自材料",
+        "sample_beats": [
+          "矛盾開場",
+          "口徑定義",
+          "未答收束"
+        ],
+        "guest_prompt_patterns": [
+          "是或否：承諾是否到期未兌現？"
+        ]
+      }
+    },
+    {
+      "id": "talk_tw_dinner",
+      "craft": {
+        "sentence": "柔和完整句；時間連接多",
+        "stance": "陪伴式傾聽，鋒利藏在追問時機",
+        "opening": "先給生命時間線與情緒高點",
+        "avoid": "八卦獵奇、逼哭、道德宣判",
+        "lexicon": "那時、後來、選擇、沒說出口"
+      },
+      "referenceParagraph": {
+        "zh": "時間線先落到「拒絕那通電話的晚上」，問誰先掛斷，不問「你後悔嗎」。",
+        "zh-TW": "時間線先落到「拒絕那通電話的晚上」，問誰先掛斷。",
+        "en": "Pin the night they rejected the call; ask who hung up first—not “do you regret it?”",
+        "ja": "電話を切った夜に固定。後悔ではなく、先に切ったのは誰か。"
+      },
+      "talkPack": {
+        "format": "one_on_one_life",
+        "dossier_goal": "人物生命敘事資料",
+        "dossier_sections": [
+          "時間線",
+          "關係圖譜",
+          "情緒節拍",
+          "安全收尾題"
+        ],
+        "host_moves": [
+          "用具體物打開大話題",
+          "允許沉默"
+        ],
+        "tension_style": "低壓高密度",
+        "sample_beats": [
+          "暖場物",
+          "選擇點",
+          "關係"
+        ],
+        "guest_prompt_patterns": [
+          "若只能留三個場景？"
+        ]
+      }
+    },
+    {
+      "id": "talk_tw_newsdeep",
+      "craft": {
+        "sentence": "完整短句；多切面少互嗆",
+        "stance": "認真好奇，代際寫成結構差異",
+        "opening": "先定義今天不聊什麼",
+        "avoid": "段子堆砌、偽共識",
+        "lexicon": "切面、機制、代價、樣本"
+      },
+      "referenceParagraph": {
+        "zh": "今天不聊該不該努力，只聊回報曲線變平時人們用哪些敘事說服自己上班。",
+        "zh-TW": "今天不聊該不該努力，只聊回報變平時的自我說服敘事。",
+        "en": "Not hustle-morality—which stories people use when returns flatten.",
+        "ja": "頑張るべきかではなく、報酬が平坦なときの自己説得の物語。"
+      },
+      "talkPack": {
+        "format": "roundtable_issue",
+        "dossier_goal": "議題深挖圓桌資料",
+        "dossier_sections": [
+          "議題邊界",
+          "切面 A/B/C",
+          "深挖題 5 問"
+        ],
+        "host_moves": [
+          "追問個例還是結構",
+          "逼出代價"
+        ],
+        "tension_style": "溫而韌",
+        "sample_beats": [
+          "邊界",
+          "三切面",
+          "分歧保留"
+        ],
+        "guest_prompt_patterns": [
+          "指出自己立場最弱一環"
+        ]
+      }
+    },
+    {
+      "id": "talk_tw_roundfire",
+      "craft": {
+        "sentence": "短句、半截話、一人抛梗一人接刺",
+        "stance": "可偏激但對準機制，不人身貶損",
+        "opening": "一句刺耳判斷再列多方立場",
+        "avoid": "通稿腔、雞湯、正確廢話",
+        "lexicon": "接話、抬槓、市井比喻"
+      },
+      "referenceParagraph": {
+        "zh": "今晚不談抽象內卷。先問：勸人多睡一小時，是不是在勸他接受更低出價？",
+        "zh-TW": "今晚不談抽象內卷。先問勸人多睡是不是勸他接受更低出價。",
+        "en": "Skip abstract burnout: is “sleep more” asking someone to take a lower bid?",
+        "ja": "抽象的過労はやめ、睡眠勧奨が安い入札を飲めと言っていないか。"
+      },
+      "talkPack": {
+        "format": "roundtable_three",
+        "dossier_goal": "圓桌交鋒談話資料",
+        "dossier_sections": [
+          "開場刺點",
+          "多方立場",
+          "可抬槓例子",
+          "開放收束"
+        ],
+        "host_moves": [
+          "共識時引入刺耳反例",
+          "市井類比打斷學術腔"
+        ],
+        "tension_style": "輕嗆快轉",
+        "sample_beats": [
+          "刺點",
+          "反例",
+          "代價"
+        ],
+        "guest_prompt_patterns": [
+          "用一句能上熱搜的刺話重述觀點"
+        ]
+      }
+    },
+    {
+      "id": "talk_ja_tetsuko",
+      "craft": {
+        "sentence": "やさしい完全文。時間の接続詞を多用",
+        "stance": "傾聴。鋭さはタイミングに隠す",
+        "opening": "年表と感情の山を先に置く",
+        "avoid": "ゴシップ強要、泣かせ指示",
+        "lexicon": "そのとき、あとで、言えなかった"
+      },
+      "referenceParagraph": {
+        "zh": "先問「辭職前夜打給了誰」，不要先問後悔。",
+        "zh-TW": "先問辭職前夜打給誰。",
+        "en": "Ask who they called the night before quitting—not regret first.",
+        "ja": "退職前夜に誰へ電話したかから。後悔は後。"
+      },
+      "talkPack": {
+        "format": "one_on_one_life",
+        "dossier_goal": "人物長訪用資料",
+        "dossier_sections": [
+          "年表",
+          "関係図",
+          "感情ビート",
+          "安全な締め"
+        ],
+        "host_moves": [
+          "物から大問へ",
+          "沈黙を許す"
+        ],
+        "tension_style": "低圧高密度",
+        "sample_beats": [
+          "物",
+          "選択",
+          "関係"
+        ],
+        "guest_prompt_patterns": [
+          "残すなら三場面は？"
+        ]
+      }
+    },
+    {
+      "id": "talk_ja_closeup",
+      "craft": {
+        "sentence": "短い質問。事実節を先に置く",
+        "stance": "説明責任。人格攻撃しない",
+        "opening": "最大の矛盾から",
+        "avoid": "陰謀飛躍、侮辱",
+        "lexicon": "あなたは述べた、しかし、定義は"
+      },
+      "referenceParagraph": {
+        "zh": "把「局勢穩定」與同年傷亡並置，追問穩定是否包含平民傷害下降。",
+        "zh-TW": "並置「局勢穩定」與傷亡趨勢，追問定義。",
+        "en": "Place “stable” beside casualty trends; ask if stable requires harm to fall.",
+        "ja": "「安定」と被害推移を並べ、定義を問う。"
+      },
+      "talkPack": {
+        "format": "hard_one_on_one",
+        "dossier_goal": "報道硬訪ブリーフ",
+        "dossier_sections": [
+          "矛盾表",
+          "時系列",
+          "追問8",
+          "未解明"
+        ],
+        "host_moves": [
+          "空語を日付へ戻す",
+          "定義を強制"
+        ],
+        "tension_style": "静かで鋭い",
+        "sample_beats": [
+          "矛盾",
+          "定義",
+          "未答"
+        ],
+        "guest_prompt_patterns": [
+          "Yes/No：期限は過ぎたか"
+        ]
+      }
+    },
+    {
+      "id": "talk_ja_honma",
+      "craft": {
+        "sentence": "短句とツッコミ。一人一つの尖った立場",
+        "stance": "偏ってよいが人格攻撃禁止",
+        "opening": "刺さる一句で議題を開く",
+        "avoid": "正しい空虚、百科羅列",
+        "lexicon": "それは違う、仕組み、たとえ"
+      },
+      "referenceParagraph": {
+        "zh": "別談抽象過勞，先問勸人多睡是不是在勸低價。",
+        "zh-TW": "別談抽象過勞，先問勸睡是否勸低價。",
+        "en": "Skip burnout slogans—is “sleep more” a lower bid?",
+        "ja": "過労の抽象論はやめ、睡眠勧奨が安値入札か問う。"
+      },
+      "talkPack": {
+        "format": "roundtable_three",
+        "dossier_goal": "雑学円卓用資料",
+        "dossier_sections": [
+          "刺しポイント",
+          "三立場",
+          "抬槓例",
+          "開放結尾"
+        ],
+        "host_moves": [
+          "合意を壊す反例",
+          "市井比喩"
+        ],
+        "tension_style": "軽口と論点",
+        "sample_beats": [
+          "刺",
+          "反例",
+          "代価"
+        ],
+        "guest_prompt_patterns": [
+          "一言で刺せ"
+        ]
+      }
+    },
+    {
+      "id": "talk_ja_news_dinner",
+      "craft": {
+        "sentence": "層のある短文。冗談大会にしない",
+        "stance": "真剣な好奇心",
+        "opening": "今日話さないことを先に宣言",
+        "avoid": "偽の合意",
+        "lexicon": "断面、機制、代価"
+      },
+      "referenceParagraph": {
+        "zh": "不聊該不該努力，只聊回報變平時的自我說服。",
+        "zh-TW": "不聊該不該努力，只聊回報變平時的敘事。",
+        "en": "Not whether to hustle—which stories when returns flatten.",
+        "ja": "頑張るべきかではなく、平坦化した報酬下の物語。"
+      },
+      "talkPack": {
+        "format": "roundtable_issue",
+        "dossier_goal": "議題深挖資料",
+        "dossier_sections": [
+          "境界",
+          "断面ABC",
+          "深掘り5"
+        ],
+        "host_moves": [
+          "個例か構造か",
+          "代価を言わせる"
+        ],
+        "tension_style": "温く粘る",
+        "sample_beats": [
+          "境界",
+          "三断面",
+          "分岐"
+        ],
+        "guest_prompt_patterns": [
+          "最弱の環は"
+        ]
+      }
+    }
+  ]
+}

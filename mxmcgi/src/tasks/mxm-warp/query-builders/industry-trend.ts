@@ -28,12 +28,17 @@ export function mergeIndustryParams(ctx: TaskContext): Record<string, unknown> {
   return { ...basic, ...params };
 }
 
-/** 日报趋势查询：行业 + 日期/周期 + 赛道后缀 */
+function isOmitTopic(params: Record<string, unknown>): boolean {
+  const v = params.omitTopic;
+  return v === true || v === 1 || v === '1' || String(v ?? '').trim().toLowerCase() === 'true';
+}
+
+/** 日报趋势查询：行业 + 日期/周期 + 赛道后缀；omitTopic=true 时忽略 core_topic（时段大势专用） */
 export function buildIndustryTrendSearchQuery(params: Record<string, unknown>): string {
   const strategy = resolveIndustrySearchStrategy(params);
   const { sector, track, searchRegion } = strategy;
   const { ymd, mode } = resolveIndustryDailyDateLabel(params);
-  const topic = String(params.core_topic ?? '').trim();
+  const topic = isOmitTopic(params) ? '' : String(params.core_topic ?? '').trim();
   const multilingual = buildMultilingualIndustryQueries({
     sector,
     track,
@@ -50,14 +55,15 @@ export function buildIndustryTrendSearchQuery(params: Record<string, unknown>): 
 const industryTrendBuilder: WebSearchQueryBuilder = {
   name: 'industryTrend',
 
-  buildQuery(ctx) {
-    return buildIndustryTrendSearchQuery(mergeIndustryParams(ctx));
+  buildQuery(ctx, step) {
+    const stepParams = (step.params ?? {}) as Record<string, unknown>;
+    return buildIndustryTrendSearchQuery({ ...mergeIndustryParams(ctx), ...stepParams });
   },
 
   buildRequest(ctx, step, query, opts) {
     const params = (step.params ?? {}) as Record<string, unknown>;
     const depthRaw = typeof params.depth === 'string' ? params.depth.trim() : '';
-    const merged = mergeIndustryParams(ctx);
+    const merged = { ...mergeIndustryParams(ctx), ...params };
     const strategy = resolveIndustrySearchStrategy(merged);
     const { ymd, mode } = resolveIndustryDailyDateLabel(merged);
     const bounds = industryDailySearchBounds(mode, ymd);
