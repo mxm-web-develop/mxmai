@@ -28,7 +28,9 @@ set -a
 source "$TMP_ENV"
 set +a
 
-unset SUPABASE_SERVICE_KEY SUPABASE_SERVICE_ROLE_KEY 2>/dev/null || true
+# 空串占位，阻止本地 dotenv 注入 service key（否则会 Invalid API key）
+export SUPABASE_SERVICE_KEY=
+export SUPABASE_SERVICE_ROLE_KEY=
 
 if [[ -z "${SUPABASE_URL:-}" ]] || [[ "$SUPABASE_URL" == *localhost* ]]; then
   echo "生产 SUPABASE_URL 无效: ${SUPABASE_URL:-空}" >&2
