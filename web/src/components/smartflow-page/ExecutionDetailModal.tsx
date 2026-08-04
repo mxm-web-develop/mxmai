@@ -6,7 +6,7 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { getSmartflowTask, type SmartflowExecutionItem } from '../../api/client';
 import { ExecutionDetailContent } from './ExecutionDetailContent';
 import { isActiveExecutionStatus } from './execution-detail-utils';
-import { toUserFacingErrorMessage } from '../lib/platformErrors';
+import { toUserFacingErrorMessage } from '../../lib/platformErrors';
 
 export function ExecutionDetailModal({
   open,
