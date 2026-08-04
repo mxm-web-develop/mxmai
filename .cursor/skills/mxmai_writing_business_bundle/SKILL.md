@@ -49,7 +49,7 @@ description: 在 SuperMXMai 中新增或更新 Writing 子业务（formSchema + 
 
 `subtype` = **可单独运营的场景名**（如 `tech-outline`、`ad`、`resume-it`），与路由键、计费一一对应。**subtypeLabel 2～8 字**；补英文 i18n。
 
-**禁止**作 type：`editorial` `proposal` `longwrite` `outlines` `articles` `voice-scripts` `business` `resumes` 等。库内残留用 `pnpm run deactivate:legacy-writing-editorial`。
+**禁止**作 type：`editorial` `proposal` `longwrite` `outlines` `articles` `voice-scripts` `business` `resumes` 等。库内残留用 `pnpm run delete:legacy-writing-editorial`（硬删 prompt + route + pricing；生产需 `MXM_ALLOW_REMOTE_WIPE=1`）。`deactivate:legacy-writing-editorial` 为同义入口。
 
 ### 2.2 逻辑模型名 `routing.logical_model`
 

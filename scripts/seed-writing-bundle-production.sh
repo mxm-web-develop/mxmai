@@ -40,9 +40,12 @@ fi
 export MXM_SEED_PRODUCTION=1
 cd "$ROOT/mxmcgi"
 
-# 先删角度探索，再写入现行 writing
+# 先清不合规范残留，再写入现行 writing（避免 seed 后仍见双份行业日报）
 log "删除生产库 writing/group/seek（角度探索）..."
 MXM_ALLOW_REMOTE_WIPE=1 pnpm exec tsx src/scripts/delete-writing-group-seek.ts
+
+log "硬删废弃 writing/editorial/*（含旧行业日报；现行为 writing/generator/industry-daily）..."
+MXM_ALLOW_REMOTE_WIPE=1 pnpm exec tsx src/scripts/delete-legacy-writing-editorial.ts
 
 BUNDLES=(
   src/tasks/examples/writing-generator-industry-daily.business.json
@@ -55,7 +58,11 @@ for b in "${BUNDLES[@]}"; do
   pnpm run apply:bundle -- "$b"
 done
 
+# seed 后再扫一次：防止 bundle 误带旧 type 或历史行复活
+log "再次确认无 writing/editorial/* ..."
+MXM_ALLOW_REMOTE_WIPE=1 pnpm exec tsx src/scripts/delete-legacy-writing-editorial.ts
+
 log "reload mxmcgi..."
 ssh_cmd "cd '${DEPLOY_PATH:-/opt/supermxmai}' && pm2 reload mxmcgi-api mxmcgi-worker mxmcgi-scheduler 2>/dev/null || pm2 reload mxmcgi-api mxmcgi-worker"
 
-log "完成。Admin 写作新建应见：话题写作、行业日报、演示文稿（方案）"
+log "完成。Admin 写作新建应见：话题写作、行业日报（仅 generator）、演示文稿（方案）"

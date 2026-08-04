@@ -76,7 +76,7 @@ description: SuperMXMai 全 scope 业务命名规范：taskKey/subtype 结构、
 ## 3. 各 scope 分类 taskKey（钉死 · 2026-07-23 起新上架）
 
 > **不得**在下列表之外再发明新 type（除非先改本 skill）。  
-> `editorial` / `proposal` / `generated` / `gallery` / `voiceover` / `dialogue` / `speak` / `synthesis` / `autocut`（作 type）/ `fragment` 等：**一律禁止**作为 taskKey。解析层别名仅兼容历史任务，**不得**据此上架。清理：`pnpm run deactivate:legacy-writing-editorial` / `deactivate:legacy-audio-speak` 等。
+> `editorial` / `proposal` / `generated` / `gallery` / `voiceover` / `dialogue` / `speak` / `synthesis` / `autocut`（作 type）/ `fragment` 等：**一律禁止**作为 taskKey。解析层别名仅兼容历史任务，**不得**据此上架。清理：`pnpm run delete:legacy-writing-editorial` / `deactivate:legacy-audio-speak` 等（writing editorial 为硬删）。
 
 ### 总则：三态语义（跨 scope 一致）
 
