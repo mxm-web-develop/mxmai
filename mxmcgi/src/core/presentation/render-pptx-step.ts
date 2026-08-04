@@ -21,6 +21,8 @@ import {
   clampDeckPageCount,
   DEFAULT_MAX_DECK_PAGES,
   HARD_MAX_DECK_PAGES,
+  looksLikeSlideMarkupGarbage,
+  sanitizeSlideReaderText,
   type DeckSlideIr,
   type DeckVisualSystem,
 } from './deck-ir';
@@ -111,12 +113,23 @@ function normalizeSlides(raw: unknown, maxPages: number): DeckSlideIr[] {
       id: String(o.id ?? `s${i + 1}`),
       order: typeof o.order === 'number' ? o.order : i + 1,
       role: String(o.role ?? 'content'),
-      title: String(o.title ?? '').trim(),
-      subtitle: typeof o.subtitle === 'string' ? o.subtitle : undefined,
+      title: (() => {
+        const t = sanitizeSlideReaderText(String(o.title ?? ''));
+        if (t) return t;
+        if (looksLikeSlideMarkupGarbage(String(o.title ?? ''))) return `第 ${i + 1} 页`;
+        return String(o.title ?? '').trim();
+      })(),
+      subtitle: (() => {
+        if (typeof o.subtitle !== 'string') return undefined;
+        return sanitizeSlideReaderText(o.subtitle) || undefined;
+      })(),
       bullets: Array.isArray(o.bullets)
-        ? o.bullets.map((b) => String(b)).filter(Boolean)
+        ? o.bullets.map((b) => sanitizeSlideReaderText(String(b))).filter(Boolean)
         : undefined,
-      body: typeof o.body === 'string' ? o.body : undefined,
+      body: (() => {
+        if (typeof o.body !== 'string') return undefined;
+        return sanitizeSlideReaderText(o.body) || undefined;
+      })(),
       notes: typeof o.notes === 'string' ? o.notes : undefined,
       layout_hint: typeof o.layout_hint === 'string' ? o.layout_hint : undefined,
       page_style:

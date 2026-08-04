@@ -512,11 +512,15 @@ export async function runMxmWarp(args: RunMxmWarpArgs): Promise<TaskContext> {
           !Array.isArray(batchParams.itemManuscript)
             ? (batchParams.itemManuscript as Record<string, unknown>)
             : {};
-        batchParams.itemManuscript = {
-          ...prevMs,
-          field: String(prevMs.field ?? 'manuscript').trim() || 'manuscript',
-          systemPrompt: skillSystem,
-        };
+        const msMode = String(prevMs.mode ?? 'llm').trim().toLowerCase();
+        // assemble：确定性拼页，禁止用 SKILL 再开一轮「设计说明」LLM
+        if (msMode !== 'assemble' && msMode !== 'from_slide' && msMode !== 'deterministic') {
+          batchParams.itemManuscript = {
+            ...prevMs,
+            field: String(prevMs.field ?? 'manuscript').trim() || 'manuscript',
+            systemPrompt: skillSystem,
+          };
+        }
       }
     }
     if (onProgress) {

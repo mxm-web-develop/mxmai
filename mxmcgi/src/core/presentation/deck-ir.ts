@@ -200,3 +200,120 @@ export function assembleDeckOutlineMarkdown(opts: {
   lines.push('');
   return lines.join('\n');
 }
+
+/** 模型把页写成设计规范 / HTML / SVG 时的脏内容检测 */
+export function looksLikeSlideMarkupGarbage(raw: string | null | undefined): boolean {
+  const s = String(raw ?? '').trim();
+  if (!s) return false;
+  const lower = s.toLowerCase();
+  if (lower === 'svg' || lower === 'html' || lower === 'css') return true;
+  if (/```(?:html|svg|css|xml)\b/i.test(s)) return true;
+  if (/<!DOCTYPE\s+html/i.test(s) || /<svg[\s>]/i.test(s)) return true;
+  if (/视觉系统|layout_hint|visual_system|十六进制|#F2EBDD|#B83A2B/i.test(s) && /pt\b|留白|字号/.test(s)) {
+    return true;
+  }
+  if (/按\s*contract|合同规范|设计完全遵循|版面结构（16:9/i.test(s)) return true;
+  return false;
+}
+
+export function sanitizeSlideReaderText(raw: string | null | undefined): string {
+  let s = String(raw ?? '').trim();
+  if (!s) return '';
+  if (looksLikeSlideMarkupGarbage(s)) return '';
+  // 去掉围栏代码块（常被模型塞进 body）
+  s = s.replace(/```[\s\S]*?```/g, '').trim();
+  s = s.replace(/<\/?(?:html|head|body|style|script|svg|path|rect|defs)[^>]*>/gi, '').trim();
+  if (looksLikeSlideMarkupGarbage(s)) return '';
+  return s;
+}
+
+/**
+ * 由 IR 确定性拼装单页摘要 Markdown（禁止再调 LLM 写「设计说明」）。
+ */
+export function assembleSlideManuscriptMarkdown(slide: {
+  title?: unknown;
+  subtitle?: unknown;
+  bullets?: unknown;
+  body?: unknown;
+  order?: unknown;
+  role?: unknown;
+}): string {
+  const order =
+    typeof slide.order === 'number' && Number.isFinite(slide.order) ? slide.order : undefined;
+  let title = sanitizeSlideReaderText(String(slide.title ?? ''));
+  if (!title) {
+    const role = String(slide.role ?? '').trim();
+    title =
+      role === 'cover'
+        ? '封面'
+        : role === 'closing'
+          ? '收束'
+          : role === 'agenda'
+            ? '目录'
+            : order
+              ? `第 ${order} 页`
+              : '幻灯片';
+  }
+  const subtitle = sanitizeSlideReaderText(String(slide.subtitle ?? ''));
+  const bullets = Array.isArray(slide.bullets)
+    ? slide.bullets
+        .map((b) => sanitizeSlideReaderText(String(b)))
+        .filter(Boolean)
+        .slice(0, 8)
+    : [];
+  const body = sanitizeSlideReaderText(String(slide.body ?? ''));
+
+  const lines: string[] = [`## ${title}`, ''];
+  if (subtitle) {
+    lines.push(subtitle, '');
+  }
+  for (const b of bullets) {
+    lines.push(`- ${b}`);
+  }
+  if (bullets.length && body) lines.push('');
+  if (body) lines.push(body);
+  lines.push('');
+  return lines.join('\n').trim() + '\n';
+}
+
+/** 清洗 nestedText / 填页 JSON，避免 title=svg、body=HTML */
+export function sanitizeDeckSlideFillPatch(
+  patch: Record<string, unknown>,
+  previous?: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...patch };
+  const prevTitle = sanitizeSlideReaderText(String(previous?.title ?? ''));
+  if (typeof out.title === 'string') {
+    const t = sanitizeSlideReaderText(out.title);
+    out.title = t || prevTitle || previous?.title || out.title;
+    if (looksLikeSlideMarkupGarbage(String(patch.title ?? ''))) {
+      out.title = prevTitle || String(previous?.title ?? '').trim() || `第 ${previous?.order ?? ''} 页`.trim();
+    }
+  }
+  if (typeof out.subtitle === 'string') {
+    out.subtitle = sanitizeSlideReaderText(out.subtitle) || undefined;
+  }
+  if (typeof out.body === 'string') {
+    out.body = sanitizeSlideReaderText(out.body) || undefined;
+  }
+  if (typeof out.notes === 'string') {
+    const n = sanitizeSlideReaderText(out.notes);
+    out.notes = n || undefined;
+  }
+  if (Array.isArray(out.bullets)) {
+    out.bullets = out.bullets
+      .map((b) => sanitizeSlideReaderText(String(b)))
+      .filter(Boolean)
+      .slice(0, 8);
+  }
+  if (Array.isArray(out.elements)) {
+    out.elements = out.elements.filter((el) => {
+      if (!el || typeof el !== 'object') return false;
+      const kind = String((el as { kind?: unknown }).kind ?? '').toLowerCase();
+      if (kind === 'svg' || kind === 'html' || kind === 'css') return false;
+      const text = String((el as { text?: unknown }).text ?? '');
+      return !looksLikeSlideMarkupGarbage(text);
+    });
+  }
+  return out;
+}

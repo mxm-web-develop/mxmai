@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   assembleDeckOutlineMarkdown,
+  assembleSlideManuscriptMarkdown,
   clampDeckPageCount,
   defaultLayoutHintForRole,
   expandSlidesSkeleton,
+  looksLikeSlideMarkupGarbage,
+  sanitizeDeckSlideFillPatch,
 } from './deck-ir';
 import { runExpandDeckSlidesStep } from './expand-deck-slides-step';
 import type { TaskContext } from '../../tasks/types';
@@ -61,6 +64,25 @@ describe('deck-ir', () => {
     expect(md).toContain('# 品牌手册');
     expect(md).toContain('色彩');
     expect(md).toContain('主色');
+  });
+
+  it('assembles slide manuscript from IR and rejects markup garbage', () => {
+    expect(
+      assembleSlideManuscriptMarkdown({
+        title: '河堤六点',
+        bullets: ['老张头打太极', '晨雾'],
+        body: '一句叙事',
+      })
+    ).toContain('## 河堤六点');
+    expect(looksLikeSlideMarkupGarbage('```html\n<html>')).toBe(true);
+    expect(looksLikeSlideMarkupGarbage('svg')).toBe(true);
+    const cleaned = sanitizeDeckSlideFillPatch(
+      { title: 'svg', body: '```html\n<!DOCTYPE html>', bullets: ['真要点'] },
+      { title: '河堤六点', order: 5 }
+    );
+    expect(cleaned.title).toBe('河堤六点');
+    expect(cleaned.body).toBeUndefined();
+    expect(cleaned.bullets).toEqual(['真要点']);
   });
 });
 

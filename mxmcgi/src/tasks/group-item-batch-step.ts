@@ -12,8 +12,9 @@
  * - itemWebSearch:     可选；同 webSearch 节点参数，queryTemplate 支持 ${item.*}
  * - itemNestedText:    可选；{ nestedTextTaskKey, field_specs?, inputMapping? }
  *                      expert 默认把 JSON 合并进「该项」本身（不是父 business 对象）
- * - itemManuscript:    可选；{ field, systemPrompt }
- *                      如需 LLM 改写，请挂 pipeline.post: [{ step: "polishManuscript", nestedTextTaskKey: "text/transform/prose-deai" }]
+ * - itemManuscript:    可选；{ field, systemPrompt?, mode? }
+ *                      mode='assemble'：由 title/bullets/body 确定性拼 Markdown（演示文稿用，禁止二次 LLM 写设计规范）
+ *                      默认 mode='llm'：systemPrompt 成稿；如需 LLM 改写，请挂 pipeline.post polishManuscript
  * - commonGroundFrom:  可选路径，并入每项临时 basic.common_ground（默认 contract.business.common_ground）
  *
  * 与 groupFanout 区别：本节点同步等待、同任务合并；fanout 是异步派发独立子任务。
@@ -439,16 +440,32 @@ export async function runGroupItemBatchStep(
         }
         const parsed = parseJsonObject(textRes.syncResult.text ?? '');
         if (parsed) {
-          Object.assign(item, parsed);
+          let { sanitizeDeckSlideFillPatch } = {
+            sanitizeDeckSlideFillPatch: null as null | typeof import('../core/presentation/deck-ir').sanitizeDeckSlideFillPatch,
+          };
+          try {
+            ({ sanitizeDeckSlideFillPatch } = await import('../core/presentation/deck-ir'));
+          } catch {
+            /* optional */
+          }
+          const cleaned = sanitizeDeckSlideFillPatch
+            ? sanitizeDeckSlideFillPatch(parsed, item)
+            : parsed;
+          Object.assign(item, cleaned);
           itemContract = {
             ...itemContract,
-            business: { ...itemContract.business, ...parsed },
+            business: { ...itemContract.business, ...cleaned },
           };
         }
       }
 
-      if (itemManuscript && createWarpLlmAdapter) {
+      if (itemManuscript) {
         const field = String(itemManuscript.field ?? 'manuscript').trim() || 'manuscript';
+        const mode = String(itemManuscript.mode ?? 'llm').trim().toLowerCase();
+        if (mode === 'assemble' || mode === 'from_slide' || mode === 'deterministic') {
+          const { assembleSlideManuscriptMarkdown } = await import('../core/presentation/deck-ir');
+          item[field] = assembleSlideManuscriptMarkdown(item);
+        } else if (createWarpLlmAdapter) {
         let systemPrompt = String(itemManuscript.systemPrompt ?? '').trim();
         if (!systemPrompt) {
           throw new Error(
@@ -517,7 +534,19 @@ export async function runGroupItemBatchStep(
         } catch (seekNormErr) {
           console.warn('[groupItemBatch] seekManuscriptNormalize 跳过:', seekNormErr);
         }
+        // 演示文稿脏稿兜底：若 LLM 仍吐出 HTML/设计规范，回退 IR 拼装
+        try {
+          const { looksLikeSlideMarkupGarbage, assembleSlideManuscriptMarkdown } = await import(
+            '../core/presentation/deck-ir'
+          );
+          if (looksLikeSlideMarkupGarbage(manuscript)) {
+            manuscript = assembleSlideManuscriptMarkdown(item);
+          }
+        } catch {
+          /* optional */
+        }
         item[field] = manuscript;
+        }
       }
 
       items[index] = item;

@@ -132,7 +132,7 @@
             "additionalProperties": false
           },
           "prompt": {
-            "unifiedTemplate": "你是演示文稿视觉与目录导演。一次产出整本视觉系统，并为每页写入标题与布局草案。\n\n读取 basic（含 plan_id、page_count、density、usage_direction、usage_direction_custom、brief、source_material）与 business.slides（已有 id/order/role 骨架）。封面 title 由材料归纳，勿要求用户自拟总标题。\n\n只输出 JSON（键 ⊆ field_specs）：\n- visual_system: { palette:{background,foreground,accent,muted 十六进制}, typography:{title_font,body_font,title_size_pt,body_size_pt}, layout_rules:[], motif, ratio:\"16:9\" }\n- slides: 与输入同长度的数组，每项至少含 id、order、role、title、layout_hint；可选 subtitle。\n  layout_hint ∈ title_center|title_left|agenda_list|section_divider|bullets|two_column|split_media_left|split_media_right|big_number|three_cards|quote_center|closing\n- 气质按 usage_direction：designer_guide 偏规范/栅格；product_brochure 偏卖点清晰；pitch 偏叙事说服；course 偏教学节奏；brand_book 偏品牌识别；custom 读 usage_direction_custom。\n- 禁止编造用户未提供的专有承诺；title 用人话，禁止英文字段名。\n- 只输出 JSON。\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+            "unifiedTemplate": "你是演示文稿视觉与目录导演。一次产出整本视觉系统，并为每页写入标题与布局草案。\n\n读取 basic（含 plan_id、page_count、density、usage_direction、usage_direction_custom、brief、source_material）与 business.slides（已有 id/order/role 骨架）。封面 title 由材料归纳，勿要求用户自拟总标题。\n\n只输出 JSON（键 ⊆ field_specs）：\n- visual_system: { palette:{background,foreground,accent,muted 十六进制}, typography:{title_font,body_font,title_size_pt,body_size_pt}, layout_rules:[], motif, ratio:\"16:9\" }\n- slides: 与输入同长度的数组，每项至少含 id、order、role、title、layout_hint；可选 subtitle。\n  layout_hint ∈ title_center|title_left|agenda_list|section_divider|bullets|two_column|split_media_left|split_media_right|big_number|three_cards|quote_center|closing\n- 气质按 usage_direction：designer_guide 偏规范/栅格；product_brochure 偏卖点清晰；pitch 偏叙事说服；course 偏教学节奏；brand_book 偏品牌识别；custom 读 usage_direction_custom。\n- 禁止编造用户未提供的专有承诺；title 用人话，禁止英文字段名。\n- \n硬规则：slides[].title 必须是读者可见的人话页题（故事/卖点/章节名），禁止把 visual_system、色值、字号、HTML/SVG、layout 字段名写进 title/subtitle。\n只输出 JSON。\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
           },
           "pipeline": {
             "pre": [],
@@ -209,7 +209,7 @@
             "additionalProperties": false
           },
           "prompt": {
-            "unifiedTemplate": "你是单页幻灯片内容写手。只填写**当前这一页**，写入 JSON 字段。\n\n读取本页 role/title/layout_hint 与 basic.visual_system、basic.brief、basic.source_material、basic.usage_direction。\n\n输出键 ⊆ field_specs：\n- title（可微调，≤28 字）\n- subtitle（可选）\n- bullets（0～6 条短句）\n- body（可选短段）\n- notes（讲稿，可选，口语）\n- layout_hint（可在合理范围内微调）\n- elements（可选 [{kind,text}]）\n\n硬规则：禁止输出 SVG；禁止英文字段名入读者可见文本；只写本页；只输出 JSON。\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
+            "unifiedTemplate": "你是单页幻灯片**叙事内容**写手。只填写当前这一页的读者可读文案，写入 JSON。\n\n读取：本页 role/title/layout_hint，以及 basic.brief、basic.source_material、basic.usage_direction。\nvisual_system 只供你理解气质，**禁止**把配色/字号/留白/十六进制/版式说明写进任何读者可见字段。\n\n输出键 ⊆ field_specs：\n- title（≤28 字，人话页题；禁止 svg/html/css/字段名）\n- subtitle（可选，一句）\n- bullets（0～6 条短句，讲事实/故事/要点）\n- body（可选短段，叙事；禁止代码）\n- notes（讲稿，可选，口语）\n- layout_hint（可在合理范围内微调）\n- elements（可选 [{kind,text}]，kind 仅 text/quote/stat；禁止 svg/html）\n\n硬规则（违反即失败）：\n- 禁止输出 HTML / SVG / CSS / Markdown 代码围栏\n- 禁止输出「视觉系统」「画布」「字号」「留白百分比」「按 contract 生成」等制作说明\n- 禁止英文字段名进入读者可见文本\n- 只写本页；只输出 JSON\n\nfield_specs:\n${field_specs}\n\ncontract:\n${contract}"
           },
           "pipeline": {
             "pre": [],
@@ -459,7 +459,7 @@
             }
           },
           "prompt": {
-            "unifiedTemplate": "你是演示文稿单页写手。只为本页产出可读摘要 Markdown：首行 `## 标题`，下列要点。禁止 SVG、禁止多页合集。语言跟随 basic.language。"
+            "unifiedTemplate": "你是演示文稿单页摘要写手。只根据本页 title/bullets/body 产出可读 Markdown：首行 `## 标题`，下列要点。禁止 SVG/HTML/设计规范。语言跟随 basic.language。"
           },
           "pipeline": {
             "pre": [
@@ -665,7 +665,7 @@
               },
               "itemManuscript": {
                 "field": "manuscript",
-                "systemPrompt": "你是演示文稿单页摘要写手。只根据本页 title/bullets/body 写一段 Markdown：首行 `## 标题`，下列要点。禁止 SVG。语言跟随 language。"
+                "mode": "assemble"
               },
               "assemble": {
                 "itemsFrom": "contract.business.slides",
@@ -681,7 +681,7 @@
               "files": [
                 {
                   "path": "SKILL.md",
-                  "content": "---\nname: writing-group-deck\ndescription: 演示文稿单页摘要\n---\n\n只为本页写 `## 标题` + 要点列表。禁止 SVG 与多页合集。\n",
+                  "content": "---\nname: writing-group-deck\ndescription: 演示文稿单页摘要\n---\n\n成稿由平台按 title/bullets/body 确定性拼装，勿再生成 HTML/SVG/视觉规范说明。\n",
                   "readonly": false
                 },
                 {

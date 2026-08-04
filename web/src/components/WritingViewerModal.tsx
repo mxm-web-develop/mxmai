@@ -170,14 +170,17 @@ function readDeckSlidesFromTask(task: WritingTaskItem | null): PptxDeckSlide[] {
       const it = items[i];
       if (!it || typeof it !== 'object') continue;
       const o = it as Record<string, unknown>;
-      const title = String(o.title ?? o.name ?? `第 ${i + 1} 页`).trim() || `第 ${i + 1} 页`;
+      const titleRaw = String(o.title ?? o.name ?? `第 ${i + 1} 页`).trim() || `第 ${i + 1} 页`;
+      const title = looksLikeDeckGarbage(titleRaw) ? `第 ${i + 1} 页` : titleRaw;
       const manuscript = typeof o.manuscript === 'string' ? o.manuscript.trim() : '';
       const preview = typeof o.textPreview === 'string' ? o.textPreview.trim() : '';
+      const fromIr = slideMarkdownFromIrFields(o);
+      const bodyMarkdown = pickDeckBodyMarkdown(fromIr, manuscript, preview);
       out.push({
         id: String(o.id ?? `s${i + 1}`),
         title,
         subtitle: typeof o.angle === 'string' ? o.angle.trim() : undefined,
-        bodyMarkdown: manuscript || preview || undefined,
+        bodyMarkdown,
       });
     }
   }
@@ -189,15 +192,55 @@ function readDeckSlidesFromTask(task: WritingTaskItem | null): PptxDeckSlide[] {
     if (!it || typeof it !== 'object') continue;
     const o = it as Record<string, unknown>;
     const title = String(o.title ?? o.name ?? '').trim();
-    if (!title) continue;
+    if (!title || looksLikeDeckGarbage(title)) continue;
+    const preview = typeof o.textPreview === 'string' ? o.textPreview.trim() : '';
     out.push({
       id: String(o.id ?? `t${i + 1}`),
       title,
       subtitle: typeof o.angle === 'string' ? o.angle.trim() : undefined,
-      bodyMarkdown: typeof o.textPreview === 'string' ? o.textPreview.trim() : undefined,
+      bodyMarkdown: looksLikeDeckGarbage(preview) ? undefined : preview || undefined,
     });
   }
   return out;
+}
+
+function looksLikeDeckGarbage(raw: string): boolean {
+  const s = raw.trim();
+  if (!s) return false;
+  const lower = s.toLowerCase();
+  if (lower === 'svg' || lower === 'html' || lower === 'css') return true;
+  if (/```(?:html|svg|css)\b/i.test(s) || /<!DOCTYPE\s+html/i.test(s) || /<svg[\s>]/i.test(s)) {
+    return true;
+  }
+  if (/视觉系统|按\s*contract|合同规范|设计完全遵循|版面结构（16:9/i.test(s)) return true;
+  if (/#F2EBDD|#B83A2B/i.test(s) && /pt\b|留白/.test(s)) return true;
+  return false;
+}
+
+function slideMarkdownFromIrFields(o: Record<string, unknown>): string {
+  const title = String(o.title ?? '').trim();
+  if (looksLikeDeckGarbage(title)) return '';
+  const bullets = Array.isArray(o.bullets)
+    ? o.bullets.map((b) => String(b).trim()).filter((b) => b && !looksLikeDeckGarbage(b))
+    : [];
+  const body = typeof o.body === 'string' ? o.body.trim() : '';
+  const bodyOk = body && !looksLikeDeckGarbage(body) ? body : '';
+  if (!title && bullets.length === 0 && !bodyOk) return '';
+  const lines: string[] = [];
+  if (title) lines.push(`## ${title}`, '');
+  for (const b of bullets.slice(0, 8)) lines.push(`- ${b}`);
+  if (bullets.length && bodyOk) lines.push('');
+  if (bodyOk) lines.push(bodyOk);
+  return lines.join('\n').trim();
+}
+
+function pickDeckBodyMarkdown(...candidates: Array<string | undefined>): string | undefined {
+  for (const c of candidates) {
+    const s = (c ?? '').trim();
+    if (!s || looksLikeDeckGarbage(s)) continue;
+    return s;
+  }
+  return undefined;
 }
 
 function readWritingCollection(task: WritingTaskItem | null): WritingCollectionResult | null {
