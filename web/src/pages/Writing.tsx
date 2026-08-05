@@ -5,6 +5,7 @@ import {
   invalidateTaskListCache,
   deleteTask,
   fetchWritingMediaContent,
+  fetchWritingOfficeEmbedUrl,
   writingTaskPrefersPdfPreview,
   writingTaskPrefersPptxPreview,
   getTask,
@@ -356,8 +357,9 @@ export default function Writing() {
         setViewerPdfUrl(media.sourceUrl);
         setViewerPdfHeaders(media.httpHeaders);
       } else if (media.kind === 'pptx') {
-        // 始终用鉴权媒体 URL；本地 MinIO 预签名不能给 Office Online，会白屏
-        setViewerPptxUrl(media.sourceUrl);
+        // 优先公网签名 HTTPS，供 Office Online 嵌真 PPTX；失败再退回鉴权 URL（页舞台）
+        const officeSrc = await fetchWritingOfficeEmbedUrl(t.id).catch(() => null);
+        setViewerPptxUrl(officeSrc || media.sourceUrl);
       } else {
         setViewerContent(media.text);
         const meta = (detail.result?.metadata ?? detail.metadata) as
@@ -412,7 +414,8 @@ export default function Writing() {
         setViewerContent('');
       } else if (media.kind === 'pptx') {
         clearViewerPdf();
-        setViewerPptxUrl(media.sourceUrl);
+        const officeSrc = await fetchWritingOfficeEmbedUrl(taskId).catch(() => null);
+        setViewerPptxUrl(officeSrc || media.sourceUrl);
         setViewerContent('');
       } else {
         clearViewerPdf();

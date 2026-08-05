@@ -483,6 +483,86 @@ router.get('/public/object/:objectId', async (req: Request, res: Response) => {
 });
 
 /**
+ * 公网流式读写作 PPTX（无 JWT）：HMAC 签名校验。
+ * 供 Office Online embed：GET /media/public/writing/:taskId?exp=&sig=
+ */
+router.get('/public/writing/:taskId', async (req: Request, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    if (!taskId) {
+      return res.status(400).json({ success: false, error: 'Missing taskId' });
+    }
+    const { verifyWritingPptxPublicAccess } = await import(
+      '../core/writing/writing-office-preview-sign'
+    );
+    if (!verifyWritingPptxPublicAccess(taskId, req.query.exp, req.query.sig)) {
+      return res.status(403).json({ success: false, error: 'Invalid or expired preview signature' });
+    }
+    const { locateWritingCachedPptxPublic } = await import(
+      '../core/writing/writing-content-resolver'
+    );
+    const pptxTarget = await locateWritingCachedPptxPublic(taskId);
+    if (!pptxTarget) {
+      return res.status(404).json({ success: false, error: 'PPTX not found' });
+    }
+    const storageRepo = RepositoryFactory.createStorageRepository();
+    const safeName = encodeURIComponent(pptxTarget.filename);
+    const pptxType =
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    await streamStorageObjectToResponse(req, res, storageRepo, pptxTarget.bucket, pptxTarget.key, pptxType, {
+      contentDisposition: `inline; filename="${safeName}"`,
+    });
+  } catch (error) {
+    console.error('[Media Route] public writing pptx failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
+ * 签发 Office Online 可嵌入的公网 HTTPS 预览 URL（需登录）。
+ * GET /media/writing/:taskId/office-embed-url
+ */
+router.get('/writing/:taskId/office-embed-url', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.headers['x-user-id'] as string | undefined) || undefined;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Missing x-user-id header' });
+    }
+    const { taskId } = req.params;
+    if (!taskId) {
+      return res.status(400).json({ success: false, error: 'Missing taskId' });
+    }
+    const { locateWritingCachedPptx } = await import('../core/writing/writing-content-resolver');
+    const pptxTarget = await locateWritingCachedPptx(taskId, userId);
+    if (!pptxTarget) {
+      return res.status(404).json({ success: false, error: 'PPTX not found' });
+    }
+    const { buildWritingPptxOfficeEmbedSrc, publicGatewayOrigin } = await import(
+      '../core/writing/writing-office-preview-sign'
+    );
+    const url = buildWritingPptxOfficeEmbedSrc(taskId);
+    if (!url) {
+      return res.status(503).json({
+        success: false,
+        error: 'PUBLIC_GATEWAY_ORIGIN 须为 https 公网地址才能 Office 嵌入',
+        gatewayOrigin: publicGatewayOrigin() || null,
+      });
+    }
+    return res.json({ success: true, data: { url, expiresInSec: 6 * 60 * 60 } });
+  } catch (error) {
+    console.error('[Media Route] office-embed-url failed:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+/**
  * 通过 storage_objects.id 访问用户上传资源
  * GET /media/object/:objectId
  */

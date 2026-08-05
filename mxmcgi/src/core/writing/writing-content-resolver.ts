@@ -174,7 +174,23 @@ export async function locateWritingCachedPptx(
 ): Promise<WritingPptxStreamTarget | null> {
   const { task } = await taskManager.getTask(taskId);
   assertWritingTaskOwner(task, userId);
+  return locateWritingCachedPptxFromTask(task);
+}
 
+/**
+ * 公网签名预览：仅校验任务存在且有 PPTX sidecar（鉴权由 HMAC 承担）。
+ */
+export async function locateWritingCachedPptxPublic(
+  taskId: string
+): Promise<WritingPptxStreamTarget | null> {
+  const { task } = await taskManager.getTask(taskId);
+  return locateWritingCachedPptxFromTask(task);
+}
+
+function locateWritingCachedPptxFromTask(task: {
+  result?: { metadata?: unknown };
+  metadata?: unknown;
+}): WritingPptxStreamTarget | null {
   const taskMetadata = (task.result?.metadata || task.metadata || {}) as Record<string, unknown>;
   if (taskMetadata.presentationRenderStatus === 'failed') {
     return null;

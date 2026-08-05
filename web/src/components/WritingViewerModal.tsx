@@ -814,7 +814,7 @@ export function WritingViewerModal({
   }, [task, deckMeta.isDeck]);
 
   const officeEmbedUrl = useMemo(() => {
-    // 仅公网 HTTPS 才走 Office Online；本地/内网 MinIO 会白屏
+    // 仅公网 HTTPS 才走 Office Online（含 /media/public/writing 签名链）
     if (!isPublicHttpsUrl(pptxPreviewUrl)) return null;
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptxPreviewUrl!)}`;
   }, [pptxPreviewUrl]);

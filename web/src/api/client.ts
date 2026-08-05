@@ -2547,6 +2547,25 @@ function writingMediaUrl(taskId: string): string {
   return base ? `${base}${path.startsWith('/') ? '' : '/'}${path}` : path.startsWith('/') ? path : `/${path}`;
 }
 
+/** 签发 Office Online 可嵌入的公网 HTTPS PPTX URL（香港等公网环境） */
+export async function fetchWritingOfficeEmbedUrl(taskId: string): Promise<string | null> {
+  const base = getBaseUrl().replace(/\/$/, '');
+  const path = `/api/v1/media/writing/${encodeURIComponent(taskId)}/office-embed-url`;
+  const url = base ? `${base}${path}` : path;
+  const token = getToken();
+  const res = await fetch(url, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Accept: 'application/json',
+    },
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { success?: boolean; data?: { url?: string } };
+  const embed = json?.data?.url?.trim();
+  if (!embed || !/^https:\/\//i.test(embed)) return null;
+  return embed;
+}
+
 /** 任务是否声明了可读 PDF sidecar（预览应优先 Range/stream，而非 Markdown） */
 export function writingTaskPrefersPdfPreview(
   task: { result?: { metadata?: unknown }; metadata?: unknown } | null | undefined
